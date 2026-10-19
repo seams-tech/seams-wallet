@@ -1,4 +1,16 @@
+import type { Variant } from '@shared/utils/variant';
 import type { WalletExecutionAuthority } from '../../../domains/walletRegistration/walletRegistrationReservation';
+import type { D1WalletMlDsaRegistration } from './d1WalletMlDsaRegistration';
+import { MlDsaRegistrationAuthorityChanged } from './d1WalletMlDsaRegistration';
+import { parseClientDataJsonBase64url } from '../../../../core/authService/webauthnOidcHelpers';
+import { walletObjectIdentity } from '../../runtime/walletObjectAddresses';
+import type {
+  WalletAddSignerMlDsaExecuteRequest,
+  WalletAddSignerMlDsaExecuteResponse,
+  WalletAddSignerMlDsaPublishRequest,
+  WalletAddSignerMlDsaPublishResponse,
+} from '../../../../core/registrationContracts';
+import { parseMlDsaCreateProtocolInputs } from '@shared/passkey-custody/mlDsaCustody';
 import {
   buildD1WalletAddSignerFinalizePrepared,
   fingerprintD1WalletAddSignerFinalizePrepared,
@@ -138,7 +150,15 @@ type RespondWalletAddSignerDerivationInput = WalletAddSignerEcdsaDerivationRespo
 type ActivateWalletAddSignerEcdsaInput = WalletAddSignerEcdsaActivationRequest;
 type FinalizeWalletAddSignerInput = WalletAddSignerFinalizeRequest;
 
+type MlDsaStartSuccess = Variant<WalletAddSignerStartSuccess, 'kind', 'near_ml_dsa_65'>;
+
 type WalletAddSignerStartCoreResponse =
+  | (Omit<MlDsaStartSuccess, 'mlDsa'> & {
+      readonly mlDsa: Omit<
+        MlDsaStartSuccess['mlDsa'],
+        'custodyEnvelope'
+      >;
+    })
   | (Omit<Extract<WalletAddSignerStartSuccess, { kind: 'near_ed25519' }>, 'ed25519'> & {
       readonly ed25519: Omit<
         Extract<WalletAddSignerStartSuccess, { kind: 'near_ed25519' }>['ed25519'],
@@ -159,6 +179,7 @@ type WalletAddSignerStartCoreSuccess = Extract<
 >;
 
 type WalletAddSignerStartWebAuthnCoreSuccess =
+  | Variant<WalletAddSignerStartCoreSuccess, 'kind', 'near_ml_dsa_65'>
   | {
       readonly ok: true;
       readonly addSignerCeremonyId: string;
@@ -317,6 +338,18 @@ function walletAddSignerStartResponseFromCeremony(
     intent: ceremony.intent,
   };
   switch (ceremony.signerState.kind) {
+    case 'ml_dsa_add_signer_authorized':
+      return {
+        ok: true,
+        addSignerCeremonyId: ceremony.addSignerCeremonyId,
+        intent: ceremony.intent,
+        authorizationKind: ceremony.auth.kind,
+        kind: 'near_ml_dsa_65',
+        mlDsa: {
+          protocolInputs: ceremony.signerState.preparation.protocolInputs,
+          expiresAtMs: ceremony.expiresAtMs,
+        },
+      };
     case 'near_ed25519_yao_add_signer_authorized':
       if (ceremony.auth.kind !== 'webauthn_assertion') return null;
       return {
@@ -359,6 +392,19 @@ function hasExactWalletAddSignerResponseKeys(
   );
 }
 
+function walletAddSignerResponseField(kind: WalletAddSignerStartCoreSuccess['kind']): string {
+  switch (kind) {
+    case 'near_ed25519':
+      return 'ed25519';
+    case 'evm_family_ecdsa':
+      return 'ecdsa';
+    case 'near_ml_dsa_65':
+      return 'mlDsa';
+    default:
+      return assertNeverWalletAddSignerStartResponse(kind);
+  }
+}
+
 function parseWalletAddSignerStartResponse(
   raw: unknown,
   expected: WalletAddSignerStartCoreSuccess,
@@ -371,7 +417,7 @@ function parseWalletAddSignerStartResponse(
     'intent',
     'authorizationKind',
     'kind',
-    expected.kind === 'near_ed25519' ? 'ed25519' : 'ecdsa',
+    walletAddSignerResponseField(expected.kind),
   ] as const;
   if (
     !hasExactWalletAddSignerResponseKeys(response, expectedKeys) ||
@@ -389,6 +435,24 @@ function parseWalletAddSignerStartResponse(
   const parsedIntent = parseD1AddSignerIntent(response.intent);
   if (!parsedIntent || !sameAddSignerIntentV1(parsedIntent, expected.intent)) return null;
   switch (expected.kind) {
+    case 'near_ml_dsa_65': {
+      const mlDsa = addSignerRecordValue(response.mlDsa);
+      if (
+        !mlDsa ||
+        !hasExactWalletAddSignerResponseKeys(mlDsa, ['protocolInputs', 'expiresAtMs']) ||
+        mlDsa.expiresAtMs !== expected.mlDsa.expiresAtMs
+      )
+        return null;
+      try {
+        const protocol = parseMlDsaCreateProtocolInputs(mlDsa.protocolInputs);
+        return alphabetizeStringify(protocol) ===
+          alphabetizeStringify(expected.mlDsa.protocolInputs)
+          ? expected
+          : null;
+      } catch {
+        return null;
+      }
+    }
     case 'near_ed25519': {
       const ed25519 = addSignerRecordValue(response.ed25519);
       if (!ed25519 || !hasExactWalletAddSignerResponseKeys(ed25519, ['admissionRequest'])) {
@@ -817,6 +881,7 @@ function sameEcdsaSignerActivation(
 
 export class CloudflareD1WalletAddSignerService {
   private readonly executionAuthority: WalletExecutionAuthority;
+  private readonly mlDsaRegistration: D1WalletMlDsaRegistration | null;
   private readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
   private readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
   private readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -830,6 +895,7 @@ export class CloudflareD1WalletAddSignerService {
 
   constructor(input: {
     readonly executionAuthority: WalletExecutionAuthority;
+    readonly mlDsaRegistration?: D1WalletMlDsaRegistration;
     readonly getRegistrationCeremonyIntentStore: RegistrationCeremonyStoreProvider;
     readonly getEd25519YaoProductRegistration: Ed25519YaoProductRegistrationProvider;
     readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
@@ -842,6 +908,7 @@ export class CloudflareD1WalletAddSignerService {
     readonly yaoLifecycleDecisions: CloudflareD1Ed25519YaoLifecycleDecisionStoreV1;
   }) {
     this.executionAuthority = input.executionAuthority;
+    this.mlDsaRegistration = input.mlDsaRegistration ?? null;
     this.getRegistrationCeremonyIntentStore = input.getRegistrationCeremonyIntentStore;
     this.getEd25519YaoProductRegistration = input.getEd25519YaoProductRegistration;
     this.ecdsaStrictRegistration = input.ecdsaStrictRegistration;
@@ -1010,7 +1077,19 @@ export class CloudflareD1WalletAddSignerService {
           };
         }
         if (
-          preview.intent.signerSelection.mode === 'ed25519' &&
+          preview.intent.signerSelection.mode === 'ml_dsa_65' &&
+          parseClientDataJsonBase64url(request.auth.credential.response.clientDataJSON).origin !==
+            preview.expectedOrigin
+        ) {
+          return {
+            ok: false,
+            code: 'unauthorized',
+            message: 'ML-DSA approval origin differs from its intent',
+          };
+        }
+        if (
+          (preview.intent.signerSelection.mode === 'ed25519' ||
+            preview.intent.signerSelection.mode === 'ml_dsa_65') &&
           request.auth.kind !== 'webauthn_assertion'
         ) {
           return {
@@ -1030,6 +1109,13 @@ export class CloudflareD1WalletAddSignerService {
           storedIntent: preview,
           auth: storedAuth.auth,
         });
+      }
+      if (request.intent.signerSelection.mode === 'ml_dsa_65' && !this.mlDsaRegistration) {
+        return {
+          ok: false,
+          code: 'not_configured',
+          message: 'ML-DSA registration is not configured',
+        };
       }
       const run = await runRouterAbEd25519YaoRegistrationSideEffectV1(this.startSideEffects, {
         kind: 'prepared_resumable',
@@ -1131,6 +1217,50 @@ export class CloudflareD1WalletAddSignerService {
       };
     }
     switch (input.response.kind) {
+      case 'near_ml_dsa_65': {
+        if (
+          !this.mlDsaRegistration ||
+          input.ceremony.signerState.kind !== 'ml_dsa_add_signer_authorized'
+        )
+          return {
+            ok: false,
+            code: 'not_configured',
+            message: 'ML-DSA registration is unavailable',
+          };
+        if (input.ceremony.expiresAtMs <= Date.now())
+          return { ok: false, code: 'expired', message: 'ML-DSA registration expired' };
+        const preparation = input.ceremony.signerState.preparation;
+        if (
+          lookup.storeVersion !== preparation.custodyEnvelope.storeVersion ||
+          lookup.envelope.ownership.kind !== 'method_bound' ||
+          lookup.envelope.ownership.walletAuthMethodId !== preparation.owner.walletAuthMethodId
+        ) {
+          return {
+            ok: false,
+            code: 'custody_unavailable',
+            message: 'ML-DSA custody changed after admission',
+          };
+        }
+        try {
+          await this.mlDsaRegistration.assertCurrentOwner(preparation);
+        } catch (error: unknown) {
+          if (error instanceof MlDsaRegistrationAuthorityChanged)
+            return { ok: false, code: 'unauthorized', message: error.message };
+          throw error;
+        }
+        return {
+          ok: true,
+          addSignerCeremonyId: input.response.addSignerCeremonyId,
+          intent: input.response.intent,
+          authorizationKind: input.response.authorizationKind,
+          kind: 'near_ml_dsa_65',
+          mlDsa: {
+            expiresAtMs: input.response.mlDsa.expiresAtMs,
+            protocolInputs: input.response.mlDsa.protocolInputs,
+            custodyEnvelope: lookup.envelope,
+          },
+        };
+      }
       case 'near_ed25519':
         return {
           ...input.response,
@@ -1311,6 +1441,61 @@ export class CloudflareD1WalletAddSignerService {
           admissionRequest,
         },
       };
+    } else if (selection.mode === 'ml_dsa_65') {
+      if (!this.mlDsaRegistration)
+        return rejectedWalletAddSignerStartTerminal(
+          'not_configured',
+          'ML-DSA registration is not configured',
+        );
+      const rpId = parseWebAuthnRpId(prepared.auth.rpId);
+      const credentialId = parseWebAuthnCredentialIdB64u(prepared.auth.credentialIdB64u);
+      if (!rpId.ok || !credentialId.ok)
+        return rejectedWalletAddSignerStartTerminal(
+          'invalid_state',
+          'Invalid ML-DSA owner credential',
+        );
+      const owner = await this.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential(
+        { walletId: input.walletId, rpId: rpId.value, credentialIdB64u: credentialId.value },
+      );
+      if (!owner.ok) return rejectedWalletAddSignerStartResult(owner);
+      const envelope = await this.passkeyCustodyEnvelopes.lookupEnvelopeForWalletAuthMethod({
+        walletId: input.walletId,
+        walletAuthMethodId: owner.authMethod.walletAuthMethodId,
+        factor: { kind: 'passkey', rpId: rpId.value, credentialIdB64u: credentialId.value },
+      });
+      if (envelope.kind !== 'active')
+        return rejectedWalletAddSignerStartTerminal(
+          'custody_unavailable',
+          'The owner has no active custody envelope',
+        );
+      const home = await this.executionAuthority.admitEstablishedHome({ walletId: input.walletId });
+      if (!home.ok) return rejectedWalletAddSignerStartTerminal(home.code, home.message);
+      const mlDsa = await this.mlDsaRegistration.prepare({
+        ceremonyId: prepared.addSignerCeremonyId,
+        expiresAtMs: prepared.expiresAtMs,
+        signerSlot: selection.mlDsa.signerSlot,
+        identity: walletObjectIdentity(
+          input.walletId,
+          home.ownershipGeneration,
+          runtimePolicyScope,
+        ),
+        owner: owner.walletAuthority,
+        authMethod: owner.authMethod,
+        envelope: envelope.envelope,
+        envelopeStoreVersion: envelope.storeVersion,
+      });
+      if (!mlDsa.ok) return rejectedWalletAddSignerStartResult(mlDsa);
+      ceremony = {
+        addSignerCeremonyId: prepared.addSignerCeremonyId,
+        intent: storedIntent.intent,
+        digestB64u: storedIntent.digestB64u,
+        orgId: runtimePolicyScope.orgId,
+        signingRootId,
+        signingRootVersion,
+        expiresAtMs: prepared.expiresAtMs,
+        auth: prepared.auth,
+        signerState: { kind: 'ml_dsa_add_signer_authorized', preparation: mlDsa.preparation },
+      };
     } else if (selection.mode === 'ecdsa') {
       const chainTargets = normalizeThresholdEcdsaChainTargets(selection.ecdsa.chainTargets);
       if (!chainTargets) {
@@ -1357,6 +1542,68 @@ export class CloudflareD1WalletAddSignerService {
     }
     await input.store.putAddSignerCeremony(ceremony);
     return successfulWalletAddSignerStartTerminal(ceremony);
+  }
+
+  async executeWalletAddSignerMlDsa(
+    request: WalletAddSignerMlDsaExecuteRequest,
+  ): Promise<WalletAddSignerMlDsaExecuteResponse> {
+    if (!this.mlDsaRegistration)
+      return {
+        ok: false as const,
+        code: 'not_configured',
+        message: 'ML-DSA registration is not configured',
+      };
+    const ceremony = await this.getRegistrationCeremonyIntentStore().getAddSignerCeremony(
+      request.addSignerCeremonyId,
+    );
+    if (
+      !ceremony ||
+      ceremony.intent.walletId !== request.walletId ||
+      ceremony.signerState.kind !== 'ml_dsa_add_signer_authorized'
+    )
+      return { ok: false as const, code: 'not_found', message: 'ML-DSA ceremony not found' };
+    try {
+      const result = await this.mlDsaRegistration.execute(
+        ceremony.signerState.preparation,
+        request.encryptedInputs,
+      );
+      if (!result.ok) return result;
+      return { ok: true as const, protocolResultJson: JSON.stringify(result.result.replies) };
+    } catch (error: unknown) {
+      if (error instanceof MlDsaRegistrationAuthorityChanged)
+        return { ok: false, code: 'unauthorized', message: error.message };
+      throw error;
+    }
+  }
+
+  async publishWalletAddSignerMlDsa(
+    request: WalletAddSignerMlDsaPublishRequest,
+  ): Promise<WalletAddSignerMlDsaPublishResponse> {
+    if (!this.mlDsaRegistration)
+      return {
+        ok: false as const,
+        code: 'not_configured',
+        message: 'ML-DSA registration is not configured',
+      };
+    const ceremony = await this.getRegistrationCeremonyIntentStore().getAddSignerCeremony(
+      request.addSignerCeremonyId,
+    );
+    if (
+      !ceremony ||
+      ceremony.intent.walletId !== request.walletId ||
+      ceremony.signerState.kind !== 'ml_dsa_add_signer_authorized'
+    )
+      return { ok: false as const, code: 'not_found', message: 'ML-DSA ceremony not found' };
+    try {
+      return await this.mlDsaRegistration.publish(
+        ceremony.signerState.preparation,
+        request.custodyCommit,
+      );
+    } catch (error: unknown) {
+      if (error instanceof MlDsaRegistrationAuthorityChanged)
+        return { ok: false, code: 'unauthorized', message: error.message };
+      throw error;
+    }
   }
 
   async respondWalletAddSignerEcdsaDerivation(
@@ -1853,11 +2100,16 @@ export class CloudflareD1WalletAddSignerService {
     readonly decision: RouterAbEd25519YaoLifecycleDecisionV1;
     readonly signer: WalletEd25519SignerRecord;
     readonly walletStore: D1WalletStore;
-  }): Promise<{ readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string }> {
+  }): Promise<
+    { readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string }
+  > {
     const decisions = this.yaoLifecycleDecisions;
     const settled = (
       stored: RouterAbEd25519YaoLifecycleDecisionV1 | null,
-    ): { readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string } | null => {
+    ):
+      | { readonly ok: true }
+      | { readonly ok: false; readonly code: string; readonly message: string }
+      | null => {
       const found = routerAbEd25519YaoLifecycleDecisionLookupV1(input.decision, stored);
       switch (found.kind) {
         case 'undecided':

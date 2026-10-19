@@ -8,6 +8,7 @@ mod garbled_execution;
 mod hybrid_keygen;
 mod material_storage_evidence;
 mod keygen_storage_evidence;
+mod gateway_registration_client;
 mod registration_tables_evidence;
 mod near_testnet_evidence;
 mod near_transaction_evidence;
@@ -100,6 +101,7 @@ fn main() {
 }
 
 fn run() -> InvestigationResult<()> {
+    if gateway_registration_client::run()? { return Ok(()); }
     if worker_registration_client::run()? { return Ok(()); }
     if silent_correlation_evidence::try_run_child()? {
         return Ok(());

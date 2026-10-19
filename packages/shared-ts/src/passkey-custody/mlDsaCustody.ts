@@ -1,5 +1,8 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { requireCanonicalString, requireRecord } from '../utils/validation';
+import { exactRecord } from '../utils/exactRecord';
+import { parseMlDsaMaterialEpoch } from './primitives';
+import { requireBytes, requireBytes32 } from '../utils/routerAbEd25519YaoDigests';
 import type { ReadonlyExclusiveUnion } from '../utils/variant';
 import {
   parseWalletCustodyGeneratedEstablishedCustody,
@@ -24,6 +27,127 @@ export type MlDsaCustodyProtocolInputs = {
   readonly canonicalSeed?: never;
   readonly recipientPrivateKey?: never;
 };
+
+export type MlDsaCreateProtocolInputs = Omit<MlDsaCustodyProtocolInputs, 'continuity'> & {
+  readonly continuity: { readonly kind: 'create'; readonly recordedKeyManifestDigestB64u?: never };
+};
+
+export function mlDsaSigningKeyIdForSlot(slot: number): string {
+  if (!Number.isSafeInteger(slot) || slot < 1)
+    throw new Error('ML-DSA signer slot must be a positive integer');
+  return `near-ml-dsa-65:${slot}`;
+}
+
+export type MlDsaSealedRoleValue = {
+  readonly encapsulated_key: readonly number[];
+  readonly ciphertext: readonly number[];
+};
+export type MlDsaEncryptedInputs = {
+  readonly a: MlDsaSealedRoleValue;
+  readonly b: MlDsaSealedRoleValue;
+};
+function encryptedRoleInput(raw: unknown): MlDsaSealedRoleValue {
+  const record = exactRecord(
+    raw,
+    ['encapsulated_key', 'ciphertext'],
+    'ML-DSA encrypted role input',
+  );
+  return {
+    encapsulated_key: requireBytes32(record.encapsulated_key, 'ML-DSA encapsulated key', true),
+    ciphertext: requireBytes(record.ciphertext, 'ML-DSA encrypted root share', 80, 80),
+  };
+}
+export function parseMlDsaEncryptedInputs(raw: unknown): MlDsaEncryptedInputs {
+  const record = exactRecord(raw, ['a', 'b'], 'ML-DSA encrypted inputs');
+  return { a: encryptedRoleInput(record.a), b: encryptedRoleInput(record.b) };
+}
+
+const ML_DSA_FAILURE_CODES = [
+  'unauthorized',
+  'expired',
+  'signer_conflict',
+  'unavailable',
+  'conflict',
+  'not_found',
+  'idempotency_conflict',
+  'pending',
+  'ml_dsa_transport',
+  'ml_dsa_refused',
+  'ml_dsa_invalid_response',
+  'ml_dsa_terminal',
+  'custody_mismatch',
+  'not_ready',
+  'not_configured',
+  'invalid_body',
+] as const;
+export type MlDsaRegistrationFailureCode = (typeof ML_DSA_FAILURE_CODES)[number];
+export type MlDsaRegistrationFailure = {
+  readonly ok: false;
+  readonly message: string;
+} & ReadonlyExclusiveUnion<
+  | { readonly code: MlDsaRegistrationFailureCode }
+  | { readonly code: 'pool_unavailable'; readonly retryAtMs: number }
+>;
+
+function isMlDsaFailureCode(value: unknown): value is MlDsaRegistrationFailureCode {
+  for (const code of ML_DSA_FAILURE_CODES) if (value === code) return true;
+  return false;
+}
+export function parseMlDsaRegistrationFailure(raw: unknown): MlDsaRegistrationFailure {
+  const value = requireRecord(raw, 'ML-DSA registration failure');
+  const record = exactRecord(
+    value,
+    value.code === 'pool_unavailable'
+      ? ['ok', 'code', 'message', 'retryAtMs']
+      : ['ok', 'code', 'message'],
+    'ML-DSA registration failure',
+  );
+  if (record.ok !== false) throw new Error('Expected an ML-DSA refusal');
+  const message = requireCanonicalString(record.message, 'ML-DSA failure message');
+  if (record.code === 'pool_unavailable') {
+    if (
+      typeof record.retryAtMs !== 'number' ||
+      !Number.isSafeInteger(record.retryAtMs) ||
+      record.retryAtMs < 0
+    )
+      throw new Error('Invalid ML-DSA retry time');
+    return { ok: false, code: 'pool_unavailable', message, retryAtMs: record.retryAtMs };
+  }
+  if (!isMlDsaFailureCode(record.code)) throw new Error('Unknown ML-DSA failure');
+  return { ok: false, code: record.code, message };
+}
+
+/** Boundary parser for the server-persisted add-signer preparation. */
+export function parseMlDsaCreateProtocolInputs(value: unknown): MlDsaCreateProtocolInputs {
+  const record = exactRecord(
+    value,
+    [
+      'walletId',
+      'signingKeyId',
+      'operationIdB64u',
+      'materialEpoch',
+      'roleAPublicKeyB64u',
+      'roleBPublicKeyB64u',
+      'continuity',
+    ],
+    'ML-DSA protocol inputs',
+  );
+  const continuity = exactRecord(record.continuity, ['kind'], 'ML-DSA creation continuity');
+  if (continuity.kind !== 'create')
+    throw new Error('Adding an ML-DSA signer requires create continuity');
+  const roleA = fixedEncoding(record.roleAPublicKeyB64u, 32, 'roleAPublicKeyB64u');
+  const roleB = fixedEncoding(record.roleBPublicKeyB64u, 32, 'roleBPublicKeyB64u');
+  if (roleA === roleB) throw new Error('ML-DSA participants must use separate recipient keys');
+  return {
+    walletId: requireCanonicalString(record.walletId, 'walletId'),
+    signingKeyId: requireCanonicalString(record.signingKeyId, 'signingKeyId'),
+    operationIdB64u: fixedEncoding(record.operationIdB64u, 32, 'operationIdB64u'),
+    materialEpoch: parseMlDsaMaterialEpoch(record.materialEpoch),
+    roleAPublicKeyB64u: roleA,
+    roleBPublicKeyB64u: roleB,
+    continuity: { kind: 'create' },
+  };
+}
 
 type MlDsaPublicKeyManifest = {
   readonly walletId: string;

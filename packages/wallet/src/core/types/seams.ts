@@ -503,6 +503,14 @@ export type AddedEvmFamilyEcdsaSignerCapability = {
   readonly thresholdEcdsaPublicKeyB64u: string;
 };
 
+export type AddedMlDsaSignerCapability = {
+  readonly kind: 'near_ml_dsa_65';
+  readonly signingKeyId: string;
+  readonly publicKeyB64u: string;
+  readonly keyManifestDigestB64u: string;
+  readonly materialEpoch: number;
+};
+
 /**
  * Wire input for a durable NEAR provisioning write.
  *
@@ -583,6 +591,7 @@ export type RegistrationResult =
       readonly walletId: WalletId;
       readonly capabilities:
         | readonly [AddedNearEd25519SignerCapability]
+        | readonly [AddedMlDsaSignerCapability]
         | readonly [AddedEvmFamilyEcdsaSignerCapability];
       readonly error?: never;
       readonly errorCode?: never;

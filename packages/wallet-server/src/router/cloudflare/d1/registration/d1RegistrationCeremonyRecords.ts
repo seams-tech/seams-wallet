@@ -1,4 +1,6 @@
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
+import { parseMlDsaAddSignerPreparation } from '../../../domains/walletRegistration/mlDsaAddSigner';
+import { mlDsaSigningKeyIdForSlot } from '@shared/passkey-custody/mlDsaCustody';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import {
@@ -1680,6 +1682,21 @@ export function parseD1StoredWalletAddSignerCeremony(
   ) {
     return null;
   }
+  if (signerState.kind === 'ml_dsa_add_signer_authorized') {
+    const preparation = signerState.preparation;
+    const scope = parseD1RuntimePolicyScope(intent.runtimePolicyScope);
+    if (
+      intent.signerSelection.mode !== 'ml_dsa_65' ||
+      !scope ||
+      preparation.protocolInputs.walletId !== intent.walletId ||
+      preparation.protocolInputs.signingKeyId !==
+        mlDsaSigningKeyIdForSlot(intent.signerSelection.mlDsa.signerSlot) ||
+      preparation.identity.orgId !== scope.orgId ||
+      preparation.identity.projectId !== scope.projectId ||
+      preparation.identity.envId !== scope.envId
+    )
+      return null;
+  }
   const ceremony: StoredWalletAddSignerCeremony = {
     addSignerCeremonyId,
     intent,
@@ -1713,6 +1730,13 @@ function parseD1StoredWalletAddSignerSignerState(
   const record = toRecordValue(raw);
   if (!record) return null;
   const kind = toOptionalTrimmedString(record.kind);
+  if (kind === 'ml_dsa_add_signer_authorized') {
+    try {
+      return { kind, preparation: parseMlDsaAddSignerPreparation(record.preparation) };
+    } catch {
+      return null;
+    }
+  }
   if (kind === 'near_ed25519_yao_add_signer_authorized') {
     const admissionRequest = parseRouterAbEd25519YaoRegistrationAdmissionRequestV1(
       record.admissionRequest,

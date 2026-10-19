@@ -2,7 +2,7 @@
 
 The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration, signing, and recovery.
 The current private Worker signer and local approval gate are experimental components.
-They do not yet form a public Wallet registration flow.
+The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
 ## Current priority — October 19, 2026
 
@@ -50,11 +50,18 @@ custody test or private Worker test does not complete a public lifecycle entry p
 
 Step 1 now passes the [SDK custody-driver campaign](ml-dsa-65-sdk-custody-driver-report.md).
 All twenty-four browser checks pass. Establishment, recovery, and existing-custody joining
-preserve the same ordinary key and canonical exported seed. Public registration admission
-and durable custody publication are the next implementation boundary.
+preserve the same ordinary key and canonical exported seed.
 Authenticated private recipient discovery also passes the [Worker campaign](ml-dsa-65-recipient-discovery-report.md).
-The Gateway adapter supplies the actual participant encryption keys. Public operation admission,
-recipient snapshot persistence, and custody publication remain open.
+The Gateway now pins the discovered keys to an existing-wallet add-signer admission.
+The [Gateway publication report](ml-dsa-65-gateway-publication-report.md) records this boundary.
+Fresh passkey approval authorizes the exact wallet and slot. The durable journal records both
+participant installations and publishes their agreed public key. Seed envelopes and recovery
+sets remain unchanged. Public signing sessions and authority projections remain open.
+
+Participant relocation is explicitly refused after execution starts. Its future implementation
+must transfer participant state and the publication journal together. Expired unused admissions
+release their slots through versioned tombstones. Dispatched interruptions keep their slots
+reserved until recovery reconciles the participants.
 
 ## Fixed requirements
 
@@ -87,7 +94,7 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 
 ## 2. Admitted registration and canonical recovery
 
-- [ ] Admit the custody operation through existing Wallet authentication and ownership checks.
+- [x] Admit existing-wallet passkey add-signer operations through Wallet authentication and ownership checks.
 - [x] Discover participant keys over authenticated private Gateway/Router/participant transport and use them for encrypted input delivery.
 - [x] Add encrypted storage and consuming restoration for generic private key-generation state, with exact schedule and participant bindings.
 - [x] Add authenticated, single-use external table storage and bounded cleanup, verified by native canonical key generation.
@@ -97,7 +104,7 @@ The [activation report](ml-dsa-65-activation-report.md) records the implementati
 - [x] Atomically consume preparation before private input selection. Burn uncertain or interrupted reservations.
 - [x] Execute real wallet-derived key generation on Workers and store each output share locally.
 - [x] Check public-key agreement and bind the verified manifest to the durable activation.
-- [ ] Publish the Wallet key only after both installations and custody persistence complete.
+- [x] Publish the added key after both installations and authenticated existing-custody completion. Preserve the existing seed envelope and recovery set.
 - [x] Recover the same canonical key with fresh shares, preparation, and an advanced epoch.
 - [ ] Test interruption after each participant's installation and before public key publication.
 

@@ -791,6 +791,32 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
+      'wallet_add_signer_ml_dsa_execute',
+      'POST',
+      '/wallets/:walletId/signers/ml-dsa/execute',
+      'Execute an admitted ML-DSA add-signer ceremony',
+      {
+        plane: 'public',
+        proof: 'threshold_protocol_state',
+        rationale:
+          'The stored owner-approved ceremony binds the wallet, recipient pair, and exact encrypted inputs.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_add_signer_ml_dsa_publish',
+      'POST',
+      '/wallets/:walletId/signers/ml-dsa/publish',
+      'Publish a completed ML-DSA add-signer ceremony',
+      {
+        plane: 'public',
+        proof: 'threshold_protocol_state',
+        rationale:
+          'Publication requires matching durable participant installation and an unchanged owner and custody envelope.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
       'wallet_add_signer_ecdsa_activation',
       'POST',
       '/wallets/:walletId/signers/derivation/activate',

@@ -1,0 +1,6649 @@
+{
+  "observedAt": "2026-10-19T12:29:31.195Z",
+  "wallet": {
+    "org": "registration-e2e",
+    "project": "wallet",
+    "environment": "temporary",
+    "wallet": "wallet-3c1fff6f835ebdfd"
+  },
+  "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign. The additional Gateway campaign uses fresh WebAuthn verification and D1 publication for an existing wallet.",
+  "hosted": false,
+  "initializationStallMs": 0,
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "cases": [
+    {
+      "epoch": 1,
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "key": {
+        "wallet": {
+          "org": "registration-e2e",
+          "project": "wallet",
+          "environment": "temporary",
+          "wallet": "wallet-3c1fff6f835ebdfd"
+        },
+        "key_id": "near",
+        "epoch": 1,
+        "public_key_digest": [
+          31,
+          50,
+          243,
+          23,
+          189,
+          214,
+          228,
+          90,
+          204,
+          14,
+          77,
+          58,
+          91,
+          111,
+          81,
+          135,
+          216,
+          16,
+          223,
+          134,
+          124,
+          100,
+          241,
+          93,
+          205,
+          53,
+          125,
+          59,
+          217,
+          139,
+          34,
+          19
+        ],
+        "schedule_digest": [
+          198,
+          55,
+          105,
+          165,
+          190,
+          244,
+          208,
+          110,
+          129,
+          192,
+          184,
+          73,
+          198,
+          235,
+          164,
+          35,
+          238,
+          11,
+          21,
+          94,
+          198,
+          18,
+          15,
+          208,
+          209,
+          86,
+          224,
+          174,
+          142,
+          71,
+          5,
+          255
+        ]
+      },
+      "preparationMs": 19187.839625,
+      "initialSigningBatches": 8,
+      "serverResponseMs": 1100.944625,
+      "registrationWithClientVerificationMs": 1101.9271249999983,
+      "underFiveSeconds": true,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "verified": true,
+        "elapsedMs": 153.617291999999,
+        "operation": [
+          124,
+          48,
+          20,
+          51,
+          103,
+          44,
+          78,
+          49,
+          244,
+          250,
+          154,
+          221,
+          185,
+          141,
+          58,
+          52,
+          177,
+          218,
+          4,
+          173,
+          39,
+          155,
+          12,
+          181,
+          210,
+          246,
+          120,
+          180,
+          49,
+          196,
+          52,
+          200
+        ],
+        "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+        "contextHex": "",
+        "signatureHex": "78c87827d0d466c465f1a3f6bd734bfff1ecc1df4579f996f2dfcdb8f69bb391578ec1e4d2074fe28b12e67a5acc87fcf99edc4e483f6a2bbc7f336634b3a74b9ad4a7f10cc799683a4638f6851e4346d29c5f20b29420c5107a5999f644595c1722abd8f9769b404f7662c71b3c64afd0cc70198a992595c6ab26115559a993f73041bdab091ebce57ef665a315705ac14ffd15c02e9f6923d8db45c2bec3b2870962034b8cf8ea8d414ac433d9ae0f25080f22f00208c68ccbda11f607371d93d9133e50349b5bdebc55f42acfd033695f092ee229a7ff386d70091245391299511fc0a604a7b9b4b86a42c21ededc4221a3c0ef7e7bd9a5e1573fd02178fc60cccb53f0884c604c903241326a105c9b6904204f4e348ad1db2891c0e5e09d8dc019d8e8ca6cce1cb3122d489ad769463a8317005b479eed1321d7fb67a2b4444c08114e1dbbf7314439457a33c0ea66a92bba031fce8c2c58c6f77ef377808b1c75bde1d66abce10c56b5acc6f0513262dfe42dbc1fd5c7411d111ed9a561174f769e547baa9b90da04a6a44d7bf6bed275d5b6039732a527c671f979b769293f948e3c588a2002beebb5d275fee81fb30eae60a2ff0e8a517f7192f011a8142d3a915069c169aa365d62987e62293d5e060d44bd1629731f660ca172184eb3f7d11a7c914edfffda9b3f531bf9d8a680223da4eadc2c431f4e73be5f0201c3dc0651c1aed52688f76ba5bdce888bf8dc62302bb358c669b68f8a7e5361309e13f19046edb1032ca4b48b2627759d5c16d653b6e053b200b0352b54c740898237ca81dfcef7a2325d9278892346ac204fdb517e850fe365612914b93014dcaca846b81dab2434d3723abddf199a5865142cbc136cac24d7a7ef9465407b0e9f6897a6df99abe97f1d9c031a69ddaab9eb3b00924623026fe81e2d8d1bb81953ad5a4da0eaabd4910adeefc4a5fe049500c95182d5a536aaeddcaf88f31a6b79b7ce69910baaf9e8194d606a24978db1ff655f9e5a1df411ba81809caa5436b1bfd02f1f60ffbe2d10610e7cfab84426f083452e76554aaf55da955cf1d925c461ce133ed43b68df9856eadad55f42ef8c8cadd198c18d8339afffe7ed9617f765009b23e02f801a6b3cb7031439bc77c13ae73e2cf4138556b1a24c5e798bc3a1c2bb9a8a43ac2b581164cef3666f571a9ad4455260837f48f37818bce4de88066650ac7303ba6d09df0de65cec1f366767cf7d32954f4ec4759dde9c01c0ae9597297d5bb7b0e9aa288c3dc76b12599b3750b157cc967e1d873b254a4ca8098950fe6396b1fdb7baa577a176f14dede0d153e4884152d9fc3c08df4d33413bd82428a26c564285897a49c6bfe58900c86c7694781c371e3126f4b4eeb496140017a048b6075d3809ed050d59332215abdece16a129faeeb36eeaa27a39b16fe7f4ddea9166ff15641e1abe7acfc2e4a643716d1cb5b87cbb3a4da3f3422d0a7efbcd3f4e14e71b89e4366d9088954deff69436dd08379e03a4dab6f29899f26a13153ccae39fc52e4648a9f1c455811d49f3eda7c6018d9bb213df36737b14ebe91b2865e80a69196799035e7b3e94e1b4d13b83a9fd18819f073ebd72e1c3dc34fa9f36b20f2512567db2f04c07f3ecad29d4896bb9d3ec97315b652c73310bf3c41cbb9e79f5df7783ebdc335d5552f76d2bb177c633b09ce7568f78481e59db835e1729180f0cb1d84a36c0620c97890b51704a392d007ac44042335965c092e5366b62f55290ea2cdef2757c40f66704fc96dc6e452f0ac718c312404c9508e218cbf500f168483d3d95c3ff0b177979669a3e4af192afd9fee9091feb83d51c7a397244866321780e23f3a0cc0c16a7eef196146dcba35c31c32e06780806ad25a9790ac3ed6bc7cd640dcd86ae3867c960b39f991d55010119d65228208d1a530e2be847eda330df9015b04df86c3a19f1fb024ed73574bdebe020c47501715d40b0938f25c02842ff41a90425bc879101f35d1d3e795b4f362ca2353bcdce3090db7cc87dc4987071b236870ca71e2896c0e814dca2ae61db73c69a6128261e8c4e3153d4a775e4f2381bedc191d903648b4ef77edefbb08f9b01e89405d41797d4322247c1414269cdb53b217be53bbc7cde2580150f71e1b53ce4b7e3321e53a3fd01dc1ee17d4d050964bb51bb67979019945d955ca690eb7e449150920d5f0f6f79cdc16665957a000f37b45a6778f29ecc45b330b1c9b78df02116e8fd09fce275d0dbb0c6b70da1b4bfe644d421d17fbe9988667ff3307b67200eccd8404fe4eb9d9c0f8a070b7289497b276243ef1f711fdd337696c8037cfae5be5ddb04f3c56b99b86607f1180a78240ae9ce7c971fde5cf76d5946a5a04ad4ee53704333fcf14c8561c855190aef0d0e562a5c2c7a108daeb055e2a095c068b9bf29c20253dfe3bd031265b5c27289be8512afcb07bdd8dbb1a796d5da1668b32c208c9481018ab4541be3a8961e5a1be4f219d1e91b29daae28b5f9933891bb19c62a22c398caa913acc145b9e7b4a6b0eb2e847b2253ca79e6ad7a735d311599b435a79f0aefbdcfbcce4f149a3633cc408701674589cceb822d2c6ba246aedfabb237fac7bb30beb06d5718d481cc076c63568a23fbe66c5091720fbb79dd6a13dcc2109558c7e818cde875b5a102f6dc3ac1ff50845235b25ac3c9aed004b1404c036c11284780ec452246f3a89ac5e896fe506b2b18c632f2e8aa3b1e3f8c4f734d2495092fb72ab83a5f3645c40c8e56c7f447041e95de9cd7c37b7a19329800fa796b19367dd42da45cc7e7c5d77703d065462c19422480a4ae5f6fa1a93035d4217be1ee33fb68a4ac658b3a2c859b5fd1ecebd0d744346ab3a3be54b66a7563cb640c5d8ae1cbb1d183bd395d51ae18d959733ffbe850e8505e30d48bc80598e31e31316c45d72761788413520ef00a482834978bcdbae65bb849b9a2c60c36cb536adbc8408ee9ddbe7f84575d1d589e68c1d828dab5d67a7a3f302973763980f8c0f81fe4aef2e66a65d29e5fe73b046f2c281a113f5d5e340c22a89ee911f5cc8ffadc19be38a8c544ab82bb11c1e6ff4c7b1a7cfa03a163e9278e677b6f32f6b58d4fdf62e132b6cb29e0db30bd6c75ac323e3643afea361a458c404e3fb5fff7af7cd1f93d880ad47d038c7e0516f9b7e2756d0bdcd520a56aadc9fc72d4c98ed6c199e30ebd4d5baf8a2a0fa0088e24c8557421aac59f02c065978b653a445587eab8fc1bc09ab7f55621c4b8e36abc787996e869679193f38b9f917ad6a4d42ed5e845969a0d67846920278c4a4ae5df6340a8cbc51c23ddc54154beb79f4761139936aa6e423e23ee363ef5a296693e8110b67b62d8dc0d0992fe250e9d5dd42ad518ecffac0f4f2997fadbb4dc6c78ded124c8e5862df296edfe2693e6ea90a1aad37b350c1e0a541a0a0b70194920bf4ba63c9c6e8552c56d3bad348e572147c883c5f7ab7ecf13027098de82b7ced6bc58f5121391979c464e4d37c5f4acf2ac75e8d1b5d8ce33dfb6e02fa0de5e1e214648f158fd26cf9fc25dafa5cc549c4fca6b23a390ae4fe44d246d4f01c2a08cd3cd5e351ce8b1bcc222bdd20156c83c13f65e2992a6178e1421249be112eac61b18ee671f2e92bebab341798410a150f82bc4f74e9369131ab0608a728340ef62c14778728f938cb149ba8d4f8160b78d02c518bac9cb217f376c2a46617ec385c26b7cff9db4861f3aa38833f7aac6b6587ca3cd2be0fd5a976a456575764648b6d57763ca35d291ebb5de8dba3d08ac3507c51366b7df890d7687d09d605090dccadaa086d680fc5f569e39b752d93ddfeab7ae5f54fddf9c99fdd5b602beae4f7e18472afe0cc76899c910cb7630e3057174cd500d0fcec4f2802498d49118b934680d053b020ab7d5155acc88dea722d863b4fe8af4d67c64c39be3c44496e2212d8ed073b27ad23a5c25857c5cf4f7389804d993ab89cc013ea2475ba08e024e45b95346b8f6d5822934b244ee0e57d8c93ec062569641e8fde80d8204fd20793ff9a0c56cfc57d97ee1780966e5a8860e1cf23215b70aa601c428e96a398ec413ff910f5d02c95973f752e3c4a0c67ff9337d1ca9dc5b7a1d3b88b1ac09fc69ed381471da1648b852cb8d10a97f96f90ff718dda7d0ef5cae14cbcfdc59fc1828db16f89503dea72b357c362c7c91fd3c3fe9f32100ce20f90e7dbe8802a12f8559541e1590d1bcf69fff30a231ba8f8a70aa822c9e3ca8985a224d1d7740ace5cfe87de563dffc6d7acfbf1befb30452659ecefaa515236ba5e9b63eb759dc3d4309a3ddbd8616a4e4976f6085961c53962cf9e4dd1a2994a33cc609ccfaecb64dd4bdef2ef18614606dee10126400419561519814e25a301addcc1fb883e88749219ff483eae11de18f3533bf1fa2057ec0540f6f38d01ea58e5a6fea8f76d3a9aba81faa6b916be084c3877ceec816ea94d337a31ed165a043393071cc4964682a884afc9750972bd4f37d6f86522200fb2e46912ebb1b0cc30110333a5ecd6bf6777f5134d0a585b279a1d7410405809aaeafda1847623deff3122f6b7ce44c5ea5acb0df5ce1ec00000000000000000000000000000000000000000000000000000000070a0d12181b"
+      },
+      "publicKeyHex": "8023c37788a74a83130efe60257c08da2faa9cbea772db04ee77936b6a04145ab755fca69487835fa5d734f8dc5555d1ac1cea6335f51909d2b8db9260806d7ae53d317fe47e50921f0d46e619ea2c12ca8f27f7ce12966031aa6ad19fd158e04b3b3a7955cfc85ee4d495ee7a30036ca5c1c18c7b27bed5b24440285709efdb6049af605e14a478e6a04b041166953f7787a5cf5740b269131dd58e60ceb0737316eb46fdaad995b8c3d17f0a94152e2d23934dcd65429c24dbfe638094459c2b59a34cf1e871c56f79502134ef55b2411ee2959c9b90ba4211856499020f0bc683dfc793aae5fa0ac6672cb7907576b288dccd72ab9b1f6d58a3a075baf816dbcfae049eb09bd9944410db8654fda68240cfcefc13470cec206830f793742a3124ed9f5de6c6158b25260e7167850eba3af3f1732f105754a222a09ff4ade909583656584bde4291b38396f84f30152c4cfd1feae43877fdd634b21b5fb48988dec609ab812a4141a68ba6c64cba6fac256fdad4bdfc479bb04c5512d5c2f0bee248575ba243385f9674b967726205c71576ae851ec3bb0fa56c5ec40a63fae283363877f3a514c23582bb304d747313f120edf0aacde7703f186f87db6de17e628d8da127f99a11755207bb678a3fae906970389c79c5518439e27cd65653a8becbe2134951932b1c5bd0983a5cc168939aa3dbbbb9d58cef2ff1d3b258928eb4535e6cb6a7991bb956dcc273befdd4206f39ce93f8df7709c55474611ec45067eb8e96b12775ed4750cd0e9905ccc47c718b211790d96788d426f95dffc0a07df33e22d6ba955cea21f72f050787034a80db4a34dde50e22af6039e43ce431f89d02d41b6e2476b2625d7e336bd68edd2e602467057839ad28059d66759d665627658f5e0fe5d2002e9ecb741b1f840673a6f33288c67c7d87fc4e88e8a7a4d8150bea127bf5892e5b46b3c9fe5dfbc1f9f58ba8ad422a94ab9ac10ee7faff441653215f871bd31b3e47f1e25a6c60807a5861fc87678a05be58319da5c2e4e47d2bf53c2ac69241355478bcfb1392312c0c9bf692b3f1822f815c63e83e282d5fbf1c40ba9fb1c50b1dbe080173ed5f68fddcc350a76025faf0a4ac08995e52f2a92b93592e5f17806dd8e1c4ec17e7d477ce309f15db961b2fb36345d55265c7592b63bc7cb6ac6bd379c79e24aa11939057db4e89e2f65699f75b130f0fbac3c6011c98e02dc5aadd89abc710ba0ac8a430ccb309d7f747c310d931f66f096644970e5c9d8383356a80c3ea222c344dc8f14199a6e5f8d2ba6ca81e988d9f8278235f2f3267bddceb43ef3767669799681f0d335ddea175a46b6658a64e4c3c01a590bdf046e14a0f747a4beeca0b62e264ea05d7cec1355f9b55d08ef5b53149921bb7e98a84eeaedef0dadcc1bdd6c9467cc133a46c4ab3f77154fcd2be05c3e918c16bc7c4b91648182fcd2382de875e281e558ceced5a5c6fdbcd7a8de880f48715fba6516e007be7e0ceafa6075059e38f47080092182bf3994be1d9a48aceb6eb39af554aad2528d8ae8e1adcf57db64a3aedfb38502535e2e4ef19e84821906feb2688cf2c1f85c4e526a279a9d2cad5ca5c4aa4871fdaf001e3a56a8a3d7bc54d5dfbcc41cc2870cffd3439dba64b6f4a5641f293511a0823e784baa3c662261368bfd8cdeb3466afe2a3f582f79dbf02e40734a949caaa17b0ae6379071159d5a0415f75b40d5ab109545ba71b35db4993cbc90baa670a3e468f5f300bc42cba5cdb8e717f6441ec8ab8417d06981ff14227fb82ba843d7bedcdf1484936b57459042b55331ef888e558f1e3c9b9d59f5a09d388c122da002019edfb482f17de07d8ae754f9b6ff63488c817bf2c01af42283d804ef538129e13f840b40b732023631cd4458275bd154e455c46f976ca7eb2fe0e906e32a227c86c8c8c13753e2eed13e225c14cc231249998ad4de45b60ed14657a879fcde68d42ca7dfbe8d9d2f84ef08b06169c6c678f83d6ad52c619448a491274833abeb9f14eb557d7946b4f71f80f63b493b321a50bf930b33092d9a31ce5e5a7fc33d051f0873705f296319ce1ea6a926fc19997ca46a9f25f5fbec689a672182f64c8102f37b21e5e1a9cb50dca7035accbb13eeea5a6894b64c9ff619d0d4063851af0b0fe16ede7492e90cbfdb9112eecfcd3d3cc47ea942fc61359ffa0e2384d8ce9f87ac4ac40db48aba071d8c7b2dd339e2c4f1d6bf0fa450160229aba6474b21f95b32e35e112a5dd109c628224408222807871ef55872ff2eb0b7546cb804ac069b16d659ab646df2f78dae9a0cc4b5c3efa21b1fd41f360329ef2b6576da4ee9f1bc8926068ffc0db54ec5c20179a39e55cca0815121143ffc36284d4fc14fc4c4f1cb516797255f7700c6662faa7215707caa72ba6abe31c32cf3344e7bcd30d79f0bdbadb73971bf98dce06dd99d4f5a55f522a2328e5be25bb43a09471db73e65b1c51ffade55924cacc79605365d1bff75336df877641178b565f37cb9fa50d7a38e2d5353bc4e08d77304d39c06b83e872a476ff404d0bcf39d0c9e53f1df5c7226ca912f8e7d6f36aba809e3e9fa3e07c8d0c59a3b4287c7d9dfaa6952d58bd1548a6789d229b0221ce9f612a808e1a676128d6238bf5f138adc932fdefa3082728885d83813ea561f7343fa5bcbb6343e5724b5afc1d06361cc38310d539b5d30591d07ef810e0d6c8b7784cf9565c9a385e2a86cfc420b043"
+    },
+    {
+      "epoch": 2,
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "key": {
+        "wallet": {
+          "org": "registration-e2e",
+          "project": "wallet",
+          "environment": "temporary",
+          "wallet": "wallet-3c1fff6f835ebdfd"
+        },
+        "key_id": "near",
+        "epoch": 2,
+        "public_key_digest": [
+          31,
+          50,
+          243,
+          23,
+          189,
+          214,
+          228,
+          90,
+          204,
+          14,
+          77,
+          58,
+          91,
+          111,
+          81,
+          135,
+          216,
+          16,
+          223,
+          134,
+          124,
+          100,
+          241,
+          93,
+          205,
+          53,
+          125,
+          59,
+          217,
+          139,
+          34,
+          19
+        ],
+        "schedule_digest": [
+          198,
+          55,
+          105,
+          165,
+          190,
+          244,
+          208,
+          110,
+          129,
+          192,
+          184,
+          73,
+          198,
+          235,
+          164,
+          35,
+          238,
+          11,
+          21,
+          94,
+          198,
+          18,
+          15,
+          208,
+          209,
+          86,
+          224,
+          174,
+          142,
+          71,
+          5,
+          255
+        ]
+      },
+      "preparationMs": 37720.17604200001,
+      "initialSigningBatches": 8,
+      "serverResponseMs": 1299.8082080000022,
+      "registrationWithClientVerificationMs": 1300.2549169999984,
+      "underFiveSeconds": true,
+      "canonicalKeyVerified": true,
+      "holderResultsAuthenticated": true,
+      "manifestVerified": true,
+      "exactReplay": true,
+      "changedReplayRejected": true,
+      "initialStockSign": {
+        "cooldownPreserved": true,
+        "retryAtMs": 1792413054319
+      },
+      "publicKeyHex": "8023c37788a74a83130efe60257c08da2faa9cbea772db04ee77936b6a04145ab755fca69487835fa5d734f8dc5555d1ac1cea6335f51909d2b8db9260806d7ae53d317fe47e50921f0d46e619ea2c12ca8f27f7ce12966031aa6ad19fd158e04b3b3a7955cfc85ee4d495ee7a30036ca5c1c18c7b27bed5b24440285709efdb6049af605e14a478e6a04b041166953f7787a5cf5740b269131dd58e60ceb0737316eb46fdaad995b8c3d17f0a94152e2d23934dcd65429c24dbfe638094459c2b59a34cf1e871c56f79502134ef55b2411ee2959c9b90ba4211856499020f0bc683dfc793aae5fa0ac6672cb7907576b288dccd72ab9b1f6d58a3a075baf816dbcfae049eb09bd9944410db8654fda68240cfcefc13470cec206830f793742a3124ed9f5de6c6158b25260e7167850eba3af3f1732f105754a222a09ff4ade909583656584bde4291b38396f84f30152c4cfd1feae43877fdd634b21b5fb48988dec609ab812a4141a68ba6c64cba6fac256fdad4bdfc479bb04c5512d5c2f0bee248575ba243385f9674b967726205c71576ae851ec3bb0fa56c5ec40a63fae283363877f3a514c23582bb304d747313f120edf0aacde7703f186f87db6de17e628d8da127f99a11755207bb678a3fae906970389c79c5518439e27cd65653a8becbe2134951932b1c5bd0983a5cc168939aa3dbbbb9d58cef2ff1d3b258928eb4535e6cb6a7991bb956dcc273befdd4206f39ce93f8df7709c55474611ec45067eb8e96b12775ed4750cd0e9905ccc47c718b211790d96788d426f95dffc0a07df33e22d6ba955cea21f72f050787034a80db4a34dde50e22af6039e43ce431f89d02d41b6e2476b2625d7e336bd68edd2e602467057839ad28059d66759d665627658f5e0fe5d2002e9ecb741b1f840673a6f33288c67c7d87fc4e88e8a7a4d8150bea127bf5892e5b46b3c9fe5dfbc1f9f58ba8ad422a94ab9ac10ee7faff441653215f871bd31b3e47f1e25a6c60807a5861fc87678a05be58319da5c2e4e47d2bf53c2ac69241355478bcfb1392312c0c9bf692b3f1822f815c63e83e282d5fbf1c40ba9fb1c50b1dbe080173ed5f68fddcc350a76025faf0a4ac08995e52f2a92b93592e5f17806dd8e1c4ec17e7d477ce309f15db961b2fb36345d55265c7592b63bc7cb6ac6bd379c79e24aa11939057db4e89e2f65699f75b130f0fbac3c6011c98e02dc5aadd89abc710ba0ac8a430ccb309d7f747c310d931f66f096644970e5c9d8383356a80c3ea222c344dc8f14199a6e5f8d2ba6ca81e988d9f8278235f2f3267bddceb43ef3767669799681f0d335ddea175a46b6658a64e4c3c01a590bdf046e14a0f747a4beeca0b62e264ea05d7cec1355f9b55d08ef5b53149921bb7e98a84eeaedef0dadcc1bdd6c9467cc133a46c4ab3f77154fcd2be05c3e918c16bc7c4b91648182fcd2382de875e281e558ceced5a5c6fdbcd7a8de880f48715fba6516e007be7e0ceafa6075059e38f47080092182bf3994be1d9a48aceb6eb39af554aad2528d8ae8e1adcf57db64a3aedfb38502535e2e4ef19e84821906feb2688cf2c1f85c4e526a279a9d2cad5ca5c4aa4871fdaf001e3a56a8a3d7bc54d5dfbcc41cc2870cffd3439dba64b6f4a5641f293511a0823e784baa3c662261368bfd8cdeb3466afe2a3f582f79dbf02e40734a949caaa17b0ae6379071159d5a0415f75b40d5ab109545ba71b35db4993cbc90baa670a3e468f5f300bc42cba5cdb8e717f6441ec8ab8417d06981ff14227fb82ba843d7bedcdf1484936b57459042b55331ef888e558f1e3c9b9d59f5a09d388c122da002019edfb482f17de07d8ae754f9b6ff63488c817bf2c01af42283d804ef538129e13f840b40b732023631cd4458275bd154e455c46f976ca7eb2fe0e906e32a227c86c8c8c13753e2eed13e225c14cc231249998ad4de45b60ed14657a879fcde68d42ca7dfbe8d9d2f84ef08b06169c6c678f83d6ad52c619448a491274833abeb9f14eb557d7946b4f71f80f63b493b321a50bf930b33092d9a31ce5e5a7fc33d051f0873705f296319ce1ea6a926fc19997ca46a9f25f5fbec689a672182f64c8102f37b21e5e1a9cb50dca7035accbb13eeea5a6894b64c9ff619d0d4063851af0b0fe16ede7492e90cbfdb9112eecfcd3d3cc47ea942fc61359ffa0e2384d8ce9f87ac4ac40db48aba071d8c7b2dd339e2c4f1d6bf0fa450160229aba6474b21f95b32e35e112a5dd109c628224408222807871ef55872ff2eb0b7546cb804ac069b16d659ab646df2f78dae9a0cc4b5c3efa21b1fd41f360329ef2b6576da4ee9f1bc8926068ffc0db54ec5c20179a39e55cca0815121143ffc36284d4fc14fc4c4f1cb516797255f7700c6662faa7215707caa72ba6abe31c32cf3344e7bcd30d79f0bdbadb73971bf98dce06dd99d4f5a55f522a2328e5be25bb43a09471db73e65b1c51ffade55924cacc79605365d1bff75336df877641178b565f37cb9fa50d7a38e2d5353bc4e08d77304d39c06b83e872a476ff404d0bcf39d0c9e53f1df5c7226ca912f8e7d6f36aba809e3e9fa3e07c8d0c59a3b4287c7d9dfaa6952d58bd1548a6789d229b0221ce9f612a808e1a676128d6238bf5f138adc932fdefa3082728885d83813ea561f7343fa5bcbb6343e5724b5afc1d06361cc38310d539b5d30591d07ef810e0d6c8b7784cf9565c9a385e2a86cfc420b043"
+    }
+  ],
+  "httpAttempts": [
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "d61a16b35539bc235ff111e4394f3be0",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "headersMs": 125.50504099999989,
+      "bodyMs": 125.62487499999997,
+      "elapsedMs": 125.63025000000016,
+      "status": 200,
+      "echoedRequestId": "d61a16b35539bc235ff111e4394f3be0",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/registration/prepare",
+      "httpRequest": "c5efd44162dd1cd2da990c8aca98a4d2",
+      "operation": null,
+      "headersMs": 19187.701333,
+      "bodyMs": 19187.789792,
+      "elapsedMs": 19187.805792,
+      "status": 200,
+      "echoedRequestId": null,
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "c91eb864fbf437251c06e2d8de56c21c",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "headersMs": 1100.5484170000018,
+      "bodyMs": 1100.8208330000016,
+      "elapsedMs": 1100.9079999999994,
+      "status": 200,
+      "echoedRequestId": "c91eb864fbf437251c06e2d8de56c21c",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "49af2b45597921c51d212f8cf123a999",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "headersMs": 2.7992919999996957,
+      "bodyMs": 2.9302089999982854,
+      "elapsedMs": 2.9952919999996084,
+      "status": 200,
+      "echoedRequestId": "49af2b45597921c51d212f8cf123a999",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/sign",
+      "httpRequest": "ed5ee1808155eed4adfa47a8f43dc363",
+      "operation": "7c301433672c4e31f4fa9addb98d3a34b1da04ad279b0cb5d2f678b431c434c8",
+      "headersMs": 153.48300000000017,
+      "bodyMs": 153.56779099999767,
+      "elapsedMs": 153.6057499999988,
+      "status": 200,
+      "echoedRequestId": "ed5ee1808155eed4adfa47a8f43dc363",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "41a2438d20805bb242f86e9e91b64b9a",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "headersMs": 217.87616699999853,
+      "bodyMs": 218.23916699999972,
+      "elapsedMs": 218.3092919999981,
+      "status": 200,
+      "echoedRequestId": "41a2438d20805bb242f86e9e91b64b9a",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/registration/prepare",
+      "httpRequest": "1a66ae71a1f5bf4fa3c97f66acfd5867",
+      "operation": null,
+      "headersMs": 37720.065584,
+      "bodyMs": 37720.148334,
+      "elapsedMs": 37720.157125,
+      "status": 200,
+      "echoedRequestId": null,
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "31de651b9982fa5eaba5ea6a254a2ca9",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "headersMs": 1299.6147500000006,
+      "bodyMs": 1299.7113329999993,
+      "elapsedMs": 1299.7770830000009,
+      "status": 200,
+      "echoedRequestId": "31de651b9982fa5eaba5ea6a254a2ca9",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/register",
+      "httpRequest": "0c1f1b502d0687c8f4209b353c2153bf",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "headersMs": 2.8357919999980368,
+      "bodyMs": 2.994542000000365,
+      "elapsedMs": 3.076833999999508,
+      "status": 200,
+      "echoedRequestId": "0c1f1b502d0687c8f4209b353c2153bf",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/sign",
+      "httpRequest": "de6b687dfdcfc0723e3e8b2dbaedfcec",
+      "operation": "5d9653c9e6b4906d847d148bc4924b470fe7c23e7e44bcfe2f7ca396113b6268",
+      "headersMs": 3.6864170000044396,
+      "bodyMs": 3.723500000000058,
+      "elapsedMs": 3.727334000002884,
+      "status": 200,
+      "echoedRequestId": "de6b687dfdcfc0723e3e8b2dbaedfcec",
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/registration/prepare",
+      "httpRequest": "f453194196b25d945cf8a98694433f4f",
+      "operation": null,
+      "headersMs": 33123.51758300001,
+      "bodyMs": 33123.620417,
+      "elapsedMs": 33123.630124999996,
+      "status": 200,
+      "echoedRequestId": null,
+      "completed": true,
+      "failedStage": null
+    },
+    {
+      "path": "/router-ab/ml-dsa/sign",
+      "httpRequest": "cae20d065732c37b41b74f813e225d8c",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "headersMs": 258.2020829999965,
+      "bodyMs": 258.26270799999475,
+      "elapsedMs": 258.29679199999373,
+      "status": 200,
+      "echoedRequestId": "cae20d065732c37b41b74f813e225d8c",
+      "completed": true,
+      "failedStage": null
+    }
+  ],
+  "stageTraces": [
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993203,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993204,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792412993204,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792412993205,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792412993205,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792412993205,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792412993209,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792412993210,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792412993210,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792412993849,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792412993855,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792412993858,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792412993859,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792412993860,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 24,
+        "elapsed_ms": 269,
+        "maximum_ms": 18,
+        "measured": 24
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993203,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993211,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792412993211,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792412993211,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792412993211,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792412993212,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792412993228,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792412993242,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792412993247,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792412993853,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792412993856,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792412993859,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792412993861,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792412993864,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993887,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993887,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993892,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412993899,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412993936,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993887,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993887,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993911,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412993916,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412993953,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993887,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993887,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993899,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412993907,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412993938,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412993996,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412993996,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993887,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993887,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993916,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412993921,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412993955,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412993997,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412993997,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993994,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993997,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994002,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994024,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994078,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994078,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993994,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993994,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994010,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994014,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994041,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994079,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994079,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993997,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993997,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994005,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994010,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994038,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994104,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994105,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993997,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993997,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994019,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994024,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994045,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994105,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994105,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994079,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994079,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994090,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994095,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994110,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994079,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994079,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994099,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994104,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994124,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994105,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994105,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994113,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994118,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994138,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994202,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994202,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994105,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994105,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994125,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994130,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994142,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994202,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994202,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994173,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994177,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994182,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994203,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994264,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994264,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994173,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994173,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994191,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994195,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994216,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994264,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994264,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993876,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993877,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993878,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792412993886,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792412994264,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792412994267,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994202,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994203,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994211,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994216,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994226,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994271,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994271,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994202,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994203,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412994219,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792412994224,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792412994236,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792412994271,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792412994271,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          151,
+          109,
+          170,
+          7,
+          53,
+          136,
+          32,
+          16,
+          62,
+          182,
+          154,
+          68,
+          249,
+          241,
+          27,
+          36,
+          130,
+          24,
+          48,
+          140,
+          175,
+          244,
+          210,
+          58,
+          37,
+          4,
+          57,
+          59,
+          96,
+          1,
+          140,
+          0
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412993876,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412993878,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792412993880,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792412993887,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792412994272,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792412994272,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "57bfd1a8c5caca3efe2d5688028989ddd633db8b6950541bb99d9ce3e7f3f6d5",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          180,
+          176,
+          195,
+          41,
+          25,
+          66,
+          20,
+          200,
+          176,
+          94,
+          83,
+          5,
+          188,
+          221,
+          72,
+          90,
+          60,
+          169,
+          81,
+          6,
+          1,
+          3,
+          93,
+          95,
+          106,
+          162,
+          101,
+          252,
+          144,
+          139,
+          71,
+          154
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994333,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994334,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792412994341,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792412994342,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "7c301433672c4e31f4fa9addb98d3a34b1da04ad279b0cb5d2f678b431c434c8",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          180,
+          176,
+          195,
+          41,
+          25,
+          66,
+          20,
+          200,
+          176,
+          94,
+          83,
+          5,
+          188,
+          221,
+          72,
+          90,
+          60,
+          169,
+          81,
+          6,
+          1,
+          3,
+          93,
+          95,
+          106,
+          162,
+          101,
+          252,
+          144,
+          139,
+          71,
+          154
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994334,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994334,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792412994342,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792412994343,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "7c301433672c4e31f4fa9addb98d3a34b1da04ad279b0cb5d2f678b431c434c8",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          180,
+          176,
+          195,
+          41,
+          25,
+          66,
+          20,
+          200,
+          176,
+          94,
+          83,
+          5,
+          188,
+          221,
+          72,
+          90,
+          60,
+          169,
+          81,
+          6,
+          1,
+          3,
+          93,
+          95,
+          106,
+          162,
+          101,
+          252,
+          144,
+          139,
+          71,
+          154
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994333,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994343,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792412994356,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "0cab3a2d502bf888365f2df9a9e1723f",
+      "operation": "7c301433672c4e31f4fa9addb98d3a34b1da04ad279b0cb5d2f678b431c434c8",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          180,
+          176,
+          195,
+          41,
+          25,
+          66,
+          20,
+          200,
+          176,
+          94,
+          83,
+          5,
+          188,
+          221,
+          72,
+          90,
+          60,
+          169,
+          81,
+          6,
+          1,
+          3,
+          93,
+          95,
+          106,
+          162,
+          101,
+          252,
+          144,
+          139,
+          71,
+          154
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792412994333,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792412994343,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792412994384,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "81b49658551afa2549cb2f23060dd955",
+      "operation": "7c301433672c4e31f4fa9addb98d3a34b1da04ad279b0cb5d2f678b431c434c8",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413033117,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413033118,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413033118,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792413033119,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792413033120,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792413033120,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792413033123,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792413033124,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792413033125,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792413033840,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792413033846,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792413033850,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792413033850,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792413033850,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 24,
+        "elapsed_ms": 298,
+        "maximum_ms": 20,
+        "measured": 24
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413033118,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413033125,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413033125,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792413033125,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792413033125,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792413033126,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792413033182,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792413033196,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792413033201,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792413033844,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792413033847,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792413033850,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792413033851,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792413033852,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034010,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034013,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034026,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034031,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034066,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034120,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034120,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034011,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034013,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034045,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034050,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034082,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034121,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034121,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034013,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034016,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034031,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034036,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034068,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034127,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034016,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034016,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034050,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034054,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034084,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034121,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034123,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034133,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034155,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034123,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034123,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034141,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034146,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034174,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034128,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034136,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034141,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034171,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034234,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034235,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034128,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034128,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034150,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034155,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034178,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034235,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034235,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034211,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034217,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034222,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034241,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034211,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034211,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034230,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034234,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034252,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034235,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034235,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034242,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034247,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034267,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034326,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034326,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034235,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034235,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034254,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034259,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034271,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034327,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034327,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034302,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034306,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034311,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034327,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034385,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034385,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034302,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034302,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034316,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034321,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034337,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034385,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034385,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413033999,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034000,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034001,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792413034009,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792413034385,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792413034391,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034327,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034327,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034332,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034337,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034348,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034394,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034394,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413034327,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034327,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034341,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413034345,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413034356,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413034394,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413034394,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          224,
+          84,
+          234,
+          79,
+          158,
+          26,
+          224,
+          219,
+          239,
+          227,
+          41,
+          167,
+          67,
+          24,
+          132,
+          59,
+          85,
+          94,
+          108,
+          149,
+          234,
+          92,
+          148,
+          68,
+          151,
+          165,
+          108,
+          124,
+          138,
+          97,
+          97,
+          126
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413033999,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413034001,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413034002,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792413034013,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792413034394,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792413034395,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "f63c0bbeecc4ecbbc76471098278c1bd062f54d99fef5eacfcd1ae0d0e555557",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071199,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071199,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413071199,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792413071200,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792413071200,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792413071200,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792413071201,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792413071202,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792413071202,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792413071847,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792413071852,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792413071854,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792413071854,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792413071854,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 24,
+        "elapsed_ms": 283,
+        "maximum_ms": 17,
+        "measured": 24
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_execute"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071199,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071204,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413071204,
+          "stage": "schedules_loaded"
+        },
+        {
+          "at_ms": 1792413071204,
+          "stage": "execution_reserved"
+        },
+        {
+          "at_ms": 1792413071204,
+          "stage": "adapter_ready"
+        },
+        {
+          "at_ms": 1792413071204,
+          "stage": "input_opened"
+        },
+        {
+          "at_ms": 1792413071219,
+          "stage": "prepared_consumed"
+        },
+        {
+          "at_ms": 1792413071233,
+          "stage": "prepared_opened"
+        },
+        {
+          "at_ms": 1792413071238,
+          "stage": "prepared_restored"
+        },
+        {
+          "at_ms": 1792413071850,
+          "stage": "keygen_completed"
+        },
+        {
+          "at_ms": 1792413071852,
+          "stage": "material_sealed"
+        },
+        {
+          "at_ms": 1792413071854,
+          "stage": "material_persisted"
+        },
+        {
+          "at_ms": 1792413071854,
+          "stage": "result_exchanged"
+        },
+        {
+          "at_ms": 1792413071855,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071867,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071870,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071875,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071903,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071867,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071883,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071888,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071918,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 0
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071867,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071875,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071880,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071905,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 1
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071867,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071888,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071893,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071920,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071960,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071967,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071989,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071960,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071960,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071975,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071980,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072000,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 2
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071962,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071970,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071975,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413071998,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 3
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071962,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071962,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071984,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413071989,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072005,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072040,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072049,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072054,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072067,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072040,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072040,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072058,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072062,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072078,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 4
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072063,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072069,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072074,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072090,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 5
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072063,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072063,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072079,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072084,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072094,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072132,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072139,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072144,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072226,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072226,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072132,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072132,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072158,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072163,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072181,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072226,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072226,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071860,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071860,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071861,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792413072226,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792413072229,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 6
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072170,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072176,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072181,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072192,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_stock",
+        "ordinal": 7
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072170,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072170,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413072185,
+          "stage": "stock_loaded"
+        },
+        {
+          "at_ms": 1792413072189,
+          "stage": "stock_resealed"
+        },
+        {
+          "at_ms": 1792413072200,
+          "stage": "delivery_persisted"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "delivery_acknowledged"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "job": [
+          111,
+          206,
+          198,
+          89,
+          12,
+          17,
+          214,
+          59,
+          231,
+          33,
+          163,
+          79,
+          244,
+          191,
+          207,
+          171,
+          87,
+          231,
+          170,
+          236,
+          43,
+          167,
+          108,
+          18,
+          224,
+          62,
+          124,
+          93,
+          252,
+          221,
+          254,
+          16
+        ],
+        "kind": "registration_install"
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413071860,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413071861,
+          "stage": "installation_checked"
+        },
+        {
+          "at_ms": 1792413071862,
+          "stage": "material_loaded"
+        },
+        {
+          "at_ms": 1792413071867,
+          "stage": "material_installed"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "stock_installed"
+        },
+        {
+          "at_ms": 1792413072236,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "1d5767a58c933eb50626da068f6056f9ac3b761c71f56574dd20b3b11acd519a",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          8,
+          108,
+          21,
+          70,
+          52,
+          65,
+          115,
+          167,
+          57,
+          52,
+          181,
+          203,
+          78,
+          153,
+          223,
+          29,
+          5,
+          231,
+          30,
+          89,
+          110,
+          62,
+          126,
+          242,
+          37,
+          235,
+          44,
+          81,
+          119,
+          214,
+          243,
+          155
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072630,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072631,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072637,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072637,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          8,
+          108,
+          21,
+          70,
+          52,
+          65,
+          115,
+          167,
+          57,
+          52,
+          181,
+          203,
+          78,
+          153,
+          223,
+          29,
+          5,
+          231,
+          30,
+          89,
+          110,
+          62,
+          126,
+          242,
+          37,
+          235,
+          44,
+          81,
+          119,
+          214,
+          243,
+          155
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072630,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072631,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072638,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072639,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          8,
+          108,
+          21,
+          70,
+          52,
+          65,
+          115,
+          167,
+          57,
+          52,
+          181,
+          203,
+          78,
+          153,
+          223,
+          29,
+          5,
+          231,
+          30,
+          89,
+          110,
+          62,
+          126,
+          242,
+          37,
+          235,
+          44,
+          81,
+          119,
+          214,
+          243,
+          155
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072630,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072639,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072647,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          8,
+          108,
+          21,
+          70,
+          52,
+          65,
+          115,
+          167,
+          57,
+          52,
+          181,
+          203,
+          78,
+          153,
+          223,
+          29,
+          5,
+          231,
+          30,
+          89,
+          110,
+          62,
+          126,
+          242,
+          37,
+          235,
+          44,
+          81,
+          119,
+          214,
+          243,
+          155
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072630,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072639,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072674,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          26,
+          70,
+          175,
+          57,
+          228,
+          127,
+          151,
+          200,
+          83,
+          215,
+          39,
+          36,
+          26,
+          57,
+          103,
+          194,
+          219,
+          41,
+          0,
+          245,
+          150,
+          210,
+          186,
+          196,
+          12,
+          240,
+          102,
+          40,
+          127,
+          237,
+          163,
+          152
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072735,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072736,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072743,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072743,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          26,
+          70,
+          175,
+          57,
+          228,
+          127,
+          151,
+          200,
+          83,
+          215,
+          39,
+          36,
+          26,
+          57,
+          103,
+          194,
+          219,
+          41,
+          0,
+          245,
+          150,
+          210,
+          186,
+          196,
+          12,
+          240,
+          102,
+          40,
+          127,
+          237,
+          163,
+          152
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072735,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072736,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072744,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072744,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          26,
+          70,
+          175,
+          57,
+          228,
+          127,
+          151,
+          200,
+          83,
+          215,
+          39,
+          36,
+          26,
+          57,
+          103,
+          194,
+          219,
+          41,
+          0,
+          245,
+          150,
+          210,
+          186,
+          196,
+          12,
+          240,
+          102,
+          40,
+          127,
+          237,
+          163,
+          152
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072734,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072745,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072752,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          26,
+          70,
+          175,
+          57,
+          228,
+          127,
+          151,
+          200,
+          83,
+          215,
+          39,
+          36,
+          26,
+          57,
+          103,
+          194,
+          219,
+          41,
+          0,
+          245,
+          150,
+          210,
+          186,
+          196,
+          12,
+          240,
+          102,
+          40,
+          127,
+          237,
+          163,
+          152
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072735,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072745,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072757,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          65,
+          180,
+          88,
+          16,
+          188,
+          151,
+          185,
+          180,
+          60,
+          69,
+          117,
+          40,
+          178,
+          190,
+          137,
+          229,
+          27,
+          210,
+          203,
+          52,
+          216,
+          3,
+          22,
+          139,
+          147,
+          27,
+          76,
+          122,
+          87,
+          104,
+          13,
+          116
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072794,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072795,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072802,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072803,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_store",
+        "material": [
+          65,
+          180,
+          88,
+          16,
+          188,
+          151,
+          185,
+          180,
+          60,
+          69,
+          117,
+          40,
+          178,
+          190,
+          137,
+          229,
+          27,
+          210,
+          203,
+          52,
+          216,
+          3,
+          22,
+          139,
+          147,
+          27,
+          76,
+          122,
+          87,
+          104,
+          13,
+          116
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072794,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072795,
+          "stage": "authorized"
+        },
+        {
+          "at_ms": 1792413072803,
+          "stage": "transaction_committed"
+        },
+        {
+          "at_ms": 1792413072804,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          65,
+          180,
+          88,
+          16,
+          188,
+          151,
+          185,
+          180,
+          60,
+          69,
+          117,
+          40,
+          178,
+          190,
+          137,
+          229,
+          27,
+          210,
+          203,
+          52,
+          216,
+          3,
+          22,
+          139,
+          147,
+          27,
+          76,
+          122,
+          87,
+          104,
+          13,
+          116
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072794,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072804,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072811,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "035c772e7083411b3b681b76fbceecad",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "b",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    },
+    {
+      "completed": true,
+      "context": {
+        "kind": "take_caller",
+        "material": [
+          65,
+          180,
+          88,
+          16,
+          188,
+          151,
+          185,
+          180,
+          60,
+          69,
+          117,
+          40,
+          178,
+          190,
+          137,
+          229,
+          27,
+          210,
+          203,
+          52,
+          216,
+          3,
+          22,
+          139,
+          147,
+          27,
+          76,
+          122,
+          87,
+          104,
+          13,
+          116
+        ]
+      },
+      "event": "ml_dsa_stage_trace_v1",
+      "marks": [
+        {
+          "at_ms": 1792413072794,
+          "stage": "started"
+        },
+        {
+          "at_ms": 1792413072804,
+          "stage": "response_headers"
+        },
+        {
+          "at_ms": 1792413072816,
+          "stage": "completed"
+        }
+      ],
+      "module_instance": "a8c873d849eb19852e65add9a0f5ecdd",
+      "operation": "46ca81ebc576cc3030938c524bbc1a7ff1dbeabf931a2806ede8ddbde7807cad",
+      "role": "a",
+      "table_reads": {
+        "count": 0,
+        "elapsed_ms": 0,
+        "maximum_ms": 0,
+        "measured": 0
+      }
+    }
+  ],
+  "functionalPassed": true,
+  "latencyTargetMet": false,
+  "builds": {
+    "router": "378519e0b644e8c4aff3be216ab64c93f5881f54b56d8102b386d77e92922c3a",
+    "deriver-a": "4a5f6f36b3b193503fcbd1c6e5ed528e763d0fa8de6920efc6ffbfc5ec8f0f9e",
+    "deriver-b": "a1a1bcacc2f4635061fea3ea637050ed222782d078e3576bfa6bac99e8e2b98d"
+  },
+  "deliveryFixtureSha256": "5aa365f131d1716029bdf00035d7ad26b6eff665c313f508c4dfb05af30bad3c",
+  "scriptSha256": "fd44adfa52e25c5ff552b33553efbd683c6ce1e901d84a0ae55f963d3b2d0994",
+  "discoverySourceHashes": {
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/recipient_keys.rs": "1df1638239d28fc5d59eadc7ea1c36e6ef8308f60678b74d18b963b0430d091f",
+    "packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration.ts": "5b0b48538e3c2e5ee4e2a89dbf653193298dd45978ea5738302592bafb011f66",
+    "tools/ml-dsa-investigation/src/worker_registration_client.rs": "c2a4408a80716ce1192d6f12b10576365c4b874721208d6fbbf1e142780bdf7c"
+  },
+  "wrongCredentialRejected": true,
+  "recipientDiscovery": {
+    "keys": {
+      "a": {
+        "key_version": "registration-e2e",
+        "public_key": [
+          18,
+          95,
+          180,
+          92,
+          174,
+          209,
+          125,
+          45,
+          132,
+          154,
+          4,
+          76,
+          241,
+          142,
+          60,
+          142,
+          127,
+          50,
+          181,
+          168,
+          47,
+          107,
+          93,
+          150,
+          190,
+          126,
+          167,
+          162,
+          73,
+          186,
+          32,
+          76
+        ],
+        "role": "a"
+      },
+      "b": {
+        "key_version": "registration-e2e",
+        "public_key": [
+          215,
+          35,
+          186,
+          232,
+          7,
+          69,
+          187,
+          180,
+          214,
+          234,
+          238,
+          107,
+          70,
+          71,
+          16,
+          95,
+          230,
+          150,
+          243,
+          51,
+          115,
+          64,
+          157,
+          44,
+          202,
+          227,
+          7,
+          113,
+          74,
+          78,
+          81,
+          99
+        ],
+        "role": "b"
+      }
+    },
+    "gatewayCredentialRequired": true,
+    "noStore": true,
+    "gatewayCannotReadRoleDirectly": true,
+    "swapped": {
+      "rejectedStatus": 500
+    },
+    "shared-key": {
+      "rejectedStatus": 409
+    }
+  },
+  "emptyPoolRetryTime": true,
+  "inactiveInitializationRejected": true,
+  "registrationSurvivesRestart": true,
+  "gateway": {
+    "sources": {
+      "packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaRegistration.ts": "aa4bc5491510d13c979b49606855654d4c4aded66c9ebf1f9efafdae1ba6b073",
+      "packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaRegistrationExpiry.ts": "9f8b13a29a912aff7b67834f7d23aef9ceaefd570c4a902ca6f51d3d9a5f2546",
+      "packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerService.ts": "d0a81a6d8c9e7d3073f36acf5c9dc4377ec645b24ad4272b570f7276063ea1dd",
+      "packages/wallet-server/migrations/d1-signer/0082_ml_dsa_relocation_boundary.sql": "c29092ded5cfccb6f1a6f07211034ac169afdb7fa16138dd041fd704b69e1084",
+      "packages/wallet/src/core/signingEngine/walletCustody/mlDsaAddSigner.ts": "cd7e93ebf16d8ea59fe52baf43298a956fb9fbdfc5aa897dc033872ce74061e2",
+      "tests/helpers/mlDsaGatewayRegistration.e2e.mjs": "bcb96852b84f2244753edfb00eb6d5e03e3f693d3d6d7899a259ca82a19151c0",
+      "tools/ml-dsa-investigation/src/gateway_registration_client.rs": "ffcdb8685f7140bfbb62f50a837ced628bdd0d7e2dbf6d8cfa6463b6a914d136"
+    },
+    "nativeBinarySha256": "3dcaa9531c83ed1b1fb16bfacde07c5d9c63f0919d983f6a80fd4fca19d3e072",
+    "checks": {
+      "invalidAssertionRejected": true,
+      "wrongWalletRejected": true,
+      "approvalOriginBound": true,
+      "exactAdmissionReplay": true,
+      "grantCannotSelectAnotherSlot": true,
+      "noPublicationBeforeInstallation": true,
+      "emptyPoolReturnsRetryTime": true,
+      "encryptedInputsPinnedBeforeDispatch": true,
+      "installedExecutionReplays": true,
+      "relocationCannotOmitInstalledMlDsa": true,
+      "publicationSurvivesLostAcknowledgementAndRestart": true,
+      "admittedOperationSettlesDuringDraining": true,
+      "existingEnvelopeAndRecoverySetUnchanged": true,
+      "publishedKeySignsStandardSignature": true,
+      "expiredAdmissionReleasesSlotWithoutVersionReuse": true,
+      "delayedExecuteCannotOverwriteReplacement": true,
+      "revokedOwnerCannotResume": true
+    },
+    "canonicalKeyVerified": true,
+    "signature": {
+      "verified": true,
+      "elapsedMs": 258.3094160000037,
+      "operation": [
+        70,
+        202,
+        129,
+        235,
+        197,
+        118,
+        204,
+        48,
+        48,
+        147,
+        140,
+        82,
+        75,
+        188,
+        26,
+        127,
+        241,
+        219,
+        234,
+        191,
+        147,
+        26,
+        40,
+        6,
+        237,
+        232,
+        221,
+        189,
+        231,
+        128,
+        124,
+        173
+      ],
+      "messageHex": "4a7c5864c14468491512838ca9b3550dd10d7c7a9f37bb07c4e2002260fab4f2",
+      "contextHex": "",
+      "signatureHex": "0767489772e81481aec12af4ff8a6f854f84e391802070aa68ebe7a39808bbe42374ce99484ccf380ffc6df63d37ced283729928ae2c0f4b454de3ff4dd980a558370e36652cc05764d74eed7e86f5b293dce5132218c88dd3929fb4a4013e161a506fb090a7ee4c7db2e40698b6951bee7c4978598d67ebc2d2b2de526ef4e05a67228d8682981039b2ba158434f4c366528953e188f8fde5d30e2f25adc7e70819e3449ded9a95945b88da44e3fc61ca5748b572cdf84ba0424299a1893b2fbde17cddac2cc615de38cc405f17d8f5a2fbd321e586e450d2458a97fcce5aa2d60189a46adcf09cea954b736b4cd026d3e044bd68b18ca5d967be1e97c45f7a877de973d8beffa3342b72d375dd198a697446ddbeaf6b56665eed71780fa759942056449b885a0f69a8be75885fe99527e55bf891a22d172f1352827ba1bcc8f023aeafbc0d9903f9303fd9ef6ac843c30f4a9d701f9366800343ea8f5c1586e4060338054f7d42b18a8dc957f29937a2a2b5e854657a5b641dc982b68521be72f6f4ab9f06661b9f98b62a6c32b26caea800f1ac18d33cb49f331a90298805cc32c914372ec68b4dd225a96c7115e98f15a51a61c806073a2df86dc5ebbfa9fc0f720a70048ab29609eeeff3c967840e787092e47dc7c5b901683bb57f292b3e1516553de9a1fc8295116a723cba1435d9a93f18c95119d485b48a6ee41f0341697d1b285b5e1cfac5d7d871d464c83ce3b46bd93dd832ccc0eb71ccaa59b14e6d14081f777f0f2487f1da4c54b2b21c4f44bb1884475e06ac5d97bac892633f36f4f7e65ac717835fb01d58089cda05022f2418aa96afac5414f92a68806c4896892cef7f3ba272fb9f5ee3e9aed26e2af851bcb0d1ac64d2386ba69d079d40703b5be05d7f99daa41c309a2b240d79cfccc869fa3059560b1d17b8c9d1240dfe1752231eb86626f344630d26aa6e3db20a479eab997933213e698edebb8dce2970c1674f6730346109d166769f50d3f4179d556bfde05422543ddc770a03e35902a7de0bacc8126a6a9b80d9fcf60bc3b346b14d301bda6abff7adea7ffee63887c77146b7c93fe826dd4e840bc182385b2936006f98a91de56307de1590464479591c9c05a4b5f0e9aa23ed9f6f698e62268f49874b304800b3b12741ce302789c276b1b1b1d82f66af742bbb97c7f26e00c5506064cfc5ab9ee38914fb09380e61ee0c802e5e1760fcfec764f654cc743aa5a39bf5edb8393f60a899c162f920caaa289be217e61f7735754a4421ecd2e9ae6019666fae1f550956c38860879d22a6824200817742f259f3b68ab4d4840a0fc62846477e35a7fd7e6c87f7d2be509e37bd2c8af6b750a94616e77ddfe0bbbf9dfb53b047715cbff74c0db2806ed0966f8733eef6ea786230ccd4029f9fafd47147246e14a0e1c0e3c1b7865e53eaf8faa3788cb014114ff634051ad106fe712b3c62af2892250fada403372a6fc9934bcdc2dc5e98d38cfb7308612ec258f2c412ccc08fb13c401ee897a3a2a8227a84e8b64c2662860ecc1f0371e1e86183d567bd592605e02600cb7b9c529df44b42f6abef363e300aa6e14df0d6044c241e703ee18c7ee8bf2b2e304f08908b6fcd3a8b2b4293fc0e5cb25656c6b9c0e71db084b674d2aad97f4bf2a9a571ddf1d0967b0e365f53ae8202b9bd529844c7395425e00edc94dbbbafb386cba40ed78610275fec9c08c6239b32a0b3a931cea457571c4d7e492ab21d60b2b2c031d0938c3400981b79af5f300de53cae701476661bbe94ead9086d6737863f100974478e791d033cdac7ea9cb784ac43833cec7989660d43a2091a4e91133083d34b908968eaf726330365e1dd103aaf5419d16b3027e294de64da6f7b3c0938f1ff9b9ac2f43f43d13b205fc16a3c59f6bf5be30d90b6b64fb4fcef21e94c595c7d0b1c4879ff1572f545d6534df415ebd6d5caa447ad3841635b8fd4d9dbdcd500315da3e17d205c81e3193854ce2de4d83ff12f28ed6ead222b15df31d79ddee7aabfcca1a8a3a52183bb7fea2f25f7cf89ec2703a7ec4f47790ff7e17c1417ac3d24beb7a3d8177360b16041cb2e6f9bc08c7a57f482b31afe543e567792435ead9a1f27fa31b5fe81808b7e002c0052883c450949846efaaca26fb43b9e6ecbca11908b2405390ae541da1b5679dbb8e1405a0a7f4b256bd497fe559e7460e613c863ac51efc596cf91faf81601cbef9d1a3953abd2309d3670569555c43c5fc561b38207c2cdeb14359762033d73776b6b5341cb84618447c2493a5c7db908a685033509c890aa7c2a9fa5b1317b6a48d173dd837c072c9e91dd4a4143c03f5e57116cabaedea082280588b67b66f4471df85567e5f2c781ab56de2f468aaa71be47a2a98ba089c07c68a4ddf035b5164d1769feb96513cc6181764badbc3e2a516bd66f985cafb2efa009972be33238ea4d2942d681b51fec88a476cff8294ac912dd5bd5e6c9b513e571c3c5d98f7d3b8641d44cf728f4722e52f39c44f71f364359a8fdc16e72297b4e8fbfcf7a67181b948168058f805d2a6420285885ed7e0f45662cb36ccbbdc1e6ee84e7f7693141a9fcc2f3c8be1005046dae8734ea62cad3121790615002d5d8c0d277bd39444479970546519ecd539c63af589fef330b1f61e0bff3cd06d12699205cc7776eaa50f5403e33336b0fe041aca8a5e5c67540acb806389746dad93c866f2a6e3b21e87a8000b47b42c5723bb8646114db583c8a10e5a7ebeeb32c67d3015d51a91290f82b33bf03cf632c2ad4b3de96427c8e4a244712d0d399643b9f07777bc9ce6505c8ea316903a75fb1734fd7355e0d699e6b32286674fb62172bbfe8721dc55570a602bd7b6ab7b0f7c250e7f0e0ef873d5a1e64117d459e9c9bb75a07d82dd6f93bb0fcc98ade3f2ac16d1fba0dcc86d45d9cac25325b15417caada555f9d2c09b35e4fcda8a62e9ded1e4914f0204bba5fa36f9d5e2b5d59307a3fda54c7a6547ca07fdc37618b0463913b607834d519a6cc1ae27a038fe6ea4a2147b03d3f7db55c090683224a5651652f98b5c47aeca388ad864d09f114f3a79445c5d0220add9b58c049518313b9cafaf66380c0ae707e5119b5f4be2b38803fb30842ac5548c2c7ed7c82b08ea4f6d4d7387e274b4c2060c0b97104c3040865a9302f3c61f1d3a1c60bbbc1306d081ef2c0219847ad011ac9bc6dfef41246a6864b03ea5183e2252c794741cb58deb40608a827c02ac7acd30748f4ac70999f143b49dd2408f26492e6c344fde27d15d8730bc970b0bc2c6102a4014875ca66ea71ad00100993eae4685ec70be6aa7fd935e2dae262ffb0726308d66686942cbab2be5700ca957e1aedb1197240b0b5bb31a4b2b803c9104bebba0a2091d078b9792b6e3ec31191fbfdf3290336db475e0287b1bf2ee0f0c88fb659cf4909de188f4758c5aa321c9a7729bc5d754e48f1c1c5fbef7bffa55cb5a33a1f3b350a9a5eb16526e8e3c55ff7b310ba6aea69b207d4f961b51b87ab8d7c8d535d0658a6c0e61ef597742d241798034a7930b8628895e03a65755db1aef6c460b00f4097a0a6043f6a63d52a6f34f58562cb06d58f1b8b339a146d566b314edc4ba048e23ee5e844074756386a6991c240a0b015dcd1f1f28735b38e4534ddfd35588c3c8609ae21cc49af8f74d60b56c00a89bb7b1abac77b0682dda4a62b4b5051e81a716d3c9a278c484a55a2ae1148677c2d81c2b774c756ba2cb7b591d27b402319ba45d9780ff157e349615b0eb8890ab5665f1a188175e015649c2bcb26185f4722d7250e80366d3cbc2342d476cc9002a0924a5b71cb839572589306d085392c68405f28ab93b28144723d058a649a827e783f7c4afe05cfcea2411d8369e8e24d00530dedd8f6b5dd002870053248b114d9f758c24edcc7b3a9f7f84aab97e97d77c230674ee7c7cf097d77e8cbc1022f35f319123c0bf50f3025ffbccf310699b5383290a6d189e89398cbddc4e615c1f6d880100c25057a570a4c47f7a1e1563423d59b69d4ce8f1471da7c73312766e4757032526b06d8fe113dd933f44813549208fdc14c0c22616217b7f9e6af20d6b3e622c601c10ba0a97a694b373dba619d4e6578ca3d13afdbbd25ae40a5dbeba954e8f005549eaee641c9f8faabf127ed7ef0c4f3d1b5e4d0368b875ae074dfc003b7d3c8c57a68032e91e29b07d8314d13e680d6084d0d693b1296195f134567725a45cc7fe6f0594b0682b717a31b1f76de4c8947c007ecb698577fd940908cb95717b263bdebc257068b0e8b264f83ec1bbe368dd65109160a91df03be0bbbf19917f7b7398f7a56ac0e1a16ab2f5fb60909605b5d5459a3ae3a88fc1a7b4faa21ec1c9ae5fcf8376dce64ec6b86b27a44c73d66d84d3ac4cccb24eab07851ced617ef86bddfe7920afe90c44e8d9b58d5d8dd7d2572f3bec60d6458755b1358992df3d100bb63b6a889a14530f2dd737c46f97c7a5985e8f073ca62c2f97df5e770d9945c20b07f5e510640680847b7d40b0a495dcc741335505b6a0c536401b5a97e71d20a7ddefe020919347173b1bec4c9ced83e89e82f4c516190aad0ef030411568995999cef254e747d97c8d700000000000000000000000000030f121a232a"
+    },
+    "publication": {
+      "ok": true,
+      "key": {
+        "walletId": "gateway-wallet-3c1fff6f835ebdfd",
+        "signingKeyId": "near-ml-dsa-65:1",
+        "keySet": "near_ml_dsa_65_v1",
+        "publicKeyB64u": "byqRf7ZpO97fR55WWsJVSTVJGBq8jaoAwBngQ2vDgxasH7BaW1glRSEBlPdWr5PrXPt0xJwpAsx2sbP2z3OfbPLt7_H-GoEzYr_ylyAbKqLIEnVqMl3BehGecooL2uqRRw740Zh8qDXl7S0DpaoWklni7eFurWOCt-t_qVD_rdF6AUkhUEy4naHI48_qFeluwdA7xCClorbL_J3PpqoC0dj3psRcSBOY1S-C6TbfCM3x9YmMogyof48tQQ2UYMN0Flm8HEMZwHrTEJQgQWXNpLXLh0NfY5p_KBSkyJKLctg6fPZYuEEEaU4jFoToft9vbx2neMmzOV1CiL4yTOm4CZ6eaIQmH9mvkbJYOoM4RBy1C1Ws4BJxucSEj8smzPp5WI55j2OQgGR6MIBbBm6nh-B3GYo-sYOsr2ZE20g6sAAVwwK7qMrvBsC-JHhU7EZtze_2-vRtUEjx_WmaX23NJHF558qrMKtwvBXQrlOTWHn3be1ry4qCAWKaqYYzoMa10lyFs4IV4ubkb-ThGqmMk7V9tkikFzeBkelD1tc1doapcOTOEjgMkgj7UFgyJ05-Um1zd_9VobxRFIko-V2UYIN1V2M51-DJAqU0Km_SncjrH3lODjHiRjmflHFPWHJdmteXVpH5ubY7skT_5oPMN_8LeFVeMgRDE_o7nvNrKnhlW4MzzD1bscoERInHWzrylU3eF9EDpamUrVW_oW1VvaCraYZmmOtjRCgrocq6Js1-xACJ1WlKVC1Ii2UZ4-CSb6g9vWp1KiK9GA1Q_velc8Sm4Yp1cAPxGKeEJJ5LJaHM186DVUzygyZTMc2eNPjN7txU2FTfcd8DPZnHARoeJ1fpgFnIDjDFZn0UXRTAGhhKk0naWOHWGRxVcMLC-YfSStczCZDgIB8wbAFSSUcCTjM0LJVJw-Dwc2H2YXrdsosUDHBbcAQS3Q1MSBELj5DP6gVG1zPDVXt-bMX7H8yj8l2ZtOePd8_IgnxuBgITC0MGHtbCzdcswwRSheU70LX7exdz1SM64pq3iVaLe5rCh4ihBwuqG_yrr2OkD4rXoDTPKvc0f8MO_Nt1WbGM-qYJqJT6Jq612wDu7Ftt5qQc739Ag8J2Syj8Kycr9_UkMdIwaGfCS5jVZ20Xj7Ni1RNxlEE4okSWuJQeFsRZ-bYaCQOsA3d_Pbch6308EMboND7VPeFANp6APH-FPk4CicfTU9nx7zvyGF0cUEsPN-9G8SwOyIeAUEers8aQphwzER_xvvYi9frwz3vbS8R93JM5pHsH_cPvN-C6pWDRLINZ0vPZVGTOrLPOWlw-9Fr4ZYNgt8-h0AanKYL4Moi9R_8_5CJEgTLlDIO3f4Rj6QU8HU8QtEN2SDF9fL87GpmNiSBOxO-DcHATF1NolUKcjctt2HATqRmbai7qIomHsqGlKtn-WNKIC7DtYYDoS6MFtoQ4VNeOW7lBQC1HQfXoi65TBbKeOSYacLQX2UnbTzfnU8IHhfl3lXaqDnkntttUVd8JdOGecRRMEfbJne-kfFqxJLFcIk_Rf70Ps2TcXwJ8aGspVabpP3N2wt2mEjC5Mdn7E55Bh8qkBXbWFKYtciH2na-YQDNwv6IWcpX5Rr1FOL57sKvR-E3FPIlO8rRDACgG5hQl-vODjF_63Iw0tyAxk3nuCDwthQv0f-M9uij6ScfMi_PfXQbSuYhdaj839QuH3g_lmfZunPsHsg5TibtUlqfFZ_tR0IkBSnVChF7G4umjWdSELHJqN90Ls5MFgcSD9PNqNZNtdqvxeXLjrn6PI_6oAt2x8kcueeGVFfPqt0Gk0tVXm0XXvqpSm0ZKGCIbFKUZ3XfNhsdiDzu0Wgv34Ch8sxRbUO8tQkv8rFL31wNYds1BPBoowcMquhgP6Ijpc9pgAewCVASX7pFLm6H_n4ejmaIrSy6n4xzTk8-NqPopev5CIHoeP8T3U6cxtree9Eqvp7a37gbF1_GqOhAp1e3T3nrSAUUFapwg5NVJ8-zhPU79BwkrXjcuRRN0KodRIkOCTVqrzZLcNgSRS1qRSaw3dCECzZxFSKa63n8Ma9QZhypF42PwNTgkCS11ou2aki9oX9pbWYmL9Ih3gzYFCfKWb2U0SPamV6RLsd_ag5vHxMWJd3KXgfo9oo1s8SnB8Z4gSpHHEfApkMAqsesLN0HjYTRPCZragbvdTluYMbiHzFKR9PZk1Azj61wT9GnlG9F27SDKU02htyTJxAtKQpxeJmMrEGTYM_jiY42ziar1QpcnuP1EOm6OyJSdZiJxRWPtAP4D78JbIrqqDV2rjzj3tZoOPNJw8hNsALwD4Gq5OlD2o6pEL3soe5PAj7A1mwTyXuWLa1aAxnNL52wWRM4aaPreZQqSM7D16lrFPaTqhrLr8PNeSDCKs3knxwR12UtpJbnOkY33YNkfYZNR731GFJ1PNolW8i490-zvPzvisckkfCZZk3PNJj1U_WalfIt2FwWy4yt8aXsD3b2bBppH5bdkSyE-TKZbod1fLgxq6HKfnDe4tZP28dhkQHhl-kHrAuiZnHL1IAHGyolYruHHi1SJkXaao-fFILGvqGn1WeP1oX1fxKBSnEV_yd0",
+        "keyManifestDigestB64u": "aUzSKHLSB4i6SgL389alNb1SdtXQQtX0w_qpllzSC2g",
+        "operationIdB64u": "HVdnpYyTPrUGJtoGj2BW-aw7dhxx9WV03SCzsRrNUZo",
+        "materialEpoch": 1
+      },
+      "publishedAtMs": 1792413072382
+    },
+    "scope": "Real Gateway routes, fresh P-256 WebAuthn verification, local D1, and prepared Worker key generation. Existing wallet ownership is seeded with shared factories. No ML-DSA-only wallet creation or public transaction-signing route is tested."
+  },
+  "recoveryPreservesCanonicalKey": true,
+  "registrationChecksPassed": true
+}

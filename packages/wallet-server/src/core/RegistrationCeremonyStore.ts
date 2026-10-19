@@ -558,6 +558,10 @@ type StoredEd25519YaoAddSignerFinalizing = StoredEd25519YaoAddSignerActivation &
 };
 
 export type StoredWalletAddSignerSignerState =
+  | {
+      readonly kind: 'ml_dsa_add_signer_authorized';
+      readonly preparation: import('../router/domains/walletRegistration/mlDsaAddSigner').MlDsaAddSignerPreparation;
+    }
   | StoredEcdsaAddSignerPrepared
   | StoredEcdsaAddSignerPendingActivation
   | StoredEcdsaAddSignerActivationClaimed

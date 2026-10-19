@@ -1,4 +1,5 @@
 import type { LinkedDeviceBootstrapStore } from '../../../../core/deviceLinking/linkedDeviceBootstrap';
+import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
 import type { LinkedDeviceRequestProofNonceStoreV1 } from '../../../../core/deviceLinking/requestProof';
 import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import type { PasskeyCredentialClaims } from '../../../../core/passkeyCredentialClaims';
@@ -210,6 +211,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly routerAbEcdsaPresignRuntime?: RouterAbEcdsaPresignRuntime | null;
   readonly ed25519YaoProductRegistration?: RouterAbEd25519YaoProductRegistrationRuntimeV1 | null;
   readonly ecdsaStrictRegistration: RouterAbEcdsaStrictRegistrationPort;
+  readonly mlDsaRegistrationProxy?: RouterAbNormalSigningRouterProxy;
   readonly tenantRootCustodyLineage: TenantRootCustodyLineageResolverV1;
   readonly linkedDevice?: CloudflareD1LinkedDeviceCompositionOptionsV1;
 }
@@ -405,6 +407,7 @@ export function normalizeD1RouterApiAuthOptions(
     routerAbEcdsaPresignRuntime: input.routerAbEcdsaPresignRuntime,
     ed25519YaoProductRegistration: input.ed25519YaoProductRegistration,
     ecdsaStrictRegistration: input.ecdsaStrictRegistration,
+    mlDsaRegistrationProxy: input.mlDsaRegistrationProxy,
     tenantRootCustodyLineage: input.tenantRootCustodyLineage,
     linkedDevice: input.linkedDevice,
   };

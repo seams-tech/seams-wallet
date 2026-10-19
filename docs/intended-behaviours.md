@@ -3500,7 +3500,7 @@ Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 
 ## Experimental ML-DSA custody contract
 
-The ML-DSA public SDK route is not yet enabled. These requirements govern the native implementation, browser worker boundary, and their E2E evidence.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet. ML-DSA-only wallet creation, public transaction signing, recovery orchestration, and device enrollment remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
@@ -3516,6 +3516,15 @@ The ML-DSA public SDK route is not yet enabled. These requirements govern the na
 - Authenticate both holder results and check their exact public-key agreement before establishing or verifying the key manifest.
 - Require the recorded manifest for recovery. Worker replacement and fresh sharing must preserve its key identity.
 - Joining existing custody must preserve its seed envelope and recovery set.
+- Adding an ML-DSA signer requires a fresh WebAuthn approval for the exact wallet, slot, origin, and server-issued intent grant.
+- Pin the owner authority digest, revocation epoch, auth method, custody-envelope version, and wallet execution generation at admission.
+- Persist the exact encrypted input pair before dispatch. Changed inputs must fail under the same operation.
+- Publish only after both participant installations agree with the authenticated client completion. Recheck current ownership atomically with publication.
+- Return the same publication receipt after a lost acknowledgement or Gateway restart.
+- Expire unused admissions with a retained versioned record. A delayed execute must never overwrite a replacement ceremony.
+- Keep dispatched signer slots reserved after interruption. Recovery must reconcile uncertain participant state before reuse.
+- Permit admitted work to settle while relocation drains. Block new admissions while draining.
+- Reject participant relocation after ML-DSA execution starts until participant-state transfer exists. Never omit an installed or uncertain ML-DSA key from a relocation.
 - Code recovery must preserve the wallet seed when sealing the replacement factor.
 - Initial custody establishment must seal the wallet seed and ten distinct recovery codes.
 - Treat native custody output as proposed commit data. Publish signing capability only after both role stores confirm durable activation.
@@ -3566,7 +3575,7 @@ Its verified factor inputs, operation-claim persistence, and custody activation 
 The public route still requires authoritative registry and session integration.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
-Router admission, durable lifecycle behavior, and the public SDK route remain required before production use.
+Public signing admission, recovery orchestration, device enrollment, and hosted SDK validation remain required before production use.
 
 The [Chromium custody campaign](router-ab/ml-dsa-65-experiment-contract.md#browser-custody-boundary) also checks the consuming Wasm handles and typed SDK worker messages.
 Discarded and wrong-step ceremonies must explicitly free their Wasm handles.

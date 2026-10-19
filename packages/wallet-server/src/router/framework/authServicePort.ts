@@ -1,5 +1,11 @@
 import type { RouteResponse } from './routeExecutionContext';
 import type {
+  WalletAddSignerMlDsaExecuteRequest,
+  WalletAddSignerMlDsaExecuteResponse,
+  WalletAddSignerMlDsaPublishRequest,
+  WalletAddSignerMlDsaPublishResponse,
+} from '../../core/registrationContracts';
+import type {
   D1EcdsaAdmissionPolicyRead,
   D1Ed25519AdmissionPolicyRead,
 } from '../cloudflare/d1/signingAdmission/d1RouterAbNormalSigningAdmissionStore';
@@ -930,6 +936,14 @@ type RouterApiMethodTypes = {
     readonly input: WalletAddSignerStartRequest;
     readonly result: WalletAddSignerStartResponse;
   };
+  executeWalletAddSignerMlDsa: {
+    readonly input: WalletAddSignerMlDsaExecuteRequest;
+    readonly result: WalletAddSignerMlDsaExecuteResponse;
+  };
+  publishWalletAddSignerMlDsa: {
+    readonly input: WalletAddSignerMlDsaPublishRequest;
+    readonly result: WalletAddSignerMlDsaPublishResponse;
+  };
   unlinkIdentity: {
     readonly input: { readonly userId: string; readonly subject: string };
     readonly result: UnlinkIdentityResult;
@@ -1418,11 +1432,16 @@ export interface RouterApiWalletAuthMethodService {
     context?: { readonly userAgent?: string },
   ): Promise<WalletAddAuthMethodStartResponse>;
   startWalletAddSigner(input: WalletAddSignerStartRequest): Promise<WalletAddSignerStartResponse>;
+  executeWalletAddSignerMlDsa(
+    input: WalletAddSignerMlDsaExecuteRequest,
+  ): Promise<WalletAddSignerMlDsaExecuteResponse>;
+  publishWalletAddSignerMlDsa(
+    input: WalletAddSignerMlDsaPublishRequest,
+  ): Promise<WalletAddSignerMlDsaPublishResponse>;
 }
 
 export interface RouterApiWalletRegistrationRouteService
-  extends
-    RouterApiWalletRegistrationService,
+  extends RouterApiWalletRegistrationService,
     RouterApiWalletAuthMethodService,
     RouterApiWalletAuthVerificationService {
   fundImplicitNearAccount(

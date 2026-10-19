@@ -1,5 +1,6 @@
 import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
 import { D1WalletOperationStore } from '../registration/d1WalletOperationStore';
+import { D1WalletMlDsaRegistration } from '../wallet/d1WalletMlDsaRegistration';
 import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
 import type { WalletRelocationEmailOtpServices } from '../wallet/d1WalletRelocationEmailOtp';
 import { createSponsoredNamedNearAccountForOptions } from '../near/d1SponsoredNearAccount';
@@ -1429,6 +1430,18 @@ function createCloudflareD1RouterApiAuthAssembly(
     yaoLifecycleDecisions,
   });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
+    mlDsaRegistration: options.mlDsaRegistrationProxy
+      ? new D1WalletMlDsaRegistration({
+          database: options.database,
+          scope: {
+            namespace: options.namespace,
+            orgId: options.orgId,
+            projectId: options.projectId,
+            envId: options.envId,
+          },
+          proxy: options.mlDsaRegistrationProxy,
+        })
+      : undefined,
     executionAuthority: options.walletExecution,
     getRegistrationCeremonyIntentStore,
     getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
@@ -1777,6 +1790,12 @@ function createD1WalletAuthMethodRouteService(
       assembly.walletAuthMethods,
     ),
     startWalletAddSigner: assembly.walletAddSigners.startWalletAddSigner.bind(
+      assembly.walletAddSigners,
+    ),
+    executeWalletAddSignerMlDsa: assembly.walletAddSigners.executeWalletAddSignerMlDsa.bind(
+      assembly.walletAddSigners,
+    ),
+    publishWalletAddSignerMlDsa: assembly.walletAddSigners.publishWalletAddSignerMlDsa.bind(
       assembly.walletAddSigners,
     ),
   };

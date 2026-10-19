@@ -9,7 +9,7 @@ import {
 import { inspectRawObject, trimString } from './registrationAuthMethodInput';
 import type { NearEd25519SigningKeyId } from './registrationIds';
 import type { ThresholdEcdsaChainTargetWire } from './thresholdEcdsaChainTarget';
-import type { ExclusiveUnion } from './variant';
+import type { ExclusiveUnion, Variant } from './variant';
 
 export type RegistrationNearAccountProvisioning = ExclusiveUnion<
   | { kind: 'implicit_account'; accountIdSource: 'ed25519_public_key' }
@@ -126,6 +126,7 @@ export type RegistrationSignerPlan = {
 export type AddSignerSelection = ExclusiveUnion<
   | { mode: 'ed25519'; ed25519: ThresholdEd25519AddSignerSpec }
   | { mode: 'ecdsa'; ecdsa: ThresholdEcdsaAddSignerSpec }
+  | { mode: 'ml_dsa_65'; mlDsa: { readonly signerSlot: number } }
 >;
 
 export function implicitNearAccountProvisioning(): RegistrationNearAccountProvisioning {
@@ -621,15 +622,38 @@ export function normalizeAddSignerSelection(
     return { ok: false, code: 'invalid_body', message: 'unsupported add-signer mode' };
   }
   const mode = trimString(record.mode);
+  if (mode === 'ml_dsa_65') {
+    return normalizeMlDsaAddSignerSelection(raw);
+  }
   if (mode === 'ecdsa') {
     return normalizeAddSignerEcdsaSelection('ecdsa' in record ? record.ecdsa : undefined, options);
   }
   if (mode === 'ed25519') {
-    return normalizeAddSignerEd25519Selection(
-      'ed25519' in record ? record.ed25519 : undefined,
-    );
+    return normalizeAddSignerEd25519Selection('ed25519' in record ? record.ed25519 : undefined);
   }
   return { ok: false, code: 'invalid_body', message: 'unsupported add-signer mode' };
+}
+
+export function normalizeMlDsaAddSignerSelection(
+  raw: unknown,
+): NormalizeSignerSelectionResult<Variant<AddSignerSelection, 'mode', 'ml_dsa_65'>> {
+  const record = inspectRawObject(raw);
+  const spec = record && 'mlDsa' in record ? inspectRawObject(record.mlDsa) : null;
+  const slot = spec && 'signerSlot' in spec ? spec.signerSlot : null;
+  if (
+    !record ||
+    !('mode' in record) ||
+    record.mode !== 'ml_dsa_65' ||
+    Object.keys(record).length !== 2 ||
+    !spec ||
+    Object.keys(spec).length !== 1 ||
+    typeof slot !== 'number' ||
+    !Number.isSafeInteger(slot) ||
+    slot < 1
+  ) {
+    return { ok: false, code: 'invalid_body', message: 'ML-DSA requires one positive signer slot' };
+  }
+  return { ok: true, value: { mode: 'ml_dsa_65', mlDsa: { signerSlot: slot } } };
 }
 
 function normalizeAddSignerEcdsaSelection(
