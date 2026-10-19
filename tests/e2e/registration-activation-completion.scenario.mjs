@@ -155,7 +155,7 @@ class RecoveryDirectory {
   }
 }
 
-function custodyPayload(api, walletId) {
+function custodyPayload(walletId) {
   const digest = createHash('sha256').update(walletId).digest('base64url');
   const nonce = Buffer.alloc(12, 1).toString('base64url');
   const ciphertext = Buffer.alloc(48, 2).toString('base64url');
@@ -200,6 +200,27 @@ async function prepareCustodyForCompletion(operation, custodyStore, payload) {
   });
   assert.equal(reserved.kind, 'reserved', reserved.kind === 'rejected' ? reserved.reason : reserved.kind);
   operation.custodyWrite = { statements: reserved.statements };
+}
+
+class LostCompletionReplyStore {
+  loseNext = true;
+  constructor(store) {
+    this.store = store;
+  }
+  read(key) {
+    return this.store.read(key);
+  }
+  put(key, value, version) {
+    return this.store.put(key, value, version);
+  }
+  async putWithCompanion(key, value, version, write) {
+    const result = await this.store.putWithCompanion(key, value, version, write);
+    if (this.loseNext && result.kind === 'stored') {
+      this.loseNext = false;
+      throw new Error('Injected lost completion reply');
+    }
+    return result;
+  }
 }
 
 function identity(value) {
@@ -312,7 +333,7 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   const custodyStore = new api.CloudflareD1WalletCustodyCommitStore({
     database, scope, recoveryRouting: new RecoveryDirectory(),
   });
-  const payload = custodyPayload(api, refused.identity.walletId);
+  const payload = custodyPayload(refused.identity.walletId);
   refused.afterPreparation = prepareCustodyForCompletion.bind(null, refused, custodyStore, payload);
 
   await database
@@ -342,8 +363,26 @@ export async function verifyRegistrationActivationCompletion({ api, database, sc
   assert.equal((await refused.run()).kind, 'exact_replay');
   assert.deepEqual(await custodyStore.readRecoveryEnvelopeSet(refused.identity.walletId), recovery);
 
+  const lost = new RegistrationOperation(api, database, scope, 'lost-custody-reply');
+  await lost.reserve('lost-custody-reply');
+  lost.afterPreparation = prepareCustodyForCompletion.bind(
+    null, lost, custodyStore, custodyPayload(lost.identity.walletId),
+  );
+  lost.store = new LostCompletionReplyStore(lost.store);
+  const lostReply = await lost.run();
+  assert.equal(lostReply.kind, 'uncertain');
+  assert.equal(lostReply.phase, 'terminal_commit');
+  assert.equal(await lost.recordKind(), COMPLETION);
+  assert.equal(await lost.active(), true);
+  const durableRecovery = await custodyStore.readRecoveryEnvelopeSet(lost.identity.walletId);
+  assert.equal(durableRecovery.record.manifestKekWraps.length, 10);
+  assert.equal((await lost.run()).kind, 'exact_replay');
+  assert.deepEqual(await custodyStore.readRecoveryEnvelopeSet(lost.identity.walletId), durableRecovery);
+
+
 
   return {
+    lostCompletionReplyReplaysDurableCustody: true,
     custodyRollsBackWithFailedCompletion: true,
     retryCommitsAllRecoveryCodesWithReceipt: true,
     exactReplayPreservesRecoverySet: true,
