@@ -245,12 +245,72 @@ async fn register_request(
 pub struct RouterAbMlDsaRegistrationDurableObject {
     state: Rc<State>,
     env: Env,
+    installation_gate: futures::lock::Mutex<()>,
+}
+impl RouterAbMlDsaRegistrationDurableObject {
+    async fn install(&self, claim: &core::Claim) -> worker::Result<Response> {
+        let command = Command::Install {
+            claim: claim.clone(),
+        };
+        check(&self.env, &command).await.map_err(protocol_error)?;
+        // Exact concurrent retries share one bounded delivery window.
+        let _guard = self.installation_gate.lock().await;
+        let trace = stage_trace::StageTrace::new(
+            claim.request.operation,
+            configured_role(&self.env)?,
+            stage_trace::Context::RegistrationInstall { job: claim.job.id },
+        );
+        if self
+            .state
+            .storage()
+            .get::<bool>("installed")
+            .await?
+            .unwrap_or(false)
+        {
+            trace.finish();
+            return Response::from_json(&true);
+        }
+        // The claim can expire while this request waits for the gate.
+        check(&self.env, &command).await.map_err(protocol_error)?;
+        trace.mark("installation_checked");
+        let record: material::Record = self
+            .state
+            .storage()
+            .get("material")
+            .await?
+            .ok_or_else(|| protocol_error(invalid("Registration material is absent")))?;
+        if record.activation.ceremony_id != claim.request.operation {
+            return Response::error("Registration material changed", 409);
+        }
+        trace.mark("material_loaded");
+        let key = record.activation.key.clone();
+        let response = local_call(&self.env, &RoleCommand::InstallMaterial { record })
+            .await
+            .map_err(protocol_error)?;
+        if response.status_code() != 200 {
+            return Ok(response);
+        }
+        trace.mark("material_installed");
+        signing_stock::install(&self.env, &self.state, claim, &key)
+            .await
+            .map_err(protocol_error)?;
+        trace.mark("stock_installed");
+        transaction(&self.state, move |store| async move {
+            store.put("installed", &true).await?;
+            store.delete("material").await
+        })
+        .await
+        .map_err(protocol_error)?;
+        trace.finish();
+        Response::from_json(&true)
+    }
 }
 impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {
             state: Rc::new(state),
             env,
+            installation_gate: futures::lock::Mutex::new(()),
         }
     }
     async fn fetch(&self, mut request: worker::Request) -> worker::Result<Response> {
@@ -266,6 +326,13 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                 .await
                 .map_err(protocol_error)?
         };
+        if let Command::Install { claim } = &command {
+            return before_deadline(claim.deadline, async {
+                self.install(claim).await.map_err(storage_error)
+            })
+            .await
+            .map_err(protocol_error);
+        }
         check(&self.env, &command).await.map_err(protocol_error)?;
         if matches!(
             &command,
@@ -287,52 +354,6 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             return Response::from_websocket(pair.client);
         }
         let value = match &command {
-            Command::Install { claim } => {
-                let trace = stage_trace::StageTrace::new(
-                    claim.request.operation,
-                    configured_role(&self.env)?,
-                    stage_trace::Context::RegistrationInstall { job: claim.job.id },
-                );
-                if self
-                    .state
-                    .storage()
-                    .get::<bool>("installed")
-                    .await?
-                    .unwrap_or(false)
-                {
-                    trace.finish();
-                    return Response::from_json(&true);
-                }
-                trace.mark("installation_checked");
-                let record: material::Record =
-                    self.state.storage().get("material").await?.ok_or_else(|| {
-                        protocol_error(invalid("Registration material is absent"))
-                    })?;
-                if record.activation.ceremony_id != claim.request.operation {
-                    return Response::error("Registration material changed", 409);
-                }
-                trace.mark("material_loaded");
-                let key = record.activation.key.clone();
-                let response = local_call(&self.env, &RoleCommand::InstallMaterial { record })
-                    .await
-                    .map_err(protocol_error)?;
-                if response.status_code() != 200 {
-                    return Ok(response);
-                }
-                trace.mark("material_installed");
-                signing_stock::install(&self.env, &self.state, claim, &key)
-                    .await
-                    .map_err(protocol_error)?;
-                trace.mark("stock_installed");
-                transaction(&self.state, move |store| async move {
-                    store.put("installed", &true).await?;
-                    store.delete("material").await
-                })
-                .await
-                .map_err(protocol_error)?;
-                trace.finish();
-                serde_json::json!(true)
-            }
             Command::Result { .. } => {
                 let value: Option<core::RoleResult> =
                     self.state.storage().get("own-result").await?;

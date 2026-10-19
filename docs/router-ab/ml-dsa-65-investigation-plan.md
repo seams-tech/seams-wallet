@@ -2,7 +2,17 @@
 
 Status: feasibility and integration work active; production release remains gated, 2026-10-19.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
-The [signing and registration profiling campaign](ml-dsa-65-stage-profile-report.md) adds exact material-call boundaries and registration execution/installation records.
+The [bounded initial-stock delivery campaign](ml-dsa-65-bounded-delivery-report.md) adds a two-batch delivery window per participant.
+A registration-local mutex serializes exact installation retries. The existing claim deadline bounds authority checks, gate waiting, delivery, and completion.
+Lost committed replies, restart, concurrent retries, and late replies pass local E2E checks. Persisted payloads and installed markers remain exact.
+Hosted participant installation medians fall from 1.737 to 1.444 seconds on A and from 2.178 to 1.848 seconds on B.
+Complete prepared registration median rises from 6.707 to 7.033 seconds. Candidate cases take 5.290–7.888 seconds; none finishes below five seconds.
+The screen establishes no end-to-end speedup. Retain the bounded implementation as experimental and investigate execution plus surrounding dispatch/activation costs.
+Two-candidate signing consumption, wallet-seed recovery, standard FIPS export, and the thirty-two-candidate capacity remain unchanged.
+All eight hosted ceremonies and initial-stock signature checks pass. Both profiles restore the original reserves. No sustained throughput claim is made.
+UI and GPU work remain deferred. Do not increase delivery concurrency based on this small screen.
+
+The earlier [signing and registration profiling campaign](ml-dsa-65-stage-profile-report.md) adds exact material-call boundaries and registration execution/installation records.
 It preserves two-at-once consumption, wallet-seed recovery, standard FIPS export, and the thirty-two-candidate capacity. UI work remains deferred.
 The instrumented run verifies twenty-five signatures, with seventeen below five seconds, a 3.434-second median, and a 15.287-second maximum.
 Prepared registration/recovery takes 5.151–13.475 seconds. Both five-second targets remain unqualified.
@@ -12,7 +22,7 @@ Hosted storage clocks remain fixed during real work, so they cannot partition st
 Separate Node client waits reach 9.211 seconds before request writing among successful instrumented signatures.
 Both material ledgers balance after full restoration. Saturated complete demand has a 36.778-second median and a 251.654-second maximum in the instrumented run.
 The control and instrumented screens differ in runtime conditions, rejection outcomes, and observation. They establish no optimization benefit.
-Next, test bounded initial-stock delivery groups, separate material body receipt from decoding, and reproduce client connection waits in a browser harness.
+Those measurements motivated bounded delivery above. Material body receipt/decoding and browser connection waits remain separate open investigations.
 Keep Workers preparation, the existing capacity and production cooldown, and all single-use/recovery checks. GPU and UI work stay deferred.
 
 The earlier [producer-reuse campaign](ml-dsa-65-producer-reuse-report.md) keeps four-candidate preparation and two-at-once consumption.
