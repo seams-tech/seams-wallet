@@ -38,6 +38,17 @@ jobs:
       - run: pnpm check:cargo-locks
       - run: pnpm build
       - run: pnpm type-check
+      - name: Verify unused tenant authorization renewal on real Workers
+        env:
+          ROUTER_AB_WORKER_BUILD_PROFILE: release
+        run: node crates/router-ab-cloudflare/scripts/test-grant-renewal.mjs
+      - name: Upload tenant authorization renewal evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tenant-grant-renewal-${{ github.run_id }}
+          path: .artifacts/grant-renewal/**/evidence.json
+          if-no-files-found: ignore
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm -C tests test:wallet-browser:representative
       - run: pnpm -C tests test:wallet-unit

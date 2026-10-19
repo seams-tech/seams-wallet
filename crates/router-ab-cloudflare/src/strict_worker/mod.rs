@@ -325,3 +325,6 @@ pub(crate) fn cloudflare_role_failure_response_v1(
     };
     Response::from_json(&failure).map(|response| response.with_status(status))
 }
+
+#[cfg(feature = "strict-worker-router-entrypoint")]
+mod tenant_root_creation;

@@ -66,9 +66,14 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.15.0
+## Upgrading to 0.15.1
 
-Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.15.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.1**. Use `@seams/wallet-cli` **0.15.0**.
+
+An expired initial tenant authorization can be renewed only before its creation journal starts.
+The Router records a durable fence before Console issues the replacement authorization.
+The fence blocks delayed requests under the expired authorization.
+Started ceremonies retain their exact original authorization for recovery.
 Deploy the matching wallet host, Gateway, Router, both Derivers, and Signing Worker.
 The private address-allocation response now carries a batch, so the custody
 Workers must move together. The public wallet iframe protocol remains **16.0.0**.
