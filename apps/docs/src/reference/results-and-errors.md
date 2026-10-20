@@ -36,6 +36,17 @@ cancellation, policy denial, transport failure, broadcast acceptance, and
 finalization as separate outcomes where the operation exposes them. Show the
 user the recovery action associated with the current branch.
 
+## Key export
+
+`seams.keys.exportKey()` returns `{ kind: 'exported' }` after the wallet-origin
+viewer opens. It never returns a private key to the application. Missing exact
+lane, missing material, and full-login requirements reject the promise. Catch
+that rejection in custom UI. The unused `relink_required` result was removed
+in 0.15.0. Remove consumers' corresponding branches.
+
+Device-link activation also removed its unused `relink_required` variant.
+Continue to handle its actual typed refusal and integrity-error branches.
+
 ## Error handling rule
 
 1. Handle every branch of the result union.

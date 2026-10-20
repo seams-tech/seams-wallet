@@ -15,10 +15,20 @@ function pageUrl(page: string): string {
   return route ? `${docsOrigin}/${route}` : docsOrigin;
 }
 
+function sitemapPages<T extends { url: string }>(items: T[]): T[] {
+  const pages: T[] = [];
+  for (const item of items) {
+    if (item.url === '404' || item.url === '404.html') continue;
+    pages.push({ ...item, url: `${docsOrigin}/${item.url}` });
+  }
+  return pages;
+}
+
 const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
+    { text: 'Releases and compatibility', link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {
@@ -77,6 +87,7 @@ const referenceSection: DefaultTheme.SidebarItem = {
     { text: '@seams/wallet/advanced', link: '/reference/advanced' },
     { text: '@seams/wallet/threshold', link: '/reference/threshold' },
     { text: '@seams/wallet/runtime', link: '/reference/runtime' },
+    { text: 'Server SDK and CLI', link: '/reference/server' },
     { text: 'Configuration', link: '/reference/configuration' },
     { text: 'Results and errors', link: '/reference/results-and-errors' },
     { text: 'Events and progress', link: '/reference/events-and-progress' },
@@ -209,6 +220,7 @@ const documentationSidebar: DefaultTheme.SidebarItem[] = [
 
 export default defineConfig({
   base: docsBase,
+  outDir: '../dist',
   cleanUrls: true,
   appearance: true,
   lastUpdated: true,
@@ -216,10 +228,10 @@ export default defineConfig({
   description: 'Key and credential infrastructure for policy-bound digital authority',
   sitemap: {
     hostname: docsOrigin,
-    transformItems: (items) => items.filter((item) => !item.url.endsWith('/404')),
+    transformItems: sitemapPages,
   },
   head: [
-    ['link', { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
+    ['link', { rel: 'icon', href: `${docsBase}favicon.svg`, type: 'image/svg+xml' }],
     ['meta', { property: 'og:site_name', content: 'Seams docs' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { name: 'twitter:card', content: 'summary' }],

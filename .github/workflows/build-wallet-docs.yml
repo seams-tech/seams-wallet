@@ -8,6 +8,7 @@ on:
       - '.github/workflows/build-wallet-docs.yml'
       - 'apps/docs/**'
       - 'packages/wallet/**'
+      - 'packages/shared-ts/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -32,6 +33,11 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate documentation examples, links, and snippets
+        run: |
+          pnpm -C apps/docs type-check
+          pnpm -C apps/docs check:links
+          node apps/docs/scripts/check-code-fences.mjs
       - name: Build VitePress for wallet.seams.sh/docs
         run: pnpm build:docs
       - uses: actions/upload-artifact@v7

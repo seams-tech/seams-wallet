@@ -12,7 +12,7 @@ relayer URL, and managed-registration credentials.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.14.0
+pnpm add @seams/wallet@0.15.4
 ```
 
 ## 2. Mount the provider
@@ -24,15 +24,23 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.14.0**. Keep the wallet-origin assets and
+These docs target `@seams/wallet` **0.15.4**. Keep the wallet-origin assets and
 `@seams/wallet-server` on the matching release. See
-[upgrading to 0.10.0](/deploy-and-operate/hosted-integration#upgrading-to-0-10-0)
+[the current upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-15-4)
 before updating an existing integration.
+
+The wallet iframe protocol is **16.0.0**. The recovery CLI remains **0.15.0**.
+See [releases and compatibility](/releases) for publication status and prepared changes.
 
 <<< ./examples/setup.tsx
 
 Render your wallet UI inside `SeamsWebProvider`. Keep the wallet service and SDK
 assets on the configured wallet origin.
+
+For the complete registration UI, use `HostedRegistration` from the
+[hosted-menu example](/examples/wallet-setup-and-authentication#hosted-registration-and-sign-in-intent).
+The menu prepares setup while its registration view is open. The custom button
+below starts setup within its registration call.
 
 ## 3. Create a wallet
 

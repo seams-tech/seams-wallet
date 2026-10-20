@@ -10,7 +10,10 @@ users.
 
 ## Build and identity
 
-- [ ] SDK, Wallet Server, and hosted wallet assets use the matching 0.10.0 release.
+- [ ] Browser SDK, Wallet Server, and hosted assets use the published 0.15.4
+      baseline, or a newer verified release. Record exact package versions and
+      source revisions. Record CLI 0.15.0 separately.
+- [ ] Application and wallet host both use iframe protocol 16.0.0.
 - [ ] An already-open older client shows an upgrade message. After reload,
       registration and signing complete with the current release.
 - [ ] The docs, application, wallet runtime, workers, and WASM build without
@@ -43,8 +46,15 @@ users.
 - [ ] Alerts identify the affected lane and boundary without exposing secrets.
 - [ ] The team rehearsed backup, restore, rollback, and secret-rotation procedures.
 - [ ] Support can map public error codes to the current troubleshooting runbook.
-- [ ] Each enabled regional home has verified Worker/D1 bindings and DO/Container
+- [ ] Each enabled regional home has verified Worker/D1 bindings and Durable Object
       placement. Routing and directory outages fail safely.
+- [ ] APAC registration and relocation use `apac-se`. Record actual object
+      locations and database primaries. A placement hint alone is insufficient.
+- [ ] Gateway migration `0081_registration_directory_publications.sql` is applied.
+      The scheduled handler resumes pending registration publications, and the
+      queue drains after a successful registration.
+- [ ] Router, both Derivers, and Signing Worker use the same private allocation
+      contract. Expired unused tenant authorizations are fenced before renewal.
 - [ ] One wallet retains the same home across devices and travel.
       Concurrent wallets can operate in different homes.
 
@@ -67,3 +77,15 @@ SDK publication does not establish that administrative recovery or portability
 is enabled in a particular environment. Verify the actual dashboard, signed CLI
 binary, recovery custody, and destination restore path before offering them.
 See [recovery availability](/deploy-and-operate/recovery-and-portability#availability).
+
+## Documentation publication
+
+- [ ] Installation, examples, reference, and operations pages agree with
+      [release status](/releases). Prepared changes are clearly identified.
+- [ ] Compiled examples, internal links, code-fence classification, and the
+      VitePress build pass. Browser evidence includes a repeatable journey.
+- [ ] Staging and production serve the intended docs source revision. Verify
+      the deployed `seams-wallet-docs-artifact.json` receipt.
+- [ ] Deep links, search, desktop/mobile navigation, dark mode, and diagrams work.
+      Production canonical URLs and the sitemap use the production docs origin.
+- [ ] Staging requests `noindex`. Retain the previous docs artifact for rollback.

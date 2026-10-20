@@ -23,6 +23,23 @@ tenant/lineage identifiers, share epoch, lifecycle revision, affected role, and 
 digest. Distinguish activation success from retirement cleanup failure. Record cooldown
 rejection as an admission outcome. It does not mean a refresh or provider call occurred.
 
+## Registration measurements
+
+Record setup, response, finalization, passkey interaction, and the first verified
+signature separately. Define whether the reported total includes setup or the
+passkey interval. Preserve warm-up samples and report them separately.
+
+Admission diagnostics include `yao_admission_state_read`,
+`yao_admission_authorization`, `yao_admission_root_wait`,
+`yao_admission_backend`, and `yao_admission_commit`. These can nest inside
+`yao_admission_bind`. Parent and child durations are not additive. A failed
+attempt can lack a parent span, and a retry can repeat a span name.
+
+Elapsed protocol time includes waits. It does not measure cryptographic CPU
+alone. Record ingress location, serving component revisions, object hosts,
+database primaries, sample count, and the test environment with latency results.
+Small sequential cohorts do not establish a release effect or a tail guarantee.
+
 ## Exclude
 
 Never log passwords, OTP codes, passkey assertions, challenge responses, private

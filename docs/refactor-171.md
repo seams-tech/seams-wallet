@@ -1,5 +1,10 @@
 # Simplify the public Wallet SDK API
 
+Historical implementation plan. The grouped API is published in the current SDK.
+Dated checkpoints below retain their original status statements. Use the
+[current reference](../apps/docs/src/reference/core.md) and
+[release notes](../apps/docs/src/releases.md) for integration and publication status.
+
 Status: complete for the approved essential scope, 2026-10-05.
 See the [completion receipt](refactor-170-completion.md). [R170's essential remaining work](refactor-170.md#essential-remaining-work)
 is the shared completion checklist. The completed migration records below remain

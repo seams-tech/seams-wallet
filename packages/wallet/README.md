@@ -1,24 +1,26 @@
 # Seams Wallet SDK
 
-`@seams/wallet` **0.14.0** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/wallet` **0.15.4** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets.
 
 ## Install
 
 ```sh
-pnpm add @seams/wallet@0.14.0
+pnpm add @seams/wallet@0.15.4
 ```
 
 React integrations support React 18 and 19. Import the provider and UI from
 `@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
 Keep the application package, wallet-origin assets, and
-`@seams/wallet-server@0.14.0` on the matching release.
+`@seams/wallet-server@0.15.4` on the matching release. The wallet iframe protocol
+is `16.0.0`. A 0.13 application and a 0.14-or-later wallet host reject each other
+with a protocol version mismatch.
 
-## Next release migration (unreleased)
+## Current API
 
-The development API groups calls under `auth`, `connection`, `config`, `events`,
+The public API groups calls under `auth`, `connection`, `config`, `events`,
 `registration`, and the chain namespaces. See the
-[complete migration map](../../docs/refactor-171.md#complete-operation-migration-map).
+[browser reference](https://wallet.seams.sh/docs/reference/core).
 Use `auth.lock()` to end the session while retaining valid durable presignatures.
 
 Custom email unlock uses a host-owned challenge:
@@ -42,9 +44,8 @@ For an existing local email method, request with
 `cancel()`. Use the replacement challenge returned by a successful resend.
 The SDK selects signers and completes pending activation internally.
 
-Release 0.9.0 contains these changes. Its wallet iframe protocol is `15.0.0`
-and rejects older protocol versions, so keep the client and the wallet-host
-assets on the matching release. The 0.8.0 release does not contain them.
+Request email codes only after a user chooses that method. The wallet host owns
+the challenge and its expiry. The application receives the typed challenge handle.
 
 ## React quick start
 
@@ -95,7 +96,7 @@ recovery material out of app configuration and logs.
 `useSeams()` exposes the SDK client and authentication state. `useWallet()`
 provides `near`, `evm`, and `tempo` signers bound to the authenticated wallet.
 `near` is null until a NEAR account is ready. Check registration's pending
-branches and use `registration.awaitNearReady` before signing NEAR.
+branches and use `registration.waitForNearAccount` before signing NEAR.
 
 The framework-neutral `SeamsWeb` client groups operations under `registration`,
 `auth`, `near`, `evm`, `tempo`, `recovery`, `devices`, and `keys`. Signing can
@@ -103,7 +104,7 @@ use fresh authorization for one operation; `unlock` provisions a bounded
 reusable Wallet Session. An EVM-family signing or export call requires a
 `chainTarget` naming a configured chain.
 
-`keys.exportKeypair` opens a wallet-origin viewer and returns an export outcome.
+`keys.exportKey` opens a wallet-origin viewer and returns `{ kind: 'exported' }`.
 It does not return a private key to the application. `recovery.syncAccount`
 synchronizes a known wallet's account state; the hosted menu handles recovery
 codes and new-factor verification.
@@ -151,10 +152,29 @@ wallet use the same home. Travel does not change it. The owner can move a wallet
 to another region with the wallet region setting. Automatic region relocation is
 a future capability.
 
-When upgrading from 0.8.0, update application, wallet assets, and backend
-together. An older open client can receive an HTTP 409 upgrade-required message;
-show it and reload the current assets. See the
-[upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration#upgrading-to-0-9-0).
+For APAC, registration and relocation request Southeast Asia placement through
+`apac-se`. The hint does not guarantee a city or move existing objects. Operators
+must verify the actual object locations and database primaries.
+
+Follow the [upgrade guide](https://wallet.seams.sh/docs/deploy-and-operate/hosted-integration)
+before changing the application, wallet assets, or backend. An incompatible open
+client must reload matching assets before retrying.
+
+## Initial loading and registration
+
+When the wallet origin stores no wallet, the host answers connection reads from
+its boot code. It loads the runtime when an operation needs it. Call
+`seams.authMenu.prepare()` on sign-in intent to download the sign-in code earlier.
+Mounting `HostedSeamsAuthMenu` starts that download without an additional call.
+
+Opening the hosted registration view prepares its wallet and passkey challenge.
+`authMenu.prepare()` only downloads code. A direct `registerWallet()` call starts
+registration setup within that call. See the
+[compiled hosted-menu examples](https://wallet.seams.sh/docs/examples/wallet-setup-and-authentication).
+
+Registration can sign before its completion appears in the Console directory.
+The Gateway retries pending directory publications. Until acknowledgment, the
+wallet can be absent from the Console list and unavailable for region moves.
 
 ## Public entrypoints
 
@@ -166,7 +186,7 @@ show it and reload the current assets. See the
 - `@seams/wallet/runtime` — explicit platform ports and custom signing runtime.
 
 Use the documented package exports. Agent-lane issuance and VoiceID
-authentication are planned and have no public 0.9.0 API.
+authentication are planned and have no public API in this release.
 
 ## Develop from source
 

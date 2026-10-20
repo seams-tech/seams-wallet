@@ -11,11 +11,12 @@ setting that used it.
 
 ## Availability
 
-Status checked October 14, 2026:
+Publication status checked October 20, 2026. Deployment availability remains
+environment-specific. See [release status](/releases).
 
 | Capability | Status | Scope |
 | --- | --- | --- |
-| Wallet browser and server SDKs | Published as 0.15.0 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
+| Wallet browser and server SDKs | Published as 0.15.4 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
 | Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups. Verify custody and refresh policy in the deployed environment. |
 | Tenant-controlled root recovery | CLI launcher 0.15.0 is published with its signed native assets. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
 | Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
@@ -30,7 +31,7 @@ restore, activation, and cleanup against the environment you operate.
 
 ## Managed tenant-root recovery
 
-R120's service-held backups use separate A/B R2 buckets and Google KMS keys.
+Service-held backups use separate A/B R2 buckets and Google KMS keys.
 An authorized one-role restore verifies the recovered share and requires a
 forward refresh. It depends on retained backup objects, usable wrapping keys,
 and authoritative tenant identity and activation records. It does not promise
@@ -42,7 +43,7 @@ cost, and key-destruction limitations.
 ## Tenant-controlled root recovery
 
 The **Derivation root security** dashboard implements manual operational-share
-rotation with fresh administrative step-up, durable progress, and R120's
+rotation with fresh administrative step-up, durable progress, and the
 one-successful-refresh-per-hour policy. Check the deployed policy and scheduler
 before relying on either.
 
