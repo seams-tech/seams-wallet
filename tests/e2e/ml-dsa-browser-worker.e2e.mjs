@@ -185,6 +185,7 @@ async function setup() {
       signing_key_id: context.signingKeyId,
       operation: Array.from(Buffer.from(context.operationIdB64u, 'base64url')),
       epoch: context.materialEpoch,
+      continuity: { kind: 'create' },
       holder_public_keys: [
         Array.from(Buffer.from(context.roleAPublicKeyB64u, 'base64url')),
         Array.from(Buffer.from(context.roleBPublicKeyB64u, 'base64url')),

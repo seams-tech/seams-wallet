@@ -3414,7 +3414,7 @@ It writes repeatable evidence under `.artifacts/signing-credit/`.
 
 ## Experimental ML-DSA custody contract
 
-The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can discover and sign with that key through the advanced SDK. ML-DSA-only wallet creation, standard Wallet signing UI, reusable ML-DSA sessions, and public replacement of lost participant material remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can discover and sign with that key through the advanced SDK. An active custody owner can restore participant material from the wallet custody seed. ML-DSA-only wallet creation, standard Wallet signing UI, and reusable ML-DSA sessions remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
@@ -3425,6 +3425,12 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Authenticated signer inventory requires a fresh origin-bound WebAuthn assertion over a Gateway-issued nonce with at most five minutes of validity. Pin the issued challenge to the current authority. Refuse caller-selected nonces or expiry changes. Inventory must neither consume signing material nor authorize a signature.
 - Return published key identities and explicit unpublished registration states. Release no seed, role input, private label, or signing share through inventory.
 - Restore ordinary wallet owner authority through the existing recovery ceremony. Keep the ML-DSA publication, epoch, seed binding, and participant material unchanged during this retention path.
+- Distinguish signer creation from participant restoration in the owner-approved intent. Creation requires an unused slot. Restoration requires the recorded public key, manifest, and material epoch.
+- `restoreMlDsaNearSigner` must use the active owner's existing custody envelope and a fresh Passkey approval. It must not replace the wallet seed, custody envelope, recovery codes, or on-chain public key.
+- Bind restoration to fresh participant delivery inputs and a higher material epoch. Both participants must reproduce the recorded public key and manifest before publication.
+- Suspend public signing while restoration is pending. Fence old prepared operations and cached results through the publication version and material epoch.
+- Preserve the recorded restoration identity after an interrupted operation. A new attempt after expiry must advance beyond the attempted epoch. Creation must never overwrite an expired restoration.
+- Exact restoration retries must reuse the admitted operation and encrypted inputs. Publication retries must return the same result. Revoked owners must lose restoration access.
 - Permit ML-DSA discovery and fresh transaction approval from active full-owner linked Passkeys with an installed NEAR activation. Refuse signing-only linked devices and linked authorities without that activation.
 - Recheck current authority and revocation state before returning inventory or cached signatures. Revoking a linked method must preserve other active owners' access.
 
@@ -3440,6 +3446,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Joining existing custody must preserve its seed envelope and recovery set.
 - Adding an ML-DSA signer requires a fresh WebAuthn approval for the exact wallet, slot, origin, and server-issued intent grant.
 - Pin the owner authority digest, revocation epoch, auth method, custody-envelope version, and wallet execution generation at admission.
+- Build participant custody identity from the Gateway's canonical tenant scope. The intent's environment key can differ from the persisted environment ID.
 - Persist the exact encrypted input pair before dispatch. Changed inputs must fail under the same operation.
 - Publish only after both participant installations agree with the authenticated client completion. Recheck current ownership atomically with publication.
 - Return the same publication receipt after a lost acknowledgement or Gateway restart.

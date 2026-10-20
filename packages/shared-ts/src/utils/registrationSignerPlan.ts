@@ -1,3 +1,4 @@
+import { parseMlDsaSignerPurpose, type MlDsaSignerPurpose } from '../passkey-custody/mlDsaCustody';
 // Signer plans for registration and add-signer selections: the signers a wallet asks for,
 // normalized from untrusted input and checked for duplicates.
 import { alphabetizeStringify } from './digests';
@@ -87,8 +88,7 @@ export type RegistrationEvmFamilyEcdsaSignerRequest = {
 };
 
 export type RegistrationSignerRequest =
-  | RegistrationNearEd25519SignerRequest
-  | RegistrationEvmFamilyEcdsaSignerRequest;
+  RegistrationNearEd25519SignerRequest | RegistrationEvmFamilyEcdsaSignerRequest;
 
 export type RegistrationSignerSetSelection = {
   kind: 'signer_set';
@@ -115,8 +115,7 @@ export type RegistrationEvmFamilyEcdsaSignerPlan = RegistrationEvmFamilyEcdsaSig
 };
 
 export type RegistrationSignerPlanBranch =
-  | RegistrationNearEd25519SignerPlan
-  | RegistrationEvmFamilyEcdsaSignerPlan;
+  RegistrationNearEd25519SignerPlan | RegistrationEvmFamilyEcdsaSignerPlan;
 
 export type RegistrationSignerPlan = {
   kind: 'signer_set';
@@ -126,7 +125,10 @@ export type RegistrationSignerPlan = {
 export type AddSignerSelection = ExclusiveUnion<
   | { mode: 'ed25519'; ed25519: ThresholdEd25519AddSignerSpec }
   | { mode: 'ecdsa'; ecdsa: ThresholdEcdsaAddSignerSpec }
-  | { mode: 'ml_dsa_65'; mlDsa: { readonly signerSlot: number } }
+  | {
+      mode: 'ml_dsa_65';
+      mlDsa: { readonly signerSlot: number; readonly purpose: MlDsaSignerPurpose };
+    }
 >;
 
 export function implicitNearAccountProvisioning(): RegistrationNearAccountProvisioning {
@@ -215,8 +217,7 @@ function normalizeRegistrationEcdsaSpec(
 }
 
 type NormalizeSignerSelectionResult<TSelection> =
-  | { ok: true; value: TSelection }
-  | { ok: false; code: string; message: string };
+  { ok: true; value: TSelection } | { ok: false; code: string; message: string };
 
 type NormalizeAddSignerSelectionOptions = {
   readonly normalizeEcdsaChainTarget: (
@@ -646,14 +647,23 @@ export function normalizeMlDsaAddSignerSelection(
     record.mode !== 'ml_dsa_65' ||
     Object.keys(record).length !== 2 ||
     !spec ||
-    Object.keys(spec).length !== 1 ||
+    Object.keys(spec).length !== 2 ||
     typeof slot !== 'number' ||
     !Number.isSafeInteger(slot) ||
     slot < 1
   ) {
     return { ok: false, code: 'invalid_body', message: 'ML-DSA requires one positive signer slot' };
   }
-  return { ok: true, value: { mode: 'ml_dsa_65', mlDsa: { signerSlot: slot } } };
+  try {
+    const purpose = parseMlDsaSignerPurpose('purpose' in spec ? spec.purpose : undefined);
+    return { ok: true, value: { mode: 'ml_dsa_65', mlDsa: { signerSlot: slot, purpose } } };
+  } catch {
+    return {
+      ok: false,
+      code: 'invalid_body',
+      message: 'ML-DSA requires an explicit creation or restoration purpose',
+    };
+  }
 }
 
 function normalizeAddSignerEcdsaSelection(

@@ -2,7 +2,9 @@ import type { AddSignerSelection } from '../../packages/shared-ts/src/utils/regi
 import type {
   MlDsaCreateProtocolInputs,
   MlDsaRegistrationFailure,
+  MlDsaSignerPurpose,
 } from '../../packages/shared-ts/src/passkey-custody/mlDsaCustody';
+import type { MlDsaAddSignerPreparation } from '../../packages/wallet-server/src/router/domains/walletRegistration/mlDsaAddSigner';
 import type { D1WalletMlDsaRegistration } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaRegistration';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
 
@@ -15,7 +17,7 @@ declare const registry: D1WalletMlDsaRegistration;
 const mixedSelection: AddSignerSelection = {
   ...ed25519,
   mode: 'ml_dsa_65',
-  mlDsa: { signerSlot: 1 },
+  mlDsa: { signerSlot: 1, purpose: { kind: 'create' } },
 };
 void mixedSelection;
 const recoveryAsCreation: MlDsaCreateProtocolInputs = {
@@ -42,3 +44,24 @@ const mixedFailure: MlDsaRegistrationFailure = { ...unavailable, code: 'unauthor
 void mixedFailure;
 // @ts-expect-error Callers cannot bypass guarded lifecycle transitions with a direct commit.
 registry.commit({}, null);
+
+declare const preparation: MlDsaAddSignerPreparation;
+declare const restoration: Variant<MlDsaSignerPurpose, 'kind', 'restore'>;
+
+// @ts-expect-error Restoration requires the complete recorded key, manifest, and material epoch.
+const missingRecordedKey: MlDsaSignerPurpose = { kind: 'restore', materialEpoch: 1 };
+void missingRecordedKey;
+// @ts-expect-error Creation cannot retain restoration metadata through a spread.
+const mixedPurpose: MlDsaSignerPurpose = { ...restoration, kind: 'create' };
+void mixedPurpose;
+// @ts-expect-error A restoration preparation cannot contain a creation protocol.
+const mixedPreparation: MlDsaAddSignerPreparation = {
+  ...preparation,
+  purpose: restoration,
+  protocolInputs: protocol,
+};
+void mixedPreparation;
+const preparationWithSeed = { ...preparation, walletCustodySeed: new Uint8Array(32) };
+// @ts-expect-error Structural assignment cannot retain a wallet seed in public preparation state.
+const leakedPreparation: MlDsaAddSignerPreparation = preparationWithSeed;
+void leakedPreparation;

@@ -1,6 +1,7 @@
+import { alphabetizeStringify } from '@shared/utils/digests';
 import { parseDeviceId } from '@shared/authorization/capabilityKinds';
 import { parseMlDsaAddSignerPreparation } from '../../../domains/walletRegistration/mlDsaAddSigner';
-import { mlDsaSigningKeyIdForSlot } from '@shared/passkey-custody/mlDsaCustody';
+import { mlDsaSigningKeyIdForSlot, mlDsaProtocolMatchesPurpose } from '@shared/passkey-custody/mlDsaCustody';
 import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import { deriveEvmFamilySigningKeySlotId } from '@shared/signing-lanes';
 import {
@@ -1685,15 +1686,17 @@ export function parseD1StoredWalletAddSignerCeremony(
   if (signerState.kind === 'ml_dsa_add_signer_authorized') {
     const preparation = signerState.preparation;
     const scope = parseD1RuntimePolicyScope(intent.runtimePolicyScope);
+    // The intent names an environment key. The scoped registry binds the canonical environment ID.
     if (
       intent.signerSelection.mode !== 'ml_dsa_65' ||
+      !mlDsaProtocolMatchesPurpose(preparation.protocolInputs, intent.signerSelection.mlDsa.purpose) ||
+      alphabetizeStringify(preparation.purpose) !== alphabetizeStringify(intent.signerSelection.mlDsa.purpose) ||
       !scope ||
       preparation.protocolInputs.walletId !== intent.walletId ||
       preparation.protocolInputs.signingKeyId !==
         mlDsaSigningKeyIdForSlot(intent.signerSelection.mlDsa.signerSlot) ||
       preparation.identity.orgId !== scope.orgId ||
-      preparation.identity.projectId !== scope.projectId ||
-      preparation.identity.envId !== scope.envId
+      preparation.identity.projectId !== scope.projectId
     )
       return null;
   }

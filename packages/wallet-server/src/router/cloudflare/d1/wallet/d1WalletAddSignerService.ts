@@ -3,14 +3,13 @@ import type { WalletExecutionAuthority } from '../../../domains/walletRegistrati
 import type { D1WalletMlDsaRegistration } from './d1WalletMlDsaRegistration';
 import { MlDsaRegistrationAuthorityChanged } from './d1WalletMlDsaRegistration';
 import { parseClientDataJsonBase64url } from '../../../../core/authService/webauthnOidcHelpers';
-import { walletObjectIdentity } from '../../runtime/walletObjectAddresses';
 import type {
   WalletAddSignerMlDsaExecuteRequest,
   WalletAddSignerMlDsaExecuteResponse,
   WalletAddSignerMlDsaPublishRequest,
   WalletAddSignerMlDsaPublishResponse,
 } from '../../../../core/registrationContracts';
-import { parseMlDsaCreateProtocolInputs } from '@shared/passkey-custody/mlDsaCustody';
+import { parseMlDsaCustodyProtocolInputs } from '@shared/passkey-custody/mlDsaCustody';
 import {
   buildD1WalletAddSignerFinalizePrepared,
   fingerprintD1WalletAddSignerFinalizePrepared,
@@ -444,7 +443,7 @@ function parseWalletAddSignerStartResponse(
       )
         return null;
       try {
-        const protocol = parseMlDsaCreateProtocolInputs(mlDsa.protocolInputs);
+        const protocol = parseMlDsaCustodyProtocolInputs(mlDsa.protocolInputs);
         return alphabetizeStringify(protocol) ===
           alphabetizeStringify(expected.mlDsa.protocolInputs)
           ? expected
@@ -1474,11 +1473,9 @@ export class CloudflareD1WalletAddSignerService {
         ceremonyId: prepared.addSignerCeremonyId,
         expiresAtMs: prepared.expiresAtMs,
         signerSlot: selection.mlDsa.signerSlot,
-        identity: walletObjectIdentity(
-          input.walletId,
-          home.ownershipGeneration,
-          runtimePolicyScope,
-        ),
+        purpose: selection.mlDsa.purpose,
+        walletId: input.walletId,
+        ownershipGeneration: home.ownershipGeneration,
         owner: owner.walletAuthority,
         authMethod: owner.authMethod,
         envelope: envelope.envelope,

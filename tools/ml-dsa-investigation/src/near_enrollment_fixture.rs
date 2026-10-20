@@ -14,6 +14,10 @@ use wasm_signer_worker::{ActionParams, PublicKey, Signature, Transaction};
     deny_unknown_fields
 )]
 enum Input {
+    MlDsaTransfer {
+        account_id: String,
+        public_key_b64u: String,
+    },
     Encode {
         account_id: String,
         signer_public_key: String,
@@ -33,6 +37,23 @@ pub(super) fn run() -> InvestigationResult<bool> {
     }
     for line in io::stdin().lock().lines() {
         let reply = match serde_json::from_str::<Input>(&line?)? {
+            Input::MlDsaTransfer {
+                account_id,
+                public_key_b64u,
+            } => {
+                let public_key: [u8; 1952] = Base64UrlUnpadded::decode_vec(&public_key_b64u)?
+                    .try_into()
+                    .map_err(|_| "Invalid ML-DSA public key length")?;
+                let tx = wasm_signer_worker::build_transaction_with_actions(
+                    &account_id,
+                    &account_id,
+                    9,
+                    &[0x42; 32],
+                    PublicKey::MlDsa65(Box::new(public_key)),
+                    vec![wasm_signer_worker::NearAction::Transfer { deposit: 1 }],
+                )?;
+                json!({"unsignedTransactionBorshB64u": Base64UrlUnpadded::encode_string(&borsh::to_vec(&tx)?)})
+            }
             Input::Encode {
                 account_id,
                 signer_public_key,

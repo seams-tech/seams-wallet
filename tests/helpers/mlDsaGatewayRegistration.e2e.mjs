@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict';
-import { verifyMlDsaPublicSigning, replayPublicMlDsaSigning } from './mlDsaPublicSigning.e2e.mjs';
+import {
+  verifyMlDsaPublicSigning,
+  replayPublicMlDsaSigning,
+  GatewayTransport,
+} from './mlDsaPublicSigning.e2e.mjs';
 import { verifyMlDsaRetainedSignerLifecycle } from './mlDsaLifecycle.e2e.mjs';
-import { createHash, generateKeyPairSync, randomBytes, sign as signBytes } from 'node:crypto';
+import {
+  createHash,
+  createPublicKey,
+  generateKeyPairSync,
+  randomBytes,
+  sign as signBytes,
+  verify,
+} from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
@@ -132,17 +143,17 @@ function writesJournal(statement) {
   );
 }
 
-async function issueAdmission(gateway, scope, walletId, key, slot) {
+async function issueAdmission(gateway, scope, walletId, key, slot, purpose) {
   const issued = await gateway.service.walletAuthMethods.createAddSignerIntent({
     command: {
       subject: { kind: 'wallet_signer_management', walletId },
-      signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: slot } },
+      signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: slot, purpose } },
     },
     orgId: scope.orgId,
     runtimePolicyScope: {
       orgId: scope.orgId,
       projectId: scope.projectId,
-      envId: scope.envId,
+      envId: 'dev',
       signingRootVersion: 'default',
     },
     expectedOrigin: origin,
@@ -253,6 +264,7 @@ export async function verifyMlDsaGatewayRegistration({
   wallet,
   proxy,
   privatePost,
+  loseParticipantMaterial,
 }) {
   const folder = join(directory, 'gateway');
   await mkdir(folder, { recursive: true, mode: 0o700 });
@@ -338,7 +350,9 @@ export async function verifyMlDsaGatewayRegistration({
 
     let traced = new PublicationDatabase(api, database, scope, walletId);
     let gateway = new Gateway(api, traced, scope, proxy);
-    const { issued, body } = await issueAdmission(gateway, scope, walletId, key, 1);
+    const { issued, body } = await issueAdmission(gateway, scope, walletId, key, 1, {
+      kind: 'create',
+    });
     const invalid = structuredClone(body);
     invalid.auth.credential.response.signature = randomBytes(70).toString('base64url');
     assert.equal((await gateway.post(walletId, 'start', invalid)).status, 401);
@@ -395,11 +409,15 @@ export async function verifyMlDsaGatewayRegistration({
       'not_ready',
     );
     checks.noPublicationBeforeInstallation = true;
+    checks.canonicalEnvironmentDiffersFromIntentEnvironmentKey =
+      started.intent.runtimePolicyScope.envId !== scope.envId;
+    assert.equal(checks.canonicalEnvironmentDiffersFromIntentEnvironmentKey, true);
     client.process.stdin.write(
       JSON.stringify({
         signing_key_id: context.signingKeyId,
         operation: Array.from(Buffer.from(context.operationIdB64u, 'base64url')),
         epoch: context.materialEpoch,
+        continuity: { kind: 'create' },
         holder_public_keys: [
           Array.from(Buffer.from(context.roleAPublicKeyB64u, 'base64url')),
           Array.from(Buffer.from(context.roleBPublicKeyB64u, 'base64url')),
@@ -515,7 +533,13 @@ export async function verifyMlDsaGatewayRegistration({
     await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'signed');
     publicSigning.evidence.checks.completedSigningSurvivesD1Restart = true;
     const lifecycle = await verifyMlDsaRetainedSignerLifecycle({
-      api, gateway, database, scope, owner, walletId, credentialKey,
+      api,
+      gateway,
+      database,
+      scope,
+      owner,
+      walletId,
+      credentialKey,
       signingKeyId: context.signingKeyId,
       publicKeyB64u: published.key.registeredPublicKeyB64u,
       unsignedTransactionBorshB64u: finished.unsignedTransactionBorshB64u,
@@ -523,7 +547,7 @@ export async function verifyMlDsaGatewayRegistration({
     assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
     assert.deepEqual(await phase(database, scope, walletId), committed);
     checks.recoveryAndDeviceSigningPreserveCustodyAndPublication = true;
-    const unused = await issueAdmission(gateway, scope, walletId, key, 2);
+    const unused = await issueAdmission(gateway, scope, walletId, key, 2, { kind: 'create' });
     const unusedStart = await gateway.post(walletId, 'start', unused.body);
     assert.equal(unusedStart.body.ok, true, JSON.stringify(unusedStart.body));
     const unusedRecord = await phase(database, scope, walletId, 2);
@@ -544,7 +568,7 @@ export async function verifyMlDsaGatewayRegistration({
     const expired = await phase(database, scope, walletId, 2);
     assert.equal(JSON.parse(expired.record_json).phase.kind, 'expired_admission');
     assert.ok(expired.version > unusedRecord.version);
-    const replacement = await issueAdmission(gateway, scope, walletId, key, 2);
+    const replacement = await issueAdmission(gateway, scope, walletId, key, 2, { kind: 'create' });
     const replaced = await gateway.post(walletId, 'start', replacement.body);
     assert.equal(replaced.body.ok, true, JSON.stringify(replaced.body));
     const replacementRecord = await phase(database, scope, walletId, 2);
@@ -553,6 +577,25 @@ export async function verifyMlDsaGatewayRegistration({
     assert.deepEqual(await phase(database, scope, walletId, 2), replacementRecord);
     checks.expiredAdmissionReleasesSlotWithoutVersionReuse = true;
     checks.delayedExecuteCannotOverwriteReplacement = true;
+    const restoration = await verifyPublicRestoration({
+      root,
+      sourcePath,
+      api,
+      gateway,
+      scope,
+      walletId,
+      key,
+      walletScope,
+      published: finished.commit.key,
+      originalExecution: execution,
+      privatePost,
+      loseParticipantMaterial,
+      originalSigning: publicSigning.replay,
+      database,
+    });
+    const restoredRecord = await phase(database, scope, walletId);
+    assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
+    checks.restorationPreservesCustody = true;
     const revoked = await new api.D1WalletAuthorityStore({
       database,
       scope,
@@ -565,16 +608,22 @@ export async function verifyMlDsaGatewayRegistration({
     });
     assert.equal(revoked.kind, 'revoked_method');
     assert.equal(
-      (await gateway.post(walletId, 'ml-dsa/publish', publication)).body.code,
+      (await gateway.post(walletId, 'ml-dsa/publish', restoration.publicationRequest)).body.code,
       'unauthorized',
     );
     assert.equal((await gateway.post(walletId, 'start', body)).body.ok, false);
     checks.revokedOwnerCannotResume = true;
     await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'refused');
     publicSigning.evidence.checks.revokedOwnerCannotReadCachedSignature = true;
-    assert.deepEqual(await phase(database, scope, walletId), committed);
+    assert.deepEqual(await phase(database, scope, walletId), restoredRecord);
     const sources = {};
     for (const path of [
+      'packages/shared-ts/src/passkey-custody/mlDsaCustody.ts',
+      'packages/shared-ts/src/utils/registrationSignerPlan.ts',
+      'packages/shared-ts/src/utils/registrationIntent.ts',
+      'packages/wallet-server/src/router/domains/walletRegistration/mlDsaAddSigner.ts',
+      'packages/wallet-server/src/router/transport/fetch/routes/mlDsaRegistration.ts',
+      'packages/wallet/src/SeamsWeb/operations/registration/restoreMlDsaNearSigner.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaRegistration.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaSigning.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/mlDsaSigningRecord.ts',
@@ -600,6 +649,7 @@ export async function verifyMlDsaGatewayRegistration({
       sources[path] = hash(await readFile(join(root, path))).toString('hex');
     return {
       sources,
+      gatewayBundleSha256: hash(await readFile(bundlePath)).toString('hex'),
       signingWasmSha256: hash(
         await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
       ).toString('hex'),
@@ -613,6 +663,7 @@ export async function verifyMlDsaGatewayRegistration({
       signature,
       publicSigning: publicSigning.evidence,
       lifecycle,
+      restoration,
       publication: replay.body,
       scope:
         'Real Gateway routes, fresh P-256 WebAuthn verification, local D1, and prepared Worker key generation. Existing wallet ownership is seeded with shared factories. No ML-DSA-only wallet creation or public transaction-signing route is tested.',
@@ -622,4 +673,252 @@ export async function verifyMlDsaGatewayRegistration({
     await runtime.dispose();
     await rm(folder, { recursive: true, force: true });
   }
+}
+
+async function verifyPublicRestoration(input) {
+  const { gateway, scope, walletId, key, published } = input;
+  const purpose = {
+    kind: 'restore',
+    publicKeyB64u: published.publicKeyB64u,
+    keyManifestDigestB64u: published.keyManifestDigestB64u,
+    materialEpoch: published.materialEpoch,
+  };
+  const wrong = { ...purpose, keyManifestDigestB64u: randomBytes(32).toString('base64url') };
+  const badIntent = await issueAdmission(gateway, scope, walletId, key, 1, wrong);
+  const bad = await gateway.post(walletId, 'start', badIntent.body);
+  assert.equal(bad.body.code, 'signer_conflict');
+  const loss = await input.loseParticipantMaterial(input.walletScope);
+  const intent = await issueAdmission(gateway, scope, walletId, key, 1, purpose);
+  const firstAttempt = await gateway.post(walletId, 'start', intent.body);
+  assert.equal(firstAttempt.body.ok, true, JSON.stringify(firstAttempt.body));
+  assert.equal(firstAttempt.body.mlDsa.protocolInputs.materialEpoch, published.materialEpoch + 1);
+  await verifyRestoringInventory(input, purpose);
+  const started = await replaceExpiredRestoration(input, purpose, firstAttempt.body);
+  const protocol = started.body.mlDsa.protocolInputs;
+  assert.equal(protocol.continuity.kind, 'recover');
+  assert.equal(protocol.materialEpoch, published.materialEpoch + 2);
+  const staleExecution = await gateway.post(walletId, 'ml-dsa/execute', input.originalExecution);
+  assert.equal(staleExecution.body.ok, false);
+  await replayPublicMlDsaSigning(input.api, gateway, input.originalSigning, 'refused');
+  const child = spawn(
+    join(input.root, 'tools/ml-dsa-investigation/target/release/ml-dsa-investigation'),
+    ['gateway-registration-client', input.sourcePath],
+    { stdio: ['pipe', 'pipe', 'inherit'] },
+  );
+  const client = {
+    process: child,
+    lines: createInterface({ input: child.stdout })[Symbol.asyncIterator](),
+  };
+  try {
+    await next(client);
+    child.stdin.write(
+      JSON.stringify({
+        signing_key_id: protocol.signingKeyId,
+        operation: Array.from(Buffer.from(protocol.operationIdB64u, 'base64url')),
+        epoch: protocol.materialEpoch,
+        continuity: {
+          kind: 'recover',
+          recorded_manifest_digest: Array.from(
+            Buffer.from(published.keyManifestDigestB64u, 'base64url'),
+          ),
+        },
+        holder_public_keys: [
+          Array.from(Buffer.from(protocol.roleAPublicKeyB64u, 'base64url')),
+          Array.from(Buffer.from(protocol.roleBPublicKeyB64u, 'base64url')),
+        ],
+      }) + '\n',
+    );
+    const encrypted = await next(client);
+    const prepared = await input.privatePost('/router-ab/ml-dsa/registration/prepare', {
+      wallet: input.walletScope,
+    });
+    assert.equal(prepared.ready, true);
+    const execution = {
+      addSignerCeremonyId: started.body.addSignerCeremonyId,
+      encryptedInputs: encrypted.inputs,
+    };
+    const installed = await gateway.post(walletId, 'ml-dsa/execute', execution);
+    assert.equal(installed.body.ok, true, JSON.stringify(installed.body));
+    child.stdin.write(installed.body.protocolResultJson + '\n');
+    const finish = await next(client);
+    assert.equal(finish.canonicalKeyVerified, true);
+    assert.equal(finish.commit.key.publicKeyB64u, published.publicKeyB64u);
+    assert.equal(finish.commit.key.keyManifestDigestB64u, published.keyManifestDigestB64u);
+    const publication = {
+      addSignerCeremonyId: started.body.addSignerCeremonyId,
+      custodyCommit: finish.commit,
+    };
+    const result = await gateway.post(walletId, 'ml-dsa/publish', publication);
+    assert.equal(result.body.ok, true, JSON.stringify(result.body));
+    assert.deepEqual(
+      (await gateway.post(walletId, 'ml-dsa/publish', publication)).body,
+      result.body,
+    );
+    await replayPublicMlDsaSigning(input.api, gateway, input.originalSigning, 'refused');
+    const signature = await verifyRestoredSigning(
+      input,
+      finish.commit.key,
+      finish.unsignedTransactionBorshB64u,
+    );
+    return {
+      lostParticipant: 'a',
+      deletedEncryptedMaterialRecords: loss.deleted,
+      materialEpoch: finish.commit.key.materialEpoch,
+      checks: {
+        wrongManifestRefused: true,
+        staleExecutionRefused: true,
+        staleSigningRefused: true,
+        ordinaryFipsKeyReproduced: true,
+        samePublicKey: true,
+        sameManifest: true,
+        publicationReplays: true,
+        pendingInventoryPreservesRecordedKey: true,
+        interruptedRestorationAdvancesEpoch: true,
+        expiredRestorationCannotBecomeCreation: true,
+      },
+      publication: result.body,
+      publicationRequest: publication,
+      signature,
+    };
+  } finally {
+    child.kill();
+  }
+}
+
+async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB64u) {
+  const previous = globalThis.fetch;
+  const transport = new GatewayTransport(input.gateway);
+  globalThis.fetch = transport.fetch.bind(transport);
+  try {
+    const prepared = await input.api.prepareMlDsaNearSigning({
+      relayerUrl: 'https://gateway.example.test',
+      publicKeyB64u: restored.publicKeyB64u,
+      request: {
+        walletId: input.walletId,
+        signingKeyId: restored.signingKeyId,
+        operationIdB64u: randomBytes(32).toString('base64url'),
+        unsignedTransactionBorshB64u,
+        rpId: 'wallet.example.test',
+        credentialIdB64u: input.key.credentialId,
+      },
+    });
+    assert.equal(prepared.kind, 'prepared', JSON.stringify(prepared));
+    const request = {
+      relayerUrl: 'https://gateway.example.test',
+      preparation: prepared.preparation,
+      credential: assertion(input.key, prepared.preparation.challengeB64u),
+    };
+    let signed = await input.api.executeMlDsaNearSigning(request);
+    let attempts = 1;
+    while (signed.kind === 'retry') {
+      assert.ok(attempts++ < 30 && signed.retryAtMs < prepared.preparation.expiresAtMs);
+      await new Promise(waitUntil.bind(undefined, signed.retryAtMs));
+      signed = await input.api.executeMlDsaNearSigning(request);
+    }
+    assert.equal(signed.kind, 'signed', JSON.stringify(signed));
+    const key = createPublicKey({
+      key: Buffer.concat([
+        Buffer.from('308207b2300b0609608648016503040312038207a100', 'hex'),
+        Buffer.from(restored.publicKeyB64u, 'base64url'),
+      ]),
+      format: 'der',
+      type: 'spki',
+    });
+    assert.equal(
+      verify(
+        null,
+        hash(Buffer.from(unsignedTransactionBorshB64u, 'base64url')),
+        key,
+        Buffer.from(signed.transaction.signatureB64u, 'base64url'),
+      ),
+      true,
+    );
+    return signed.transaction;
+  } finally {
+    globalThis.fetch = previous;
+  }
+}
+function waitUntil(atMs, resolve) {
+  setTimeout(resolve, Math.max(100, atMs - Date.now()));
+}
+
+async function verifyRestoringInventory(input, expected) {
+  const original = globalThis.fetch;
+  const transport = new GatewayTransport(input.gateway);
+  globalThis.fetch = transport.fetch.bind(transport);
+  try {
+    const prepared = await input.api.prepareMlDsaSignerInventory({
+      relayerUrl: 'https://gateway.example.test',
+      walletId: input.walletId,
+      rpId: 'wallet.example.test',
+      credentialIdB64u: input.key.credentialId,
+      origin,
+    });
+    assert.equal(prepared.kind, 'prepared');
+    const inventory = await input.api.fetchMlDsaSignerInventory({
+      relayerUrl: 'https://gateway.example.test',
+      preparation: prepared.preparation,
+      credential: assertion(input.key, prepared.challengeB64u),
+    });
+    assert.equal(inventory.kind, 'inventory');
+    const entry = inventory.entries.find(isRestoringEntry);
+    assert.equal(entry.kind, 'restoring');
+    assert.equal(entry.recordedKey.publicKeyB64u, expected.publicKeyB64u);
+    assert.equal(entry.recordedKey.keyManifestDigestB64u, expected.keyManifestDigestB64u);
+    assert.equal(entry.recordedKey.materialEpoch, expected.materialEpoch);
+    assert.ok(entry.retryAtMs > Date.now());
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+function isRestoringEntry(entry) {
+  return entry.kind === 'restoring';
+}
+
+async function replaceExpiredRestoration(input, purpose, interrupted) {
+  const record = await phase(input.database, input.scope, input.walletId);
+  const expiredAt = Date.now() - 1000;
+  await input.database
+    .prepare(
+      `UPDATE router_ab_yao_versioned_json_records
+    SET version=version+1, record_json=json_set(record_json,'$.expiresAtMs',?)
+    WHERE namespace=? AND org_id=? AND project_id=? AND env_id=? AND record_key=? AND version=?`,
+    )
+    .bind(
+      expiredAt,
+      input.scope.namespace,
+      input.scope.orgId,
+      input.scope.projectId,
+      input.scope.envId,
+      `ml-dsa-registration:${JSON.stringify([input.walletId, interrupted.mlDsa.protocolInputs.signingKeyId])}`,
+      record.version,
+    )
+    .run();
+  await input.api.expireUnusedMlDsaAdmissions(
+    input.database,
+    input.scope,
+    input.walletId,
+    Date.now(),
+  );
+  const expired = await phase(input.database, input.scope, input.walletId);
+  assert.equal(JSON.parse(expired.record_json).phase.kind, 'expired_admission');
+  const creation = await issueAdmission(input.gateway, input.scope, input.walletId, input.key, 1, {
+    kind: 'create',
+  });
+  assert.equal(
+    (await input.gateway.post(input.walletId, 'start', creation.body)).body.code,
+    'signer_conflict',
+  );
+  const next = await issueAdmission(
+    input.gateway,
+    input.scope,
+    input.walletId,
+    input.key,
+    1,
+    purpose,
+  );
+  const started = await input.gateway.post(input.walletId, 'start', next.body);
+  assert.equal(started.body.ok, true, JSON.stringify(started.body));
+  assert.notEqual(started.body.addSignerCeremonyId, interrupted.addSignerCeremonyId);
+  return started;
 }

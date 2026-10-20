@@ -3,7 +3,7 @@ import { requireCanonicalString, requireRecord } from '../utils/validation';
 import { exactRecord } from '../utils/exactRecord';
 import { parseMlDsaMaterialEpoch } from './primitives';
 import { requireBytes, requireBytes32 } from '../utils/routerAbEd25519YaoDigests';
-import type { ReadonlyExclusiveUnion } from '../utils/variant';
+import type { ReadonlyExclusiveUnion, Variant } from '../utils/variant';
 import {
   parseWalletCustodyGeneratedEstablishedCustody,
   parseWalletCustodyGeneratedRecoveryReplacementEnvelope,
@@ -31,6 +31,60 @@ export type MlDsaCustodyProtocolInputs = {
 export type MlDsaCreateProtocolInputs = Omit<MlDsaCustodyProtocolInputs, 'continuity'> & {
   readonly continuity: { readonly kind: 'create'; readonly recordedKeyManifestDigestB64u?: never };
 };
+
+export type MlDsaRecoveryProtocolInputs = Omit<MlDsaCustodyProtocolInputs, 'continuity'> & {
+  readonly continuity: Variant<MlDsaCustodyProtocolInputs['continuity'], 'kind', 'recover'>;
+};
+
+export type MlDsaSignerPurpose = ReadonlyExclusiveUnion<
+  | { readonly kind: 'create' }
+  | {
+      readonly kind: 'restore';
+      readonly publicKeyB64u: string;
+      readonly keyManifestDigestB64u: string;
+      readonly materialEpoch: number;
+    }
+>;
+
+export function parseMlDsaSignerPurpose(raw: unknown): MlDsaSignerPurpose {
+  const value = requireRecord(raw, 'ML-DSA signer purpose');
+  if (value.kind === 'create') {
+    exactRecord(value, ['kind'], 'ML-DSA creation purpose');
+    return { kind: 'create' };
+  }
+  const record = exactRecord(
+    value,
+    ['kind', 'publicKeyB64u', 'keyManifestDigestB64u', 'materialEpoch'],
+    'ML-DSA restoration purpose',
+  );
+  if (record.kind !== 'restore') throw new Error('Unknown ML-DSA signer purpose');
+  return {
+    kind: 'restore',
+    publicKeyB64u: fixedEncoding(record.publicKeyB64u, 1952, 'recorded ML-DSA public key'),
+    keyManifestDigestB64u: fixedEncoding(
+      record.keyManifestDigestB64u,
+      32,
+      'recorded ML-DSA manifest',
+    ),
+    materialEpoch: parseMlDsaMaterialEpoch(record.materialEpoch),
+  };
+}
+
+export function mlDsaProtocolMatchesPurpose(
+  protocol: MlDsaCustodyProtocolInputs,
+  purpose: MlDsaSignerPurpose,
+): boolean {
+  switch (purpose.kind) {
+    case 'create':
+      return protocol.continuity.kind === 'create' && protocol.materialEpoch === 1;
+    case 'restore':
+      return (
+        protocol.continuity.kind === 'recover' &&
+        protocol.continuity.recordedKeyManifestDigestB64u === purpose.keyManifestDigestB64u &&
+        protocol.materialEpoch > purpose.materialEpoch
+      );
+  }
+}
 
 export function mlDsaSigningKeyIdForSlot(slot: number): string {
   if (!Number.isSafeInteger(slot) || slot < 1)
@@ -118,7 +172,7 @@ export function parseMlDsaRegistrationFailure(raw: unknown): MlDsaRegistrationFa
 }
 
 /** Boundary parser for the server-persisted add-signer preparation. */
-export function parseMlDsaCreateProtocolInputs(value: unknown): MlDsaCreateProtocolInputs {
+export function parseMlDsaCustodyProtocolInputs(value: unknown): MlDsaCustodyProtocolInputs {
   const record = exactRecord(
     value,
     [
@@ -132,9 +186,17 @@ export function parseMlDsaCreateProtocolInputs(value: unknown): MlDsaCreateProto
     ],
     'ML-DSA protocol inputs',
   );
-  const continuity = exactRecord(record.continuity, ['kind'], 'ML-DSA creation continuity');
-  if (continuity.kind !== 'create')
-    throw new Error('Adding an ML-DSA signer requires create continuity');
+  const rawContinuity = requireRecord(record.continuity, 'ML-DSA continuity');
+  const continuity =
+    rawContinuity.kind === 'create'
+      ? exactRecord(rawContinuity, ['kind'], 'ML-DSA creation continuity')
+      : exactRecord(
+          rawContinuity,
+          ['kind', 'recordedKeyManifestDigestB64u'],
+          'ML-DSA recovery continuity',
+        );
+  if (continuity.kind !== 'create' && continuity.kind !== 'recover')
+    throw new Error('Unknown ML-DSA continuity');
   const roleA = fixedEncoding(record.roleAPublicKeyB64u, 32, 'roleAPublicKeyB64u');
   const roleB = fixedEncoding(record.roleBPublicKeyB64u, 32, 'roleBPublicKeyB64u');
   if (roleA === roleB) throw new Error('ML-DSA participants must use separate recipient keys');
@@ -145,7 +207,17 @@ export function parseMlDsaCreateProtocolInputs(value: unknown): MlDsaCreateProto
     materialEpoch: parseMlDsaMaterialEpoch(record.materialEpoch),
     roleAPublicKeyB64u: roleA,
     roleBPublicKeyB64u: roleB,
-    continuity: { kind: 'create' },
+    continuity:
+      continuity.kind === 'create'
+        ? { kind: 'create' }
+        : {
+            kind: 'recover',
+            recordedKeyManifestDigestB64u: fixedEncoding(
+              continuity.recordedKeyManifestDigestB64u,
+              32,
+              'recorded ML-DSA manifest',
+            ),
+          },
   };
 }
 

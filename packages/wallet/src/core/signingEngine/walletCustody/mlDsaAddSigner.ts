@@ -59,7 +59,7 @@ async function runRound(round: Round, roleInputsJson: string): Promise<string> {
   );
   const binding = exactRecord(
     dispatch.binding,
-    ['wallet_id', 'signing_key_id', 'operation_id', 'material_epoch', 'application_binding_digest'],
+    ['wallet_id', 'signing_key_id', 'operation_id', 'material_epoch'],
     'ML-DSA role binding',
   );
   const expected = round.started.mlDsa.protocolInputs;
@@ -115,6 +115,14 @@ export async function addPasskeyMlDsaWalletSigner(input: {
     });
     if (commit.custodyAction !== 'joined')
       throw new Error('Adding an ML-DSA signer must preserve existing custody');
+    const selection = input.started.intent.signerSelection;
+    if (selection.mode !== 'ml_dsa_65') throw new Error('Wrong ML-DSA signer selection');
+    const purpose = selection.mlDsa.purpose;
+    if (purpose.kind === 'restore' &&
+        (commit.key.publicKeyB64u !== purpose.publicKeyB64u ||
+         commit.key.keyManifestDigestB64u !== purpose.keyManifestDigestB64u ||
+         commit.key.materialEpoch <= purpose.materialEpoch))
+      throw new Error('ML-DSA restoration changed the recorded signer');
     const target = {
       relayerUrl: input.relayerUrl,
       walletId: input.started.intent.walletId,

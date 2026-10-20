@@ -61,5 +61,7 @@ export { enrollMlDsaNearSigner, resumeMlDsaNearEnrollment } from './core/signing
 export type { MlDsaNearEnrollmentOutcome, PendingMlDsaNearEnrollment, MlDsaPublishedSignerReference } from './core/signingEngine/walletCustody/mlDsaEnrollment';
 export { addMlDsaNearSigner } from './SeamsWeb/operations/registration/mlDsaNearSigner';
 export type { AddMlDsaNearSignerOutcome } from './SeamsWeb/operations/registration/mlDsaNearSigner';
+export { restoreMlDsaNearSigner } from './SeamsWeb/operations/registration/restoreMlDsaNearSigner';
+export type { RestoreMlDsaNearSignerOutcome } from './SeamsWeb/operations/registration/restoreMlDsaNearSigner';
 export { prepareMlDsaSignerInventory, fetchMlDsaSignerInventory } from './core/rpcClients/relayer/mlDsaInventory';
 export type { MlDsaInventoryPreparation, MlDsaInventoryPreparationOutcome, MlDsaSignerInventoryEntry, MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';

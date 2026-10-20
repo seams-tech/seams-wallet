@@ -9,6 +9,7 @@ These functions ship through `@seams/wallet/advanced`:
 | Function | Result |
 | --- | --- |
 | `addMlDsaNearSigner` | Runs existing-wallet signer publication, then owner-approved NEAR enrollment. |
+| `restoreMlDsaNearSigner` | Re-establishes participant material from the active custody owner's wallet seed. Preserves the ordinary public key. |
 | `enrollMlDsaNearSigner` | Enrolls an existing published signer reference. Checks finalized chain state before requesting another approval. |
 | `resumeMlDsaNearEnrollment` | Checks an uncertain submission through a public continuation. It accepts no signing port. |
 | `prepareMlDsaSignerInventory` | Requests a Gateway-issued read-only approval challenge. |
@@ -77,9 +78,114 @@ A revoked linked method loses inventory, fresh signing, and cached-signature acc
 Other owners retain their separate access.
 
 The retention path leaves the ML-DSA publication, seed binding, epoch, and participant shares
-unchanged. It restores access to durable server material. Replacing lost participant material
-still needs a dedicated public re-establishment flow using the recorded canonical manifest.
-Native and private-protocol recovery support already exists for that separate operation.
+unchanged. It restores access to durable server material.
+
+## Participant restoration
+
+Call `restoreMlDsaNearSigner` with the recorded signer and its slot. The active custody owner
+approves a new intent with the exact public key, manifest, and previous material epoch.
+The existing custody worker opens that owner's wallet-seed envelope with its Passkey factor.
+It derives fresh participant shares through the existing private protocol.
+This path also works after ordinary wallet recovery establishes a replacement owner factor.
+Linked devices continue to use the existing server-held signer. They receive no wallet seed.
+
+Restoration preserves the canonical FIPS key and its existing NEAR enrollment.
+Both participants must reproduce the recorded public key and manifest before publication.
+The new material epoch must exceed every previous attempt. Each attempt pins its encrypted
+inputs before dispatch. Exact retries reuse the same operation.
+
+Public signing stops while restoration is pending. Previous preparations and cached
+signatures fail the publication-version checks. Authenticated inventory returns a `restoring`
+entry with the recorded public key, manifest, epoch, current phase, and retry time.
+After an interrupted attempt expires, another browser can use that reference for a new attempt.
+An expired restoration never releases the slot for unrelated key creation.
+The wallet custody envelope, recovery codes, pool capacity, and signing cooldown remain unchanged.
+
+## Browser admission findings
+
+The full browser campaign exposed two production integration gaps that seeded authority fixtures did not reach.
+
+The first gap compared the intent's environment key with D1's canonical environment ID.
+Read-only SQL confirmed both values in records for the same failed wallet.
+An independent reviewer checked the raw records and the fix.
+
+| Fact | Instrument and scope | Result |
+| --- | --- | --- |
+| The authority and Passkey method were active. The seed envelope belonged to that method. | Local Gateway D1, browser campaign, 2026-10-21 | Invalid custody ownership did not explain the refusal. |
+| Storage used `local-smoke-project:dev`; the signed intent used `dev`. | Same wallet and completed start journal in D1 | The environment equality was false. |
+| Earlier seeded fixtures used equal environment strings. | E2E fixture and passing control | The control did not exercise the two environment domains. |
+
+| Candidate cause | Evidence | Result |
+| --- | --- | --- |
+| Invalid owner or seed envelope | Active, matching ownership records | Contradicted |
+| Private ML-DSA protocol failure | Refusal preceded participant dispatch; no registration journal existed | Contradicted |
+| Measurement mixed wallets | Both values came from the same wallet's stored start record | Contradicted |
+| Gateway identity construction used the intent's environment key | Source construction and persisted values matched this prediction | Confirmed |
+
+The registry now builds participant identity from its canonical tenant scope.
+It checks that scope before execution, publication, inventory, and published-key reads.
+The revised seeded campaign uses different intent and storage environment values.
+
+The second gap was an SDK wire parser that required `application_binding_digest`.
+Rust deliberately omits that derived field from serialization and recomputes it from the wallet and key identifiers.
+The SDK now accepts the existing four-field Rust binding. Encrypted binding verification stays unchanged.
+
+## Full browser qualification
+
+The [browser artifact](../evidence/ml-dsa-65-browser-lifecycle-20261021.json) records a passing
+Chromium campaign against the public SDK, Gateway, D1, and local Cloudflare workerd.
+The campaign takes 4.6 minutes, including three 60-second waits for the signing cooldown.
+This duration is a test campaign time, not a signing latency measurement.
+
+The original owner publishes the signer and signs. A separate browser context and authenticator
+complete QR linking before recovery. The linked owner discovers the same key and signs.
+The source browser then loses its original authenticator and local wallet storage.
+Recovery uses a saved code and creates a distinct Passkey. The recovered owner unlocks,
+discovers the existing signer, signs, and revokes the linked device.
+The revoked credential loses ML-DSA inventory access.
+
+The recovered owner then calls public participant restoration. D1 confirms that the admitted
+method is the recovered method. The public key and manifest stay unchanged at material epoch 2.
+Signing succeeds again. All four signatures pass independent OpenSSL verification.
+The saved transaction bytes also verify independently after artifact export.
+The consumed recovery code is refused.
+
+Every approval selects the exact credential ID. The three owner credentials are distinct.
+The original authenticator is removed before recovery, so a synced old Passkey cannot silently
+approve the recovered owner's operations. Traces, screenshots, and video remain disabled.
+The saved artifact contains public metadata and signed transactions.
+
+With current SDK, server, Wasm, Worker, and native investigation builds, repeat the campaign
+on free ports and a fresh private runtime directory:
+
+```sh
+SEAMS_INTENDED_SKIP_BUILD=1 \
+SEAMS_LOCAL_PORT_OFFSET=1000 \
+SEAMS_INTENDED_APP_URL=http://localhost:6201 \
+SEAMS_INTENDED_ROUTER_URL=http://127.0.0.1:5100 \
+SEAMS_INTENDED_WALLET_ORIGIN=http://localhost:6202 \
+SEAMS_INTENDED_ROUTER_AB_ROOT="$(mktemp -d /private/tmp/ml-dsa-browser.XXXXXX)" \
+SEAMS_INTENDED_TRACE_DIR=/private/tmp/ml-dsa-browser-evidence \
+pnpm -C tests exec playwright test -c playwright.wallet-intended.ci.config.ts \
+  e2e/intended-behaviours/ml-dsa.lifecycle.contract.test.ts --reporter=line
+```
+
+The campaign verifies ML-DSA transactions without broadcasting them.
+The separate enrollment campaign below verifies an actual NEAR `AddKey` transaction.
+These browser results do not qualify hosted Cloudflare latency or regional capacity.
+
+## Recovered-source QR limitation
+
+Creating a QR link from an already recovered owner still fails in the existing Ed25519 path.
+Persisted metadata shows a matching active recovery authority and signer manifest.
+The Ed25519 capability has `operation: recovery`. Its source resolver, source-contribution
+parsers, target planner, Router, and Signing Worker currently require registration-source bindings.
+An independent review confirmed these barriers. Removing one guard would leave the other checks.
+
+The passing browser campaign creates the QR link before recovery.
+Supporting new QR enrollment after recovery needs a separate Ed25519 extension across these
+boundaries. Target registration checks must stay intact. This extension remains outside the
+completed ML-DSA restoration path.
 
 ## Evidence
 
@@ -105,8 +211,12 @@ wallet cooldown, rejection of signing-only and ECDSA-only linked devices, revoca
 cached and fresh access, and continued access from a separate recovered owner.
 The additional controls reject an unissued nonce, an extended inventory expiry, and an inventory assertion
 presented as transaction approval.
-The campaign passes 19 registration checks, 20 signing checks, and 12 lifecycle checks.
-The separate testnet enrollment campaign passes six checks. Both artifacts match the final source hashes.
+The campaign passes 21 registration checks, 20 signing checks, 12 retained-signer lifecycle checks,
+and 10 participant-restoration checks. The restoration campaign deletes A's encrypted share,
+expires an admitted restoration, refuses unrelated creation in that slot, and retries at epoch 3.
+The ordinary FIPS key and manifest stay unchanged. Fresh signing succeeds with independently
+verified signatures. Old signing results and old execution requests remain fenced.
+The separate testnet enrollment campaign passes six checks.
 
 The SDK build, Wallet/server types, lifecycle type fixtures, intended-test types, generated
 Wasm import checks, and isolated package consumers pass. The package checks include the new
@@ -114,9 +224,10 @@ advanced ML-DSA imports and reject declaration aliases that degrade their inputs
 All 38 Cargo lockfiles pass the locked check. The bloat check retains the inherited Rust
 duplication excess of 13,984 lines against 13,754. Its baseline remains unchanged.
 
-These authority fixtures begin at completed recovery/device activation. They do not run
-the browser recovery-code or QR-link ceremonies. Those combined browser campaigns remain
-qualification work. The earlier [hosted browser campaign](ml-dsa-65-browser-hosted-report.md)
+These authority fixtures begin at completed recovery/device activation. They cover real
+Gateway, D1, and Worker behavior with shared authority factories.
+They do not qualify browser recovery-code or QR-link ceremonies by themselves.
+The earlier [hosted browser campaign](ml-dsa-65-browser-hosted-report.md)
 qualifies signing and finality under its documented existing-owner fixture scope.
 
 Repeat the enrollment campaign with a private output directory:

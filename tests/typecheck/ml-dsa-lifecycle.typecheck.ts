@@ -28,6 +28,22 @@ const mixedDirectInventory: MlDsaSignerInventoryEntry = {
 };
 void mixedDirectInventory;
 
+declare const restoring: Variant<MlDsaSignerInventoryEntry, 'kind', 'restoring'>;
+// @ts-expect-error A published signer cannot retain restoration state through a spread.
+const publishedWithRestoration: MlDsaSignerInventoryEntry = {
+  ...restoring,
+  kind: 'published',
+  key: published.key,
+};
+void publishedWithRestoration;
+// @ts-expect-error Interrupted restoration must retain the recorded key and retry time.
+const missingRestorationIdentity: MlDsaSignerInventoryEntry = {
+  kind: 'restoring',
+  signingKeyId: restoring.signingKeyId,
+  phase: 'expired_admission',
+};
+void missingRestorationIdentity;
+
 declare const preparation: MlDsaInventoryPreparation;
 declare const preparationWithSeed: Omit<MlDsaInventoryPreparation, 'walletCustodySeed'> & {
   readonly walletCustodySeed: Uint8Array;

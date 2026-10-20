@@ -378,7 +378,7 @@ function parseAddSignerIntentSelectionV1(raw: unknown): AddSignerSelection {
       const mlDsa = exactRegistrationIntentObject(
         readRegistrationIntentField(branch, 'mlDsa', label),
         label + '.mlDsa',
-        ['signerSlot'],
+        ['signerSlot', 'purpose'],
       );
       readRegistrationIntentSafeInteger(mlDsa, 'signerSlot', label + '.mlDsa', 1);
       break;
@@ -659,7 +659,11 @@ function sameAddSignerSelectionV1(left: AddSignerSelection, right: AddSignerSele
   if (left.mode !== right.mode) return false;
   switch (left.mode) {
     case 'ml_dsa_65':
-      return right.mode === 'ml_dsa_65' && left.mlDsa.signerSlot === right.mlDsa.signerSlot;
+      return (
+        right.mode === 'ml_dsa_65' &&
+        left.mlDsa.signerSlot === right.mlDsa.signerSlot &&
+        alphabetizeStringify(left.mlDsa.purpose) === alphabetizeStringify(right.mlDsa.purpose)
+      );
     case 'ed25519':
       return (
         right.mode === 'ed25519' &&

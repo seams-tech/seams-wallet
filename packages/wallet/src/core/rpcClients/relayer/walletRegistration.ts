@@ -1,8 +1,9 @@
 import { WALLET_REGISTRATION_SETUP_PATH } from './walletRegistrationSetupPrewarm';
 import {
-  parseMlDsaCreateProtocolInputs,
+  parseMlDsaCustodyProtocolInputs,
   mlDsaSigningKeyIdForSlot,
-  type MlDsaCreateProtocolInputs,
+  mlDsaProtocolMatchesPurpose,
+  type MlDsaCustodyProtocolInputs,
 } from '@shared/passkey-custody/mlDsaCustody';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
@@ -1929,7 +1930,7 @@ export type WalletAddSignerStartResponse =
       readonly authorizationKind: 'webauthn_assertion';
       readonly kind: 'near_ml_dsa_65';
       readonly mlDsa: {
-        readonly protocolInputs: MlDsaCreateProtocolInputs;
+        readonly protocolInputs: MlDsaCustodyProtocolInputs;
         readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
         readonly expiresAtMs: number;
       };
@@ -2742,13 +2743,14 @@ export function parseWalletAddSignerStartResponse(args: {
       const expiresAtMs = readWalletRegistrationResponseField(mlDsa, 'expiresAtMs', responseName);
       if (typeof expiresAtMs !== 'number' || !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= 0)
         throw new Error('Invalid ML-DSA ceremony expiry');
-      const protocolInputs = parseMlDsaCreateProtocolInputs(
+      const protocolInputs = parseMlDsaCustodyProtocolInputs(
         readWalletRegistrationResponseField(mlDsa, 'protocolInputs', responseName),
       );
       const custodyEnvelope = parsePasskeyCustodyEnvelopeRecord(
         readWalletRegistrationResponseField(mlDsa, 'custodyEnvelope', responseName),
       );
       if (
+        !mlDsaProtocolMatchesPurpose(protocolInputs, intent.signerSelection.mlDsa.purpose) ||
         protocolInputs.walletId !== intent.walletId ||
         protocolInputs.signingKeyId !==
           mlDsaSigningKeyIdForSlot(intent.signerSelection.mlDsa.signerSlot) ||

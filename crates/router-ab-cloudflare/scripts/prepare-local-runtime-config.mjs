@@ -375,6 +375,7 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       privateD1Keys,
       tenantRootKeys,
     });
+    config = addLocalMlDsaRegistration(config, role);
     if (privateD1) {
       config = setPrivateD1MigrationsDirectory(config, privateD1.migrationsDirectory);
       config = setPrivateD1LocalDatabaseId(config, privateD1.localDatabaseId);
@@ -420,6 +421,29 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     }),
     configs: Object.freeze(configs),
   });
+}
+
+function addLocalMlDsaRegistration(config, role) {
+  if (role !== 'deriver-a' && role !== 'deriver-b') return config;
+  let configured = config + `
+[[durable_objects.bindings]]
+name = "ML_DSA_REGISTRATION_DO"
+class_name = "RouterAbMlDsaRegistrationDurableObject"
+
+[[migrations]]
+tag = "ml-dsa-local-registration-v1"
+new_sqlite_classes = ["RouterAbMlDsaRegistrationDurableObject"]
+`;
+  if (role === 'deriver-a') configured += `
+[[durable_objects.bindings]]
+name = "ML_DSA_PRODUCER_DO"
+class_name = "RouterAbMlDsaProducerDurableObject"
+
+[[migrations]]
+tag = "ml-dsa-local-producer-v1"
+new_sqlite_classes = ["RouterAbMlDsaProducerDurableObject"]
+`;
+  return configured;
 }
 
 function setPrivateD1MigrationsDirectory(source, migrationsDirectory) {

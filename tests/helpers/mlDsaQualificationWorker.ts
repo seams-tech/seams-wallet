@@ -145,7 +145,7 @@ async function fixture(request: Request, env: Environment): Promise<Response> {
   const intent = await service(env).walletAuthMethods.createAddSignerIntent({
     command: {
       subject: { kind: 'wallet_signer_management', walletId },
-      signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: 1 } },
+      signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: 1, purpose: { kind: 'create' } } },
     },
     orgId: scope.orgId,
     runtimePolicyScope: {
