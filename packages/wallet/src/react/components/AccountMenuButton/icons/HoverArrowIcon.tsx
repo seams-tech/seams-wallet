@@ -1,7 +1,8 @@
 import React from 'react';
+import './HoverArrowIcon.css';
 
-/** A chevron that grows a shaft on its parent's hover (">" to "->"). The
- * parent row owns the hover selectors in Web3AuthProfileButton.css. */
+/** A chevron that grows a shaft on its parent's hover (">" to "->"). Place it
+ * as a direct child of the row that triggers it (HoverArrowIcon.css). */
 export function HoverArrowIcon({ size = 12 }: { size?: number }): React.JSX.Element {
   return (
     <svg
