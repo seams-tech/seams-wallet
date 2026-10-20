@@ -121,10 +121,6 @@ The crate-local implementation includes:
 - Lean boundary and privacy checks for the active server-visible staged boundary
 - native performance baselines
 
-The crate is ready for crate-level review. Product rollout, QA, and integration
-tracking live in
-[docs/archive/sdk-server-integration-plan.md](docs/archive/sdk-server-integration-plan.md).
-
 Current performance notes:
 
 - derivation, bootstrap, and export are sub-millisecond in native benchmarks
@@ -137,8 +133,6 @@ Current performance notes:
 
 - Security model:
   [security.md](security.md)
-- Optimization ledger:
-  [optimizations.md](optimizations.md)
 - Formal verification plan:
   [formal-verification/README.md](formal-verification/README.md)
 - Protocol shape:
@@ -147,6 +141,3 @@ Current performance notes:
   [specs/export.md](specs/export.md)
 - Integration with the purpose-built fixed ECDSA backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
-- Historical design and optimization notes remain under `docs/plans/`,
-  `docs/archive/` and `optimizations.md`; they are superseded by the active
-  specs above and refactor-89 (`docs/refactor-89-slimmer-near-ecdsa.md`).

@@ -19,9 +19,6 @@ The application does not construct the signing surface or wallet stores.
 `WalletHostRuntime` constructs those components inside the wallet iframe.
 Public RPC and broadcast helpers can run in the application.
 
-See the [client and worker inventory](../../../../docs/refactor-170-inventory.md)
-for current dispatch ownership and reproducible consumer bundle measurements.
-
 ## Boundary
 
 This directory may import browser platform adapters, wallet iframe modules, DOM

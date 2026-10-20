@@ -171,8 +171,6 @@ generated digest corpus.
   [docs/proof-inventory.md](docs/proof-inventory.md)
 - Verus bootstrap:
   [verus/README.md](verus/README.md)
-- crate implementation plan:
-  [../docs/archive/implementation-plan.md](../docs/archive/implementation-plan.md)
 - share-derivation design memo:
   [../docs/plans/share-derivation-design-memo.md](../docs/plans/share-derivation-design-memo.md)
 - protocol spec:

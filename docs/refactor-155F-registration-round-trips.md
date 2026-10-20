@@ -123,11 +123,6 @@ registration alone as the primary metric. Report first-signature latency separat
 Exclude user interaction, test automation, funding, and blockchain confirmation
 from those SDK metrics. Also retain the inclusive timings.
 
-[R155D](refactor-155D-registration-critical-path.md) records the completed changes,
-earlier experiments, database cutover, and existing recovery defect. This plan owns
-the next four optimization areas below. Coordinate with the R155D implementer
-before changing shared files. Do not repeat work already completed there.
-
 [R155B](refactor-155B.md) defines regional execution and Console responsibilities.
 [R155C](refactor-155C-yao-peer-connection.md) defines concurrent A/B execution.
 One trusted organisation operates both Derivers. Preserve their secret separation
@@ -197,8 +192,7 @@ records query identities, timings, request counts, and component versions.
   Earlier saved Worker versions bind the old, deleted databases.
 
 Use these changes in the new baseline. Do not report their savings again as R155F
-improvements. See the [capability evidence](evidence/refactor-155d-capability-persistence.md)
-and R155D's [cutover record](refactor-155D-registration-critical-path.md#startup-and-role-databases).
+improvements. See the [capability evidence](evidence/refactor-155d-capability-persistence.md).
 
 ## Implementation inventory
 

@@ -60,7 +60,7 @@ A custom registration authority must schedule
 `resumeRegistrationDirectoryPublicationsV1` from
 `@seams/wallet-server/cloud-host`. It retries completions committed locally
 but not yet acknowledged by the directory. The bundled local Gateway schedules it.
-See [hosted integration](/deploy-and-operate/hosted-integration#upgrading-to-0-13-0)
+See [hosted integration](/deploy-and-operate/hosted-integration#registration-completion)
 for migration and timing requirements.
 
 Deploy the matching backend roles when the private role protocol changes.

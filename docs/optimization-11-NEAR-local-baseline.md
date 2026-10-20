@@ -2,8 +2,7 @@
 
 Measured 2026-09-29: **40 registrations and 80 verified NEAR transaction
 signatures passed**, with zero retries. This establishes the local development
-baseline for [Optimization 11](./optimization-11-NEAR.md). Network optimization
-and hosted measurements remain later work.
+baseline for that local workload.
 
 Follow-up: the NEAR-only registration result below lacked the session seal needed
 for signing after refresh. The [corrected baseline and breakdown](./optimization-11-NEAR-local-breakdown.md)

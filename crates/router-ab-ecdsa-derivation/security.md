@@ -426,7 +426,5 @@ Still intentionally out of scope:
   [specs/export.md](specs/export.md)
 - Integration with the current backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
-- Implementation plan:
-  [docs/archive/implementation-plan.md](docs/archive/implementation-plan.md)
 - Share-derivation design memo:
   [docs/plans/share-derivation-design-memo.md](docs/plans/share-derivation-design-memo.md)

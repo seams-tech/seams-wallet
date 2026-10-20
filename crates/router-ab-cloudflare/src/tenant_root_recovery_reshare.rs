@@ -3,10 +3,8 @@
 //!
 //! One retention key per recovery set and role seals the attempt's material
 //! across the phases and wraps the package the Deriver keeps for Download.
-//! Cloudflare holds that key in a destructible provider, Google Cloud KMS. A
-//! host without one, the VM, keeps it in its role store, sealed to the role's
-//! own key, and never claims more than an unverified erasure
-//! (docs/refactor-150-vm-recovery-retention.md).
+//! Cloudflare holds that key in Google Cloud KMS. Providers without verified
+//! key destruction report erasure as unverified.
 
 use core::num::NonZeroU64;
 

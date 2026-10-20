@@ -74,22 +74,6 @@ detail where needed.
 Code excerpts link to their source. Diagrams show the main relationships and
 steps; the linked references cover the full protocols and record formats.
 
-## Document authority and upkeep
-
-| Documents | Status and use |
-| --- | --- |
-| `spec-*.md`, `intended-behaviours.md`, crate specifications | Current architecture and behavior contracts; reconcile with owning code and tests |
-| `apps/docs/src`, package READMEs, example READMEs | Current public instructions; update with public API and release changes |
-| `evidence/`, dated performance records | Historical measurements; preserve conditions, failures, and uncertainty |
-| `refactor-*`, `optimization-*` | Plans and investigations; dated status determines remaining work |
-| `chain-support/`, proposed auth integrations | Assessments or proposals unless the page establishes released support |
-| `archive/` | Historical plans with no authority over current behavior |
-
-Completed application/host separation and API naming plans are historical
-records. Use the public reference for current calls. Old migration maps
-do not introduce aliases or revive deleted paths.
-
-Documentation checks and the release checklist live in
-[`apps/docs/README.md`](../apps/docs/README.md). Public site source belongs here.
-Private Console composition, deployment targets, and publication procedures live
-in `seams-monorepo`. Keep each fact in its owning repository and link to it.
+Current contracts belong in the numbered specifications, intended behaviors,
+and crate specifications. Public integration instructions belong in `apps/docs`.
+Keep dated measurement evidence separate. Superseded plans remain in Git history.

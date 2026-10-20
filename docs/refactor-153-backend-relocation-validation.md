@@ -229,9 +229,8 @@ quotas, authorized operations, replay records, and lifecycle journals. Some
 records are indirect children identified by a session, credential, operation,
 or structured key. Filtering every table by `wallet_id` cannot enumerate them.
 `router_ab_yao_versioned_json_records` also mixes wallet-related families with
-shared tenant capability and replay state. The historical
-[ownership map](refactor-150-state-ownership-map.md) is useful context; the
-effective schema in the probe is the current schema evidence.
+shared tenant capability and replay state. The effective schema in the probe
+is the schema evidence for this investigation.
 
 R152 must finish defining which facts become wallet-local and how their atomic
 relationships to shared policy and identity uniqueness are maintained. Copying

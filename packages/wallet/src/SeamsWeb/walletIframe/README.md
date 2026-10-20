@@ -28,8 +28,6 @@ execution, wallet-origin storage, worker managers, and custody code belong to
 selected operations or persisted work to resume. Registration preparation follows
 the selected signer set. Generic confirmation preparation does not import EVM or
 Tempo signing modules; those modules load through their selected signing operation.
-See the [worker inventory and measurements](../../../../../docs/refactor-170-inventory.md)
-for loading triggers, shared ceremony dependencies, and measurement limits.
 
 ## Architecture Overview
 

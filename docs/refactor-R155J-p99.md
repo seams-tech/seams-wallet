@@ -273,8 +273,7 @@ Remaining acceptance work:
 
 - [x] Freeze the next accumulated candidate after its correctness checks. Release
   0.10.2 (`main` `70f5674f`) carries founding-read overlap, seal warm-up and the
-  `respond` retries; its suite result is in the
-  [release review](refactor-155-release-review.md).
+  `respond` retries.
 - [x] Coordinate the staging window and capture current versions, database bindings,
   migrations, and activation state. The run compared all 14 serving versions with
   a frozen snapshot before each group. Another session deployed a staging Console

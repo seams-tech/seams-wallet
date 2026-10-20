@@ -107,7 +107,7 @@ directory acknowledgment. Scheduled retries resume pending publications.
 
 Apply Gateway migration `0081_registration_directory_publications.sql` and
 configure the scheduled handler described in
-[the upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-13-0).
+[the upgrade instructions](/deploy-and-operate/hosted-integration#registration-completion).
 
 Recovery codes gain a printed-slip view and visible input selection. The
 device-match choice gains theme colours for dark cards.

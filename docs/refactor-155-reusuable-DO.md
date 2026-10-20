@@ -46,9 +46,7 @@ Eight of nine consecutive signatures waited for refill. Those waits had a
 of 1.745s/3.411s remain separate baselines. These small cohorts establish no
 latency guarantee.
 
-Sources: [signing results](refactor-152-results.md#fresh-session-validation-in-prepare-october-6-2026),
-[DO diagnosis](refactor-152-results.md#worker-to-do-first-contact-diagnosis-october-6-2026),
-and [diagnostic evidence](evidence/r152-worker-do-first-contact-20261006.json).
+Source: [diagnostic evidence](evidence/r152-worker-do-first-contact-20261006.json).
 
 ## Existing implementation to reuse
 

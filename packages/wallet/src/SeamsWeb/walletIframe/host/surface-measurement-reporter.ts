@@ -222,8 +222,7 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
       `[SEAMS] ${this.options.kind} posted ${this.recentPostTimes.length} surface measurements in ` +
         `${STREAMING_WINDOW_MS}ms after it had settled. Content inside a measured surface must ` +
         'announce a height change once (announceSurfaceResize) instead of animating its own ' +
-        'height; the host box cannot follow a moving target. See ' +
-        'docs/refactor-127-preact.md.',
+        'height; the host box cannot follow a moving target.',
     );
   }
 

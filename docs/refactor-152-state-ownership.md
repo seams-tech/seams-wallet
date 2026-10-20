@@ -668,9 +668,7 @@ Linked-device branch acceptance and the remaining ownership/deployment gates abo
 remain open.
 
 Verification passed in 1.1 minutes: six session grants and two step-up exports,
-with correct-owner acceptance and wrong-owner rejection for all eight. See the
-October 4 step-up verification entry in [results](refactor-152-results.md) for the
-repeat command, artifact hash and validation limits.
+with correct-owner acceptance and wrong-owner rejection for all eight.
 
 
 ### Obsolete NEAR key index removed — October 4

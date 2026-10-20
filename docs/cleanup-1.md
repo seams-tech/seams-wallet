@@ -784,10 +784,6 @@ Decisions, largest first:
   indexes migration 0015 dropped. Squashing the signer migrations would
   take 9,211 lines to about 3,100 and breaks local ledgers; it belongs
   with the planned clean reset.
-- Plan docs: 11 are finished (7,405 lines) and 8 never started with no
-  code (2,887). Proposed rule: a plan is finished when its status says
-  implemented, released or closed; fold what is still true into its spec
-  and move it to `docs/archive/` with one index line.
 - Shipped bytes: minify the iframe host (boot 24.9 to 17.1 kB gzip, first
   runtime request 1,065 to 735 kB gzip, at the cost of readable stack
   traces), strip comments from `wallet-ui.css` (9.9 kB gzip), minify the

@@ -43,9 +43,8 @@ are retained as design requirements, rather than an open task queue.
 Follow **R152 → R170/R171 → R153 → slim R154**.
 
 1. R152 supplies the completed fixed-home routing and state ownership baseline.
-2. [R170](refactor-170.md) and [R171](refactor-171.md) are complete within their
-   approved scope. Use their committed `dev` implementation and
-   [completion receipt](refactor-170-completion.md).
+2. Use the existing client/host boundary and public API from the
+   [browser reference](../apps/docs/src/reference/core.md).
 3. Proceed directly to R153 on that client/host composition. Preserve the existing
    relocation journal and evidence. Implement and validate the manual move first.
 4. Implement [slim R154](refactor-154-region-change-notifications.md) only after
@@ -532,8 +531,7 @@ changes; the existing HTTP relocation scenario does not exercise overdue alarms.
 
 R152 closed the ownership dependency at public `c160e107` and private
 `8a40b44`. Use [ownership revision 13](refactor-152-state-ownership.md).
-Its [results](refactor-152-results.md) retain the regional routing and lifecycle
-evidence. R153 consumes that baseline through the completed R170/R171 composition.
+R153 consumes that baseline through the existing client/host composition.
 
 Private commits `72ce0f6` and `c0a57c6` implement the directory journal in
 `walletPlacement/relocation{,Store,Execution}.ts` and migrations 0070/0071:
@@ -930,7 +928,7 @@ pnpm --dir tests exec playwright test -c playwright.relayer.config.ts \
 
 Add a Wallet region setting so an owner who expects to spend time in another
 region can explicitly choose a supported home for their wallet. Build on
-[R152's per-wallet homes](refactor-152-regional-D1.md), extending the fixed-home
+[per-wallet homes](../apps/docs/src/concepts/architecture.md#per-wallet-regional-homes), extending the fixed-home
 rule through a controlled relocation operation.
 
 The setting applies to the whole wallet and all of the owner's devices. Show the

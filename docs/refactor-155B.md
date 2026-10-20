@@ -10,11 +10,6 @@ checks while removing the extra signed readiness and start-acceptance handshake.
 It is implemented on `dev` and measured on staging. Router Yao execution fell
 from 3.199 seconds on the restored control to 2.009 seconds. That plan records
 the comparison.
-[R155D](refactor-155D-registration-critical-path.md) plans the remaining
-critical path: placement, object startup, Gateway round trips, the
-post-registration status read, and the measurement contract.
-[R155F](refactor-155F-registration-round-trips.md) plans further registration
-batching and fewer Console and browser exchanges, using R155D's measured results.
 
 ## Objective
 
@@ -537,8 +532,7 @@ explicitly. A faster local run alone does not complete this phase.
 - The old routine Console path is deleted. No compatibility switch or second
   authority mechanism remains beside its replacement.
 
-Related plans: [R152](refactor-152-regional-D1.md),
-[R153](refactor-153-wallet-region-selection.md),
+Related plans: [R153](refactor-153-wallet-region-selection.md),
 [R155](refactor-155-reusuable-DO.md).
 
 ## Implementation history
