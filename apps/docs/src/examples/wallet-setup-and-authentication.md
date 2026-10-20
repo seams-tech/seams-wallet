@@ -5,6 +5,19 @@ description: Configure the Seams provider, register a wallet with a passkey, unl
 
 # Wallet setup and authentication
 
+## Hosted registration and sign-in intent
+
+Render `HostedRegistration` inside `SeamsWebProvider` when registration opens.
+It prepares the wallet and challenge while that view remains open. Handle its
+outcome in your application.
+
+`SignInIntentButton` downloads sign-in code on pointer, focus, or touch. Supply
+`onOpen` to mount your auth menu. The download does not reserve a wallet or
+prepare a passkey challenge. Direct `registerWallet()` calls start setup inside
+the call. See [hosted integration](/deploy-and-operate/hosted-integration#prepare-registration-through-the-hosted-menu).
+
+<<< ./hosted-auth-menu.tsx
+
 Use this example when adding Seams to a new app. Configure the provider once. Register a
 wallet. Create a wallet session before signing.
 

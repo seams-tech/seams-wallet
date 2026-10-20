@@ -60,6 +60,10 @@ only its outcome to the application.
 
 ## Product layers
 
+The layer map includes proposed payment, agent, and external-proof capabilities.
+Passkeys, Email OTP, wallet lifecycle, signing, and owner-selected region moves
+are released. See [release status](/releases) and each capability's availability.
+
 | Layer                    | Responsibility                                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | Proof layer              | Passkeys, Email OTP, VoiceID, device proof, org proof, wallet proof, and configured external credentials.     |
@@ -128,7 +132,7 @@ and signing roles. Wallet ownership remains fixed across these services. Verify 
 placement for each service before claiming that all services run in the same region.
 
 All devices of one wallet use the same home. Travelling changes the client-to-home
-network distance and leaves the wallet's home unchanged. In version 0.10.0 the owner
+network distance and leaves the wallet's home unchanged. The owner
 can move a wallet to another region with the wallet region setting or
 `seams.placement.move`. No relocation is automatic. Shared tenant authority remains
 separate from wallet-owned regional state.

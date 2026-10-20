@@ -27,3 +27,26 @@ copyable SDK code.
 
 Keep product language and the checked-in VitePress theme aligned with the
 Wallet site when either surface changes.
+
+## Release checklist
+
+1. Check npm publication, release Git revisions, iframe protocol, and CLI separately.
+   Update `src/releases.md` with a dated baseline. Label prepared changes explicitly.
+2. Update installation, package READMEs, examples, affected API reference, and
+   deployment instructions. Preserve historical evidence and migration conditions.
+3. Reconcile concepts and diagrams with the numbered specifications and
+   `docs/intended-behaviours.md`. Proposed capabilities need explicit availability.
+4. Run the checks above. Compile examples against the exact published packages
+   in an isolated consumer without workspace source aliases.
+5. Preview the built `/docs/` site. Check search, deep links, keyboard/mobile
+   navigation, dark mode, diagrams, and copyable examples. Retain screenshots.
+6. Run an existing substantial lifecycle E2E and retain sanitized proof artifacts.
+   Document any infrastructure limit without changing behavior to satisfy a fixture.
+7. Commit on `dev`. The private publication workflow builds that exact committed
+   public revision and writes `seams-wallet-docs-artifact.json`. Verify its receipt
+   on staging and production. Keep staging unindexed and retain the prior artifact.
+
+The production canonical origin is `https://wallet.seams.sh/docs`. The default
+base path is `/docs/`. Local preview uses VitePress with that base path.
+The private repository serves a staged static copy; it does not own another
+documentation source tree.

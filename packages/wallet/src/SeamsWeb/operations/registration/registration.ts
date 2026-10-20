@@ -875,6 +875,9 @@ function startRegistrationWarmup(input: {
     nearEd25519: input.signerSelection.signers.some((signer) => signer.kind === 'near_ed25519'),
     evmFamilyEcdsa: registrationSelectionIncludesEcdsa(input.signerSelection),
   });
+  if (registrationSelectionIncludesNear(input.signerSelection)) {
+    void prewarmPasskeyEd25519Client(input.authMethod);
+  }
   const genericWarmup = input.recorder.measure(
     'registrationWarmupMs',
     registrationWarmupWork(input.context),
@@ -2913,7 +2916,6 @@ export async function resumeNearRegistrationAfterUnlock(args: {
           context: args.context,
           registrationTiming: null,
           registrationStartedAt: startedAt,
-          clientPrewarm: Promise.resolve(),
           relayerUrl,
           registrationCeremonyId: pending.registrationCeremonyId,
           signedSetup: pending.signedSetup,
@@ -3129,7 +3131,7 @@ async function activatePasskeyRegistrationEd25519Material(args: {
   }
 }
 
-async function prewarmDeferredPasskeyEd25519Client(
+async function prewarmPasskeyEd25519Client(
   auth: RegistrationAuthMethodInput,
 ): Promise<void> {
   if (auth.kind !== 'passkey') return;
@@ -3267,7 +3269,6 @@ async function commitDeferredEd25519Registration(args: {
   context: NearRegistrationContext;
   registrationTiming: RegistrationTimingRecorder | null;
   registrationStartedAt: number;
-  clientPrewarm: Promise<void>;
   relayerUrl: string;
   registrationCeremonyId: string;
   /* Route 4 verifies the same payload the earlier legs carried. */
@@ -3594,7 +3595,6 @@ async function commitDeferredEd25519Registration(args: {
       if (!retainedFactorSecret32) {
         throw new Error('Deferred passkey registration has no custody factor secret');
       }
-      await args.clientPrewarm;
       await activatePasskeyRegistrationEd25519Material({
         signingEngine: args.context.signingEngine,
         sessionAuthority: args.sessionAuthority,
@@ -3813,11 +3813,6 @@ async function registerEcdsaOrMixedWallet(
   const { onEvent, onError, afterCall } = options;
   const startedAt = performance.now();
   const registrationTiming = new RegistrationTimingRecorder(startedAt);
-  // The main-thread signer WASM is separate from the ceremony worker's instance.
-  const clientPrewarm =
-    args.kind === 'near_ed25519_and_evm_family_ecdsa'
-      ? prewarmDeferredPasskeyEd25519Client(args.authMethod)
-      : Promise.resolve();
   const traceContext = createRouterAbTraceContextV1();
   let postTouchIdCompletedAt: number | null = null;
   let emailOtpCustodyCapabilityFactorSecret32: Uint8Array | null = null;
@@ -4275,7 +4270,6 @@ async function registerEcdsaOrMixedWallet(
             context,
             registrationTiming,
             registrationStartedAt: startedAt,
-            clientPrewarm,
             relayerUrl,
             registrationCeremonyId: setup.registrationCeremonyId,
             signedSetup: setup.signedSetup,

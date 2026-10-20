@@ -19,7 +19,7 @@ import { SeamsWeb, type SeamsConfigsInput } from '@seams/wallet';
 | -------------- | ---------------------------------------------------------------------------- |
 | `connection`   | Connect, observe readiness, and dispose the client.                          |
 | `events`       | Subscribe to SDK lifecycle events.                                          |
-| `authMenu`     | Open, cancel, and supply external authentication for hosted auth UI.         |
+| `authMenu`     | Prepare code, open, cancel, and supply external authentication for hosted auth UI. |
 | `config`       | Update appearance and select configured chain targets.                       |
 | `registration` | Register a wallet, add a signer, await NEAR provisioning.                    |
 | `auth`         | Unlock, lock, restore, and inspect wallet sessions.                          |
@@ -38,7 +38,7 @@ returns `txHashHex`.
 
 Configuration calls share one namespace:
 
-```ts
+```ts [Partial example]
 seams.config.setTheme('dark');
 seams.config.setAppearance({ theme: { id: 'brand', mode: 'light' } });
 const target = seams.config.chainTarget('tempo-testnet');
@@ -47,7 +47,7 @@ const targets = seams.config.configuredChainTargets();
 
 Connection state is independent of authentication. Subscribe before connecting:
 
-```ts
+```ts [Partial example]
 const stop = seams.connection.onChange((state) => {
   if (state.kind === 'failed') console.error(state.error);
 });
@@ -107,7 +107,7 @@ The main entrypoint includes:
 
 ## Session calls
 
-```ts
+```ts [Partial example]
 await seams.auth.unlock(walletId);
 const session = await seams.auth.getSession();
 const hasPasskey = await seams.auth.hasPasskey(walletId);
@@ -246,8 +246,15 @@ methods, the linked devices, or the recovery configuration. In React,
 
 The React provider connects the wallet frame on mount. Applications that manage
 clients directly can call `await seams.connection.connect()` before an operation.
-Registration, authentication, and signing prepare their required resources inside
-the wallet host. No application prewarm call or provider `eager` flag is needed.
+When the wallet origin stores no wallet, connection reads use boot code without
+loading the wallet runtime or creating its database. An operation loads the
+resources it needs. `authMenu.prepare()` starts the sign-in download earlier and
+never throws. Call it on pointer, focus, or touch intent when the menu mounts
+only after a click. A mounted hosted menu starts the download itself.
+
+Code preparation does not reserve a wallet or create a passkey challenge.
+The hosted registration view performs registration setup while open. There is
+no separate public registration-preparation handle or provider `eager` flag.
 
 ## Lifecycle rule
 

@@ -56,6 +56,10 @@ jobs:
         env:
           SEAMS_INTENDED_SKIP_BUILD: '1'
       - run: pnpm check:packed-wallet
+      - name: Validate documentation links and snippets
+        run: |
+          pnpm -C apps/docs check:links
+          node apps/docs/scripts/check-code-fences.mjs
       - run: pnpm build:docs
       - run: pnpm build:example
       - name: Build Wallet intended test app

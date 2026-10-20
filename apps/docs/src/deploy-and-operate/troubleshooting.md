@@ -17,11 +17,36 @@ browser console origin errors. Correct the deployment or origin allowlist. Then 
 
 ## An older client receives an upgrade-required response
 
-**Boundary:** SDK, hosted wallet assets, and backend release identity. Version
-0.10.0 rejects unsupported wallet-management protocols with HTTP 409 and an
+**Boundary:** SDK, hosted wallet assets, and backend release identity. The backend
+rejects unsupported wallet-management protocols with HTTP 409 and an
 upgrade message. Display it and reload the matching application and wallet
 assets. Stop automatic retries of the same incompatible request. Follow the
-[0.10.0 upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-10-0).
+[current upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-15-4).
+The application and wallet host must also agree on iframe protocol 16.0.0.
+Crossing the 0.13-to-0.14 boundary requires updating both together.
+
+## Registration signs but is absent from Console
+
+**Boundary:** Gateway completion publication. Registration can commit locally
+before the directory acknowledges it. Check pending publication rows, scheduled
+handler execution, directory access, and migration `0081`. Retry the recorded
+publication through the scheduled handler. Do not create another wallet.
+Region moves remain unavailable until acknowledgment.
+
+## Sign-in downloads start after a click
+
+**Boundary:** lazy wallet runtime. When no wallet is stored, connection alone
+does not load the sign-in runtime. Attach `authMenu.prepare()` to pointer,
+focus, or touch intent, or mount `HostedSeamsAuthMenu` earlier. This downloads
+code without reserving a wallet or requesting a credential.
+
+## Initial tenant authorization expired
+
+**Boundary:** custody creation journal. An unused authorization can be renewed
+only after the Router persists its fence. A started ceremony must recover with
+its exact original authorization. Check Wallet Runtime's control relay and
+coordinated backend versions before retrying. Do not substitute a new grant
+for an operation that already started.
 
 ## A regional wallet cannot be routed
 

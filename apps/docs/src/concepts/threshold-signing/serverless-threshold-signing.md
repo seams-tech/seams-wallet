@@ -45,7 +45,7 @@ the same threshold-signing model.
 ## Cloudflare-native self-hosting
 
 Seams is self-hostable and serverless-friendly. Teams can run split roles on Cloudflare
-Workers, Durable Objects, regional D1, and Rust compute in Containers. These services
+Workers, Durable Objects, regional D1, and Rust compute compiled to WASM. These services
 have separate request, storage, and compute charges. Regional placement does not make
 their usage free.
 
@@ -54,12 +54,13 @@ That gives teams a practical path from prototype to production:
 - use the selected same-account P0 deployment for production, staging, local
   parity, and benchmarks.
 - keep Router, Deriver, and SigningWorker roles separated.
-- scale Worker routing and wallet-owned DO/Container compute on demand.
+- scale Worker routing and wallet-owned Durable Object compute on demand.
 - preserve the same wallet architecture as operational isolation increases.
 
 Small teams can test the model using these managed services. Larger deployments can add
 private bindings, isolated workers, dedicated storage, TEEs, and stricter release
-controls around the same protocol shape. Independently administered Deriver accounts
+controls around the same protocol shape. These stronger runtime profiles require
+separate qualification. Independently administered Deriver accounts
 remain a stronger deferred profile until their reconnect reliability and tail-latency
 gates pass.
 

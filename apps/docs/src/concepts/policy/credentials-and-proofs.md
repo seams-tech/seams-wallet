@@ -11,7 +11,10 @@ still usable.
 
 ## Proof inputs
 
-Seams can use proof signals such as:
+The released wallet uses passkeys, Email OTP, Wallet Sessions, and linked-device
+proofs. Organization roles belong to Console authorization. The wider model
+also includes proposed inputs such as VoiceID and external biometric proofs.
+This list describes their intended policy role, rather than public enrollment APIs:
 
 1. Passkey/WebAuthn presence.
 2. Email OTP verification.

@@ -20,33 +20,7 @@ The signer selection declares the required NEAR and EVM-family capabilities.
 
 For example, this request creates a passkey wallet with an implicit NEAR account:
 
-```ts
-import type { SeamsWeb } from '@seams/wallet';
-import { parseWebAuthnRpId } from '@seams/wallet/advanced';
-
-const rpId = parseWebAuthnRpId('wallet.example.com');
-if (!rpId.ok) throw new Error(rpId.error.message);
-
-const registration: Parameters<SeamsWeb['registration']['registerWallet']>[0] = {
-  authMethod: { kind: 'passkey', rpId: rpId.value },
-  wallet: { kind: 'server_allocated' },
-  signerSelection: {
-    kind: 'signer_set',
-    signers: [
-      {
-        kind: 'near_ed25519',
-        accountProvisioning: {
-          kind: 'implicit_account',
-          accountIdSource: 'ed25519_public_key',
-        },
-        signerSlot: 1,
-        participantIds: [1, 2],
-        derivationVersion: 1,
-      },
-    ],
-  },
-};
-```
+<<< ../examples/registration-input.ts
 
 Use your wallet origin's relying-party ID in place of `wallet.example.com`.
 Pass `registration` to the button below, or call

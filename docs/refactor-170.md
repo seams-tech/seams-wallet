@@ -1,5 +1,10 @@
 # Separate the application SDK client from wallet execution
 
+Historical implementation plan. The published SDK uses this application/host
+boundary. Dated checkpoints below preserve their original measurement conditions.
+Use the [current integration guide](../apps/docs/src/deploy-and-operate/hosted-integration.md)
+for lazy loading, protocol compatibility, and deployment instructions.
+
 Status: complete for the approved essential scope, 2026-10-05.
 See the [completion receipt](refactor-170-completion.md). Release and deployment
 remain separate tasks.

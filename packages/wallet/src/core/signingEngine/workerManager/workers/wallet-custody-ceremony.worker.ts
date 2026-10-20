@@ -245,6 +245,10 @@ async function initializeNearSignerWasm(): Promise<void> {
   return nearSignerInitPromise;
 }
 
+function ignoreNearSignerPrewarmFailure(): void {
+  // Capability establishment retries initialization and reports any terminal failure.
+}
+
 async function initializeEd25519YaoClientWasm(): Promise<void> {
   if (!ed25519YaoClientInitPromise) {
     ed25519YaoClientInitPromise = initEd25519YaoClient({
@@ -594,6 +598,8 @@ function beginKeySetRun(request: BeginRequest): unknown {
   }
   // `prepare_*` consumes `seedHeld`; on failure the seed is dropped with it.
   if (request.payload.keySet === 'near_ed25519_v1') {
+    // Load the export capability module while the ceremony waits for the Router.
+    void initializeNearSignerWasm().catch(ignoreNearSignerPrewarmFailure);
     const seedHeld = takeSeed(request.payload.custody);
     const prepared = seedHeld.prepare_near_ed25519(request.payload.protocolInputsJson);
     const yaoExecuteRequestJson = prepared.yao_execute_request_json();

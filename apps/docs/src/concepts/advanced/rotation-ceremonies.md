@@ -51,7 +51,7 @@ require independently verified key destruction.
 
 ## Availability
 
-Tenant-root refresh is included in Wallet Server 0.10.0. Verify the hourly
+Tenant-root refresh is included in the published Wallet Server. Verify the hourly
 admission policy, dashboard step-up, progress, scheduler, and recovery custody
 in the deployed environment. SDK publication does not establish those operating
 paths. See

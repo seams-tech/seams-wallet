@@ -27,17 +27,11 @@ selection, and passkey challenge while the registration view is open. The
 passkey button consumes that preparation. Closing the menu cancels its local
 preparation. An expired preparation cannot start a credential request.
 
-```tsx
-import { HostedSeamsAuthMenu } from '@seams/wallet/react';
-import type { HostedAuthMenuOutcome } from '@seams/wallet/react';
+<<< ../examples/hosted-auth-menu.tsx
 
-function onRegistrationOutcome(outcome: HostedAuthMenuOutcome): void {
-  console.info(outcome.kind);
-}
-
-// Mount inside the application's SeamsWebProvider when registration opens.
-<HostedSeamsAuthMenu initialMode="register" onOutcome={onRegistrationOutcome} />;
-```
+Render `HostedRegistration` inside `SeamsWebProvider`. Supply the outcome handler
+for your application. `SignInIntentButton` downloads code on intent and calls
+your `onOpen` handler on click. That handler mounts your hosted auth menu.
 
 `authMenu.prepare()` downloads sign-in code. It does not reserve a wallet or
 prepare a registration challenge. The registration view starts that work.
@@ -70,11 +64,17 @@ same compatible release.
 
 Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.4**. Use `@seams/wallet-cli` **0.15.0**.
 
-APAC wallet objects now request Southeast Asia placement. Verify the actual
-object and database locations before accepting a hosted deployment.
+Publication status was checked October 20, 2026. See [release notes](/releases)
+for individual patches and prepared changes. The instructions below describe
+the published baseline. Earlier upgrade sections retain their historical scope.
 
-The auth menu retains the 0.15.2 passkey ring spinner and the 0.15.3
-account-menu row arrows and hover states. Deploy the matching custody Workers
+From a release before 0.15.4: APAC wallet objects now request Southeast Asia
+placement. Verify the actual object and database locations before accepting a
+hosted deployment.
+
+The auth menu retains the 0.15.2 passkey ring spinner. Account-menu row arrows
+and hover states prepared as 0.15.3 first published on npm in 0.15.4.
+Deploy the matching custody Workers
 and update the private Console relocation caller for the new APAC hint.
 
 An expired initial tenant authorization can be renewed only before its creation journal starts.
@@ -121,12 +121,8 @@ signed-out mount fell from 105 files and 659 KB to 39 files and 77 KB (brotli).
 Because the runtime now loads at sign-in, call `authMenu.prepare()` on sign-in intent,
 such as pointer, focus or touch on a control that opens `HostedSeamsAuthMenu`:
 
-```tsx
-const { seams } = useSeams();
-<button onPointerEnter={seams.authMenu.prepare} onFocus={seams.authMenu.prepare}>
-  Sign in
-</button>;
-```
+Use `SignInIntentButton` from the compiled example above, or attach
+`seams.authMenu.prepare` directly to the equivalent event handlers in your UI.
 
 It starts the download in the background and never throws. A page that mounts
 `HostedSeamsAuthMenu` at load needs no call. Release 0.14.0 has no migration and no
@@ -262,7 +258,7 @@ attempt open; it continues.
 
 ## Upgrading to 0.10.0
 
-Pin the application package and backend package to **0.10.2**, the current patch
+Pin the application package and backend package to **0.10.2**, the final patch
 release of 0.10, and build the
 wallet-origin runtime, workers, WASM, and support assets from the same release:
 

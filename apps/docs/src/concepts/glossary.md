@@ -5,6 +5,10 @@ description: Define the wallet, custody, policy, session, signing, and Router A/
 
 # Glossary
 
+Passkeys and Email OTP are released owner authentication methods. VoiceID,
+delegated-agent issuance, and broader payment adapters describe proposed capabilities.
+See [release status](/releases) before treating a concept as an available API.
+
 | Term                  | Meaning                                                                                                                                               |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Auth plane            | A boundary for one kind of authority, such as app login, Wallet Session, capability grant, delegation grant, or API credential.                       |
@@ -18,6 +22,11 @@ description: Define the wallet, custody, policy, session, signing, and Router A/
 | Router                | The public service boundary for auth, policy, replay, quota, budget, and request routing.                                                             |
 | Server share          | The hosted or self-hosted server side of a threshold key.                                                                                             |
 | Tenant derivation root | Independently randomized server-side derivation origin for one tenant, held as separate A/B operational shares. |
+| Wallet custody seed | The random secret for one wallet. Owner signing roots derive from it independently. |
+| Owner signing root | The seed-derived Ed25519 Yao Client root or ECDSA client root share. Neither derives from the other. |
+| Lane holder share | Per-lane material provisioned by its signing protocol. It is independent of seed derivation and absent from recovery sets. |
+| `signingRootId` / `signingRootVersion` | Persisted identifiers about a signing root. These values contain no key material. |
+| Custody ceremony | Registration or recovery that derives owner roots and verifies the wallet key manifest. Adding a factor and unlocking preserve envelope authentication. |
 | Tenant-root operational share | One Deriver's secret share of the tenant root. Refresh changes the pair while preserving the effective root. |
 | Share epoch | Metadata that identifies a generation of operational shares. It contains no key material. |
 | Custody lineage | The identity of one tenant-root custody lifecycle, used to isolate commands and replay state across restored destinations. |

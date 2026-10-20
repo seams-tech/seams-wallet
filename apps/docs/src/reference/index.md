@@ -5,7 +5,7 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/wallet 0.14.0**. The Seams package provides a small set
+This reference describes **@seams/wallet 0.15.4**. The Seams package provides a small set
 of public import paths. Start with the browser or React API. Use lower-level import
 paths only when your integration manages the corresponding runtime or protocol.
 
@@ -17,11 +17,16 @@ paths only when your integration manages the corresponding runtime or protocol.
 | [`@seams/wallet/threshold`](/reference/threshold) | Stable threshold session-policy and cryptographic constants.                                                  |
 | [`@seams/wallet/runtime`](/reference/runtime)     | Building a custom signing runtime from explicit platform ports.                                               |
 | [`@seams/wallet/external-evm`](/guides/external-evm-wallets) | Connecting browser EVM wallet extensions independently of Seams custody. |
+| [`@seams/wallet-server`](/reference/server) | Server services, Workers, migrations, and local runtime entry points. |
+| [`@seams/wallet-cli`](/deploy-and-operate/recovery-cli) | Signed native backup verification and tenant-root recovery tooling. |
 
 The package also publishes focused React component subpaths and the hosted
 wallet HTML asset. Those surfaces are documented on the [React
 reference](/reference/react) and [hosted integration](/deploy-and-operate/hosted-integration)
 pages.
+
+The browser and server baseline is 0.15.4. The CLI baseline is 0.15.0.
+See [release status](/releases) for compatibility and prepared changes.
 
 ## State and failure references
 

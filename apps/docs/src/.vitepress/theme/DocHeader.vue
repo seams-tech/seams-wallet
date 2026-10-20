@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useData } from 'vitepress';
+import { useData, withBase } from 'vitepress';
 import type { DefaultTheme } from 'vitepress/theme';
 
 const { frontmatter, page, theme } = useData();
@@ -54,7 +54,7 @@ async function copyPage(): Promise<void> {
     <div class="seams-doc-header__bar">
       <nav v-if="crumbs.length" class="seams-doc-header__breadcrumb" aria-label="Breadcrumb">
         <template v-for="(crumb, index) in crumbs" :key="crumb.text">
-          <a v-if="crumb.link" :href="crumb.link">{{ crumb.text }}</a>
+          <a v-if="crumb.link" :href="withBase(crumb.link)">{{ crumb.text }}</a>
           <span v-else>{{ crumb.text }}</span>
           <span v-if="index < crumbs.length - 1" class="seams-doc-header__sep" aria-hidden="true">
             ›

@@ -46,8 +46,9 @@ type AuthMenuSurfaceStatus =
       readonly kind: 'busy';
       /** Names the wait, e.g. "Verifying your email code". */
       readonly headline: string;
-      /** Optional illustration for a passkey credential prompt. */
-      readonly illustration?: 'passkey';
+      /** Optional prompt outside the menu: the device's passkey prompt or
+       *  Google's account chooser. The waiting view shows its ring and copy. */
+      readonly illustration?: keyof typeof AUTH_MENU_WAITING_PROMPTS;
       /** Optional secondary line, shown only when the host opts into progress. */
       readonly detail?: string;
     }
@@ -60,6 +61,13 @@ type AuthMenuSurfaceStatus =
       /** The underlying error text. Reported to the host app, never rendered. */
       readonly detail?: string;
     };
+
+/** A wait on a prompt outside the menu shares one look: the ring, then the
+ *  headline, then what to do in that prompt. */
+export const AUTH_MENU_WAITING_PROMPTS = {
+  passkey: { label: 'Passkey authentication', instruction: 'Complete the prompt on your device.' },
+  google: { label: 'Google sign-in', instruction: 'Choose your Google account.' },
+} as const;
 
 /** The waiting headline for the passkey ceremony itself. */
 export function passkeyCeremonyHeadline(mode: 'login' | 'register'): string {

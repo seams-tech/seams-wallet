@@ -1274,6 +1274,7 @@ export class AuthMenuSession {
         status: {
           kind: 'busy',
           headline: 'Waiting for Google login…',
+          illustration: 'google',
           detail: 'Starting Google sign-in',
         },
       },
@@ -1377,6 +1378,7 @@ export class AuthMenuSession {
         status: {
           kind: 'busy',
           headline: 'Waiting for Google login…',
+          illustration: 'google',
           detail: 'Waiting for Google sign-in',
         },
       },
@@ -1484,6 +1486,7 @@ export class AuthMenuSession {
         status: {
           kind: 'busy',
           headline: 'Waiting for Google login…',
+          illustration: 'google',
           detail: 'Waiting for Google sign-in',
         },
       }),
@@ -1529,6 +1532,7 @@ export class AuthMenuSession {
         status: {
           kind: 'busy',
           headline: 'Waiting for Google login…',
+          illustration: 'google',
           detail: 'Waiting for Google sign-in',
         },
       },

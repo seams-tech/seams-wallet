@@ -78,7 +78,7 @@ It never creates a wallet session, signs, exports keys, requests camera access,
 or accesses wallet storage. Export keys opens the shared key-selection screen. Its sample NEAR and EVM
 choices show an authentication-required summary.
 
-```tsx
+```tsx [Partial example]
 import { AccountMenuButtonMock } from '@seams/wallet/react/profile';
 import '@seams/wallet/react/styles';
 

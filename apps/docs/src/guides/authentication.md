@@ -16,8 +16,8 @@ authentication method and handle each resulting state.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID** — a proposed additional proof for a high-risk operation. Version
-  0.10.0 has no public VoiceID enrollment or authentication API. See the
+- **VoiceID** — a proposed additional proof for a high-risk operation. The published SDK
+  has no public VoiceID enrollment or authentication API. See the
   [concept](/concepts/auth-methods/voiceid) for the intended boundary.
 
 ## Keep auth state explicit

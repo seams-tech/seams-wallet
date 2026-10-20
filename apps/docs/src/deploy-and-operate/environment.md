@@ -15,6 +15,21 @@ project-environment identity, publishable key, chain RPC and explorer URLs,
 network identity, and RP ID base. Validate required strings before building
 `SeamsConfigsInput`.
 
+## Example configuration
+
+Use `VITE_WALLET_ORIGIN`, `VITE_RELAYER_URL`, and
+`VITE_SEAMS_PUBLISHABLE_KEY` for the compiled browser examples. A publishable key
+identifies its project environment; it is public configuration. Keep the
+application and wallet iframe origins in that environment's allowed origins.
+
+## Documentation origins
+
+The public docs build uses `/docs/` as its base path. `VITE_DOCS_ORIGIN` sets
+canonical and sitemap URLs. Use `https://wallet.seams.sh/docs` for production.
+`VITE_WALLET_SITE_ORIGIN` selects the parent Wallet site link.
+Staging deployments must request `noindex` through their existing HTTP headers.
+Local preview settings must not enter production builds.
+
 ## Service-owned values
 
 The gateway or relayer owns request-authentication verification material,
