@@ -791,6 +791,18 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
+      'wallet_ml_dsa_signing_prepare', 'POST', '/wallets/:walletId/ml-dsa/sign/prepare',
+      'Prepare an exact ML-DSA transaction approval',
+      {plane:'public',proof:'challenge_exchange',rationale:'Preparation binds a published key and transaction to a fresh owner assertion.'},
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_ml_dsa_signing_execute', 'POST', '/wallets/:walletId/ml-dsa/sign',
+      'Sign an owner-approved ML-DSA transaction',
+      {plane:'public',proof:'threshold_protocol_state',rationale:'Fresh WebAuthn approval and a durable exact-operation claim authorize the published ML-DSA key.'},
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
       'wallet_add_signer_ml_dsa_execute',
       'POST',
       '/wallets/:walletId/signers/ml-dsa/execute',

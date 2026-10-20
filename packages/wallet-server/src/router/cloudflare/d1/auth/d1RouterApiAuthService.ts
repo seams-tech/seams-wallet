@@ -1,4 +1,5 @@
 import { isBillingCreditFailure } from '../../../../authorization/sessionRouting';
+import { D1WalletMlDsaSigning } from '../wallet/d1WalletMlDsaSigning';
 import { D1WalletOperationStore } from '../registration/d1WalletOperationStore';
 import { D1WalletMlDsaRegistration } from '../wallet/d1WalletMlDsaRegistration';
 import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
@@ -263,6 +264,7 @@ type CloudflareD1RouterApiAuthAssembly = {
   readonly walletAuthMethodStore: D1WalletAuthMethodStore;
   readonly walletAuthorityStore: D1WalletAuthorityStore;
   readonly walletAddSigners: CloudflareD1WalletAddSignerService;
+  readonly mlDsaSigning: D1WalletMlDsaSigning;
   readonly registrationIntents: CloudflareD1RegistrationIntentService;
   readonly signedDelegateExecutor: CloudflareD1SignedDelegateExecutor;
   readonly passkeyCustodyEnvelopes: CloudflareD1PasskeyCustodyEnvelopeStore;
@@ -298,6 +300,7 @@ type D1WalletAuthMethodRouteServiceAssembly = Pick<
   | 'walletAuthMethods'
   | 'walletAddSigners'
   | 'passkeyCustodyEnvelopes'
+  | 'mlDsaSigning'
 >;
 
 type D1WalletUnlockRouteServiceAssembly = Pick<
@@ -1429,19 +1432,17 @@ function createCloudflareD1RouterApiAuthAssembly(
     getLinkedDeviceEd25519AuthorityReader,
     yaoLifecycleDecisions,
   });
+  const mlDsaRegistration = options.mlDsaRegistrationProxy
+    ? new D1WalletMlDsaRegistration({ database:options.database,
+        scope:{namespace:options.namespace,orgId:options.orgId,projectId:options.projectId,envId:options.envId},
+        proxy:options.mlDsaRegistrationProxy }) : null;
+  const mlDsaSigning = new D1WalletMlDsaSigning({ database:options.database,
+    scope:{namespace:options.namespace,orgId:options.orgId,projectId:options.projectId,envId:options.envId},
+    proxy:options.mlDsaRegistrationProxy ?? null, registration:mlDsaRegistration,
+    walletAuthMethods,webAuthnStore,authorizations:authorizationService,
+    signerWasmModuleOrPath:options.signerWasmModuleOrPath });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
-    mlDsaRegistration: options.mlDsaRegistrationProxy
-      ? new D1WalletMlDsaRegistration({
-          database: options.database,
-          scope: {
-            namespace: options.namespace,
-            orgId: options.orgId,
-            projectId: options.projectId,
-            envId: options.envId,
-          },
-          proxy: options.mlDsaRegistrationProxy,
-        })
-      : undefined,
+    mlDsaRegistration:mlDsaRegistration ?? undefined,
     executionAuthority: options.walletExecution,
     getRegistrationCeremonyIntentStore,
     getEd25519YaoProductRegistration: () => options.ed25519YaoProductRegistration ?? null,
@@ -1570,6 +1571,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     walletAuthorityStore,
     walletStore,
     walletAddSigners,
+    mlDsaSigning,
     registrationIntents,
     signedDelegateExecutor,
     passkeyCustodyEnvelopes,
@@ -1729,6 +1731,8 @@ function createD1WalletAuthMethodRouteService(
   );
   return {
     activateVoiceId: voiceIdActivation.activate.bind(voiceIdActivation),
+    prepareMlDsaSigning: assembly.mlDsaSigning.prepare.bind(assembly.mlDsaSigning),
+    signMlDsaTransaction: assembly.mlDsaSigning.sign.bind(assembly.mlDsaSigning),
     resolveActiveWalletSessionAuthority:
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(
         assembly.walletAuthMethods,
