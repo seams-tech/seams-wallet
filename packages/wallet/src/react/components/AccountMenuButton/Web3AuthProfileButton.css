@@ -284,6 +284,9 @@
 .seams-account-method-button > div {
   flex: 1;
 }
+.seams-account-method-button > .seams-hover-arrow {
+  margin-inline-end: 2px;
+}
 .seams-account-method-button strong {
   font-size: 15px;
   font-weight: 500;
@@ -294,47 +297,9 @@
   color: var(--seams-colors-textSecondary);
   font-size: 12px;
 }
-.seams-account-method-button > .seams-hover-arrow {
-  flex: 0 0 auto;
-  margin-inline-end: 2px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  color: var(--seams-colors-textSecondary);
-  transition: color 140ms ease;
-}
-.seams-hover-arrow-line {
-  opacity: 0;
-  filter: blur(2px);
-  transform: scaleX(0.45);
-  transform-origin: right center;
-  transition:
-    opacity 140ms cubic-bezier(0.215, 0.61, 0.355, 1),
-    filter 140ms cubic-bezier(0.215, 0.61, 0.355, 1),
-    transform 140ms cubic-bezier(0.215, 0.61, 0.355, 1);
-}
-.seams-hover-arrow-tip {
-  transition: transform 140ms cubic-bezier(0.215, 0.61, 0.355, 1);
-}
-.seams-account-method-button:hover > .seams-hover-arrow,
-.seams-account-method-button:focus-visible > .seams-hover-arrow {
-  color: var(--seams-colors-textPrimary);
-}
-.seams-account-method-button:hover .seams-hover-arrow-line,
-.seams-account-method-button:focus-visible .seams-hover-arrow-line {
-  opacity: 1;
-  filter: blur(0);
-  transform: scaleX(1);
-}
-.seams-account-method-button:hover .seams-hover-arrow-tip,
-.seams-account-method-button:focus-visible .seams-hover-arrow-tip {
-  transform: translateX(3px);
-}
 @media (prefers-reduced-motion: reduce) {
   .seams-account-method-button::before,
-  .seams-account-method-button .seams-account-avatar,
-  .seams-hover-arrow-line,
-  .seams-hover-arrow-tip {
+  .seams-account-method-button .seams-account-avatar {
     transition: none;
   }
 }

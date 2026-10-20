@@ -18,6 +18,8 @@
   --seams-expander-surface: var(--seams-colors-surface2);
 }
 .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+  position: relative;
+  isolation: isolate;
   min-height: 40px;
   padding: 6px 0;
   gap: 10px;
@@ -57,9 +59,23 @@
 .seams-profile-dropdown-menu .seams-dropdown-menu-item-content {
   flex: 1;
 }
-.seams-account-menu-chevron {
-  color: var(--seams-colors-textSecondary);
-  flex-shrink: 0;
+.seams-profile-dropdown-menu .seams-dropdown-menu-item > .seams-hover-arrow {
+  margin-inline-end: 4px;
+}
+/* The hover shade bleeds past the row edges so the icons and labels stay
+   aligned with the group headings. */
+.seams-profile-dropdown-menu .seams-dropdown-menu-item:not(.seams-lock-menu-item)::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1px -10px;
+  border-radius: var(--seams-shape-item, 10px);
+  background: var(--seams-colors-surface2);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.seams-profile-dropdown-menu .seams-dropdown-menu-item:focus-visible::before {
+  opacity: 1;
 }
 .seams-profile-dropdown-menu .seams-lock-menu-item {
   border: 1px solid var(--seams-colors-borderPrimary);
@@ -72,8 +88,18 @@
 }
 @media (hover: hover) {
   .seams-profile-dropdown-menu .seams-dropdown-menu-item:not(:disabled):hover {
-    color: var(--seams-colors-textSecondary);
     background: transparent;
+  }
+  .seams-profile-dropdown-menu .seams-dropdown-menu-item:not(:disabled):hover::before {
+    opacity: 1;
+  }
+  .seams-profile-dropdown-menu .seams-lock-menu-item:not(:disabled):hover {
+    background: var(--seams-colors-surface2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seams-profile-dropdown-menu .seams-dropdown-menu-item::before {
+    transition: none;
   }
 }
 
