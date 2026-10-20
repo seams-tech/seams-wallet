@@ -39,6 +39,31 @@ export function fingerprintIcon(): ComponentChildren {
   );
 }
 
+// The passkey wait's ring: a faint track under an arc that grows and shrinks
+// as it turns. The arc starts at twelve o'clock, where the Wallet's success
+// check closes the same ring.
+export function passkeyRingIcon(): ComponentChildren {
+  return (
+    <svg
+      class="seams-passkey-ring"
+      viewBox="0 0 56 56"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle class="seams-passkey-ring-track" cx="28" cy="28" r="26.75" />
+      <circle
+        class="seams-passkey-ring-arc"
+        cx="28"
+        cy="28"
+        r="26.75"
+        pathLength="100"
+        transform="rotate(-90 28 28)"
+      />
+    </svg>
+  );
+}
+
 export function accountDropdownIcon(): ComponentChildren {
   return (
     <>
