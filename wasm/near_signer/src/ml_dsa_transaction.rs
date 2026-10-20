@@ -2,7 +2,7 @@
 use crate::{
     calculate_transaction_hash, encode_signed_transaction,
     encoders::{base64_url_decode, base64_url_encode},
-    PublicKey, Signature, Transaction,
+    PublicKey, PublicKeyHandle, Signature, Transaction,
 };
 use ml_dsa::{
     EncodedSignature, EncodedVerifyingKey, MlDsa65, Signature as MlSignature, VerifyingKey,
@@ -148,4 +148,19 @@ pub fn ml_dsa65_inspect_near_transaction(input_json: &str) -> Result<String, JsV
 #[wasm_bindgen]
 pub fn ml_dsa65_finalize_near_transaction(input_json: &str) -> Result<String, JsValue> {
     finalize_ml_dsa65_transaction(input_json).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Both identifiers use the existing NEAR codec. Access-key lists return the hashed handle.
+#[wasm_bindgen]
+pub fn ml_dsa65_near_key_identifiers(public_key_b64u: &str) -> Result<String, JsValue> {
+    let bytes: [u8; 1952] = base64_url_decode(public_key_b64u)
+        .map_err(|error| JsValue::from_str(&error))?
+        .try_into()
+        .map_err(|_| JsValue::from_str("ML-DSA public key must contain 1952 bytes"))?;
+    let key = PublicKey::MlDsa65(Box::new(bytes));
+    serde_json::to_string(&serde_json::json!({
+        "publicKey": key.to_string(),
+        "accessKeyHandle": PublicKeyHandle::from(&key).to_string(),
+    }))
+    .map_err(|error| JsValue::from_str(&error.to_string()))
 }

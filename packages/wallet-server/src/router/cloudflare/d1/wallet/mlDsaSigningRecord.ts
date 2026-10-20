@@ -14,6 +14,57 @@ import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import { MlDsaSigningTarget } from '../../../domains/signingOperations/mlDsaOwnerAdmission';
 import { parseSessionOrigin, type SessionOrigin } from '../../../../authorization/domain';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
+import {
+  parseMlDsaInventoryPreparation,
+  type MlDsaInventoryPreparation,
+} from '@shared/near/mlDsaInventory';
+
+export type MlDsaInventoryChallengeRecord = {
+  readonly preparation: MlDsaInventoryPreparation;
+  readonly origin: SessionOrigin;
+  readonly authorityDigestB64u: DigestB64u;
+  readonly revocationEpoch: number;
+};
+export function encodeMlDsaInventoryChallenge(
+  record: MlDsaInventoryChallengeRecord,
+): VersionedJsonObject {
+  const p = record.preparation;
+  return {
+    preparation: {
+      walletId: p.walletId,
+      rpId: p.rpId,
+      credentialIdB64u: p.credentialIdB64u,
+      nonceB64u: p.nonceB64u,
+      expiresAtMs: p.expiresAtMs,
+    },
+    origin: record.origin,
+    authorityDigestB64u: record.authorityDigestB64u,
+    revocationEpoch: record.revocationEpoch,
+  };
+}
+export function parseMlDsaInventoryChallenge(raw: unknown): MlDsaInventoryChallengeRecord | null {
+  try {
+    const r = exactRecord(
+      raw,
+      ['preparation', 'origin', 'authorityDigestB64u', 'revocationEpoch'],
+      'ML-DSA inventory challenge',
+    );
+    if (
+      typeof r.revocationEpoch !== 'number' ||
+      !Number.isSafeInteger(r.revocationEpoch) ||
+      r.revocationEpoch < 0
+    )
+      return null;
+    return {
+      preparation: parseMlDsaInventoryPreparation(r.preparation),
+      origin: parseSessionOrigin(r.origin),
+      authorityDigestB64u: parseDigestB64u(r.authorityDigestB64u),
+      revocationEpoch: r.revocationEpoch,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export type MlDsaSigningRecord = {
   readonly preparation: MlDsaSigningPreparation;

@@ -3500,11 +3500,19 @@ Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 
 ## Experimental ML-DSA custody contract
 
-The experimental public SDK can add an ML-DSA signer to an existing passkey wallet. ML-DSA-only wallet creation, standard Wallet signing UI, recovery orchestration, and device enrollment remain incomplete. The advanced SDK exposes public ML-DSA transaction signing with fresh passkey approval. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can discover and sign with that key through the advanced SDK. ML-DSA-only wallet creation, standard Wallet signing UI, reusable ML-DSA sessions, and public replacement of lost participant material remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
 - ML-DSA device linking must authorize the existing server-held signer without transferring the wallet custody seed or server signing shares. Owner custody joining does not establish device enrollment.
+- Enroll only the published signer's full public key through the existing account's ordinary NEAR owner approval. Require the publication and Wallet Session to name the same wallet.
+- Confirm enrollment from the finalized access-key list. Match the hashed ML-DSA handle through the existing Rust codec. Refuse an existing restricted key instead of silently changing its permission.
+- Preserve a public continuation after an uncertain enrollment submission. Resume by checking chain state. A resume must have no submission port.
+- Authenticated signer inventory requires a fresh origin-bound WebAuthn assertion over a Gateway-issued nonce with at most five minutes of validity. Pin the issued challenge to the current authority. Refuse caller-selected nonces or expiry changes. Inventory must neither consume signing material nor authorize a signature.
+- Return published key identities and explicit unpublished registration states. Release no seed, role input, private label, or signing share through inventory.
+- Restore ordinary wallet owner authority through the existing recovery ceremony. Keep the ML-DSA publication, epoch, seed binding, and participant material unchanged during this retention path.
+- Permit ML-DSA discovery and fresh transaction approval from active full-owner linked Passkeys with an installed NEAR activation. Refuse signing-only linked devices and linked authorities without that activation.
+- Recheck current authority and revocation state before returning inventory or cached signatures. Revoking a linked method must preserve other active owners' access.
 
 - Derive the ML-DSA owner root independently from the wallet custody seed and stable wallet/key binding.
 - Keep the complete canonical FIPS seed inside secure computation until authorized ordinary-key export.
@@ -3584,7 +3592,7 @@ Its verified factor inputs, operation-claim persistence, and custody activation 
 The advanced public route uses authoritative publication records and durable exact-operation claims. Reusable ML-DSA sessions remain unavailable.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
-Public signing admission, recovery orchestration, device enrollment, and hosted SDK validation remain required before production use.
+The [enrollment and retained-signer lifecycle report](router-ab/ml-dsa-65-wallet-lifecycle-report.md) records real testnet key enrollment and Gateway signing after completed recovery/device activation. Its authority fixtures start after those ceremonies complete. Full browser qualification of the combined recovery-code and QR-link ceremonies remains required, together with public lost-participant restoration and the broader production security review.
 
 The [Chromium custody campaign](router-ab/ml-dsa-65-experiment-contract.md#browser-custody-boundary) also checks the consuming Wasm handles and typed SDK worker messages.
 Discarded and wrong-step ceremonies must explicitly free their Wasm handles.

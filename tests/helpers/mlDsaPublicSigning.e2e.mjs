@@ -6,7 +6,7 @@ const base = 'https://gateway.example.test';
 function hash(bytes) {
   return createHash('sha256').update(bytes).digest();
 }
-function signingAssertion(key, challenge, counter) {
+export function signingAssertion(key, challenge, counter) {
   const client = Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin }));
   const suffix = Buffer.alloc(5);
   suffix[0] = 5;
@@ -27,7 +27,7 @@ function signingAssertion(key, challenge, counter) {
     },
   };
 }
-class GatewayTransport {
+export class GatewayTransport {
   loseReply = false;
   corruptSignature = false;
   expectedSubmission = null;

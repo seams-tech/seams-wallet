@@ -42,6 +42,7 @@
     "wallet-ui/export-private-key.typecheck.ts",
     "typecheck/external-near-state.typecheck.ts",
     "./typecheck/ml-dsa-public-signing.typecheck.ts",
+    "./typecheck/ml-dsa-lifecycle.typecheck.ts",
     "./helpers/mlDsaQualificationWorker.ts",
     "./helpers/mlDsaBrowserSigning.ts"
   ],

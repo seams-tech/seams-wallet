@@ -1,4 +1,12 @@
-import type { MlDsaSigningExecuteRequest } from '../../../cloudflare/d1/wallet/d1WalletMlDsaSigning';
+import type {
+  MlDsaSigningExecuteRequest,
+  MlDsaInventoryRequest,
+} from '../../../cloudflare/d1/wallet/d1WalletMlDsaSigning';
+import {
+  parseMlDsaInventoryActor,
+  parseMlDsaInventoryPreparation,
+  type MlDsaInventoryActor,
+} from '@shared/near/mlDsaInventory';
 import type { MlDsaSigningRequest } from '@shared/near/mlDsaSigning';
 import type { SessionOrigin } from '../../../../authorization/domain';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -30,9 +38,18 @@ export async function handlePublicMlDsaSigning(
 ): Promise<Response | null> {
   const prepare = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_prepare');
   const execute = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_execute');
+  const inventory = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_inventory');
+  const inventoryPrepare = findRouteDefinitionById(
+    ctx.routeDefinitions,
+    'wallet_ml_dsa_inventory_prepare',
+  );
   const isPrepare = prepare && matchesRouteDefinitionRequest(prepare, ctx.method, ctx.pathname);
   const isExecute = execute && matchesRouteDefinitionRequest(execute, ctx.method, ctx.pathname);
-  if (!isPrepare && !isExecute) return null;
+  const isInventory =
+    inventory && matchesRouteDefinitionRequest(inventory, ctx.method, ctx.pathname);
+  const isInventoryPrepare =
+    inventoryPrepare && matchesRouteDefinitionRequest(inventoryPrepare, ctx.method, ctx.pathname);
+  if (!isPrepare && !isExecute && !isInventory && !isInventoryPrepare) return null;
   if (
     ctx.request.headers.get(WALLET_MANAGEMENT_PROTOCOL_HEADER) !==
     WALLET_MANAGEMENT_PROTOCOL_VERSION
@@ -50,45 +67,75 @@ export async function handlePublicMlDsaSigning(
       parseWalletId(decodeURIComponent(ctx.pathname.split('/')[2] ?? '')),
       'walletId',
     );
-    command = parseCommand(await readJson(ctx.request), Boolean(isPrepare));
+    const body = await readJson(ctx.request);
+    if (isPrepare) command = parseCommand(body, 'prepare');
+    else if (isInventoryPrepare) command = parseCommand(body, 'prepare_inventory');
+    else if (isInventory) command = parseCommand(body, 'inventory');
+    else command = parseCommand(body, 'execute');
   } catch {
     return failure(400, 'invalid_body', 'Invalid ML-DSA signing request');
   }
-  if (command.request.walletId !== pathWalletId)
-    return failure(403, 'unauthorized', 'The path wallet differs');
+  const walletId =
+    command.kind === 'inventory' ? command.request.preparation.walletId : command.request.walletId;
+  if (walletId !== pathWalletId) return failure(403, 'unauthorized', 'The path wallet differs');
   try {
-    const outcome =
-      command.kind === 'prepare'
-        ? await ctx.service.walletAuthMethods.prepareMlDsaSigning(command.request, origin)
-        : await ctx.service.walletAuthMethods.signMlDsaTransaction(command.request, origin);
+    let outcome;
+    switch (command.kind) {
+      case 'prepare':
+        outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(command.request, origin);
+        break;
+      case 'execute':
+        outcome = await ctx.service.walletAuthMethods.signMlDsaTransaction(command.request, origin);
+        break;
+      case 'inventory':
+        outcome = await ctx.service.walletAuthMethods.readMlDsaSignerInventory(
+          command.request,
+          origin,
+        );
+        break;
+      case 'prepare_inventory':
+        outcome = await ctx.service.walletAuthMethods.prepareMlDsaSignerInventory(
+          command.request,
+          origin,
+        );
+        break;
+      default:
+        return assertNever(command);
+    }
     return json(outcome, {
       status: outcome.kind === 'refused' ? refusalStatus(outcome) : 200,
       headers: { 'cache-control': 'no-store' },
     });
   } catch (error: unknown) {
-    ctx.logger.error('ML-DSA public signing failed', { message: errorMessage(error) });
-    return failure(503, 'protocol_failed', 'ML-DSA signing is temporarily unavailable');
+    ctx.logger.error('ML-DSA public operation failed', { message: errorMessage(error) });
+    return failure(503, 'protocol_failed', 'ML-DSA service is temporarily unavailable');
   }
 }
 
 type PublicSigningCommand =
   | { readonly kind: 'prepare'; readonly request: MlDsaSigningRequest }
-  | { readonly kind: 'execute'; readonly request: MlDsaSigningExecuteRequest };
-function parseCommand(raw: unknown, isPrepare: boolean): PublicSigningCommand {
-  if (isPrepare) return { kind: 'prepare', request: parseMlDsaSigningRequest(raw) };
+  | { readonly kind: 'execute'; readonly request: MlDsaSigningExecuteRequest }
+  | { readonly kind: 'inventory'; readonly request: MlDsaInventoryRequest }
+  | { readonly kind: 'prepare_inventory'; readonly request: MlDsaInventoryActor };
+function parseCommand(raw: unknown, kind: PublicSigningCommand['kind']): PublicSigningCommand {
+  if (kind === 'prepare') return { kind: 'prepare', request: parseMlDsaSigningRequest(raw) };
+  if (kind === 'prepare_inventory') return { kind, request: parseMlDsaInventoryActor(raw) };
+  if (kind === 'inventory') {
+    const r = exactRecord(raw, ['preparation', 'credential'], 'ML-DSA inventory request');
+    return {
+      kind: 'inventory',
+      request: {
+        preparation: parseMlDsaInventoryPreparation(r.preparation),
+        credential: approvalCredential(r.credential),
+      },
+    };
+  }
   const r = exactRecord(
     raw,
     ['walletId', 'operationIdB64u', 'credential'],
     'ML-DSA signing execution',
   );
-  const credential = parseWebAuthnAuthenticationCredential(r.credential);
-  if (!credential) throw new Error('Invalid WebAuthn signing approval');
-  const extensions =
-    credential.clientExtensionResults === null || credential.clientExtensionResults === undefined
-      ? {}
-      : requireRecord(credential.clientExtensionResults, 'WebAuthn extensions');
-  if (Object.keys(extensions).length !== 0)
-    throw new Error('Signing approval must omit extension outputs');
+  const credential = approvalCredential(r.credential);
   return {
     kind: 'execute',
     request: {
@@ -97,6 +144,17 @@ function parseCommand(raw: unknown, isPrepare: boolean): PublicSigningCommand {
       credential,
     },
   };
+}
+function approvalCredential(raw: unknown) {
+  const credential = parseWebAuthnAuthenticationCredential(raw);
+  if (!credential) throw new Error('Invalid WebAuthn signing approval');
+  const extensions =
+    credential.clientExtensionResults === null || credential.clientExtensionResults === undefined
+      ? {}
+      : requireRecord(credential.clientExtensionResults, 'WebAuthn extensions');
+  if (Object.keys(extensions).length !== 0)
+    throw new Error('Signing approval must omit extension outputs');
+  return credential;
 }
 
 function refusalStatus(outcome: MlDsaSigningFailure): number {
@@ -122,5 +180,5 @@ function refusalStatus(outcome: MlDsaSigningFailure): number {
 }
 
 function assertNever(value: never): never {
-  throw new Error(`Unknown ML-DSA refusal: ${String(value)}`);
+  throw new Error(`Unknown ML-DSA command or refusal: ${String(value)}`);
 }

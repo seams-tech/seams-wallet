@@ -1732,6 +1732,8 @@ function createD1WalletAuthMethodRouteService(
   return {
     activateVoiceId: voiceIdActivation.activate.bind(voiceIdActivation),
     prepareMlDsaSigning: assembly.mlDsaSigning.prepare.bind(assembly.mlDsaSigning),
+    readMlDsaSignerInventory: assembly.mlDsaSigning.inventory.bind(assembly.mlDsaSigning),
+    prepareMlDsaSignerInventory: assembly.mlDsaSigning.prepareInventory.bind(assembly.mlDsaSigning),
     signMlDsaTransaction: assembly.mlDsaSigning.sign.bind(assembly.mlDsaSigning),
     resolveActiveWalletSessionAuthority:
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(

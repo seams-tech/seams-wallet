@@ -20,6 +20,7 @@ import {
 } from '@shared/utils/walletManagementProtocol';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
+import { normalizeAuthenticationCredential } from '@/core/signingEngine/webauthnAuth/credentials/helpers';
 import { resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
 import initSigner, {
   ml_dsa65_inspect_near_transaction,
@@ -27,10 +28,16 @@ import initSigner, {
 } from '../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
 import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
 
-async function initializeCodec(): Promise<void> {
+export async function initializeMlDsaCodec(): Promise<void> {
   await initSigner({
     module_or_path: resolveWasmUrl('wasm_signer_worker_bg.wasm', 'ML-DSA transaction verifier'),
   });
+}
+/** Serialize an ordinary assertion without requiring or releasing PRF outputs. */
+export function serializeMlDsaWebAuthnApproval(
+  credential: PublicKeyCredential,
+): WebAuthnAuthenticationCredential {
+  return redactCredentialExtensionOutputs(normalizeAuthenticationCredential(credential.toJSON()));
 }
 async function post(
   relayerUrl: string,
@@ -58,7 +65,7 @@ export async function prepareMlDsaNearSigning(input: {
   readonly publicKeyB64u: string;
 }): Promise<MlDsaSigningPreparationOutcome> {
   const request = parseMlDsaSigningRequest(input.request);
-  await initializeCodec();
+  await initializeMlDsaCodec();
   const transaction = parseMlDsaTransactionInspection(
     JSON.parse(
       ml_dsa65_inspect_near_transaction(
@@ -117,7 +124,7 @@ export async function executeMlDsaNearSigning(input: {
     case 'signed': {
       const signed = exactRecord(raw, ['kind', 'transaction'], 'ML-DSA signing success');
       const supplied = parseMlDsaSignedTransaction(signed.transaction);
-      await initializeCodec();
+      await initializeMlDsaCodec();
       const verified = parseMlDsaSignedTransaction(
         JSON.parse(
           ml_dsa65_finalize_near_transaction(
@@ -144,7 +151,7 @@ export async function submitMlDsaNearTransaction(input: {
   readonly preparation: MlDsaSigningPreparation;
   readonly transaction: MlDsaSignedTransaction;
 }) {
-  await initializeCodec();
+  await initializeMlDsaCodec();
   const verified = parseMlDsaSignedTransaction(
     JSON.parse(
       ml_dsa65_finalize_near_transaction(

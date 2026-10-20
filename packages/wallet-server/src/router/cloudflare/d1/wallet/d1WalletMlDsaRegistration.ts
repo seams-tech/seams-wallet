@@ -12,6 +12,7 @@ import {
   type MlDsaEncryptedInputs,
 } from '@shared/passkey-custody/mlDsaCustody';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { alphabetizeStringify } from '@shared/utils/digests';
@@ -414,6 +415,56 @@ export class D1WalletMlDsaRegistration {
   }
 
   /** Public metadata only. Signing still requires current operation authorization. */
+  async listForWallet(walletId: WalletId): Promise<readonly MlDsaSignerInventoryEntry[]> {
+    const rows = await this.options.database
+      .prepare(
+        `SELECT record_json FROM router_ab_yao_versioned_json_records
+       WHERE namespace=? AND org_id=? AND project_id=? AND env_id=?
+         AND record_key LIKE 'ml-dsa-registration:%'
+         AND json_extract(record_json,'$.preparation.identity.walletId')=?
+       ORDER BY record_key LIMIT 65`,
+      )
+      .bind(
+        this.options.scope.namespace,
+        this.options.scope.orgId,
+        this.options.scope.projectId,
+        this.options.scope.envId,
+        walletId,
+      )
+      .all<{ readonly record_json: string }>();
+    if (!rows.results || rows.results.length > 64)
+      throw new Error('ML-DSA signer inventory is unavailable or exceeds its response limit');
+    const entries: MlDsaSignerInventoryEntry[] = [];
+    for (const row of rows.results) {
+      const record = parseRegistration(JSON.parse(row.record_json));
+      if (!record || record.preparation.identity.walletId !== walletId)
+        throw new Error('Stored ML-DSA inventory identity differs');
+      const protocol = record.preparation.protocolInputs;
+      const phase = record.phase;
+      if (phase.kind === 'published') {
+        entries.push({
+          kind: 'published',
+          key: {
+            walletId,
+            signingKeyId: protocol.signingKeyId,
+            keySet: 'near_ml_dsa_65_v1',
+            publicKeyB64u: phase.result.publicKeyB64u,
+            keyManifestDigestB64u: phase.result.manifestDigestB64u,
+            operationIdB64u: protocol.operationIdB64u,
+            materialEpoch: protocol.materialEpoch,
+          },
+        });
+      } else {
+        entries.push({
+          kind: 'unpublished',
+          signingKeyId: parseMlDsaSigningKeyId(protocol.signingKeyId),
+          phase: phase.kind,
+        });
+      }
+    }
+    return entries;
+  }
+
   async readPublished(walletId: WalletId, signingKeyId: string) {
     const read = await this.records.read(JSON.stringify([walletId, signingKeyId]));
     if (read.kind !== 'present' || read.value.phase.kind !== 'published') return null;

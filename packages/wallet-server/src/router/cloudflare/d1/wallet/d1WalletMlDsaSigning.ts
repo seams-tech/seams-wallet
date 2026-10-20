@@ -13,7 +13,11 @@ import {
 } from '@shared/authorization';
 import { computeCapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 import { requireParsed } from '@shared/passkey-custody/primitives';
-import { sha256Utf8DigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import {
+  parseDigestB64u,
+  sha256Utf8DigestB64u,
+  type DigestB64u,
+} from '@shared/utils/canonicalPrimitives';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { requireRecord } from '@shared/utils/validation';
@@ -29,6 +33,16 @@ import {
   type MlDsaSigningFailureCode,
 } from '@shared/near/mlDsaSigning';
 import type { WalletId } from '@shared/utils/domainIds';
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
+import {
+  mlDsaInventoryChallenge,
+  ML_DSA_INVENTORY_PROOF_TTL_MS,
+  type MlDsaInventoryPreparation,
+  type MlDsaInventoryActor,
+  type MlDsaInventoryPreparationOutcome,
+  type MlDsaSignerInventoryOutcome,
+} from '@shared/near/mlDsaInventory';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
@@ -67,6 +81,9 @@ import {
   encodeMlDsaSigningRecord,
   parseMlDsaSigningRecord,
   type MlDsaSigningRecord,
+  encodeMlDsaInventoryChallenge,
+  parseMlDsaInventoryChallenge,
+  type MlDsaInventoryChallengeRecord,
 } from './mlDsaSigningRecord';
 import {
   ml_dsa65_inspect_near_transaction,
@@ -78,11 +95,35 @@ export type MlDsaSigningExecuteRequest = {
   readonly operationIdB64u: DigestB64u;
   readonly credential: WebAuthnAuthenticationCredential;
 };
+export type MlDsaInventoryRequest = {
+  readonly preparation: MlDsaInventoryPreparation;
+  readonly credential: WebAuthnAuthenticationCredential;
+};
+const FULL_OWNER_PERMISSIONS = buildFullOwnerPermissionsV1();
 function refusal(code: MlDsaSigningFailureCode, message: string): MlDsaSigningFailure {
   return { kind: 'refused', code, message };
 }
+function permitsMlDsaSigning(authority: ActiveWalletAuthorityV1): boolean {
+  if (authority.permissions.length !== FULL_OWNER_PERMISSIONS.length) return false;
+  switch (authority.provenance.kind) {
+    case 'wallet_registration':
+    case 'wallet_recovery':
+      return true;
+    case 'device_link':
+      // Linked owners use the server signer through their installed NEAR authority.
+      return authority.signerActivations.ed25519 !== undefined;
+    default:
+      return assertNever(authority.provenance);
+  }
+}
+function assertNever(value: never): never {
+  throw new Error(`Unknown ML-DSA authority provenance: ${String(value)}`);
+}
 function requestKey(walletId: WalletId, operationId: DigestB64u): string {
   return JSON.stringify([walletId, operationId]);
+}
+function inventoryKey(actor: MlDsaInventoryActor, origin: SessionOrigin): string {
+  return JSON.stringify([actor.walletId, actor.rpId, actor.credentialIdB64u, origin]);
 }
 function approvedRecord(
   record: MlDsaSigningRecord,
@@ -102,6 +143,7 @@ function approvedRecord(
 /** Exact passkey operations. Generic signing sessions do not admit ML-DSA. */
 export class D1WalletMlDsaSigning {
   private readonly records: CloudflareD1VersionedJsonRecordStore<MlDsaSigningRecord>;
+  private readonly inventoryChallenges: CloudflareD1VersionedJsonRecordStore<MlDsaInventoryChallengeRecord>;
   private wasmState: SignerWasmRuntimeState = { signerWasmReady: false };
   constructor(
     private readonly options: {
@@ -125,6 +167,13 @@ export class D1WalletMlDsaSigning {
       encode: encodeMlDsaSigningRecord,
       parse: parseMlDsaSigningRecord,
     });
+    this.inventoryChallenges = new CloudflareD1VersionedJsonRecordStore({
+      database: options.database,
+      scope: options.scope,
+      keyPrefix: 'ml-dsa-inventory',
+      encode: encodeMlDsaInventoryChallenge,
+      parse: parseMlDsaInventoryChallenge,
+    });
   }
   private async initializeCodec(): Promise<void> {
     this.wasmState = await ensureSignerWasmRuntime({
@@ -132,6 +181,118 @@ export class D1WalletMlDsaSigning {
       override: this.options.signerWasmModuleOrPath,
       logger: normalizeLogger(),
     });
+  }
+  /** Read retained server signers after recovery or full-owner device activation. */
+  async prepareInventory(
+    actor: MlDsaInventoryActor,
+    origin: SessionOrigin,
+  ): Promise<MlDsaInventoryPreparationOutcome> {
+    if (!this.options.registration)
+      return refusal('not_configured', 'ML-DSA inventory is not configured');
+    const resolved =
+      await this.options.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential(
+        actor,
+      );
+    if (!resolved.ok || !permitsMlDsaSigning(resolved.walletAuthority))
+      return refusal('unauthorized', 'ML-DSA inventory requires an active full owner');
+    const key = inventoryKey(actor, origin);
+    const read = await this.inventoryChallenges.read(key);
+    if (
+      read.kind === 'present' &&
+      read.value.preparation.expiresAtMs > Date.now() &&
+      read.value.authorityDigestB64u === resolved.walletAuthority.authorityDigestB64u &&
+      read.value.revocationEpoch === resolved.walletAuthority.revocationEpoch
+    ) {
+      return {
+        kind: 'prepared',
+        preparation: read.value.preparation,
+        challengeB64u: await mlDsaInventoryChallenge(read.value.preparation, origin),
+      };
+    }
+    const nonce = new Uint8Array(32);
+    crypto.getRandomValues(nonce);
+    const record: MlDsaInventoryChallengeRecord = {
+      preparation: {
+        walletId: actor.walletId,
+        rpId: actor.rpId,
+        credentialIdB64u: actor.credentialIdB64u,
+        nonceB64u: parseDigestB64u(base64UrlEncode(nonce)),
+        expiresAtMs: Date.now() + ML_DSA_INVENTORY_PROOF_TTL_MS,
+      },
+      origin,
+      authorityDigestB64u: resolved.walletAuthority.authorityDigestB64u,
+      revocationEpoch: resolved.walletAuthority.revocationEpoch,
+    };
+    const stored = await this.inventoryChallenges.put(
+      key,
+      record,
+      read.kind === 'present' ? read.version : null,
+    );
+    if (stored.kind !== 'stored')
+      return refusal('conflict', 'ML-DSA inventory preparation changed; retry');
+    return {
+      kind: 'prepared',
+      preparation: record.preparation,
+      challengeB64u: await mlDsaInventoryChallenge(record.preparation, origin),
+    };
+  }
+  async inventory(
+    request: MlDsaInventoryRequest,
+    origin: SessionOrigin,
+  ): Promise<MlDsaSignerInventoryOutcome> {
+    if (!this.options.registration)
+      return refusal('not_configured', 'ML-DSA inventory is not configured');
+    const { preparation, credential } = request;
+    const remaining = preparation.expiresAtMs - Date.now();
+    if (remaining <= 0 || remaining > ML_DSA_INVENTORY_PROOF_TTL_MS)
+      return refusal('expired', 'ML-DSA inventory approval is outside its validity window');
+    if (credential.id !== preparation.credentialIdB64u || credential.rawId !== credential.id)
+      return refusal('unauthorized', 'The inventory credential differs');
+    const resolved =
+      await this.options.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential(
+        preparation,
+      );
+    if (!resolved.ok || !permitsMlDsaSigning(resolved.walletAuthority))
+      return refusal('unauthorized', 'ML-DSA inventory requires an active full owner');
+    const issued = await this.inventoryChallenges.read(inventoryKey(preparation, origin));
+    if (
+      issued.kind !== 'present' ||
+      issued.value.origin !== origin ||
+      alphabetizeStringify(issued.value.preparation) !== alphabetizeStringify(preparation) ||
+      issued.value.authorityDigestB64u !== resolved.walletAuthority.authorityDigestB64u ||
+      issued.value.revocationEpoch !== resolved.walletAuthority.revocationEpoch
+    )
+      return refusal('unauthorized', 'ML-DSA inventory approval was not issued for this authority');
+    const counter = new D1MlDsaWebAuthnVerification(this.options.webAuthnStore);
+    const verified = await verifyWebAuthnAuthenticationLiteWithStore({
+      userId: preparation.walletId,
+      rpId: preparation.rpId,
+      expectedOrigin: origin,
+      expectedChallenge: await mlDsaInventoryChallenge(preparation, origin),
+      webauthnAuthentication: credential,
+      authenticatorStore: counter,
+      logger: normalizeLogger(),
+    });
+    if (!verified.success || !verified.verified)
+      return refusal('unauthorized', 'ML-DSA inventory approval failed');
+    await this.options.database.batch(
+      counter.statements(this.options.database, this.options.scope),
+    );
+    const entries = await this.options.registration.listForWallet(preparation.walletId);
+    const current =
+      await this.options.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential(
+        preparation,
+      );
+    if (
+      !current.ok ||
+      current.walletAuthority.authorityDigestB64u !==
+        resolved.walletAuthority.authorityDigestB64u ||
+      current.walletAuthority.revocationEpoch !== resolved.walletAuthority.revocationEpoch ||
+      !permitsMlDsaSigning(current.walletAuthority) ||
+      Date.now() >= preparation.expiresAtMs
+    )
+      return refusal('unauthorized', 'The ML-DSA inventory owner changed');
+    return { kind: 'inventory', entries };
   }
   async prepare(
     request: MlDsaSigningRequest,
@@ -164,11 +325,7 @@ export class D1WalletMlDsaSigning {
         rpId: request.rpId,
         credentialIdB64u: request.credentialIdB64u,
       });
-    if (
-      !resolved.ok ||
-      resolved.walletAuthority.provenance.kind === 'device_link' ||
-      resolved.walletAuthority.permissions.length !== 4
-    )
+    if (!resolved.ok || !permitsMlDsaSigning(resolved.walletAuthority))
       return refusal('unauthorized', 'ML-DSA signing requires an active wallet owner');
     await this.initializeCodec();
     let transaction;

@@ -797,6 +797,31 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
+      'wallet_ml_dsa_inventory',
+      'POST',
+      '/wallets/:walletId/ml-dsa/inventory',
+      'Read published ML-DSA signers with fresh full-owner approval',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale:
+          'A fresh origin-bound WebAuthn assertion authorizes signer discovery after recovery or full-owner device linking.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_ml_dsa_inventory_prepare',
+      'POST',
+      '/wallets/:walletId/ml-dsa/inventory/prepare',
+      'Issue an ML-DSA inventory approval challenge',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale: 'A Gateway-issued nonce bounds full-owner inventory approval to its server-selected validity window.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
       'wallet_ml_dsa_signing_execute', 'POST', '/wallets/:walletId/ml-dsa/sign',
       'Sign an owner-approved ML-DSA transaction',
       {plane:'public',proof:'threshold_protocol_state',rationale:'Fresh WebAuthn approval and a durable exact-operation claim authorize the published ML-DSA key.'},
