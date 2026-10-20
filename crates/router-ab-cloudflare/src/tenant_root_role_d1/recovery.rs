@@ -60,7 +60,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             TwoPartyDeriverRole::DeriverB => CloudflareTenantRootDeriverRoleV1::DeriverB,
         })?;
         let set_id = command.context().recovery_set_id().to_base64url();
-        let row = self.session.prepare("SELECT role, command_b64u, lifecycle, encrypted_material_b64u, encrypted_package_b64u, package_digest_b64u, destruction_receipt, descriptor_b64u, package_length FROM tenant_root_recovery_attempts WHERE recovery_set_id_b64u = ?1")
+        let row = self.session.prepare("SELECT role, command_b64u, lifecycle, encrypted_material_b64u, encrypted_package_b64u, package_digest_b64u, destruction_receipt, descriptor_b64u, package_length FROM tenant_root_recovery_attempts WHERE recovery_set_id_b64u = $1")
             .bind_refs([RoleSqlValue::Text(&set_id)].iter())?.first::<RecoveryAttemptRow>(None).await?;
         let Some(row) = row else {
             return Ok(None);
@@ -174,7 +174,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .map_err(|e| store_error(e.message()))?;
         let encoded = encode_base64url_bytes_v1(&bytes);
         let timestamp = now_ms.to_string();
-        self.session.prepare("INSERT INTO tenant_root_recovery_attempts (recovery_set_id_b64u, tenant_identity_digest_hex, custody_lineage_b64u, role, command_b64u, admitted_at_ms, lifecycle) VALUES (?1, ?2, ?3, ?4, ?5, CAST(?6 AS INTEGER), 'provisioning') ON CONFLICT(recovery_set_id_b64u) DO NOTHING")
+        self.session.prepare("INSERT INTO tenant_root_recovery_attempts (recovery_set_id_b64u, tenant_identity_digest_hex, custody_lineage_b64u, role, command_b64u, admitted_at_ms, lifecycle) VALUES ($1, $2, $3, $4, $5, CAST($6 AS BIGINT), 'provisioning') ON CONFLICT(recovery_set_id_b64u) DO NOTHING")
             .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&identity), RoleSqlValue::Text(&lineage), RoleSqlValue::Text(command.role().as_str()), RoleSqlValue::Text(&encoded), RoleSqlValue::Text(&timestamp)].iter())?.run().await?;
         self.require_recovery_attempt(command).await
     }
@@ -196,7 +196,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         require_ciphertext(ciphertext_b64u)?;
         self.require_recovery_attempt(command).await?;
         let set_id = command.context().recovery_set_id().to_base64url();
-        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'pending', encrypted_material_b64u = ?1 WHERE recovery_set_id_b64u = ?2 AND lifecycle = 'provisioning'")
+        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'pending', encrypted_material_b64u = $1 WHERE recovery_set_id_b64u = $2 AND lifecycle = 'provisioning'")
             .bind_refs([RoleSqlValue::Text(ciphertext_b64u), RoleSqlValue::Text(&set_id)].iter())?.run().await?;
         self.require_recovery_attempt(command).await
     }
@@ -222,7 +222,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 .map_err(|e| store_error(e.message()))?,
         );
         let length = package_length.to_string();
-        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'packaged', encrypted_material_b64u = NULL, encrypted_package_b64u = ?1, package_digest_b64u = ?2, descriptor_b64u = ?4, package_length = CAST(?5 AS INTEGER) WHERE recovery_set_id_b64u = ?3 AND lifecycle = 'pending'")
+        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'packaged', encrypted_material_b64u = NULL, encrypted_package_b64u = $1, package_digest_b64u = $2, descriptor_b64u = $4, package_length = CAST($5 AS BIGINT) WHERE recovery_set_id_b64u = $3 AND lifecycle = 'pending'")
             .bind_refs([RoleSqlValue::Text(ciphertext_b64u), RoleSqlValue::Text(&digest), RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&descriptor_b64u), RoleSqlValue::Text(&length)].iter())?.run().await?;
         let state = self.require_recovery_attempt(command).await?;
         if let RecoveryAttemptStateV1::Packaged {
@@ -243,7 +243,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     ) -> RoleStoreResult<RecoveryAttemptStateV1> {
         self.require_recovery_attempt(command).await?;
         let set_id = command.context().recovery_set_id().to_base64url();
-        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'destroying', encrypted_material_b64u = NULL, encrypted_package_b64u = NULL, package_digest_b64u = NULL, descriptor_b64u = NULL, package_length = NULL WHERE recovery_set_id_b64u = ?1 AND lifecycle IN ('provisioning', 'pending', 'packaged')")
+        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = 'destroying', encrypted_material_b64u = NULL, encrypted_package_b64u = NULL, package_digest_b64u = NULL, descriptor_b64u = NULL, package_length = NULL WHERE recovery_set_id_b64u = $1 AND lifecycle IN ('provisioning', 'pending', 'packaged')")
             .bind_refs([RoleSqlValue::Text(&set_id)].iter())?.run().await?;
         self.require_recovery_attempt(command).await
     }
@@ -260,7 +260,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             Destruction::Destroyed { receipt } => ("destroyed", receipt),
         };
         let set_id = command.context().recovery_set_id().to_base64url();
-        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = ?1, destruction_receipt = ?2 WHERE recovery_set_id_b64u = ?3 AND lifecycle IN ('destroying', 'destruction_scheduled')")
+        self.session.prepare("UPDATE tenant_root_recovery_attempts SET lifecycle = $1, destruction_receipt = $2 WHERE recovery_set_id_b64u = $3 AND lifecycle IN ('destroying', 'destruction_scheduled')")
             .bind_refs([RoleSqlValue::Text(lifecycle), RoleSqlValue::Text(receipt), RoleSqlValue::Text(&set_id)].iter())?.run().await?;
         self.require_recovery_attempt(command).await
     }
@@ -276,7 +276,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let sealed = self.cipher.seal_recovery_retention_key(id, secret)?;
         let set_id = id.recovery_set_id().to_base64url();
         let version = id.version().get().to_string();
-        self.session.prepare("INSERT INTO tenant_root_recovery_retention_keys (recovery_set_id_b64u, role, key_version, sealed_key_json) VALUES (?1, ?2, CAST(?3 AS INTEGER), ?4) ON CONFLICT (recovery_set_id_b64u, key_version) DO NOTHING")
+        self.session.prepare("INSERT INTO tenant_root_recovery_retention_keys (recovery_set_id_b64u, role, key_version, sealed_key_json) VALUES ($1, $2, CAST($3 AS BIGINT), $4) ON CONFLICT (recovery_set_id_b64u, key_version) DO NOTHING")
             .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(id.role().as_str()), RoleSqlValue::Text(&version), RoleSqlValue::Text(&sealed)].iter())?.run().await?;
         Ok(())
     }
@@ -288,7 +288,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     ) -> RoleStoreResult<Option<router_ab_core::derivation::TenantRootRetentionKeySecretV1>> {
         let set_id = id.recovery_set_id().to_base64url();
         let version = id.version().get().to_string();
-        let row = self.session.prepare("SELECT role, sealed_key_json FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = ?1 AND key_version = CAST(?2 AS INTEGER)")
+        let row = self.session.prepare("SELECT role, sealed_key_json FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = $1 AND key_version = CAST($2 AS BIGINT)")
             .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&version)].iter())?.first::<RecoveryRetentionKeyRow>(None).await?;
         let Some(row) = row else {
             return Ok(None);
@@ -310,7 +310,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     ) -> RoleStoreResult<()> {
         let set_id = id.recovery_set_id().to_base64url();
         let version = id.version().get().to_string();
-        self.session.prepare("DELETE FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = ?1 AND key_version = CAST(?2 AS INTEGER)")
+        self.session.prepare("DELETE FROM tenant_root_recovery_retention_keys WHERE recovery_set_id_b64u = $1 AND key_version = CAST($2 AS BIGINT)")
             .bind_refs([RoleSqlValue::Text(&set_id), RoleSqlValue::Text(&version)].iter())?.run().await?;
         Ok(())
     }

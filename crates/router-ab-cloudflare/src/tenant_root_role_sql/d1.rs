@@ -1,6 +1,6 @@
 use super::{
-    RoleSqlOutcomeV1, RoleSqlOwnedValueV1, RoleSqlReadV1, RoleSqlSessionV1, RoleSqlStatement,
-    RoleSqlTransactionStatement, RoleStoreError, RoleStoreResult,
+    parameter_positions, RoleSqlOutcomeV1, RoleSqlOwnedValueV1, RoleSqlReadV1, RoleSqlSessionV1,
+    RoleSqlStatement, RoleSqlTransactionStatement, RoleStoreError, RoleStoreResult,
 };
 use serde::de::DeserializeOwned;
 
@@ -43,10 +43,11 @@ impl D1RoleSqlSessionV1 {
                 RoleSqlOwnedValueV1::Null => worker::D1Type::Null,
             })
             .collect();
-        Ok(self
-            .session
-            .prepare(statement.sql())
-            .bind_refs(values.iter())?)
+        let mut sql = statement.sql().to_owned();
+        for (range, position) in parameter_positions(&sql)?.into_iter().rev() {
+            sql.replace_range(range, &format!("?{position}"));
+        }
+        Ok(self.session.prepare(&sql).bind_refs(values.iter())?)
     }
 }
 

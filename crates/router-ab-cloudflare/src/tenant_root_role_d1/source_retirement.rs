@@ -51,7 +51,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let mut statements = vec![self
             .session
             .prepare(
-                "INSERT OR IGNORE INTO tenant_root_source_retirements SELECT ?1,?2,?3,?4,?5,?6 WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND role=?3 AND lifecycle='active' AND tenant_root_share_epoch=?7 AND revision=?8)",
+                "INSERT INTO tenant_root_source_retirements SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS (SELECT 1 FROM tenant_root_role_shares WHERE tenant_identity_digest_hex=$1 AND custody_lineage_b64u=$2 AND role=$3 AND lifecycle='active' AND tenant_root_share_epoch=$7 AND revision=$8) ON CONFLICT (tenant_identity_digest_hex, custody_lineage_b64u) DO NOTHING",
             )
             .bind_refs(
                 [
@@ -67,17 +67,17 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 .iter(),
             )?];
         // A rotation between the read and batch must leave its newer material intact.
-        let admitted = "EXISTS (SELECT 1 FROM tenant_root_source_retirements WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND active_receipt_digest_b64u=?3 AND destination_receipt_digest_b64u=?4)";
+        let admitted = "EXISTS (SELECT 1 FROM tenant_root_source_retirements WHERE tenant_identity_digest_hex=$1 AND custody_lineage_b64u=$2 AND active_receipt_digest_b64u=$3 AND destination_receipt_digest_b64u=$4)";
         for table in [
             "tenant_root_role_shares",
             "tenant_root_command_replays",
             "tenant_root_restore_import_keys",
             "tenant_root_restore_refresh_attempts",
         ] {
-            statements.push(self.session.prepare(&format!("DELETE FROM {table} WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND {admitted}"))
+            statements.push(self.session.prepare(&format!("DELETE FROM {table} WHERE tenant_identity_digest_hex=$1 AND custody_lineage_b64u=$2 AND {admitted}"))
                 .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage),RoleSqlValue::Text(&active_receipt),RoleSqlValue::Text(&destination)].iter())?);
         }
-        statements.push(self.session.prepare(&format!("UPDATE tenant_root_recovery_attempts SET lifecycle='destroying', encrypted_material_b64u=NULL, encrypted_package_b64u=NULL, package_digest_b64u=NULL, descriptor_b64u=NULL, package_length=NULL WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND lifecycle IN ('provisioning','pending','packaged') AND {admitted}"))
+        statements.push(self.session.prepare(&format!("UPDATE tenant_root_recovery_attempts SET lifecycle='destroying', encrypted_material_b64u=NULL, encrypted_package_b64u=NULL, package_digest_b64u=NULL, descriptor_b64u=NULL, package_length=NULL WHERE tenant_identity_digest_hex=$1 AND custody_lineage_b64u=$2 AND lifecycle IN ('provisioning','pending','packaged') AND {admitted}"))
             .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage),RoleSqlValue::Text(&active_receipt),RoleSqlValue::Text(&destination)].iter())?);
         self.session
             .transaction(statements.into_iter().map(Into::into).collect())
@@ -96,7 +96,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     ) -> RoleStoreResult<Option<RetirementRow>> {
         let identity = encode_hex(command.identity_digest().as_bytes());
         let lineage = command.custody_lineage().to_base64url();
-        self.session.prepare("SELECT role,active_receipt_digest_b64u,destination_receipt_digest_b64u,retired_at_ms FROM tenant_root_source_retirements WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2")
+        self.session.prepare("SELECT role,active_receipt_digest_b64u,destination_receipt_digest_b64u,retired_at_ms FROM tenant_root_source_retirements WHERE tenant_identity_digest_hex=$1 AND custody_lineage_b64u=$2")
             .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage)].iter())?.first::<RetirementRow>(None).await
     }
 }

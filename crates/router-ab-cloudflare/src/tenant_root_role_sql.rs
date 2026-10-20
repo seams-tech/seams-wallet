@@ -1,5 +1,5 @@
 //! The execution contract for a Deriver's tenant-root role store.
-//! Statements and migrations still use SQLite SQL. The D1 driver implements
+//! Shared statements use PostgreSQL parameter positions. Each driver implements
 //! atomic transactions and row-count expectations at the database boundary.
 
 #[cfg(feature = "workers-rs")]
@@ -180,4 +180,46 @@ pub trait RoleSqlSessionV1 {
         &self,
         statements: Vec<RoleSqlTransactionStatement<'_, Self>>,
     ) -> RoleStoreResult<Vec<Self::Outcome>>;
+}
+
+/// Locates numbered parameters while preserving quoted SQL literals and names.
+/// Shared role-store statements use `$1`, `$2`, and repeated positions.
+fn parameter_positions(sql: &str) -> RoleStoreResult<Vec<(core::ops::Range<usize>, usize)>> {
+    let bytes = sql.as_bytes();
+    let mut positions = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        match bytes[index] {
+            quote @ (b'\'' | b'"') => {
+                index += 1;
+                while index < bytes.len() {
+                    if bytes[index] == quote {
+                        index += 1;
+                        if bytes.get(index) != Some(&quote) {
+                            break;
+                        }
+                    }
+                    index += 1;
+                }
+            }
+            b'$' => {
+                let start = index;
+                index += 1;
+                while bytes.get(index).is_some_and(u8::is_ascii_digit) {
+                    index += 1;
+                }
+                let position = sql[start + 1..index].parse::<usize>().map_err(|_| {
+                    RoleStoreError::message("role-store SQL requires numbered parameters")
+                })?;
+                if position == 0 {
+                    return Err(RoleStoreError::message(
+                        "role-store parameter positions start at one",
+                    ));
+                }
+                positions.push((start..index, position));
+            }
+            _ => index += 1,
+        }
+    }
+    Ok(positions)
 }

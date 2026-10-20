@@ -42,9 +42,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let digest_hex = encode_hex(preparation_digest);
         self.session
             .prepare(
-                "DELETE FROM tenant_root_root_use_admissions WHERE role = ?1 \
-             AND attempt_kind = 'ed25519_yao_pair_session' AND attempt_key_hex = ?2 \
-             AND pair_object_id = ?3 AND preparation_digest_hex = ?4 AND status = 'admitted'",
+                "DELETE FROM tenant_root_root_use_admissions WHERE role = $1 \
+             AND attempt_kind = 'ed25519_yao_pair_session' AND attempt_key_hex = $2 \
+             AND pair_object_id = $3 AND preparation_digest_hex = $4 AND status = 'admitted'",
             )
             .bind_refs(
                 [
@@ -202,13 +202,13 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             statements.push(
                 self.session
                     .prepare(
-                        "UPDATE tenant_root_root_use_admissions SET attempt_digest_hex = ?6, \
-                 first_binding_digest_hex = ?7, preparation_digest_hex = NULL, expires_at_ms = ?13 \
-                 WHERE tenant_identity_digest_hex = ?1 AND custody_lineage_b64u = ?2 \
-                 AND role = ?3 AND attempt_kind = ?4 AND attempt_key_hex = ?5 \
-                 AND preparation_digest_hex = ?8 AND tenant_root_share_epoch = ?9 \
-                 AND activation_receipt_digest_hex = ?10 AND pair_object_id = ?11 \
-                 AND status = 'admitted' AND expires_at_ms > ?12",
+                        "UPDATE tenant_root_root_use_admissions SET attempt_digest_hex = $6, \
+                 first_binding_digest_hex = $7, preparation_digest_hex = NULL, expires_at_ms = $13 \
+                 WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 \
+                 AND role = $3 AND attempt_kind = $4 AND attempt_key_hex = $5 \
+                 AND preparation_digest_hex = $8 AND tenant_root_share_epoch = $9 \
+                 AND activation_receipt_digest_hex = $10 AND pair_object_id = $11 \
+                 AND status = 'admitted' AND expires_at_ms > $12",
                     )
                     .bind_refs(
                         [
