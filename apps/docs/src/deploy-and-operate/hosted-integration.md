@@ -73,9 +73,9 @@ Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.3**. Use `@seams/wallet
 APAC wallet objects now request Southeast Asia placement. Verify the actual
 object and database locations before accepting a hosted deployment.
 
-The auth menu's passkey wait now shows a ring spinner in place of the fingerprint tile.
-This release changes no Worker, server or protocol code. From 0.15.1, deploy only the
-matching wallet host.
+The auth menu retains the 0.15.2 passkey ring spinner. This release also updates
+account-menu row arrows and hover states. Deploy the matching custody Workers
+and update the private Console relocation caller for the new APAC hint.
 
 An expired initial tenant authorization can be renewed only before its creation journal starts.
 The Router records a durable fence before Console issues the replacement authorization.
