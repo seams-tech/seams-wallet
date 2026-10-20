@@ -1,0 +1,317 @@
+{
+  "activatedEpochs": [
+    2,
+    2
+  ],
+  "atomicEpochSwapPerRole": true,
+  "checkpointMismatchRollsBackEarlierShareInsert": true,
+  "coherentReadSnapshotAcrossConcurrentCommit": true,
+  "encryptedCreationAndSignedReceiptReplay": true,
+  "kind": "postgres_role_store_e2e_v1",
+  "lostCommitAcknowledgementReconcilesExactReceipt": true,
+  "managedRestoreRemainsPendingUntilForwardRefresh": true,
+  "missedSwapCheckpointRestoresBothEpochsAndReplay": true,
+  "reopenedConnectionDecryptsSameRecord": true,
+  "restoreImportAndRetentionRoundTrips": true,
+  "retiredEpochCleanupPreservesActiveSuccessor": true,
+  "separateRoleDatabasesAndCredentials": true,
+  "serializationRetriesCompleteTransaction": true,
+  "server": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "sourceRetirementRejectsLateWrites": true,
+  "unclaimedCancellationAndClaimedSettlement": true,
+  "wrongRoleSessionRejected": true,
+  "recordedAt": "2026-10-20T23:52:52.526Z",
+  "reproduce": "pnpm -C crates/router-ab-cloudflare test:postgres-role-store",
+  "image": "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+  "imageId": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+  "cargo": "cargo test --features postgres --lib postgres_role_store_e2e -- --nocapture",
+  "log": {
+    "path": ".artifacts/postgres-role-store/run.log",
+    "sha256": "6672b7049e34dbdd77c61f6d684aaf8f6b634aebe76e3626523689878503d0d6"
+  },
+  "sources": [
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.toml",
+      "sha256": "e4126fc4363ee69bfecf04e359fee3d24f7b723290cd775b8f766ad3a31dc4de"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs",
+      "sha256": "80e5ef988d728469289fb211d7111b559323a1a01a86290c34059075b065c3b6"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql.rs",
+      "sha256": "3f47efdd154ef7954b29606aa304e8ed6233801e28dce495da9f1e1ecf4610ea"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/d1.rs",
+      "sha256": "a47a3da9873fb88b8da45e32f295aa942ad9ba5f03ef5680b7696cfef80ea391"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "sha256": "bfa8a7d687e6ec819d3e27e44db2eb0632be56fcc16178f4940c09e75a3d2c30"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e.rs",
+      "sha256": "9a0800d9c442fb63281310bd867782bd6bc70afbd49d6256e8240a072328a1ab"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e/commit_proxy.rs",
+      "sha256": "8bb3d6128aa3f32a69fa390fd6d7c5f5d770476aa907a58e53b58f02ecf0eb15"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e/lifecycle.rs",
+      "sha256": "76a9ad0e4a34176a41bbbece4c84e2415176ec674b76df301d14c7cae797f5e6"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+      "sha256": "96bd27fdc914035782e6889794abefaa8dbd24917fdca288bb0b51284c66ea61"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/recovery.rs",
+      "sha256": "8f00af78dc56472b5a998883cab182e5d7833ecbc36bc9070d2b05fe066f1008"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/source_retirement.rs",
+      "sha256": "531632877826d664f32e27fcddd46af232368be300210fc24f3adbba7821e325"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/scripts/test-postgres-role-store.mjs",
+      "sha256": "657e8eb2c5b5b8e99b50aad6421fe02353bcb41b9407721e0a732d3aa303a394"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/migrations/postgres/0001_role_store.sql",
+      "sha256": "53641e9877144ab26371e3b7f3c892e5ec9dc4714d1075422fccf1581be7ae37"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.lock",
+      "sha256": "c583a605fe8f67a760ad15ff6f8a3da4bcb4d3924bded3d6f63eb3adff1f5e62"
+    }
+  ],
+  "d1CompatibilityChecks": [
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --admission-races",
+      "exitCode": 0,
+      "summary": {
+        "kind": "tenant_root_admission_race_workers_e2e_v1",
+        "checkpointRollback": {
+          "fault": "zero_row_replay_checkpoint_after_pending_share_insert",
+          "failedStatus": 500,
+          "earlierMutationRolledBack": true,
+          "checkpointRemainedReserved": true,
+          "retryStatus": 200,
+          "operationReplayStatus": 200,
+          "activationReceiptUnchangedOnReplay": true,
+          "epochsAfterRetry": [
+            {
+              "epoch": 1,
+              "lifecycle": "retired",
+              "revision": 3
+            },
+            {
+              "epoch": 2,
+              "lifecycle": "active",
+              "revision": 2
+            }
+          ]
+        },
+        "unusedBinding": {
+          "heldBefore": "deriver_a_execute_pair",
+          "refreshStatus": 200,
+          "deriverAPreparationStatus": 503,
+          "deriverAPreparationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+          "registrationStatus": 200,
+          "registrationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+          "admissionsAfterRefusal": {
+            "deriverA": [],
+            "deriverB": [
+              1
+            ]
+          },
+          "freshRegistration": "succeeded",
+          "admissionsAfterFresh": {
+            "deriverA": [
+              2
+            ],
+            "deriverB": [
+              1,
+              2
+            ]
+          },
+          "statusesAfterFresh": {
+            "deriverA": [
+              [
+                2,
+                "settled"
+              ]
+            ],
+            "deriverB": [
+              [
+                1,
+                "admitted"
+              ],
+              [
+                2,
+                "settled"
+              ]
+            ]
+          },
+          "deriverAEpochOneRetirement": [
+            200,
+            "retired_deleted"
+          ],
+          "deriverBEpochOneRetirement": [
+            503,
+            "LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+          ]
+        },
+        "deliveryGate": {
+          "fault": "deriver_b_unreachable_for_refresh_activation",
+          "refreshStatus": 500,
+          "deliveryAfterRefresh": {
+            "deriverA": "delivered",
+            "deriverB": "pending"
+          },
+          "registrationWhilePendingStatus": 503,
+          "admissionsWhilePending": {
+            "deriverA": [],
+            "deriverB": []
+          },
+          "registrationAfterReachable": "succeeded",
+          "deliveryAfter": {
+            "deriverA": "delivered",
+            "deriverB": "delivered"
+          },
+          "admissionsAfter": {
+            "deriverA": [
+              2
+            ],
+            "deriverB": [
+              2
+            ]
+          },
+          "statusesAfter": {
+            "deriverA": [
+              [
+                2,
+                "settled"
+              ]
+            ],
+            "deriverB": [
+              [
+                2,
+                "settled"
+              ]
+            ]
+          }
+        }
+      },
+      "log": {
+        "path": ".artifacts/postgres-role-store/d1/admission-races.log",
+        "sha256": "b2ffeeec910cbb756ea0f3ea627a98006322306a5d9e35ecf10f38cfe8d5d28b"
+      }
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --refresh-after-managed-restore",
+      "exitCode": 0,
+      "summary": {
+        "kind": "tenant_root_refresh_after_managed_restore_workers_e2e_v1",
+        "restoreRevision": 4,
+        "refreshStatus": 200,
+        "refreshRevision": 5,
+        "deriverA": [
+          [
+            2,
+            "retired"
+          ],
+          [
+            3,
+            "active"
+          ]
+        ],
+        "deriverB": [
+          [
+            2,
+            "retired"
+          ],
+          [
+            3,
+            "active"
+          ]
+        ],
+        "restoreRetryReturnsDurableOutcome": true
+      },
+      "log": {
+        "path": ".artifacts/postgres-role-store/d1/refresh-after-managed-restore.log",
+        "sha256": "553910d815d5aa09d1fc94b3e18e039699a0c702664a9fb9389b27eee93f5e83"
+      }
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --retirement-trigger",
+      "exitCode": 0,
+      "summary": {
+        "kind": "tenant_root_retirement_trigger_workers_e2e_v1",
+        "build": "wallet_objects",
+        "graceMs": 1000,
+        "firstRefresh": [
+          "pending",
+          "pending"
+        ],
+        "afterGraceWhileWorkHeld": [
+          [
+            "erased",
+            "pending"
+          ],
+          "tenant-root cleanup request service returned HTTP status 503: LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+        ],
+        "heldWork": "refused erased A epoch; fresh registration succeeded on epoch 2",
+        "afterSettlement": [
+          "erased",
+          "erased"
+        ],
+        "epochOneSharesAfter": [
+          0,
+          0
+        ],
+        "recordedErasuresReplayExactly": true,
+        "admissionsAfter": [
+          [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled"
+            ],
+            [
+              2,
+              "settled"
+            ]
+          ]
+        ]
+      },
+      "log": {
+        "path": ".artifacts/postgres-role-store/d1/retirement-trigger.log",
+        "sha256": "81cbd4764792359863a9470c0339931640b2fb8233ed4bb64ef19b7de345535a"
+      }
+    }
+  ],
+  "validation": {
+    "cargoLocks": {
+      "command": "pnpm check:cargo-locks --offline",
+      "exitCode": 0,
+      "result": "All 38 Cargo.lock files pass --locked."
+    },
+    "bloat": {
+      "command": "pnpm report:bloat --check",
+      "exitCode": 0,
+      "result": "No ratcheted measure grew."
+    }
+  },
+  "scope": "Native PostgreSQL tenant-root role-store backend. Cloud deployment, provider poolers, Gateway/Console stores, and non-SQL host services remain separate work.",
+  "concurrentChanges": "The main dev checkout includes separate registration-latency and ML-DSA work. This evidence identifies the source snapshot and does not claim a clean checkout.",
+  "recordedLocalDate": "2026-10-21 Asia/Tokyo",
+  "d1CompatibilityScope": "All three D1 scenarios passed against the final production Rust changes. The later PostgreSQL test-only addition verifies failed epoch-swap rollback and does not change the Workers runtime."
+}

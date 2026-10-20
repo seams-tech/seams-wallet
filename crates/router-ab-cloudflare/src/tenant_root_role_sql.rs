@@ -7,6 +7,13 @@ mod d1;
 #[cfg(feature = "workers-rs")]
 pub use d1::D1RoleSqlSessionV1;
 
+#[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+mod postgres;
+#[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+pub use postgres::{
+    apply_postgres_role_store_schema_v1, PostgresRoleSqlOutcomeV1, PostgresRoleSqlSessionV1,
+};
+
 use core::fmt;
 
 use serde::de::DeserializeOwned;

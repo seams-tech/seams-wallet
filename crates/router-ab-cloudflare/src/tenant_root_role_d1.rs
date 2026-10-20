@@ -260,21 +260,23 @@ const ACTIVATE_INITIAL_PENDING_SQL: &str = "UPDATE tenant_root_role_shares SET \
     AND role = $6 AND lifecycle = 'pending' \
     AND revision = $7 AND NOT EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = $3 AND role = $6 AND lifecycle = 'active')";
-const SWAP_ACTIVE_EPOCH_SQL: &str = "UPDATE tenant_root_role_shares SET \
-    lifecycle = CASE WHEN tenant_root_share_epoch = $3 THEN 'retired' ELSE 'active' END, \
-    ciphertext_json = CASE WHEN tenant_root_share_epoch = $3 THEN $8 ELSE $9 END, \
-    revision = revision + 1, updated_at_ms = $10 \
+const RETIRE_ACTIVE_FOR_SWAP_SQL: &str = "UPDATE tenant_root_role_shares SET \
+    lifecycle = 'retired', ciphertext_json = $8, revision = revision + 1, updated_at_ms = $10 \
     WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 AND role = $4 \
     AND CAST($6 AS BIGINT) = CAST($3 AS BIGINT) + 1 \
-    AND ((tenant_root_share_epoch = $3 AND lifecycle = 'active' AND revision = $5 \
+    AND tenant_root_share_epoch = $3 AND lifecycle = 'active' AND revision = $5 \
     AND EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 \
     AND tenant_root_share_epoch = $6 AND role = $4 AND lifecycle = 'pending' \
-    AND revision = $7)) OR (tenant_root_share_epoch = $6 AND lifecycle = 'pending' \
-    AND revision = $7 AND EXISTS (SELECT 1 FROM tenant_root_role_shares \
+    AND revision = $7)";
+const ACTIVATE_PENDING_FOR_SWAP_SQL: &str = "UPDATE tenant_root_role_shares SET \
+    lifecycle = 'active', ciphertext_json = $9, revision = revision + 1, updated_at_ms = $10 \
+    WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 AND role = $4 \
+    AND tenant_root_share_epoch = $6 AND lifecycle = 'pending' AND revision = $7 \
+    AND EXISTS (SELECT 1 FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 \
-    AND tenant_root_share_epoch = $3 AND role = $4 AND lifecycle = 'active' \
-    AND revision = $5)))";
+    AND tenant_root_share_epoch = $3 AND role = $4 AND lifecycle = 'retired' \
+    AND revision = CAST($5 AS BIGINT) + 1 AND updated_at_ms = $10)";
 const DELETE_MANAGED_RESTORE_FORWARD_REFRESH_PENDING_SQL: &str =
     "DELETE FROM tenant_root_role_shares \
     WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 \
@@ -585,7 +587,7 @@ impl CloudflareTenantRootDeriverRoleV1 {
         }
     }
 
-    const fn as_str(self) -> &'static str {
+    pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::DeriverA => "deriver_a",
             Self::DeriverB => "deriver_b",
@@ -11599,7 +11601,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let checkpoint_statement =
             self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
         let executed = self
-            .run_managed_restore_forward_refresh_checkpoint(
+            .run_epoch_transition_checkpoint(
                 delete_statement,
                 activate_statement,
                 checkpoint_statement,
@@ -12608,28 +12610,34 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let updated_at_ms = timestamp_i64(updated_at_ms)?.to_string();
         let retired_ciphertext_json = self.cipher.seal(&retired_record, retired_revision)?;
         let activated_ciphertext_json = self.cipher.seal(&activated_record, activated_revision)?;
-        // The WHERE clause requires both CAS rows before this single UPDATE can match either.
-        let lifecycle_statement = self.session.prepare(SWAP_ACTIVE_EPOCH_SQL).bind_refs(
-            [
-                RoleSqlValue::Text(retired_metadata.identity_digest_hex.as_str()),
-                RoleSqlValue::Text(retired_metadata.custody_lineage_b64u.as_str()),
-                RoleSqlValue::Text(current_epoch.as_str()),
-                RoleSqlValue::Text(retired_metadata.role.as_str()),
-                RoleSqlValue::Text(current_revision.as_str()),
-                RoleSqlValue::Text(next_epoch.as_str()),
-                RoleSqlValue::Text(next_revision.as_str()),
-                RoleSqlValue::Text(retired_ciphertext_json.as_str()),
-                RoleSqlValue::Text(activated_ciphertext_json.as_str()),
-                RoleSqlValue::Text(updated_at_ms.as_str()),
-            ]
-            .iter(),
-        )?;
+        // Retire before activating so the unique active-root index holds at
+        // every statement. Both mutations and the checkpoint commit together.
+        let parameters = [
+            RoleSqlValue::Text(retired_metadata.identity_digest_hex.as_str()),
+            RoleSqlValue::Text(retired_metadata.custody_lineage_b64u.as_str()),
+            RoleSqlValue::Text(current_epoch.as_str()),
+            RoleSqlValue::Text(retired_metadata.role.as_str()),
+            RoleSqlValue::Text(current_revision.as_str()),
+            RoleSqlValue::Text(next_epoch.as_str()),
+            RoleSqlValue::Text(next_revision.as_str()),
+            RoleSqlValue::Text(retired_ciphertext_json.as_str()),
+            RoleSqlValue::Text(activated_ciphertext_json.as_str()),
+            RoleSqlValue::Text(updated_at_ms.as_str()),
+        ];
+        let retire_statement = self
+            .session
+            .prepare(RETIRE_ACTIVE_FOR_SWAP_SQL)
+            .bind_refs(parameters.iter())?;
+        let activate_statement = self
+            .session
+            .prepare(ACTIVATE_PENDING_FOR_SWAP_SQL)
+            .bind_refs(parameters.iter())?;
         let checkpoint_statement =
             self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
         let executed = self
-            .run_lifecycle_checkpoint(
-                lifecycle_statement,
-                2,
+            .run_epoch_transition_checkpoint(
+                retire_statement,
+                activate_statement,
                 checkpoint_statement,
                 reservation,
                 executed_at_ms,
@@ -13477,9 +13485,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .map_err(|error| store_error(error.message()))
     }
 
-    async fn run_managed_restore_forward_refresh_checkpoint(
+    async fn run_epoch_transition_checkpoint(
         &self,
-        delete_statement: RoleSqlStatement<'_, S>,
+        source_statement: RoleSqlStatement<'_, S>,
         activate_statement: RoleSqlStatement<'_, S>,
         checkpoint_statement: RoleSqlStatement<'_, S>,
         reservation: ReservedTenantRootCommandV1,
@@ -13493,37 +13501,37 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let results = self
             .session
             .transaction(vec![
-                delete_statement.expect_changes(1),
+                source_statement.expect_changes(1),
                 activate_statement.expect_changes(1),
                 checkpoint_statement.expect_changes(1),
             ])
             .await?;
         if results.len() != 3 {
             return Err(store_error(
-                "managed-restore forward-refresh checkpoint returned an invalid result count",
+                "tenant-root epoch transition checkpoint returned an invalid result count",
             ));
         }
         for result in &results {
             if !result.success() {
                 return Err(store_error(format!(
-                    "managed-restore forward-refresh checkpoint statement failed: {}",
+                    "tenant-root epoch transition checkpoint statement failed: {}",
                     result
                         .error()
-                        .unwrap_or_else(|| "unknown D1 error".to_owned())
+                        .unwrap_or_else(|| "unknown SQL error".to_owned())
                 )));
             }
         }
         require_one_change(
             &results[0],
-            "managed-restore forward-refresh source changed concurrently",
+            "tenant-root epoch transition source changed concurrently",
         )?;
         require_one_change(
             &results[1],
-            "managed-restore forward-refresh successor changed concurrently",
+            "tenant-root epoch transition successor changed concurrently",
         )?;
         require_one_change(
             &results[2],
-            "managed-restore forward-refresh execution checkpoint changed concurrently",
+            "tenant-root epoch transition execution checkpoint changed concurrently",
         )?;
         reservation
             .checkpoint_executed(executed_at_ms)
@@ -17796,6 +17804,8 @@ fn store_error(message: impl Into<String>) -> RoleStoreError {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+    mod postgres_e2e;
     use curve25519_dalek::{
         ristretto::{CompressedRistretto, RistrettoPoint},
         scalar::Scalar,
@@ -19154,7 +19164,7 @@ mod tests {
         TenantRootShareEpoch::new(value).expect("epoch")
     }
 
-    fn test_custody_binding() -> TenantRootCustodyBindingV1 {
+    fn test_active_refresh_state() -> router_ab_core::TenantRootActiveRefreshV1 {
         let identity = test_identity();
         let custody_lineage = TenantRootCustodyLineageId::from_bytes([0x44; 16]).expect("lineage");
         let context =
@@ -19272,6 +19282,11 @@ mod tests {
             .activate(activation)
             .expect("activate ceremony")
             .into_refresh_state();
+        active
+    }
+
+    fn test_custody_binding() -> TenantRootCustodyBindingV1 {
+        let active = test_active_refresh_state();
         let stable_context = StableTenantDerivationContextV2::new([0x85; 32]);
         TenantRootCustodyBindingV1::from_active(
             &active,
@@ -22056,6 +22071,7 @@ mod tests {
 #[cfg(any(
     feature = "strict-worker-deriver-a-entrypoint",
     feature = "strict-worker-deriver-b-entrypoint",
+    all(feature = "postgres", not(target_arch = "wasm32")),
     all(test, feature = "workers-rs")
 ))]
 pub(crate) mod source_retirement;

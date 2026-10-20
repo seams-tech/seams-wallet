@@ -1,115 +1,108 @@
 # Wallet storage portability
 
-The role store now separates transaction requirements from D1 execution.
-PostgreSQL support remains unimplemented and untested.
-This preparation changes no database schema, stored record, or deployment.
+The native PostgreSQL role-store backend passes E2E tests against real local PostgreSQL 18.6.
+The same tenant-root lifecycle code also runs on D1.
+Gateway, Console, SigningWorker, Durable Object coordination, and backup services retain their existing storage implementations.
 
-The target is standard PostgreSQL, with AWS RDS or a serverless PostgreSQL provider as deployment choices.
-Keep provider credentials, connection setup, TLS, and pooling at the host boundary.
-Keep SQL, migrations, and transaction behavior independent of the hosting provider.
-The current change removes one D1 dependency. It does not establish a working PostgreSQL backend.
+[`PostgresRoleSqlSessionV1`](../crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs)
+implements the existing `RoleSqlSessionV1` contract.
+Enable the native Rust `postgres` feature to use it.
+The host supplies a connected `tokio_postgres::Client` and the expected Deriver role.
+Connection setup, credentials, TLS, pooling, and the connection task belong to the host.
+This boundary uses standard PostgreSQL connections and has no RDS or serverless-provider API dependency.
 
-[`RoleSqlSessionV1`](../crates/router-ab-cloudflare/src/tenant_root_role_sql.rs)
-defines the transaction contract.
-`statement.expect_changes(1)` requires exactly one affected row before commit.
-A mismatch must roll back every write in the transaction.
-CAS means compare-and-swap: a mutation succeeds only while its stored revision or state matches the expected value.
+```rust
+let session = PostgresRoleSqlSessionV1::new(
+    client,
+    CloudflareTenantRootDeriverRoleV1::DeriverA,
+).await?;
+let store = TenantRootRoleShareStoreV1::new(session, key_config, &encoded_private_key)?;
+```
 
-The [D1 driver](../crates/router-ab-cloudflare/src/tenant_root_role_sql/d1.rs)
-adds the existing constraint guard immediately after each guarded mutation.
-SQLite's `changes()` reports the preceding mutation's affected rows.
-The guard violates an existing primary key when the count differs.
-[SQLite documents this count](https://www.sqlite.org/lang_corefunc.html#changes).
-[D1 documents rollback of the whole batch on statement failure](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch).
-The driver removes guard results before it returns one outcome per requested statement.
+Keep the client's connection task running for the session's lifetime.
+Use verified TLS for remote connections.
+A serverless provider must expose PostgreSQL connections with full multi-statement transaction support.
+The schema requires PostgreSQL 16 or later for its standard SQL JSON checks.
+An HTTP-only query endpoint needs a separate transaction-capable adapter and equivalent E2E evidence.
 
-Lifecycle code no longer constructs guard SQL or accounts for guard result positions.
-This uses the existing session interface and its existing D1 implementation.
-It adds no backend selector, compatibility path, query translator, or PostgreSQL dependency.
+The PostgreSQL driver enforces these transaction rules:
 
-The SQL and schema still need these changes:
+- Execute every supplied statement in order inside a Serializable transaction.
+- Require each `expect_changes(count)` mutation to affect exactly that many rows before commit.
+  Roll back every earlier write if the count differs or a statement fails.
+- Return one outcome per supplied statement after commit.
+- Use one coherent read snapshot, including the transaction's own earlier writes.
+- Retry the complete transaction for PostgreSQL serialization failures and deadlocks, with at most three retries.
+  Reuse its original statements and bound values.
+- Return transport and uncertain commit errors to the caller.
+  Reconcile those outcomes through durable command replay instead of repeating external effects.
+- Set the transaction's schema path and `synchronous_commit` explicitly.
 
-| Current dependency | PostgreSQL work |
-| --- | --- |
-| SQLite `?1` placeholders and text/null parameters | Use PostgreSQL `$1` parameters and explicit parameter types. Audit repeated parameters and numeric comparisons. |
-| SQLite `INTEGER`, text-to-number conversion, and `CAST(... AS INTEGER)` | Use `BIGINT` for millisecond timestamps and other existing `i64` fields. Preserve range checks and row decoding. |
-| `INSERT OR IGNORE` and untargeted conflict handling | Choose explicit uniqueness conflicts. Preserve replay behavior and distinguish other constraint failures. |
-| SQLite trigger bodies, `RAISE(ABORT)`, role checks, and partial indexes | Port the constraints and triggers. Retain retirement barriers and role isolation. |
-| `changes()` and the guard table | Check each command's affected-row count inside the transaction. Roll back on mismatch before `COMMIT`. |
-| D1 result metadata and JSON row decoding | Map rows, nulls, integers, affected-row counts, and database errors at the driver boundary. |
+PostgreSQL documents [Serializable isolation and required transaction retries](https://www.postgresql.org/docs/18/transaction-iso.html).
+The driver checks [affected-row counts](https://www.postgresql.org/docs/18/sql-update.html#SQL-UPDATE-OUTPUTS) before commit.
+A successful SQL command that affects zero rows can still fail a domain requirement.
 
-PostgreSQL documents [parameter positions](https://www.postgresql.org/docs/18/sql-prepare.html),
-[integer ranges](https://www.postgresql.org/docs/18/datatype-numeric.html), and
-[affected-row counts](https://www.postgresql.org/docs/18/sql-update.html#SQL-UPDATE-OUTPUTS).
-An update that affects zero rows is a successful SQL command.
-The driver must convert a failed row-count requirement into a transaction failure.
+Shared lifecycle statements now use PostgreSQL `$1` parameter positions and `BIGINT` casts.
+The D1 driver converts numbered parameter markers to SQLite `?1` markers at its execution boundary.
+This conversion preserves quoted literals and repeated positions.
+It does not translate SQL expressions or database behavior.
+The source-retirement insert uses an explicit uniqueness conflict target.
 
-Atomic commit alone cannot preserve the store's read behavior.
-`bound_share.rs` reads the admission, requested epoch, and active roots in one transaction.
-Those reads must share one snapshot and see earlier writes in that transaction.
-PostgreSQL's default Read Committed level gives successive queries separate snapshots.
-Repeatable Read preserves a snapshot but permits serialization anomalies.
-Serializable transactions prevent those anomalies and can require retries.
-These distinctions follow the [PostgreSQL isolation contract](https://www.postgresql.org/docs/18/transaction-iso.html).
+Epoch swaps retire the current row before activating its successor.
+Both mutations and the command checkpoint commit in one transaction.
+This ordering preserves the unique active-root index without relying on physical row update order.
+The managed-restore forward refresh uses the same transaction helper.
 
-A future implementation should start with Serializable transactions and bounded retries for retryable database failures.
-Retry the complete transaction with the same operation identity.
-Reconcile domain conflicts and uncertain commit outcomes through the existing durable replay records.
-Do not repeat external signing, backup, or peer effects inside a database retry.
-Any weaker isolation design needs equivalent locks and concurrency evidence.
+The [PostgreSQL schema](../crates/router-ab-cloudflare/migrations/postgres/0001_role_store.sql)
+contains the current tenant-root role tables and their constraints.
+It uses `BIGINT` for existing 64-bit fields, checks JSON text, and preserves retired-lineage write barriers.
+Encrypted records retain their original bytes, authenticated metadata, and protocol domain strings.
+The PostgreSQL schema has no D1 count-guard table.
+D1 retains its existing constraint guards inside its driver.
 
-Preserve these boundaries during the port:
+Call `apply_postgres_role_store_schema_v1` once with migration credentials against an empty role-private database.
+The function installs the schema and fixes that database's role identity.
+Session construction rejects a different expected role.
+Use a separate database and runtime login for each Deriver.
+Grant each runtime login only its own database connection and table permissions.
+Keep migration credentials outside the runtime process.
+The E2E runner demonstrates these grants and checks that A's credentials cannot open B's database.
 
-- Keep Deriver A and B in separate credential and storage boundaries.
-  One session must never access both roles' shares or wrapping keys.
-- Preserve primary reads for admission and lifecycle decisions.
-  The current D1 constructor uses `FirstPrimary`.
-- Keep cancellation, settlement, retirement, and replay writes subject to their current state predicates.
-  Port the retirement triggers that reject late inserts and updates.
-- Preserve encrypted record bytes, authenticated metadata, and protocol domain strings.
-  A database move does not authorize changes to those formats.
-- Check commit durability, lost-response reconciliation, restart recovery, and backup restoration on the actual PostgreSQL implementation.
-  Local Workers tests cannot establish RDS durability or failover behavior.
-
-This interface covers only the Rust tenant-root role store.
-Gateway stores under `packages/wallet-server/src/router/cloudflare/d1` remain a separate port.
-Their migrations live under `packages/wallet-server/migrations/d1-signer`.
-They also use SQLite JSON functions, scalar `MAX`, time functions, conflict rules, and row-count guards.
-Audit registration, authorization, custody commits, OTP consumption, and relocation transactions together with their schemas.
-SigningWorker persistence, Durable Objects, R2 backups, and private Console stores require separate implementation work.
-
-Use these implementation gates to establish a viable migration path:
-
-| Gate | Deliverable and acceptance condition |
-| --- | --- |
-| PostgreSQL role store | Implement its schema, typed parameters, row decoding, and transaction execution together. Replace SQLite SQL explicitly. Avoid a general SQL translator. |
-| Real database evidence | Run admission races, checkpoint rollback, restore, cancellation, and retirement against an actual PostgreSQL instance. Add restart and uncertain-commit cases. |
-| Provider access | Run the same checks through the selected provider's actual connection or transaction API. Require atomic multi-statement transactions and the chosen isolation guarantees. |
-| Remaining persistence | Port Gateway and Console transactions with their constraints. Inventory SigningWorker storage separately. Track each store until its lifecycle scenarios pass. |
-| Cutover readiness | Rehearse schema creation, data import, integrity checks, write fencing, and recovery in an isolated environment. Decide production cutover only after that evidence exists. |
-
-A serverless access method must keep all statements inside the same database transaction.
-Separate query requests do not satisfy this requirement by themselves.
-Test connection pooling, transaction retries, and uncertain commits through the exact access method that deployment will use.
-Keep a second provider possible through that same PostgreSQL implementation.
-Provider-specific services must not become requirements inside lifecycle code.
-
-Storage portability and runtime portability are separate work.
-Replacing D1 does not replace Workers service bindings, Durable Object coordination, or R2 storage.
-Those dependencies need their own replacement plan if the runtime must also leave Cloudflare.
-
-Repeat the local evidence from the repository root:
+Run the storage E2E from the repository root:
 
 ```sh
-ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm build:workers
-ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --admission-races
-ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --refresh-after-managed-restore
-ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-admission-settlement
-ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --retirement-trigger
+pnpm -C crates/router-ab-cloudflare test:postgres-role-store
+pnpm check:cargo-locks --offline
 pnpm report:bloat --check
 ```
 
-The admission scenario includes a zero-row checkpoint after an earlier pending-share insert.
-It checks rollback, retry, and replay of the same operation through the Rust Workers.
-Results and source hashes are in [the saved evidence](evidence/storage-portability-20261021.json).
-Run equivalent scenarios against PostgreSQL before claiming support.
+The runner starts a disposable local Docker container with a pinned PostgreSQL image.
+It creates separate databases and credentials, applies the real schema, and uses the real Rust store and driver.
+It removes the container when the run ends.
+The test covers:
+
+- encrypted creation, signed receipt replay, and connection restart.
+- missed checkpoints that roll back an earlier share insertion and both epoch-swap mutations.
+- cancellation, claimed admission settlement, and atomic epoch swaps.
+- backup restore that stays pending until its mandatory forward refresh.
+- retired-epoch cleanup and rejection of writes after source retirement.
+- encrypted restore-import and retention-key round trips, including 64-bit timestamps and key versions.
+- a concurrent commit between reads, with both reads retaining one snapshot.
+- a forced serialization failure that retries the complete transaction.
+- a real committed transaction whose acknowledgement a TCP proxy discards, followed by exact receipt reconciliation.
+
+The proxy recognizes PostgreSQL's documented [CommandComplete message](https://www.postgresql.org/docs/18/protocol-message-formats.html).
+It discards the server's COMMIT response after the commit occurs.
+This tests uncertain-commit handling through the actual driver and database.
+
+Each run saves its result, command, server version, image identity, source hashes, and log under `.artifacts/postgres-role-store/`.
+The committed run is in [the PostgreSQL evidence](evidence/postgres-role-store-20261021.json).
+Local PostgreSQL evidence does not establish cloud failover or the behavior of a provider's pooler or HTTP access method.
+Run the same lifecycle scenarios through the intended deployment connection before claiming that deployment ready.
+
+The complete Wallet backend still needs additional ports.
+Gateway stores live under `packages/wallet-server/src/router/cloudflare/d1`, with schemas under `packages/wallet-server/migrations/d1-signer`.
+Private Console stores live in `seams-monorepo`.
+They contain their own SQLite JSON functions, time functions, conflict rules, triggers, and transaction boundaries.
+Port and test each store with its lifecycle behavior.
+Runtime hosting, Durable Object coordination, R2 replacement, data import, and production cutover remain separate work.
