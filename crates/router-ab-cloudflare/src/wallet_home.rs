@@ -14,7 +14,7 @@ impl WalletHomeRegion {
         match self {
             Self::US => "enam",
             Self::WEUR => "weur",
-            Self::APAC => "apac",
+            Self::APAC => "apac-se",
             Self::OC => "oc",
         }
     }
