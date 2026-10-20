@@ -18,6 +18,7 @@
       "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
       "@seams/wallet": ["../packages/wallet/src/index.ts"],
       "@seams/wallet/react": ["../packages/wallet/src/react/index.ts"],
+      "@seams/wallet/react/profile": ["../packages/wallet/src/react/components/AccountMenuButton/index.ts"],
       "@seams/wallet/advanced": ["../packages/wallet/src/advanced.ts"],
       "@/core/runtime": ["../packages/wallet/src/core/runtime/index.ts"],
       "@/core/runtime/*": ["../packages/wallet/src/core/runtime/*"],
