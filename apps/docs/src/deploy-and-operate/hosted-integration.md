@@ -66,12 +66,18 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.15.4
+## Upgrading to 0.15.5
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.4**. Use `@seams/wallet-cli` **0.15.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.5**. Use `@seams/wallet-cli` **0.15.0**.
 
-APAC wallet objects now request Southeast Asia placement. Verify the actual
-object and database locations before accepting a hosted deployment.
+The auth menu now shows the Google sign-in wait in the passkey prompt style:
+the ring, the headline, and one instruction line. This release changes only the
+hosted wallet UI. Deploy the matching wallet host; Workers from 0.15.4 stay
+compatible.
+
+From a release before 0.15.4: APAC wallet objects now request Southeast Asia
+placement. Verify the actual object and database locations before accepting a
+hosted deployment.
 
 The auth menu retains the 0.15.2 passkey ring spinner and the 0.15.3
 account-menu row arrows and hover states. Deploy the matching custody Workers
