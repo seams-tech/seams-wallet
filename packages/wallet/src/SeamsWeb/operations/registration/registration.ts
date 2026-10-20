@@ -208,7 +208,6 @@ import { joinCustodyWireFromEnvelopeRecord } from '@/core/signingEngine/walletCu
 import type { WalletCustodyCacheEnvelopeV1 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import { nearEd25519YaoMaterialActivationFromMetadata } from '@/core/signingEngine/session/material/nearEd25519YaoMaterialActivation';
 import { persistPasskeyEd25519YaoSignerMaterialV1 } from '@/core/signingEngine/session/passkey/ed25519YaoLocalMaterial';
-import { RouterAbEd25519YaoClientV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { StoreWalletSignerFinalizeRollbackReceipt } from '@/core/indexedDB/seamsWalletDB/repositories';
 import { toAccountId } from '@/core/types/accountIds';
 import { normalizeRuntimePolicyScope } from '@shared/threshold/signingRootScope';
@@ -265,6 +264,7 @@ import {
   buildRegistrationEmailOtpEd25519SessionState,
   RegistrationPasskeyAuthority,
   passkeyWalletAuthAuthorityFromCredential,
+  prewarmPasskeyNearRegistration,
   registrationEd25519MaterialFacts,
   buildRegistrationPasskeyEd25519SessionHydration,
   requireEd25519YaoRegistrationPublicResultMatches,
@@ -876,7 +876,10 @@ function startRegistrationWarmup(input: {
     evmFamilyEcdsa: registrationSelectionIncludesEcdsa(input.signerSelection),
   });
   if (registrationSelectionIncludesNear(input.signerSelection)) {
-    void prewarmPasskeyEd25519Client(input.authMethod);
+    void prewarmPasskeyNearRegistration(
+      input.authMethod,
+      input.context.signingEngine.prewarmNearSigner.bind(input.context.signingEngine),
+    );
   }
   const genericWarmup = input.recorder.measure(
     'registrationWarmupMs',
@@ -3128,17 +3131,6 @@ async function activatePasskeyRegistrationEd25519Material(args: {
     throw error;
   } finally {
     args.ownedFactorSecret.fill(0);
-  }
-}
-
-async function prewarmPasskeyEd25519Client(
-  auth: RegistrationAuthMethodInput,
-): Promise<void> {
-  if (auth.kind !== 'passkey') return;
-  try {
-    await RouterAbEd25519YaoClientV1.initializeBundled();
-  } catch {
-    // Material activation retries initialization and owns any terminal failure.
   }
 }
 

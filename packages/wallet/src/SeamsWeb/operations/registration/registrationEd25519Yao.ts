@@ -5,7 +5,10 @@ import {
   ROUTER_AB_ED25519_YAO_REGISTRATION_ADMISSION_PATH_V1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
 } from '@shared/utils/routerAbEd25519Yao';
-import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
+import {
+  RouterAbEd25519YaoClientV1,
+  RouterAbEd25519YaoHttpActivationTransportV1,
+} from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import type { RouterAbEd25519YaoHttpTransportConfigV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import { parseThresholdEd25519SessionId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { ThresholdEd25519SessionId } from '@/core/signingEngine/session/operationState/types';
@@ -45,6 +48,19 @@ import type {
 import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signingSessionSeal';
 import { assertNever } from './registrationTiming';
 import { sameRuntimePolicyScope } from './registrationStrictEcdsa';
+
+export async function prewarmPasskeyNearRegistration(
+  auth: RegistrationAuthMethodInput,
+  prewarmSigner: () => void,
+): Promise<void> {
+  if (auth.kind !== 'passkey') return;
+  // Each operation retries its own initialization if this best-effort warmup fails.
+  await Promise.allSettled([
+    Promise.resolve().then(prewarmSigner),
+    RouterAbEd25519YaoClientV1.initializeBundled(),
+  ]);
+}
+
 type PasskeyAuthorityCredential = {
   readonly id?: unknown;
   readonly rawId?: unknown;

@@ -312,3 +312,62 @@ test(
   'NEAR registration survives a failed server seal and signs after exact-method unlock',
   verifyFailedRegistrationSeal,
 );
+
+class FailedNearSignerWarmup {
+  attempts = 0;
+  failedLoads = 0;
+
+  async handle(route: Route): Promise<void> {
+    this.attempts += 1;
+    if (this.failedLoads === 0) {
+      this.failedLoads += 1;
+      await route.abort('failed');
+      return;
+    }
+    await route.fallback();
+  }
+}
+
+async function verifyNearSignerWarmupRecovery(
+  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  testInfo: TestInfo,
+): Promise<void> {
+  const fault = new FailedNearSignerWarmup();
+  const handle = fault.handle.bind(fault);
+  const pattern = '**/near-signer.worker.js*';
+  await context.route(pattern, handle);
+  try {
+    await harness.registerPasskeyEd25519YaoWallet();
+    expect(fault.failedLoads, 'registration must survive a failed signer warmup').toBe(1);
+    const first = await harness.signNearMessage('Sign after a failed NEAR worker warmup');
+    const attemptsAfterFirstSignature = fault.attempts;
+    const second = await harness.signNearMessage('Reuse the initialized NEAR signer worker');
+    expect(fault.attempts).toBe(attemptsAfterFirstSignature);
+    expect(second.nonce).not.toBe(first.nonce);
+    const artifact = testInfo.outputPath('near-signer-warmup-recovery.json');
+    await writeFile(
+      artifact,
+      JSON.stringify(
+        {
+          failedWarmupLoads: fault.failedLoads,
+          workerLoadAttempts: fault.attempts,
+          first,
+          second,
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('near-signer-warmup-recovery', {
+      path: artifact,
+      contentType: 'application/json',
+    });
+  } finally {
+    await context.unroute(pattern, handle);
+  }
+}
+
+test(
+  'NEAR registration survives signer worker warmup failure and signs twice',
+  verifyNearSignerWarmupRecovery,
+);

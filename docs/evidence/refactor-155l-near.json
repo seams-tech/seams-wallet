@@ -1,0 +1,939 @@
+{
+  "date": "2026-10-21",
+  "scope": "NEAR passkey registration and its first signature. Browser assets are local HTTPS; the backend is staging.",
+  "sourceBaseRevision": "f0aa22e87f973d5fa090cc951b556b7421589674",
+  "sourceSha256": {
+    "packages/wallet/scripts/build/build-wasm.sh": "3333ef6325645feeceb23323c1c246e4e6acb6f8f3df2b0575faf1c3b191308a",
+    "packages/wallet/src/SeamsWeb/operations/registration/registration.ts": "7941c527b4959a30dbbbbfa40f67463728310f1b9f6ecb5aa7b8d3f78223ef62",
+    "packages/wallet/src/SeamsWeb/operations/registration/registrationEd25519Yao.ts": "5cf080d6026e989b36ba1c9af146326f7374e873ebe2a4c5b3c8d0f57b4c5640",
+    "packages/wallet/src/SeamsWeb/signingSurface/BrowserSigningSurface.ts": "70bea6b0135766fdae60afa17d6093ce8d4fe8db3e97e6066856e8b8a01d4f68",
+    "packages/wallet/src/SeamsWeb/signingSurface/ports.ts": "b6d04966c25d1328a9fae7ddf14a63b36ca382bb15e877da5a79fce577c8b282",
+    "packages/wallet/src/core/signingEngine/workerManager/SignerWorkerManager.ts": "76f1e22001b4907bacd0a7b4068e21f59f58ed9edff797cfda0cfbcda574c6c8",
+    "packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts": "f9a3bc110bc2f9c26ce73f42c7f074c5067d6c51d3dc76f210b399f2b3c52e0c",
+    "tests/e2e/intended-behaviours/passkey.near-registration-commit.contract.test.ts": "bd3119c4cbb29d1b365ac6d902e374f397078461a0eb9cd1d8fee3d727bd4a3e"
+  },
+  "hostedSdkVersions": {
+    "staging-iframe": "0.15.4",
+    "production-iframe": "0.15.4"
+  },
+  "candidatePackageVersion": "0.15.6 with unpublished source changes",
+  "cohorts": {
+    "00-control": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/00-control/registration-1.json",
+          "sha256": "15dc4e2468f4bc3fe76b47a129d3d5be3df2174a5d65b9605b55554fee54c7ee",
+          "hydrationMs": 43.80000001192093,
+          "clientUnsealMs": 39,
+          "postPasskeyStageSumMs": 1831.300000011921,
+          "finalizationResponseObservedOffsetMs": 3850.555875,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/00-control/registration-2.json",
+          "sha256": "65994ef95b480b324c0aa261cb9caa0420ac4b0d25ac87d56a3957528a0f57fe",
+          "hydrationMs": 46,
+          "clientUnsealMs": 41,
+          "postPasskeyStageSumMs": 1872.199999988079,
+          "finalizationResponseObservedOffsetMs": 3770.6270409999997,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/00-control/registration-3.json",
+          "sha256": "62d9ffd7e146613f690906e5bb8c14cc6fe6a48a9a7f6feb2e0a4451b135bd4d",
+          "hydrationMs": 41.89999997615814,
+          "clientUnsealMs": 39,
+          "postPasskeyStageSumMs": 2214.0,
+          "finalizationResponseObservedOffsetMs": 4103.294207999999,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 43.80000001192093,
+      "medianClientUnsealMs": 39,
+      "medianPostPasskeyStageSumMs": 1872.199999988079
+    },
+    "01-traced-control": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/01-traced-control/registration-1.json",
+          "sha256": "617367dc1940a23170e95ae600e386a99de38526193c15c75ea4dcff9865b099",
+          "hydrationMs": 42.90000003576279,
+          "clientUnsealMs": 39,
+          "postPasskeyStageSumMs": 2294.899999976158,
+          "finalizationResponseObservedOffsetMs": 3538.390417,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/01-traced-control/registration-2.json",
+          "sha256": "5725e1b28b0b75fcb04833f5c2268e2243387ac1073996b50291b9101d1cbe11",
+          "hydrationMs": 46.299999952316284,
+          "clientUnsealMs": 43,
+          "postPasskeyStageSumMs": 1460.300000011921,
+          "finalizationResponseObservedOffsetMs": 3376.998375,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/01-traced-control/registration-3.json",
+          "sha256": "3a22faeb983c82f137077483f28c63fcd17abc2ddc6d8b7fcfef38f3e9f7c362",
+          "hydrationMs": 43.19999998807907,
+          "clientUnsealMs": 40,
+          "postPasskeyStageSumMs": 1700.800000011921,
+          "finalizationResponseObservedOffsetMs": 3617.746500000001,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 43.19999998807907,
+      "medianClientUnsealMs": 40,
+      "medianPostPasskeyStageSumMs": 1700.800000011921
+    },
+    "02-candidate": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/02-candidate/registration-1.json",
+          "sha256": "ba770a41ec47b89eabcaebb405729b002cc2ae2eea65322bc3c670e4df3d74cb",
+          "hydrationMs": 5.5,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 3481.099999964237,
+          "finalizationResponseObservedOffsetMs": 6304.529624999999,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/02-candidate/registration-2.json",
+          "sha256": "d64f0b2550e63f4c4ae67ce649397bddeae09796cda946c179952954d4c1221f",
+          "hydrationMs": 5.400000035762787,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 1576.800000011921,
+          "finalizationResponseObservedOffsetMs": 3523.917125,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/02-candidate/registration-3.json",
+          "sha256": "b3f5c605f5d34280499998ba14cf6bcaf4b185072678b1490b1fd73aa45e7bd0",
+          "hydrationMs": 6.399999976158142,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 1762.5,
+          "finalizationResponseObservedOffsetMs": 3679.700958999998,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 5.5,
+      "medianClientUnsealMs": 2,
+      "medianPostPasskeyStageSumMs": 1762.5
+    },
+    "03-candidate-repeat": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/03-candidate-repeat/registration-1.json",
+          "sha256": "a8c410d96f12914914e7788b22cf0455f39b62f776194d69dfaa357f2ab2fb28",
+          "hydrationMs": 5.600000023841858,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 2028.5,
+          "finalizationResponseObservedOffsetMs": 4112.743458999999,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/03-candidate-repeat/registration-2.json",
+          "sha256": "0d3b850d1e52db8263a16b36eca61ce89313d1aa1cf4a458de36e8f9cb208308",
+          "hydrationMs": 8.5,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 1829.7999999523163,
+          "finalizationResponseObservedOffsetMs": 3010.2140419999996,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/03-candidate-repeat/registration-3.json",
+          "sha256": "bfa7938679159376c28918607b128ca9ec81222facf76f1ed1be1bbb8cf29067",
+          "hydrationMs": 5.199999988079071,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 2019.8999999761581,
+          "finalizationResponseObservedOffsetMs": 4003.9958750000005,
+          "signerAssets": [],
+          "lateSignerAssetRequests": null,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 5.600000023841858,
+      "medianClientUnsealMs": 2,
+      "medianPostPasskeyStageSumMs": 2019.8999999761581
+    },
+    "04-control-repeat": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/04-control-repeat/registration-1.json",
+          "sha256": "0f70e95e95f9e3b5e876c61b1b7b8f1be716af486b6ec973716920cc5d1b7fb9",
+          "hydrationMs": 52,
+          "clientUnsealMs": 48,
+          "postPasskeyStageSumMs": 3467.5,
+          "finalizationResponseObservedOffsetMs": 5435.813625000001,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 1232.093834,
+              "browserRequestElapsedMs": 1.601
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "requestObservedOffsetMs": 6231.708500000001,
+              "browserRequestElapsedMs": 4.253
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 6236.789000000001,
+              "browserRequestElapsedMs": 1.087
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/04-control-repeat/registration-2.json",
+          "sha256": "52f2dca4f0eb3ada82834a68a7bc416ce3c2509a4766078ea2aa9dacd32d2094",
+          "hydrationMs": 43.30000001192093,
+          "clientUnsealMs": 40,
+          "postPasskeyStageSumMs": 4733.199999988079,
+          "finalizationResponseObservedOffsetMs": 7419.714166999998,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 2220.2354589999995,
+              "browserRequestElapsedMs": 0.954
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "requestObservedOffsetMs": 7688.092417,
+              "browserRequestElapsedMs": 3.125
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 7691.889209000001,
+              "browserRequestElapsedMs": 1.058
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/04-control-repeat/registration-3.json",
+          "sha256": "61ba28c152a01ec3c254e916e062aaf7d4e3e38bbb3412d92ecec4b52b443393",
+          "hydrationMs": 52,
+          "clientUnsealMs": 48,
+          "postPasskeyStageSumMs": 2409.699999988079,
+          "finalizationResponseObservedOffsetMs": 5849.665707999997,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 2920.221540999999,
+              "browserRequestElapsedMs": 1.356
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "requestObservedOffsetMs": 6119.174040999998,
+              "browserRequestElapsedMs": 2.743
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 6122.476290999999,
+              "browserRequestElapsedMs": 1.087
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 52,
+      "medianClientUnsealMs": 48,
+      "medianPostPasskeyStageSumMs": 3467.5
+    },
+    "05-preload-qualification": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/05-preload-qualification/registration-1.json",
+          "sha256": "41020b7c4b2e0a14e830d87f2f6262cfcc08425fa0f6e88e12d3d54fd63a8fe3",
+          "hydrationMs": 7.399999976158142,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 2954.099999964237,
+          "finalizationResponseObservedOffsetMs": 4197.944958,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 901.506208,
+              "browserRequestElapsedMs": 1.525
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "requestObservedOffsetMs": 4691.6095000000005,
+              "browserRequestElapsedMs": 4.117
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "requestObservedOffsetMs": 4696.4288750000005,
+              "browserRequestElapsedMs": 1.106
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": null,
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 1,
+      "medianHydrationMs": 7.399999976158142,
+      "medianClientUnsealMs": 3,
+      "medianPostPasskeyStageSumMs": 2954.099999964237
+    },
+    "06-cache-control": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/06-cache-control/registration-1.json",
+          "sha256": "da7114031fa83ecc46e0b84ca8631947053a54c8af67c4d791d09bc943cd2eb0",
+          "hydrationMs": 7,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 3110.0,
+          "finalizationResponseObservedOffsetMs": 4413.05475,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 1177.3650830000001,
+              "browserRequestElapsedMs": 2.871
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 4752.245708,
+              "browserRequestElapsedMs": 4.182
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 4757.1669170000005,
+              "browserRequestElapsedMs": 1.157
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/06-cache-control/registration-2.json",
+          "sha256": "09ae9e792bfa4be760b796ca7bc6cb66955911cbdd24576448ba0b350fedb4bc",
+          "hydrationMs": 7.900000035762787,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 3002.900000035763,
+          "finalizationResponseObservedOffsetMs": 4950.614958,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 1927.0103330000002,
+              "browserRequestElapsedMs": 2.32
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 5377.25525,
+              "browserRequestElapsedMs": 3.511
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 5381.713582999999,
+              "browserRequestElapsedMs": 1.104
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/06-cache-control/registration-3.json",
+          "sha256": "cb88b24a6d172e098aa0a2d1b2c235b9acffe4327645baf7395ba23714f5330a",
+          "hydrationMs": 7.699999988079071,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 2047.300000011921,
+          "finalizationResponseObservedOffsetMs": 4782.926457999998,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 2473.5312080000003,
+              "browserRequestElapsedMs": 1.237
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 5395.2514999999985,
+              "browserRequestElapsedMs": 3.581
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 5399.6339579999985,
+              "browserRequestElapsedMs": 1.147
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 7.699999988079071,
+      "medianClientUnsealMs": 3,
+      "medianPostPasskeyStageSumMs": 3002.900000035763
+    },
+    "07-cache-candidate": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/07-cache-candidate/registration-1.json",
+          "sha256": "f83f349d4ad2ea5076042fd57aa0edf0f86068fb136549c32853125dd6994483",
+          "hydrationMs": 4.699999988079071,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 2106.399999976158,
+          "finalizationResponseObservedOffsetMs": 3333.104792,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 844.9988749999998,
+              "browserRequestElapsedMs": 1.516
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3821.3870420000003,
+              "browserRequestElapsedMs": 2.802
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3824.775667,
+              "browserRequestElapsedMs": 1.196
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/07-cache-candidate/registration-2.json",
+          "sha256": "42b7bf149682b4bb955f345e59c45f9bf41747cb658018adfd5c0eee1617da26",
+          "hydrationMs": 7.800000011920929,
+          "clientUnsealMs": 4,
+          "postPasskeyStageSumMs": 1544.300000011921,
+          "finalizationResponseObservedOffsetMs": 3462.298584,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 1184.0143749999988,
+              "browserRequestElapsedMs": 2.722
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3769.851666999999,
+              "browserRequestElapsedMs": 3.483
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3774.1391249999997,
+              "browserRequestElapsedMs": 1.547
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/07-cache-candidate/registration-3.json",
+          "sha256": "a84ee635909a9ef2e373ed99e3d9c2b3eb95d4bedccad7f4996c8dd587f4b538",
+          "hydrationMs": 5.099999964237213,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 1935.0,
+          "finalizationResponseObservedOffsetMs": 3112.222332999998,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 585.3114999999998,
+              "browserRequestElapsedMs": 0.941
+            },
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3768.139374999999,
+              "browserRequestElapsedMs": 2.738
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 3771.386458000001,
+              "browserRequestElapsedMs": 1.035
+            }
+          ],
+          "lateSignerAssetRequests": 2,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 5.099999964237213,
+      "medianClientUnsealMs": 2,
+      "medianPostPasskeyStageSumMs": 1935.0
+    },
+    "08-worker-prewarm": {
+      "samples": [
+        {
+          "artifact": ".artifacts/refactor-155l-near/08-worker-prewarm/registration-1.json",
+          "sha256": "ca09fa3c82566315d0af421cbb55a01e1b1f41a528cc1fcff614800e42188f12",
+          "hydrationMs": 5.200000047683716,
+          "clientUnsealMs": 2,
+          "postPasskeyStageSumMs": 2278.399999976158,
+          "finalizationResponseObservedOffsetMs": 4314.928333,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 175.3517499999998,
+              "browserRequestElapsedMs": 4.245
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 180.42416700000012,
+              "browserRequestElapsedMs": 1.679
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 1838.2345,
+              "browserRequestElapsedMs": 1.003
+            }
+          ],
+          "lateSignerAssetRequests": 0,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/08-worker-prewarm/registration-2.json",
+          "sha256": "b8ccc6ea37aa7d840cf68679ee81aedcaeeb7f5e74fd259a4d840717c4f671a2",
+          "hydrationMs": 7.699999988079071,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 1831.699999988079,
+          "finalizationResponseObservedOffsetMs": 3772.2297500000004,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 173.57458399999996,
+              "browserRequestElapsedMs": 3.969
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 177.84683399999994,
+              "browserRequestElapsedMs": 0.999
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 1381.535917000001,
+              "browserRequestElapsedMs": 1.145
+            }
+          ],
+          "lateSignerAssetRequests": 0,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        },
+        {
+          "artifact": ".artifacts/refactor-155l-near/08-worker-prewarm/registration-3.json",
+          "sha256": "cf461e40f7cda021ee00924ecb0c10152d7ce495bac1c94c509d2a3a90db477f",
+          "hydrationMs": 7.199999988079071,
+          "clientUnsealMs": 3,
+          "postPasskeyStageSumMs": 2162.399999976158,
+          "finalizationResponseObservedOffsetMs": 4096.138041000002,
+          "signerAssets": [
+            {
+              "path": "/sdk/workers/near-signer.worker.js",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 172.33587500000067,
+              "browserRequestElapsedMs": 4.434
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6",
+              "requestObservedOffsetMs": 176.9794580000016,
+              "browserRequestElapsedMs": 1.025
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null,
+              "requestObservedOffsetMs": 1355.3396659999999,
+              "browserRequestElapsedMs": 0.76
+            }
+          ],
+          "lateSignerAssetRequests": 0,
+          "signerWasmTransfers": [
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": "0.15.6"
+            },
+            {
+              "path": "/sdk/workers/wasm_signer_worker_bg.wasm",
+              "assetVersion": null
+            }
+          ],
+          "signatureAndTamperingVerified": true
+        }
+      ],
+      "count": 3,
+      "medianHydrationMs": 7.199999988079071,
+      "medianClientUnsealMs": 3,
+      "medianPostPasskeyStageSumMs": 2162.399999976158
+    }
+  },
+  "sixWorkerDeploymentVersionsBefore": {
+    "router-ab-mpc-router-staging": [
+      {
+        "version_id": "41dd4710-c245-49d3-aee6-8584cd98280b",
+        "percentage": 100
+      }
+    ],
+    "router-ab-signing-worker-staging": [
+      {
+        "version_id": "4ebb445a-9aba-450b-b5b7-45bf22db29b1",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-a-staging": [
+      {
+        "version_id": "6d5163de-7b9a-468d-bc71-4ff3728ceca0",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-b-staging": [
+      {
+        "version_id": "a724fb71-fefa-4546-a534-3febb9c5fb96",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging": [
+      {
+        "version_id": "fde1b322-b876-4626-83d8-91037c1402f3",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging": [
+      {
+        "version_id": "0fa9bb1c-9c64-416a-874c-f63df39efbb0",
+        "percentage": 100
+      }
+    ]
+  },
+  "sixWorkerDeploymentVersionsAfterInitialComparison": {
+    "router-ab-mpc-router-staging": [
+      {
+        "version_id": "41dd4710-c245-49d3-aee6-8584cd98280b",
+        "percentage": 100
+      }
+    ],
+    "router-ab-signing-worker-staging": [
+      {
+        "version_id": "4ebb445a-9aba-450b-b5b7-45bf22db29b1",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-a-staging": [
+      {
+        "version_id": "6d5163de-7b9a-468d-bc71-4ff3728ceca0",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-b-staging": [
+      {
+        "version_id": "a724fb71-fefa-4546-a534-3febb9c5fb96",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging": [
+      {
+        "version_id": "fde1b322-b876-4626-83d8-91037c1402f3",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging": [
+      {
+        "version_id": "0fa9bb1c-9c64-416a-874c-f63df39efbb0",
+        "percentage": 100
+      }
+    ]
+  },
+  "buildArtifactDifference": {
+    "changed": [
+      {
+        "path": "sdk/workers/shamir3pass_runtime.js",
+        "controlBytes": 17489,
+        "candidateBytes": 15390,
+        "controlSha256": "fe2273bcf11b3b9e1f7fe118373be5025ca558746ab85726155d39cfe08da881",
+        "candidateSha256": "85d48cb5c81e385b70660cee22735c45e5bd2b3ee9aae9aee31e70777057bb21"
+      },
+      {
+        "path": "sdk/workers/shamir3pass_runtime_bg.wasm",
+        "controlBytes": 654272,
+        "candidateBytes": 118841,
+        "controlSha256": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+        "candidateSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9"
+      },
+      {
+        "path": "sdk/workers/shamir3pass.worker.js",
+        "controlBytes": 24858,
+        "candidateBytes": 22825,
+        "controlSha256": "56c0a2f3da4a81c9e1e16b339109c662ec1054345fbbb2d9f67449d68e806c55",
+        "candidateSha256": "38b3ec8546d5db97df459576186e8d8c447ad8ab21d4eab5dbd040f1044c7573"
+      }
+    ],
+    "added": []
+  },
+  "finalLocalContracts": {
+    "passed": 3,
+    "proofArtifacts": [
+      {
+        "artifact": ".artifacts/refactor-155l-near/local-prewarm-browser/e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium/near-message-signatures.json",
+        "sha256": "cf3f9640bbdc310e74ec511a57bed32288d48815ee08e77c2c05048990a02b6c",
+        "verifiedSignatures": 2
+      },
+      {
+        "artifact": ".artifacts/refactor-155l-near/local-prewarm-browser/e2e-intended-behaviours-pa-f9e48-mup-failure-and-signs-twice-chromium/near-signer-warmup-recovery.json",
+        "sha256": "685240bb9e1da47b69172c512c768e1c8815a2cea07b5aef5bf9463c9b687798",
+        "verifiedSignatures": 2,
+        "failedWarmupLoads": 1,
+        "workerLoadAttempts": 2
+      }
+    ]
+  },
+  "checks": {
+    "sdkBuildIncludingTypeScript": "passed",
+    "intendedTypeCheck": "passed",
+    "defaultGatewayWasmBuild": "passed",
+    "bloatCheck": "passed"
+  },
+  "decisions": {
+    "nearSignerPrewarm": "Implemented. Signer worker and WASM requests moved before finalization in all three samples.",
+    "developmentSessionWasm": "Implemented. Always compile session sealing in release mode, following other hot crypto modules.",
+    "workerUrlConsolidation": "Discarded. Equal URLs still caused two server transfers in this HTTPS harness.",
+    "postFinalizationConcurrency": "Deferred. Additional exposed material activation and export work was small.",
+    "routerRemoval": "Deferred. Router spans include necessary validation and downstream work; a causal saving is unmeasured.",
+    "backgroundCompletion": "Excluded. Durable completion and replay behavior remain unchanged."
+  },
+  "limitations": [
+    "No production deployment or new package release was performed.",
+    "The sealing-profile improvement concerns development builds. Published production WASM was already optimized.",
+    "Post-passkey values are sums of consecutive near_only stages, excluding setup and authentication. Nested diagnostics are not added.",
+    "Server timing varies across cohorts. These samples do not establish an end-to-end or p99 speedup.",
+    "The prewarm change moves existing downloads earlier. It does not reduce their total count or bytes.",
+    "The HTTPS fixture now applies the generated manifest cache policy. Some earlier timing cohorts predate that instrumentation.",
+    "Only the six listed Worker deployments were recorded. Other regional deployment identities and cold server state are not established.",
+    "An initial local E2E command selected no tests. The corrected selector passed without a product change."
+  ],
+  "sixWorkerDeploymentVersionsAfterFinalComparison": {
+    "router-ab-mpc-router-staging": [
+      {
+        "version_id": "41dd4710-c245-49d3-aee6-8584cd98280b",
+        "percentage": 100
+      }
+    ],
+    "router-ab-signing-worker-staging": [
+      {
+        "version_id": "4ebb445a-9aba-450b-b5b7-45bf22db29b1",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-a-staging": [
+      {
+        "version_id": "6d5163de-7b9a-468d-bc71-4ff3728ceca0",
+        "percentage": 100
+      }
+    ],
+    "router-ab-deriver-b-staging": [
+      {
+        "version_id": "a724fb71-fefa-4546-a534-3febb9c5fb96",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-wallet-runtime-staging": [
+      {
+        "version_id": "fde1b322-b876-4626-83d8-91037c1402f3",
+        "percentage": 100
+      }
+    ],
+    "seams-sdk-d1-gateway-staging": [
+      {
+        "version_id": "0fa9bb1c-9c64-416a-874c-f63df39efbb0",
+        "percentage": 100
+      }
+    ]
+  },
+  "historicalHostedFirstSigningAssets": [
+    {
+      "artifact": ".artifacts/registration-asset-timing-20261020/00-current-remote/group-01/registration-1.json",
+      "sha256": "738a402c1d48c87b13a9c53eb0363858bebe605e29cfd25cf6b021a59d7e57cb",
+      "transfers": [
+        {
+          "url": "https://staging.sign.seams.sh/sdk/workers/near-signer.worker.js?v=0.15.4",
+          "browserRequestElapsedMs": 227.434
+        },
+        {
+          "url": "https://staging.sign.seams.sh/sdk/workers/wasm_signer_worker_bg.wasm?v=0.15.4",
+          "browserRequestElapsedMs": 220.137
+        }
+      ]
+    },
+    {
+      "artifact": ".artifacts/registration-asset-timing-20261020/02-current-remote/group-01/registration-1.json",
+      "sha256": "521dec761993a1f16b15dd99be0d115ebd894dc4478ae55e83f2fad576e9dcda",
+      "transfers": [
+        {
+          "url": "https://staging.sign.seams.sh/sdk/workers/near-signer.worker.js?v=0.15.4",
+          "browserRequestElapsedMs": 133.888
+        },
+        {
+          "url": "https://staging.sign.seams.sh/sdk/workers/wasm_signer_worker_bg.wasm?v=0.15.4",
+          "browserRequestElapsedMs": 197.091
+        }
+      ]
+    }
+  ],
+  "developmentProfileReproduction": {
+    "arguments": [
+      "--locked",
+      "--target",
+      "web",
+      "--dev",
+      "--no-opt"
+    ],
+    "bytes": 654272,
+    "sha256": "99bbb650019c6c07ea6cba1cc756c817cee954e347216177891256699461edd3",
+    "matchesMeasuredControl": true,
+    "releaseBytes": 118841,
+    "releaseSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9"
+  },
+  "finalHarnessSha256": {
+    "tests/e2e/hosted-product/near-signing-latency.test.ts": "11658eabbd479a9403005c7262259e0500109cccf2e35e0f84b9ccb995bc60b4",
+    "tests/e2e/hosted-product/candidate-assets.ts": "55d3dd1b29a3deb2793f68dcc37c6434cbb72110030059de22e0587d3136a3c2"
+  }
+}

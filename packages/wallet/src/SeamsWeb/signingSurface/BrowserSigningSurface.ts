@@ -3453,17 +3453,16 @@ export class BrowserSigningSurface {
     return await this.runWarmCriticalResources(accountContext);
   }
 
-  async prewarmEmailOtpYao(
-    request?: EmailOtpYaoPrewarmRequest,
-  ): Promise<EmailOtpYaoPrewarmOutcome> {
-    return await this.signerWorkerManager.prewarmEmailOtpYao(request);
+  prewarmNearSigner(): void {
+    this.signerWorkerManager.prewarmNearSigner();
   }
 
-  async prewarmEcdsaRegistrationCrypto(): Promise<{
-    kind: 'succeeded' | 'failed';
-    wasmInitMs: number;
-  }> {
-    return await this.signerWorkerManager.prewarmEcdsaRegistrationCrypto();
+  prewarmEmailOtpYao(request?: EmailOtpYaoPrewarmRequest): Promise<EmailOtpYaoPrewarmOutcome> {
+    return this.signerWorkerManager.prewarmEmailOtpYao(request);
+  }
+
+  prewarmEcdsaRegistrationCrypto() {
+    return this.signerWorkerManager.prewarmEcdsaRegistrationCrypto();
   }
 
   getRpId(): string {

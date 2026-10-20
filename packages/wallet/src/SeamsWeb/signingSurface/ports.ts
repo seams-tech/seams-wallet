@@ -216,6 +216,7 @@ export interface WalletIframeSurfaceMeasurementSurface {
 }
 
 export interface RegistrationResourceWarmupSurface {
+  prewarmNearSigner(): void;
   prewarmEmailOtpYao(): Promise<EmailOtpYaoPrewarmOutcome>;
   /* ECDSA WASM init during the auth prompt; fire-and-forget. */
   prewarmEcdsaRegistrationCrypto(): Promise<{ kind: 'succeeded' | 'failed'; wasmInitMs: number }>;

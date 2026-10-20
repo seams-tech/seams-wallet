@@ -122,6 +122,10 @@ export class SignerWorkerManager {
     return await this.workerTransport.prewarmEcdsaRegistrationCrypto();
   }
 
+  prewarmNearSigner(): void {
+    this.workerTransport.prewarmNearSigner();
+  }
+
   async prewarmEmailOtpYao(
     request?: EmailOtpYaoPrewarmRequest,
   ): Promise<EmailOtpYaoPrewarmOutcome> {

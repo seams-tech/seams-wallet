@@ -63,14 +63,16 @@ prove this, the runtime answers. The first other request loads the runtime, and
 from then on the runtime answers every read. `authMenu.prepare()` downloads the
 runtime ahead of a sign-in; applications call it on sign-in intent.
 
-Signer and custody workers are initialized by the operation that requires them.
-Selected registration preparation may start its required crypto during the
-credential prompt; a best-effort preparation failure does not replace the real
-operation's initialization check. A failed WASM load must be retryable on the
-same worker when asset delivery recovers. Concurrent requests share initialization;
-subsequent requests reuse the initialized module. A thread-ready notification
-alone does not prove crypto initialization succeeded. Worker reuse, cancellation,
-and durable presignature validity retain their existing contracts.
+Selected operations own signer and custody worker preparation. Passkey registration
+with NEAR starts the NEAR signer worker and Yao Client initialization during preparation.
+This warmup loads code without signing or installing wallet material. A preparation
+failure does not replace the real operation's initialization check.
+
+A failed WASM load must support retry in the same worker when asset delivery recovers.
+Concurrent requests share initialization. Subsequent requests reuse the initialized module.
+A thread-ready notification alone does not prove successful crypto initialization.
+Worker reuse, cancellation, and durable presignature validity retain their existing contracts.
+The NEAR registration contract checks failed worker warmup followed by two verified signatures.
 
 The provider connects through `connection.connect`. Operation-specific ECDSA
 and Email OTP preparation remain internal. Applications do not expose or call a

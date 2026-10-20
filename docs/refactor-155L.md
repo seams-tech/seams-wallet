@@ -1,6 +1,15 @@
 # R155L — Reduce the remaining NEAR registration and signing waits
 
-Status: planned. Date: October 21, 2026.
+Status: selected changes implemented and verified. Date: October 21, 2026.
+
+The [implementation record](evidence/refactor-155l-near.md) contains results and
+reproduction commands. NEAR passkey registration now starts its browser signer
+worker during preparation. Default development builds also optimize session
+sealing. Final lifecycle checks passed, including failed warmup and reload.
+
+No package was released or deployed. Router removal, post-finalization concurrency,
+and SQLite changes remain deferred. The server traces did not establish another
+safe implementation change. The conditional work below records those boundaries.
 
 ## Objective and scope
 
@@ -21,10 +30,11 @@ shorter critical path.
 
 | Work | Decision | Reason |
 | --- | --- | --- |
-| Verify existing WASM preloading | First | Late asset downloads caused a measured client delay. The implementation already exists. |
-| Attribute remaining `respond` and `finalize` waits | First | These stages dominate the saved registration traces. |
-| R2: overlap client completion work | Conditional experiment | Completed preloading leaves a much smaller client cost. |
-| S1: remove NEAR Router forwarding | Profile before implementation | Service bindings can execute on the same server. Serialization or startup savings remain unmeasured. |
+| Verify existing WASM preloading | Verified and extended | The first-signature worker still loaded late. Registration now starts that existing worker early. |
+| Optimize development session sealing | Implemented | Hydration medians fell from 44–52 ms to about 6 ms in the focused comparison. |
+| Attribute remaining `respond` and `finalize` waits | Profiled; unresolved | No additional server reordering was justified by the traces. |
+| R2: overlap client completion work | Deferred | Completed preloading leaves a much smaller client cost. |
+| S1: remove NEAR Router forwarding | Deferred after profiling | Required validation and downstream work obscure the removable contribution. |
 | S3: combine NEAR SQLite updates | Defer | One statement inside an existing transaction is unlikely to justify priority for user-facing speed. |
 | S5: background operation completion | Exclude | Completion owns replay responses and allows session retirement. |
 | Remove repeated session checks | Exclude | Checks across asynchronous work protect expiry, lock, and authority replacement. |

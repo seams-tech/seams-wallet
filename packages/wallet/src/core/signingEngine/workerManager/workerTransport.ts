@@ -256,6 +256,10 @@ export class WorkerTransport implements SignerWorkerTransportProtocol {
     }
   }
 
+  prewarmNearSigner(): void {
+    this.getOrCreateWorker('nearSigner');
+  }
+
   async clearEcdsaClientWorkerState(target: EcdsaClientPresignCleanupTarget): Promise<void> {
     switch (target.kind) {
       case 'all':
