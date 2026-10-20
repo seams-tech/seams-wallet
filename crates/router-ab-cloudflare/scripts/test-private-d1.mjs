@@ -2468,6 +2468,33 @@ function parseEd25519ActivationResult(bytes, label) {
   return { result, publicReceipt };
 }
 
+async function registerLifecycleWallet(topology, router, fixture, ceremony, source) {
+  const envelope = buildEd25519ExecuteRequest(fixture, 'admission_race', ceremony, source);
+  const identity = envelope.tenant_root.identity;
+  // Stable fixture addresses come from each role's namespace. The Gateway
+  // supplies these headers in production, where addresses are stored in D1.
+  const name = JSON.stringify([
+    identity.orgId,
+    identity.projectId,
+    identity.envId,
+    envelope.target.binding.lifecycle.account_id,
+  ]);
+  const addresses = {};
+  for (const [role, binding, worker] of [
+    ['router', routerWalletDoBinding, 'router'],
+    ['deriver_a', deriverAWalletDoBinding, 'deriver-a'],
+    ['deriver_b', 'DERIVER_B_WALLET_DO', 'deriver-b'],
+    ['signing_worker', signingWorkerWalletDoBinding, 'fixture-signing-worker'],
+  ]) {
+    const namespace = await topology.getDurableObjectNamespace(binding, worker);
+    addresses[role] = namespace.idFromName(name).toString();
+  }
+  const response = await postWorkerJson(router, ed25519ExecutePath, envelope, {
+    'x-seams-wallet-object-addresses': JSON.stringify(addresses),
+  });
+  return { status: response.status, body: await response.text() };
+}
+
 export async function captureValidActivationDelivery(
   topology,
   fixture,
@@ -3058,14 +3085,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
     });
     return { status: response.status, body: await response.text() };
   };
-  const register = async (ceremony, source) => {
-    const response = await postWorkerJson(
-      router,
-      ed25519ExecutePath,
-      buildEd25519ExecuteRequest(fixture, 'admission_race', ceremony, source),
-    );
-    return { status: response.status, body: await response.text() };
-  };
+  const register = registerLifecycleWallet.bind(null, topology, router, fixture);
   const succeeded = (attempt) =>
     attempt.status === 200 && JSON.parse(attempt.body).status === 'succeeded';
   const epochs = async (database, ceremony) =>
@@ -3322,14 +3342,7 @@ async function rootLifecycleHelpers(topology, fixture, databases) {
     const body = await response.text();
     assert.equal(response.status, 200, body);
   };
-  const register = async (ceremony, source) => {
-    const response = await postWorkerJson(
-      router,
-      ed25519ExecutePath,
-      buildEd25519ExecuteRequest(fixture, 'admission_race', ceremony, source),
-    );
-    return { status: response.status, body: await response.text() };
-  };
+  const register = registerLifecycleWallet.bind(null, topology, router, fixture);
   const succeeded = (attempt) =>
     attempt.status === 200 && JSON.parse(attempt.body).status === 'succeeded';
   // Each role's admissions for the root: epoch, status, and whether a
