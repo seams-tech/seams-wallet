@@ -71,7 +71,7 @@ of all lanes are small: 0.1 to 3 MB, except staging's Signing Worker at 18 MB.
 
 ## Why the Yao protocol CPU is an estimate
 
-The [serial chain record](refactor-155F-registration-round-trips.md#serial-chain-of-one-yao-execution--october-11)
+The [serial chain record](https://github.com/seams-tech/seams-wallet/blob/8c8cb24a0b791905697c69ce9defb2ba9d7a52fb/docs/refactor-155F-registration-round-trips.md#serial-chain-of-one-yao-execution--october-11)
 gives about 680 ms of protocol work. That figure is an estimate, not a measured
 protocol span. Three measured facts stand behind it:
 

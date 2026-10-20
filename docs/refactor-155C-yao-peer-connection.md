@@ -724,4 +724,4 @@ from the Router to its role. B claims before acknowledging Start on the held
 socket, and A claims before protocol material. The online connection remains the
 path for absent or expired preparation and other custody operations. This adds
 no peer signatures and changes no Yao protocol frames. See
-[R155H Phase 1](refactor-155H.md#phase-1--custody-execution-at-setup).
+[R155H Phase 1](https://github.com/seams-tech/seams-wallet/blob/8c8cb24a0b791905697c69ce9defb2ba9d7a52fb/docs/refactor-155H.md#phase-1--custody-execution-at-setup).

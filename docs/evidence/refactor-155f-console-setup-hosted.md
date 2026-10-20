@@ -128,7 +128,7 @@ Console completion must still acknowledge publication before local activation.
 Passkey claiming and route publication already overlap. Combining those requests
 would reduce request count without removing a whole serial exchange. Initial home,
 journal, and ceremony batching remains another candidate. The separate Yao
-connection costs remain recorded in [Phase 3](../refactor-155F-registration-round-trips.md#phase-3--reduce-measured-custody-preparation-and-connection-delays).
+connection costs remain recorded in [Phase 3](https://github.com/seams-tech/seams-wallet/blob/8c8cb24a0b791905697c69ce9defb2ba9d7a52fb/docs/refactor-155F-registration-round-trips.md#phase-3--reduce-measured-custody-preparation-and-connection-delays).
 
 ## Evidence and reproduction
 

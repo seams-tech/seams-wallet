@@ -76,4 +76,16 @@ steps; the linked references cover the full protocols and record formats.
 
 Current contracts belong in the numbered specifications, intended behaviors,
 and crate specifications. Public integration instructions belong in `apps/docs`.
-Keep dated measurement evidence separate. Superseded plans remain in Git history.
+Keep dated measurement evidence separate. Refactor documents retain the problem,
+decisions, rationale, and pending work. Completed scopes use short summaries with
+links to their full Git records; unfinished plans retain their working detail.
+
+## Implementation history
+
+- [R150: wallet ownership and custody](refactor-150-regional-wallet-home-lanes.md).
+- [R151: Gateway database calls](refactor-151.md).
+- [R152: regional homes and routing](refactor-152-regional-D1.md).
+- [R153: owner-selected region moves](refactor-153-wallet-region-selection.md).
+- [R155H: registration preparation](refactor-155H.md) and [R155J: open tail-latency work](refactor-R155J-p99.md).
+- [R170: client/host separation](refactor-170.md) and [R171: public API](refactor-171.md).
+- [Optimization 11: NEAR latency work](optimization-11-NEAR.md).

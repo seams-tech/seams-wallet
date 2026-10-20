@@ -141,3 +141,5 @@ Current performance notes:
   [specs/export.md](specs/export.md)
 - Integration with the purpose-built fixed ECDSA backend:
   [specs/integration-purpose-built-ecdsa.md](specs/integration-purpose-built-ecdsa.md)
+- Module-boundary history:
+  [Refactor 1](docs/archive/refactor-1.md)
