@@ -579,6 +579,10 @@ throughout the resize. Reduced-motion behavior remains immediate.
   batch of unused identifiers for its binding environment. Unused identifiers
   contain no authority and create no objects. Restart can discard them safely.
   An allocation failure cannot replace an existing address assignment.
+- APAC wallet objects request the Southeast Asia placement hint `apac-se`.
+  Registration and relocation use the same hint. Existing object addresses
+  remain unchanged. The hint does not guarantee a city; hosted acceptance must
+  verify the actual object locations against the deployment's database primaries.
 - Setup repeats its ceremony read and its ceremony write after a transient
   fault of the database connection, at most twice and with a short wait. The
   repeat is an exact retry: it stores nothing a second time. When the fault

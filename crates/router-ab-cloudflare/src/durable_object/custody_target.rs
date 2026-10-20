@@ -28,7 +28,8 @@ enum Placement {
 enum LocationHint {
     Enam,
     Weur,
-    Apac,
+    #[serde(rename = "apac-se")]
+    ApacSe,
     Oc,
 }
 
@@ -37,7 +38,7 @@ impl LocationHint {
         match self {
             Self::Enam => "enam",
             Self::Weur => "weur",
-            Self::Apac => "apac",
+            Self::ApacSe => "apac-se",
             Self::Oc => "oc",
         }
     }

@@ -30,7 +30,7 @@ const output = resolve(root, '.artifacts/wallet-home-placement');
 const authHeader = 'x-router-ab-internal-service-auth';
 const homeHeader = 'x-seams-wallet-home-region';
 const executePath = '/router-ab/router/ed25519-yao/execute';
-const hints = { US: 'enam', WEUR: 'weur', APAC: 'apac', OC: 'oc' };
+const hints = { US: 'enam', WEUR: 'weur', APAC: 'apac-se', OC: 'oc' };
 
 class PlacementLog extends Log {
   messages = [];
