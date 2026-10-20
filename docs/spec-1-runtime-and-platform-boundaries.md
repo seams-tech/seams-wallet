@@ -64,6 +64,11 @@ encrypted material. JavaScript does not inspect Rust's internal secrets. Rust
 defines the cryptographic command formats, including the encodings shared with
 TypeScript.
 
+In the browser, that WebAssembly runs in separate Web Workers inside the wallet
+iframe. Each worker owns one kind of secret material, and some workers hold none.
+[Browser workers](browser-workers.md) lists each worker and its WASM modules, and
+records why they are separate.
+
 Domain types describe valid states explicitly. Input from a request, database,
 provider, or worker is checked when it enters the system. The rest of the code
 uses that checked representation.

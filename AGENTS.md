@@ -13,6 +13,12 @@ Follow `docs/debugging-method.md`: gather facts before causes, check each
 instrument, keep a table of causes against facts, and report what is measured,
 inferred and unknown.
 
+# Browser workers
+
+Before you merge, split, or move operations between browser workers, read
+`docs/browser-workers.md`. Workers are separated by the secrets they hold;
+update that document in the same change.
+
 # Keeping the codebase lean
 
 Run `pnpm report:bloat --check` before committing. It fails when dead exports,
