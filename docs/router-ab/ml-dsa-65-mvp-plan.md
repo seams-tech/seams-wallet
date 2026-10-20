@@ -56,7 +56,7 @@ The Gateway now pins the discovered keys to an existing-wallet add-signer admiss
 The [Gateway publication report](ml-dsa-65-gateway-publication-report.md) records this boundary.
 Fresh passkey approval authorizes the exact wallet and slot. The durable journal records both
 participant installations and publishes their agreed public key. Seed envelopes and recovery
-sets remain unchanged. Public signing sessions and authority projections remain open.
+sets remain unchanged. The [public signing report](ml-dsa-65-public-signing-report.md) records advanced SDK signing with fresh passkey approval. Reusable sessions and standard Wallet UI integration remain open.
 
 Participant relocation is explicitly refused after execution starts. Its future implementation
 must transfer participant state and the publication journal together. Expired unused admissions
@@ -114,12 +114,13 @@ Exit: SDK registration and recovery create a durable signer that survives Worker
 
 - [x] Add an explicit ML-DSA capability, wallet-key record, and exact owner-approval gate.
 - [x] Compose the gate with private Router signing in local workerd.
-- [ ] Load the signing target from authoritative custody and current owner records.
-- [ ] Persist and claim exact operations through the authoritative admission store.
-- [ ] Mount the public route with exact owner approval first.
+- [x] Load the signing target from durable publication and current owner records.
+- [x] Persist exact operations in the authoritative operation store with atomic passkey counter and approval commits.
+- [x] Mount public preparation and signing routes with fresh exact passkey approval.
 - [ ] Add reusable sessions only after the ML-DSA authority and revocation projections exist.
-- [ ] Connect SDK transaction review, encoding, signing, and submission.
-- [ ] Verify the selected NEAR network's protocol support before key enrollment.
+- [x] Expose native transaction display, signing, signature verification, and RPC submission through the advanced SDK.
+- [ ] Connect the standard Wallet transaction-review UI and iframe lifecycle.
+- [ ] Enforce the selected NEAR network's protocol support before on-chain key enrollment. Live protocol status was checked separately.
 - [ ] Confirm a threshold-signed transaction through the complete SDK path.
 
 Exit: public requests cannot select another wallet, key, epoch, transaction, or algorithm through approval reuse.

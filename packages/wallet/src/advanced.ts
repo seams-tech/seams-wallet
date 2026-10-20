@@ -54,3 +54,6 @@ export type {
   WalletId,
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+
+export { prepareMlDsaNearSigning, executeMlDsaNearSigning, submitMlDsaNearTransaction } from './core/rpcClients/relayer/mlDsaSigning';
+export type { MlDsaSigningPreparation, MlDsaSigningPreparationOutcome, MlDsaSigningOutcome, MlDsaSignedTransaction } from '@shared/near/mlDsaSigning';

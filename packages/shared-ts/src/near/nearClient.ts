@@ -478,8 +478,23 @@ export abstract class NearJsonRpcClient<
     signedTransaction: SignedTx,
     waitUntil: TxExecutionStatus = DEFAULT_SEND_WAIT_UNTIL,
   ): Promise<DecodedNearFinalExecutionOutcome> {
+    return this.sendEncodedTransaction(encodeSignedTransactionBase64(signedTransaction), waitUntil);
+  }
+
+  /** Submit bytes produced and verified by a curve-specific transaction codec. */
+  async sendSignedTransactionBytes(
+    signedTransaction: Uint8Array,
+    waitUntil: TxExecutionStatus = DEFAULT_SEND_WAIT_UNTIL,
+  ): Promise<DecodedNearFinalExecutionOutcome> {
+    return this.sendEncodedTransaction(base64Encode(signedTransaction), waitUntil);
+  }
+
+  private async sendEncodedTransaction(
+    signedTransactionBase64: string,
+    waitUntil: TxExecutionStatus,
+  ): Promise<DecodedNearFinalExecutionOutcome> {
     const params = {
-      signed_tx_base64: encodeSignedTransactionBase64(signedTransaction),
+      signed_tx_base64: signedTransactionBase64,
       wait_until: waitUntil,
     };
     return this.sendWithRetry(async () => {

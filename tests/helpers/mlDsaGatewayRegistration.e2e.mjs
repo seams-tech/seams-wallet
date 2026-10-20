@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { verifyMlDsaPublicSigning, replayPublicMlDsaSigning } from './mlDsaPublicSigning.e2e.mjs';
 import { createHash, generateKeyPairSync, randomBytes, sign as signBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -19,16 +20,33 @@ function hash(value) {
 function isSql(name) {
   return name.endsWith('.sql');
 }
-async function migrate(database, root) {
+async function migrate(database, root, api, scope) {
   const directory = join(root, 'packages/wallet-server/migrations/d1-signer');
   for (const name of (await readdir(directory)).filter(isSql).sort()) {
     let sql = await readFile(join(directory, name), 'utf8');
     if (name === '0028_r103f_phase1_additive_schema_bridge.sql')
       sql = buildWorkerdCompatiblePhase1Bridge(sql);
-    await database.batch(unstable_splitSqlQuery(sql).map(database.prepare.bind(database)));
+    if (name === '0083_ml_dsa_operation_evidence.sql') {
+      await api.seedClassicalMigrationEvidence(database, scope);
+      const before = await migrationEvidence(database);
+      assert.equal(before.length, 2);
+      await database.batch(unstable_splitSqlQuery(sql).map(database.prepare.bind(database)));
+      assert.deepEqual(await migrationEvidence(database), before);
+    } else {
+      await database.batch(unstable_splitSqlQuery(sql).map(database.prepare.bind(database)));
+    }
   }
 }
 
+async function migrationEvidence(database) {
+  return (
+    await database
+      .prepare(
+        "SELECT * FROM verified_wallet_operation_evidence_sets WHERE wallet_id='migration-wallet' ORDER BY evidence_set_id",
+      )
+      .all()
+  ).results;
+}
 function credentialKey() {
   const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const jwk = pair.publicKey.export({ format: 'jwk' });
@@ -48,7 +66,11 @@ function assertion(key, challenge, expectedOrigin = origin) {
   const client = Buffer.from(
     JSON.stringify({ type: 'webauthn.get', challenge, origin: expectedOrigin }),
   );
-  const authenticator = Buffer.concat([hash('wallet.example.test'), Buffer.from([5, 0, 0, 0, 0])]);
+  const suffix = Buffer.alloc(5);
+  suffix[0] = 5;
+  if (key.counter > 0) key.counter += 1;
+  suffix.writeUInt32BE(key.counter ?? 0, 1);
+  const authenticator = Buffer.concat([hash('wallet.example.test'), suffix]);
   return {
     id: key.credentialId,
     rawId: key.credentialId,
@@ -148,10 +170,15 @@ class Gateway {
       database,
       ...scope,
       mlDsaRegistrationProxy: proxy,
+      signerWasmModuleOrPath: api.signingWasmModule(),
     });
     this.fetch = api.createFetchRouter(
       this.service,
-      { corsOrigins: [origin, otherOrigin], hostedWalletOrigins: [origin, otherOrigin] },
+      {
+        corsOrigins: [origin, otherOrigin],
+        hostedWalletOrigins: [origin, otherOrigin],
+        logger: console,
+      },
       { kind: 'inline' },
     );
   }
@@ -225,7 +252,6 @@ export async function verifyMlDsaGatewayRegistration({
   wallet,
   proxy,
   privatePost,
-  sign,
 }) {
   const folder = join(directory, 'gateway');
   await mkdir(folder, { recursive: true, mode: 0o700 });
@@ -240,6 +266,9 @@ export async function verifyMlDsaGatewayRegistration({
     loader: { '.wasm': 'file' },
   });
   const api = await import(pathToFileURL(bundlePath).href);
+  await api.initializeSigningCodec(
+    await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+  );
   const scope = {
     namespace: 'ml-dsa-gateway',
     orgId: wallet.org,
@@ -266,7 +295,8 @@ export async function verifyMlDsaGatewayRegistration({
   const checks = {};
   try {
     let database = await runtime.getD1Database('GATEWAY');
-    await migrate(database, root);
+    await migrate(database, root, api, scope);
+    checks.migrationPreservesClassicalEvidence = true;
     await api.seedOwner(database, scope, owner);
     await api.seedOwner(database, scope, backup);
     await database
@@ -461,23 +491,28 @@ export async function verifyMlDsaGatewayRegistration({
     assert.equal(published.key.registeredPublicKeyB64u, finished.commit.key.publicKeyB64u);
     assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
     checks.existingEnvelopeAndRecoverySetUnchanged = true;
-    const result = JSON.parse(committed.record_json).phase.result;
-    const signature = await sign({
-      a: {
-        public_key: Array.from(Buffer.from(result.publicKeyB64u, 'base64url')),
-        activation: {
-          key: {
-            wallet: walletScope,
-            key_id: context.signingKeyId,
-            epoch: context.materialEpoch,
-            public_key_digest: Array.from(hash(Buffer.from(result.publicKeyB64u, 'base64url'))),
-            schedule_digest: Array.from(Buffer.from(result.scheduleDigestB64u, 'base64url')),
-          },
-        },
-      },
+    const publicSigning = await verifyMlDsaPublicSigning({
+      api,
+      gateway,
+      key,
+      walletId,
+      signingKeyId: context.signingKeyId,
+      publicKeyB64u: published.key.registeredPublicKeyB64u,
+      unsignedTransactionBorshB64u: finished.unsignedTransactionBorshB64u,
+      database,
+      claimDatabase: traced,
+      scope,
     });
-    assert.equal(signature.verified, true);
+    key.counter = publicSigning.lastCounter;
+    const signature = publicSigning.signature;
     checks.publishedKeySignsStandardSignature = true;
+    await runtime.dispose();
+    runtime = databaseRuntime(folder);
+    database = await runtime.getD1Database('GATEWAY');
+    traced = new PublicationDatabase(api, database, scope, walletId);
+    gateway = new Gateway(api, traced, scope, proxy);
+    await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'signed');
+    publicSigning.evidence.checks.completedSigningSurvivesD1Restart = true;
     const unused = await issueAdmission(gateway, scope, walletId, key, 2);
     const unusedStart = await gateway.post(walletId, 'start', unused.body);
     assert.equal(unusedStart.body.ok, true, JSON.stringify(unusedStart.body));
@@ -525,10 +560,20 @@ export async function verifyMlDsaGatewayRegistration({
     );
     assert.equal((await gateway.post(walletId, 'start', body)).body.ok, false);
     checks.revokedOwnerCannotResume = true;
+    await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'refused');
+    publicSigning.evidence.checks.revokedOwnerCannotReadCachedSignature = true;
     assert.deepEqual(await phase(database, scope, walletId), committed);
     const sources = {};
     for (const path of [
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaRegistration.ts',
+      'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaSigning.ts',
+      'packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaWebAuthnVerification.ts',
+      'packages/wallet-server/src/router/transport/fetch/routes/mlDsaPublicSigning.ts',
+      'packages/wallet-server/migrations/d1-signer/0083_ml_dsa_operation_evidence.sql',
+      'packages/wallet/src/core/rpcClients/relayer/mlDsaSigning.ts',
+      'packages/shared-ts/src/near/mlDsaSigning.ts',
+      'wasm/near_signer/src/ml_dsa_transaction.rs',
+      'tests/helpers/mlDsaPublicSigning.e2e.mjs',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaRegistrationExpiry.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerService.ts',
       'packages/wallet-server/migrations/d1-signer/0082_ml_dsa_relocation_boundary.sql',
@@ -539,6 +584,9 @@ export async function verifyMlDsaGatewayRegistration({
       sources[path] = hash(await readFile(join(root, path))).toString('hex');
     return {
       sources,
+      signingWasmSha256: hash(
+        await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+      ).toString('hex'),
       nativeBinarySha256: hash(
         await readFile(
           join(root, 'tools/ml-dsa-investigation/target/release/ml-dsa-investigation'),
@@ -547,6 +595,7 @@ export async function verifyMlDsaGatewayRegistration({
       checks,
       canonicalKeyVerified: true,
       signature,
+      publicSigning: publicSigning.evidence,
       publication: replay.body,
       scope:
         'Real Gateway routes, fresh P-256 WebAuthn verification, local D1, and prepared Worker key generation. Existing wallet ownership is seeded with shared factories. No ML-DSA-only wallet creation or public transaction-signing route is tested.',

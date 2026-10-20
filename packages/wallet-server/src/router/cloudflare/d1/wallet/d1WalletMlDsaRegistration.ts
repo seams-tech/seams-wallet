@@ -425,6 +425,7 @@ export class D1WalletMlDsaRegistration {
       throw new Error('Stored ML-DSA publication identity differs');
     return {
       identity: preparation.identity,
+      publicationVersion: read.version,
       scheduleDigestB64u: phase.result.scheduleDigestB64u,
       key: buildMlDsa65WalletKeyRecord({
         walletId,

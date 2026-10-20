@@ -1,3 +1,4 @@
+import type { D1WalletMlDsaSigning } from '../cloudflare/d1/wallet/d1WalletMlDsaSigning';
 import type { RouteResponse } from './routeExecutionContext';
 import type {
   WalletAddSignerMlDsaExecuteRequest,
@@ -1306,6 +1307,8 @@ export interface RouterApiWalletAuthMethodService {
   activateVoiceId(
     input: import('../domains/voiceId/voiceIdActivation').VoiceIdActivationCommand,
   ): Promise<import('../domains/voiceId/voiceIdActivation').VoiceIdActivationResult>;
+  prepareMlDsaSigning: D1WalletMlDsaSigning['prepare'];
+  signMlDsaTransaction: D1WalletMlDsaSigning['sign'];
   resolveActiveWalletSessionAuthority(input: {
     readonly walletId: WalletId;
     readonly authorityRef: WalletAuthAuthorityRef;

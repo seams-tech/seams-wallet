@@ -158,9 +158,24 @@ pub(super) fn run() -> InvestigationResult<bool> {
     let commit = verified
         .finish(MlDsaCustodyCompletionV1::Join)
         .map_err(|error| error.message().to_owned())?;
+    let public_key: [u8; 1952] = ordinary
+        .as_slice()
+        .try_into()
+        .map_err(|_| "Invalid public key")?;
+    let tx = wasm_signer_worker::build_transaction_with_actions(
+        "ml-dsa-gateway.testnet",
+        "ml-dsa-recipient.testnet",
+        9_007_199_254_740_993,
+        &[0x42; 32],
+        wasm_signer_worker::PublicKey::MlDsa65(Box::new(public_key)),
+        vec![wasm_signer_worker::NearAction::Transfer {
+            deposit: 1_000_000_000_000,
+        }],
+    )?;
     println!(
         "{}",
-        json!({"commit":commit,"canonicalKeyVerified":true,"holderResultsAuthenticated":true})
+        json!({"commit":commit,"canonicalKeyVerified":true,"holderResultsAuthenticated":true,
+        "unsignedTransactionBorshB64u":b64(&borsh::to_vec(&tx)?)})
     );
     Ok(true)
 }

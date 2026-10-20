@@ -1780,7 +1780,7 @@ Hashed ML-DSA access-key identifiers belong to the separate tag-3 identifier for
 Transaction and action fields that require full public keys reject hashed identifiers and incorrect lengths.
 The signed-transaction builder and its JSON and Borsh decoders require matching key and signature schemes.
 The [offline encoder contract](evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) verifies these rules through a threshold-signed transaction and independent verification.
-The ML-DSA threshold signer remains experimental. Public Wallet signing uses the admitted Ed25519 flow.
+The ML-DSA threshold signer remains experimental. The advanced SDK exposes exact passkey-approved ML-DSA transaction signing. The standard Wallet signing surface uses the admitted Ed25519 flow.
 The experimental ML-DSA service defaults to preparing four candidates together and consuming independent pairs.
 Its default reserve holds thirty-two candidates per wallet. Admission requires sixteen ready candidates.
 The default wallet cooldown remains sixty seconds. Internal rejection retries belong to the admitted operation.
@@ -3414,7 +3414,7 @@ It writes repeatable evidence under `.artifacts/signing-credit/`.
 
 ## Experimental ML-DSA custody contract
 
-The experimental public SDK can add an ML-DSA signer to an existing passkey wallet. ML-DSA-only wallet creation, public transaction signing, recovery orchestration, and device enrollment remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet. ML-DSA-only wallet creation, standard Wallet signing UI, recovery orchestration, and device enrollment remain incomplete. The advanced SDK exposes public ML-DSA transaction signing with fresh passkey approval. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
@@ -3479,6 +3479,15 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Record public role-dispatch outcomes separately from final signing status. Distinguish candidate exhaustion, request failure, HTTP failure, response-body failure, and response-decoding failure.
 - B drains final data acknowledgments before requesting normal socket closure. A waits for peer close code 1000 within the operation deadline before returning the completed signing result.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
+- Load signing keys from the durable publication journal. Obtain the epoch, manifest, schedule, tenant, and wallet generation from trusted storage.
+- Decode the unsigned NEAR transaction through the existing Rust encoder. Require its full ML-DSA public key to match the publication.
+- Bind the passkey challenge to the exact operation fingerprint, native transaction display, origin, and five-minute expiry.
+- Commit passkey counter advancement, approval persistence, and the authoritative operation claim in one D1 transaction.
+- Reuse the assertion and operation identity for retries. Reject changed transactions or assertions under the same operation.
+- Verify the threshold signature through RustCrypto before publication. The SDK must verify the signature and complete signed bytes before submission.
+- Preserve NEAR u64 nonce values exactly. Bound unsigned transactions to 32 KiB so completed results fit the existing durable replay limit.
+- Return an explicit retry time for pool, capacity, cooldown, and running waits. Internal candidate rejection remains within the admitted Router operation.
+- Recheck authority digest, revocation epoch, auth method, publication version, wallet generation, origin, and expiry before releasing cached signatures.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - Require both verified factor evidence and an operation-specific owner proof within their validity windows.
 - Preserve the Router operation ID across internal claim retries for the same logical operation. Require new approval for a different logical operation.
@@ -3486,7 +3495,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 
 The [owner admission E2E](router-ab/ml-dsa-65-owner-admission-report.md) composes the typed gate with real local Worker signing.
 Its verified factor inputs, operation-claim persistence, and custody activation are synthetic test inputs.
-The public route still requires authoritative registry and session integration.
+The advanced public route uses authoritative publication records and durable exact-operation claims. Reusable ML-DSA sessions remain unavailable.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
 Public signing admission, recovery orchestration, device enrollment, and hosted SDK validation remain required before production use.

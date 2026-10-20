@@ -172,3 +172,104 @@ export { D1WalletRelocationWriteBlock } from '../../packages/wallet-server/src/r
 export { WalletRelocationSessionSource } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletRelocationSessions';
 
 export { expireUnusedMlDsaAdmissions } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaRegistrationExpiry';
+
+export {
+  prepareMlDsaNearSigning,
+  executeMlDsaNearSigning,
+} from '../../packages/wallet/src/core/rpcClients/relayer/mlDsaSigning';
+import initSigner from '../../wasm/near_signer/pkg/wasm_signer_worker.js';
+let signingModule: WebAssembly.Module | null = null;
+export async function initializeSigningCodec(bytes: Uint8Array): Promise<void> {
+  const copied = new Uint8Array(bytes.length);
+  copied.set(bytes);
+  signingModule = await WebAssembly.compile(copied);
+  await initSigner({ module_or_path: signingModule });
+}
+export function signingWasmModule(): WebAssembly.Module {
+  if (signingModule === null) throw new Error('Signing codec is not initialized');
+  return signingModule;
+}
+
+import {
+  buildCapabilityOperationEnvelope,
+  buildNearEd25519MpcOperationRef,
+  buildEvmEcdsaMpcOperationRef,
+  parseTenantId,
+  parsePrincipalId,
+  parseCapabilityId,
+  parseCapabilityOperationId,
+  parseAuthFactorId,
+  parseAuthorizationEvidenceId,
+  parseAuthorizationEvidenceSetId,
+} from '../../packages/shared-ts/src/authorization';
+import {
+  buildPasskeyWalletAuthAuthority,
+  walletAuthAuthorityRef,
+} from '../../packages/shared-ts/src/utils/walletAuthAuthority';
+import {
+  buildVerifiedWalletOperationPasskeyFactorResult,
+  buildVerifiedWalletOperationFactorEvidenceSet,
+} from '../../packages/wallet-server/src/authorization/factorEvidence';
+import { parseDigestB64u } from '../../packages/shared-ts/src/utils/canonicalPrimitives';
+import { parseSessionOrigin } from '../../packages/wallet-server/src/authorization/domain';
+import { CloudflareD1AuthorizationStore } from '../../packages/wallet-server/src/router/cloudflare/d1/authorization/d1AuthorizationStore';
+export { submitMlDsaNearTransaction } from '../../packages/wallet/src/core/rpcClients/relayer/mlDsaSigning';
+
+export async function seedClassicalMigrationEvidence(
+  database: D1DatabaseLike,
+  scope: CloudflareD1VersionedJsonRecordScopeV1,
+): Promise<void> {
+  const authority = buildPasskeyWalletAuthAuthority({
+    walletId: 'migration-wallet',
+    rpId: 'wallet.example.test',
+    credentialIdB64u: 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE',
+  });
+  const digest = parseDigestB64u('AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE');
+  const tenantId = requireParsed(parseTenantId(scope.orgId), 'tenantId');
+  const principalId = requireParsed(parsePrincipalId('migration-owner'), 'principalId');
+  const origin = parseSessionOrigin('https://wallet.example.test');
+  const store = new CloudflareD1AuthorizationStore({
+    database,
+    namespace: scope.namespace,
+    walletSignerScope: scope,
+  });
+  for (const operationRef of [
+    buildNearEd25519MpcOperationRef('near.sign_transaction'),
+    buildEvmEcdsaMpcOperationRef('evm.sign_transaction'),
+  ]) {
+    const label = operationRef.capabilityKind;
+    const operation = buildCapabilityOperationEnvelope({
+      tenantId,
+      principalId,
+      capabilityId: requireParsed(parseCapabilityId(`migration:${label}`), 'capabilityId'),
+      operationId: requireParsed(parseCapabilityOperationId(`migration:${label}`), 'operationId'),
+      operation: operationRef,
+      digests: { laneDigest: digest, intentDigest: digest, displayDigest: digest },
+    });
+    const factor = buildVerifiedWalletOperationPasskeyFactorResult({
+      tenantId,
+      principalId,
+      walletId: authority.walletId,
+      authorityRef: await walletAuthAuthorityRef({ authority }),
+      requestOrigin: origin,
+      audience: origin,
+      factorId: requireParsed(parseAuthFactorId(`migration:${label}`), 'factorId'),
+      operation,
+      credentialIdB64u: authority.factor.credentialIdB64u,
+      assertionDigest: digest,
+      verifiedAtMs: Date.now(),
+      expiresAtMs: Date.now() + 300_000,
+    });
+    await store.putVerifiedEvidenceSet(
+      await buildVerifiedWalletOperationFactorEvidenceSet({
+        operation,
+        factor,
+        evidenceId: requireParsed(parseAuthorizationEvidenceId(`migration:${label}`), 'evidenceId'),
+        evidenceSetId: requireParsed(
+          parseAuthorizationEvidenceSetId(`migration:${label}`),
+          'evidenceSetId',
+        ),
+      }),
+    );
+  }
+}

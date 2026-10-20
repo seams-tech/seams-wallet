@@ -1,4 +1,5 @@
 import { isBillingCreditFailure } from '../../../authorization/sessionRouting';
+import { handlePublicMlDsaSigning } from './routes/mlDsaPublicSigning';
 import { coerceRouterLogger } from '../../framework/logger';
 import { json, jsonFailure, withCors } from '../../framework/http';
 import { handleHealth, handleReady } from './routes/health';
@@ -351,6 +352,7 @@ export function createFetchRouter(
   const handlers: Array<(c: FetchRouterApiContext) => Promise<Response | null>> = [
     handleWellKnown,
     handleWalletRegistration,
+    handlePublicMlDsaSigning,
     async (context: FetchRouterApiContext) =>
       await handleDeviceLinkingOwnerAuthorization(
         context,

@@ -38,7 +38,8 @@
     "typecheck/seams-context.typecheck.ts",
     "wallet-ui/confirmation-mount.typecheck.ts",
     "wallet-ui/export-private-key.typecheck.ts",
-    "typecheck/external-near-state.typecheck.ts"
+    "typecheck/external-near-state.typecheck.ts",
+    "./typecheck/ml-dsa-public-signing.typecheck.ts"
   ],
   "exclude": ["node_modules"]
 }

@@ -2,6 +2,7 @@ mod actions;
 mod config;
 mod encoders;
 mod logger;
+mod ml_dsa_transaction;
 mod passkey_custody_wasm;
 #[cfg(test)]
 mod tests;
@@ -10,6 +11,7 @@ mod transaction;
 mod types;
 
 pub use actions::ActionParams;
+pub use ml_dsa_transaction::{finalize_ml_dsa65_transaction, inspect_ml_dsa65_transaction};
 use wasm_bindgen::prelude::*;
 
 // Re-export NEAR types for TypeScript usage
