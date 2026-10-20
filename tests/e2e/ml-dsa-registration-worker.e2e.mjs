@@ -148,6 +148,23 @@ class RegistrationRouterProxy {
     });
   }
 }
+const materialLossPath = join(buildRoot, 'ml-dsa-material-loss.e2e.mjs');
+if (!hostedUrl) await writeFile(materialLossPath, `
+import { RouterAbMlDsaPoolDurableObject as Pool } from './deriver-a/worker/shim.mjs';
+export * from './deriver-a/worker/shim.mjs';
+export { default } from './deriver-a/worker/shim.mjs';
+export class MaterialLossPool extends Pool {
+  constructor(state, env) { super(state, env); this.storage = state.storage; this.env = env; }
+  async fetch(request) {
+    if (new URL(request.url).pathname !== '/test/lose-material') return super.fetch(request);
+    if (request.headers.get('x-router-ab-internal-service-auth') !== this.env.INTERNAL_AUTH)
+      return new Response('Forbidden', { status: 403 });
+    const records = await this.storage.list({ prefix: 'material/' });
+    for (const key of records.keys()) await this.storage.delete(key);
+    return Response.json({ deleted: records.size });
+  }
+}
+`);
 let runtime;
 let keks;
 let executionFaultArmed = stallExecution;
@@ -295,6 +312,7 @@ try {
       wallet,
       proxy: new RegistrationRouterProxy(gatewayAuth),
       privatePost: post,
+      loseParticipantMaterial,
       sign,
     });
     observations.scope +=
@@ -319,6 +337,7 @@ try {
 } finally {
   for (const child of children) child.kill();
   await runtime?.dispose();
+  if (!hostedUrl) await rm(materialLossPath, { force: true });
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
@@ -500,7 +519,7 @@ function role(name, index) {
       DERIVER_ROLE_PRIVATE_D1_KEK_VERSION: 'registration-e2e',
     }),
     durableObjects: {
-      ML_DSA_POOL_DO: { className: 'RouterAbMlDsaPoolDurableObject', useSQLite: true },
+      ML_DSA_POOL_DO: { className: name === 'a' ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', useSQLite: true },
       ML_DSA_REGISTRATION_DO: {
         className: 'RouterAbMlDsaRegistrationDurableObject',
         useSQLite: true,
@@ -513,6 +532,7 @@ function role(name, index) {
     serviceBindings: { DERIVER_B: 'b' },
   };
   if (name === 'a') {
+    worker.scriptPath = materialLossPath;
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
     };
@@ -527,9 +547,10 @@ function role(name, index) {
 function preparerWorker(participant, index) {
   const worker = role(participant, index);
   worker.name = `preparer-${participant}`;
+  worker.scriptPath = join(buildRoot, `deriver-${participant}`, 'worker/shim.mjs');
   worker.durableObjects.ML_DSA_POOL_DO = deliveryFault && participant === 'a'
     ? { className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier' }
-    : { className: 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
+    : { className: participant === 'a' ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
   if (participant === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
@@ -810,4 +831,16 @@ function signatureCheckPassed(value) {
   return (
     value.initialStockSign.verified === true || value.initialStockSign.cooldownPreserved === true
   );
+}
+
+async function loseParticipantMaterial(walletScope) {
+  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_POOL_DO', 'a');
+  const name = 'ml-dsa-pool-' + createHash('sha256').update('wallet').update(JSON.stringify(walletScope)).digest('hex');
+  const response = await namespace.get(namespace.idFromName(name)).fetch('https://fault.internal/test/lose-material', {
+    headers: { 'x-router-ab-internal-service-auth': serviceAuth },
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.deleted, 1, 'The lost participant must contain exactly one encrypted signer record');
+  return result;
 }

@@ -466,7 +466,7 @@ export type WalletAddSignerStartSuccess = {
         readonly kind: 'near_ml_dsa_65';
         readonly mlDsa: {
           readonly expiresAtMs: number;
-          readonly protocolInputs: import('@shared/passkey-custody/mlDsaCustody').MlDsaCreateProtocolInputs;
+          readonly protocolInputs: import('@shared/passkey-custody/mlDsaCustody').MlDsaCustodyProtocolInputs;
           readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
         };
         readonly ed25519?: never;

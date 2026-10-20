@@ -1,3 +1,4 @@
+import type { ReadonlyExclusiveUnion, Variant } from '@shared/utils/variant';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -9,16 +10,23 @@ import {
 } from '@shared/utils/domainIds';
 import { requireParsed } from '@shared/passkey-custody/primitives';
 import {
-  parseMlDsaCreateProtocolInputs,
+  parseMlDsaCustodyProtocolInputs,
+  parseMlDsaSignerPurpose,
+  type MlDsaSignerPurpose,
   type MlDsaCreateProtocolInputs,
+  type MlDsaRecoveryProtocolInputs,
+  mlDsaProtocolMatchesPurpose,
+  type MlDsaCustodyProtocolInputs,
 } from '@shared/passkey-custody/mlDsaCustody';
 import {
   walletObjectIdentity,
   type WalletObjectIdentity,
 } from '../../cloudflare/runtime/walletObjectAddresses';
 
-export type MlDsaAddSignerPreparation = {
-  readonly protocolInputs: MlDsaCreateProtocolInputs;
+type PreparationIdentity = {
+  readonly walletCustodySeed?: never;
+  readonly canonicalSeed?: never;
+  readonly holderShare?: never;
   readonly identity: WalletObjectIdentity;
   readonly owner: {
     readonly walletAuthorityId: WalletAuthorityId;
@@ -30,13 +38,43 @@ export type MlDsaAddSignerPreparation = {
   readonly custodyEnvelope: { readonly recordKey: string; readonly storeVersion: string };
 };
 
+export type MlDsaAddSignerPreparation = PreparationIdentity &
+  ReadonlyExclusiveUnion<
+    | {
+        readonly purpose: Variant<MlDsaSignerPurpose, 'kind', 'create'>;
+        readonly protocolInputs: MlDsaCreateProtocolInputs;
+      }
+    | {
+        readonly purpose: Variant<MlDsaSignerPurpose, 'kind', 'restore'>;
+        readonly protocolInputs: MlDsaRecoveryProtocolInputs;
+      }
+  >;
+
+type UnverifiedPreparation = PreparationIdentity & {
+  readonly purpose: MlDsaSignerPurpose;
+  readonly protocolInputs: MlDsaCustodyProtocolInputs;
+};
+
+function matchesPreparation(value: UnverifiedPreparation): value is MlDsaAddSignerPreparation {
+  return mlDsaProtocolMatchesPurpose(value.protocolInputs, value.purpose);
+}
+
+/** Bind the participant response to the admitted purpose at the preparation boundary. */
+export function buildMlDsaAddSignerPreparation(
+  value: UnverifiedPreparation,
+): MlDsaAddSignerPreparation {
+  if (!matchesPreparation(value)) throw new Error('ML-DSA preparation changed its continuity');
+  return value;
+}
+
 export function parseMlDsaAddSignerPreparation(raw: unknown): MlDsaAddSignerPreparation {
   const record = exactRecord(
     raw,
-    ['protocolInputs', 'identity', 'owner', 'recipientKeyVersions', 'custodyEnvelope'],
+    ['purpose', 'protocolInputs', 'identity', 'owner', 'recipientKeyVersions', 'custodyEnvelope'],
     'ML-DSA preparation',
   );
-  const protocolInputs = parseMlDsaCreateProtocolInputs(record.protocolInputs);
+  const purpose = parseMlDsaSignerPurpose(record.purpose);
+  const protocolInputs = parseMlDsaCustodyProtocolInputs(record.protocolInputs);
   const identityRecord = exactRecord(
     record.identity,
     ['walletId', 'ownershipGeneration', 'orgId', 'projectId', 'envId'],
@@ -75,7 +113,8 @@ export function parseMlDsaAddSignerPreparation(raw: unknown): MlDsaAddSignerPrep
     ['recordKey', 'storeVersion'],
     'ML-DSA custody envelope',
   );
-  return {
+  return buildMlDsaAddSignerPreparation({
+    purpose,
     protocolInputs,
     identity,
     owner: {
@@ -98,5 +137,5 @@ export function parseMlDsaAddSignerPreparation(raw: unknown): MlDsaAddSignerPrep
       recordKey: requireCanonicalString(envelope.recordKey, 'custody envelope key'),
       storeVersion: requireCanonicalString(envelope.storeVersion, 'custody envelope version'),
     },
-  };
+  });
 }

@@ -1,3 +1,4 @@
+import { IntendedMlDsaLifecycle } from './mlDsaLifecycle';
 import React from 'react';
 import type {
   HostedAuthMenuExternalAuthRequest,
@@ -1266,6 +1267,25 @@ class IntendedPageController {
       devices: this.seams.devices,
     });
   };
+
+  readMlDsaContext() {
+    return {
+      wallet: this.seams,
+      walletId: this.walletId,
+      nearAccountId: requireNearAccountId(this.nearAccountId),
+    };
+  }
+
+  async readMlDsaActor() {
+    const session = await this.seams.auth.getSession(this.walletId);
+    const walletAuthMethodId = exactWalletAuthMethodIdFromSession(session);
+    if (session.appIdentity.kind !== 'resolved') throw new Error('ML-DSA requires a resolved owner');
+    for (const method of session.appIdentity.authMethods) {
+      if (method.walletAuthMethodId === walletAuthMethodId && method.kind === 'passkey')
+        return { walletAuthMethodId, credentialIdB64u: method.credentialIdB64u };
+    }
+    throw new Error('ML-DSA requires the active owner Passkey');
+  }
 
   readNearSigningContext(): IntendedNearSigningContext {
     return {
@@ -3887,6 +3907,10 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2ELockWallet = controller.lockWalletForIntendedTest;
   window.__seamsIntendedE2EMoveWallet = controller.moveWalletForIntendedTest;
   window.__seamsIntendedE2EReadWalletMove = controller.readWalletMoveForIntendedTest;
+  new IntendedMlDsaLifecycle(
+    controller.readMlDsaContext.bind(controller),
+    controller.readMlDsaActor.bind(controller),
+  ).install();
   new IntendedNearSigningHelpers(controller.readNearSigningContext.bind(controller)).install();
   new IntendedVoiceIdHelpers(controller.readVoiceIdContext.bind(controller)).install();
   window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;

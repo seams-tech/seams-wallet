@@ -15,7 +15,11 @@ import {
   type WebAuthnRpId,
 } from '../utils/domainIds';
 import { requireParsed } from '../passkey-custody/primitives';
-import { parseMlDsaCustodyCommit, type MlDsaCustodyCommit } from '../passkey-custody/mlDsaCustody';
+import {
+  parseMlDsaCustodyCommit,
+  parseMlDsaSignerPurpose,
+  type MlDsaCustodyCommit,
+} from '../passkey-custody/mlDsaCustody';
 import { parseMlDsaSigningKeyId } from '../signing-lanes/recordParsers';
 import type { MlDsaSigningKeyId } from '../signing-lanes';
 import type { ReadonlyExclusiveUnion } from '../utils/variant';
@@ -44,6 +48,17 @@ export type MlDsaInventoryPreparationOutcome = ReadonlyExclusiveUnion<
 >;
 export type MlDsaSignerInventoryEntry = ReadonlyExclusiveUnion<
   | { readonly kind: 'published'; readonly key: MlDsaCustodyCommit['key'] }
+  | {
+      readonly kind: 'restoring';
+      readonly signingKeyId: MlDsaSigningKeyId;
+      readonly phase: 'admitted' | 'executing' | 'installed' | 'expired_admission';
+      readonly recordedKey: {
+        readonly publicKeyB64u: string;
+        readonly keyManifestDigestB64u: string;
+        readonly materialEpoch: number;
+      };
+      readonly retryAtMs: number;
+    }
   | {
       readonly kind: 'unpublished';
       readonly signingKeyId: MlDsaSigningKeyId;
@@ -107,22 +122,62 @@ export function parseMlDsaSignerInventoryEntry(
     if (key.walletId !== walletId) throw new Error('ML-DSA inventory changed its wallet');
     return { kind: 'published', key };
   }
+  if (r.kind === 'restoring') {
+    const key = exactRecord(
+      r.recordedKey,
+      ['publicKeyB64u', 'keyManifestDigestB64u', 'materialEpoch'],
+      'recorded ML-DSA key',
+    );
+    const purpose = parseMlDsaSignerPurpose({
+      kind: 'restore',
+      publicKeyB64u: key.publicKeyB64u,
+      keyManifestDigestB64u: key.keyManifestDigestB64u,
+      materialEpoch: key.materialEpoch,
+    });
+    if (
+      purpose.kind !== 'restore' ||
+      typeof r.retryAtMs !== 'number' ||
+      !Number.isSafeInteger(r.retryAtMs) ||
+      r.retryAtMs <= 0
+    )
+      throw new Error('Invalid ML-DSA restoration reference');
+    return {
+      kind: 'restoring',
+      signingKeyId: parseMlDsaSigningKeyId(r.signingKeyId),
+      phase: inventoryPhase(r.phase),
+      retryAtMs: r.retryAtMs,
+      recordedKey: {
+        publicKeyB64u: purpose.publicKeyB64u,
+        keyManifestDigestB64u: purpose.keyManifestDigestB64u,
+        materialEpoch: purpose.materialEpoch,
+      },
+    };
+  }
   if (r.kind !== 'unpublished') throw new Error('Invalid ML-DSA inventory entry');
-  switch (r.phase) {
+  return {
+    kind: 'unpublished',
+    signingKeyId: parseMlDsaSigningKeyId(r.signingKeyId),
+    phase: inventoryPhase(r.phase),
+  };
+}
+function inventoryFields(raw: unknown): readonly string[] {
+  const tagged = requireRecord(raw, 'ML-DSA inventory tag');
+  if (tagged.kind === 'published') return ['kind', 'key'];
+  if (tagged.kind === 'restoring')
+    return ['kind', 'signingKeyId', 'phase', 'recordedKey', 'retryAtMs'];
+  return ['kind', 'signingKeyId', 'phase'];
+}
+
+function inventoryPhase(
+  raw: unknown,
+): 'admitted' | 'executing' | 'installed' | 'expired_admission' {
+  switch (raw) {
     case 'admitted':
     case 'executing':
     case 'installed':
     case 'expired_admission':
-      return {
-        kind: 'unpublished',
-        signingKeyId: parseMlDsaSigningKeyId(r.signingKeyId),
-        phase: r.phase,
-      };
+      return raw;
     default:
       throw new Error('Invalid ML-DSA unpublished phase');
   }
-}
-function inventoryFields(raw: unknown): readonly string[] {
-  const tagged = requireRecord(raw, 'ML-DSA inventory tag');
-  return tagged.kind === 'published' ? ['kind', 'key'] : ['kind', 'signingKeyId', 'phase'];
 }

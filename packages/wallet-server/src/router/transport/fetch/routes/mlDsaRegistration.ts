@@ -192,7 +192,20 @@ export async function executeMlDsaRegistration(
           key_id: context.signingKeyId,
           epoch: context.materialEpoch,
           operation: Array.from(base64UrlDecode(context.operationIdB64u)),
-          continuity: { kind: 'create' },
+          continuity:
+            preparation.purpose.kind === 'create'
+              ? { kind: 'create' }
+              : {
+                  kind: 'recover',
+                  public_key_digest: Array.from(
+                    base64UrlDecode(
+                      await sha256DigestB64u(base64UrlDecode(preparation.purpose.publicKeyB64u)),
+                    ),
+                  ),
+                  manifest_digest: Array.from(
+                    base64UrlDecode(preparation.purpose.keyManifestDigestB64u),
+                  ),
+                },
           input_a: inputs.a,
           input_b: inputs.b,
         }),

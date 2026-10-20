@@ -38,7 +38,15 @@ struct Input {
     operation: [u8; 32],
     epoch: u64,
     holder_public_keys: [[u8; 32]; 2],
+    continuity: Continuity,
 }
+#[derive(Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum Continuity {
+    Create,
+    Recover { recorded_manifest_digest: [u8; 32] },
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Replies {
@@ -136,7 +144,14 @@ pub(super) fn run() -> InvestigationResult<bool> {
         .prepare_ml_dsa65(
             context,
             input.holder_public_keys,
-            MlDsaKeyContinuityV1::Create,
+            match input.continuity {
+                Continuity::Create => MlDsaKeyContinuityV1::Create,
+                Continuity::Recover {
+                    recorded_manifest_digest,
+                } => MlDsaKeyContinuityV1::Recover {
+                    recorded_manifest_digest,
+                },
+            },
         )
         .map_err(|error| error.message().to_owned())?;
     println!(

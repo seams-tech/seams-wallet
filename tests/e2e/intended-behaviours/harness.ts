@@ -1,3 +1,4 @@
+import type { MlDsaBrowserCommand } from '../../intended-app/src/mlDsaLifecycle';
 import {
   captureWalletBudgetStatusRequest,
   capturePreparedWalletBudgetStatus,
@@ -1174,7 +1175,7 @@ export class IntendedBehaviourHarness {
 
   private browserSession:
     | { readonly kind: 'uninitialized' }
-    | { readonly kind: 'ready'; readonly session: CDPSession } = { kind: 'uninitialized' };
+    | { readonly kind: 'ready'; readonly session: CDPSession; readonly authenticatorId: string } = { kind: 'uninitialized' };
 
   private passkeyPromptCount = 0;
 
@@ -1312,6 +1313,22 @@ export class IntendedBehaviourHarness {
     );
   }
 
+  async runMlDsaCommand(command: MlDsaBrowserCommand) {
+    return autoConfirmWalletIframeUntil(this.page, this.page.evaluate(invokeMlDsaCommand, command),
+      { timeoutMs: 180_000 });
+  }
+
+  async discardPasskeyCredentials(): Promise<void> {
+    if (this.browserSession.kind !== 'ready') throw new Error('Passkey browser is uninitialized');
+    const session = this.browserSession.session;
+    await session.send('WebAuthn.removeVirtualAuthenticator', {
+      authenticatorId: this.browserSession.authenticatorId,
+    });
+    const authenticatorId = await addWebAuthnVirtualAuthenticator(session);
+    this.browserSession = { kind: 'ready', session, authenticatorId };
+    this.recordService('source authenticator replaced without its credentials');
+  }
+
   async assertRegistrationOwnerSessionIsActive(): Promise<void> {
     const inventory = await this.page.evaluate(readAuthenticationMethodsFromIntendedPage);
     if (inventory.ownerDeviceCount < 1) {
@@ -1420,6 +1437,8 @@ export class IntendedBehaviourHarness {
         `wallet lists ${before.devices.length} linked devices before linking ${target}`,
       );
     }
+    const ownerMethodIds = new Set(before.ownerDevices.map(ownerMethodId));
+    if (ownerMethodIds.size === 0) throw new Error('Device linking requires an existing owner');
 
     const qr = await device2.showDeviceLinkQr();
     await this.ensureIntendedPageOpen();
@@ -1443,10 +1462,8 @@ export class IntendedBehaviourHarness {
         `${target} activated enrollment ${active.enrollmentId}; Device ${this.deviceNumber} approved ${approval.enrollmentId}`,
       );
     }
-    for (const owner of before.ownerDevices) {
-      if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
-        throw new Error(`${target}'s Wallet Session names an existing owner method`);
-      }
+    if (ownerMethodIds.has(active.sessionWalletAuthMethodId)) {
+      throw new Error(`${target}'s Wallet Session reused an existing owner's method`);
     }
     const walletNearAccountId = registration.nearAccountId ?? null;
     const walletOperationalPublicKey = registration.operationalPublicKey ?? null;
@@ -4304,8 +4321,8 @@ export class IntendedBehaviourHarness {
   private async installWebAuthnVirtualAuthenticator(): Promise<void> {
     const client = await this.context.newCDPSession(this.page);
     await client.send('WebAuthn.enable');
-    await addWebAuthnVirtualAuthenticator(client);
-    this.browserSession = { kind: 'ready', session: client };
+    const authenticatorId = await addWebAuthnVirtualAuthenticator(client);
+    this.browserSession = { kind: 'ready', session: client, authenticatorId };
     this.recordService('webauthn virtual authenticator ready');
   }
 
@@ -5379,6 +5396,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.near-submission.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
+    normalized.endsWith('ml-dsa.lifecycle.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts')
   ) {
     return 'passkey.registration';
@@ -7713,6 +7731,10 @@ function parseLinkedDeviceInventory(raw: unknown): LinkedDeviceInventorySnapshot
   };
 }
 
+function ownerMethodId(owner: LinkedDeviceOwnerMethodSnapshot): string {
+  return owner.walletAuthMethodId;
+}
+
 function assertOwnerDevicesUnchanged(
   before: LinkedDeviceInventorySnapshot,
   after: LinkedDeviceInventorySnapshot,
@@ -8661,4 +8683,10 @@ async function invokeIntendedSignMessage(input: {
   const sign = window.__seamsIntendedE2ESignMessage;
   if (!sign) throw new Error('Intended message-signing helper is unavailable');
   return await sign(input);
+}
+
+async function invokeMlDsaCommand(command: MlDsaBrowserCommand) {
+  const run = window.__seamsIntendedMlDsa;
+  if (!run) throw new Error('ML-DSA browser helper is unavailable');
+  return run(command);
 }

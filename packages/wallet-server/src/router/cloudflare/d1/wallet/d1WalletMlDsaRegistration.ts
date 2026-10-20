@@ -3,6 +3,7 @@ import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthor
 import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type {
   MlDsaCustodyCommit,
+  MlDsaSignerPurpose,
   MlDsaRegistrationFailure,
   MlDsaRegistrationFailureCode,
 } from '@shared/passkey-custody/mlDsaCustody';
@@ -28,9 +29,13 @@ import {
 import { parseWalletKeyId, type WalletId } from '@shared/utils/domainIds';
 import { parseMlDsaMaterialEpoch, requireParsed } from '@shared/passkey-custody/primitives';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
-import type { WalletObjectIdentity } from '../../runtime/walletObjectAddresses';
+import {
+  walletObjectIdentity,
+  type WalletObjectIdentity,
+} from '../../runtime/walletObjectAddresses';
 import {
   parseMlDsaAddSignerPreparation,
+  buildMlDsaAddSignerPreparation,
   type MlDsaAddSignerPreparation,
 } from '../../../domains/walletRegistration/mlDsaAddSigner';
 import {
@@ -75,8 +80,7 @@ type RegistrationRecord = {
 };
 type Failure = MlDsaRegistrationFailure;
 type PreparationResult =
-  | { readonly ok: true; readonly preparation: MlDsaAddSignerPreparation }
-  | Failure;
+  { readonly ok: true; readonly preparation: MlDsaAddSignerPreparation } | Failure;
 
 function failure(code: MlDsaRegistrationFailureCode, message: string): Failure {
   return { ok: false, code, message };
@@ -174,6 +178,15 @@ function encodeRegistration(record: RegistrationRecord): VersionedJsonObject {
     ceremonyId: record.ceremonyId,
     expiresAtMs: record.expiresAtMs,
     preparation: {
+      purpose:
+        preparation.purpose.kind === 'create'
+          ? { kind: 'create' }
+          : {
+              kind: 'restore',
+              publicKeyB64u: preparation.purpose.publicKeyB64u,
+              keyManifestDigestB64u: preparation.purpose.keyManifestDigestB64u,
+              materialEpoch: preparation.purpose.materialEpoch,
+            },
       identity: preparation.identity,
       owner: preparation.owner,
       recipientKeyVersions: preparation.recipientKeyVersions,
@@ -185,7 +198,13 @@ function encodeRegistration(record: RegistrationRecord): VersionedJsonObject {
         materialEpoch: protocol.materialEpoch,
         roleAPublicKeyB64u: protocol.roleAPublicKeyB64u,
         roleBPublicKeyB64u: protocol.roleBPublicKeyB64u,
-        continuity: { kind: 'create' },
+        continuity:
+          protocol.continuity.kind === 'create'
+            ? { kind: 'create' }
+            : {
+                kind: 'recover',
+                recordedKeyManifestDigestB64u: protocol.continuity.recordedKeyManifestDigestB64u,
+              },
       },
     },
     phase: encodePhase(record.phase),
@@ -234,17 +253,21 @@ export class D1WalletMlDsaRegistration {
     readonly ceremonyId: string;
     readonly expiresAtMs: number;
     readonly signerSlot: number;
-    readonly identity: WalletObjectIdentity;
+    readonly purpose: MlDsaSignerPurpose;
+    readonly walletId: WalletId;
+    readonly ownershipGeneration: WalletObjectIdentity['ownershipGeneration'];
     readonly owner: ActiveWalletAuthorityV1;
     readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     readonly envelope: PasskeyCustodyEnvelopeRecord;
     readonly envelopeStoreVersion: string;
   }): Promise<PreparationResult> {
-    const { identity, owner, authMethod, envelope } = input;
+    const { owner, authMethod, envelope } = input;
+    const identity = walletObjectIdentity(
+      input.walletId,
+      input.ownershipGeneration,
+      this.options.scope,
+    );
     if (
-      identity.orgId !== this.options.scope.orgId ||
-      identity.projectId !== this.options.scope.projectId ||
-      identity.envId !== this.options.scope.envId ||
       owner.walletId !== identity.walletId ||
       authMethod.walletId !== identity.walletId ||
       authMethod.walletAuthorityId !== owner.authorityId ||
@@ -273,19 +296,50 @@ export class D1WalletMlDsaRegistration {
       Date.now(),
     );
     const existing = await this.records.read(key);
-    if (existing.kind === 'present' && existing.value.phase.kind !== 'expired_admission') {
-      if (existing.value.ceremonyId !== input.ceremonyId)
-        return failure(
-          'signer_conflict',
-          'ML-DSA signer slot is reserved; interrupted execution requires recovery',
-        );
+    if (existing.kind === 'present' && existing.value.ceremonyId === input.ceremonyId) {
       await this.assertCurrentOwner(existing.value.preparation);
       return { ok: true, preparation: existing.value.preparation };
+    }
+    let materialEpoch = 1;
+    switch (input.purpose.kind) {
+      case 'create':
+        if (
+          existing.kind === 'present' &&
+          (existing.value.phase.kind !== 'expired_admission' ||
+            existing.value.preparation.purpose.kind !== 'create')
+        )
+          return failure('signer_conflict', 'The ML-DSA signer slot is reserved');
+        break;
+      case 'restore': {
+        if (existing.kind !== 'present')
+          return failure('not_found', 'ML-DSA restoration requires a recorded signer');
+        const previous = existing.value;
+        const purpose = input.purpose;
+        const matchesPublished =
+          previous.phase.kind === 'published' &&
+          previous.phase.result.publicKeyB64u === purpose.publicKeyB64u &&
+          previous.phase.result.manifestDigestB64u === purpose.keyManifestDigestB64u &&
+          previous.preparation.protocolInputs.materialEpoch === purpose.materialEpoch;
+        const matchesInterrupted =
+          previous.expiresAtMs <= Date.now() &&
+          previous.preparation.purpose.kind === 'restore' &&
+          alphabetizeStringify(previous.preparation.purpose) === alphabetizeStringify(purpose);
+        if (!matchesPublished && !matchesInterrupted)
+          return failure(
+            'signer_conflict',
+            'ML-DSA restoration changed the recorded key or an operation is active',
+          );
+        materialEpoch = previous.preparation.protocolInputs.materialEpoch + 1;
+        if (!Number.isSafeInteger(materialEpoch))
+          return failure('unavailable', 'ML-DSA material epoch is exhausted');
+        break;
+      }
     }
     const recipients = await discoverMlDsaRecipientKeys(this.options.proxy);
     if (recipients.kind !== 'ready')
       return failure('unavailable', 'ML-DSA recipients are unavailable');
-    const preparation: MlDsaAddSignerPreparation = {
+    const preparation = buildMlDsaAddSignerPreparation({
+      purpose: input.purpose,
       identity,
       protocolInputs: {
         walletId: identity.walletId,
@@ -293,8 +347,14 @@ export class D1WalletMlDsaRegistration {
         operationIdB64u: await sha256Utf8DigestB64u(
           `seams/ml-dsa/add-signer/v1|${input.ceremonyId}`,
         ),
-        materialEpoch: 1,
-        continuity: { kind: 'create' },
+        materialEpoch,
+        continuity:
+          input.purpose.kind === 'create'
+            ? { kind: 'create' }
+            : {
+                kind: 'recover',
+                recordedKeyManifestDigestB64u: input.purpose.keyManifestDigestB64u,
+              },
         roleAPublicKeyB64u: recipients.a.publicKeyB64u,
         roleBPublicKeyB64u: recipients.b.publicKeyB64u,
       },
@@ -309,7 +369,7 @@ export class D1WalletMlDsaRegistration {
         recordKey: passkeyCustodyEnvelopeRecordKey(passkeyCustodyEnvelopeLocatorOf(envelope)),
         storeVersion: input.envelopeStoreVersion,
       },
-    };
+    });
     const record: RegistrationRecord = {
       ceremonyId: input.ceremonyId,
       expiresAtMs: input.expiresAtMs,
@@ -362,6 +422,12 @@ export class D1WalletMlDsaRegistration {
           return failure(`ml_dsa_${result.reason}`, 'ML-DSA execution did not complete');
       }
     }
+    if (
+      preparation.purpose.kind === 'restore' &&
+      (result.result.publicKeyB64u !== preparation.purpose.publicKeyB64u ||
+        result.result.manifestDigestB64u !== preparation.purpose.keyManifestDigestB64u)
+    )
+      return failure('custody_mismatch', 'ML-DSA restoration did not reproduce the recorded key');
     const stored = await this.commit(
       withPhase(current, { kind: 'installed', inputs, result: result.result }),
       version,
@@ -439,6 +505,7 @@ export class D1WalletMlDsaRegistration {
       const record = parseRegistration(JSON.parse(row.record_json));
       if (!record || record.preparation.identity.walletId !== walletId)
         throw new Error('Stored ML-DSA inventory identity differs');
+      this.assertScope(record.preparation.identity);
       const protocol = record.preparation.protocolInputs;
       const phase = record.phase;
       if (phase.kind === 'published') {
@@ -453,6 +520,19 @@ export class D1WalletMlDsaRegistration {
             operationIdB64u: protocol.operationIdB64u,
             materialEpoch: protocol.materialEpoch,
           },
+        });
+      } else if (record.preparation.purpose.kind === 'restore') {
+        const recorded = record.preparation.purpose;
+        entries.push({
+          kind: 'restoring',
+          signingKeyId: parseMlDsaSigningKeyId(protocol.signingKeyId),
+          phase: phase.kind,
+          recordedKey: {
+            publicKeyB64u: recorded.publicKeyB64u,
+            keyManifestDigestB64u: recorded.keyManifestDigestB64u,
+            materialEpoch: recorded.materialEpoch,
+          },
+          retryAtMs: record.expiresAtMs,
         });
       } else {
         entries.push({
@@ -474,6 +554,7 @@ export class D1WalletMlDsaRegistration {
       preparation.protocolInputs.signingKeyId !== signingKeyId
     )
       throw new Error('Stored ML-DSA publication identity differs');
+    this.assertScope(preparation.identity);
     return {
       identity: preparation.identity,
       publicationVersion: read.version,
@@ -547,7 +628,16 @@ export class D1WalletMlDsaRegistration {
       )
       .bind(...this.authorityBindings(preparation));
   }
+  private assertScope(identity: WalletObjectIdentity): void {
+    if (
+      identity.orgId !== this.options.scope.orgId ||
+      identity.projectId !== this.options.scope.projectId ||
+      identity.envId !== this.options.scope.envId
+    )
+      throw new MlDsaRegistrationAuthorityChanged();
+  }
   async assertCurrentOwner(preparation: MlDsaAddSignerPreparation) {
+    this.assertScope(preparation.identity);
     const row = await this.options.database
       .prepare(`SELECT (${this.authorityCondition()}) AS allowed`)
       .bind(...this.authorityBindings(preparation))

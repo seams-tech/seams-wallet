@@ -34,7 +34,7 @@ export async function addMlDsaNearSigner(input: {
   const registered = await input.wallet.registration.addSigner({
     walletId: input.walletSession.walletId,
     rpId: input.rpId,
-    signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: input.signerSlot } },
+    signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: input.signerSlot, purpose: { kind: 'create' } } },
   });
   if (!registered.success) return { kind: 'registration_failed', message: registered.error };
   if (
