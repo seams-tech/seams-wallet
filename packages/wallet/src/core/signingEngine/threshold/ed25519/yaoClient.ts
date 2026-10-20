@@ -1061,11 +1061,19 @@ function openVerifiedCustodyCacheActiveClient(
   }
 }
 
+let yaoClientInitialization: ReturnType<typeof initializeYaoClientWasm> | null = null;
+
+function resetYaoClientInitialization(error: unknown): never {
+  yaoClientInitialization = null;
+  throw error;
+}
+
 export class RouterAbEd25519YaoClientV1 {
   private constructor() {}
 
   static async initializeBundled(): Promise<RouterAbEd25519YaoClientV1> {
-    await initializeYaoClientWasm();
+    yaoClientInitialization ??= initializeYaoClientWasm().catch(resetYaoClientInitialization);
+    await yaoClientInitialization;
     return new RouterAbEd25519YaoClientV1();
   }
 
