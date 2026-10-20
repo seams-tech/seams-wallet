@@ -273,3 +273,5 @@ export async function seedClassicalMigrationEvidence(
     );
   }
 }
+
+export { base58Encode } from '../../packages/shared-ts/src/utils/encoders';

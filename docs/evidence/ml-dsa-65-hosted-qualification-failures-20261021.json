@@ -1,0 +1,96 @@
+{
+  "observedAt": "2026-10-20T16:56:00Z",
+  "result": "failed_fixture_encoding",
+  "initial": {
+    "observedAt": "2026-10-20T16:41:37.248Z",
+    "fixtureOnly": true,
+    "productionEligible": false,
+    "scope": "Browser advanced SDK and real WebAuthn against hosted Gateway/D1/Router/A/B/preparers. Existing owner records are fixture-seeded; native custody opens the fixed public zero seed. Testnet self-transfers use faucet tokens.",
+    "deployment": {
+      "directory": "/private/tmp/ml-dsa-public-qualification-oqewb9yv",
+      "names": {
+        "router": "ml-dsa-pub-1021-42b52a-router",
+        "a": "ml-dsa-pub-1021-42b52a-a",
+        "b": "ml-dsa-pub-1021-42b52a-b",
+        "prep-a": "ml-dsa-pub-1021-42b52a-prep-a",
+        "prep-b": "ml-dsa-pub-1021-42b52a-prep-b",
+        "gateway": "ml-dsa-pub-1021-42b52a-gateway"
+      },
+      "databaseName": "ml-dsa-pub-1021-42b52a-db",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 60000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "configs": {
+        "router": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/router.json",
+        "a": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/a.json",
+        "b": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/b.json",
+        "prep-a": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/prep-a.json",
+        "prep-b": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/prep-b.json",
+        "gateway": "/private/tmp/ml-dsa-public-qualification-oqewb9yv/gateway.json"
+      },
+      "databaseId": "e9d60356-dea4-4b62-8e5d-c6beb89b0fca",
+      "compatibilityDate": "2026-10-20",
+      "gatewayUrl": "https://ml-dsa-pub-1021-42b52a-gateway.n6378056.workers.dev",
+      "versions": {
+        "router": "276829e8-6216-4ba6-a1be-0770e7b245f3",
+        "a": "39eb522d-6cb5-4e70-8864-0fd3809764bb",
+        "b": "95e9ba03-1b36-4dd6-b2bc-dbb5e12fd5d6",
+        "prep-a": "898cafe2-e76a-47f9-8ffd-202e683c921c",
+        "prep-b": "c10e24b0-2894-4195-a9ca-131a2059a3e1",
+        "gateway": "080db7b9-2aa5-411f-92b4-d994a06f42b8"
+      }
+    },
+    "requests": [
+      {
+        "url": "https://ml-dsa-pub-1021-42b52a-gateway.n6378056.workers.dev/fixture/prepare",
+        "request": {
+          "walletId": "ml-dsa-qualification-f30ef95bdca2b92a"
+        },
+        "startedAt": "2026-10-20T16:41:37.650Z"
+      }
+    ],
+    "samples": [],
+    "result": "failed",
+    "walletId": "ml-dsa-qualification-f30ef95bdca2b92a",
+    "error": "SyntaxError: Unexpected token 'I', \"INTERNAL S\"... is not valid JSON"
+  },
+  "controls": [
+    {
+      "walletId": "ml-dsa-qualification-f30ef95bdca2b92a",
+      "status": 500,
+      "elapsedMs": 471,
+      "body": "INTERNAL SERVER ERROR"
+    },
+    {
+      "walletId": "ml-dsa-qualification-f30ef95bdca2b92a",
+      "status": 500,
+      "elapsedMs": 4119,
+      "body": "INTERNAL SERVER ERROR"
+    }
+  ],
+  "inferredCause": "Prefix-only correction passed key loading, stored 2711 key-generation table frames at B, and completed registration. This supports the encoding diagnosis for the traced failure. Original participant traces were absent.",
+  "encodingControl": {
+    "result": "failed",
+    "preparationMs": 75981.36929100001,
+    "registrationOnlineMs": 8073.963667000004,
+    "error": "TypeError: import_bs58.default.encode is not a function",
+    "versions": {
+      "router": "1622b886-5633-4888-9740-04bb8b830572",
+      "a": "200e3f24-75fa-4f19-bc94-a96929c15064",
+      "b": "1d4d6719-4cfd-400c-957d-40ff45e6357b",
+      "prep-a": "6d646805-5d23-46f0-89bc-7a787440ae13",
+      "prep-b": "89e5773e-9fc5-4022-ab08-9064803f70e7",
+      "gateway": "8f323fa3-67bd-4fd6-b9ec-dcbf9bb746bd"
+    },
+    "classification": "Temporary deployment encoding corrected; key generation and canonical FIPS verification passed. A subsequent Node-only fixture bundle used the CommonJS bs58 entry under ESM, and failed before faucet enrollment."
+  }
+}
