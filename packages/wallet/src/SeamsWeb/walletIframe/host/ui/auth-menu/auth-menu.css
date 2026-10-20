@@ -2190,28 +2190,93 @@
 :where(.seams-auth-menu-surface) [data-dot-index="11"] { --dot-index: 11; }
 
 :where(.seams-auth-menu-surface) .seams-signup-menu-root:has(.seams-passkey-prompt) {
-  --seams-menu-min-block-size: 220px;
+  --seams-menu-min-block-size: 196px;
+}
+
+:where(.seams-auth-menu-surface) .seams-waiting:has(.seams-passkey-prompt) {
+  gap: 14px;
 }
 
 :where(.seams-auth-menu-surface) .seams-passkey-prompt {
+  position: relative;
   display: grid;
   place-items: center;
-  box-sizing: border-box;
-  width: 72px;
-  height: 72px;
-  margin-bottom: 2px;
-  border: 1px solid color-mix(in srgb, var(--seams-colors-textPrimary) 8%, transparent);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%);
+  width: 45px;
+  height: 45px;
   color: var(--seams-colors-textPrimary);
 }
-:where(.seams-auth-menu-surface) .seams-passkey-prompt svg {
-  width: 40px;
-  height: 40px;
+
+/* The halo breathes while the Wallet waits on the device's passkey prompt. */
+:where(.seams-auth-menu-surface) .seams-passkey-prompt::before {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%);
+  content: '';
+  animation: seams-passkey-halo 1.4s ease-in-out infinite alternate;
 }
-:where(.seams-auth-menu-surface) .seams-passkey-prompt svg path {
-  stroke-width: 1.5;
+
+/* The ring turns at one speed while the arc grows and shrinks on its own
+   clock, so the arc's head never moves at a constant rate. */
+:where(.seams-auth-menu-surface) .seams-passkey-ring {
+  position: relative;
+  width: 45px;
+  height: 45px;
+  overflow: visible;
+  animation: seams-spin 1.8s linear infinite;
 }
+
+:where(.seams-auth-menu-surface) .seams-passkey-ring circle {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+:where(.seams-auth-menu-surface) .seams-passkey-ring-track {
+  stroke: color-mix(in srgb, var(--seams-colors-textPrimary) 10%, transparent);
+}
+
+:where(.seams-auth-menu-surface) .seams-passkey-ring-arc {
+  stroke: currentColor;
+  stroke-dasharray: 1 100;
+  animation: seams-passkey-arc 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes seams-passkey-arc {
+  0% {
+    stroke-dasharray: 1 100;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 56 100;
+    stroke-dashoffset: -14;
+  }
+  100% {
+    stroke-dasharray: 1 100;
+    stroke-dashoffset: -99;
+  }
+}
+
+@keyframes seams-passkey-halo {
+  from {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-passkey-prompt::before {
+    animation: none;
+  }
+
+  :where(.seams-auth-menu-surface) .seams-passkey-ring {
+    animation-duration: 3.2s;
+  }
+
+  :where(.seams-auth-menu-surface) .seams-passkey-ring-arc {
+    animation-duration: 2.6s;
+  }
+}
+
 :where(.seams-auth-menu-surface) .seams-passkey-instruction {
   max-width: 240px;
   font-size: 13px;

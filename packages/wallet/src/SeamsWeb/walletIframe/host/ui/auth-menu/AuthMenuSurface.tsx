@@ -39,6 +39,7 @@ import {
   linkDeviceIcon,
   linkFailedIcon,
   mailIcon,
+  passkeyRingIcon,
   recoveryIcon,
   rerollIcon,
 } from './icons';
@@ -1468,7 +1469,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-waiting" role="status" aria-live="polite">
           {status.illustration === 'passkey' ? (
             <span class="seams-passkey-prompt" role="img" aria-label="Passkey authentication">
-              {fingerprintIcon()}
+              {passkeyRingIcon()}
             </span>
           ) : null}
           <div class="seams-waiting-message">
