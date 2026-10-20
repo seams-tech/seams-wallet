@@ -133,6 +133,10 @@ relocation. Wallet-seed recovery and FIPS export remain required throughout that
 Performance work must reduce registration and Gateway overhead, then test multiple rejected pairs
 and sustained multi-wallet load at unchanged pool capacity.
 
+The subsequent [lifecycle follow-up](ml-dsa-65-wallet-lifecycle-report.md) implements existing-account
+key enrollment and retained-key discovery/signing for recovered and full-owner linked authorities.
+Its separate testnet campaign confirms an actual owner-signed `AddKey` transaction.
+
 Wallet lifecycle type checks and all 38 locked Cargo manifests pass. The repository bloat check
 still reports its inherited Rust duplication excess: 13,984 lines against 13,754.
 The baseline remains unchanged.

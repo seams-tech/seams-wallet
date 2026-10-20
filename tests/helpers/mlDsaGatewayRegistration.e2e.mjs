@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { verifyMlDsaPublicSigning, replayPublicMlDsaSigning } from './mlDsaPublicSigning.e2e.mjs';
+import { verifyMlDsaRetainedSignerLifecycle } from './mlDsaLifecycle.e2e.mjs';
 import { createHash, generateKeyPairSync, randomBytes, sign as signBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -513,6 +514,15 @@ export async function verifyMlDsaGatewayRegistration({
     gateway = new Gateway(api, traced, scope, proxy);
     await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'signed');
     publicSigning.evidence.checks.completedSigningSurvivesD1Restart = true;
+    const lifecycle = await verifyMlDsaRetainedSignerLifecycle({
+      api, gateway, database, scope, owner, walletId, credentialKey,
+      signingKeyId: context.signingKeyId,
+      publicKeyB64u: published.key.registeredPublicKeyB64u,
+      unsignedTransactionBorshB64u: finished.unsignedTransactionBorshB64u,
+    });
+    assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
+    assert.deepEqual(await phase(database, scope, walletId), committed);
+    checks.recoveryAndDeviceSigningPreserveCustodyAndPublication = true;
     const unused = await issueAdmission(gateway, scope, walletId, key, 2);
     const unusedStart = await gateway.post(walletId, 'start', unused.body);
     assert.equal(unusedStart.body.ok, true, JSON.stringify(unusedStart.body));
@@ -567,6 +577,7 @@ export async function verifyMlDsaGatewayRegistration({
     for (const path of [
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaRegistration.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletMlDsaSigning.ts',
+      'packages/wallet-server/src/router/cloudflare/d1/wallet/mlDsaSigningRecord.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaWebAuthnVerification.ts',
       'packages/wallet-server/src/router/transport/fetch/routes/mlDsaPublicSigning.ts',
       'packages/wallet-server/migrations/d1-signer/0083_ml_dsa_operation_evidence.sql',
@@ -574,6 +585,11 @@ export async function verifyMlDsaGatewayRegistration({
       'packages/shared-ts/src/near/mlDsaSigning.ts',
       'wasm/near_signer/src/ml_dsa_transaction.rs',
       'tests/helpers/mlDsaPublicSigning.e2e.mjs',
+      'tests/helpers/mlDsaLifecycle.e2e.mjs',
+      'packages/shared-ts/src/near/mlDsaInventory.ts',
+      'packages/wallet/src/core/rpcClients/relayer/mlDsaInventory.ts',
+      'packages/wallet/src/core/signingEngine/walletCustody/mlDsaEnrollment.ts',
+      'packages/wallet/src/SeamsWeb/operations/registration/mlDsaNearSigner.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaRegistrationExpiry.ts',
       'packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAddSignerService.ts',
       'packages/wallet-server/migrations/d1-signer/0082_ml_dsa_relocation_boundary.sql',
@@ -596,6 +612,7 @@ export async function verifyMlDsaGatewayRegistration({
       canonicalKeyVerified: true,
       signature,
       publicSigning: publicSigning.evidence,
+      lifecycle,
       publication: replay.body,
       scope:
         'Real Gateway routes, fresh P-256 WebAuthn verification, local D1, and prepared Worker key generation. Existing wallet ownership is seeded with shared factories. No ML-DSA-only wallet creation or public transaction-signing route is tested.',

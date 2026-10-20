@@ -19,7 +19,8 @@ These functions are exported from `@seams/wallet/advanced`.
 The HTTP routes are `POST /wallets/:walletId/ml-dsa/sign/prepare` and
 `POST /wallets/:walletId/ml-dsa/sign`.
 They require the Wallet management protocol header and a configured Wallet origin.
-Signing requires fresh passkey approval from an active direct wallet owner.
+Signing requires fresh passkey approval from an active full wallet owner.
+Linked owners also require an installed NEAR activation.
 
 The Gateway reads the public key, epoch, manifest, schedule, and wallet generation from the
 published registration. Clients cannot select those values or supply a transaction hash.
@@ -120,10 +121,14 @@ Gateway/D1/Router/A/B Workers. Existing ownership and custody were fixture-seede
 Next work:
 
 1. Connect the standard Wallet review and iframe surfaces to the advanced signing flow.
-2. Connect production access-key enrollment to existing-wallet signer addition.
-3. Qualify browser custody, recovery, export, and device authorization through public lifecycle flows.
+2. Qualify combined browser recovery-code and QR-link ceremonies with retained ML-DSA access.
+3. Complete public lost-participant re-establishment and export UI integration.
 4. Connect interrupted-operation reconciliation and complete participant relocation.
 5. Reduce registration and signing latency, then test rejection tails and multi-wallet load.
+
+The [lifecycle follow-up](ml-dsa-65-wallet-lifecycle-report.md) adds production enrollment
+through the existing NEAR approval surface, authenticated signer discovery, and signing
+from recovered and full-owner linked authorities. Its composed tests begin after authority activation.
 
 The local campaign above does not measure hosted latency. The hosted follow-up records
 8.07–9.00 seconds for online registration and 2.57–5.36 seconds for three signing calls.

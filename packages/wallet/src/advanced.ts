@@ -55,5 +55,11 @@ export type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 
-export { prepareMlDsaNearSigning, executeMlDsaNearSigning, submitMlDsaNearTransaction } from './core/rpcClients/relayer/mlDsaSigning';
+export { prepareMlDsaNearSigning, executeMlDsaNearSigning, submitMlDsaNearTransaction, serializeMlDsaWebAuthnApproval } from './core/rpcClients/relayer/mlDsaSigning';
 export type { MlDsaSigningPreparation, MlDsaSigningPreparationOutcome, MlDsaSigningOutcome, MlDsaSignedTransaction } from '@shared/near/mlDsaSigning';
+export { enrollMlDsaNearSigner, resumeMlDsaNearEnrollment } from './core/signingEngine/walletCustody/mlDsaEnrollment';
+export type { MlDsaNearEnrollmentOutcome, PendingMlDsaNearEnrollment, MlDsaPublishedSignerReference } from './core/signingEngine/walletCustody/mlDsaEnrollment';
+export { addMlDsaNearSigner } from './SeamsWeb/operations/registration/mlDsaNearSigner';
+export type { AddMlDsaNearSignerOutcome } from './SeamsWeb/operations/registration/mlDsaNearSigner';
+export { prepareMlDsaSignerInventory, fetchMlDsaSignerInventory } from './core/rpcClients/relayer/mlDsaInventory';
+export type { MlDsaInventoryPreparation, MlDsaInventoryPreparationOutcome, MlDsaSignerInventoryEntry, MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';

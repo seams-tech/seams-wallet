@@ -30,6 +30,7 @@ const CONSUMER_SOURCE = `
 import type { SeamsWeb, NearProvisioningState } from '@seams/wallet';
 import { SeamsWebProvider, useSeams } from '@seams/wallet/react';
 import { createSigningRuntime } from '@seams/wallet/runtime';
+import { addMlDsaNearSigner, enrollMlDsaNearSigner, resumeMlDsaNearEnrollment, prepareMlDsaSignerInventory, fetchMlDsaSignerInventory } from '@seams/wallet/advanced';
 type IsAny<T> = 0 extends (1 & T) ? true : false;
 type Assert<T extends true> = T;
 type Registration = SeamsWeb['registration'];
@@ -65,6 +66,19 @@ if (reactContext.wallet?.near) {
 export type RuntimeIsTyped = Assert<
   IsAny<ReturnType<typeof createSigningRuntime>> extends false ? true : false
 >;
+export type MlDsaWalletInputIsTyped = Assert<
+  IsAny<Parameters<typeof addMlDsaNearSigner>[0]['wallet']> extends false ? true : false
+>;
+export type MlDsaEnrollmentIsTyped = Assert<
+  IsAny<Awaited<ReturnType<typeof enrollMlDsaNearSigner>>> extends false ? true : false
+>;
+export type MlDsaResumeIsTyped = Assert<
+  IsAny<Parameters<typeof resumeMlDsaNearEnrollment>[0]['continuation']> extends false ? true : false
+>;
+export type MlDsaInventoryIsTyped = Assert<
+  IsAny<Awaited<ReturnType<typeof fetchMlDsaSignerInventory>>> extends false ? true : false
+>;
+void prepareMlDsaSignerInventory;
 // @ts-expect-error The obsolete public name must not remain available.
 export type RemovedAccountRead = Registration['getNearProvisioningState'];
 // @ts-expect-error Pending registration resumes through ordinary authentication.
@@ -113,6 +127,7 @@ const CORE_IMPORT_SOURCE = `
 import { createRequire } from 'node:module';
 import { SeamsWeb } from '@seams/wallet';
 import { ExternalEvmController } from '@seams/wallet/external-evm';
+import { addMlDsaNearSigner, enrollMlDsaNearSigner, resumeMlDsaNearEnrollment, prepareMlDsaSignerInventory, fetchMlDsaSignerInventory, serializeMlDsaWebAuthnApproval } from '@seams/wallet/advanced';
 const require = createRequire(import.meta.url);
 for (const dependency of ['react', 'react-dom', '@types/react', '@types/react-dom']) {
   try {
@@ -125,6 +140,9 @@ for (const dependency of ['react', 'react-dom', '@types/react', '@types/react-do
 }
 if (typeof SeamsWeb !== 'function' || typeof ExternalEvmController !== 'function') {
   throw new Error('Core package exports did not load');
+}
+for (const operation of [addMlDsaNearSigner, enrollMlDsaNearSigner, resumeMlDsaNearEnrollment, prepareMlDsaSignerInventory, fetchMlDsaSignerInventory, serializeMlDsaWebAuthnApproval]) {
+  if (typeof operation !== 'function') throw new Error('ML-DSA lifecycle export did not load');
 }
 `;
 

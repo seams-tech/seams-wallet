@@ -2,8 +2,8 @@ import {
   prepareMlDsaNearSigning,
   executeMlDsaNearSigning,
   submitMlDsaNearTransaction,
+  serializeMlDsaWebAuthnApproval,
 } from '../../packages/wallet/src/advanced';
-import { normalizeAuthenticationCredential } from '../../packages/wallet/src/core/signingEngine/webauthnAuth/credentials/helpers';
 import { exactRecord } from '../../packages/shared-ts/src/utils/exactRecord';
 import {
   requireCanonicalString,
@@ -102,7 +102,7 @@ async function run() {
       });
       if (!(credential instanceof PublicKeyCredential))
         throw new Error('Passkey approval was cancelled');
-      const serialized = normalizeAuthenticationCredential(credential.toJSON());
+      const serialized = serializeMlDsaWebAuthnApproval(credential);
       const approvalMs = performance.now() - approvalStart;
       const signingStart = performance.now();
       const request = {
