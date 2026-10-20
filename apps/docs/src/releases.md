@@ -119,8 +119,10 @@ See the [dated evidence](https://github.com/seams-tech/seams-wallet/blob/main/do
 
 ## Prepared changes
 
-The development checkout contains version 0.15.5. At the publication check
-above, npm did not publish it. It gives the Google sign-in waiting screen
+The development checkout contains version 0.15.6. Publication and deployment
+are pending. It gives the Google sign-in waiting screen
 the same ring, headline, and instruction layout as the passkey waiting screen.
-It changes hosted UI and retains compatibility with 0.15.4 custody Workers.
+It also loads the NEAR signing and export WASM modules before finalization,
+with shared initialization for concurrent callers. It retains compatibility
+with 0.15.4 custody Workers.
 Use the published baseline until publication and deployment are verified.
