@@ -92,6 +92,12 @@ build_near_signer() {
       wasm-pack build --locked --target web --out-dir pkg --out-name wasm_signer_worker --release
 }
 
+build_shamir3pass_runtime() {
+  run_in_dir "$SOURCE_WASM_SHAMIR3PASS_RUNTIME" \
+    with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_SHAMIR3PASS_RUNTIME/Cargo.lock" \
+      wasm-pack build --locked --target web --out-dir pkg --out-name shamir3pass_runtime --release
+}
+
 build_ed25519_yao_client() {
   run_in_dir "$SOURCE_ED25519_YAO_CLIENT" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/Cargo.lock" \
@@ -250,7 +256,7 @@ else
   JOB_LOG_DIR="$(mktemp -d)"
   start_job "NEAR signer WASM (release)" build_near_signer
   start_job "EVM crypto WASM ($DEFAULT_WASM_PROFILE_LABEL)" build_profiled_wasm_crate "$SOURCE_WASM_EVM_CRYPTO" evm_crypto
-  start_job "Shamir3Pass runtime WASM ($DEFAULT_WASM_PROFILE_LABEL)" build_profiled_wasm_crate "$SOURCE_WASM_SHAMIR3PASS_RUNTIME" shamir3pass_runtime
+  start_job "Shamir3Pass runtime WASM (release)" build_shamir3pass_runtime
   if [ "$WASM_SDK_BUILD_TARGET" = "all" ]; then
     start_job "Ed25519 Yao Client WASM (release)" build_ed25519_yao_client
     start_job "ECDSA client signer WASM (release)" build_router_ab_ecdsa_client
