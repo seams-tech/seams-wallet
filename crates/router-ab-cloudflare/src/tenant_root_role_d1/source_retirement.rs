@@ -79,7 +79,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
         statements.push(self.session.prepare(&format!("UPDATE tenant_root_recovery_attempts SET lifecycle='destroying', encrypted_material_b64u=NULL, encrypted_package_b64u=NULL, package_digest_b64u=NULL, descriptor_b64u=NULL, package_length=NULL WHERE tenant_identity_digest_hex=?1 AND custody_lineage_b64u=?2 AND lifecycle IN ('provisioning','pending','packaged') AND {admitted}"))
             .bind_refs([RoleSqlValue::Text(&identity),RoleSqlValue::Text(&lineage),RoleSqlValue::Text(&active_receipt),RoleSqlValue::Text(&destination)].iter())?);
-        self.session.batch(statements).await?;
+        self.session
+            .transaction(statements.into_iter().map(Into::into).collect())
+            .await?;
         let row = self
             .source_retirement_row(command)
             .await?

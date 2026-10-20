@@ -406,8 +406,6 @@ const MARK_COMMAND_EXECUTED_SQL: &str = "UPDATE tenant_root_command_replays SET 
     AND custody_lineage_b64u = ?3 AND session_id_hex = ?4 AND nonce_hex = ?5 \
     AND role = ?6 AND command_digest_hex = ?7 AND reserved_at_ms = ?8 \
     AND status = 'reserved'";
-const CAS_COUNT_GUARD_SQL: &str = "INSERT INTO tenant_root_command_cas_guard (guard_id) \
-    SELECT 1 WHERE changes() <> CAST(?1 AS INTEGER)";
 const COMMIT_COMMAND_TERMINAL_SQL: &str = "UPDATE tenant_root_command_replays SET \
     status = ?1, receipt_b64u = ?2, receipt_digest_hex = ?3, terminal_at_ms = ?4 \
     WHERE replay_key_digest_hex = ?5 AND tenant_identity_digest_hex = ?6 \
@@ -8095,7 +8093,10 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             .iter(),
         )?;
         // The promoted provider result and its activation-ready row become durable together.
-        let results = self.session.batch(vec![statement, insert]).await?;
+        let results = self
+            .session
+            .transaction(vec![statement.into(), insert.into()])
+            .await?;
         if results.len() != 2 || results.iter().any(|result| !result.success()) {
             return Err(store_error("restore promotion persistence failed"));
         }
@@ -8465,20 +8466,14 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 ]
                 .iter(),
             )?;
-        let guard = self.command_cas_count_guard_statement(1)?;
-        let results = self.session.batch(vec![statement, guard]).await?;
-        if results.len() != 2 || results.iter().any(|result| !result.success()) {
+        let results = self.session.transaction(vec![statement.expect_changes(1)]).await?;
+        if results.len() != 1 || results.iter().any(|result| !result.success()) {
             return Err(store_error(
                 "tenant-root restore refresh finalization failed",
             ));
         }
         match result_changes(&results[0])? {
             1 => {
-                require_changes(
-                    &results[1],
-                    0,
-                    "tenant-root restore refresh finalization count guard returned an invalid change count",
-                )?;
                 let stored = self
                     .load_restore_refresh_attempt_by_replay(replay_key_digest)
                     .await?
@@ -8790,14 +8785,11 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     ]
                     .iter(),
                 )?;
-            let supersede_guard = self.command_cas_count_guard_statement(1)?;
-            let insert_guard = self.command_cas_count_guard_statement(1)?;
             self.session
-                .batch(vec![supersede, supersede_guard, insert, insert_guard])
+                .transaction(vec![supersede.expect_changes(1), insert.expect_changes(1)])
                 .await?
         } else {
-            let insert_guard = self.command_cas_count_guard_statement(1)?;
-            self.session.batch(vec![insert, insert_guard]).await?
+            self.session.transaction(vec![insert.expect_changes(1)]).await?
         };
         if results.iter().all(|result| result.success()) {
             let stored = self
@@ -8913,20 +8905,14 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 ]
                 .iter(),
             )?;
-        let guard = self.command_cas_count_guard_statement(1)?;
-        let results = self.session.batch(vec![statement, guard]).await?;
-        if results.len() != 2 || results.iter().any(|result| !result.success()) {
+        let results = self.session.transaction(vec![statement.expect_changes(1)]).await?;
+        if results.len() != 1 || results.iter().any(|result| !result.success()) {
             return Err(store_error(
                 "tenant-root restore imported share acceptance failed",
             ));
         }
         let changes = result_changes(&results[0])?;
         if changes == 1 {
-            require_changes(
-                &results[1],
-                0,
-                "tenant-root restore imported share acceptance count guard returned an invalid change count",
-            )?;
             let stored = self
                 .load_restore_import_key_by_replay(record.binding.replay_key_digest)
                 .await?
@@ -9261,7 +9247,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             )?;
         let results = self
             .session
-            .batch(vec![close, close_refresh_attempts])
+            .transaction(vec![close.into(), close_refresh_attempts.into()])
             .await?;
         if results.len() != 2 || results.iter().any(|result| !result.success()) {
             return Err(store_error(
@@ -10236,9 +10222,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         Ok(CloudflareTenantRootRefreshExecutedCommandV1 { executed, evidence })
     }
 
-    /// Runs the pending checkpoint as one batch: any supersession statements,
-    /// then the pending row and the replay checkpoint, each changing exactly
-    /// one row behind a count guard.
+    /// Commits supersession, the pending row, and the replay checkpoint together.
+    /// Every statement must change exactly one row before commit.
     async fn run_refresh_pending_checkpoint(
         &self,
         supersession_statements: Vec<(RoleSqlStatement<'_, S>, &'static str)>,
@@ -10257,12 +10242,11 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 "tenant-root refresh replay checkpoint changed concurrently",
             ),
         ]) {
-            statements.push(statement);
-            statements.push(self.command_cas_count_guard_statement(1)?);
+            statements.push(statement.expect_changes(1));
             conflicts.push(conflict);
         }
-        let results = self.session.batch(statements).await?;
-        if results.len() != conflicts.len() * 2 {
+        let results = self.session.transaction(statements).await?;
+        if results.len() != conflicts.len() {
             return Err(store_error(
                 "tenant-root refresh pending checkpoint returned an invalid result count",
             ));
@@ -10278,12 +10262,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             }
         }
         for (index, conflict) in conflicts.into_iter().enumerate() {
-            require_changes(&results[index * 2], 1, conflict)?;
-            require_changes(
-                &results[index * 2 + 1],
-                0,
-                "tenant-root refresh pending checkpoint count guard returned an invalid change count",
-            )?;
+            require_changes(&results[index], 1, conflict)?;
         }
         Ok(())
     }
@@ -10499,9 +10478,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 ]
                 .iter(),
             )?;
-        let guard = self.command_cas_count_guard_statement(1)?;
-        let results = self.session.batch(vec![statement, guard]).await?;
-        if results.len() != 2 {
+        let results = self.session.transaction(vec![statement.expect_changes(1)]).await?;
+        if results.len() != 1 {
             return Err(store_error(
                 "tenant-root refresh terminal commit returned an invalid result count",
             ));
@@ -10517,11 +10495,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             }
         }
         if result_changes(&results[0])? == 1 {
-            require_changes(
-                &results[1],
-                0,
-                "tenant-root refresh terminal count guard returned an invalid change count",
-            )?;
             return Ok(CloudflareTenantRootCommandTerminalCommitV1::Committed { receipt_bytes });
         }
         if result_changes(&results[0])? != 0 {
@@ -10549,9 +10522,8 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         statement: RoleSqlStatement<'_, S>,
         operation: &str,
     ) -> RoleStoreResult<()> {
-        let guard = self.command_cas_count_guard_statement(1)?;
-        let results = self.session.batch(vec![statement, guard]).await?;
-        if results.len() != 2 {
+        let results = self.session.transaction(vec![statement.expect_changes(1)]).await?;
+        if results.len() != 1 {
             return Err(store_error(format!(
                 "tenant-root refresh {operation} returned an invalid result count"
             )));
@@ -10570,11 +10542,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             &results[0],
             1,
             "tenant-root refresh state changed concurrently",
-        )?;
-        require_changes(
-            &results[1],
-            0,
-            "tenant-root refresh state count guard returned an invalid change count",
         )
     }
 
@@ -12790,36 +12757,23 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             ]
             .iter(),
         )?;
-        let lifecycle_guard = self.command_cas_count_guard_statement(1)?;
-        let tombstone_guard = self.command_cas_count_guard_statement(1)?;
-        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
         let results = self
             .session
-            .batch(vec![
-                lifecycle_statement,
-                lifecycle_guard,
-                tombstone,
-                tombstone_guard,
-                checkpoint_statement,
-                checkpoint_guard,
+            .transaction(vec![
+                lifecycle_statement.expect_changes(1),
+                tombstone.expect_changes(1),
+                checkpoint_statement.expect_changes(1),
             ])
             .await?;
-        if results.len() != 6 || results.iter().any(|result| !result.success()) {
-            return Err(store_error("tenant-root abandoned pending cleanup batch failed"));
+        if results.len() != 3 || results.iter().any(|result| !result.success()) {
+            return Err(store_error("tenant-root abandoned pending cleanup transaction failed"));
         }
         for (index, what) in [
             (0, "tenant-root pending row changed concurrently"),
-            (2, "tenant-root abandoned-creation tombstone changed concurrently"),
-            (4, "tenant-root command execution checkpoint changed concurrently"),
+            (1, "tenant-root abandoned-creation tombstone changed concurrently"),
+            (2, "tenant-root command execution checkpoint changed concurrently"),
         ] {
             require_one_change(&results[index], what)?;
-        }
-        for guard in [&results[1], &results[3], &results[5]] {
-            require_changes(
-                guard,
-                0,
-                "tenant-root abandoned pending cleanup count guard returned an invalid change count",
-            )?;
         }
         reservation
             .checkpoint_executed(executed_at_ms)
@@ -13339,16 +13293,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         )
     }
 
-    fn command_cas_count_guard_statement(
-        &self,
-        expected_changes: usize,
-    ) -> RoleStoreResult<RoleSqlStatement<'_, S>> {
-        let expected_changes = expected_changes.to_string();
-        self.session
-            .prepare(CAS_COUNT_GUARD_SQL)
-            .bind_refs([RoleSqlValue::Text(expected_changes.as_str())].iter())
-    }
-
     async fn run_lifecycle_checkpoint(
         &self,
         lifecycle_statement: RoleSqlStatement<'_, S>,
@@ -13362,18 +13306,14 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 "tenant-root command execution checkpoint precedes its reservation",
             ));
         }
-        let lifecycle_guard = self.command_cas_count_guard_statement(expected_lifecycle_changes)?;
-        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
         let results = self
             .session
-            .batch(vec![
-                lifecycle_statement,
-                lifecycle_guard,
-                checkpoint_statement,
-                checkpoint_guard,
+            .transaction(vec![
+                lifecycle_statement.expect_changes(expected_lifecycle_changes),
+                checkpoint_statement.expect_changes(1),
             ])
             .await?;
-        if results.len() != 4 {
+        if results.len() != 2 {
             return Err(store_error(
                 "tenant-root lifecycle checkpoint returned an invalid result count",
             ));
@@ -13393,19 +13333,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             expected_lifecycle_changes,
             "tenant-root lifecycle changed concurrently",
         )?;
-        require_changes(
-            &results[1],
-            0,
-            "tenant-root lifecycle count guard returned an invalid change count",
-        )?;
         require_one_change(
-            &results[2],
+            &results[1],
             "tenant-root command execution checkpoint changed concurrently",
-        )?;
-        require_changes(
-            &results[3],
-            0,
-            "tenant-root command checkpoint count guard returned an invalid change count",
         )?;
         reservation
             .checkpoint_executed(executed_at_ms)
@@ -13454,16 +13384,18 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             ]
             .iter(),
         )?;
-        let tombstone_guard = self.command_cas_count_guard_statement(1)?;
         let checkpoint = self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
-        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
         // The delete may remove one row or none; the tombstone and the
         // checkpoint must each land exactly once, or the batch aborts.
         let results = self
             .session
-            .batch(vec![delete, tombstone, tombstone_guard, checkpoint, checkpoint_guard])
+            .transaction(vec![
+                delete.into(),
+                tombstone.expect_changes(1),
+                checkpoint.expect_changes(1),
+            ])
             .await?;
-        if results.len() != 5 || results.iter().any(|result| !result.success()) {
+        if results.len() != 3 || results.iter().any(|result| !result.success()) {
             return Err(store_error(
                 "tenant-root abandoned-ceremony cleanup batch failed",
             ));
@@ -13473,16 +13405,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             "tenant-root abandoned-ceremony tombstone changed concurrently",
         )?;
         require_one_change(
-            &results[3],
+            &results[2],
             "tenant-root command execution checkpoint changed concurrently",
         )?;
-        for guard in [&results[2], &results[4]] {
-            require_changes(
-                guard,
-                0,
-                "tenant-root abandoned-ceremony count guard returned an invalid change count",
-            )?;
-        }
         reservation
             .checkpoint_executed(executed_at_ms)
             .map_err(|error| store_error(error.message()))
@@ -13524,12 +13449,11 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
         let checkpoint_statement =
             self.command_execution_checkpoint_statement(&reservation, executed_at_ms)?;
-        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
         let results = self
             .session
-            .batch(vec![checkpoint_statement, checkpoint_guard])
+            .transaction(vec![checkpoint_statement.expect_changes(1)])
             .await?;
-        if results.len() != 2 {
+        if results.len() != 1 {
             return Err(store_error(
                 "tenant-root command-only checkpoint returned an invalid result count",
             ));
@@ -13547,11 +13471,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         require_one_change(
             &results[0],
             "tenant-root command execution checkpoint changed concurrently",
-        )?;
-        require_changes(
-            &results[1],
-            0,
-            "tenant-root command checkpoint count guard returned an invalid change count",
         )?;
         reservation
             .checkpoint_executed(executed_at_ms)
@@ -13571,21 +13490,15 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 "tenant-root command execution checkpoint precedes its reservation",
             ));
         }
-        let delete_guard = self.command_cas_count_guard_statement(1)?;
-        let activate_guard = self.command_cas_count_guard_statement(1)?;
-        let checkpoint_guard = self.command_cas_count_guard_statement(1)?;
         let results = self
             .session
-            .batch(vec![
-                delete_statement,
-                delete_guard,
-                activate_statement,
-                activate_guard,
-                checkpoint_statement,
-                checkpoint_guard,
+            .transaction(vec![
+                delete_statement.expect_changes(1),
+                activate_statement.expect_changes(1),
+                checkpoint_statement.expect_changes(1),
             ])
             .await?;
-        if results.len() != 6 {
+        if results.len() != 3 {
             return Err(store_error(
                 "managed-restore forward-refresh checkpoint returned an invalid result count",
             ));
@@ -13604,28 +13517,13 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             &results[0],
             "managed-restore forward-refresh source changed concurrently",
         )?;
-        require_changes(
+        require_one_change(
             &results[1],
-            0,
-            "managed-restore forward-refresh source count guard returned an invalid change count",
+            "managed-restore forward-refresh successor changed concurrently",
         )?;
         require_one_change(
             &results[2],
-            "managed-restore forward-refresh successor changed concurrently",
-        )?;
-        require_changes(
-            &results[3],
-            0,
-            "managed-restore forward-refresh successor count guard returned an invalid change count",
-        )?;
-        require_one_change(
-            &results[4],
             "managed-restore forward-refresh execution checkpoint changed concurrently",
-        )?;
-        require_changes(
-            &results[5],
-            0,
-            "managed-restore forward-refresh checkpoint count guard returned an invalid change count",
         )?;
         reservation
             .checkpoint_executed(executed_at_ms)

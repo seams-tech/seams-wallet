@@ -1,7 +1,11 @@
-//! The SQL surface a Deriver's tenant-root role store uses, independent of
-//! its host. Cloudflare implements it with the role-private D1 session; a VM
-//! Deriver implements it with a role-private SQLite file. The store's
-//! statements, schema and invariants are shared; only execution differs.
+//! The execution contract for a Deriver's tenant-root role store.
+//! Statements and migrations still use SQLite SQL. The D1 driver implements
+//! atomic transactions and row-count expectations at the database boundary.
+
+#[cfg(feature = "workers-rs")]
+mod d1;
+#[cfg(feature = "workers-rs")]
+pub use d1::D1RoleSqlSessionV1;
 
 use core::fmt;
 
@@ -28,20 +32,6 @@ impl std::error::Error for RoleStoreError {}
 impl From<serde_json::Error> for RoleStoreError {
     fn from(error: serde_json::Error) -> Self {
         Self(error.to_string())
-    }
-}
-
-#[cfg(feature = "workers-rs")]
-impl From<worker::Error> for RoleStoreError {
-    fn from(error: worker::Error) -> Self {
-        Self(error.to_string())
-    }
-}
-
-#[cfg(feature = "workers-rs")]
-impl From<RoleStoreError> for worker::Error {
-    fn from(error: RoleStoreError) -> Self {
-        worker::Error::RustError(error.0)
     }
 }
 
@@ -76,6 +66,15 @@ impl<'s, S: RoleSqlSessionV1 + ?Sized> RoleSqlStatement<'s, S> {
         &self.params
     }
 
+    /// Requires this mutation to change exactly `count` rows before commit.
+    /// The returned statement can run only through `transaction`.
+    pub fn expect_changes(self, count: usize) -> RoleSqlTransactionStatement<'s, S> {
+        RoleSqlTransactionStatement::ExpectChanges {
+            statement: self,
+            count,
+        }
+    }
+
     pub fn bind_refs<'v>(
         mut self,
         values: impl IntoIterator<Item = &'v RoleSqlValue<'v>>,
@@ -91,7 +90,9 @@ impl<'s, S: RoleSqlSessionV1 + ?Sized> RoleSqlStatement<'s, S> {
     }
 
     pub async fn run(&self) -> RoleStoreResult<S::Outcome> {
-        self.session.run_statement(self, RoleSqlReadV1::Changes).await
+        self.session
+            .run_statement(self, RoleSqlReadV1::Changes)
+            .await
     }
 
     pub async fn all(&self) -> RoleStoreResult<S::Outcome> {
@@ -111,6 +112,23 @@ impl<'s, S: RoleSqlSessionV1 + ?Sized> RoleSqlStatement<'s, S> {
     }
 }
 
+/// A transaction statement, with an optional affected-row requirement.
+pub enum RoleSqlTransactionStatement<'s, S: RoleSqlSessionV1 + ?Sized> {
+    Execute(RoleSqlStatement<'s, S>),
+    ExpectChanges {
+        statement: RoleSqlStatement<'s, S>,
+        count: usize,
+    },
+}
+
+impl<'s, S: RoleSqlSessionV1 + ?Sized> From<RoleSqlStatement<'s, S>>
+    for RoleSqlTransactionStatement<'s, S>
+{
+    fn from(statement: RoleSqlStatement<'s, S>) -> Self {
+        Self::Execute(statement)
+    }
+}
+
 /// Whether a statement is executed for its row changes or for its rows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoleSqlReadV1 {
@@ -127,7 +145,7 @@ pub trait RoleSqlOutcomeV1 {
     fn results<T: DeserializeOwned>(&self) -> RoleStoreResult<Vec<T>>;
 }
 
-/// A role-private SQL session. `batch` runs its statements as one atomic unit.
+/// A role-private SQL session. A session must never span Deriver A and B.
 #[allow(async_fn_in_trait)]
 pub trait RoleSqlSessionV1 {
     type Outcome: RoleSqlOutcomeV1;
@@ -151,97 +169,15 @@ pub trait RoleSqlSessionV1 {
         statement: &RoleSqlStatement<'_, Self>,
     ) -> RoleStoreResult<Option<T>>;
 
-    async fn batch(
+    /// Executes statements in order as one durable, atomic transaction.
+    /// Reads must share one coherent snapshot and see earlier writes here.
+    /// Concurrent transactions must preserve the same effect as serial execution.
+    /// On any statement error or row-count mismatch, roll back every write
+    /// before commit. Checking row counts after commit cannot satisfy this contract.
+    /// Returns one outcome per supplied statement, in order, after commit.
+    /// Driver-internal guard statements must not appear in the outcomes.
+    async fn transaction(
         &self,
-        statements: Vec<RoleSqlStatement<'_, Self>>,
+        statements: Vec<RoleSqlTransactionStatement<'_, Self>>,
     ) -> RoleStoreResult<Vec<Self::Outcome>>;
-}
-
-/// The Cloudflare host: the role-private D1 session. Rows keep D1's own
-/// deserialization so stored values decode exactly as before.
-#[cfg(feature = "workers-rs")]
-pub struct D1RoleSqlSessionV1 {
-    session: worker::D1DatabaseSession,
-}
-
-#[cfg(feature = "workers-rs")]
-impl D1RoleSqlSessionV1 {
-    pub fn new(session: worker::D1DatabaseSession) -> Self {
-        Self { session }
-    }
-
-    fn d1_statement(
-        &self,
-        statement: &RoleSqlStatement<'_, Self>,
-    ) -> RoleStoreResult<worker::D1PreparedStatement> {
-        let values: Vec<worker::D1Type<'_>> = statement
-            .params()
-            .iter()
-            .map(|value| match value {
-                RoleSqlOwnedValueV1::Text(text) => worker::D1Type::Text(text.as_str()),
-                RoleSqlOwnedValueV1::Null => worker::D1Type::Null,
-            })
-            .collect();
-        Ok(self
-            .session
-            .prepare(statement.sql())
-            .bind_refs(values.iter())?)
-    }
-}
-
-#[cfg(feature = "workers-rs")]
-impl RoleSqlOutcomeV1 for worker::D1Result {
-    fn success(&self) -> bool {
-        worker::D1Result::success(self)
-    }
-
-    fn error(&self) -> Option<String> {
-        worker::D1Result::error(self)
-    }
-
-    fn changes(&self) -> RoleStoreResult<usize> {
-        Ok(self
-            .meta()?
-            .and_then(|metadata| metadata.changes)
-            .unwrap_or_default())
-    }
-
-    fn results<T: DeserializeOwned>(&self) -> RoleStoreResult<Vec<T>> {
-        Ok(worker::D1Result::results::<T>(self)?)
-    }
-}
-
-#[cfg(feature = "workers-rs")]
-impl RoleSqlSessionV1 for D1RoleSqlSessionV1 {
-    type Outcome = worker::D1Result;
-
-    async fn run_statement(
-        &self,
-        statement: &RoleSqlStatement<'_, Self>,
-        read: RoleSqlReadV1,
-    ) -> RoleStoreResult<worker::D1Result> {
-        let prepared = self.d1_statement(statement)?;
-        Ok(match read {
-            RoleSqlReadV1::Changes => prepared.run().await?,
-            RoleSqlReadV1::Rows => prepared.all().await?,
-        })
-    }
-
-    async fn first_row<T: DeserializeOwned>(
-        &self,
-        statement: &RoleSqlStatement<'_, Self>,
-    ) -> RoleStoreResult<Option<T>> {
-        Ok(self.d1_statement(statement)?.first::<T>(None).await?)
-    }
-
-    async fn batch(
-        &self,
-        statements: Vec<RoleSqlStatement<'_, Self>>,
-    ) -> RoleStoreResult<Vec<worker::D1Result>> {
-        let prepared = statements
-            .iter()
-            .map(|statement| self.d1_statement(statement))
-            .collect::<RoleStoreResult<Vec<_>>>()?;
-        Ok(self.session.batch(prepared).await?)
-    }
 }

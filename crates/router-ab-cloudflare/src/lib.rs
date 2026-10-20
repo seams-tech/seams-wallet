@@ -116,7 +116,7 @@ pub use ordinary_inactive_signer_material::{
 mod tenant_root_role_sql;
 pub use tenant_root_role_sql::{
     RoleSqlOutcomeV1, RoleSqlOwnedValueV1, RoleSqlReadV1, RoleSqlSessionV1, RoleSqlStatement,
-    RoleSqlValue, RoleStoreError, RoleStoreResult,
+    RoleSqlTransactionStatement, RoleSqlValue, RoleStoreError, RoleStoreResult,
 };
 // Shared by every host. Its refresh, restore, retirement and cutover paths
 // still have only Cloudflare callers, so a Cloudflare-free build leaves them unused.

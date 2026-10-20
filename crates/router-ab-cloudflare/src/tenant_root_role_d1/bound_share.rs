@@ -297,7 +297,10 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         let expected_results = statements.len();
         #[cfg(feature = "workers-rs")]
         let batch_started_ms = worker::Date::now().as_millis();
-        let results = self.session.batch(statements).await?;
+        let results = self
+            .session
+            .transaction(statements.into_iter().map(Into::into).collect())
+            .await?;
         #[cfg(feature = "workers-rs")]
         worker::console_log!(
             "{}",

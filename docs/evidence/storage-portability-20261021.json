@@ -1,0 +1,534 @@
+{
+  "kind": "wallet_storage_portability_evidence_v1",
+  "recorded_at": "2026-10-21T07:58:10.853907+09:00",
+  "scope": "Local Workers D1 transaction preparation. PostgreSQL and AWS RDS remain unimplemented and untested.",
+  "repository": "seams-wallet",
+  "branch": "dev",
+  "base_commit": "275b7a2f9426c5a9badde5f154b78c8053d59e1d",
+  "working_tree_note": "The checkout contains unrelated ML-DSA work. Source hashes identify this change; binary hashes identify the exact Workers used.",
+  "runtime": {
+    "node": "v26.4.0",
+    "pnpm": "11.25.0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "source_files": [
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.lock",
+      "bytes": 62921,
+      "sha256": "fad15526638034ee61deaa41917fd62df94acfd700afe30308a21cf1a00b1b28"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.toml",
+      "bytes": 3032,
+      "sha256": "5a2f9e1a303235088fd9e84d6cc2ada9de96c27bdad95ed739df4bcbdb540170"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/lib.rs",
+      "bytes": 619089,
+      "sha256": "45a58b65c76c401947e0e07eb989822290f223453104b891ab65b58166ff001e"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql.rs",
+      "bytes": 5527,
+      "sha256": "9adcacb42cb93dcb272c048cfcdbeeddd2bbb7fc45a7f54418f33916674c927b"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/d1.rs",
+      "bytes": 5384,
+      "sha256": "4d36fbf7e4ff4079c85627f19ad73e2bbf4ca8c43a16c37d72e2d70d2159e18f"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "bytes": 932379,
+      "sha256": "ab479928501cc47650e6670c3307e33dd42e940b4d94602fac9e708c0f16315b"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+      "bytes": 22280,
+      "sha256": "724501b40410a24c78bdbed994f92b726de3f2632584535593eae82c3c296c29"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/source_retirement.rs",
+      "bytes": 6100,
+      "sha256": "6503fccf4583068678efc61f23976a7595c6617d3dfca2c4fae989c67b10fae9"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+      "bytes": 250353,
+      "sha256": "51a0e37626031c22c0e78b54afd2e0070ee6979ca6a6e51604eae0974ec1cfe2"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/scripts/role-transaction-evidence.mjs",
+      "bytes": 2953,
+      "sha256": "956a9c88f21baf16a8638afeab4554d2ed3506a530e174077171738cbc9e0769"
+    }
+  ],
+  "build": {
+    "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev pnpm build:workers",
+    "exit_code": 0,
+    "freshness": "The existing harness checked every build stamp against transitive Rust source modification times.",
+    "log": {
+      "path": ".artifacts/storage-portability/build.log",
+      "bytes": 218268,
+      "sha256": "0ea2f757a57566acc1dd8d27dbad258f42074b5511da9d0c75396d662f1c7e5f"
+    },
+    "workers": [
+      {
+        "role": "router",
+        "stamp": {
+          "profile": "dev",
+          "wallet_objects": true,
+          "features": "strict-worker-router-entrypoint,local-intended-router-burn",
+          "started_at_ms": 1792536384494
+        },
+        "wasm": {
+          "path": "crates/router-ab-cloudflare/build/dev/router/index_bg.wasm",
+          "bytes": 39155626,
+          "sha256": "fd2d7e2a73afda7694796f58b6df95f0327380b124a9862d793903f6c3602ea2"
+        }
+      },
+      {
+        "role": "deriver-a",
+        "stamp": {
+          "profile": "dev",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-a-entrypoint",
+          "started_at_ms": 1792536328272
+        },
+        "wasm": {
+          "path": "crates/router-ab-cloudflare/build/dev/deriver-a/index_bg.wasm",
+          "bytes": 45730627,
+          "sha256": "e3afa48c3a2e79acd3eeac3c601643166294996380bdd88271ae27799b494f5b"
+        }
+      },
+      {
+        "role": "deriver-b",
+        "stamp": {
+          "profile": "dev",
+          "wallet_objects": true,
+          "features": "strict-worker-deriver-b-entrypoint,wallet-do-b-completion-harness",
+          "started_at_ms": 1792536357918
+        },
+        "wasm": {
+          "path": "crates/router-ab-cloudflare/build/dev/deriver-b/index_bg.wasm",
+          "bytes": 45850791,
+          "sha256": "7ae781b500e8c6b33a66569e970f4156346eb2f832db8567f2edb64de0aec790"
+        }
+      },
+      {
+        "role": "signing-worker",
+        "stamp": {
+          "profile": "dev",
+          "wallet_objects": true,
+          "features": "strict-worker-signing-worker-entrypoint",
+          "started_at_ms": 1792536299396
+        },
+        "wasm": {
+          "path": "crates/router-ab-cloudflare/build/dev/signing-worker/index_bg.wasm",
+          "bytes": 45751325,
+          "sha256": "3bd64952e1e313e413e509f1f847a653caccb84edcf50a9496770c7716c87512"
+        }
+      },
+      {
+        "role": "tenant-root-control-plane",
+        "stamp": {
+          "profile": "dev",
+          "wallet_objects": false,
+          "features": "strict-worker-tenant-root-control-plane-entrypoint",
+          "started_at_ms": 1792536412073
+        },
+        "wasm": {
+          "path": "crates/router-ab-cloudflare/build/dev/tenant-root-control-plane/index_bg.wasm",
+          "bytes": 25873260,
+          "sha256": "9631e9d4a39c7e77983ab125a50a1cfd91602ebe926056059011a9848da3a881"
+        }
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --admission-races",
+      "exit_code": 0,
+      "log": {
+        "path": ".artifacts/storage-portability/admission-races.log",
+        "bytes": 61862,
+        "sha256": "40739100b05da975b68e0b7761c8cc965354692ed13b35c38ab013141c18fd8d"
+      },
+      "result": {
+        "kind": "tenant_root_admission_race_workers_e2e_v1",
+        "checkpointRollback": {
+          "fault": "zero_row_replay_checkpoint_after_pending_share_insert",
+          "failedStatus": 500,
+          "earlierMutationRolledBack": true,
+          "checkpointRemainedReserved": true,
+          "retryStatus": 200,
+          "operationReplayStatus": 200,
+          "activationReceiptUnchangedOnReplay": true,
+          "epochsAfterRetry": [
+            {
+              "epoch": 1,
+              "lifecycle": "retired",
+              "revision": 3
+            },
+            {
+              "epoch": 2,
+              "lifecycle": "active",
+              "revision": 2
+            }
+          ]
+        },
+        "unusedBinding": {
+          "heldBefore": "deriver_a_execute_pair",
+          "refreshStatus": 200,
+          "deriverAPreparationStatus": 503,
+          "deriverAPreparationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+          "registrationStatus": 200,
+          "registrationBody": "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}",
+          "admissionsAfterRefusal": {
+            "deriverA": [],
+            "deriverB": [
+              1
+            ]
+          },
+          "freshRegistration": "succeeded",
+          "admissionsAfterFresh": {
+            "deriverA": [
+              2
+            ],
+            "deriverB": [
+              1,
+              2
+            ]
+          },
+          "statusesAfterFresh": {
+            "deriverA": [
+              [
+                2,
+                "settled"
+              ]
+            ],
+            "deriverB": [
+              [
+                1,
+                "admitted"
+              ],
+              [
+                2,
+                "settled"
+              ]
+            ]
+          },
+          "deriverAEpochOneRetirement": [
+            200,
+            "retired_deleted"
+          ],
+          "deriverBEpochOneRetirement": [
+            503,
+            "LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+          ]
+        },
+        "deliveryGate": {
+          "fault": "deriver_b_unreachable_for_refresh_activation",
+          "refreshStatus": 500,
+          "deliveryAfterRefresh": {
+            "deriverA": "delivered",
+            "deriverB": "pending"
+          },
+          "registrationWhilePendingStatus": 503,
+          "admissionsWhilePending": {
+            "deriverA": [],
+            "deriverB": []
+          },
+          "registrationAfterReachable": "succeeded",
+          "deliveryAfter": {
+            "deriverA": "delivered",
+            "deriverB": "delivered"
+          },
+          "admissionsAfter": {
+            "deriverA": [
+              2
+            ],
+            "deriverB": [
+              2
+            ]
+          },
+          "statusesAfter": {
+            "deriverA": [
+              [
+                2,
+                "settled"
+              ]
+            ],
+            "deriverB": [
+              [
+                2,
+                "settled"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --refresh-after-managed-restore",
+      "exit_code": 0,
+      "log": {
+        "path": ".artifacts/storage-portability/refresh-after-managed-restore.log",
+        "bytes": 8825,
+        "sha256": "2168432e0a38f0a3c1c8b961227201dda5de7f392dda79654e434bb2905df251"
+      },
+      "result": {
+        "kind": "tenant_root_refresh_after_managed_restore_workers_e2e_v1",
+        "restoreRevision": 4,
+        "refreshStatus": 200,
+        "refreshRevision": 5,
+        "deriverA": [
+          [
+            2,
+            "retired"
+          ],
+          [
+            3,
+            "active"
+          ]
+        ],
+        "deriverB": [
+          [
+            2,
+            "retired"
+          ],
+          [
+            3,
+            "active"
+          ]
+        ],
+        "restoreRetryReturnsDurableOutcome": true
+      }
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --do-admission-settlement",
+      "exit_code": 0,
+      "log": {
+        "path": ".artifacts/storage-portability/do-admission-settlement.log",
+        "bytes": 53772,
+        "sha256": "42ea444274d717347c304b87805d17a97bffe7d932759db9f1b001faa2e3c7b4"
+      },
+      "result": {
+        "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
+        "fence": {
+          "admissionsWhileHeld": [
+            [],
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ]
+          ],
+          "deriverBRetired": [
+            "retired_deleted",
+            1
+          ],
+          "objectsAfterRetirement": {
+            "deriverA": "fenced",
+            "deriverB": "fenced"
+          },
+          "heldRegistration": [
+            200,
+            "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+          ],
+          "deriverARetired": [
+            "retired_deleted",
+            0
+          ],
+          "freshRegistration": "succeeded",
+          "admissionsAfter": [
+            [
+              [
+                2,
+                "settled",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "cancelled",
+                true
+              ],
+              [
+                2,
+                "settled",
+                true
+              ]
+            ]
+          ]
+        },
+        "lostAcknowledgement": {
+          "admissionsAfterRevert": [
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ]
+          ],
+          "retired": [
+            [
+              "retired_deleted",
+              0
+            ],
+            [
+              "retired_deleted",
+              0
+            ]
+          ],
+          "admissionsAfterReconciliation": [
+            [
+              [
+                1,
+                "settled",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "settled",
+                true
+              ]
+            ]
+          ],
+          "objectReports": [
+            "completed",
+            "completed"
+          ]
+        }
+      }
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --retirement-trigger",
+      "exit_code": 0,
+      "log": {
+        "path": ".artifacts/storage-portability/retirement-trigger.log",
+        "bytes": 34612,
+        "sha256": "2b20de4f5543d78fa2961d1c2b982b6d02b489769be6011079b5c9d8da11fa6b"
+      },
+      "result": {
+        "kind": "tenant_root_retirement_trigger_workers_e2e_v1",
+        "build": "wallet_objects",
+        "graceMs": 1000,
+        "firstRefresh": [
+          "pending",
+          "pending"
+        ],
+        "afterGraceWhileWorkHeld": [
+          [
+            "erased",
+            "pending"
+          ],
+          "tenant-root cleanup request service returned HTTP status 503: LifecycleTransitionInProgress: retirement of epoch 1 is pending here: 1 admitted operation(s) are not settled"
+        ],
+        "heldWork": "refused erased A epoch; fresh registration succeeded on epoch 2",
+        "afterSettlement": [
+          "erased",
+          "erased"
+        ],
+        "epochOneSharesAfter": [
+          0,
+          0
+        ],
+        "recordedErasuresReplayExactly": true,
+        "admissionsAfter": [
+          [
+            [
+              2,
+              "settled"
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled"
+            ],
+            [
+              2,
+              "settled"
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "bloat_check": {
+    "command": "pnpm report:bloat --check",
+    "exit_code": 0,
+    "log": {
+      "path": ".artifacts/storage-portability/bloat.log",
+      "bytes": 4148,
+      "sha256": "7bcd8e8dafc4cbca2a9b2ec8aa0920274c87f6b6f62dd8a3ab6a1c656a8709c4"
+    }
+  },
+  "diagnosis": {
+    "classification": "valid_test_needs_update",
+    "facts": [
+      {
+        "id": "F1",
+        "observation": "The diagnostic probe completed checkpoint rollback, retry 200, and operation replay 200.",
+        "source": "admission-probe.log: STORAGE_PROBE_CHECKPOINT"
+      },
+      {
+        "id": "F2",
+        "observation": "The following registration returned 400: Wallet object addresses are missing.",
+        "source": "admission-probe.log: final STORAGE_PROBE request"
+      },
+      {
+        "id": "F3",
+        "observation": "The request parser requires the wallet-object-addresses header. The harness waited for a held request before reading the failed registration response.",
+        "source": "wallet_object_address.rs: from_gateway_request; test-private-d1.mjs: testTenantRootAdmissionRaces"
+      },
+      {
+        "id": "F4",
+        "observation": "Admission and settlement completed with the same Worker builds after the harness supplied addresses.",
+        "source": "scenarios and build stamps in this record"
+      }
+    ],
+    "causes": [
+      {
+        "cause": "Persistent failure in the new transaction driver",
+        "assessment": "Contradicted for the tested checkpoint by F1 and F4."
+      },
+      {
+        "cause": "Missing required addresses followed by an unresolved harness hold",
+        "assessment": "Supported by F2 and F3. The repaired requests completed in F4."
+      },
+      {
+        "cause": "CPU saturation or a database deadlock",
+        "assessment": "No evidence establishes either cause."
+      }
+    ],
+    "probe_log": {
+      "path": ".artifacts/storage-portability/admission-probe.log",
+      "bytes": 28149,
+      "sha256": "1f368c71d85ca44fa401df79d233a582b43db417823b90b704ffb131f1c12207"
+    },
+    "test_query_correction": "The first rollback probe also selected the initial-creation replay. It now uses the existing refresh_state_b64u IS NOT NULL predicate.",
+    "review": "An independent read-only review found no blocking D1 defect and confirmed the guard/result ordering. Replay wording was narrowed to the same operation and matching activation receipt.",
+    "known_harness_limit": "The existing hold helper has no rejection path when a request ends before reaching its hold."
+  },
+  "limits": [
+    "Evidence covers local workerd and D1 emulation. It does not establish production latency, RDS isolation, commit durability, failover, or backup recovery.",
+    "The checkpoint replay check repeats the operation identity and compares the activation receipt. Request revision and expiry fields can differ.",
+    "Gateway, Console, SigningWorker, Durable Object, and backup persistence require separate PostgreSQL implementation work.",
+    "No AWS resource, production data, or deployment changed."
+  ]
+}

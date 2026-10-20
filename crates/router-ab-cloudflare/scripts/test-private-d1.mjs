@@ -3,6 +3,7 @@ import { runtimeRelocationSource, runtimeRelocationDestination } from './runtime
 import { verifyDeriverPreparation, verifyDeriverSourceFences } from './deriver-preparation-evidence.mjs';
 import { verifyEd25519DestinationSigning } from './ed25519-signing-evidence.mjs';
 import { verifyEd25519Snapshot } from './ed25519-snapshot-evidence.mjs';
+import { verifyRoleTransactionRollback } from './role-transaction-evidence.mjs';
 import assert from 'node:assert/strict';
 import {
   verifyLinkedImportRejection,
@@ -3163,6 +3164,13 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   const retiredThenActive = [[1, 'retired'], [2, 'active']];
   const races = fixture.admission_race;
 
+  const rollbackRoot = recoveryCreationGrant('transaction-rollback', 60_000);
+  const created = await create(rollbackRoot);
+  assert.equal(created.status, 200, created.body);
+  const checkpointRollback = await verifyRoleTransactionRollback(
+    databases.deriverA, rollbackRoot, refresh,
+  );
+
   // 1. A binding unused before its epoch closes starts nothing.
   const unused = recoveryCreationGrant('admission-race-unused', 60_000);
   let result = await create(unused);
@@ -3255,6 +3263,7 @@ async function testTenantRootAdmissionRaces(topology, fixture, databases) {
   assert.deepEqual(await admissionStatuses(gated), [[[2, 'settled']], [[2, 'settled']]]);
 
   return {
+    checkpointRollback,
     unusedBinding: {
       heldBefore: 'deriver_a_execute_pair',
       refreshStatus: unusedRefresh.status,
