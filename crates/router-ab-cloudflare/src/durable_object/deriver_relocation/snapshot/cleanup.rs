@@ -35,6 +35,9 @@ pub(super) fn cleanup<Owner: WalletOwner>(
     for (table, key) in [
         ("yao_pair_sessions", "session_hex"),
         ("yao_pair_admission_fences", "session_hex"),
+        // Input bindings belong to the source object's grant. Terminal pair
+        // records and fences migrate; this authority must not move with them.
+        ("yao_registration_input_binding", "session_hex"),
         ("wallet_relocation_snapshot_segments", "segment_index"),
         ("wallet_relocation_import_segments", "segment_index"),
     ] {

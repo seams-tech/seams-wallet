@@ -1,6 +1,6 @@
 mod snapshot;
 use super::deriver_relocation as relocation;
-use router_ab_core::Ed25519YaoOuterBindingV2;
+use router_ab_core::{Ed25519YaoInputPairBindingV1, Ed25519YaoOuterBindingV2};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{cell::RefCell, collections::HashMap, future::Future, rc::Rc};
@@ -261,6 +261,20 @@ impl RouterAbDeriverBWalletDurableObject {
             "deriver_b",
         )?;
         stub.fetch_with_request(request).await
+    }
+
+    pub(crate) fn admitted_root_use(
+        &self,
+        context: &crate::CloudflareEd25519YaoTenantRootContextV2,
+        pair: &Ed25519YaoInputPairBindingV1,
+    ) -> worker::Result<crate::tenant_root_role_d1::RootUseAccess> {
+        super::registration_preparation::read_admitted_access(
+            &self.state.id().to_string(), &self.sql, &self.env, context, pair,
+        )
+    }
+
+    pub(crate) fn require_root_use_unfenced(&self, session: &[u8; 32]) -> worker::Result<()> {
+        super::registration_preparation::require_session_unfenced(&self.sql, session)
     }
 
     pub(crate) fn wait_until<F: Future<Output = ()> + 'static>(&self, future: F) {

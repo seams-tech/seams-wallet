@@ -524,9 +524,16 @@ throughout the resize. Reduced-motion behavior remains immediate.
   connection, including in mixed registration. The session is fixed at setup.
   Each wallet holds one input-free preparation for at most 30 seconds. Setup
   grants no execution authority. Verified execution binds the encrypted inputs
-  and claims both roles before Yao protocol material flows. Expired preparation
+  and claims both roles before Yao protocol material flows. Each owning wallet
+  object durably binds its preparation to one authenticated input before reading
+  the unchanged D1 grant. That read checks the current root and cancellation state.
+  Input binding survives object restart and refuses a different input for the session.
+  Expiry releases only an unconsumed preparation. A consumed grant remains until
+  object-first settlement or cancellation closes it. Expired unconsumed preparation
   falls back to online admission. Abandoned preparations release their admissions;
-  cancellation and relocation fences cannot be bypassed by a prepared connection.
+  cancellation and relocation fences cannot be bypassed by a prepared connection,
+  including when a fence arrives during a root read.
+  Native Worker enforcement: `crates/router-ab-cloudflare/scripts/registration-prompt-evidence.mjs`.
 
 - Setup requires fresh publishable-key validation and the exact active application
   environment. Revoked keys, forbidden origins, and mismatched environments fail.

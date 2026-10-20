@@ -1,0 +1,279 @@
+{
+  "kind": "prepared_registration_local_input_binding_e2e",
+  "recordedAt": "2026-10-20T23:50:30.682506+00:00",
+  "baselineCommit": "06dc02a3e9a08006355e5c1ef52e476957f5052a",
+  "environment": "Local Miniflare with freshly built native Rust/WASM Workers, SQLite Durable Objects, and D1 emulation. This is behavior evidence, not hosted latency evidence.",
+  "change": "Prepared execution durably binds its exact authenticated input inside the owning wallet object. Its D1 grant remains unchanged and is read in a coherent transaction.",
+  "scope": "Missing or expired unconsumed preparation still performs ordinary D1 admission.",
+  "reproduce": {
+    "cwd": "crates/router-ab-cloudflare",
+    "build": "For each role router, deriver-a, deriver-b, signing-worker, tenant-root-control-plane: ROUTER_AB_WORKER_BUILD_PROFILE=dev bash scripts/build-strict-worker.sh ROLE",
+    "registration": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/registration-prompt-evidence.mjs"
+  },
+  "registration": [
+    {
+      "kind": "prepared",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "restart-binding",
+      "passed": true,
+      "unclaimedBindingSurvivesRestart": true,
+      "exactRoleReplayStatus": 200,
+      "validCompetingInputRefused": true
+    },
+    {
+      "kind": "consumed-expiry",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "cancel-after-read",
+      "passed": true,
+      "cancellationAfterSnapshotRefused": true
+    },
+    {
+      "kind": "expired",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm",
+        "/router-ab/deriver-b/ed25519-yao/duplex"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "abandoned",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "cancelled",
+      "paths": [
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/deriver/tenant-root/creation/v1/create-role-share",
+        "/router-ab/internal/ed25519-yao/registration/connect",
+        "/internal/prewarm"
+      ],
+      "passed": true,
+      "unauthenticatedPreparationRefused": true
+    },
+    {
+      "kind": "admission-failure",
+      "passed": true,
+      "onlineFallbackAfterAdmissionFailure": true
+    }
+  ],
+  "verifiedAssertions": [
+    "Prepared registration succeeds with a trigger that aborts the former D1 input-binding UPDATE.",
+    "A real object restart before claim retains the binding. A second valid encryption for that ceremony fails specifically at the durable binding check before any D1 root read. Exact replay succeeds with one root read.",
+    "Expiry during a delayed B root read removes only the input-free preparation. It preserves the consumed binding and grant, blocks relocation, and allows registration to complete.",
+    "A cancellation fence installed after the D1 snapshot refuses execution.",
+    "Completion replay, unconsumed expiry, abandoned preparation, cancelled grants, and failed warmup fallback retain their behavior."
+  ],
+  "existingChecks": [
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --do-admission-settlement",
+      "passed": true,
+      "result": {
+        "kind": "tenant_root_wallet_object_admission_workers_e2e_v1",
+        "fence": {
+          "admissionsWhileHeld": [
+            [],
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ]
+          ],
+          "deriverBRetired": [
+            "retired_deleted",
+            1
+          ],
+          "objectsAfterRetirement": {
+            "deriverA": "fenced",
+            "deriverB": "fenced"
+          },
+          "heldRegistration": [
+            200,
+            "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+          ],
+          "deriverARetired": [
+            "retired_deleted",
+            0
+          ],
+          "freshRegistration": "succeeded",
+          "admissionsAfter": [
+            [
+              [
+                2,
+                "settled",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "cancelled",
+                true
+              ],
+              [
+                2,
+                "settled",
+                true
+              ]
+            ]
+          ]
+        },
+        "lostAcknowledgement": {
+          "admissionsAfterRevert": [
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "admitted",
+                true
+              ]
+            ]
+          ],
+          "retired": [
+            [
+              "retired_deleted",
+              0
+            ],
+            [
+              "retired_deleted",
+              0
+            ]
+          ],
+          "admissionsAfterReconciliation": [
+            [
+              [
+                1,
+                "settled",
+                true
+              ]
+            ],
+            [
+              [
+                1,
+                "settled",
+                true
+              ]
+            ]
+          ],
+          "objectReports": [
+            "completed",
+            "completed"
+          ]
+        }
+      },
+      "logSha256": "3bd1340d2c12ee37cf3457a2aa73eab43ecee86e6d2194da1243d21e2bb700ef"
+    },
+    {
+      "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --do-claimed-recovery",
+      "passed": true,
+      "result": {
+        "kind": "tenant_root_wallet_object_claimed_recovery_workers_e2e_v1",
+        "failedRegistration": [
+          200,
+          "{\"status\":\"recoverable_failure\",\"code\":\"service_unavailable\",\"retry_after_ms\":1000}"
+        ],
+        "admissionsAfterFailure": [
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "admitted",
+              true
+            ]
+          ]
+        ],
+        "objectsAfterFailure": [
+          "claimed",
+          "open"
+        ],
+        "deriverARetired": [
+          "retired_deleted",
+          1
+        ],
+        "admissionsAfterRecovery": [
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ]
+          ],
+          [
+            [
+              1,
+              "cancelled",
+              true
+            ]
+          ]
+        ],
+        "deriverBRetired": [
+          "retired_deleted",
+          1
+        ],
+        "objectsAfterRetirement": [
+          "fenced",
+          "fenced"
+        ],
+        "retriedRegistration": [
+          200,
+          "{\"status\":\"recoverable_failure\",\"code\":\"execution_in_progress\",\"retry_after_ms\":898}"
+        ],
+        "secondRefreshRevision": 5
+      },
+      "logSha256": "68cb2b0f4dabebf5cb9e9e83331dc3dfaf43780b5503a2bdea5a410d49cc02f1"
+    }
+  ],
+  "bloatCheck": "Passed with new files included in Git inventory.",
+  "additionalSuite": {
+    "command": "ROUTER_AB_WORKER_BUILD_PROFILE=dev node scripts/test-private-d1.mjs --do-pair-execution",
+    "classification": "obsolete_test_or_fixture",
+    "failure": "captureValidActivationDelivery omits required wallet object addresses. HTTP 400 occurs before registration or relocation. No fixture repair was made in this change."
+  },
+  "review": "Independent implementation review found no concrete authority bypass. Restart, competing-input, and relocation coverage findings were addressed.",
+  "limits": [
+    "Not deployed by this task.",
+    "Post-Touch-ID hosted latency improvement has not been measured.",
+    "D1 internal causes of the observed value-changing write stalls remain opaque."
+  ]
+}

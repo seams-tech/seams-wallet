@@ -10,7 +10,7 @@ pub(crate) struct PreparedDeriverATarget {
 /// persisted preparation must reload its admitted root before it can execute.
 pub(crate) enum DeriverATargetSource {
     AdmittedNow(PreparedDeriverATarget),
-    StoredAdmission,
+    StoredAdmission(RootUseAccess),
 }
 
 /// Deriver A's admitted root for one pair: its own root metadata digest and
@@ -31,10 +31,11 @@ pub(crate) async fn prepare_deriver_a_pair_for_wallet_do_v1(
     pair_object: String,
     access: RootUseAccess,
 ) -> RouterAbProtocolResult<
-    Result<(DeriverAPairPreparationV1, DeriverATargetSource), crate::tenant_root_role_runtime::AttemptConflictV1>,
+    Result<
+        (DeriverAPairPreparationV1, DeriverATargetSource),
+        crate::tenant_root_role_runtime::AttemptConflictV1,
+    >,
 > {
-    let expected_kind = input_kind_for_circuit(request.pair_binding.binding().circuit_family());
-    request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)?;
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         match load_ed25519_yao_tenant_root_role_share_v2(
             env,
@@ -80,10 +81,10 @@ pub(super) async fn prepare_deriver_a_target(
     source: DeriverATargetSource,
     trace_id: RoleTraceContextV1,
 ) -> RouterAbProtocolResult<PreparedDeriverATarget> {
-    match source {
+    let access = match source {
         DeriverATargetSource::AdmittedNow(target) => return Ok(target),
-        DeriverATargetSource::StoredAdmission => {}
-    }
+        DeriverATargetSource::StoredAdmission(access) => access,
+    };
     let (custody_binding, role_share, stable_context, root_metadata_digest) =
         load_ed25519_yao_tenant_root_role_share_v2(
             env,
@@ -91,7 +92,7 @@ pub(super) async fn prepare_deriver_a_target(
             execution.tenant_root,
             execution.pair_binding,
             Some(execution.pair_object.clone()),
-            RootUseAccess::ReadAdmitted,
+            access,
         )
         .await?
         .map_err(crate::tenant_root_role_runtime::AttemptConflictV1::into_error)?;

@@ -6,7 +6,8 @@ pub(crate) enum RootUseAccess {
     Admit,
     ReadAdmitted,
     PrepareRegistration,
-    BindRegistration { preparation_digest: [u8; 32] },
+    #[cfg(feature = "workers-rs")]
+    ReadPreparedRegistration(crate::durable_object::registration_preparation::BoundRegistrationUse),
 }
 
 fn one_row<T: serde::de::DeserializeOwned, O: RoleSqlOutcomeV1>(
@@ -184,54 +185,21 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                 .map_err(|error| store_error(error.message()))?
                 .as_bytes(),
         );
-        let attempt_digest_hex = encode_hex(
-            custody_binding
-                .attempt_digest()
-                .map_err(|error| store_error(error.message()))?
-                .as_bytes(),
-        );
+        let attempt_digest = custody_binding
+            .attempt_digest()
+            .map_err(|error| store_error(error.message()))?;
+        let attempt_digest_hex = encode_hex(attempt_digest.as_bytes());
+        #[cfg(feature = "workers-rs")]
+        if let RootUseAccess::ReadPreparedRegistration(binding) = access {
+            if !binding.authorizes(attempt, attempt_digest.as_bytes()) {
+                return Ok(TenantRootBoundShareV1::AttemptConflict);
+            }
+        }
         let attempt_kind = attempt.kind();
         let attempt_key_hex = attempt.key_hex(custody_binding);
         let epoch = epoch_i64(custody_binding.epoch())?.to_string();
         let receipt_digest_hex = encode_hex(custody_binding.activation_receipt_digest().as_bytes());
         let mut statements = Vec::new();
-        if let RootUseAccess::BindRegistration { preparation_digest } = access {
-            let preparation_digest_hex = encode_hex(&preparation_digest);
-            let now_ms = admitted_at_ms.to_string();
-            let expires_at_ms = custody_binding.expires_at_ms().to_string();
-            statements.push(
-                self.session
-                    .prepare(
-                        "UPDATE tenant_root_root_use_admissions SET attempt_digest_hex = $6, \
-                 first_binding_digest_hex = $7, preparation_digest_hex = NULL, expires_at_ms = $13 \
-                 WHERE tenant_identity_digest_hex = $1 AND custody_lineage_b64u = $2 \
-                 AND role = $3 AND attempt_kind = $4 AND attempt_key_hex = $5 \
-                 AND preparation_digest_hex = $8 AND tenant_root_share_epoch = $9 \
-                 AND activation_receipt_digest_hex = $10 AND pair_object_id = $11 \
-                 AND status = 'admitted' AND expires_at_ms > $12",
-                    )
-                    .bind_refs(
-                        [
-                            RoleSqlValue::Text(&identity_digest_hex),
-                            RoleSqlValue::Text(&custody_lineage_b64u),
-                            RoleSqlValue::Text(self.cipher.role.as_str()),
-                            RoleSqlValue::Text(attempt_kind),
-                            RoleSqlValue::Text(&attempt_key_hex),
-                            RoleSqlValue::Text(&attempt_digest_hex),
-                            RoleSqlValue::Text(&binding_digest_hex),
-                            RoleSqlValue::Text(&preparation_digest_hex),
-                            RoleSqlValue::Text(&epoch),
-                            RoleSqlValue::Text(&receipt_digest_hex),
-                            attempt
-                                .pair_object_id()
-                                .map_or(RoleSqlValue::Null, RoleSqlValue::Text),
-                            RoleSqlValue::Text(&now_ms),
-                            RoleSqlValue::Text(&expires_at_ms),
-                        ]
-                        .iter(),
-                    )?,
-            );
-        }
         if lifecycle_is_active {
             let issued_at_ms = custody_binding.issued_at_ms().to_string();
             let expires_at_ms = custody_binding.expires_at_ms().to_string();
@@ -313,7 +281,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     RootUseAccess::Admit => "admit",
                     RootUseAccess::ReadAdmitted => "read_admitted",
                     RootUseAccess::PrepareRegistration => "prepare_registration",
-                    RootUseAccess::BindRegistration { .. } => "bind_registration",
+                    RootUseAccess::ReadPreparedRegistration(_) => "read_prepared_registration",
                 },
                 "round_trips": if creates_admission { 2 } else { 1 },
                 "statements": expected_results + usize::from(creates_admission),
@@ -325,9 +293,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
             return Err(store_error("bound-root admission batch failed"));
         }
         let mut results = results.into_iter();
-        if matches!(access, RootUseAccess::BindRegistration { .. }) {
-            results.next();
-        }
         if lifecycle_is_active {
             results.next();
         }
@@ -345,12 +310,28 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
         match admission {
             Some(admission) => {
+                // Prepared grants keep their original identity in D1. The
+                // wallet object's durable binding proves the actual input.
+                // Rows already bound in D1 retain their exact-input check.
+                let matches_admission = match (admission.preparation_digest_hex.as_deref(), access)
+                {
+                    (Some(preparation), RootUseAccess::PrepareRegistration) => {
+                        preparation == attempt_digest_hex
+                            && admission.attempt_digest_hex == attempt_digest_hex
+                    }
+                    #[cfg(feature = "workers-rs")]
+                    (Some(preparation), RootUseAccess::ReadPreparedRegistration(binding)) => {
+                        let expected = encode_hex(&binding.preparation_digest());
+                        preparation == expected && admission.attempt_digest_hex == expected
+                    }
+                    (None, RootUseAccess::PrepareRegistration) => false,
+                    (None, _) => admission.attempt_digest_hex == attempt_digest_hex,
+                    _ => false,
+                };
                 if admission.tenant_root_share_epoch.to_string() != epoch
                     || admission.activation_receipt_digest_hex != receipt_digest_hex
-                    || admission.attempt_digest_hex != attempt_digest_hex
                     || admission.pair_object_id.as_deref() != attempt.pair_object_id()
-                    || (admission.preparation_digest_hex.is_some()
-                        != (access == RootUseAccess::PrepareRegistration))
+                    || !matches_admission
                 {
                     return Ok(TenantRootBoundShareV1::AttemptConflict);
                 }

@@ -9,7 +9,7 @@ use router_ab_core::{
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 use router_ab_core::{
     claim_ed25519_yao_pair_v1, release_ed25519_yao_pair_v1, reserve_ed25519_yao_pair_v1,
-    Ed25519YaoPairExecutorV1,
+    Ed25519YaoDeriverRoleV1, Ed25519YaoPairExecutorV1,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -684,6 +684,11 @@ impl RouterAbDeriverAWalletDurableObject {
                 "Deriver A wallet DO lane execution is unavailable",
             ));
         }
+        let expected_kind = crate::ed25519_yao_lifecycle::input_kind_for_circuit(
+            request.pair_binding.binding().circuit_family(),
+        );
+        request.validate_for_role(Ed25519YaoDeriverRoleV1::DeriverA, expected_kind)
+            .map_err(pair_error)?;
         let pair = &request.pair_binding;
         let owner = DeriverAWalletOwnerV1::from_context(&self.env, &request.tenant_root, pair)?;
         let cipher = RolePairCipherV1::from_env_for_wallet_do(&self.env)?;
@@ -703,7 +708,11 @@ impl RouterAbDeriverAWalletDurableObject {
                             .map_err(|error| pair_error(error.to_string()))?
                             < expires_at_ms
                         {
-                            return Ok((root_metadata_digest, DeriverATargetSource::StoredAdmission));
+                            let access = super::registration_preparation::read_admitted_access(
+                                &self.state.id().to_string(), &self.sql, &self.env,
+                                &request.tenant_root, pair,
+                            )?;
+                            return Ok((root_metadata_digest, DeriverATargetSource::StoredAdmission(access)));
                         }
                         return Err(pair_error("Deriver A pair preparation expired"));
                     }

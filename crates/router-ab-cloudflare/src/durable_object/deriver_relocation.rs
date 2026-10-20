@@ -162,6 +162,7 @@ fn reserve_destination<Owner: WalletOwner>(
         "yao_pair_sessions",
         "yao_pair_admission_fences",
         "yao_registration_preparation",
+        "yao_registration_input_binding",
     ] {
         for operation in ["INSERT", "UPDATE", "DELETE"] {
             sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_preparation) BEGIN SELECT RAISE(ABORT, 'Deriver destination is reserved'); END"), None)?;
@@ -170,7 +171,7 @@ fn reserve_destination<Owner: WalletOwner>(
     let request_json =
         serde_json::to_string(&command).map_err(|error| pair_error(error.to_string()))?;
     sql.exec(
-        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) AND NOT EXISTS (SELECT 1 FROM yao_registration_preparation) AND NOT EXISTS (SELECT 1 FROM wallet_relocation_source) ON CONFLICT DO NOTHING",
+        "INSERT INTO wallet_relocation_preparation (id, request_json) SELECT 1, ? WHERE NOT EXISTS (SELECT 1 FROM yao_pair_sessions) AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences) AND NOT EXISTS (SELECT 1 FROM yao_registration_preparation) AND NOT EXISTS (SELECT 1 FROM yao_registration_input_binding) AND NOT EXISTS (SELECT 1 FROM wallet_relocation_source) ON CONFLICT DO NOTHING",
         vec![SqlStorageValue::String(request_json.clone())],
     )?;
     let rows = sql
@@ -312,7 +313,13 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
     } else {
         require_open::<Owner>(sql)?;
         let pending = sql.exec(
-            "SELECT (SELECT COUNT(*) FROM yao_pair_sessions WHERE lifecycle NOT IN ('completed', 'burned', 'expired')) + (SELECT COUNT(*) FROM yao_registration_preparation) AS count",
+            "SELECT (SELECT COUNT(*) FROM yao_pair_sessions WHERE lifecycle NOT IN ('completed', 'burned', 'expired')) + \
+             (SELECT COUNT(*) FROM yao_registration_preparation) + \
+             (SELECT COUNT(*) FROM yao_registration_input_binding b \
+              WHERE json_extract(b.use_json, '$.kind') = 'bound' \
+              AND NOT EXISTS (SELECT 1 FROM yao_pair_sessions p WHERE p.session_hex = b.session_hex \
+                              AND p.lifecycle IN ('completed', 'burned', 'expired')) \
+              AND NOT EXISTS (SELECT 1 FROM yao_pair_admission_fences f WHERE f.session_hex = b.session_hex)) AS count",
             None,
         )?.to_array::<PendingPairs>()?;
         let [pending] = pending.as_slice() else {
@@ -331,6 +338,7 @@ pub(crate) fn fence_settled_source<Owner: WalletOwner>(
             "yao_pair_sessions",
             "yao_pair_admission_fences",
             "yao_registration_preparation",
+            "yao_registration_input_binding",
         ] {
             for operation in ["INSERT", "UPDATE", "DELETE"] {
                 sql.exec(&format!("CREATE TRIGGER IF NOT EXISTS relocation_source_{table}_{operation} BEFORE {operation} ON {table} WHEN EXISTS (SELECT 1 FROM wallet_relocation_source) BEGIN SELECT RAISE(ABORT, 'Deriver source is frozen'); END"), None)?;

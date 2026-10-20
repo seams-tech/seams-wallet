@@ -1,4 +1,8 @@
-//! One expiring, input-free preparation per wallet object.
+//! Input-free root grants and durable, one-time registration input bindings.
+
+mod bound_input;
+pub(crate) use bound_input::BoundRegistrationUse;
+use bound_input::PreparationAccess;
 
 use router_ab_core::{
     Ed25519YaoInputPairBindingV1, RouterAbProtocolResult, TenantRootCustodyBindingV1,
@@ -7,15 +11,18 @@ use serde::Deserialize;
 use worker::{Env, Response, SqlStorage, SqlStorageValue, State};
 
 use crate::registration_pair_preparation::RegistrationPreparation;
-use crate::tenant_root_role_runtime::AttemptConflictV1;
 use crate::tenant_root_role_d1::{
     CloudflareTenantRootRoleShareStoreV1, RootUseAccess, TenantRootRootUseAttemptV1,
 };
+use crate::tenant_root_role_runtime::AttemptConflictV1;
 use crate::{CloudflareEd25519YaoTenantRootContextV2, CloudflareWorkerEnvReaderV1};
 
 pub(crate) const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS yao_registration_preparation (
     id INTEGER PRIMARY KEY CHECK (id = 1), preparation_json TEXT NOT NULL,
     admitted INTEGER NOT NULL CHECK (admitted IN (0, 1))
+);
+CREATE TABLE IF NOT EXISTS yao_registration_input_binding (
+    session_hex TEXT PRIMARY KEY, use_json TEXT NOT NULL
 )";
 
 #[derive(Deserialize)]
@@ -61,6 +68,9 @@ pub(crate) async fn admit(
     request
         .authenticate(&CloudflareWorkerEnvReaderV1::new(env), now)
         .map_err(error)?;
+    if let Some(prepared) = bound_input::replay(sql, &request)? {
+        return Ok(prepared);
+    }
     let encoded = serde_json::to_string(&request).map_err(error)?;
     sql.exec("INSERT INTO yao_registration_preparation (id, preparation_json, admitted) VALUES (1, ?, 0) ON CONFLICT DO NOTHING",
         vec![SqlStorageValue::String(encoded)])?;
@@ -131,7 +141,11 @@ pub(crate) fn require_unfenced(
     sql: &SqlStorage,
     preparation: &RegistrationPreparation,
 ) -> worker::Result<()> {
-    let session = crate::ed25519_yao_lifecycle::role_d1::encode_hex(preparation.session());
+    require_session_unfenced(sql, &preparation.session())
+}
+
+pub(crate) fn require_session_unfenced(sql: &SqlStorage, session: &[u8; 32]) -> worker::Result<()> {
+    let session = crate::ed25519_yao_lifecycle::role_d1::encode_hex(*session);
     #[derive(Deserialize)]
     struct Count {
         count: u32,
@@ -158,6 +172,14 @@ pub(crate) async fn access_for_execution(
     context: &CloudflareEd25519YaoTenantRootContextV2,
     pair: &Ed25519YaoInputPairBindingV1,
 ) -> worker::Result<RootUseAccess> {
+    sql.exec(SCHEMA, None)?;
+    match bound_input::access(state_id, sql, env, context, pair)? {
+        PreparationAccess::Bound(binding) => {
+            return Ok(RootUseAccess::ReadPreparedRegistration(binding))
+        }
+        PreparationAccess::Released => return Ok(RootUseAccess::Admit),
+        PreparationAccess::Unbound => {}
+    }
     let Some(prepared) = read(sql)? else {
         return Ok(RootUseAccess::Admit);
     };
@@ -179,15 +201,24 @@ pub(crate) async fn access_for_execution(
         return Ok(RootUseAccess::Admit);
     }
     require_unfenced(sql, &prepared)?;
-    let binding = prepared
-        .authenticate(
-            &CloudflareWorkerEnvReaderV1::new(env),
-            worker::Date::now().as_millis(),
-        )
-        .map_err(error)?;
-    Ok(RootUseAccess::BindRegistration {
-        preparation_digest: digest(&binding)?,
-    })
+    let binding = bound_input::consume(state_id, sql, env, &prepared, context, pair)?;
+    Ok(RootUseAccess::ReadPreparedRegistration(binding))
+}
+
+/// Restores the same local authority after eviction or a retained preparation.
+/// A missing local binding uses the ordinary exact-input D1 admission format.
+pub(crate) fn read_admitted_access(
+    state_id: &str,
+    sql: &SqlStorage,
+    env: &Env,
+    context: &CloudflareEd25519YaoTenantRootContextV2,
+    pair: &Ed25519YaoInputPairBindingV1,
+) -> worker::Result<RootUseAccess> {
+    sql.exec(SCHEMA, None)?;
+    match bound_input::access(state_id, sql, env, context, pair)? {
+        PreparationAccess::Bound(binding) => Ok(RootUseAccess::ReadPreparedRegistration(binding)),
+        PreparationAccess::Unbound | PreparationAccess::Released => Ok(RootUseAccess::ReadAdmitted),
+    }
 }
 
 /// Runs `load` with this execution's root-use access.
@@ -222,6 +253,9 @@ where
         }
         loaded => loaded,
     };
+    // Root lookup yields: a cancellation or relocation can fence this object
+    // while D1 answers. No prepared pair may be published after that fence.
+    require_session_unfenced(sql, &pair.session())?;
     Ok(loaded.and_then(|loaded| loaded.map_err(AttemptConflictV1::into_error)))
 }
 
@@ -247,11 +281,13 @@ async fn release(
             preparation.custody_binding.issued_at_ms,
         )
         .map_err(error)?;
-    CloudflareTenantRootRoleShareStoreV1::from_env(env)
-        .map_err(error)?
-        .release_registration_preparation(&preparation.session(), object_id, &digest(&binding)?)
-        .await
-        .map_err(error)?;
+    if bound_input::release_unconsumed(sql, preparation)? {
+        CloudflareTenantRootRoleShareStoreV1::from_env(env)
+            .map_err(error)?
+            .release_registration_preparation(&preparation.session(), object_id, &digest(&binding)?)
+            .await
+            .map_err(error)?;
+    }
     sql.exec(
         "DELETE FROM yao_registration_preparation WHERE id = 1 AND preparation_json = ?",
         vec![SqlStorageValue::String(

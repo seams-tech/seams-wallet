@@ -124,6 +124,7 @@ fn linked_presign_init_fixture() -> Result<LinkedPresignFixture, Box<dyn std::er
 struct RequestFixture {
     client_recipient_seed: [u8; 32],
     gateway_request: RouterEd25519YaoGatewayExecuteTargetV2,
+    reencrypted_gateway_request: RouterEd25519YaoGatewayExecuteTargetV2,
     application: RouterAbEd25519YaoApplicationBindingFactsV1,
     participant_ids: [u16; 2],
 }
@@ -519,9 +520,17 @@ fn request_fixture(
         input_a,
         input_b,
     )?;
+    // Two valid encryptions of the same ceremony exercise exact input binding.
+    let reencrypted_gateway_request = RouterEd25519YaoGatewayExecuteTargetV2::registration(
+        1,
+        admission.binding.clone(),
+        seal_local_ed25519_yao_activation_deriver_a_input_v1(&request_a, deriver_a_public)?,
+        seal_local_ed25519_yao_activation_deriver_b_input_v1(&request_b, deriver_b_public)?,
+    )?;
     Ok(RequestFixture {
         client_recipient_seed: [client_root_bytes[0].wrapping_add(0x40); 32],
         gateway_request,
+        reencrypted_gateway_request,
         application: application_binding,
         participant_ids: [1, 2],
     })
