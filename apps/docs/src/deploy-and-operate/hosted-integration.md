@@ -66,13 +66,15 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.15.2
+## Upgrading to 0.15.3
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.2**. Use `@seams/wallet-cli` **0.15.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.3**. Use `@seams/wallet-cli` **0.15.0**.
 
-The auth menu's passkey wait now shows a ring spinner in place of the fingerprint tile.
+The account menu rows now show an animated arrow and a soft shade on hover.
 This release changes no Worker, server or protocol code. From 0.15.1, deploy only the
 matching wallet host.
+
+0.15.2 replaced the auth menu's passkey wait fingerprint tile with a ring spinner.
 
 An expired initial tenant authorization can be renewed only before its creation journal starts.
 The Router records a durable fence before Console issues the replacement authorization.
