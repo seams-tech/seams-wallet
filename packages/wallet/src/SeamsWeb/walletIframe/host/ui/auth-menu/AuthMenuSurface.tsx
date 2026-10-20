@@ -7,6 +7,7 @@ import {
 } from '@shared/wallet-recovery/recoveryCodes';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import {
+  AUTH_MENU_WAITING_PROMPTS,
   isAuthMenuActionReady,
   isAuthMenuGoogleActionReady,
   isAuthMenuLoadingStatus,
@@ -1464,28 +1465,25 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     // `headline` is required on the busy status, so there is no fallback to
     // inherit here — every wait names itself.
     const waitingText = status.headline;
+    const prompt = status.illustration ? AUTH_MENU_WAITING_PROMPTS[status.illustration] : null;
     return (
       <>
         <div class="seams-waiting" role="status" aria-live="polite">
-          {status.illustration === 'passkey' ? (
-            <span class="seams-passkey-prompt" role="img" aria-label="Passkey authentication">
+          {prompt ? (
+            <span class="seams-passkey-prompt" role="img" aria-label={prompt.label}>
               {passkeyRingIcon()}
             </span>
           ) : null}
           <div class="seams-waiting-message">
             <span class="seams-waiting-text">{waitingText}</span>
-            {status.illustration === 'passkey' ? (
-              <span class="seams-passkey-instruction">Complete the prompt on your device.</span>
-            ) : null}
+            {prompt ? <span class="seams-passkey-instruction">{prompt.instruction}</span> : null}
             {viewModel.showProgress && status.detail && status.detail !== waitingText ? (
               <>
                 <span class="seams-waiting-sdk-events">{status.detail}</span>
               </>
             ) : null}
           </div>
-          {status.illustration !== 'passkey' ? (
-            <div aria-label="Loading" class="seams-spinner"></div>
-          ) : null}
+          {prompt ? null : <div aria-label="Loading" class="seams-spinner"></div>}
         </div>
       </>
     );
