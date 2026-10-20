@@ -47,7 +47,7 @@ async function migrationEvidence(database) {
       .all()
   ).results;
 }
-function credentialKey() {
+export function credentialKey() {
   const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const jwk = pair.publicKey.export({ format: 'jwk' });
   const cose = Buffer.concat([
@@ -62,7 +62,7 @@ function credentialKey() {
     publicKey: cose.toString('base64url'),
   };
 }
-function assertion(key, challenge, expectedOrigin = origin) {
+export function assertion(key, challenge, expectedOrigin = origin) {
   const client = Buffer.from(
     JSON.stringify({ type: 'webauthn.get', challenge, origin: expectedOrigin }),
   );

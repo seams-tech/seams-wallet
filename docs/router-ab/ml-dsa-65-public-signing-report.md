@@ -112,15 +112,19 @@ publication pinning, and the schema change. It found no additional concrete bypa
 A [read-only network check](../evidence/ml-dsa-65-network-support-20261021.json) observed mainnet
 protocol 86 and testnet protocol 87 on October 21, 2026, Japan time.
 [NEP-645](https://github.com/near/NEPs/blob/master/neps/nep-0645.md) specifies activation at
-protocol 85. These status observations support protocol availability. They do not prove
-that this campaign enrolled an access key or confirmed a transaction on either network.
+protocol 85. The subsequent [hosted browser qualification](ml-dsa-65-browser-hosted-report.md)
+enrolled an ordinary ML-DSA access key and confirmed three threshold-signed self-transfers
+on testnet. It used the advanced browser SDK, a virtual WebAuthn authenticator, and real
+Gateway/D1/Router/A/B Workers. Existing ownership and custody were fixture-seeded.
 
 Next work:
 
 1. Connect the standard Wallet review and iframe surfaces to the advanced signing flow.
-2. Connect on-chain access-key enrollment and verify a transaction on the selected NEAR network.
-3. Qualify the full browser SDK flow against matching hosted Gateway and Worker builds.
-4. Connect public recovery, interrupted-operation reconciliation, export, and device authorization.
-5. Complete participant relocation before enabling it for ML-DSA wallets.
+2. Connect production access-key enrollment to existing-wallet signer addition.
+3. Qualify browser custody, recovery, export, and device authorization through public lifecycle flows.
+4. Connect interrupted-operation reconciliation and complete participant relocation.
+5. Reduce registration and signing latency, then test rejection tails and multi-wallet load.
 
-This campaign does not establish hosted latency or a consistent five-second target.
+The local campaign above does not measure hosted latency. The hosted follow-up records
+8.07–9.00 seconds for online registration and 2.57–5.36 seconds for three signing calls.
+It does not meet the consistent five-second target.

@@ -1,0 +1,6972 @@
+{
+  "observedAt": "2026-10-20T17:08:00Z",
+  "instrument": "Wrangler tail attached before corrected preparations. Whitelisted production public diagnostics only. Hosted clocks advance at I/O and do not separate CPU from preceding waits. Original failed preparation preceded tail attachment. Internal Router operation digests differ from client operation identifiers; this export retains all operations in these dedicated fixture Workers.",
+  "records": [
+    {
+      "worker": "router",
+      "observedAtMs": 1792515459238,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_router_trace_v1",
+        "http_request": "c672945625334e8124454da95108758f",
+        "milestones": [
+          {
+            "at_ms": 1792515459238,
+            "stage": "entered"
+          },
+          {
+            "at_ms": 1792515459238,
+            "stage": "decoded"
+          },
+          {
+            "at_ms": 1792515459358,
+            "stage": "admission_done"
+          },
+          {
+            "at_ms": 1792515461938,
+            "stage": "execution_done"
+          },
+          {
+            "at_ms": 1792515462039,
+            "stage": "activation_started"
+          },
+          {
+            "at_ms": 1792515463605,
+            "stage": "installation_done"
+          },
+          {
+            "at_ms": 1792515463731,
+            "stage": "activation_done"
+          },
+          {
+            "at_ms": 1792515463806,
+            "stage": "completion_recorded"
+          },
+          {
+            "at_ms": 1792515463806,
+            "stage": "response_ready"
+          }
+        ],
+        "module_instance": "9408eff4092b1ba2c2458244b4f82a7d",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "status": 200
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515620978,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_router_trace_v1",
+        "http_request": "fef361278c81a26e497f3e00691f6992",
+        "milestones": [
+          {
+            "at_ms": 1792515620978,
+            "stage": "entered"
+          },
+          {
+            "at_ms": 1792515620978,
+            "stage": "decoded"
+          },
+          {
+            "at_ms": 1792515621002,
+            "stage": "admission_done"
+          },
+          {
+            "at_ms": 1792515624796,
+            "stage": "execution_done"
+          },
+          {
+            "at_ms": 1792515624888,
+            "stage": "activation_started"
+          },
+          {
+            "at_ms": 1792515626605,
+            "stage": "installation_done"
+          },
+          {
+            "at_ms": 1792515626728,
+            "stage": "activation_done"
+          },
+          {
+            "at_ms": 1792515626756,
+            "stage": "completion_recorded"
+          },
+          {
+            "at_ms": 1792515626756,
+            "stage": "response_ready"
+          }
+        ],
+        "module_instance": "7d2223e00933034be973d559e46bba24",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "status": 200
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515737168,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_signing_outcome_v1",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "outcome": {
+          "consumed_batches": 1,
+          "evaluated_candidates": 2,
+          "status": "signed"
+        }
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515737168,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_router_trace_v1",
+        "http_request": "a26a251acf0ddd9556b6bbad33b3f894",
+        "milestones": [
+          {
+            "at_ms": 1792515737544,
+            "stage": "entered"
+          },
+          {
+            "at_ms": 1792515737544,
+            "stage": "decoded"
+          },
+          {
+            "at_ms": 1792515739147,
+            "stage": "admission_done"
+          },
+          {
+            "at_ms": 1792515740350,
+            "stage": "execution_done"
+          },
+          {
+            "at_ms": 1792515740378,
+            "stage": "completion_recorded"
+          },
+          {
+            "at_ms": 1792515741173,
+            "stage": "roles_released"
+          },
+          {
+            "at_ms": 1792515741197,
+            "stage": "settled"
+          },
+          {
+            "at_ms": 1792515741197,
+            "stage": "response_ready"
+          }
+        ],
+        "module_instance": "3a3d8856b739c4fe424099ca3d464372",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "status": 200
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515811608,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_signing_outcome_v1",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "outcome": {
+          "consumed_batches": 1,
+          "evaluated_candidates": 2,
+          "status": "signed"
+        }
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515811608,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_router_trace_v1",
+        "http_request": "26aad6ef5843029955d2211d9ef5255e",
+        "milestones": [
+          {
+            "at_ms": 1792515811608,
+            "stage": "entered"
+          },
+          {
+            "at_ms": 1792515811608,
+            "stage": "decoded"
+          },
+          {
+            "at_ms": 1792515812669,
+            "stage": "admission_done"
+          },
+          {
+            "at_ms": 1792515814246,
+            "stage": "execution_done"
+          },
+          {
+            "at_ms": 1792515814272,
+            "stage": "completion_recorded"
+          },
+          {
+            "at_ms": 1792515814390,
+            "stage": "roles_released"
+          },
+          {
+            "at_ms": 1792515814413,
+            "stage": "settled"
+          },
+          {
+            "at_ms": 1792515814413,
+            "stage": "response_ready"
+          }
+        ],
+        "module_instance": "da62a25b168a69f5d64362b6a6844891",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "status": 200
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515884730,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_signing_outcome_v1",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "outcome": {
+          "consumed_batches": 1,
+          "evaluated_candidates": 2,
+          "status": "signed"
+        }
+      }
+    },
+    {
+      "worker": "router",
+      "observedAtMs": 1792515884730,
+      "scriptVersion": {
+        "id": "1622b886-5633-4888-9740-04bb8b830572"
+      },
+      "record": {
+        "event": "ml_dsa_router_trace_v1",
+        "http_request": "f7473ac872c6bd830be5a8d65c741749",
+        "milestones": [
+          {
+            "at_ms": 1792515884730,
+            "stage": "entered"
+          },
+          {
+            "at_ms": 1792515884730,
+            "stage": "decoded"
+          },
+          {
+            "at_ms": 1792515885248,
+            "stage": "admission_done"
+          },
+          {
+            "at_ms": 1792515886377,
+            "stage": "execution_done"
+          },
+          {
+            "at_ms": 1792515886404,
+            "stage": "completion_recorded"
+          },
+          {
+            "at_ms": 1792515886494,
+            "stage": "roles_released"
+          },
+          {
+            "at_ms": 1792515886518,
+            "stage": "settled"
+          },
+          {
+            "at_ms": 1792515886518,
+            "stage": "response_ready"
+          }
+        ],
+        "module_instance": "3a3d8856b739c4fe424099ca3d464372",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "status": 200
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515382403,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "event": "ml_dsa_registration_preparation_v1",
+        "peak_pending_frames": 0,
+        "role": "a",
+        "write_transactions": 0,
+        "written_frames": 0
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515459378,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "event": "ml_dsa_registration_execution_v1",
+        "loaded_bytes": 0,
+        "loaded_frames": 0,
+        "peak_cached_frames": 0,
+        "role": "a",
+        "table_read_transactions": 0
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515459378,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_execute"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515459430,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "execution_reserved"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "adapter_ready"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "input_opened"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "prepared_consumed"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "prepared_opened"
+          },
+          {
+            "at_ms": 1792515459445,
+            "stage": "prepared_restored"
+          },
+          {
+            "at_ms": 1792515461838,
+            "stage": "keygen_completed"
+          },
+          {
+            "at_ms": 1792515461852,
+            "stage": "material_sealed"
+          },
+          {
+            "at_ms": 1792515461852,
+            "stage": "material_persisted"
+          },
+          {
+            "at_ms": 1792515461876,
+            "stage": "result_exchanged"
+          },
+          {
+            "at_ms": 1792515461876,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 0
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462121,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462479,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462479,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 1
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462121,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 3
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462492,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462635,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462635,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 2
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462492,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462492,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 5
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462685,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462854,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462854,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 4
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462685,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462685,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 6
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462917,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515463098,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515463098,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 7
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462917,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462917,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515463135,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515463135,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515462033,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_install"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462050,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462067,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462067,
+            "stage": "material_loaded"
+          },
+          {
+            "at_ms": 1792515462121,
+            "stage": "material_installed"
+          },
+          {
+            "at_ms": 1792515463135,
+            "stage": "stock_installed"
+          },
+          {
+            "at_ms": 1792515463135,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "c5eeddbeb16eef1455098b02056e3075",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515557279,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "event": "ml_dsa_registration_preparation_v1",
+        "peak_pending_frames": 0,
+        "role": "a",
+        "write_transactions": 0,
+        "written_frames": 0
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515621016,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "event": "ml_dsa_registration_execution_v1",
+        "loaded_bytes": 0,
+        "loaded_frames": 0,
+        "peak_cached_frames": 0,
+        "role": "a",
+        "table_read_transactions": 0
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515621016,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_execute"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515621063,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "execution_reserved"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "adapter_ready"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "input_opened"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "prepared_consumed"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "prepared_opened"
+          },
+          {
+            "at_ms": 1792515621070,
+            "stage": "prepared_restored"
+          },
+          {
+            "at_ms": 1792515624721,
+            "stage": "keygen_completed"
+          },
+          {
+            "at_ms": 1792515624729,
+            "stage": "material_sealed"
+          },
+          {
+            "at_ms": 1792515624729,
+            "stage": "material_persisted"
+          },
+          {
+            "at_ms": 1792515624749,
+            "stage": "result_exchanged"
+          },
+          {
+            "at_ms": 1792515624749,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 0
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625347,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625599,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625599,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 1
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625347,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 2
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625612,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625699,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625699,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 3
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625612,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625612,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 4
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625760,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625850,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625850,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 5
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625760,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625760,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 6
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625897,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515626024,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515626024,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 7
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625897,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625897,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515626034,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515626034,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515624880,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_install"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515624973,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515624981,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515624981,
+            "stage": "material_loaded"
+          },
+          {
+            "at_ms": 1792515625347,
+            "stage": "material_installed"
+          },
+          {
+            "at_ms": 1792515626034,
+            "stage": "stock_installed"
+          },
+          {
+            "at_ms": 1792515626034,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "1d61633c7005008a4615e3203c5f7a14",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515739523,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            234,
+            109,
+            236,
+            205,
+            108,
+            242,
+            243,
+            20,
+            195,
+            120,
+            124,
+            254,
+            87,
+            194,
+            125,
+            49,
+            34,
+            87,
+            44,
+            35,
+            14,
+            120,
+            102,
+            26,
+            60,
+            136,
+            213,
+            70,
+            95,
+            153,
+            222,
+            17
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515739523,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515739532,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515739532,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515739532,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "ee09781eece42666bdba51f857b6b0c9",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515739190,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            234,
+            109,
+            236,
+            205,
+            108,
+            242,
+            243,
+            20,
+            195,
+            120,
+            124,
+            254,
+            87,
+            194,
+            125,
+            49,
+            34,
+            87,
+            44,
+            35,
+            14,
+            120,
+            102,
+            26,
+            60,
+            136,
+            213,
+            70,
+            95,
+            153,
+            222,
+            17
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515739500,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515739576,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515739595,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "ebda1e6d728f43bff4227acc1bcc604a",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515739190,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515739500,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515739500,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515739595,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515739595,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "restored",
+              "topology_builds": 5,
+              "topology_hits": 0
+            }
+          },
+          {
+            "at_ms": 1792515739792,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515740079,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515739344,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515739365,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515739496,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515739496,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515739496,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515740079,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515740084,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "ebda1e6d728f43bff4227acc1bcc604a",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "a",
+        "schedule_cache_hit": true,
+        "signing_call": 0,
+        "transport": {
+          "acknowledgments_received": 0,
+          "acknowledgments_sent": 1,
+          "maximum_event_boundary_ms": 68,
+          "pending_event_boundary_ms": 493,
+          "pending_events": 354,
+          "phases": [
+            {
+              "at_ms": 1792515739667,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515739669,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515739792,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515739799,
+              "phase": 3,
+              "received_frames": 118,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515739804,
+              "phase": 4,
+              "received_frames": 119,
+              "sent_frames": 120
+            },
+            {
+              "at_ms": 1792515739982,
+              "phase": 5,
+              "received_frames": 287,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515739990,
+              "phase": 3,
+              "received_frames": 288,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515739992,
+              "phase": 4,
+              "received_frames": 289,
+              "sent_frames": 290
+            },
+            {
+              "at_ms": 1792515740067,
+              "phase": 5,
+              "received_frames": 344,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515740067,
+              "phase": 3,
+              "received_frames": 344,
+              "sent_frames": 346
+            },
+            {
+              "at_ms": 1792515740072,
+              "phase": 4,
+              "received_frames": 345,
+              "sent_frames": 347
+            },
+            {
+              "at_ms": 1792515740075,
+              "phase": 5,
+              "received_frames": 349,
+              "sent_frames": 351
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 977006,
+          "sent_bytes": 987396
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515813088,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            113,
+            150,
+            198,
+            180,
+            167,
+            103,
+            254,
+            246,
+            33,
+            2,
+            52,
+            146,
+            250,
+            66,
+            15,
+            16,
+            253,
+            13,
+            122,
+            202,
+            208,
+            178,
+            251,
+            129,
+            124,
+            241,
+            183,
+            72,
+            241,
+            53,
+            235,
+            96
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515813088,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515813096,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515813096,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515813096,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "ee09781eece42666bdba51f857b6b0c9",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515812687,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            113,
+            150,
+            198,
+            180,
+            167,
+            103,
+            254,
+            246,
+            33,
+            2,
+            52,
+            146,
+            250,
+            66,
+            15,
+            16,
+            253,
+            13,
+            122,
+            202,
+            208,
+            178,
+            251,
+            129,
+            124,
+            241,
+            183,
+            72,
+            241,
+            53,
+            235,
+            96
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515812907,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515813002,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515813033,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "cbe5d0335aeb7b056c05a1c88d8f5fd9",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515812687,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515812907,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515812907,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515813033,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515813033,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "restored",
+              "topology_builds": 5,
+              "topology_hits": 0
+            }
+          },
+          {
+            "at_ms": 1792515813251,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515813687,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515812848,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515812870,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515812901,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515812901,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515812901,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515813687,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515813693,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "cbe5d0335aeb7b056c05a1c88d8f5fd9",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "a",
+        "schedule_cache_hit": true,
+        "signing_call": 0,
+        "transport": {
+          "acknowledgments_received": 0,
+          "acknowledgments_sent": 1,
+          "maximum_event_boundary_ms": 11,
+          "pending_event_boundary_ms": 666,
+          "pending_events": 354,
+          "phases": [
+            {
+              "at_ms": 1792515813049,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515813052,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515813251,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515813262,
+              "phase": 3,
+              "received_frames": 118,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515813271,
+              "phase": 4,
+              "received_frames": 119,
+              "sent_frames": 120
+            },
+            {
+              "at_ms": 1792515813563,
+              "phase": 5,
+              "received_frames": 287,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515813572,
+              "phase": 3,
+              "received_frames": 288,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515813574,
+              "phase": 4,
+              "received_frames": 289,
+              "sent_frames": 290
+            },
+            {
+              "at_ms": 1792515813669,
+              "phase": 5,
+              "received_frames": 344,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515813669,
+              "phase": 3,
+              "received_frames": 344,
+              "sent_frames": 346
+            },
+            {
+              "at_ms": 1792515813674,
+              "phase": 4,
+              "received_frames": 345,
+              "sent_frames": 347
+            },
+            {
+              "at_ms": 1792515813679,
+              "phase": 5,
+              "received_frames": 349,
+              "sent_frames": 351
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 977006,
+          "sent_bytes": 987396
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515885571,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            187,
+            228,
+            34,
+            85,
+            142,
+            154,
+            49,
+            223,
+            164,
+            49,
+            118,
+            51,
+            76,
+            112,
+            81,
+            190,
+            192,
+            33,
+            162,
+            247,
+            247,
+            110,
+            142,
+            110,
+            154,
+            131,
+            151,
+            92,
+            77,
+            240,
+            108,
+            66
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515885571,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515885579,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515885579,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515885579,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "ee09781eece42666bdba51f857b6b0c9",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515885254,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            187,
+            228,
+            34,
+            85,
+            142,
+            154,
+            49,
+            223,
+            164,
+            49,
+            118,
+            51,
+            76,
+            112,
+            81,
+            190,
+            192,
+            33,
+            162,
+            247,
+            247,
+            110,
+            142,
+            110,
+            154,
+            131,
+            151,
+            92,
+            77,
+            240,
+            108,
+            66
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515885561,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515885648,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515885673,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "ebda1e6d728f43bff4227acc1bcc604a",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "a",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "a",
+      "observedAtMs": 1792515885254,
+      "scriptVersion": {
+        "id": "200e3f24-75fa-4f19-bc94-a96929c15064"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515885561,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515885561,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515885673,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515885673,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "restored",
+              "topology_builds": 0,
+              "topology_hits": 5
+            }
+          },
+          {
+            "at_ms": 1792515885969,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515886259,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515885413,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515885427,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515885455,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515885455,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515885455,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515886259,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515886263,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "ebda1e6d728f43bff4227acc1bcc604a",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "a",
+        "schedule_cache_hit": true,
+        "signing_call": 1,
+        "transport": {
+          "acknowledgments_received": 0,
+          "acknowledgments_sent": 1,
+          "maximum_event_boundary_ms": 178,
+          "pending_event_boundary_ms": 696,
+          "pending_events": 354,
+          "phases": [
+            {
+              "at_ms": 1792515885855,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515885858,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515885969,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515885975,
+              "phase": 3,
+              "received_frames": 118,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515885980,
+              "phase": 4,
+              "received_frames": 119,
+              "sent_frames": 120
+            },
+            {
+              "at_ms": 1792515886173,
+              "phase": 5,
+              "received_frames": 287,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515886182,
+              "phase": 3,
+              "received_frames": 288,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515886183,
+              "phase": 4,
+              "received_frames": 289,
+              "sent_frames": 290
+            },
+            {
+              "at_ms": 1792515886249,
+              "phase": 5,
+              "received_frames": 344,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515886249,
+              "phase": 3,
+              "received_frames": 344,
+              "sent_frames": 346
+            },
+            {
+              "at_ms": 1792515886253,
+              "phase": 4,
+              "received_frames": 345,
+              "sent_frames": 347
+            },
+            {
+              "at_ms": 1792515886256,
+              "phase": 5,
+              "received_frames": 349,
+              "sent_frames": 351
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 977006,
+          "sent_bytes": 987396
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515383630,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "event": "ml_dsa_registration_preparation_v1",
+        "peak_pending_frames": 16,
+        "role": "b",
+        "write_transactions": 170,
+        "written_frames": 2711
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515459418,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "event": "ml_dsa_registration_execution_v1",
+        "loaded_bytes": 41701400,
+        "loaded_frames": 643,
+        "peak_cached_frames": 32,
+        "role": "b",
+        "table_read_transactions": 24
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515459418,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_execute"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515459425,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "execution_reserved"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "adapter_ready"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "input_opened"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "prepared_consumed"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "prepared_opened"
+          },
+          {
+            "at_ms": 1792515459431,
+            "stage": "prepared_restored"
+          },
+          {
+            "at_ms": 1792515460267,
+            "stage": "keygen_completed"
+          },
+          {
+            "at_ms": 1792515460283,
+            "stage": "material_sealed"
+          },
+          {
+            "at_ms": 1792515460283,
+            "stage": "material_persisted"
+          },
+          {
+            "at_ms": 1792515460383,
+            "stage": "result_exchanged"
+          },
+          {
+            "at_ms": 1792515460383,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 24,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 24
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 0
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515461518,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515461946,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515461946,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 1
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515461518,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 3
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515461964,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462143,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462143,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 2
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515461964,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515461964,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 4
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462157,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462328,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462328,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 5
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462157,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462157,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 6
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462349,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462542,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462542,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_stock",
+          "ordinal": 7
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515462349,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515462349,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515462817,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515462817,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515460799,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            230,
+            232,
+            88,
+            42,
+            238,
+            228,
+            109,
+            41,
+            113,
+            90,
+            118,
+            202,
+            203,
+            150,
+            44,
+            16,
+            204,
+            139,
+            142,
+            12,
+            61,
+            213,
+            155,
+            33,
+            195,
+            102,
+            20,
+            119,
+            162,
+            194,
+            17,
+            156
+          ],
+          "kind": "registration_install"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515460814,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515460828,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515460828,
+            "stage": "material_loaded"
+          },
+          {
+            "at_ms": 1792515461518,
+            "stage": "material_installed"
+          },
+          {
+            "at_ms": 1792515462817,
+            "stage": "stock_installed"
+          },
+          {
+            "at_ms": 1792515462817,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8232e973f32ef390ebaa7254e38661eb",
+        "operation": "88403e589b1a370408981d98547156a490f153074b780c7a02365ed148b898f2",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515558347,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "event": "ml_dsa_registration_preparation_v1",
+        "peak_pending_frames": 16,
+        "role": "b",
+        "write_transactions": 170,
+        "written_frames": 2711
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515621037,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "event": "ml_dsa_registration_execution_v1",
+        "loaded_bytes": 41701400,
+        "loaded_frames": 643,
+        "peak_cached_frames": 32,
+        "role": "b",
+        "table_read_transactions": 24
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515621037,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_execute"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515621051,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "execution_reserved"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "adapter_ready"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "input_opened"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "prepared_consumed"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "prepared_opened"
+          },
+          {
+            "at_ms": 1792515621067,
+            "stage": "prepared_restored"
+          },
+          {
+            "at_ms": 1792515624077,
+            "stage": "keygen_completed"
+          },
+          {
+            "at_ms": 1792515624103,
+            "stage": "material_sealed"
+          },
+          {
+            "at_ms": 1792515624103,
+            "stage": "material_persisted"
+          },
+          {
+            "at_ms": 1792515624130,
+            "stage": "result_exchanged"
+          },
+          {
+            "at_ms": 1792515624130,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 24,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 24
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 0
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515624897,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625252,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625252,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 1
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515624897,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 2
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625266,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625449,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625449,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 3
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625266,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625266,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 4
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625500,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625805,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625805,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 5
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625500,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625500,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 6
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625849,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515626031,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515626031,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_stock",
+          "ordinal": 7
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515625849,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "stock_loaded"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "stock_resealed"
+          },
+          {
+            "at_ms": 1792515625849,
+            "stage": "delivery_persisted"
+          },
+          {
+            "at_ms": 1792515626082,
+            "stage": "delivery_acknowledged"
+          },
+          {
+            "at_ms": 1792515626082,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515624796,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "job": [
+            91,
+            104,
+            31,
+            147,
+            242,
+            169,
+            20,
+            130,
+            241,
+            24,
+            182,
+            59,
+            201,
+            241,
+            160,
+            118,
+            90,
+            216,
+            85,
+            1,
+            210,
+            173,
+            59,
+            53,
+            121,
+            45,
+            76,
+            193,
+            35,
+            23,
+            150,
+            28
+          ],
+          "kind": "registration_install"
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515624815,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515624835,
+            "stage": "installation_checked"
+          },
+          {
+            "at_ms": 1792515624835,
+            "stage": "material_loaded"
+          },
+          {
+            "at_ms": 1792515624897,
+            "stage": "material_installed"
+          },
+          {
+            "at_ms": 1792515626082,
+            "stage": "stock_installed"
+          },
+          {
+            "at_ms": 1792515626082,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "e8ed154153ec4b9c58077e2b53bfaf19",
+        "operation": "cfbd1df0f7c1e911a9f082f199cd878a2f5b78f0be0e4b6362c05d203179bd13",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515739583,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            234,
+            109,
+            236,
+            205,
+            108,
+            242,
+            243,
+            20,
+            195,
+            120,
+            124,
+            254,
+            87,
+            194,
+            125,
+            49,
+            34,
+            87,
+            44,
+            35,
+            14,
+            120,
+            102,
+            26,
+            60,
+            136,
+            213,
+            70,
+            95,
+            153,
+            222,
+            17
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515739583,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515739593,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515739593,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515739593,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "b05409490819448e975d2fe766f72af8",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515739297,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            234,
+            109,
+            236,
+            205,
+            108,
+            242,
+            243,
+            20,
+            195,
+            120,
+            124,
+            254,
+            87,
+            194,
+            125,
+            49,
+            34,
+            87,
+            44,
+            35,
+            14,
+            120,
+            102,
+            26,
+            60,
+            136,
+            213,
+            70,
+            95,
+            153,
+            222,
+            17
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515739477,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515739577,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515739606,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "b043a59845c28ecf67e1d0fc63afd0ef",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515739297,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515739477,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515739477,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515739606,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515739606,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "restored",
+              "topology_builds": 5,
+              "topology_hits": 0
+            }
+          },
+          {
+            "at_ms": 1792515739751,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515740022,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                234,
+                109,
+                236,
+                205,
+                108,
+                242,
+                243,
+                20,
+                195,
+                120,
+                124,
+                254,
+                87,
+                194,
+                125,
+                49,
+                34,
+                87,
+                44,
+                35,
+                14,
+                120,
+                102,
+                26,
+                60,
+                136,
+                213,
+                70,
+                95,
+                153,
+                222,
+                17
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515739315,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515739332,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515739361,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515739361,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515739361,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515740022,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515740025,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "b043a59845c28ecf67e1d0fc63afd0ef",
+        "operation": "c51e47c0cb13ec304090fb22ff0eb938ed6baa531ff979d22d8c6a28d83e5ccd",
+        "role": "b",
+        "schedule_cache_hit": true,
+        "signing_call": 0,
+        "transport": {
+          "acknowledgments_received": 1,
+          "acknowledgments_sent": 0,
+          "maximum_event_boundary_ms": 116,
+          "pending_event_boundary_ms": 535,
+          "pending_events": 356,
+          "phases": [
+            {
+              "at_ms": 1792515739615,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515739624,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515739743,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515739751,
+              "phase": 3,
+              "received_frames": 119,
+              "sent_frames": 118
+            },
+            {
+              "at_ms": 1792515739752,
+              "phase": 4,
+              "received_frames": 120,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515739929,
+              "phase": 5,
+              "received_frames": 288,
+              "sent_frames": 287
+            },
+            {
+              "at_ms": 1792515739930,
+              "phase": 3,
+              "received_frames": 289,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515739938,
+              "phase": 4,
+              "received_frames": 290,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515740012,
+              "phase": 5,
+              "received_frames": 345,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515740016,
+              "phase": 3,
+              "received_frames": 346,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515740016,
+              "phase": 4,
+              "received_frames": 347,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515740019,
+              "phase": 5,
+              "received_frames": 351,
+              "sent_frames": 349
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 987396,
+          "sent_bytes": 977006
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515813086,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            113,
+            150,
+            198,
+            180,
+            167,
+            103,
+            254,
+            246,
+            33,
+            2,
+            52,
+            146,
+            250,
+            66,
+            15,
+            16,
+            253,
+            13,
+            122,
+            202,
+            208,
+            178,
+            251,
+            129,
+            124,
+            241,
+            183,
+            72,
+            241,
+            53,
+            235,
+            96
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515813086,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515813094,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515813094,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515813094,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "b05409490819448e975d2fe766f72af8",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515812868,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            113,
+            150,
+            198,
+            180,
+            167,
+            103,
+            254,
+            246,
+            33,
+            2,
+            52,
+            146,
+            250,
+            66,
+            15,
+            16,
+            253,
+            13,
+            122,
+            202,
+            208,
+            178,
+            251,
+            129,
+            124,
+            241,
+            183,
+            72,
+            241,
+            53,
+            235,
+            96
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515812973,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515813083,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515813111,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "8c970f0a0080fa5c8152c5ad65802c75",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515812868,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515812973,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515812973,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515813111,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515813111,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "restored",
+              "topology_builds": 5,
+              "topology_hits": 0
+            }
+          },
+          {
+            "at_ms": 1792515813616,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515814010,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                113,
+                150,
+                198,
+                180,
+                167,
+                103,
+                254,
+                246,
+                33,
+                2,
+                52,
+                146,
+                250,
+                66,
+                15,
+                16,
+                253,
+                13,
+                122,
+                202,
+                208,
+                178,
+                251,
+                129,
+                124,
+                241,
+                183,
+                72,
+                241,
+                53,
+                235,
+                96
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515812884,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515812899,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515812926,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515812926,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515812926,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515814010,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515814016,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "8c970f0a0080fa5c8152c5ad65802c75",
+        "operation": "5763338aefb5f1332a5e63be36ca76f73b4e587c8d0964326750762622a2eb7a",
+        "role": "b",
+        "schedule_cache_hit": true,
+        "signing_call": 0,
+        "transport": {
+          "acknowledgments_received": 1,
+          "acknowledgments_sent": 0,
+          "maximum_event_boundary_ms": 291,
+          "pending_event_boundary_ms": 952,
+          "pending_events": 356,
+          "phases": [
+            {
+              "at_ms": 1792515813404,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515813417,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515813608,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515813616,
+              "phase": 3,
+              "received_frames": 119,
+              "sent_frames": 118
+            },
+            {
+              "at_ms": 1792515813618,
+              "phase": 4,
+              "received_frames": 120,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515813893,
+              "phase": 5,
+              "received_frames": 288,
+              "sent_frames": 287
+            },
+            {
+              "at_ms": 1792515813894,
+              "phase": 3,
+              "received_frames": 289,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515813903,
+              "phase": 4,
+              "received_frames": 290,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515813997,
+              "phase": 5,
+              "received_frames": 345,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515814001,
+              "phase": 3,
+              "received_frames": 346,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515814001,
+              "phase": 4,
+              "received_frames": 347,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515814004,
+              "phase": 5,
+              "received_frames": 351,
+              "sent_frames": 349
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 987396,
+          "sent_bytes": 977006
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515885571,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_store",
+          "material": [
+            187,
+            228,
+            34,
+            85,
+            142,
+            154,
+            49,
+            223,
+            164,
+            49,
+            118,
+            51,
+            76,
+            112,
+            81,
+            190,
+            192,
+            33,
+            162,
+            247,
+            247,
+            110,
+            142,
+            110,
+            154,
+            131,
+            151,
+            92,
+            77,
+            240,
+            108,
+            66
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515885571,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515885580,
+            "stage": "authorized"
+          },
+          {
+            "at_ms": 1792515885580,
+            "stage": "transaction_committed"
+          },
+          {
+            "at_ms": 1792515885580,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "b05409490819448e975d2fe766f72af8",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515885275,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "completed": true,
+        "context": {
+          "kind": "take_caller",
+          "material": [
+            187,
+            228,
+            34,
+            85,
+            142,
+            154,
+            49,
+            223,
+            164,
+            49,
+            118,
+            51,
+            76,
+            112,
+            81,
+            190,
+            192,
+            33,
+            162,
+            247,
+            247,
+            110,
+            142,
+            110,
+            154,
+            131,
+            151,
+            92,
+            77,
+            240,
+            108,
+            66
+          ]
+        },
+        "event": "ml_dsa_stage_trace_v1",
+        "marks": [
+          {
+            "at_ms": 1792515885449,
+            "stage": "started"
+          },
+          {
+            "at_ms": 1792515885536,
+            "stage": "response_headers"
+          },
+          {
+            "at_ms": 1792515885566,
+            "stage": "completed"
+          }
+        ],
+        "module_instance": "9360466fb937eebf5129d1058ed87432",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "b",
+        "table_reads": {
+          "count": 0,
+          "elapsed_ms": 0,
+          "maximum_ms": 0,
+          "measured": 0
+        }
+      }
+    },
+    {
+      "worker": "b",
+      "observedAtMs": 1792515885275,
+      "scriptVersion": {
+        "id": "1d4d6719-4cfd-400c-957d-40ff45e6357b"
+      },
+      "record": {
+        "batches": [
+          {
+            "at_ms": 1792515885449,
+            "value": {
+              "stage": "bound"
+            }
+          },
+          {
+            "at_ms": 1792515885449,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "taking"
+            }
+          },
+          {
+            "at_ms": 1792515885566,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "taken"
+            }
+          },
+          {
+            "at_ms": 1792515885566,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "restored",
+              "topology_builds": 5,
+              "topology_hits": 0
+            }
+          },
+          {
+            "at_ms": 1792515885719,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "activated"
+            }
+          },
+          {
+            "at_ms": 1792515886044,
+            "value": {
+              "batch": 0,
+              "material_id": [
+                187,
+                228,
+                34,
+                85,
+                142,
+                154,
+                49,
+                223,
+                164,
+                49,
+                118,
+                51,
+                76,
+                112,
+                81,
+                190,
+                192,
+                33,
+                162,
+                247,
+                247,
+                110,
+                142,
+                110,
+                154,
+                131,
+                151,
+                92,
+                77,
+                240,
+                108,
+                66
+              ],
+              "stage": "checked"
+            }
+          }
+        ],
+        "completed": true,
+        "event": "ml_dsa_signing_trace_v1",
+        "milestones": [
+          {
+            "at_ms": 1792515885292,
+            "name": "started"
+          },
+          {
+            "at_ms": 1792515885309,
+            "name": "permit_checked"
+          },
+          {
+            "at_ms": 1792515885449,
+            "name": "material_loaded"
+          },
+          {
+            "at_ms": 1792515885449,
+            "name": "material_opened"
+          },
+          {
+            "at_ms": 1792515885449,
+            "name": "schedules_loaded"
+          },
+          {
+            "at_ms": 1792515886044,
+            "name": "protocol_completed"
+          },
+          {
+            "at_ms": 1792515886047,
+            "name": "completed"
+          }
+        ],
+        "module_instance": "9360466fb937eebf5129d1058ed87432",
+        "operation": "7f34e7725e81330417755850a99fa5a3bf262f830a3c8ce922b71abe2bc72b0e",
+        "role": "b",
+        "schedule_cache_hit": true,
+        "signing_call": 0,
+        "transport": {
+          "acknowledgments_received": 1,
+          "acknowledgments_sent": 0,
+          "maximum_event_boundary_ms": 7,
+          "pending_event_boundary_ms": 481,
+          "pending_events": 356,
+          "phases": [
+            {
+              "at_ms": 1792515885573,
+              "phase": 3,
+              "received_frames": 3,
+              "sent_frames": 3
+            },
+            {
+              "at_ms": 1792515885580,
+              "phase": 4,
+              "received_frames": 4,
+              "sent_frames": 4
+            },
+            {
+              "at_ms": 1792515885715,
+              "phase": 5,
+              "received_frames": 117,
+              "sent_frames": 117
+            },
+            {
+              "at_ms": 1792515885719,
+              "phase": 3,
+              "received_frames": 119,
+              "sent_frames": 118
+            },
+            {
+              "at_ms": 1792515885721,
+              "phase": 4,
+              "received_frames": 120,
+              "sent_frames": 119
+            },
+            {
+              "at_ms": 1792515885946,
+              "phase": 5,
+              "received_frames": 288,
+              "sent_frames": 287
+            },
+            {
+              "at_ms": 1792515885946,
+              "phase": 3,
+              "received_frames": 289,
+              "sent_frames": 288
+            },
+            {
+              "at_ms": 1792515885953,
+              "phase": 4,
+              "received_frames": 290,
+              "sent_frames": 289
+            },
+            {
+              "at_ms": 1792515886033,
+              "phase": 5,
+              "received_frames": 345,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515886036,
+              "phase": 3,
+              "received_frames": 346,
+              "sent_frames": 344
+            },
+            {
+              "at_ms": 1792515886036,
+              "phase": 4,
+              "received_frames": 347,
+              "sent_frames": 345
+            },
+            {
+              "at_ms": 1792515886041,
+              "phase": 5,
+              "received_frames": 351,
+              "sent_frames": 349
+            }
+          ],
+          "ready_events": 0,
+          "received_bytes": 987396,
+          "sent_bytes": 977006
+        }
+      }
+    }
+  ]
+}

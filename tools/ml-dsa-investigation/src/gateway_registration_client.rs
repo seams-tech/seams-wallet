@@ -46,6 +46,14 @@ struct Replies {
     role_b: SealedMlDsaRoleResultV1,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TransactionInput {
+    signer_id: String,
+    nonce: String,
+    block_hash: String,
+}
+
 fn b64(value: &[u8]) -> String {
     Base64UrlUnpadded::encode_string(value)
 }
@@ -177,5 +185,36 @@ pub(super) fn run() -> InvestigationResult<bool> {
         json!({"commit":commit,"canonicalKeyVerified":true,"holderResultsAuthenticated":true,
         "unsignedTransactionBorshB64u":b64(&borsh::to_vec(&tx)?)})
     );
+    io::stdout().flush()?;
+    for line in lines {
+        let input: TransactionInput = serde_json::from_str(&line?)?;
+        let nonce = input.nonce.parse::<u64>()?;
+        require(
+            nonce.to_string() == input.nonce,
+            "Nonce must be canonical decimal",
+        )?;
+        let block_hash = bs58::decode(input.block_hash).into_vec()?;
+        let tx = wasm_signer_worker::build_transaction_with_actions(
+            &input.signer_id,
+            &input.signer_id,
+            nonce,
+            &block_hash,
+            wasm_signer_worker::PublicKey::MlDsa65(Box::new(public_key)),
+            vec![wasm_signer_worker::NearAction::Transfer { deposit: 1 }],
+        )?;
+        let unsigned = b64(&borsh::to_vec(&tx)?);
+        let inspection: serde_json::Value =
+            serde_json::from_str(&wasm_signer_worker::inspect_ml_dsa65_transaction(
+                &json!({
+                    "unsignedTransactionBorshB64u": unsigned, "publicKeyB64u": b64(&public_key)
+                })
+                .to_string(),
+            )?)?;
+        println!(
+            "{}",
+            json!({"unsignedTransactionBorshB64u":unsigned,"inspection":inspection})
+        );
+        io::stdout().flush()?;
+    }
     Ok(true)
 }
