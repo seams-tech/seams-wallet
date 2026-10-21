@@ -214,26 +214,31 @@ impl CloudflareTenantRootManagedBackupDeletionReceiptV1 {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn managed_backup_object_key(&self) -> &str {
         &self.managed_backup_object_key
     }
 
+    #[cfg(test)]
     pub(crate) fn provider_canary_object_key(&self) -> &str {
         &self.provider_canary_object_key
     }
 
+    #[cfg(test)]
     pub(crate) const fn managed_backup(
         &self,
     ) -> CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
         self.managed_backup
     }
 
+    #[cfg(test)]
     pub(crate) const fn provider_canary(
         &self,
     ) -> CloudflareTenantRootManagedBackupObjectDeletionStatusV1 {
         self.provider_canary
     }
 
+    #[cfg(test)]
     pub(crate) const fn cryptographic_erasure(&self) -> TenantRootOperationalErasureClaimV1 {
         self.cryptographic_erasure
     }
@@ -481,22 +486,6 @@ impl CloudflareTenantRootManagedBackupStoreV1 {
             "provider canary object key already contains different canonical bytes",
         )
         .await
-    }
-
-    pub(crate) async fn get_verified_provider_canary(
-        &self,
-        coordinates: TenantRootManagedBackupObjectCoordinatesV1,
-        expected_binding: &TenantRootProviderCanaryReceiptBindingV1,
-        trusted_role_verifying_key: &[u8; 32],
-    ) -> worker::Result<VerifiedTenantRootProviderCanaryReceiptV1> {
-        let (verified, _) = self
-            .get_verified_provider_canary_with_metadata(
-                coordinates,
-                expected_binding,
-                trusted_role_verifying_key,
-            )
-            .await?;
-        Ok(verified)
     }
 
     pub(crate) async fn get_verified_provider_canary_with_metadata(

@@ -667,6 +667,7 @@ impl CloudflareTenantRootOperationalRotationProviderConfigV1 {
     }
 
     /// Returns the managed-backup HPKE public-key descriptor.
+    #[cfg(test)]
     pub(crate) fn backup_public_key(&self) -> Option<&str> {
         match &self.managed_backup {
             CloudflareTenantRootManagedBackupProviderConfigV1::CloudflareHpke {
