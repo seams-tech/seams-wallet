@@ -314,14 +314,15 @@ async function postJson(args: {
     });
   }
   if (!response.ok || readParsedJsonField(data, 'ok') === false) {
-    throw new Error(
-      String(
-        readParsedJsonField(data, 'message') ||
-          readParsedJsonField(data, 'error') ||
-          readParsedJsonField(data, 'code') ||
-          `HTTP ${response.status}`,
-      ),
+    // The server's code, such as `production_paused`, reaches the caller unchanged.
+    const code = String(readParsedJsonField(data, 'code') || '').trim();
+    const message = String(
+      readParsedJsonField(data, 'message') ||
+        readParsedJsonField(data, 'error') ||
+        code ||
+        `HTTP ${response.status}`,
     );
+    throw Object.assign(new Error(message), code ? { code } : {});
   }
   return data;
 }

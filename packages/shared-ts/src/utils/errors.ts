@@ -224,6 +224,11 @@ export function getUserFriendlyErrorMessage(
     return `${op} failed because the configured WebAuthn RP ID is not valid for this app origin. Check VITE_RP_ID_BASE and the /.well-known/webauthn related-origin configuration for this environment.`;
   }
 
+  // The app's Seams plan stops new production sign-ups until its owner acts.
+  if (error && typeof error === 'object' && 'code' in error && error.code === 'production_paused') {
+    return 'New sign-ups for this app are paused. The app owner must update its Seams billing.';
+  }
+
   // Handle TouchID/FaceID cancellation
   if (isTouchIdCancellationError(error)) {
     return getTouchIdCancellationMessage(context);
