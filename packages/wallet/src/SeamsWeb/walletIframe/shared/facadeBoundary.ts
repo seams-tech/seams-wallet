@@ -14,6 +14,7 @@ import {
   walletSessionRefFromSession,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
+import { parseNearTransactionSigner } from '@/core/signingEngine/chains/near/transactionSigner';
 import {
   parseExactEcdsaSigningLaneIdentity,
   parseExactEd25519ExportMaterialIdentity,
@@ -78,6 +79,18 @@ export function normalizeExportKeypairWithUIInput(
     theme: input.options.theme ?? theme,
   };
   switch (input.kind) {
+    case 'ml_dsa_65': {
+      const signer = parseNearTransactionSigner(input.signer);
+      if (signer.kind !== 'near_ml_dsa_65')
+        throw new Error('ML-DSA export requires an ML-DSA signer');
+      return {
+        kind: 'ml_dsa_65',
+        walletSession: walletSessionRefFromSession(input.walletSession),
+        nearAccount: nearAccountRefFromAccountId(input.nearAccount.accountId),
+        signer,
+        options: resolvedOptions,
+      };
+    }
     case 'ecdsa': {
       const laneIdentity = parseExactEcdsaSigningLaneIdentity(input.laneIdentity);
       if (String(laneIdentity.signer.walletId) !== String(input.walletSession.walletId)) {

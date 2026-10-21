@@ -108,7 +108,7 @@ async function run() {
       const request = {
         relayerUrl: config.gatewayUrl,
         preparation: prepared.preparation,
-        credential: serialized,
+        authorization: { kind: 'passkey' as const, credential: serialized },
       };
       let result = await executeMlDsaNearSigning(request);
       const retries: Variant<MlDsaSigningOutcome, 'kind', 'retry'>[] = [];

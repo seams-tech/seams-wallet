@@ -3414,7 +3414,16 @@ It writes repeatable evidence under `.artifacts/signing-credit/`.
 
 ## Experimental ML-DSA custody contract
 
-The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can discover and sign with that key through the advanced SDK. An active custody owner can restore participant material from the wallet custody seed. ML-DSA-only wallet creation, standard Wallet signing UI, and reusable ML-DSA sessions remain incomplete. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can use that key through the normal Wallet transaction API. An active custody owner can restore participant material and export the canonical FIPS seed. ML-DSA-only wallet creation remains outside this release. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+
+- `near.signTransaction` and `near.signAndSendTransaction` accept an explicit published ML-DSA signer reference. Keep nonce reservation, transaction review, independent signature verification, and ordinary NEAR submission in the existing lifecycle.
+- Offer reusable ML-DSA approvals only through explicit `mlDsaSigningSession` options. The owner must approve the first transaction, exact key, operation limit, and expiry. Require one to thirty-two operations and a lifetime of one to fifteen minutes.
+- Keep the session credential in Wallet-origin volatile memory. Never return it with a transaction or persist it in browser storage. Clear it on lock and authority changes. Request durable revocation during lock.
+- Pin each grant to its owner, origin, key, material epoch, and publication version. Recheck owner and grant validity before dispatch and before returning a completed or cached result. Generic signing sessions grant no ML-DSA authority.
+- Reserve one session use atomically with exact operation authorization. Failed operations consume that use. Internal rejection retries, transport retries, and duplicate requests retain the same authorization without another debit.
+- Retain the wallet cooldown, ready-capacity check, service capacity, two-candidate consumption, and single-use preparation rules for session-authorized operations.
+- `keys.exportKey` with `kind: 'ml_dsa_65'` requires a seed-backed custody owner and fresh Passkey authorization. Check current authoritative signer inventory before opening the seed envelope. Refuse linked-device Client-root envelopes.
+- Derive the canonical FIPS seed inside the export worker. Check that ordinary ML-DSA key expansion reproduces the published public key. Reveal only the authorized export in the Wallet-origin viewer. Return no secret through the application API.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
@@ -3450,6 +3459,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Persist the exact encrypted input pair before dispatch. Changed inputs must fail under the same operation.
 - Publish only after both participant installations agree with the authenticated client completion. Recheck current ownership atomically with publication.
 - Return the same publication receipt after a lost acknowledgement or Gateway restart.
+- Retain the verified public custody completion before its first publication request. Replay that exact completion after startup or unlock. An installed completion may publish after the execution deadline while its owner, envelope, operation, and epoch remain current. Expiry never permits new execution or replacement of uncertain material.
 - Expire unused admissions with a retained versioned record. A delayed execute must never overwrite a replacement ceremony.
 - Keep dispatched signer slots reserved after interruption. Recovery must reconcile uncertain participant state before reuse.
 - Permit admitted work to settle while relocation drains. Block new admissions while draining.
@@ -3504,16 +3514,17 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Return an explicit retry time for pool, capacity, cooldown, and running waits. Internal candidate rejection remains within the admitted Router operation.
 - Recheck authority digest, revocation epoch, auth method, publication version, wallet generation, origin, and expiry before releasing cached signatures.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
-- Require both verified factor evidence and an operation-specific owner proof within their validity windows.
+- For a fresh transaction approval, require verified factor evidence and an operation-specific owner proof within their validity windows.
+- For a reusable ML-DSA grant, atomically debit its budget and retain the exact operation before Router admission. Recheck the grant and owner before releasing a result.
 - Preserve the Router operation ID across internal claim retries for the same logical operation. Require new approval for a different logical operation.
-- Refuse ML-DSA in generic signing-lane and D1 admission until dedicated custody and session integration exists.
+- Keep generic Ed25519 and ECDSA signing grants separate from dedicated ML-DSA grants. Neither generic grant authorizes an ML-DSA operation.
 
 The [owner admission E2E](router-ab/ml-dsa-65-owner-admission-report.md) composes the typed gate with real local Worker signing.
 Its verified factor inputs, operation-claim persistence, and custody activation are synthetic test inputs.
-The advanced public route uses authoritative publication records and durable exact-operation claims. Reusable ML-DSA sessions remain unavailable.
+The public routes use authoritative publication records and durable exact-operation claims. Dedicated ML-DSA sessions require explicit owner-approved budgets and expiry.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
-The [enrollment and retained-signer lifecycle report](router-ab/ml-dsa-65-wallet-lifecycle-report.md) records real testnet key enrollment and Gateway signing after completed recovery/device activation. Its authority fixtures start after those ceremonies complete. Full browser qualification of the combined recovery-code and QR-link ceremonies remains required, together with public lost-participant restoration and the broader production security review.
+The [lifecycle report](router-ab/ml-dsa-65-wallet-lifecycle-report.md) records browser recovery, QR linking, normal Wallet signing, canonical seed import, public participant restoration, and finalized testnet submission. Its separate Worker fixtures check concurrency, replay, revocation, and participant loss. Hosted qualification and the broader production security review remain required.
 
 The [Chromium custody campaign](router-ab/ml-dsa-65-experiment-contract.md#browser-custody-boundary) also checks the consuming Wasm handles and typed SDK worker messages.
 Discarded and wrong-step ceremonies must explicitly free their Wasm handles.

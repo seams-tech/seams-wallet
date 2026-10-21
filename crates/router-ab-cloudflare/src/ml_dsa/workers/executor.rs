@@ -1,6 +1,7 @@
 //! Private Worker signing. Only each role can read its material and prepared pool.
 use super::super::execution::{self, Host, Request, RoleSecrets};
 use super::*;
+use std::cell::RefCell;
 use worker::{Context, WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub(crate) const EXECUTE_PATH: &str = "/router-ab/ml-dsa/execute";
@@ -9,6 +10,16 @@ const SOCKET_PATH: &str = "/router-ab/ml-dsa/connect";
 struct WorkerHost<'a> {
     env: &'a Env,
     trace: &'a signing_trace::SigningTrace,
+    first_pair: RefCell<Option<([u8; 32], Binding, Sealed)>>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct SigningInputs {
+    pub material: material::Record,
+    pub batch: [u8; 32],
+    pub binding: Binding,
+    pub sealed: Sealed,
 }
 impl Host for WorkerHost<'_> {
     fn now_ms(&self) -> Result<u64> {
@@ -29,6 +40,12 @@ impl Host for WorkerHost<'_> {
         schedules::retain_public_topologies(topologies);
     }
     async fn take(&self, permit: &Permit, batch: [u8; 32]) -> Result<(Binding, Sealed)> {
+        if let Some((expected, binding, sealed)) = self.first_pair.borrow_mut().take() {
+            if expected != batch {
+                return Err(invalid("ML-DSA first prepared pair changed"));
+            }
+            return Ok((binding, sealed));
+        }
         let trace = stage_trace::StageTrace::new(
             permit.request.operation,
             configured_role(self.env).map_err(storage_error)?,
@@ -112,7 +129,7 @@ async fn execute(
     trace.mark("permit_checked");
     let mut response = local_call(
         env,
-        &RoleCommand::LoadMaterial {
+        &RoleCommand::LoadSigningInputs {
             permit: input.permit.clone(),
         },
     )
@@ -120,7 +137,8 @@ async fn execute(
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA key material is unavailable"));
     }
-    let record: material::Record = response.json().await.map_err(storage_error)?;
+    let inputs: SigningInputs = response.json().await.map_err(storage_error)?;
+    let record = inputs.material;
     trace.mark("material_loaded");
     if record.activation.key != input.permit.request.key {
         return Err(invalid("ML-DSA role key changed"));
@@ -148,7 +166,11 @@ async fn execute(
         },
         policy(env)?.candidate_group_size(),
         &schedules,
-        &WorkerHost { env, trace: &trace },
+        &WorkerHost {
+            env,
+            trace: &trace,
+            first_pair: RefCell::new(Some((inputs.batch, inputs.binding, inputs.sealed))),
+        },
         &mut transport,
     )
     .await;

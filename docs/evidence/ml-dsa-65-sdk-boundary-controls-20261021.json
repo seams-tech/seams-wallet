@@ -1,0 +1,88 @@
+{
+  "observedAt": "2026-10-21T05:43:53.193465+00:00",
+  "classification": "production_regression",
+  "scope": "Public persisted ML-DSA key and old Router decoder layout explain the live Wallet AddKey failure. No private record fields are retained.",
+  "walletId": "serene-thunder-qne4ta",
+  "publicKeyB64u": "B2E3by-wq0AWa6CmSKqPvD8ExQyprvU2oBdAj-WzYKD39QEeVIAwPrSf4l2U5PT2GwDxgleGNiIsX04qFPPJbhGVO9ne7Fq-JqoGeg4D2fmSFs0UmWv14Zz6CHYqtWT-rR0-Le8bZarhhnVmzSAe4yGqmj6yyn7-1dkvC_7ChvY5Nax4PzDWH4kmt1GTmAawHYiVaaXF7wUBKajK-WESXMBAf-rHxRS2_VOfRqpVAiCEw95-E7mlUvPOEQfeuTJBSzUGYy0hi28idgpZwWaUs8M3qyJhUF4u5vhYpV5UTL2qR49i493wjRQlGMm2nMLXbTSOWKpwkgN3XeqHhCgp0m70_UvVcJBPA9ZeMsNduxRez7DVYdqO91RAtcck-7aTpfQ0uaa6wSl17BF3YgHIVRGLmYrg7ItmUR59hVdiHkWPQ_j6kqcuGbsbvT3M89574omu49S2qTv2YIrQV0gPPi7F6MSnyLr9dq3JLB6xA9KG16L50bav5zKQoJ6LCav1lujydwhzrNYwMQ1tl1wIE8u3ZxWJ0Dvqk9cGa_j6y5-w-ba3UJ4G3KPNadEkUTX5hjsglEe6ZJbrkOGFf5I_KQqw9cqvsIVe3cz6yeXhiqDJhW9vaO4XYSVl6ZDGoOE4eBsbbRk3u64FlQcK-jgC9cR0Us5EKwiYoTHAjnBBS_x9A0e9LUl1LMc8exZ3kZXCLozn23pP-KozakSDKpLlq8eSiceXp-4ubwou5yO59k4dSp4GAgBUEWInDObaznfrkK_1IYQ9q0YXBjI5jED0g-MCJ9bg_4gzjnDv_YGaFjscvc0PV0HExRz-6x0qbRR0gHAc74IZPtNFzpcu7KRTaSQelOyyAUvuR0yGiVEs6rAhyVGi181ubqVDWQTkFF0p9vrIgtPZ7XdejcvIhupjKEKdkj7szz34ZbYx23dqnYpDpFmJieUENK3me9986hNojBXP0d8AIIPT1yNhZHmZ4oZRpSLS0TJ4RZQEnKo-3rduqiLeVZhAQATs98gJaZz8Jgy1kSe7RHbxc7Ew9ZAmYs98SdRoU3RvCd20CiEST6JCBpPwSBdTiH-FhWugIQJgAkOm4mbGWZ_1bXnQESFJ5PelQRmKkmqejvBGCoVCT-6J2gqrqBA-A3Yu1QzZxD3ReNbYthcpejddICejqWZ3e-8g45U2ECT_ksJ5qwMuATwJIygDGcVePlJ8islqO9XNze6pL9jxptT_cWsSIXRDZbJmnTTtD7tRmX2Z8dgUZKayq-Ea-GVY4IPRf0Q0zn7N72iBse7fw7bEhxU6dj7_ow9onzyYAtpknFt3gqvV1jqQi2LWOHWVxcpaxn9_k6gK9TlnOaOS4DTVplaLy3kYn0M5XrP9Lmja2Eus73Oc_kxtCQ3l_wMQqwFHUVKqrX3hhZhMLyoBdAAvVBfQjrjlhfF8XKLlbg5pOlyeAIsyw2sSKrpp_MLJ9lCZ2vD9ykNt5JlpJw_i-slPoQfDD78UMsYqyZNLol65qM4cPBgzQd6UdkYvgtX8agk5pYm8PP7X7Cd_dO0pSQGHvXF_FoTO83OgmLJ4rCf1NJrAKM7ZNJ5YLhFIvbeGKU6StSwGw4LDEZJz_QClNQyIwWn0zSp2T0SC7345xMuBfQcC94f7qyalo4ap5S1dOi8RHpqn5lgUe1d7PnD7DyY0f9CVSJeDVFo78tA9ELQ9hKzXQbcWq1hfgslKbb7Faw-FR-lyxW9h79_3ks_jFflkUBPu43ytGgTc1s5nXP8mxhgQQB54PuR2_DSayZjlz0bbA9FuwL2ZhsR0s1644kWIkim95k_qm4WR1Ar0mueKgkU3SwztwP6GzYcrHz1SFP7rxoCYXzoD-ZpJZ3eIRCYRtY2sRIlOiF3hEVMJaXVsm5HH9zPNrTkAD5VdG_nd8Vh2QnIaZtRj9wpNwDhoe-59g2PEJnSnZvYjuafeiFKv89oFDMMRdgk17WmBi1SiJ36l8JbCeGQaGG2zwb5zZU9wsLqEsDKziJmNrwbeOPPxiTqSG3UnrQeSJ7MZkSw4f7l0QE3hYLBeBQ8M57hh1wDG354TnE4ZVxW5Zr2EJDTWMSqlGx_kXRcNGvjBZH5njNuNtGxYlW6VfYWbLY0-q9PNC4jltplVDkk1ROq6FAaYL9XUHE0atOyXcQbxUOicf8jbYr5YOD2_BSg4RkdHNBSLkjKufSVBFymUwouSnGcp730aUVLVQGzZeqr4-PPSmSlf8hhnFrgmpJyabmftuvuTlFUsqoa9qKSW3NrfQuFvy-Scc76Nwrr8YAPyMXPEHUdnVj5ZJz0IHAVZWbrXPj3tRw4le2a6Hkx7VMvgYomhV-E19mR0Lgin-DbuB2liIsQa0lVQr4nNFGZzYsni-vPavDSFcSFpS8kBIwjqn542MJS70OQ95lt6IQ34I5z5EjW8jJ33wP_h-aG_ETArCfMQBbwBrz6Uv5vMcS0GAHSdi7NtsMEejVAGWCq1zvHTAoh9SQaY4rOZMMQs1-UQJuI3j7hJJlS4BhMYIuLHjUyaaO3Vr9fEZX-sidCPhXEnn0w1TSXNG6z5SQXYSJ4MgZ_OvvCAyVe9U6lgFwHWiLt2KrR0ls0jBv4",
+  "publicKeyBytes": 1952,
+  "oldDecoderKeyBytes": 32,
+  "accessKeyNonceBytes": 8,
+  "misreadPermissionTag": 180,
+  "reportedError": "Unexpected variant tag: 180",
+  "oldDecoderSha256": "36f6698b0298bcffdea419923092e03414b32a8c2e40f4720fde445d872e104a",
+  "accessKeyListControl": {
+    "accountId": "911fbf24fc8e8dd61dc3a29505c105562cf8c213b573e5a7624e179d359ec905",
+    "observations": [
+      {
+        "url": "https://rpc.testnet.fastnear.com",
+        "status": 200,
+        "cors": "*",
+        "body": {
+          "jsonrpc": "2.0",
+          "result": {
+            "block_hash": "GwkEUPSQi262GkqDEHxaB6Jst1ho2G9GcCCXW5atdS1a",
+            "block_height": 274050593,
+            "keys": []
+          },
+          "id": "ml-dsa-enrollment-diagnostic"
+        }
+      },
+      {
+        "url": "https://rpc.testnet.near.org",
+        "status": 200,
+        "cors": "*",
+        "body": {
+          "jsonrpc": "2.0",
+          "result": {
+            "block_hash": "CLjLzLQZB3wAP3riLNxUkipoSj2rSmMLjtaiAzcfvVYJ",
+            "block_height": 274050599,
+            "keys": []
+          },
+          "id": "ml-dsa-enrollment-diagnostic"
+        }
+      }
+    ]
+  },
+  "nonceQueryControl": {
+    "observedAt": "2026-10-21T06:14:02.117Z",
+    "accountId": "ml-dsa-pub-cea994a9835a969e.testnet",
+    "publicKeySource": "docs/evidence/ml-dsa-65-browser-hosted-20261021.json",
+    "publicKeySourceSha256": "e1c90b963b7c6c1a9b33f271c5551197d1ec97087c2dba82e9c988f6a8bb799b",
+    "queries": [
+      {
+        "scheme": "ml-dsa-65",
+        "httpStatus": 200,
+        "body": {
+          "jsonrpc": "2.0",
+          "result": {
+            "block_hash": "6kwyLCw4aSnahjiEvqG5QPB1B8U1mwSpUYG3HTC4rSU2",
+            "block_height": 274056094,
+            "nonce": 273973206000003,
+            "permission": "FullAccess"
+          },
+          "id": "ml-dsa-sdk-nonce-control"
+        }
+      },
+      {
+        "scheme": "ml-dsa-65-hash",
+        "httpStatus": 400,
+        "body": {
+          "jsonrpc": "2.0",
+          "error": {
+            "name": "REQUEST_VALIDATION_ERROR",
+            "cause": {
+              "name": "PARSE_ERROR",
+              "info": {
+                "error_message": "Failed parsing args: unknown key type 'ml-dsa-65-hash'"
+              }
+            },
+            "code": -32700,
+            "message": "Parse error",
+            "data": "Failed parsing args: unknown key type 'ml-dsa-65-hash'"
+          },
+          "id": "ml-dsa-sdk-nonce-control"
+        }
+      }
+    ]
+  }
+}

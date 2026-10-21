@@ -186,6 +186,10 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.setAppState(key, value);
   }
 
+  async deleteAppState(key: string): Promise<void> {
+    await this.seamsWalletRepositories.deleteAppState(key);
+  }
+
   async putPendingWalletRegistrationCommits(
     records: readonly PendingWalletRegistrationCommitV1[],
   ): Promise<void> {

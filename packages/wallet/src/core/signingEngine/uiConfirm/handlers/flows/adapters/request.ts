@@ -62,7 +62,7 @@ export function getNearAccountId(request: UserConfirmRequest): string {
       return request.payload.nearAccountId;
     case UserConfirmationType.SIGN_INTENT_DIGEST: {
       const subject = getSignIntentDigestSubject(request);
-      return subject.kind === 'near_wallet' ? subject.nearAccountId : '';
+      return subject.kind === 'evm_wallet' ? '' : subject.nearAccountId;
     }
     case UserConfirmationType.REGISTER_ACCOUNT:
     case UserConfirmationType.LINK_DEVICE:
@@ -176,6 +176,7 @@ export function getSigningAuthMode(request: UserConfirmRequest): SigningAuthMode
   }
   if (request.type === UserConfirmationType.SIGN_INTENT_DIGEST) {
     const payload = request.payload;
+    if (payload.signingAuthPlan.kind === 'ml_dsa_session') return 'warmSession';
     return signingAuthModeFromSigningAuthPlan(payload.signingAuthPlan);
   }
   return undefined;

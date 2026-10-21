@@ -45,6 +45,7 @@ const invalidEd25519Lane: SigningEngineExportKeypairWithUIInput = {
   walletSession,
   nearAccount,
   laneIdentity: ecdsaLane,
+  materialActivation,
   options: {},
 };
 void invalidEd25519Lane;
@@ -56,6 +57,7 @@ const invalidEd25519Target: SigningEngineExportKeypairWithUIInput = {
   nearAccount,
   chainTarget,
   laneIdentity: ed25519MaterialIdentity,
+  materialActivation,
   options: {},
 };
 void invalidEd25519Target;

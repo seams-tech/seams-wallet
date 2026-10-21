@@ -12,6 +12,54 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BuildInput {
+    signer_id: String,
+    receiver_id: String,
+    public_key_b64u: String,
+    nonce: String,
+    block_hash: String,
+    actions: Vec<crate::actions::ActionParams>,
+}
+
+/// Builds the ordinary transaction through the same action and Borsh codecs.
+#[wasm_bindgen]
+pub fn ml_dsa65_build_near_transaction(input_json: &str) -> Result<String, JsValue> {
+    build_ml_dsa65_transaction(input_json).map_err(|error| JsValue::from_str(&error))
+}
+
+pub fn build_ml_dsa65_transaction(input_json: &str) -> Result<String, String> {
+    let input: BuildInput = serde_json::from_str(input_json).map_err(|error| error.to_string())?;
+    let key: [u8; 1952] = base64_url_decode(&input.public_key_b64u)?
+        .try_into()
+        .map_err(|_| "ML-DSA public key must contain 1952 bytes")?;
+    let block_hash: [u8; 32] = bs58::decode(&input.block_hash)
+        .into_vec()
+        .map_err(|error| error.to_string())?
+        .try_into()
+        .map_err(|_| "NEAR block hash must contain 32 bytes")?;
+    let nonce: u64 = input.nonce.parse().map_err(|_| "Invalid NEAR nonce")?;
+    if nonce == 0 || input.nonce != nonce.to_string() {
+        return Err("NEAR nonce must be a positive canonical integer".into());
+    }
+    let actions = crate::transaction::build_actions_from_params(input.actions)?;
+    let tx = crate::build_transaction_with_actions(
+        &input.signer_id,
+        &input.receiver_id,
+        nonce,
+        &block_hash,
+        PublicKey::MlDsa65(Box::new(key)),
+        actions,
+    )?;
+    let encoded = base64_url_encode(&borsh::to_vec(&tx).map_err(|error| error.to_string())?);
+    transaction(&InspectionInput {
+        unsigned_transaction_borsh_b64u: encoded.clone(),
+        public_key_b64u: input.public_key_b64u,
+    })?;
+    Ok(encoded)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct InspectionInput {
     unsigned_transaction_borsh_b64u: String,
     public_key_b64u: String,

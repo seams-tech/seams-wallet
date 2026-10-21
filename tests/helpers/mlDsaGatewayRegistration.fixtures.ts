@@ -176,6 +176,8 @@ export { expireUnusedMlDsaAdmissions } from '../../packages/wallet-server/src/ro
 export {
   prepareMlDsaNearSigning,
   executeMlDsaNearSigning,
+  prepareMlDsaSigningSession,
+  revokeMlDsaSigningSession,
 } from '../../packages/wallet/src/core/rpcClients/relayer/mlDsaSigning';
 import initSigner from '../../wasm/near_signer/pkg/wasm_signer_worker.js';
 let signingModule: WebAssembly.Module | null = null;
@@ -276,10 +278,18 @@ export async function seedClassicalMigrationEvidence(
 
 export { base58Encode } from '../../packages/shared-ts/src/utils/encoders';
 export {
-  enrollMlDsaNearSigner, resumeMlDsaNearEnrollment, addMlDsaNearSigner,
-  prepareMlDsaSignerInventory, fetchMlDsaSignerInventory,
-  MinimalNearClient, nearAccountRefFromAccountId, walletSessionRefFromSession,
+  enrollMlDsaNearSigner,
+  resumeMlDsaNearEnrollment,
+  addMlDsaNearSigner,
+  prepareMlDsaSignerInventory,
+  fetchMlDsaSignerInventory,
+  MinimalNearClient,
+  nearAccountRefFromAccountId,
+  walletSessionRefFromSession,
 } from '../../packages/wallet/src/advanced';
 export { buildLinkedDeviceManagementAuthorityFixture } from '../unit/helpers/linkedDeviceManagement.fixtures';
-export { buildFullOwnerPermissionsV1, buildSigningOnlyDelegatedWalletAuthorityV1 } from '../../packages/shared-ts/src/authorization/delegatedAuthority';
+export {
+  buildFullOwnerPermissionsV1,
+  buildSigningOnlyDelegatedWalletAuthorityV1,
+} from '../../packages/shared-ts/src/authorization/delegatedAuthority';
 export { mlDsaInventoryChallenge } from '../../packages/shared-ts/src/near/mlDsaInventory';

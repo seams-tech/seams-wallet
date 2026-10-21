@@ -1,8 +1,30 @@
 # ML-DSA enrollment and retained-signer lifecycle
 
-The advanced SDK now publishes an ML-DSA signer and enrolls its ordinary key on an existing
+The SDK publishes an ML-DSA signer and enrolls its ordinary key on an existing
 NEAR account. Recovered owners and full-owner linked devices can discover and use the
-existing server-held signer. The signer keeps its public key and material epoch.
+existing server-held signer through normal Wallet transaction methods.
+Normal recovery keeps the public key and material epoch. Explicit participant restoration advances the epoch.
+
+`near.signTransaction` and `near.signAndSendTransaction` take the published `signer` reference.
+They preserve transaction review, nonce leases, independent signature verification, and ordinary NEAR submission.
+Explicit `mlDsaSigningSession` options authorize a key-scoped operation budget and expiry.
+Later operations retain review and can reuse that grant without another biometric prompt.
+The Gateway atomically debits each new operation. It rechecks the grant and current owner before releasing results.
+
+`keys.exportKey({ kind: 'ml_dsa_65', signer })` uses the existing export approval and viewer.
+It derives the canonical FIPS seed in the export worker and checks the ordinary public key.
+Applications receive completion status only. Seed-backed recovered owners can export.
+Linked devices hold an Ed25519 Client-root envelope and cannot export a wallet seed they do not hold.
+
+The SDK retains verified public custody completions before publication.
+Startup and unlock retry those exact completions after a lost response or browser reload.
+Installed completions can publish after the execution deadline while owner and epoch fences remain valid.
+An interrupted private round still needs participant reconciliation or fresh authorized restoration.
+The journal never stores an unsealed seed or private protocol state.
+
+Each signing participant now loads its encrypted key material and consumes its first prepared pair in one storage request.
+This removes one storage round trip per participant. It changes no pool or cooldown policy.
+A matched hosted latency comparison remains required.
 
 These functions ship through `@seams/wallet/advanced`:
 
@@ -130,25 +152,53 @@ The second gap was an SDK wire parser that required `application_binding_digest`
 Rust deliberately omits that derived field from serialization and recomputes it from the wallet and key identifiers.
 The SDK now accepts the existing four-field Rust binding. Encrypted binding verification stays unchanged.
 
+## Standard API boundary corrections
+
+The [public controls](../evidence/ml-dsa-65-sdk-boundary-controls-20261021.json) retain RPC responses and the failing key bytes.
+
+| Fact | Instrument | Scope |
+| --- | --- | --- |
+| The access-key-list fixture omitted block references. Both live RPC controls supplied them. | Shared fixture, live responses, and production decoder | The fixture needed correction. The decoder remained unchanged. |
+| The failed AddKey's public key has 1,952 bytes. Its byte 40 equals the reported invalid permission tag, 180. | Read-only Gateway D1 and former Router decoder | Router read only 32 key bytes, then misread the next eight bytes as a nonce. |
+| A full public key succeeds in `view_access_key`. Its hashed handle produces a parse error. | Live testnet query controls | Nonce reads now use the full public key. Enrollment still compares access-key-list handles. |
+| Authorized seed import passed before the next request found a retained foreground reservation. | Browser export and subsequent normal signing | The ML-DSA branch omitted viewer-close progress. |
+
+| Candidate cause | Result | Correction |
+| --- | --- | --- |
+| RPC outage caused the malformed list response. | Contradicted by both live controls and local decoder reproduction. | Add the required metadata to the fixture. Use live RPC for enrollment and finality. |
+| Threshold signing caused the AddKey failure. | Contradicted. Router refused the public transaction before signing. | Replace the fixed-width key record with the exact tagged full-key enum. Existing Ed25519 vectors remain identical. |
+| Closing the viewer required weaker foreground guards. | Contradicted by the existing export lifecycle. | Forward the original request's viewer lifecycle. Retain request and generation checks. |
+
 ## Full browser qualification
 
 The [browser artifact](../evidence/ml-dsa-65-browser-lifecycle-20261021.json) records a passing
 Chromium campaign against the public SDK, Gateway, D1, and local Cloudflare workerd.
-The campaign takes 4.6 minutes, including three 60-second waits for the signing cooldown.
-This duration is a test campaign time, not a signing latency measurement.
+The campaign includes four real 60-second cooldown waits. Its duration does not measure signing latency.
 
-The original owner publishes the signer and signs. A separate browser context and authenticator
+The original owner publishes the signer, reloads after a lost publication response, and unlocks.
+Startup resumes the exact verified completion. The Wallet then approves a real testnet AddKey
+through its Ed25519 signing path. Normal ML-DSA transaction signing starts from that enrollment.
+A two-operation grant signs twice. The second operation succeeds with Passkey collection disabled.
+A third operation requires fresh approval and fails while that collection remains disabled.
+A separate browser context and authenticator
 complete QR linking before recovery. The linked owner discovers the same key and signs.
 The source browser then loses its original authenticator and local wallet storage.
 Recovery uses a saved code and creates a distinct Passkey. The recovered owner unlocks,
 discovers the existing signer, signs, and revokes the linked device.
 The revoked credential loses ML-DSA inventory access.
 
+The recovered owner exports through the normal `keys.exportKey` method and the Wallet viewer's Copy action.
+OpenSSL imports the canonical seed, reproduces the public key, and produces an independently verified ordinary signature.
+The test captures Copy inside the Wallet frame and preserves the OS clipboard. It retains no seed in evidence.
+Closing the viewer releases its original foreground reservation before the next normal signature.
+
 The recovered owner then calls public participant restoration. D1 confirms that the admitted
 method is the recovered method. The public key and manifest stay unchanged at material epoch 2.
-Signing succeeds again. All four signatures pass independent OpenSSL verification.
+Signing succeeds again. All five threshold signatures pass independent OpenSSL verification.
 The saved transaction bytes also verify independently after artifact export.
-The consumed recovery code is refused.
+The final restored-key transaction reaches successful `FINAL` execution on NEAR testnet.
+The runner checks its exact hash, full ML-DSA public key, sender, and zero-value self-transfer.
+The consumed recovery code is refused. All sixteen browser checks pass.
 
 Every approval selects the exact credential ID. The three owner credentials are distinct.
 The original authenticator is removed before recovery, so a synced old Passkey cannot silently
@@ -170,22 +220,8 @@ pnpm -C tests exec playwright test -c playwright.wallet-intended.ci.config.ts \
   e2e/intended-behaviours/ml-dsa.lifecycle.contract.test.ts --reporter=line
 ```
 
-The campaign verifies ML-DSA transactions without broadcasting them.
-The separate enrollment campaign below verifies an actual NEAR `AddKey` transaction.
+The campaign uses live testnet RPC for Wallet-approved key enrollment and final ML-DSA transaction submission.
 These browser results do not qualify hosted Cloudflare latency or regional capacity.
-
-## Recovered-source QR limitation
-
-Creating a QR link from an already recovered owner still fails in the existing Ed25519 path.
-Persisted metadata shows a matching active recovery authority and signer manifest.
-The Ed25519 capability has `operation: recovery`. Its source resolver, source-contribution
-parsers, target planner, Router, and Signing Worker currently require registration-source bindings.
-An independent review confirmed these barriers. Removing one guard would leave the other checks.
-
-The passing browser campaign creates the QR link before recovery.
-Supporting new QR enrollment after recovery needs a separate Ed25519 extension across these
-boundaries. Target registration checks must stay intact. This extension remains outside the
-completed ML-DSA restoration path.
 
 ## Evidence
 
@@ -211,8 +247,10 @@ wallet cooldown, rejection of signing-only and ECDSA-only linked devices, revoca
 cached and fresh access, and continued access from a separate recovered owner.
 The additional controls reject an unissued nonce, an extended inventory expiry, and an inventory assertion
 presented as transaction approval.
-The campaign passes 21 registration checks, 20 signing checks, 12 retained-signer lifecycle checks,
-and 10 participant-restoration checks. The restoration campaign deletes A's encrypted share,
+The current campaign passes 22 registration checks, 20 signing checks, 11 session checks,
+12 retained-signer lifecycle checks, and 10 participant-restoration checks.
+Session controls cover concurrent budget claims, exhaustion, exact retries, and revocation.
+The restoration campaign deletes A's encrypted share,
 expires an admitted restoration, refuses unrelated creation in that slot, and retries at epoch 3.
 The ordinary FIPS key and manifest stay unchanged. Fresh signing succeeds with independently
 verified signatures. Old signing results and old execution requests remain fenced.
@@ -222,7 +260,7 @@ The SDK build, Wallet/server types, lifecycle type fixtures, intended-test types
 Wasm import checks, and isolated package consumers pass. The package checks include the new
 advanced ML-DSA imports and reject declaration aliases that degrade their inputs to `any`.
 All 38 Cargo lockfiles pass the locked check. The bloat check retains the inherited Rust
-duplication excess of 13,984 lines against 13,754. Its baseline remains unchanged.
+duplication excess of 13,939 lines against 13,754. Its baseline remains unchanged.
 
 These authority fixtures begin at completed recovery/device activation. They cover real
 Gateway, D1, and Worker behavior with shared authority factories.

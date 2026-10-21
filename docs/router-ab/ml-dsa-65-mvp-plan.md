@@ -56,7 +56,9 @@ The Gateway now pins the discovered keys to an existing-wallet add-signer admiss
 The [Gateway publication report](ml-dsa-65-gateway-publication-report.md) records this boundary.
 Fresh passkey approval authorizes the exact wallet and slot. The durable journal records both
 participant installations and publishes their agreed public key. Seed envelopes and recovery
-sets remain unchanged. The [public signing report](ml-dsa-65-public-signing-report.md) records advanced SDK signing with fresh passkey approval. Reusable sessions and standard Wallet UI integration remain open.
+sets remain unchanged. The [public signing report](ml-dsa-65-public-signing-report.md) records
+normal Wallet transaction signing, existing review UI, and dedicated ML-DSA grants.
+The [lifecycle report](ml-dsa-65-wallet-lifecycle-report.md) describes canonical seed export and publication replay.
 
 Participant relocation is explicitly refused after execution starts. Its future implementation
 must transfer participant state and the publication journal together. Expired unused admissions
@@ -117,11 +119,11 @@ Exit: SDK registration and recovery create a durable signer that survives Worker
 - [x] Load the signing target from durable publication and current owner records.
 - [x] Persist exact operations in the authoritative operation store with atomic passkey counter and approval commits.
 - [x] Mount public preparation and signing routes with fresh exact passkey approval.
-- [ ] Add reusable sessions only after the ML-DSA authority and revocation projections exist.
+- [x] Add reusable sessions only after the ML-DSA authority and revocation projections exist.
 - [x] Expose native transaction display, signing, signature verification, and RPC submission through the advanced SDK.
-- [ ] Connect the standard Wallet transaction-review UI and iframe lifecycle.
+- [x] Connect the standard Wallet transaction-review UI and iframe lifecycle.
 - [ ] Enforce the selected NEAR network's protocol support before on-chain key enrollment. Live protocol status was checked separately.
-- [ ] Confirm a threshold-signed transaction through the complete SDK path.
+- [x] Confirm a threshold-signed transaction through the complete SDK path.
 
 Exit: public requests cannot select another wallet, key, epoch, transaction, or algorithm through approval reuse.
 
@@ -143,7 +145,7 @@ A few local successes do not establish this result.
 ## 5. Limited pilot
 
 - [ ] Complete privacy and constant-time review of the final composition.
-- [ ] Test authorized canonical seed export using an independent ordinary ML-DSA implementation.
+- [x] Test authorized canonical seed export using an independent ordinary ML-DSA implementation.
 - [ ] Package exact SDK and Worker releases, configuration, monitoring, and recovery procedures.
 - [ ] Consume the exact releases in the private monorepo and run composed acceptance tests.
 - [ ] Start with conservative service capacity and explicit empty-pool behavior.

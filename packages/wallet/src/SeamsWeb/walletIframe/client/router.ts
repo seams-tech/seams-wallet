@@ -759,6 +759,14 @@ function walletIframeExportPayload(
   options: { variant?: 'modal' | 'drawer'; theme?: 'dark' | 'light' },
 ): PMExportKeypairUiPayload {
   switch (input.kind) {
+    case 'ml_dsa_65':
+      return {
+        kind: 'ml_dsa_65',
+        walletSession: input.walletSession,
+        nearAccount: input.nearAccount,
+        signer: input.signer,
+        options,
+      };
     case 'ecdsa': {
       const laneIdentity = parseExactEcdsaSigningLaneIdentity(input.laneIdentity);
       if (String(laneIdentity.signer.walletId) !== String(input.walletSession.walletId)) {
@@ -2961,10 +2969,12 @@ export class WalletIframeRouter {
   // ===== SeamsWeb RPCs =====
 
   async signTransaction(payload: {
+    signer: import('@/core/types/seams').NearTransactionSignerSelection;
     walletId: string;
     nearAccountId: string;
     transaction: TransactionInput;
     options: {
+      mlDsaSigningSession?: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy;
       signerSlot?: number;
       onEvent?: (ev: SigningFlowEvent) => void;
       onError?: (error: Error) => void;
@@ -2976,6 +2986,7 @@ export class WalletIframeRouter {
   }): Promise<SignTransactionResult> {
     // Do not forward non-cloneable functions in options; host emits its own PROGRESS messages
     const safeOptions = {
+      mlDsaSigningSession: payload.options.mlDsaSigningSession,
       ...(typeof payload.options.signerSlot === 'number'
         ? { signerSlot: payload.options.signerSlot }
         : {}),
@@ -2987,6 +2998,7 @@ export class WalletIframeRouter {
     const res = await this.post<SignTransactionResult>({
       type: 'PM_SIGN_TX_WITH_ACTIONS',
       payload: {
+        signer: payload.signer,
         walletId: payload.walletId,
         nearAccountId: payload.nearAccountId,
         transaction: payload.transaction,
@@ -4064,6 +4076,7 @@ export class WalletIframeRouter {
 
   async signAndSendTransaction(
     payload: {
+      signer: import('@/core/types/seams').NearTransactionSignerSelection;
       walletId: string;
       nearAccountId: string;
       transaction: TransactionInput;
@@ -4085,6 +4098,7 @@ export class WalletIframeRouter {
       const { options } = payload;
       // cannot send objects/functions through postMessage(), clean options first
       const safeOptions = {
+        mlDsaSigningSession: options.mlDsaSigningSession,
         waitUntil: options.waitUntil,
         confirmationConfig: options.confirmationConfig,
         ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
@@ -4095,6 +4109,7 @@ export class WalletIframeRouter {
         {
           type: 'PM_SIGN_AND_SEND_TX',
           payload: {
+            signer: payload.signer,
             walletId: payload.walletId,
             nearAccountId: payload.nearAccountId,
             transaction: payload.transaction,

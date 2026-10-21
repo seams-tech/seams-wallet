@@ -29,6 +29,12 @@ import {
   WALLET_MANAGEMENT_PROTOCOL_VERSION,
 } from '@shared/utils/walletManagementProtocol';
 import { requireRecord } from '@shared/utils/validation';
+import {
+  parseMlDsaSigningSessionRequest,
+  parseMlDsaSigningSessionCredential,
+  type MlDsaSigningSessionRequest,
+  type MlDsaSigningSessionCredential,
+} from '@shared/near/mlDsaSigningSession';
 
 function failure(status: number, code: MlDsaSigningFailure['code'], message: string): Response {
   return json({ kind: 'refused', code, message }, { status });
@@ -38,6 +44,11 @@ export async function handlePublicMlDsaSigning(
 ): Promise<Response | null> {
   const prepare = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_prepare');
   const execute = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_execute');
+  const session = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_session_prepare');
+  const sessionRevoke = findRouteDefinitionById(
+    ctx.routeDefinitions,
+    'wallet_ml_dsa_session_revoke',
+  );
   const inventory = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_inventory');
   const inventoryPrepare = findRouteDefinitionById(
     ctx.routeDefinitions,
@@ -45,11 +56,22 @@ export async function handlePublicMlDsaSigning(
   );
   const isPrepare = prepare && matchesRouteDefinitionRequest(prepare, ctx.method, ctx.pathname);
   const isExecute = execute && matchesRouteDefinitionRequest(execute, ctx.method, ctx.pathname);
+  const isSession = session && matchesRouteDefinitionRequest(session, ctx.method, ctx.pathname);
+  const isSessionRevoke =
+    sessionRevoke && matchesRouteDefinitionRequest(sessionRevoke, ctx.method, ctx.pathname);
   const isInventory =
     inventory && matchesRouteDefinitionRequest(inventory, ctx.method, ctx.pathname);
   const isInventoryPrepare =
     inventoryPrepare && matchesRouteDefinitionRequest(inventoryPrepare, ctx.method, ctx.pathname);
-  if (!isPrepare && !isExecute && !isInventory && !isInventoryPrepare) return null;
+  if (
+    !isPrepare &&
+    !isExecute &&
+    !isInventory &&
+    !isInventoryPrepare &&
+    !isSession &&
+    !isSessionRevoke
+  )
+    return null;
   if (
     ctx.request.headers.get(WALLET_MANAGEMENT_PROTOCOL_HEADER) !==
     WALLET_MANAGEMENT_PROTOCOL_VERSION
@@ -69,6 +91,10 @@ export async function handlePublicMlDsaSigning(
     );
     const body = await readJson(ctx.request);
     if (isPrepare) command = parseCommand(body, 'prepare');
+    else if (isSession)
+      command = { kind: 'session_prepare', request: parseMlDsaSigningSessionRequest(body) };
+    else if (isSessionRevoke)
+      command = { kind: 'session_revoke', request: parseMlDsaSigningSessionCredential(body) };
     else if (isInventoryPrepare) command = parseCommand(body, 'prepare_inventory');
     else if (isInventory) command = parseCommand(body, 'inventory');
     else command = parseCommand(body, 'execute');
@@ -81,6 +107,18 @@ export async function handlePublicMlDsaSigning(
   try {
     let outcome;
     switch (command.kind) {
+      case 'session_prepare':
+        outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigningSession(
+          command.request,
+          origin,
+        );
+        break;
+      case 'session_revoke':
+        outcome = await ctx.service.walletAuthMethods.revokeMlDsaSigningSession(
+          command.request,
+          origin,
+        );
+        break;
       case 'prepare':
         outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(command.request, origin);
         break;
@@ -113,11 +151,16 @@ export async function handlePublicMlDsaSigning(
 }
 
 type PublicSigningCommand =
+  | { readonly kind: 'session_prepare'; readonly request: MlDsaSigningSessionRequest }
+  | { readonly kind: 'session_revoke'; readonly request: MlDsaSigningSessionCredential }
   | { readonly kind: 'prepare'; readonly request: MlDsaSigningRequest }
   | { readonly kind: 'execute'; readonly request: MlDsaSigningExecuteRequest }
   | { readonly kind: 'inventory'; readonly request: MlDsaInventoryRequest }
   | { readonly kind: 'prepare_inventory'; readonly request: MlDsaInventoryActor };
-function parseCommand(raw: unknown, kind: PublicSigningCommand['kind']): PublicSigningCommand {
+function parseCommand(
+  raw: unknown,
+  kind: Exclude<PublicSigningCommand['kind'], 'session_prepare' | 'session_revoke'>,
+): PublicSigningCommand {
   if (kind === 'prepare') return { kind: 'prepare', request: parseMlDsaSigningRequest(raw) };
   if (kind === 'prepare_inventory') return { kind, request: parseMlDsaInventoryActor(raw) };
   if (kind === 'inventory') {
@@ -132,18 +175,50 @@ function parseCommand(raw: unknown, kind: PublicSigningCommand['kind']): PublicS
   }
   const r = exactRecord(
     raw,
-    ['walletId', 'operationIdB64u', 'credential'],
+    ['walletId', 'operationIdB64u', 'authorization'],
     'ML-DSA signing execution',
   );
-  const credential = approvalCredential(r.credential);
   return {
     kind: 'execute',
     request: {
       walletId: requireParsed(parseWalletId(r.walletId), 'walletId'),
       operationIdB64u: parseDigestB64u(r.operationIdB64u),
-      credential,
+      authorization: parseSigningAuthorization(r.authorization),
     },
   };
+}
+function parseSigningAuthorization(raw: unknown): MlDsaSigningExecuteRequest['authorization'] {
+  const authorization = requireRecord(raw, 'ML-DSA signing authorization');
+  switch (authorization.kind) {
+    case 'passkey':
+      exactRecord(authorization, ['kind', 'credential'], 'ML-DSA passkey approval');
+      return { kind: 'passkey', credential: approvalCredential(authorization.credential) };
+    case 'session_start':
+      exactRecord(
+        authorization,
+        ['kind', 'credential', 'sessionIdB64u', 'tokenB64u'],
+        'ML-DSA session approval',
+      );
+      return {
+        kind: 'session_start',
+        credential: approvalCredential(authorization.credential),
+        sessionIdB64u: parseDigestB64u(authorization.sessionIdB64u),
+        tokenB64u: parseDigestB64u(authorization.tokenB64u),
+      };
+    case 'session':
+      exactRecord(
+        authorization,
+        ['kind', 'sessionIdB64u', 'tokenB64u'],
+        'ML-DSA session credential',
+      );
+      return {
+        kind: 'session',
+        sessionIdB64u: parseDigestB64u(authorization.sessionIdB64u),
+        tokenB64u: parseDigestB64u(authorization.tokenB64u),
+      };
+    default:
+      throw new Error('Unsupported ML-DSA signing authorization');
+  }
 }
 function approvalCredential(raw: unknown) {
   const credential = parseWebAuthnAuthenticationCredential(raw);

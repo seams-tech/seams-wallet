@@ -5352,6 +5352,11 @@ export class SeamsWalletRepositories {
     });
   }
 
+  async deleteAppState(key: string): Promise<void> {
+    const db = await this.manager.getDB();
+    await db.delete(SEAMS_WALLET_STORES.appState, key);
+  }
+
   /* Keep pending commits in the existing private app-state store: opening a
      new schema version currently rebuilds every object store. The namespaced
      rows never participate in profile discovery. */

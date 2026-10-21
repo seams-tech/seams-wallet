@@ -1,10 +1,7 @@
 import type { TransactionInputWasm } from '@/core/types/actions';
 import { ActionType } from '@/core/types/actions';
 import { computeUiIntentDigestFromTxs, orderActionForDigest } from '@/utils/intentDigest';
-import {
-  SigningAuthPlanKind,
-  type SigningAuthPlan,
-} from '../../stepUpConfirmation/types';
+import { SigningAuthPlanKind, type SigningAuthPlan } from '../../stepUpConfirmation/types';
 import {
   UserConfirmationType,
   type UserConfirmRequest,
@@ -182,6 +179,9 @@ function buildSignIntentDigestPayload(args: {
       webauthnChallenge: requireIntentDigestWebAuthnChallenge(args.webauthnChallenge),
       signingAuthPlan: args.signingAuthPlan,
     };
+  }
+  if (args.signingSubject.kind === 'near_ml_dsa_wallet') {
+    throw new Error('ML-DSA transaction approval requires its exact owner passkey');
   }
   return {
     signingSubject: args.signingSubject,

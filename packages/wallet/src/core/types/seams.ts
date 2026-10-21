@@ -508,6 +508,10 @@ export type AddedMlDsaSignerCapability = {
   readonly materialEpoch: number;
 };
 
+export type NearTransactionSignerSelection = ReadonlyExclusiveUnion<
+  { readonly kind: 'ed25519' } | AddedMlDsaSignerCapability
+>;
+
 /**
  * Wire input for a durable NEAR provisioning write.
  *

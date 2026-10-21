@@ -791,9 +791,40 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
-      'wallet_ml_dsa_signing_prepare', 'POST', '/wallets/:walletId/ml-dsa/sign/prepare',
+      'wallet_ml_dsa_signing_prepare',
+      'POST',
+      '/wallets/:walletId/ml-dsa/sign/prepare',
       'Prepare an exact ML-DSA transaction approval',
-      {plane:'public',proof:'challenge_exchange',rationale:'Preparation binds a published key and transaction to a fresh owner assertion.'},
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale: 'Preparation binds a published key and transaction to a fresh owner assertion.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_ml_dsa_session_prepare',
+      'POST',
+      '/wallets/:walletId/ml-dsa/session/prepare',
+      'Prepare a bounded ML-DSA signing session approval',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale:
+          'The owner assertion binds the exact key, first transaction, session credential digest, operation budget, and expiry.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_ml_dsa_session_revoke',
+      'POST',
+      '/wallets/:walletId/ml-dsa/session/revoke',
+      'Retire an ML-DSA signing session',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale: 'Only the holder of the exact scoped session credential can retire that grant.',
+      },
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
@@ -817,14 +848,22 @@ export function createRouterApiRouteDefinitions(
       {
         plane: 'public',
         proof: 'challenge_exchange',
-        rationale: 'A Gateway-issued nonce bounds full-owner inventory approval to its server-selected validity window.',
+        rationale:
+          'A Gateway-issued nonce bounds full-owner inventory approval to its server-selected validity window.',
       },
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(
-      'wallet_ml_dsa_signing_execute', 'POST', '/wallets/:walletId/ml-dsa/sign',
+      'wallet_ml_dsa_signing_execute',
+      'POST',
+      '/wallets/:walletId/ml-dsa/sign',
       'Sign an owner-approved ML-DSA transaction',
-      {plane:'public',proof:'threshold_protocol_state',rationale:'Fresh WebAuthn approval and a durable exact-operation claim authorize the published ML-DSA key.'},
+      {
+        plane: 'public',
+        proof: 'threshold_protocol_state',
+        rationale:
+          'Fresh WebAuthn approval and a durable exact-operation claim authorize the published ML-DSA key.',
+      },
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),
     publicRoute(

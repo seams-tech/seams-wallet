@@ -12,6 +12,7 @@ import type { ExactEd25519ExportMaterialIdentity } from '../../session/identity/
 import {
   createExportUiRequestId,
   emitKeyExportEvent,
+  emitNearKeyExportViewerLifecycle,
   type KeyExportEventCallback,
 } from './keyExportFlow';
 import type { WalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
@@ -322,42 +323,6 @@ function buildWorkerPayload(args: {
   };
 }
 
-type Ed25519ExportViewerLifecycleContext = {
-  flowId: string;
-  walletId: WalletId;
-  onEvent?: KeyExportEventCallback;
-};
-
-function emitEd25519ExportViewerLifecycle(
-  context: Ed25519ExportViewerLifecycleContext,
-  event: 'opened' | 'closed',
-): void {
-  const accountId = String(context.walletId);
-  emitKeyExportEvent(context.onEvent, {
-    phase:
-      event === 'opened'
-        ? KeyExportEventPhase.STEP_04_VIEWER_OPENED
-        : KeyExportEventPhase.STEP_05_VIEWER_CLOSED,
-    status: event === 'opened' ? 'waiting_for_user' : 'succeeded',
-    flowId: context.flowId,
-    accountId,
-    interaction: {
-      kind: 'key_export_viewer',
-      overlay: event === 'opened' ? 'show' : 'hide',
-    },
-    data: { chain: 'near', curve: 'ed25519' },
-  });
-  if (event !== 'closed') return;
-  emitKeyExportEvent(context.onEvent, {
-    phase: KeyExportEventPhase.STEP_06_COMPLETED,
-    status: 'succeeded',
-    flowId: context.flowId,
-    accountId,
-    interaction: { kind: 'none', overlay: 'hide' },
-    data: { chain: 'near', curve: 'ed25519' },
-  });
-}
-
 export async function exportEd25519YaoKeyWithFreshAuthorization(
   deps: Ed25519YaoExportFlowDeps,
   args: ExportEd25519YaoKeyArgs,
@@ -378,9 +343,10 @@ export async function exportEd25519YaoKeyWithFreshAuthorization(
   const [resolved] = await Promise.all([contextResolution, uiInitialization]);
   const eventAccountId = String(args.walletId);
   const viewerSessionId = createExportUiRequestId('export-ed25519-yao-viewer-session');
-  const onViewerLifecycle = emitEd25519ExportViewerLifecycle.bind(undefined, {
+  const onViewerLifecycle = emitNearKeyExportViewerLifecycle.bind(undefined, {
     flowId: args.flowId,
     walletId: args.walletId,
+    curve: 'ed25519',
     onEvent: args.onEvent,
   });
   emitKeyExportEvent(args.onEvent, {

@@ -880,8 +880,8 @@ export async function handleIntentDigestSigningFlow(
 
   const signingSubject = getSignIntentDigestSubject(request);
   const subjectId =
-    signingSubject.kind === 'near_wallet' ? signingSubject.nearAccountId : signingSubject.walletId;
-  const nearAccountId = signingSubject.kind === 'near_wallet' ? signingSubject.nearAccountId : '';
+    signingSubject.kind === 'evm_wallet' ? signingSubject.walletId : signingSubject.nearAccountId;
+  const nearAccountId = signingSubject.kind === 'evm_wallet' ? '' : signingSubject.nearAccountId;
   const intentPreparation = consumeIntentDigestPreparation(request.requestId);
 
   try {
@@ -1003,7 +1003,10 @@ export async function handleIntentDigestSigningFlow(
       });
     }
 
-    if (signingAuthMode === 'warmSession') {
+    if (
+      signingAuthMode === 'warmSession' ||
+      request.payload.signingAuthPlan.kind === 'ml_dsa_session'
+    ) {
       if (requiresExplicitConfirmClick) {
         sendConfirmProgress(worker, {
           requestId: request.requestId,
@@ -1044,28 +1047,42 @@ export async function handleIntentDigestSigningFlow(
       message: 'Authenticating with passkey...',
     });
 
-    const serializedCredential =
-      signingSubject.kind === 'near_wallet'
-        ? await collectAuthenticationCredentialForChallengeB64u({
-            credentialStore: ctx.webauthnCredentialStore,
-            touchIdPrompt: ctx.touchIdPrompt,
-            onBeforePrompt: reviewAdmission?.beforeCredential,
-            cancellation: reviewAdmission
-              ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
-              : { kind: 'none' },
-            nearAccountId,
-            challengeB64u,
-          })
-        : await collectAuthenticationCredentialForWalletChallengeB64u({
-            credentialStore: ctx.webauthnCredentialStore,
-            touchIdPrompt: ctx.touchIdPrompt,
-            onBeforePrompt: reviewAdmission?.beforeCredential,
-            cancellation: reviewAdmission
-              ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
-              : { kind: 'none' },
-            walletId: signingSubject.walletId,
-            challengeB64u,
-          });
+    let serializedCredential;
+    if (signingSubject.kind === 'near_ml_dsa_wallet') {
+      const { collectMlDsaApproval } = await import(
+        '../../../webauthnAuth/credentials/mlDsaApproval'
+      );
+      await reviewAdmission?.beforeCredential();
+      serializedCredential = await collectMlDsaApproval({
+        rpId,
+        credentialIdB64u: signingSubject.credentialIdB64u,
+        challengeB64u,
+        signal: reviewAdmission?.abortController.signal ?? null,
+      });
+    } else {
+      serializedCredential =
+        signingSubject.kind === 'near_wallet'
+          ? await collectAuthenticationCredentialForChallengeB64u({
+              credentialStore: ctx.webauthnCredentialStore,
+              touchIdPrompt: ctx.touchIdPrompt,
+              onBeforePrompt: reviewAdmission?.beforeCredential,
+              cancellation: reviewAdmission
+                ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
+                : { kind: 'none' },
+              nearAccountId,
+              challengeB64u,
+            })
+          : await collectAuthenticationCredentialForWalletChallengeB64u({
+              credentialStore: ctx.webauthnCredentialStore,
+              touchIdPrompt: ctx.touchIdPrompt,
+              onBeforePrompt: reviewAdmission?.beforeCredential,
+              cancellation: reviewAdmission
+                ? { kind: 'abort_signal', signal: reviewAdmission.abortController.signal }
+                : { kind: 'none' },
+              walletId: signingSubject.walletId,
+              challengeB64u,
+            });
+    }
 
     reviewAdmission?.afterCredential();
     sendConfirmProgress(worker, {

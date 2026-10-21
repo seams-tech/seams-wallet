@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash, createPublicKey, randomBytes, sign, verify } from 'node:crypto';
+import { verifyMlDsaSigningSessions } from './mlDsaSigningSessions.e2e.mjs';
 
 const origin = 'https://wallet.example.test';
 const base = 'https://gateway.example.test';
@@ -164,9 +165,13 @@ export async function verifyMlDsaPublicSigning({
     );
     checks.wrongWalletRejected = true;
     const credential = signingAssertion(key, preparation.challengeB64u, 1);
-    const execute = { walletId, operationIdB64u: signingRequest.operationIdB64u, credential };
+    const execute = {
+      walletId,
+      operationIdB64u: signingRequest.operationIdB64u,
+      authorization: { kind: 'passkey', credential },
+    };
     const invalid = structuredClone(execute);
-    invalid.credential.response.signature = randomBytes(70).toString('base64url');
+    invalid.authorization.credential.response.signature = randomBytes(70).toString('base64url');
     assert.equal((await request(gateway, walletId, 'sign', invalid)).body.code, 'unauthorized');
     checks.invalidFreshAssertionRejected = true;
     assert.equal(
@@ -176,10 +181,16 @@ export async function verifyMlDsaPublicSigning({
     );
     checks.approvalOriginBound = true;
     const disclosed = structuredClone(execute);
-    disclosed.credential.clientExtensionResults = { prf: { results: { first: 'secret' } } };
+    disclosed.authorization.credential.clientExtensionResults = {
+      prf: { results: { first: 'secret' } },
+    };
     assert.equal((await request(gateway, walletId, 'sign', disclosed)).body.code, 'invalid_body');
     checks.prfOutputRejectedAtPublicBoundary = true;
-    const executeInput = { relayerUrl: base, preparation, credential };
+    const executeInput = {
+      relayerUrl: base,
+      preparation,
+      authorization: { kind: 'passkey', credential },
+    };
     claimDatabase.mode = 'pause';
     const firstApproval = api.executeMlDsaNearSigning(executeInput);
     await Promise.race([
@@ -215,7 +226,12 @@ export async function verifyMlDsaPublicSigning({
     checks.concurrentDuplicatesReturnSameSignature = true;
     const altered = signingAssertion(key, preparation.challengeB64u, 2);
     assert.equal(
-      (await request(gateway, walletId, 'sign', { ...execute, credential: altered })).body.code,
+      (
+        await request(gateway, walletId, 'sign', {
+          ...execute,
+          authorization: { kind: 'passkey', credential: altered },
+        })
+      ).body.code,
       'idempotency_conflict',
     );
     checks.changedAssertionCannotReplaceApproval = true;
@@ -289,13 +305,25 @@ export async function verifyMlDsaPublicSigning({
     const cooldown = await api.executeMlDsaNearSigning({
       relayerUrl: base,
       preparation: next.preparation,
-      credential: signingAssertion(key, next.preparation.challengeB64u, 2),
+      authorization: {
+        kind: 'passkey',
+        credential: signingAssertion(key, next.preparation.challengeB64u, 2),
+      },
     });
     assert.equal(cooldown.kind, 'retry', JSON.stringify(cooldown));
     assert.ok(cooldown.retryAtMs > Date.now());
     checks.cooldownReturnsExplicitRetryTime = true;
+    const sessionChecks = await verifyMlDsaSigningSessions({
+      api,
+      key,
+      signingRequest,
+      publicKeyB64u,
+      relayerUrl: base,
+      counter: 3,
+      signingAssertion,
+    });
     return {
-      lastCounter: 2,
+      lastCounter: 3,
       replay: executeInput,
       signature: {
         verified: true,
@@ -304,6 +332,7 @@ export async function verifyMlDsaPublicSigning({
       },
       evidence: {
         checks,
+        sessionChecks,
         attempts,
         transaction: signed.transaction,
         operationIdB64u: signingRequest.operationIdB64u,

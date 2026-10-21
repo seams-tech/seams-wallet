@@ -49,6 +49,12 @@ function reelDefinition(scheme: ExportPrivateKeyScheme): ReelDefinition {
       return { prefix: '0x', alphabet: HEX_REEL_ALPHABET, slotCount: 64 };
     case 'ed25519':
       return { prefix: 'ed25519:', alphabet: BASE58_REEL_ALPHABET, slotCount: 88 };
+    case 'ml_dsa_65':
+      return {
+        prefix: '',
+        alphabet: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',
+        slotCount: 43,
+      };
     default:
       return assertNever(scheme);
   }

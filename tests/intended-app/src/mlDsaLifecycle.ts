@@ -1,4 +1,4 @@
-import type { useSeams } from '@seams/wallet/react';
+import { ActionType, TxExecutionStatus, type useSeams } from '@seams/wallet/react';
 import {
   prepareMlDsaSignerInventory,
   fetchMlDsaSignerInventory,
@@ -8,17 +8,30 @@ import {
   restoreMlDsaNearSigner,
   parseWebAuthnRpId,
   toWalletId,
+  MinimalNearClient,
+  enrollMlDsaNearSigner,
+  nearAccountRefFromAccountId,
+  walletSessionRefFromSession,
+  base64UrlEncode,
 } from '@seams/wallet/advanced';
 import type { AddedMlDsaSignerCapability } from '../../../packages/wallet/src/core/types/seams';
 
 type Context = {
-  wallet: Pick<ReturnType<typeof useSeams>['seams'], 'registration'>;
+  wallet: Pick<ReturnType<typeof useSeams>['seams'], 'registration' | 'near' | 'keys'>;
   walletId: string;
   nearAccountId: string;
 };
 export type MlDsaBrowserCommand =
   | { kind: 'context' }
   | { kind: 'publish' }
+  | { kind: 'enroll'; signer: AddedMlDsaSignerCapability }
+  | {
+      kind: 'normal_sign';
+      signer: AddedMlDsaSignerCapability;
+      sessionPolicy: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy | null;
+    }
+  | { kind: 'export'; signer: AddedMlDsaSignerCapability }
+  | { kind: 'broadcast_last' }
   | { kind: 'inventory'; credentialIdB64u: string }
   | { kind: 'restore'; recordedSigner: AddedMlDsaSignerCapability }
   | {
@@ -35,6 +48,9 @@ declare global {
 }
 
 export class IntendedMlDsaLifecycle {
+  private lastSignedTransaction:
+    | Awaited<ReturnType<Context['wallet']['near']['signTransaction']>>['signedTransaction']
+    | null = null;
   constructor(
     private readonly readContext: () => Context,
     private readonly readActor: () => Promise<{
@@ -52,6 +68,54 @@ export class IntendedMlDsaLifecycle {
     const rpId = parseWebAuthnRpId(location.hostname);
     if (!rpId.ok) throw new Error('Invalid browser relying party');
     switch (command.kind) {
+      case 'enroll':
+        return enrollMlDsaNearSigner({
+          near: context.wallet.near,
+          nearClient: new MinimalNearClient('https://rpc.testnet.fastnear.com'),
+          walletSession: walletSessionRefFromSession({ walletId: context.walletId }),
+          nearAccount: nearAccountRefFromAccountId(context.nearAccountId),
+          publication: { walletId: toWalletId(context.walletId), signer: command.signer },
+        });
+      case 'normal_sign': {
+        const result = await context.wallet.near.signTransaction({
+          walletSession: context.walletId,
+          nearAccount: context.nearAccountId,
+          signer: command.signer,
+          transaction: {
+            receiverId: context.nearAccountId,
+            actions: [{ type: ActionType.Transfer, amount: '0' }],
+          },
+          options:
+            command.sessionPolicy === null ? {} : { mlDsaSigningSession: command.sessionPolicy },
+        });
+        this.lastSignedTransaction = result.signedTransaction;
+        return {
+          kind: 'sdk_signed' as const,
+          signedTransactionBorshB64u: base64UrlEncode(
+            Uint8Array.from(result.signedTransaction.borsh_bytes),
+          ),
+          signatureB64u: base64UrlEncode(
+            Uint8Array.from(result.signedTransaction.signature.signatureData),
+          ),
+          nonce: String(result.signedTransaction.transaction.nonce),
+        };
+      }
+      case 'broadcast_last':
+        if (!this.lastSignedTransaction)
+          throw new Error('No SDK transaction is ready for broadcast');
+        return context.wallet.near.sendTransaction({
+          walletSession: context.walletId,
+          nearAccount: context.nearAccountId,
+          signedTransaction: this.lastSignedTransaction,
+          options: { waitUntil: TxExecutionStatus.FINAL },
+        });
+      case 'export':
+        return context.wallet.keys.exportKey({
+          kind: 'ml_dsa_65',
+          walletSession: context.walletId,
+          nearAccount: context.nearAccountId,
+          signer: command.signer,
+        });
       case 'context': {
         const actor = await this.readActor();
         return {
@@ -122,9 +186,12 @@ export class IntendedMlDsaLifecycle {
         const input = {
           relayerUrl: relayerUrl(),
           preparation: prepared.preparation,
-          credential: serializeMlDsaWebAuthnApproval(
-            await approval(prepared.preparation.challengeB64u, rpId.value, credentialIdB64u),
-          ),
+          authorization: {
+            kind: 'passkey' as const,
+            credential: serializeMlDsaWebAuthnApproval(
+              await approval(prepared.preparation.challengeB64u, rpId.value, credentialIdB64u),
+            ),
+          },
         };
         let result = await executeMlDsaNearSigning(input);
         while (result.kind === 'retry' && result.retryAtMs < prepared.preparation.expiresAtMs) {

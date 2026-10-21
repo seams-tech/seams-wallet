@@ -16,7 +16,7 @@ import type {
   ExactEcdsaSigningLaneIdentity,
   ExactEd25519ExportMaterialIdentity,
 } from '../../session/identity/exactSigningLaneIdentity';
-import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
+import type { MpcMaterialActivationRef, WalletId } from '@shared/utils/domainIds';
 import type { ExclusiveUnion } from '@shared/utils/variant';
 
 export type KeyExportEventCallback = (event: KeyExportFlowEvent) => void;
@@ -30,7 +30,14 @@ interface SigningEngineKeyExportUiOptions extends KeyExportUiOptions {
   onEvent?: KeyExportEventCallback;
 }
 
-export type SigningEngineExportKeypairWithUIInput =
+export type SigningEngineExportKeypairWithUIInput = ExclusiveUnion<
+  | {
+      kind: 'ml_dsa_65';
+      nearAccount: NearAccountRef;
+      walletSession: WalletSessionRef;
+      signer: import('@/core/types/seams').AddedMlDsaSignerCapability;
+      options: SigningEngineKeyExportUiOptions;
+    }
   | {
       kind: 'ecdsa';
       chainTarget: ThresholdEcdsaChainTarget;
@@ -47,7 +54,8 @@ export type SigningEngineExportKeypairWithUIInput =
       materialActivation: MpcMaterialActivationRef;
       chainTarget?: never;
       options: SigningEngineKeyExportUiOptions;
-    };
+    }
+>;
 
 export type SigningEngineResolveExactKeyExportLaneInput = ExclusiveUnion<
   | { kind: 'ecdsa'; chainTarget: ThresholdEcdsaChainTarget; walletSession: WalletSessionRef }
@@ -69,7 +77,7 @@ type KeyExportFlowContext = {
   subject: string;
   chain: 'near' | ThresholdEcdsaChainTarget['kind'];
   data:
-    | { curve: 'ed25519'; chain: 'near'; nearAccount: NearAccountRef }
+    | { curve: 'ed25519' | 'ml_dsa_65'; chain: 'near'; nearAccount: NearAccountRef }
     | {
         curve: 'ecdsa';
         chain: ThresholdEcdsaChainTarget['kind'];
@@ -90,10 +98,11 @@ function keyExportFlowContext(input: SigningEngineExportKeypairWithUIInput): Key
         },
       };
     case 'ed25519':
+    case 'ml_dsa_65':
       return {
         subject: `${String(input.walletSession.walletId)}:near:${String(input.nearAccount.accountId)}`,
         chain: 'near',
-        data: { curve: 'ed25519', chain: 'near', nearAccount: input.nearAccount },
+        data: { curve: input.kind, chain: 'near', nearAccount: input.nearAccount },
       };
   }
 }
@@ -110,6 +119,38 @@ export function emitKeyExportEvent(
 
 export function createExportUiRequestId(prefix: string): string {
   return secureRandomId(prefix, 32, 'key export UI request IDs');
+}
+
+export function emitNearKeyExportViewerLifecycle(
+  context: {
+    readonly flowId: string;
+    readonly walletId: WalletId;
+    readonly curve: 'ed25519' | 'ml_dsa_65';
+    readonly onEvent: KeyExportEventCallback | undefined;
+  },
+  event: 'opened' | 'closed',
+): void {
+  const accountId = String(context.walletId);
+  emitKeyExportEvent(context.onEvent, {
+    phase:
+      event === 'opened'
+        ? KeyExportEventPhase.STEP_04_VIEWER_OPENED
+        : KeyExportEventPhase.STEP_05_VIEWER_CLOSED,
+    status: event === 'opened' ? 'waiting_for_user' : 'succeeded',
+    flowId: context.flowId,
+    accountId,
+    interaction: { kind: 'key_export_viewer', overlay: event === 'opened' ? 'show' : 'hide' },
+    data: { chain: 'near', curve: context.curve },
+  });
+  if (event !== 'closed') return;
+  emitKeyExportEvent(context.onEvent, {
+    phase: KeyExportEventPhase.STEP_06_COMPLETED,
+    status: 'succeeded',
+    flowId: context.flowId,
+    accountId,
+    interaction: { kind: 'none', overlay: 'hide' },
+    data: { chain: 'near', curve: context.curve },
+  });
 }
 
 function createKeyExportFlowId(subjectId: string, chain: string): string {

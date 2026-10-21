@@ -30,12 +30,34 @@ class WalletHostNearCommands {
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],
   ): ReturnType<NearCommands['signAndSendTransaction']> {
-    const nearAccountId = args.nearAccount.accountId;
-    const transaction = {
-      receiverId: args.receiverId,
-      actions: args.actions,
-    };
     try {
+      if (args.signer.kind === 'near_ml_dsa_65') {
+        const context = this.getContext();
+        const signed = await context.signingEngine.signMlDsaNearTransaction({
+          walletSession: args.walletSession,
+          nearAccount: args.nearAccount,
+          signer: args.signer,
+          transaction: { receiverId: args.receiverId, actions: args.actions },
+          options: {
+            mlDsaSigningSession: args.options.mlDsaSigningSession,
+            onEvent: args.options.onEvent,
+            confirmationConfig: args.options.confirmationConfig,
+            confirmerText: args.options.confirmerText,
+          },
+        });
+        return await sendTransaction({
+          context,
+          nearAccountId: args.nearAccount.accountId,
+          walletSession: args.walletSession,
+          signedTransaction: signed.signedTransaction,
+          options: args.options,
+        });
+      }
+      const nearAccountId = args.nearAccount.accountId;
+      const transaction = {
+        receiverId: args.receiverId,
+        actions: args.actions,
+      };
       return await signAndSendTransaction({
         context: this.getContext(),
         nearAccountId,
@@ -50,9 +72,18 @@ class WalletHostNearCommands {
   async signTransaction(
     args: Parameters<NearCommands['signTransaction']>[0],
   ): ReturnType<NearCommands['signTransaction']> {
-    const nearAccountId = args.nearAccount.accountId;
-    const { transaction, options } = args;
     try {
+      if (args.signer.kind === 'near_ml_dsa_65') {
+        return await this.getContext().signingEngine.signMlDsaNearTransaction({
+          walletSession: args.walletSession,
+          nearAccount: args.nearAccount,
+          signer: args.signer,
+          transaction: args.transaction,
+          options: args.options,
+        });
+      }
+      const nearAccountId = args.nearAccount.accountId;
+      const { transaction, options } = args;
       return await signTransaction({
         context: this.getContext(),
         nearAccountId,
@@ -62,7 +93,7 @@ class WalletHostNearCommands {
       });
     } catch (error: unknown) {
       const e = toError(error);
-      await options?.afterCall?.(false, undefined, e);
+      await args.options.afterCall?.(false, undefined, e);
       throw e;
     }
   }

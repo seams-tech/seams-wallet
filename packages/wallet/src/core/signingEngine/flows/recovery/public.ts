@@ -8,6 +8,7 @@ import type {
 import type { KeyExportEventCallback } from './keyExportFlow';
 
 export type RecoveryPublicDeps = {
+  mlDsa: ExportKeypairWithUIDeps['mlDsa'];
   laneSelection: ExportKeypairWithUIDeps['laneSelection'];
   ecdsa: Omit<ExportKeypairWithUIDeps['ecdsa'], 'theme'>;
   ed25519Yao: Omit<ExportKeypairWithUIDeps['ed25519Yao'], 'theme'>;
@@ -19,6 +20,7 @@ export type RecoveryPublicEcdsaSessionStoreDeps = RecoveryPublicDeps['ecdsa']['s
 
 function exportKeypairDeps(deps: RecoveryPublicDeps): ExportKeypairWithUIDeps {
   return {
+    mlDsa: deps.mlDsa,
     laneSelection: deps.laneSelection,
     sessionLifecycle: deps.sessionLifecycle,
     ecdsa: {
@@ -35,8 +37,10 @@ function exportKeypairDeps(deps: RecoveryPublicDeps): ExportKeypairWithUIDeps {
 export async function exportKeypairWithUI(
   deps: RecoveryPublicDeps,
   input: SigningEngineExportKeypairWithUIInput,
-): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1'> }> {
-  const { exportKeypairWithUI: exportKeypairWithUIValue } = await import('./exportKeypairOperation');
+): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1' | 'ml_dsa_65'> }> {
+  const { exportKeypairWithUI: exportKeypairWithUIValue } = await import(
+    './exportKeypairOperation'
+  );
   return await exportKeypairWithUIValue(exportKeypairDeps(deps), input);
 }
 
@@ -44,7 +48,9 @@ export async function resolveExactKeyExportLane(
   deps: RecoveryPublicDeps,
   input: SigningEngineResolveExactKeyExportLaneInput,
 ): Promise<SigningEngineResolveExactKeyExportLaneResult> {
-  const { resolveExactKeyExportLane: resolveExactKeyExportLaneValue } = await import('./exportKeypairOperation');
+  const { resolveExactKeyExportLane: resolveExactKeyExportLaneValue } = await import(
+    './exportKeypairOperation'
+  );
   return await resolveExactKeyExportLaneValue(exportKeypairDeps(deps), input);
 }
 

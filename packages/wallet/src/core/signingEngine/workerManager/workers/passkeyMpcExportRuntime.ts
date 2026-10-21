@@ -53,6 +53,7 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { walletCustodyCacheEnvelopeFromRecordV1 } from '../../walletCustody/openCustodyCache';
+import { parseMlDsaSeedExportPayload, exportMlDsaSeedWithUi } from './mlDsaSeedExport';
 
 type ExportWorkerTarget = {
   kind: 'ecdsa';
@@ -362,6 +363,9 @@ export function parsePasskeyMpcExportRequestPayload(
 ): ExportPrivateKeysWithUiWorkerPayload | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   const artifactKind = Reflect.get(value, 'artifactKind');
+  if (artifactKind === 'ml-dsa-65-fips-seed-export-v1') {
+    return parseMlDsaSeedExportPayload(value);
+  }
   if (artifactKind === ROUTER_AB_ED25519_YAO_EXPORT_ARTIFACT_KIND_V1) {
     return parseEd25519YaoExportWorkerPayload(value);
   }
@@ -793,6 +797,9 @@ async function runEd25519YaoExportWithUi(
 export async function runPasskeyMpcExportWithUi(
   payload: ExportPrivateKeysWithUiWorkerPayload,
 ): Promise<ExportPrivateKeysWithUiWorkerResult> {
+  if (payload.artifactKind === 'ml-dsa-65-fips-seed-export-v1') {
+    return await exportMlDsaSeedWithUi(payload);
+  }
   if (isRouterAbEd25519YaoExportWorkerPayload(payload)) {
     return await runEd25519YaoExportWithUi(payload);
   }

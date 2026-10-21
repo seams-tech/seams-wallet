@@ -49,6 +49,8 @@ import type {
   SignAndSendDelegateActionResult,
   SignDelegateActionResult,
   SignTransactionResult,
+  NearTransactionSignerSelection,
+  AddedMlDsaSignerCapability,
 } from '@/core/types/seams';
 import type {
   DelegateActionHooksOptions,
@@ -826,6 +828,7 @@ export interface NearSignerCapability {
 
   signAndSendTransaction(
     args: NearSubjectInput & {
+      signer?: NearTransactionSignerSelection;
       receiverId: string;
       actions: ActionArgs[];
       options?: SignAndSendTransactionHooksOptions;
@@ -834,6 +837,7 @@ export interface NearSignerCapability {
 
   signTransaction(
     args: NearSubjectInput & {
+      signer?: NearTransactionSignerSelection;
       transaction: TransactionInput;
       options?: SignTransactionHooksOptions;
     },
@@ -996,6 +1000,13 @@ type KeyExportUiOptions = SigningEngineExportKeypairWithUIInput['options'];
 export type KeyExportOutcome = { kind: 'exported' };
 
 export type ExportKeyInput = ExclusiveUnion<
+  | {
+      kind: 'ml_dsa_65';
+      walletSession?: WalletSessionInput;
+      nearAccount?: NearAccountRef | string;
+      signer: AddedMlDsaSignerCapability;
+      options?: KeyExportUiOptions;
+    }
   | {
       kind: 'ed25519';
       /** A `WalletSessionRef` or bare wallet id. Omitted, resolves to the authenticated wallet. */

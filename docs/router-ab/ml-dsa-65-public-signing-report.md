@@ -1,8 +1,29 @@
 # ML-DSA public signing integration
 
-The advanced SDK signs a NEAR transaction through fresh passkey approval, authoritative
-Gateway admission, durable operation claims, and the existing A/B Workers signer.
-The standard Wallet signing UI and reusable ML-DSA sessions remain separate integration tasks.
+The normal Wallet transaction API accepts a published ML-DSA signer. It uses the existing
+transaction review, nonce coordinator, Gateway admission, A/B Workers, and NEAR submission.
+Explicit session options let an owner approve a limited number of operations with an expiry.
+
+```ts
+await wallet.near.signAndSendTransaction({
+  walletSession,
+  nearAccount,
+  signer,
+  receiverId,
+  actions,
+  options: { mlDsaSigningSession: { maxOperations: 5, durationMs: 600_000 } },
+});
+```
+
+The first operation requires fresh Passkey approval for the transaction and grant policy.
+Later operations still show transaction review. They can use the same grant without another
+biometric prompt. The grant stays in Wallet-origin memory. Locking clears that memory and
+requests durable revocation. The Gateway atomically debits each new operation and rechecks
+the owner, origin, key, epoch, publication, expiry, and revocation state before releasing results.
+Exact retries retain their operation and consume no additional grant use.
+Wallet cooldown, ready capacity, service capacity, and preparation consumption stay unchanged.
+
+The [lifecycle report](ml-dsa-65-wallet-lifecycle-report.md) records the composed browser scope.
 
 ## Public flow
 
@@ -10,7 +31,7 @@ The standard Wallet signing UI and reusable ML-DSA sessions remain separate inte
    passkey identity, exact unsigned Borsh transaction, and expected registered public key.
 2. Review `preparation.transaction.displayJson`. Collect a WebAuthn assertion for
    `preparation.challengeB64u` under the configured Wallet origin and relying party.
-3. Call `executeMlDsaNearSigning` with that preparation and assertion. Preserve both for retries.
+3. Call `executeMlDsaNearSigning` with that preparation and `authorization: { kind: 'passkey', credential }`. Preserve both for retries.
 4. A `retry` result gives an explicit retry time. A `signed` result contains verified standard
    NEAR transaction bytes. `submitMlDsaNearTransaction` verifies them again and uses the existing
    NEAR JSON-RPC client for submission.
@@ -19,7 +40,7 @@ These functions are exported from `@seams/wallet/advanced`.
 The HTTP routes are `POST /wallets/:walletId/ml-dsa/sign/prepare` and
 `POST /wallets/:walletId/ml-dsa/sign`.
 They require the Wallet management protocol header and a configured Wallet origin.
-Signing requires fresh passkey approval from an active full wallet owner.
+Signing requires fresh Passkey approval or a dedicated active ML-DSA grant from a full wallet owner.
 Linked owners also require an installed NEAR activation.
 
 The Gateway reads the public key, epoch, manifest, schedule, and wallet generation from the
@@ -120,15 +141,14 @@ Gateway/D1/Router/A/B Workers. Existing ownership and custody were fixture-seede
 
 Next work:
 
-1. Connect the standard Wallet review and iframe surfaces to the advanced signing flow.
-2. Qualify combined browser recovery-code and QR-link ceremonies with retained ML-DSA access.
-3. Complete public lost-participant re-establishment and export UI integration.
-4. Connect interrupted-operation reconciliation and complete participant relocation.
-5. Reduce registration and signing latency, then test rejection tails and multi-wallet load.
+1. Reconcile interrupted private rounds that have no verified public completion. Complete participant relocation.
+2. Qualify the complete normal SDK path on hosted Workers. Measure registration, rejection tails, refill, and multi-wallet load.
+3. Complete the production security review and consume exact package releases in composed product tests.
 
 The [lifecycle follow-up](ml-dsa-65-wallet-lifecycle-report.md) adds production enrollment
 through the existing NEAR approval surface, authenticated signer discovery, and signing
-from recovered and full-owner linked authorities. Its composed tests begin after authority activation.
+from recovered and full-owner linked authorities. Its browser campaign executes recovery and QR linking,
+checks ordinary seed import, and finalizes a normal SDK transaction on testnet.
 
 The local campaign above does not measure hosted latency. The hosted follow-up records
 8.07–9.00 seconds for online registration and 2.57–5.36 seconds for three signing calls.

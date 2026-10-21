@@ -1582,20 +1582,8 @@ export class CloudflareD1WalletAddSignerService {
         code: 'not_configured',
         message: 'ML-DSA registration is not configured',
       };
-    const ceremony = await this.getRegistrationCeremonyIntentStore().getAddSignerCeremony(
-      request.addSignerCeremonyId,
-    );
-    if (
-      !ceremony ||
-      ceremony.intent.walletId !== request.walletId ||
-      ceremony.signerState.kind !== 'ml_dsa_add_signer_authorized'
-    )
-      return { ok: false as const, code: 'not_found', message: 'ML-DSA ceremony not found' };
     try {
-      return await this.mlDsaRegistration.publish(
-        ceremony.signerState.preparation,
-        request.custodyCommit,
-      );
+      return await this.mlDsaRegistration.publish(request);
     } catch (error: unknown) {
       if (error instanceof MlDsaRegistrationAuthorityChanged)
         return { ok: false, code: 'unauthorized', message: error.message };

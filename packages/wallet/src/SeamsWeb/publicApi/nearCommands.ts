@@ -4,6 +4,7 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
+import type { NearTransactionSignerSelection } from '@/core/types/seams';
 
 type NearSigningOperation =
   | 'signAndSendTransaction'
@@ -14,7 +15,7 @@ type NearSigningOperation =
 
 type ResolvedNearInput<T extends { options?: unknown }> = Omit<
   T,
-  'walletSession' | 'nearAccount' | 'options'
+  'walletSession' | 'nearAccount' | 'options' | 'signer'
 > & {
   walletSession: WalletSessionRef;
   nearAccount: NearAccountRef;
@@ -25,7 +26,10 @@ export type NearCommands = {
   ownerOperation: import('./ownerNearOperation').ExecuteOwnerNearOperation;
 } & {
   [K in NearSigningOperation]: (
-    args: ResolvedNearInput<Parameters<NearSignerCapability[K]>[0]>,
+    args: ResolvedNearInput<Parameters<NearSignerCapability[K]>[0]> &
+      (K extends 'signTransaction' | 'signAndSendTransaction'
+        ? { readonly signer: NearTransactionSignerSelection }
+        : object),
   ) => ReturnType<NearSignerCapability[K]>;
 };
 

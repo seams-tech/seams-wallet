@@ -220,8 +220,9 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
 
     PM_SIGN_TX_WITH_ACTIONS: async (req: Req<'PM_SIGN_TX_WITH_ACTIONS'>) => {
       const pm = deps.getWalletRuntime();
-      const { walletId, nearAccountId, transaction, options } = req.payload!;
+      const { walletId, nearAccountId, transaction, options, signer } = req.payload!;
       const result = await pm.near.signTransaction({
+        signer,
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         transaction,
@@ -236,8 +237,9 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
 
     PM_SIGN_AND_SEND_TX: async (req: Req<'PM_SIGN_AND_SEND_TX'>) => {
       const pm = deps.getWalletRuntime();
-      const { walletId, nearAccountId, transaction, options } = req.payload!;
+      const { walletId, nearAccountId, transaction, options, signer } = req.payload!;
       const result = await pm.near.signAndSendTransaction({
+        signer,
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         receiverId: transaction.receiverId,

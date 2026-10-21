@@ -158,6 +158,7 @@ else
 fi
 
 print_step "Copying Ed25519 Yao Client WASM next to browser SDK chunks..."
+cp "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker_bg.wasm" "$BUILD_ESM/sdk/wasm_signer_worker_bg.wasm"
 if cp "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/pkg/router_ab_ed25519_yao_client_bg.wasm" "$BUILD_ESM/sdk/$ED25519_YAO_CLIENT_WASM" 2>/dev/null; then
   print_success "Browser SDK Ed25519 Yao Client WASM copied"
 else

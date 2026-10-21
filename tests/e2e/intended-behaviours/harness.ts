@@ -61,6 +61,7 @@ import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecov
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { setTimeout as deadlineDelay } from 'node:timers/promises';
 import {
   describeUsableGoogleIdToken,
   resolveGoogleClientId,
@@ -173,6 +174,10 @@ const WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS = {
   hasPrf: true,
   automaticPresenceSimulation: true,
 } as const;
+
+async function continueLiveNearRpc(route: Route): Promise<void> {
+  await route.continue();
+}
 
 function requireWebAuthnAuthenticatorId(raw: unknown): string {
   const response = requireRecord(raw, 'WebAuthn virtual authenticator response');
@@ -1272,6 +1277,11 @@ export class IntendedBehaviourHarness {
     this.voiceIdPluginEnabled = true;
   }
 
+  async useLiveNearTestnetRpc(): Promise<void> {
+    await this.context.route('https://rpc.testnet.fastnear.com/**', continueLiveNearRpc);
+    await this.context.route('https://rpc.testnet.near.org/**', continueLiveNearRpc);
+  }
+
   async registerPasskeyWallet(): Promise<void> {
     this.recordStage('register_passkey_wallet');
     const snapshot = await this.runIntendedPageAction(
@@ -1314,8 +1324,23 @@ export class IntendedBehaviourHarness {
   }
 
   async runMlDsaCommand(command: MlDsaBrowserCommand) {
-    return autoConfirmWalletIframeUntil(this.page, this.page.evaluate(invokeMlDsaCommand, command),
-      { timeoutMs: 180_000 });
+    const timeoutMs = command.kind === 'normal_sign' ? 60_000 : 180_000;
+    const deadline = new AbortController();
+    try {
+      const result = await autoConfirmWalletIframeUntil(
+        this.page,
+        Promise.race([
+          this.page.evaluate(invokeMlDsaCommand, command),
+          failMlDsaCommandDeadline(this.page, command.kind, timeoutMs, deadline.signal),
+        ]),
+        { timeoutMs },
+      );
+      if (command.kind === 'normal_sign')
+        await waitForWalletIframeConfirmationSettlement(this.page);
+      return result;
+    } finally {
+      deadline.abort();
+    }
   }
 
   async discardPasskeyCredentials(): Promise<void> {
@@ -5610,6 +5635,8 @@ function nearRpcQueryStubResult(params: unknown): unknown {
       };
     case 'view_access_key_list':
       return {
+        block_height: 1,
+        block_hash: NEAR_STUB_BLOCK_HASH,
         keys: [],
       };
     case 'view_account':
@@ -8688,4 +8715,19 @@ async function invokeMlDsaCommand(command: MlDsaBrowserCommand) {
   const run = window.__seamsIntendedMlDsa;
   if (!run) throw new Error('ML-DSA browser helper is unavailable');
   return run(command);
+}
+
+async function failMlDsaCommandDeadline(
+  page: Page,
+  kind: MlDsaBrowserCommand['kind'],
+  timeoutMs: number,
+  signal: AbortSignal,
+): Promise<never> {
+  await deadlineDelay(timeoutMs, undefined, { signal });
+  if (kind === 'normal_sign') {
+    const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
+    const state = await frame.locator('body').innerText();
+    throw new Error(`ML-DSA transaction approval exceeded ${timeoutMs} ms. Wallet UI: ${state}`);
+  }
+  throw new Error(`ML-DSA ${kind} exceeded ${timeoutMs} ms`);
 }

@@ -535,6 +535,12 @@ export async function resumePendingNearRegistrations(args: {
   readonly relayerUrl: string;
   readonly ports?: PendingRegistrationRecoveryPorts;
 }): Promise<PendingRegistrationRecoveryResult[]> {
+  if (!args.ports) {
+    const { resumePendingMlDsaPublications } = await import(
+      '@/core/signingEngine/walletCustody/pendingMlDsaPublication'
+    );
+    await resumePendingMlDsaPublications(args.relayerUrl);
+  }
   const ports = args.ports || defaultPendingRegistrationRecoveryPorts;
   const pendingRows = await ports.listPendingWalletRegistrationCommits();
   const results: PendingRegistrationRecoveryResult[] = [];

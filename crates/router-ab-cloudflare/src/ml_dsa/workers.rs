@@ -136,7 +136,7 @@ pub enum RoleCommand {
     InstallMaterial {
         record: material::Record,
     },
-    LoadMaterial {
+    LoadSigningInputs {
         permit: Permit,
     },
     Inspect {
@@ -192,7 +192,9 @@ impl RoleCommand {
             Self::StartRefill { job } => &job.key.wallet,
             Self::CheckMaterial { activation } => &activation.key.wallet,
             Self::InstallMaterial { record } => &record.activation.key.wallet,
-            Self::LoadMaterial { permit } | Self::Take { permit, .. } => &permit.request.key.wallet,
+            Self::LoadSigningInputs { permit } | Self::Take { permit, .. } => {
+                &permit.request.key.wallet
+            }
             Self::Install { key }
             | Self::Inventory { key, .. }
             | Self::RefillStatus { key }
@@ -661,7 +663,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
                 },
             )
         }
-        RoleCommand::Take { permit, .. } | RoleCommand::LoadMaterial { permit } => (
+        RoleCommand::Take { permit, .. } | RoleCommand::LoadSigningInputs { permit } => (
             &permit.request,
             Status::Running {
                 permit: permit.clone(),
@@ -806,8 +808,19 @@ async fn execute_role(
         RoleCommand::CheckMaterial { activation } => {
             json(material::installed(store, role, &activation).await?)
         }
-        RoleCommand::LoadMaterial { permit } => {
-            json(material::get(store, &permit.request.key).await?)
+        RoleCommand::LoadSigningInputs { permit } => {
+            let material = material::get(store, &permit.request.key).await?;
+            let batch = *permit
+                .batches
+                .first()
+                .ok_or_else(|| invalid("ML-DSA permit has no prepared pair"))?;
+            let (binding, sealed) = pool::take(store, role, &permit, batch, now).await?;
+            json(executor::SigningInputs {
+                material,
+                batch,
+                binding,
+                sealed,
+            })
         }
         RoleCommand::Inspect { key, batches } => json(pool::inspect(store, &key, &batches).await?),
         RoleCommand::RetireUnpaired { key, batches } => {

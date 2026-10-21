@@ -62,6 +62,7 @@ class ApplicationNearCommands {
           walletId: args.walletSession.walletId,
           nearAccountId,
           transaction,
+          signer: args.signer,
           options: args.options,
         },
         this.transactionDispatch,
@@ -86,11 +87,13 @@ class ApplicationNearCommands {
       const result = await router.signTransaction({
         walletId: args.walletSession.walletId,
         nearAccountId,
+        signer: args.signer,
         transaction: {
           receiverId: transaction.receiverId,
           actions: transaction.actions,
         },
         options: {
+          mlDsaSigningSession: options.mlDsaSigningSession,
           signerSlot: options.signerSlot,
           onEvent: options.onEvent,
           confirmationConfig: options.confirmationConfig,
