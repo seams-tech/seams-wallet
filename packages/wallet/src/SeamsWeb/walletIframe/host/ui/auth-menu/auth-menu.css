@@ -674,9 +674,25 @@
 }
 
 /* border-only focus: outward rings clip against the content switcher's
-   overflow:hidden, so the 1px border carries the focus state instead */
+   overflow:hidden, so the 1px border carries the focus state instead. The
+   border paints focusGradient when the theme sets one: the field's own
+   background fills the padding box over a border-box gradient. */
 :where(.seams-auth-menu-surface) .seams-input-pill:focus-within {
-  border-color: var(--seams-colors-focus, var(--seams-colors-primary));
+  border-color: transparent;
+  background:
+    linear-gradient(
+        var(--seams-shape-fieldBackground, var(--seams-colors-surface)),
+        var(--seams-shape-fieldBackground, var(--seams-colors-surface))
+      )
+      padding-box,
+    var(
+        --seams-colors-focusGradient,
+        linear-gradient(
+          var(--seams-colors-focus, var(--seams-colors-primary)),
+          var(--seams-colors-focus, var(--seams-colors-primary))
+        )
+      )
+      border-box;
 }
 
 :where(.seams-auth-menu-surface) .seams-input-wrap {
@@ -1429,7 +1445,7 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-factor-options input:focus-visible {
-  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
+  outline: 2px solid var(--seams-colors-focus, var(--seams-colors-primary));
   outline-offset: 3px;
 }
 
@@ -1459,8 +1475,19 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-target-email input:focus-visible {
-  outline: 2px solid var(--seams-colors-focusRing, #2563eb);
-  outline-offset: 2px;
+  outline: none;
+  border-color: transparent;
+  background:
+    linear-gradient(var(--seams-colors-surface, #ffffff), var(--seams-colors-surface, #ffffff))
+      padding-box,
+    var(
+        --seams-colors-focusGradient,
+        linear-gradient(
+          var(--seams-colors-focus, var(--seams-colors-primary)),
+          var(--seams-colors-focus, var(--seams-colors-primary))
+        )
+      )
+      border-box;
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-inline-error {

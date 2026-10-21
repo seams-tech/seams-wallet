@@ -67,6 +67,9 @@ export interface DesignTokens {
     hover: string;
     active: string;
     focus: string;
+    // Optional CSS gradient for a focused text field's border; without it the
+    // border takes `focus`.
+    focusGradient?: string;
 
     // Status colors
     success: string;

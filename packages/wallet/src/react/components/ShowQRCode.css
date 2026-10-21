@@ -124,8 +124,19 @@
 }
 
 .seams-device-link-email-field input:focus-visible {
-  outline: 2px solid var(--seams-colors-primary, #3b82f6);
-  outline-offset: 2px;
+  outline: none;
+  border-color: transparent;
+  background:
+    linear-gradient(var(--seams-colors-surface, #ffffff), var(--seams-colors-surface, #ffffff))
+      padding-box,
+    var(
+        --seams-colors-focusGradient,
+        linear-gradient(
+          var(--seams-colors-focus, var(--seams-colors-primary, #3b82f6)),
+          var(--seams-colors-focus, var(--seams-colors-primary, #3b82f6))
+        )
+      )
+      border-box;
 }
 
 .qr-code-section {

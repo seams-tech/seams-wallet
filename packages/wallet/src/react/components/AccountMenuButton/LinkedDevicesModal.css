@@ -375,8 +375,19 @@
 }
 
 .seams-linked-devices-modal-otp-input:focus-visible {
-  outline: 2px solid var(--seams-colors-primary);
-  outline-offset: 2px;
+  outline: none;
+  border-color: transparent;
+  background:
+    linear-gradient(var(--seams-colors-colorBackground), var(--seams-colors-colorBackground))
+      padding-box,
+    var(
+        --seams-colors-focusGradient,
+        linear-gradient(
+          var(--seams-colors-focus, var(--seams-colors-primary)),
+          var(--seams-colors-focus, var(--seams-colors-primary))
+        )
+      )
+      border-box;
 }
 
 .seams-linked-devices-modal-secondary,
