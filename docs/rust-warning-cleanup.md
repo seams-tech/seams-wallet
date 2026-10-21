@@ -174,8 +174,8 @@ Worker warning occurrences fell from 612 to 602. The bloat check passed.
 
 ### C04 — Audit unused D1 methods by owning type
 
-- [ ] Classify each method below as unused, test-only, or required by another build.
-- [ ] Delete proven unused methods. Restrict test-only methods with existing
+- [x] Classify each method below as unused, test-only, or required by another build.
+- [x] Delete proven unused methods. Restrict test-only methods with existing
       test configuration. Preserve stored fields and lifecycle parsing.
 
 File: `crates/router-ab-cloudflare/src/tenant_root_role_d1.rs`.
@@ -196,6 +196,11 @@ Common names such as `evidence_bytes` also belong to live types.
 For example, `CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1::refreshed_at_ms`
 at line 4794 has callers. Keep it separate from the warned promotion-source method.
 Preserve the validation that active store operations enforce.
+
+Completed in `24e4becfbe4f9eb170ef697757025f2ea35b3e6e`.
+The warned methods also remained unused when compiling the existing test targets.
+The batch deletes those methods and unused constructors. Stored fields and validators remain intact.
+Eight compilation checks and the bloat check passed. Worker warning occurrences fell from 602 to 567.
 
 ### C05 — Separate test accessors from unused R2 convenience methods
 
@@ -423,7 +428,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01, C02, C03, C12. Other cleanup batches remain pending.
+Completed batches: C01, C02, C03, C04, C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -436,7 +441,7 @@ Use one ledger row per actual batch. Split rows further when necessary.
 | C01 — Internal wrappers           | Complete                   | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                                        | —             |
 | C02 — Transport adapters          | Complete                   | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`.                 | —             |
 | C03 — Durable Object readers      | Complete                   | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`. | —             |
-| C04 — D1 methods                  | Needs classification       | —                                          | —                                          | —                                                                                                                                                                | —             |
+| C04 — D1 methods                  | Complete                   | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.       | —             |
 | C05 — Test accessors / R2 wrapper | Pending                    | —                                          | —                                          | —                                                                                                                                                                | —             |
 | C06 — Failure receipt             | Retain pending review      | —                                          | —                                          | —                                                                                                                                                                | —             |
 | C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                                                                | —             |
