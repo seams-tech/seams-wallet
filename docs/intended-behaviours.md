@@ -1868,10 +1868,15 @@ must not terminate shared workers or discard durable signing material.
 
 Wallet creation uses `registration.registerWallet` in the client and explicit runtime,
 and `registerWallet` in React. The public request declares the authentication
-method and signer selection. Omitting `wallet` selects a server-assigned wallet
+method. Omitting `wallet` selects a server-assigned wallet
 ID. An explicit `{ kind: 'provided', walletId }` retains the caller's ID.
-The public boundary resolves this default before any internal command or iframe
-request. Internal registration requests require the wallet selection.
+Omitting `signerSelection` selects NEAR and EVM-family signers from configured
+chains and enabled provisioning defaults. Per-call signer options retain their
+provisioning policy. NEAR uses the configured account provisioning policy.
+An empty default signer set rejects before dispatch. Explicit signer selections
+remain unchanged.
+The public boundary resolves defaults before any internal command or iframe
+request. Internal registration requests require wallet and signer selections.
 Passkey and Email OTP proofs
 remain distinct branches of the existing authentication input. NEAR-only,
 ECDSA-only, and combined signer selections use the same creation operation.

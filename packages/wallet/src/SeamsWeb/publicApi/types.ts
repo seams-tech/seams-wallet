@@ -758,7 +758,8 @@ export interface RegistrationCapability {
     authMethod: RegistrationAuthMethodInput;
     /** Omit to let the server assign a new wallet ID. */
     wallet?: RegisterWalletInput;
-    signerSelection: RegistrationSignerSetSelection;
+    /** Omit to use the configured chains and signer provisioning defaults. */
+    signerSelection?: RegistrationSignerSetSelection;
     options?: RegistrationHooksOptions;
   }): Promise<RegistrationResult>;
 }

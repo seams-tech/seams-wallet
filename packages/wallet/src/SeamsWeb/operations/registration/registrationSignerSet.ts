@@ -7,6 +7,7 @@ import {
   REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION,
   type RegistrationNearAccountProvisioning,
   type RegistrationSignerSetSelection,
+  type RegistrationSignerRequest,
 } from '@shared/utils/registrationSignerPlan';
 import { type RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
 import { parseNamedNearAccountId } from '@shared/utils/near';
@@ -17,6 +18,7 @@ import type {
 import type { RegistrationHooksOptions } from '@/core/types/sdkSentEvents';
 import { listThresholdEcdsaProvisionTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
 import type { ThresholdEcdsaChainTarget } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { isNearChainNetwork } from '@/core/config/chains';
 
 export function registrationSelectionIncludesNear(
   selection: RegistrationSignerSetSelection,
@@ -33,39 +35,70 @@ export function buildNearWalletRegistrationSignerSetSelection(args: {
   options: RegistrationHooksOptions;
   ecdsaChainTargets?: readonly ThresholdEcdsaChainTarget[];
 }): RegistrationSignerSetSelection {
-  const ed25519 = {
-    kind: 'near_ed25519' as const,
-    accountProvisioning: args.accountProvisioning ?? implicitNearAccountProvisioning(),
-    signerSlot: 1,
-    participantIds: [...THRESHOLD_ED25519_2P_PARTICIPANT_IDS],
-    derivationVersion: REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION,
-  };
   const ecdsaChainTargets =
-    args.ecdsaChainTargets ??
-    listThresholdEcdsaProvisionTargets({
-      signerOptions:
-        args.options.signerOptions ?? args.configs.signing.thresholdEcdsa.provisioningDefaults,
-      chains: args.configs.network.chains,
-    }).map((target) => target.chainTarget);
+    args.ecdsaChainTargets ?? configuredEcdsaRegistrationTargets(args.configs, args.options);
+  return buildRegistrationSignerSetSelection(
+    args.accountProvisioning ?? implicitNearAccountProvisioning(),
+    ecdsaChainTargets,
+  );
+}
 
-  if (!ecdsaChainTargets.length) {
-    return {
-      kind: 'signer_set',
-      signers: [ed25519],
-    };
+export function buildConfiguredWalletRegistrationSignerSetSelection(args: {
+  configs: SeamsConfigsReadonly;
+  wallet: RegisterWalletInput;
+  options: RegistrationHooksOptions;
+}): RegistrationSignerSetSelection {
+  let accountProvisioning: RegistrationNearAccountProvisioning | null = null;
+  for (const chain of args.configs.network.chains) {
+    if (isNearChainNetwork(chain.network)) {
+      accountProvisioning = resolvePasskeyRegistrationAccountProvisioning(args);
+      break;
+    }
   }
+  return buildRegistrationSignerSetSelection(
+    accountProvisioning,
+    configuredEcdsaRegistrationTargets(args.configs, args.options),
+  );
+}
 
-  return {
-    kind: 'signer_set',
-    signers: [
-      ed25519,
-      {
-        kind: 'evm_family_ecdsa',
-        chainTargets: [...ecdsaChainTargets],
-        participantIds: [...THRESHOLD_SECP256K1_ECDSA_2P_PARTICIPANT_IDS_V1],
-      },
-    ],
-  };
+function configuredEcdsaRegistrationTargets(
+  configs: SeamsConfigsReadonly,
+  options: RegistrationHooksOptions,
+): ThresholdEcdsaChainTarget[] {
+  const targets = listThresholdEcdsaProvisionTargets({
+    signerOptions: options.signerOptions ?? configs.signing.thresholdEcdsa.provisioningDefaults,
+    chains: configs.network.chains,
+  });
+  const chainTargets: ThresholdEcdsaChainTarget[] = [];
+  for (const target of targets) chainTargets.push(target.chainTarget);
+  return chainTargets;
+}
+
+function buildRegistrationSignerSetSelection(
+  accountProvisioning: RegistrationNearAccountProvisioning | null,
+  ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[],
+): RegistrationSignerSetSelection {
+  const signers: RegistrationSignerRequest[] = [];
+  if (accountProvisioning) {
+    signers.push({
+      kind: 'near_ed25519',
+      accountProvisioning,
+      signerSlot: 1,
+      participantIds: [...THRESHOLD_ED25519_2P_PARTICIPANT_IDS],
+      derivationVersion: REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION,
+    });
+  }
+  if (ecdsaChainTargets.length) {
+    signers.push({
+      kind: 'evm_family_ecdsa',
+      chainTargets: [...ecdsaChainTargets],
+      participantIds: [...THRESHOLD_SECP256K1_ECDSA_2P_PARTICIPANT_IDS_V1],
+    });
+  }
+  if (!signers.length) {
+    throw new Error('Wallet registration requires at least one configured, enabled signer');
+  }
+  return { kind: 'signer_set', signers };
 }
 
 function sponsoredNamedRegistrationProvisioningFromAccountId(

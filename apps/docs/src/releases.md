@@ -136,6 +136,8 @@ from the authenticated render after unlock completes.
 
 Registration now defaults to a server-assigned wallet ID. Omit `wallet` in
 `registerWallet` for that flow. Explicit wallet selection remains available.
+Omit `signerSelection` to use the configured chains and provisioning defaults.
+Custom signer selections remain available.
 
 The release also gives the Google sign-in waiting screen
 the same ring, headline, and instruction layout as the passkey waiting screen.

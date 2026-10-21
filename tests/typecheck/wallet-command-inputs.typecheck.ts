@@ -76,7 +76,6 @@ declare const applicationClient: SeamsWeb;
 declare const registrationCommand: WalletRegistrationCommand;
 const registrationWithDefaults = {
   authMethod: registrationCommand.authMethod,
-  signerSelection: registrationCommand.signerSelection,
 };
 void applicationClient.registration.registerWallet(registrationWithDefaults);
 // @ts-expect-error Defaults must be resolved before internal registration commands.
@@ -88,6 +87,12 @@ const missingRegistrationWallet: WalletRegistrationCommand = {
 };
 void unresolvedRegistration;
 void missingRegistrationWallet;
+const missingRegistrationSigners: WalletRegistrationCommand = {
+  ...registrationCommand,
+  // @ts-expect-error Internal commands require a resolved signer selection.
+  signerSelection: undefined,
+};
+void missingRegistrationSigners;
 applicationClient.config.setTheme('dark');
 applicationClient.config.setAppearance({ theme: { id: 'default', mode: 'light' } });
 applicationClient.config.chainTarget('tempo-testnet');

@@ -30,12 +30,18 @@ import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
 import { registerTransactionReviewBridge } from './transactionReview';
 import type { RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
+import type { RegistrationSignerSetSelection } from '@shared/utils/registrationSignerPlan';
+import { buildConfiguredWalletRegistrationSignerSetSelection } from '../operations/registration/registrationSignerSet';
+import { toError } from '@shared/utils/errors';
 
 /** A registration request after public defaults are resolved. */
 export type WalletRegistrationCommand = Omit<
   Parameters<RegistrationCapability['registerWallet']>[0],
-  'wallet'
-> & { readonly wallet: RegisterWalletInput };
+  'wallet' | 'signerSelection'
+> & {
+  readonly wallet: RegisterWalletInput;
+  readonly signerSelection: RegistrationSignerSetSelection;
+};
 
 export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
@@ -106,7 +112,7 @@ export function createPublicApi(
       addPasskey: deps.registration.addPasskey,
       addEmail: deps.registration.addEmail,
       removeAuthMethod: deps.registration.removeAuthMethod,
-      registerWallet: registerWallet.bind(null, deps.registration),
+      registerWallet: registerWallet.bind(null, deps.registration, deps.configs),
     },
     recovery: deps.recovery,
     devices,
@@ -120,16 +126,36 @@ export function createPublicApi(
     evm: evmFamily.evm,
   };
 }
-function registerWallet(
+async function registerWallet(
   commands: WalletRegistrationCommands,
+  configs: SeamsConfigsReadonly,
   args: Parameters<RegistrationCapability['registerWallet']>[0],
 ): ReturnType<RegistrationCapability['registerWallet']> {
-  return commands.registerWallet({
-    authMethod: args.authMethod,
-    wallet: args.wallet === undefined ? { kind: 'server_allocated' } : args.wallet,
-    signerSelection: args.signerSelection,
-    options: args.options,
-  });
+  let command: WalletRegistrationCommand;
+  try {
+    const wallet: RegisterWalletInput =
+      args.wallet === undefined ? { kind: 'server_allocated' } : args.wallet;
+    const signerSelection =
+      args.signerSelection === undefined
+        ? buildConfiguredWalletRegistrationSignerSetSelection({
+            configs,
+            wallet,
+            options: args.options ?? {},
+          })
+        : args.signerSelection;
+    command = {
+      authMethod: args.authMethod,
+      wallet,
+      signerSelection,
+      options: args.options,
+    };
+  } catch (error: unknown) {
+    const normalized = toError(error);
+    await args.options?.onError?.(normalized);
+    await args.options?.afterCall?.(false, undefined, normalized);
+    throw normalized;
+  }
+  return commands.registerWallet(command);
 }
 
 export function createApplicationPublicApi(

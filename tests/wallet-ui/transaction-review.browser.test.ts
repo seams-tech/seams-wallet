@@ -89,12 +89,39 @@ const hostScript = `
             accountId: registeredWalletId,
           },
         });
-        postResult(message.requestId, {
-          success: true,
-          kind: 'near_wallet_registered_pending',
-          walletId: registeredWalletId,
-          nearProvisioning: { status: 'pending' },
-        });
+        let hasNear = false;
+        const capabilities = [];
+        for (const signer of message.payload.signerSelection.signers) {
+          if (signer.kind === 'near_ed25519') hasNear = true;
+          if (signer.kind === 'evm_family_ecdsa') capabilities.push({
+            kind: 'evm_family_ecdsa',
+            thresholdEcdsaEthereumAddress: '0x0000000000000000000000000000000000000001',
+            thresholdEcdsaPublicKeyB64u: 'browser-fixture-public-key',
+          });
+        }
+        if (hasNear && capabilities.length) {
+          postResult(message.requestId, {
+            success: true,
+            kind: 'ecdsa_wallet_registered_near_pending',
+            walletId: registeredWalletId,
+            capabilities,
+            nearProvisioning: { status: 'pending' },
+          });
+        } else if (hasNear) {
+          postResult(message.requestId, {
+            success: true,
+            kind: 'near_wallet_registered_pending',
+            walletId: registeredWalletId,
+            nearProvisioning: { status: 'pending' },
+          });
+        } else {
+          postResult(message.requestId, {
+            success: true,
+            kind: 'wallet_registered',
+            walletId: registeredWalletId,
+            capabilities,
+          });
+        }
         return;
       }
       if (message.type === 'PM_HAS_PASSKEY') { postResult(message.requestId, false); return; }
@@ -340,35 +367,35 @@ test('registration defaults resolve before transport and preserve explicit walle
     const state = window as any;
     const request = {
       authMethod: { kind: 'passkey', rpId: 'wallet.example.localhost' },
-      signerSelection: {
-        kind: 'signer_set',
-        signers: [
-          {
-            kind: 'near_ed25519',
-            accountProvisioning: {
-              kind: 'implicit_account',
-              accountIdSource: 'ed25519_public_key',
-            },
-            signerSlot: 1,
-            participantIds: [1, 2],
-            derivationVersion: 1,
+    };
+    const signerSelection = {
+      kind: 'signer_set',
+      signers: [
+        {
+          kind: 'near_ed25519',
+          accountProvisioning: {
+            kind: 'implicit_account',
+            accountIdSource: 'ed25519_public_key',
           },
-        ],
-      },
+          signerSlot: 1,
+          participantIds: [1, 2],
+          derivationVersion: 1,
+        },
+      ],
     };
     const allocated = await state.reviewContext.registerWallet(request);
     const provided = await state.reviewContext.registerWallet({
       authMethod: request.authMethod,
-      signerSelection: request.signerSelection,
+      signerSelection,
       wallet: { kind: 'provided', walletId: 'provided.testnet' },
     });
     const clientAllocated = await state.reviewSeams.registration.registerWallet(request);
     return { allocated, provided, clientAllocated };
   });
-  expect(results).toEqual({
+  expect(results).toMatchObject({
     allocated: {
       success: true,
-      kind: 'near_wallet_registered_pending',
+      kind: 'ecdsa_wallet_registered_near_pending',
       walletId: 'allocated.testnet',
       nearProvisioning: { status: 'pending' },
     },
@@ -380,7 +407,7 @@ test('registration defaults resolve before transport and preserve explicit walle
     },
     clientAllocated: {
       success: true,
-      kind: 'near_wallet_registered_pending',
+      kind: 'ecdsa_wallet_registered_near_pending',
       walletId: 'allocated.testnet',
       nearProvisioning: { status: 'pending' },
     },
@@ -392,12 +419,93 @@ test('registration defaults resolve before transport and preserve explicit walle
     { kind: 'provided', walletId: 'provided.testnet' },
     { kind: 'server_allocated' },
   ]);
+  expect(requests[0].signerSelection).toMatchObject({
+    kind: 'signer_set',
+    signers: [
+      { kind: 'near_ed25519' },
+      {
+        kind: 'evm_family_ecdsa',
+        chainTargets: [
+          { kind: 'tempo', chainId: 42431 },
+          { kind: 'evm', chainId: 5042002 },
+          { kind: 'evm', chainId: 11155111 },
+        ],
+      },
+    ],
+  });
+  expect(requests[1].signerSelection.signers).toMatchObject([{ kind: 'near_ed25519' }]);
+  expect(requests[2].signerSelection).toEqual(requests[0].signerSelection);
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewContext.sdkFlow.status))
     .toBe('success');
   const evidencePath = testInfo.outputPath('registration-defaults.json');
   await writeFile(evidencePath, JSON.stringify({ results, requests }, null, 2));
   await testInfo.attach('registration-defaults.json', {
+    path: evidencePath,
+    contentType: 'application/json',
+  });
+});
+
+test('explicit EVM selection and disabled provisioning override configured defaults', async ({
+  page,
+}, testInfo) => {
+  const result = await page.evaluate(async () => {
+    const state = window as any;
+    return state.reviewContext.registerWallet({
+      authMethod: { kind: 'passkey', rpId: 'wallet.example.localhost' },
+      signerSelection: {
+        kind: 'signer_set',
+        signers: [
+          {
+            kind: 'evm_family_ecdsa',
+            chainTargets: [state.reviewSeams.config.chainTarget('arc-testnet')],
+            participantIds: [1, 2],
+          },
+        ],
+      },
+    });
+  });
+  expect(result).toMatchObject({
+    success: true,
+    kind: 'wallet_registered',
+    capabilities: [{ kind: 'evm_family_ecdsa' }],
+  });
+  const disabledProvisioning = await page.evaluate(async () => {
+    const state = window as any;
+    const defaults = state.reviewSeams.configs.signing.thresholdEcdsa.provisioningDefaults;
+    return state.reviewContext.registerWallet({
+      authMethod: { kind: 'passkey', rpId: 'wallet.example.localhost' },
+      options: {
+        signerOptions: {
+          evm: { ...defaults.evm, enabled: false },
+          tempo: { ...defaults.tempo, enabled: false },
+        },
+      },
+    });
+  });
+  expect(disabledProvisioning).toMatchObject({
+    success: true,
+    kind: 'near_wallet_registered_pending',
+  });
+  const frame = page.frames().find((frame) => frame.url().startsWith(walletOrigin))!;
+  const requests = await frame.evaluate(() => (window as any).registrationRequests);
+  expect(requests).toHaveLength(2);
+  expect(requests[0].signerSelection.signers).toMatchObject([
+    {
+      kind: 'evm_family_ecdsa',
+      chainTargets: [{ kind: 'evm', chainId: 5042002 }],
+    },
+  ]);
+  expect(requests[1].signerSelection.signers).toMatchObject([{ kind: 'near_ed25519' }]);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewContext.sdkFlow.status))
+    .toBe('success');
+  const evidencePath = testInfo.outputPath('configured-registration-signers.json');
+  await writeFile(
+    evidencePath,
+    JSON.stringify({ result, disabledProvisioning, requests }, null, 2),
+  );
+  await testInfo.attach('configured-registration-signers.json', {
     path: evidencePath,
     contentType: 'application/json',
   });
