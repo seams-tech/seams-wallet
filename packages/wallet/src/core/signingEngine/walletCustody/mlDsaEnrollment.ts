@@ -48,7 +48,10 @@ export type MlDsaNearEnrollmentOutcome = ReadonlyExclusiveUnion<
       readonly reason: 'rpc_unavailable' | 'not_final';
       readonly continuation: PendingMlDsaNearEnrollment;
     }
-  | { readonly kind: 'refused'; readonly reason: 'restricted_key' | 'wrong_wallet' }
+  | {
+      readonly kind: 'refused';
+      readonly reason: 'restricted_key' | 'wrong_wallet' | 'unsupported_protocol';
+    }
   | { readonly kind: 'unavailable'; readonly reason: 'rpc_unavailable' }
 >;
 type EnrollmentReader = Pick<NearClient, 'viewAccessKeyList'>;
@@ -129,7 +132,7 @@ async function confirmEnrollment(
 /** Add the published signer to an existing account through its ordinary owner approval. */
 export async function enrollMlDsaNearSigner(input: {
   readonly near: Pick<NearSignerCapability, 'signAndSendTransaction'>;
-  readonly nearClient: EnrollmentReader;
+  readonly nearClient: Pick<NearClient, 'viewAccessKeyList' | 'viewProtocolConfig'>;
   readonly walletSession: WalletSessionRef;
   readonly nearAccount: NearAccountRef;
   readonly publication: MlDsaPublishedSignerReference;
@@ -159,6 +162,14 @@ export async function enrollMlDsaNearSigner(input: {
       return { kind: 'refused', reason: 'restricted_key' };
     case 'absent':
       break;
+  }
+  try {
+    const config = await input.nearClient.viewProtocolConfig();
+    // NEP-645 activates PostQuantumSignatures at protocol version 85.
+    if (config.protocolVersion < 85)
+      return { kind: 'refused', reason: 'unsupported_protocol' };
+  } catch {
+    return { kind: 'unavailable', reason: 'rpc_unavailable' };
   }
   try {
     await input.near.signAndSendTransaction({

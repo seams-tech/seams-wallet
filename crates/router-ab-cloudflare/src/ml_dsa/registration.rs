@@ -234,6 +234,9 @@ pub async fn claim(
     let expected = admission::current_key(store, &request.wallet, &request.key_id).await?;
     match (&request.continuity, expected) {
         (Continuity::Create, None) => (),
+        // The Gateway permits this only for an expired unpublished creation.
+        // authorize_key and both role pools still require the same public key.
+        (Continuity::Create, Some(state)) if request.epoch > state.activation().key.epoch => {}
         (
             Continuity::Recover {
                 public_key_digest,

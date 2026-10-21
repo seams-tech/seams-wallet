@@ -25,7 +25,7 @@ export type AddMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
 /** Publish a seed-derived signer, then enroll its exact key through ordinary NEAR approval. */
 export async function addMlDsaNearSigner(input: {
   readonly wallet: Pick<SeamsWebPublicApi, 'registration' | 'near'>;
-  readonly nearClient: Pick<NearClient, 'viewAccessKeyList'>;
+  readonly nearClient: Pick<NearClient, 'viewAccessKeyList' | 'viewProtocolConfig'>;
   readonly walletSession: WalletSessionRef;
   readonly nearAccount: NearAccountRef;
   readonly rpId: WebAuthnRpId;
@@ -34,7 +34,10 @@ export async function addMlDsaNearSigner(input: {
   const registered = await input.wallet.registration.addSigner({
     walletId: input.walletSession.walletId,
     rpId: input.rpId,
-    signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: input.signerSlot, purpose: { kind: 'create' } } },
+    signerSelection: {
+      mode: 'ml_dsa_65',
+      mlDsa: { signerSlot: input.signerSlot, purpose: { kind: 'create' } },
+    },
   });
   if (!registered.success) return { kind: 'registration_failed', message: registered.error };
   if (

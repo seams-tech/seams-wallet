@@ -60,7 +60,12 @@ void sharedInventory;
 
 declare const issuedInventory: Variant<MlDsaInventoryPreparationOutcome, 'kind', 'prepared'>;
 // @ts-expect-error Refusal cannot retain issued-challenge fields through a spread.
-const refusedWithChallenge: MlDsaInventoryPreparationOutcome = { ...issuedInventory, kind: 'refused', code: 'unauthorized', message: 'refused' };
+const refusedWithChallenge: MlDsaInventoryPreparationOutcome = {
+  ...issuedInventory,
+  kind: 'refused',
+  code: 'unauthorized',
+  message: 'refused',
+};
 void refusedWithChallenge;
 
 declare const pending: Variant<MlDsaNearEnrollmentOutcome, 'kind', 'pending'>;
@@ -83,6 +88,15 @@ declare const signingPort: NonNullable<
 const resumeWithSigner = { ...resume, near: signingPort };
 // @ts-expect-error Resume cannot accept a submission port through structural assignment.
 void resumeMlDsaNearEnrollment(resumeWithSigner);
+
+declare const enrollment: Parameters<
+  typeof import('../../packages/wallet/src/core/signingEngine/walletCustody/mlDsaEnrollment').enrollMlDsaNearSigner
+>[0];
+// @ts-expect-error Enrollment must read the selected network's protocol before approval.
+const enrollmentWithoutProtocol: typeof enrollment.nearClient = {
+  viewAccessKeyList: enrollment.nearClient.viewAccessKeyList,
+};
+void enrollmentWithoutProtocol;
 
 declare const added: Variant<AddMlDsaNearSignerOutcome, 'kind', 'published'>;
 // @ts-expect-error Failed registration cannot retain a published signer or enrollment state.

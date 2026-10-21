@@ -35,6 +35,7 @@ import {
   type DecodedNearFinalExecutionOutcome,
   decodeNearFinalExecutionOutcome,
   decodeNearTransactionInclusion,
+  decodeNearProtocolConfig,
   type DecodedNearBlockReference,
   type NearRpcResultDecoder,
 } from '../utils/nearRpcResults';
@@ -56,6 +57,7 @@ enum RpcCallType {
   Query = 'query',
   Send = 'send_tx',
   Block = 'block',
+  ProtocolConfig = 'EXPERIMENTAL_protocol_config',
 }
 
 const DEFAULT_SEND_WAIT_UNTIL: TxExecutionStatus = 'EXECUTED_OPTIMISTIC';
@@ -199,6 +201,7 @@ export function encodeSignedTransactionBase64(signed: EncodableSignedTx): string
  * MinimalNearClient provides a simplified interface for NEAR protocol interactions
  */
 export interface NearClient<SignedTx = SignedTransaction> {
+  viewProtocolConfig(): Promise<{ chainId: string; protocolVersion: number }>;
   viewAccessKey(
     accountId: string,
     publicKey: string,
@@ -417,6 +420,15 @@ export abstract class NearJsonRpcClient<
   // ===========================
   // PUBLIC API METHODS
   // ===========================
+
+  async viewProtocolConfig(): Promise<{ chainId: string; protocolVersion: number }> {
+    return this.makeRpcCall(
+      RpcCallType.ProtocolConfig,
+      { finality: 'final' },
+      'View Protocol Configuration',
+      decodeNearProtocolConfig,
+    );
+  }
 
   async query<T>(params: RpcQueryRequest, decodeResult: NearRpcResultDecoder<T>): Promise<T> {
     return this.makeRpcCall(RpcCallType.Query, params, 'Query', decodeResult);

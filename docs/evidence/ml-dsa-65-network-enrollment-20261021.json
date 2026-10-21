@@ -1,0 +1,137 @@
+{
+  "observedAt": "2026-10-21T07:11:59.064Z",
+  "fixtureOnly": true,
+  "productionEligible": false,
+  "scope": "Production enrollment orchestration and native NEAR codecs against testnet. The existing owner uses a disposable Node Ed25519 fixture, so this campaign does not qualify the Wallet Ed25519 approval UI. The added public key comes from the earlier canonical threshold-key campaign.",
+  "checks": {
+    "publicationCannotEnrollAnotherWallet": true,
+    "protocolFailureNeverRequestsOwnerApproval": true,
+    "preActivationNetworkNeverRequestsOwnerApproval": true,
+    "callerExtrasNeverReachSubmissionOrContinuation": true,
+    "lostAcknowledgementAndOutagePreservePending": true,
+    "recoveryAndExactRepeatDoNotResubmit": true,
+    "hashedAccessKeyHandleMatchesIndependentSha3": true,
+    "exactAddKeyConfirmedAtFinality": true
+  },
+  "result": "passed",
+  "mlDsaPublicKey": "ml-dsa-65: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",
+  "expectedHandle": "ml-dsa-65-hash:29wSWYUKNhK6eg5Pkkbf8ofZx1rAAbkuSLcrUU8zxPuN",
+  "accountId": "ml-dsa-enroll-7a0ba90ca33647f9.testnet",
+  "ownerPublicKey": "ed25519:58jgStUvU4Pz1EkzHXvFCu7WvzB4p59DWwNC2WC6adQd",
+  "protocolConfig": {
+    "chainId": "testnet",
+    "protocolVersion": 87
+  },
+  "enrollmentTransactionHash": "4haPcRjFUKaxRJ2GTrnYxGQ1VYTyYV9iqDEMWXpn8HZZ",
+  "final": {
+    "final_execution_status": "FINAL",
+    "receipts_outcome": [
+      {
+        "block_hash": "75aRzVc5oMTCjqAXrkAFM7xGb6yUvJvNpsMkCVeTyZSN",
+        "id": "5RAaj7dmrnw42piAC8Dx31Ju8AnXpNVNL4qNMjvmZC7i",
+        "outcome": {
+          "executor_id": "ml-dsa-enroll-7a0ba90ca33647f9.testnet",
+          "gas_burnt": 209824625000,
+          "logs": [],
+          "metadata": {
+            "contracts": [
+              null
+            ],
+            "gas_profile": [],
+            "version": 4
+          },
+          "receipt_ids": [
+            "BNnajmGdM9XrwYqDhoRrjR5wffnBHLvoYuhc67DqX4uY"
+          ],
+          "status": {
+            "SuccessValue": ""
+          },
+          "tokens_burnt": "20982462500000000000"
+        },
+        "proof": [
+          {
+            "direction": "Left",
+            "hash": "8iG2YwAsoVQHsoDo6tiPd8NMg7GPwAeC2D8zep1j6eLv"
+          }
+        ]
+      },
+      {
+        "block_hash": "5RUxxXctapsPsh4e3XN3Gi6CLVLBAnxdKPJjZfqAFsZ6",
+        "id": "BNnajmGdM9XrwYqDhoRrjR5wffnBHLvoYuhc67DqX4uY",
+        "outcome": {
+          "executor_id": "ml-dsa-enroll-7a0ba90ca33647f9.testnet",
+          "gas_burnt": 223182562500,
+          "logs": [],
+          "metadata": {
+            "contracts": [
+              null
+            ],
+            "gas_profile": [],
+            "version": 4
+          },
+          "receipt_ids": [],
+          "status": {
+            "SuccessValue": ""
+          },
+          "tokens_burnt": "0"
+        },
+        "proof": []
+      }
+    ],
+    "status": {
+      "SuccessValue": ""
+    },
+    "transaction": {
+      "actions": [
+        {
+          "AddKey": {
+            "access_key": {
+              "nonce": 0,
+              "permission": "FullAccess"
+            },
+            "public_key": "ml-dsa-65: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"
+          }
+        }
+      ],
+      "hash": "4haPcRjFUKaxRJ2GTrnYxGQ1VYTyYV9iqDEMWXpn8HZZ",
+      "nonce": 274062176000001,
+      "priority_fee": 0,
+      "public_key": "ed25519:58jgStUvU4Pz1EkzHXvFCu7WvzB4p59DWwNC2WC6adQd",
+      "receiver_id": "ml-dsa-enroll-7a0ba90ca33647f9.testnet",
+      "signature": "ed25519:2xWTz4bdCnMk6cm26mmwFaDTQsFCGvwMTNX9oj3yqMTPbEtSkoKVq227jjHrrRfWu7gFCf7WfCmC3vW3LsVW1yF",
+      "signer_id": "ml-dsa-enroll-7a0ba90ca33647f9.testnet"
+    },
+    "transaction_outcome": {
+      "block_hash": "75aRzVc5oMTCjqAXrkAFM7xGb6yUvJvNpsMkCVeTyZSN",
+      "id": "4haPcRjFUKaxRJ2GTrnYxGQ1VYTyYV9iqDEMWXpn8HZZ",
+      "outcome": {
+        "executor_id": "ml-dsa-enroll-7a0ba90ca33647f9.testnet",
+        "gas_burnt": 209824625000,
+        "logs": [],
+        "metadata": {
+          "gas_profile": null,
+          "version": 1
+        },
+        "receipt_ids": [
+          "5RAaj7dmrnw42piAC8Dx31Ju8AnXpNVNL4qNMjvmZC7i"
+        ],
+        "status": {
+          "SuccessReceiptId": "5RAaj7dmrnw42piAC8Dx31Ju8AnXpNVNL4qNMjvmZC7i"
+        },
+        "tokens_burnt": "20982462500000000000"
+      },
+      "proof": [
+        {
+          "direction": "Right",
+          "hash": "CJZeHsMuA9Bez7uJXnvffu5zLeKPh6iFnfx6nPkbyhwC"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "packages/wallet/src/core/signingEngine/walletCustody/mlDsaEnrollment.ts": "b716f102ca6c39a8a48596ca440c4d703b503e15a94f154fc7022aa15f7d70bf",
+    "tests/e2e/ml-dsa-enrollment.e2e.mjs": "86e96aa0f47d502d450a7ddbaa9e2666e9c1d919af3b9a2abfb4bdb17fce32a8",
+    "tools/ml-dsa-investigation/src/near_enrollment_fixture.rs": "568f827bdd11a8f751902782c3a0c523dbf204cc4aef2cea54fd340c9518f256",
+    "wasm/near_signer/src/ml_dsa_transaction.rs": "55ba188ebc6555e1bffbcc9f4fc4be3c3bea454dbf5abc3aa31cd858ecda2771"
+  }
+}

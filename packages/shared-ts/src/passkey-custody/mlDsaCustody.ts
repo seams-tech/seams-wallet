@@ -76,7 +76,7 @@ export function mlDsaProtocolMatchesPurpose(
 ): boolean {
   switch (purpose.kind) {
     case 'create':
-      return protocol.continuity.kind === 'create' && protocol.materialEpoch === 1;
+      return protocol.continuity.kind === 'create';
     case 'restore':
       return (
         protocol.continuity.kind === 'recover' &&
