@@ -5,11 +5,13 @@ use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand_chacha::ChaCha20Rng;
 use rand_core::SeedableRng;
+use rand_core_09::{OsRng, TryRngCore};
 
 use router_ab_core::{
-    Ed25519YaoCeremonyBindingV1, Ed25519YaoOperationV1, Ed25519YaoSessionIdV1,
-    Ed25519YaoStableKeyContextBindingV1, ExpensiveWorkKindV1, LifecycleScopeV1,
-    MpcMaterialActivationRefV1, RootShareEpoch, StableTenantDerivationContextV2,
+    Ed25519YaoCeremonyBindingV1, Ed25519YaoDeriverRoleV1, Ed25519YaoOperationV1,
+    Ed25519YaoPackageKindV1, Ed25519YaoSessionIdV1, Ed25519YaoStableKeyContextBindingV1,
+    ExpensiveWorkKindV1, LifecycleScopeV1, MpcMaterialActivationRefV1, RootShareEpoch,
+    StableTenantDerivationContextV2,
 };
 use router_ab_ecdsa_derivation::shared::secp256k1::{
     add_secp256k1_public_keys_33, secp256k1_private_key_32_to_public_key_33,
@@ -26,9 +28,11 @@ use router_ab_ed25519_yao::relay::{
 };
 use router_ab_ed25519_yao::{
     build_activation_deriver_a, build_activation_deriver_b, build_export_deriver_a,
-    build_export_deriver_b, ActivationDeriverA, ActivationDeriverAContribution, ActivationDeriverB,
-    ActivationDeriverBContribution, ExportDeriverA, ExportDeriverAContribution, ExportDeriverB,
-    ExportDeriverBContribution,
+    build_export_deriver_b, combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
+    combine_ed25519_yao_signing_worker_packages_v1, derive_ed25519_yao_recipient_key_pair_v1,
+    seal_ed25519_yao_package_v1, ActivationDeriverA, ActivationDeriverAContribution,
+    ActivationDeriverB, ActivationDeriverBContribution, Ed25519YaoSigningWorkerPackageDeliveryV1,
+    ExportDeriverA, ExportDeriverAContribution, ExportDeriverB, ExportDeriverBContribution,
 };
 use signer_core::ed25519_yao_derivation::{
     derive_ed25519_yao_client_contributions_v1,
@@ -300,6 +304,142 @@ fn derive_vector_contributions() -> (
     let server_b = derive_ed25519_yao_deriver_b_server_contribution_v1(&deriver_b_root, &context)
         .expect("B server KDF");
     (context, client_a, client_b, server_a, server_b)
+}
+
+fn vector_activation_deliveries(
+    binding: &Ed25519YaoCeremonyBindingV1,
+    recipient: [u8; 32],
+) -> (
+    Ed25519YaoSigningWorkerPackageDeliveryV1,
+    Ed25519YaoSigningWorkerPackageDeliveryV1,
+) {
+    let (context, client_a, client_b, server_a, server_b) = derive_vector_contributions();
+    let role_a = build_activation_deriver_a(
+        binding,
+        ActivationDeriverAContribution::base(&context, client_a, server_a),
+    )
+    .expect("vector Deriver A");
+    let role_b = build_activation_deriver_b(
+        binding,
+        ActivationDeriverBContribution::base(&context, client_b, server_b),
+    )
+    .expect("vector Deriver B");
+    let session = binding.session_id.into_bytes();
+    let (a, b) = run_roles(
+        session,
+        role_a,
+        role_b,
+        ActivationDeriverA::handle,
+        ActivationDeriverB::handle,
+        ActivationDeriverA::instruction,
+        ActivationDeriverB::instruction,
+    );
+    let transcript = a.final_transcript();
+    assert_eq!(transcript, b.final_transcript());
+    let mut os_rng = OsRng;
+    let mut rng = os_rng.unwrap_mut();
+    let a_package = seal_ed25519_yao_package_v1(
+        &mut rng,
+        Ed25519YaoPackageKindV1::ActivationSigningWorker,
+        Ed25519YaoDeriverRoleV1::DeriverA,
+        session,
+        transcript,
+        recipient,
+        &a.signing_worker_package().into_bytes(),
+    )
+    .expect("seal vector A package");
+    let b_package = seal_ed25519_yao_package_v1(
+        &mut rng,
+        Ed25519YaoPackageKindV1::ActivationSigningWorker,
+        Ed25519YaoDeriverRoleV1::DeriverB,
+        session,
+        transcript,
+        recipient,
+        &b.signing_worker_package().into_bytes(),
+    )
+    .expect("seal vector B package");
+    (
+        Ed25519YaoSigningWorkerPackageDeliveryV1 {
+            binding: binding.clone(),
+            client_commitment: a.client_commitment(),
+            signing_worker_commitment: a.signing_worker_commitment(),
+            package: a_package,
+        },
+        Ed25519YaoSigningWorkerPackageDeliveryV1 {
+            binding: binding.clone(),
+            client_commitment: b.client_commitment(),
+            signing_worker_commitment: b.signing_worker_commitment(),
+            package: b_package,
+        },
+    )
+}
+
+#[test]
+fn recovered_source_links_with_the_registered_key_vector_and_next_epoch() {
+    let recipient =
+        derive_ed25519_yao_recipient_key_pair_v1(&[0x71; 32]).expect("vector recipient");
+    let registered = binding(
+        Ed25519YaoOperationV1::Registration,
+        ExpensiveWorkKindV1::RegistrationPrepare,
+        [0x51; 32],
+    );
+    let (a, b) = vector_activation_deliveries(&registered, recipient.public_key);
+    let (source, _) =
+        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, None)
+            .expect("register vector source")
+            .into_parts();
+    let mut recovery = binding(
+        Ed25519YaoOperationV1::Recovery,
+        ExpensiveWorkKindV1::Recovery,
+        [0x52; 32],
+    );
+    recovery.material_activation.activation_id = "recovered-vector-material".to_owned();
+    let (a, b) = vector_activation_deliveries(&recovery, recipient.public_key);
+    let (recovered, _) =
+        combine_ed25519_yao_signing_worker_packages_v1(&recipient.private_key, a, b, Some(&source))
+            .expect("recover vector source")
+            .into_parts();
+    let mut target = binding(
+        Ed25519YaoOperationV1::Registration,
+        ExpensiveWorkKindV1::RegistrationPrepare,
+        [0x53; 32],
+    );
+    target.material_activation.activation_id = "linked-vector-material".to_owned();
+    let (a, b) = vector_activation_deliveries(&target, recipient.public_key);
+    let (linked, receipt) = combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+        &recipient.private_key,
+        a.clone(),
+        b.clone(),
+        &recovered,
+    )
+    .expect("link from recovered vector source")
+    .into_parts();
+    let expected =
+        decode_hex_32("ccd255d0b88721771947038f1a7c29b49eee3902d6aa732e5e448251537bf077");
+    assert_eq!(source.registered_public_key(), expected);
+    assert_eq!(recovered.registered_public_key(), expected);
+    assert_eq!(linked.registered_public_key(), expected);
+    assert_eq!(source.state_epoch().get(), 1);
+    assert_eq!(recovered.state_epoch().get(), 2);
+    assert_eq!(linked.state_epoch().get(), 3);
+    assert_eq!(receipt.state_epoch.get(), 3);
+    assert_eq!(linked.binding(), &target);
+    assert_eq!(recovered.binding(), &recovery);
+
+    let mut changed_a = a;
+    let mut changed_b = b;
+    changed_a.binding.stable_key_context_binding =
+        Ed25519YaoStableKeyContextBindingV1::new([0x99; 32]);
+    changed_b.binding = changed_a.binding.clone();
+    assert!(
+        combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+            &recipient.private_key,
+            changed_a,
+            changed_b,
+            &recovered,
+        )
+        .is_err()
+    );
 }
 
 #[test]

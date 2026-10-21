@@ -25,7 +25,9 @@ pub const ROUTER_ED25519_YAO_REPLAY_HEADER_V1: &str = "x-seams-yao-replay";
 
 /// Parses the Gateway replay header: absent or `0` is a first dispatch, `1` a
 /// replay, anything else a malformed request.
-pub fn parse_router_ed25519_yao_replay_header_v1(value: Option<&str>) -> RouterAbProtocolResult<bool> {
+pub fn parse_router_ed25519_yao_replay_header_v1(
+    value: Option<&str>,
+) -> RouterAbProtocolResult<bool> {
     match value {
         None | Some("0") => Ok(false),
         Some("1") => Ok(true),
@@ -141,11 +143,6 @@ impl CloudflareRouterEd25519YaoSourcePreservingExecuteRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         self.source_binding.validate()?;
         self.target.validate()?;
-        if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
-            return Err(invalid_source_preserving(
-                "source-preserving Router execution requires a registration source binding",
-            ));
-        }
         if self.target.target.operation() != Ed25519YaoOperationV1::Registration {
             return Err(invalid_source_preserving(
                 "source-preserving Router execution requires a registration target request",
@@ -164,8 +161,10 @@ pub(crate) fn validate_source_target_identity_v1(
 ) -> RouterAbProtocolResult<()> {
     source.validate()?;
     target.validate()?;
-    if source.operation != Ed25519YaoOperationV1::Registration
-        || target.operation != Ed25519YaoOperationV1::Registration
+    if !matches!(
+        source.operation,
+        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+    ) || target.operation != Ed25519YaoOperationV1::Registration
         || source.material_activation == target.material_activation
         || source.material_activation.kind != target.material_activation.kind
         || source.material_activation.capability != target.material_activation.capability

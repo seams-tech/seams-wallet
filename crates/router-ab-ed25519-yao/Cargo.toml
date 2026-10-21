@@ -31,5 +31,6 @@ ed25519-dalek = { version = "2.1", default-features = false, features = ["rand_c
 frost-ed25519 = { version = "2.2", default-features = false, features = ["serialization", "std"] }
 rand_chacha = "0.3"
 rand_core = "0.6.4"
+rand_core_09 = { package = "rand_core", version = "0.9.5", features = ["os_rng"] }
 router-ab-ecdsa-derivation = { path = "../router-ab-ecdsa-derivation" }
 threshold-prf = { path = "../threshold-prf" }

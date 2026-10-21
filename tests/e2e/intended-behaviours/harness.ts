@@ -1427,7 +1427,6 @@ export class IntendedBehaviourHarness {
         `wallet lists ${before.devices.length} linked devices before linking ${target}`,
       );
     }
-    const owner = requireSingleOwnerPasskey(before);
 
     const qr = await device2.showDeviceLinkQr();
     await this.ensureIntendedPageOpen();
@@ -1451,8 +1450,10 @@ export class IntendedBehaviourHarness {
         `${target} activated enrollment ${active.enrollmentId}; Device ${this.deviceNumber} approved ${approval.enrollmentId}`,
       );
     }
-    if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
-      throw new Error(`${target}'s Wallet Session names Device 1's founding method`);
+    for (const owner of before.ownerDevices) {
+      if (active.sessionWalletAuthMethodId === owner.walletAuthMethodId) {
+        throw new Error(`${target}'s Wallet Session names an existing owner method`);
+      }
     }
     const walletNearAccountId = registration.nearAccountId ?? null;
     const walletOperationalPublicKey = registration.operationalPublicKey ?? null;
@@ -7839,20 +7840,6 @@ function parseLinkedDeviceInventory(raw: unknown): LinkedDeviceInventorySnapshot
       };
     }),
   };
-}
-
-/** The wallet's one founding passkey method: the source Device 1 proves with. */
-function requireSingleOwnerPasskey(
-  inventory: LinkedDeviceInventorySnapshot,
-): LinkedDeviceOwnerMethodSnapshot & { readonly credentialIdB64u: string } {
-  const [owner, ...extra] = inventory.ownerDevices;
-  if (!owner || extra.length > 0) {
-    throw new Error(`expected one founding owner method, found ${inventory.ownerDevices.length}`);
-  }
-  if (owner.credentialKind !== 'passkey' || owner.credentialIdB64u === null) {
-    throw new Error(`founding owner method is ${owner.credentialKind}, not a passkey`);
-  }
-  return { ...owner, credentialIdB64u: owner.credentialIdB64u };
 }
 
 function assertOwnerDevicesUnchanged(

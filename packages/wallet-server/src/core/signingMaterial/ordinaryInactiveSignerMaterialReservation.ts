@@ -396,9 +396,6 @@ export function validateOrdinaryInactiveSignerMaterialReservationRequestV1(
         request.plannedActivationRef,
         routerAbMpcMaterialActivationRefFromWire(targetBinding.material_activation),
       );
-      if (request.preparation.sourceContribution.sourceBinding.operation !== 'registration') {
-        throw new Error('ordinary Ed25519 source contribution must use registration');
-      }
       parseRouterAbEd25519YaoParticipantIdsV1(request.preparation.sourceContribution.participantIds);
       return;
     }

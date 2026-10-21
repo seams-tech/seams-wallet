@@ -308,7 +308,7 @@ function freshTargetActivation(
 }
 
 function bindingWithMaterialActivation(
-  source: RouterAbEd25519YaoActivationBindingV1<'registration'>,
+  source: RouterAbEd25519YaoActivationBindingV1,
   materialActivation: MpcMaterialActivationRef,
 ): RouterAbEd25519YaoActivationBindingV1<'registration'> {
   const ceremonyIdentity = secureRandomBase64Url(
@@ -323,8 +323,8 @@ function bindingWithMaterialActivation(
   return {
     lifecycle: {
       lifecycle_id: `linked-device-source-preserving:${ceremonyIdentity}`,
-      work_kind: source.lifecycle.work_kind,
-      primitive_request_kind: source.lifecycle.primitive_request_kind,
+      work_kind: 'registration_prepare',
+      primitive_request_kind: 'registration',
       root_share_epoch: source.lifecycle.root_share_epoch,
       account_id: source.lifecycle.account_id,
       session_id: `linked-device-source-preserving:${ceremonyIdentity}`,

@@ -279,9 +279,12 @@ impl CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
     pub fn validate(&self) -> RouterAbProtocolResult<()> {
         crate::router_wallet::validate_wallet_ownership_generation(self.ownership_generation)?;
         self.source_binding.validate()?;
-        if self.source_binding.operation != Ed25519YaoOperationV1::Registration {
+        if !matches!(
+            self.source_binding.operation,
+            Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+        ) {
             return Err(invalid_lifecycle(
-                "source-preserving ordinary activation requires a registration source binding",
+                "source-preserving ordinary activation requires a registration or recovery source binding",
             ));
         }
         validate_inactive_reservation_parts_v1(
@@ -2927,7 +2930,7 @@ mod tests {
     }
 
     #[test]
-    fn source_preserving_reservation_request_is_strict_and_registration_only() {
+    fn source_preserving_reservation_request_has_a_strict_wire_shape() {
         let source_binding = source_preserving_test_binding(
             Ed25519YaoOperationV1::Registration,
             1,
@@ -2972,16 +2975,6 @@ mod tests {
             CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
         >(wire)
         .is_err());
-
-        let recovery_source = CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1 {
-            source_binding: source_preserving_test_binding(
-                Ed25519YaoOperationV1::Recovery,
-                1,
-                "source-activation",
-            ),
-            ..request
-        };
-        assert!(recovery_source.validate().is_err());
     }
 
     #[test]

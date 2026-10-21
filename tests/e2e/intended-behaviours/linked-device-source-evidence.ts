@@ -11,19 +11,28 @@ import { createD1LinkedDeviceVerifiedLinkSourceReaderV1 } from '@server/router/c
 import { D1WalletAuthorityStore } from '@server/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
 import { openReadOnlyGatewayD1 } from './local-gateway-database';
 
-export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<void> {
+export async function verifyLinkSource(
+  testInfo: TestInfo,
+  provenance: 'wallet_registration' | 'wallet_recovery',
+): Promise<void> {
   const opened = await openReadOnlyGatewayD1();
   try {
     const { database } = opened;
     const sessions = await database
       .prepare(
         `
-      SELECT namespace, org_id, project_id, env_id, tenant_id, wallet_id,
-             wallet_session_id, authorization_id
-        FROM wallet_session_authorizations_v2
-       WHERE retired_at_ms IS NULL
+      SELECT session.namespace, session.org_id, session.project_id, session.env_id,
+             session.tenant_id, session.wallet_id, session.wallet_session_id,
+             session.authorization_id
+        FROM wallet_session_authorizations_v2 AS session
+        JOIN wallet_authorities AS authority
+          ON authority.namespace = session.namespace AND authority.org_id = session.org_id
+         AND authority.project_id = session.project_id AND authority.env_id = session.env_id
+         AND authority.authority_id = session.authority_id
+       WHERE session.retired_at_ms IS NULL AND authority.provenance_kind = ?
     `,
       )
+      .bind(provenance)
       .all<Record<string, unknown>>();
     expect(sessions.results?.length).toBeGreaterThan(0);
     const verified = [];
@@ -36,7 +45,7 @@ export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<vo
       };
       const tenantId = parseTenantId(row.tenant_id);
       const walletId = parseWalletId(row.wallet_id);
-      if (!tenantId.ok || !walletId.ok) throw new Error('Invalid registered source identity');
+      if (!tenantId.ok || !walletId.ok) throw new Error('Invalid link source identity');
       const authorizationService = new CloudflareD1AuthorizationStore({
         database,
         namespace: scope.namespace,
@@ -57,10 +66,11 @@ export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<vo
           keyFamily,
           requestedAtMs: Date.now(),
         });
-        expect(source.authority.provenance.kind).toBe('wallet_registration');
+        expect(source.authority.provenance.kind).toBe(provenance);
         expect(source.signerManifest.keyFamilies).toEqual(['ed25519', 'ecdsa_secp256k1']);
         verified.push({
           scope,
+          provenance,
           walletId: walletId.value,
           keyFamily,
           authorityId: source.authority.authorityId,
@@ -72,22 +82,22 @@ export async function verifyRegisteredLinkSource(testInfo: TestInfo): Promise<vo
     }
     const evidence = JSON.stringify(
       {
-        kind: 'registered_link_source_evidence_v1',
+        kind: 'link_source_evidence_v1',
         scope:
-          'Real local registration resolved through production Wallet Session, auth-method, authority and signer readers before linking; regional placement remains a separate gate.',
+          'Real local owner resolved through production Wallet Session, auth-method, authority and signer readers before linking; regional placement remains a separate gate.',
         verified,
       },
       null,
       2,
     );
-    await testInfo.attach('registered-link-source', {
+    await testInfo.attach('link-source', {
       body: evidence,
       contentType: 'application/json',
     });
     const traceDirectory = process.env.SEAMS_INTENDED_TRACE_DIR;
     if (traceDirectory) {
       await mkdir(traceDirectory, { recursive: true });
-      await writeFile(path.join(traceDirectory, 'registered-link-source.json'), `${evidence}\n`);
+      await writeFile(path.join(traceDirectory, 'link-source.json'), `${evidence}\n`);
     }
   } finally {
     opened.close();

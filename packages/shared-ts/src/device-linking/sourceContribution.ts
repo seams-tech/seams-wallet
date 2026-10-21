@@ -24,7 +24,7 @@ import {
 } from '../passkey-custody/primitives';
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import {
-  parseRouterAbEd25519YaoCeremonyBindingV1,
+  parseRouterAbEd25519YaoActivationBindingV1,
   parseRouterAbEd25519YaoApplicationBindingFactsV1,
   parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1,
   parseRouterAbEd25519YaoActivationPublicReceiptV1,
@@ -32,6 +32,7 @@ import {
   parseRouterAbEd25519YaoParticipantIdsV1,
   sameRouterAbEd25519YaoByteSequence,
   type RouterAbEd25519YaoCeremonyBindingV1,
+  type RouterAbEd25519YaoActivationBindingV1,
   type RouterAbEd25519YaoActivationAdmissionReceiptV1,
   type RouterAbEd25519YaoActivationPublicReceiptV1,
   type RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -99,7 +100,7 @@ export type LinkedDeviceEd25519SourceContributionPreparationV1 = {
   readonly walletKeyId: WalletKeyId;
   readonly targetDeviceId: DeviceId;
   readonly targetFactorVerificationDigestB64u: DigestB64u;
-  readonly sourceBinding: RouterAbEd25519YaoCeremonyBindingV1;
+  readonly sourceBinding: RouterAbEd25519YaoActivationBindingV1;
   readonly targetAdmission: RouterAbEd25519YaoActivationAdmissionReceiptV1<'registration'>;
   readonly applicationBinding: RouterAbEd25519YaoApplicationBindingFactsV1;
   readonly sourceRevocationEpoch: number;
@@ -175,10 +176,10 @@ export type LinkedDeviceEd25519SourceContributionV1 = {
   readonly targetClientRecipientPublicKeyB64u: string;
   readonly targetSigningWorkerRecipientPublicKeyB64u: string;
   readonly sourceRegisteredPublicKeyB64u: Ed25519PublicKeyB64u;
-  readonly sourceBinding: RouterAbEd25519YaoCeremonyBindingV1;
+  readonly sourceBinding: RouterAbEd25519YaoActivationBindingV1;
   /** Exact inactive reservation returned by Router source-preserving execution. */
   readonly reservationId: string;
-  readonly targetBinding: RouterAbEd25519YaoCeremonyBindingV1;
+  readonly targetBinding: RouterAbEd25519YaoActivationBindingV1<'registration'>;
   readonly activationReceipt: RouterAbEd25519YaoActivationPublicReceiptV1;
   readonly participantIds: readonly [number, number];
   readonly deriver_a_client_package: RouterAbEd25519YaoActivationClientPackageV1<'deriver_a'>;
@@ -395,7 +396,7 @@ function parseEd25519SourceContributionPreparation(
   if (record.kind !== 'linked_device_ed25519_source_contribution_preparation_v1') {
     throw new Error('linked-device Ed25519 source contribution preparation kind is invalid');
   }
-  const sourceBinding = parseRegistrationBinding(record.sourceBinding, 'sourceBinding');
+  const sourceBinding = parseRouterAbEd25519YaoActivationBindingV1(record.sourceBinding);
   const targetAdmissionResult = parseRouterAbEd25519YaoRegistrationActivationAdmissionReceiptV1(
     record.targetAdmission,
   );
@@ -583,7 +584,7 @@ function parseEd25519Contribution(
   if (record.keyFamily !== 'ed25519') {
     throw new Error('linked-device Ed25519 source contribution family is invalid');
   }
-  const sourceBinding = parseRegistrationBinding(record.sourceBinding, 'sourceBinding');
+  const sourceBinding = parseRouterAbEd25519YaoActivationBindingV1(record.sourceBinding);
   const targetMaterialActivation = parseActivation(
     record.targetMaterialActivation,
     'source contribution targetMaterialActivation',
@@ -1119,8 +1120,8 @@ export function parseLinkedDeviceEcdsaEncryptedSourceContributionV1(
 function parseRegistrationBinding(
   raw: unknown,
   label: string,
-): RouterAbEd25519YaoCeremonyBindingV1 {
-  const binding = parseRouterAbEd25519YaoCeremonyBindingV1(raw);
+): RouterAbEd25519YaoActivationBindingV1<'registration'> {
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(raw);
   if (binding.operation !== 'registration') {
     throw new Error(`${label} must use the registration operation`);
   }
@@ -1162,7 +1163,6 @@ function sameEdStableIdentity(
   right: RouterAbEd25519YaoCeremonyBindingV1,
 ): boolean {
   return (
-    left.operation === right.operation &&
     left.stable_key_context_binding.every(
       (value, index) => value === right.stable_key_context_binding[index],
     ) &&

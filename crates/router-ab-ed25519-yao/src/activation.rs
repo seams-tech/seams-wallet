@@ -222,9 +222,9 @@ pub fn combine_ed25519_yao_signing_worker_packages_v1(
 /// Combines a fresh ordinary activation while preserving an exact source key.
 ///
 /// Device linking creates a new Registration binding and fresh shares. The
-/// source material is used only to authenticate public-key continuity and to
-/// advance the Signing Worker state epoch; no recovery lifecycle state is
-/// involved.
+/// active registration or recovery material authenticates public-key continuity.
+/// The target receives the next Signing Worker state epoch while the source
+/// remains unchanged.
 pub fn combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
     private_key: &Ed25519YaoRecipientPrivateKeyV1,
     deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
@@ -232,9 +232,12 @@ pub fn combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
     source: &Ed25519YaoActiveSigningMaterialV1,
 ) -> RouterAbProtocolResult<Ed25519YaoSigningWorkerActivationCandidateV1> {
     source.validate()?;
-    if source.binding().operation != Ed25519YaoOperationV1::Registration {
+    if !matches!(
+        source.binding().operation,
+        Ed25519YaoOperationV1::Registration | Ed25519YaoOperationV1::Recovery
+    ) {
         return Err(invalid_activation(
-            "source-preserving ordinary activation requires registered source material",
+            "source-preserving ordinary activation requires registration or recovery source material",
         ));
     }
     deriver_a.validate_for_deriver(Ed25519YaoDeriverRoleV1::DeriverA)?;

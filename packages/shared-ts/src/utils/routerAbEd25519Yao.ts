@@ -859,9 +859,10 @@ function parseExportBinding(value: unknown): RouterAbEd25519YaoExportBindingV1 {
   };
 }
 
-function requireActivationBinding(
-  binding: RouterAbEd25519YaoCeremonyBindingV1,
+export function parseRouterAbEd25519YaoActivationBindingV1(
+  value: unknown,
 ): RouterAbEd25519YaoActivationBindingV1 {
+  const binding = parseCeremonyBinding(value);
   switch (binding.operation) {
     case 'registration':
       if (
@@ -1470,7 +1471,7 @@ function parseActivationAdmissionReceiptValue(
 ): RouterAbEd25519YaoActivationAdmissionReceiptV1 {
   const record = requireRecord(value, 'activation admission receipt');
   requireExactKeys(record, 'activation admission receipt', ['binding', 'keyset']);
-  const binding = requireActivationBinding(parseCeremonyBinding(record.binding));
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(record.binding);
   const keyset = parseKeyset(record.keyset);
   switch (binding.operation) {
     case 'registration':
@@ -1489,7 +1490,7 @@ function parseActivationExecuteRequestValue(
     'deriver_a_input',
     'deriver_b_input',
   ]);
-  const binding = requireActivationBinding(parseCeremonyBinding(record.binding));
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(record.binding);
   const deriverAInput = requireActivationInput(
     binding,
     parseEncryptedInput(record.deriver_a_input, 'deriver_a_input'),
@@ -1522,7 +1523,7 @@ function parseActivationResultValue(value: unknown): RouterAbEd25519YaoActivatio
     'deriver_b_client_package',
     'public_receipt',
   ]);
-  const binding = requireActivationBinding(parseCeremonyBinding(record.binding));
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(record.binding);
   const receipt = parseRouterAbEd25519YaoActivationPublicReceiptV1(record.public_receipt);
   if (
     !sameRouterAbMpcMaterialActivationRef(binding.material_activation, receipt.material_activation)
@@ -1570,7 +1571,7 @@ function parseActivationResultValue(value: unknown): RouterAbEd25519YaoActivatio
 }
 
 function requireRecoveryBinding(value: unknown): RouterAbEd25519YaoActivationBindingV1<'recovery'> {
-  const binding = requireActivationBinding(parseCeremonyBinding(value));
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(value);
   switch (binding.operation) {
     case 'registration':
       throw new Error('recovery activation requires a recovery binding');

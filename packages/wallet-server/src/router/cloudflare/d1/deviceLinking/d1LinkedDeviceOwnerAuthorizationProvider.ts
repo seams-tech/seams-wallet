@@ -34,6 +34,7 @@ import {
 } from '@shared/utils/domainIds';
 import { parseSecp256k1CompressedPublicKeyB64u } from '@shared/passkey-custody/primitives';
 import { deriveRouterAbEd25519YaoApplicationBindingDigestV1 } from '@shared/utils/routerAbEd25519YaoDigests';
+import { parseRouterAbEd25519YaoActivationBindingV1 } from '@shared/utils/routerAbEd25519Yao';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { ActiveLaneProtocolSourceV1 } from '@shared/signing-lanes/rotation';
@@ -286,7 +287,7 @@ function linkedEd25519SourceChildResolutionV1(
   resolution: Extract<LinkedDeviceOwnerSourceChildResolutionV1, { keyFamily: 'ed25519' }>,
   linked: InstalledLinkedDeviceEd25519AuthorityProjectionV1,
 ): LinkedDeviceOwnerSourceChildResolutionV1 | null {
-  const binding = linked.targetBinding;
+  const binding = parseRouterAbEd25519YaoActivationBindingV1(linked.targetBinding);
   if (
     binding.operation !== 'registration' ||
     base64UrlEncode(Uint8Array.from(binding.stable_key_context_binding)) !==
@@ -422,11 +423,7 @@ async function sourceChildResolutionFromSignerV1(input: {
   const source = ownerLaneProtocolSourceV1(input.projection);
   if (input.signer.version === 'wallet_signer_ed25519_v1') {
     if (input.projection.walletKey.keyFamily !== 'ed25519') return null;
-    if (input.signer.activeYaoCapability.activationResult.binding.operation !== 'registration') {
-      return null;
-    }
     const capability = input.signer.activeYaoCapability;
-    if (capability.version !== 'wallet_ed25519_yao_registration_capability_v1') return null;
     const application = capability.admissionRequest.application_binding;
     const applicationBindingDigestB64u = parseDigestB64u(
       base64UrlEncode(

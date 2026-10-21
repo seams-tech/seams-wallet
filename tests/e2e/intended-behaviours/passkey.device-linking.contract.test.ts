@@ -1,5 +1,5 @@
 import { verifyLinkedDeviceCleanup } from './linked-device-cleanup-evidence';
-import { verifyRegisteredLinkSource } from './linked-device-source-evidence';
+import { verifyLinkSource } from './linked-device-source-evidence';
 import { LostLinkedAcknowledgement } from './linked-device-acknowledgement-fault';
 import {
   expect,
@@ -143,7 +143,7 @@ for (const scenario of [
        before Device 1 approves; otherwise Device 2 would join without it. */
     await harness.awaitNearReady();
 
-    await verifyRegisteredLinkSource(testInfo);
+    await verifyLinkSource(testInfo, 'wallet_registration');
 
     const contexts = browser.contexts();
     const device2 = await harness.openLinkedDevice(browser);
@@ -187,6 +187,53 @@ for (const scenario of [
     await harness.signTempoTransaction('post_registration');
   });
 }
+
+test('a recovered owner reloads, unlocks, links with lost replies, and revokes the linked device', async ({
+  harness,
+  browser,
+}, testInfo) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  await harness.recoverPasskeyWalletFromFreshBrowser();
+  await harness.assertRecoveryAuthorityIsAdditive('passkey');
+  await harness.assertLockedPageReloadStaysLocked();
+  await harness.unlockPasskeyWallet();
+  await verifyLinkSource(testInfo, 'wallet_recovery');
+  await harness.signNearTransaction('post_unlock');
+
+  const contexts = browser.contexts();
+  const device = await harness.openLinkedDevice(browser);
+  const lostAcknowledgement = new LostLinkedAcknowledgement(
+    newlyOpenedContext(browser, contexts),
+    2,
+  );
+  await lostAcknowledgement.arm();
+  const lostExecute = await harness.loseLinkExecuteRouterResponseOnce();
+  const lostActivation = await device.loseLinkedActivationResponseOnce();
+  try {
+    await harness.linkDeviceWithPasskey(device);
+  } finally {
+    await lostAcknowledgement.release();
+    await lostActivation.release();
+    await lostExecute.release();
+  }
+  lostExecute.assertReplayed();
+  lostActivation.assertReplayed();
+  await lostAcknowledgement.verify(testInfo);
+  await device.signNearTransaction('post_device_link');
+  await device.signTempoTransaction('post_device_link');
+  await device.assertLockedPageReloadStaysLocked();
+  await device.unlockPasskeyWallet();
+  await device.signNearTransaction('post_unlock');
+  await device.exportEd25519Key();
+  await device.exportEcdsaKey();
+  await verifyLinkedDeviceCleanup(testInfo, lostAcknowledgement.retainedProofNonces());
+
+  await harness.revokeLinkedDeviceWithOwnerPasskey();
+  await device.assertRevokedDeviceCannotSign();
+  await harness.signNearTransaction('post_unlock');
+  await harness.signTempoTransaction('post_unlock');
+});
 
 /**
  * A linked device holds full owner authority, including linking. On a wallet

@@ -1422,6 +1422,10 @@ Expected behaviour:
   on the source authority. The wallet's public signer identities remain
   unchanged, and Device 1's authority, methods, material, sessions, and
   revocation epoch remain unchanged.
+- An active owner created through recovery can link a device after reload and
+  unlock. Its exact active Ed25519 binding may come from registration or recovery.
+  The target always uses a fresh registration binding and preserves the public key,
+  stable context, participant identifiers, and root-share epoch.
 - Device 2 never receives the wallet custody seed. An Ed25519 installation
   with `export_keys` receives only the one-use encrypted Yao Client export
   root and seals it under the verified target method.
@@ -1508,6 +1512,7 @@ restore, lane selection, or budget handling.
 | Adding Passkey reuses the Email OTP authority and enables every allowed signer and export family                 | `tests/e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts`                                            |
 | Auth-method addition works for Ed25519-only and ECDSA-only authorities                                           | `tests/e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts`                                      |
 | Passkey recovery preserves public identities, signs through the fresh authority, and refuses code reuse          | `tests/e2e/intended-behaviours/passkey.recovery.contract.test.ts`                                                 |
+| Recovered owners link after reload and unlock, preserving signing, export, retries, and revocation                | `tests/e2e/intended-behaviours/passkey.device-linking.contract.test.ts`                                           |
 | Google/Email OTP recovery preserves public identities, signs through the fresh authority, and refuses code reuse | `tests/e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts`                                        |
 | Tenant-root rotation preserves signing and recovery across operational-share changes                             | Private acceptance coverage: `seams-monorepo/tests/e2e/intended-behaviours/tenant-root.rotation.contract.test.ts` |
 | Sibling revocation, inventory UI, and exact Email OTP boundary failures                                          | Private focused coverage in `seams-monorepo/tests/unit` as mapped by the owning change.                           |
