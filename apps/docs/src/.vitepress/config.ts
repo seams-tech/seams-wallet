@@ -1,4 +1,5 @@
 import { defineConfig, type DefaultTheme } from 'vitepress';
+import { docPagePath, hasJapaneseTranslation, japaneseSidebarItem, localizedDocLink } from './i18n';
 
 const docsOrigin = (process.env.VITE_DOCS_ORIGIN || 'https://wallet.seams.sh/docs').replace(
   /\/$/,
@@ -11,8 +12,7 @@ const walletSiteOrigin = (process.env.VITE_WALLET_SITE_ORIGIN || 'https://wallet
 );
 
 function pageUrl(page: string): string {
-  const route = page.replace(/(?:^|\/)index\.md$/, '').replace(/\.md$/, '');
-  return route ? `${docsOrigin}/${route}` : docsOrigin;
+  return `${docsOrigin}${docPagePath(page)}`;
 }
 
 function sitemapPages<T extends { url: string }>(items: T[]): T[] {
@@ -227,6 +227,39 @@ export default defineConfig({
   lastUpdated: true,
   title: 'Seams',
   description: 'Key and credential infrastructure for policy-bound digital authority',
+  locales: {
+    root: { label: 'English', lang: 'en' },
+    ja: {
+      label: '日本語',
+      lang: 'ja',
+      description:
+        'Seamsの導入、ウォレットの作成、署名を学ぶ開発者向けドキュメント。日本語版は試験公開中です。',
+      themeConfig: {
+        logoLink: `${walletSiteOrigin}/ja/`,
+        nav: [
+          { text: 'ドキュメント', link: '/ja/', activeMatch: '^/ja/' },
+          { text: 'SDKリファレンス', link: '/reference/' },
+        ],
+        sidebar: documentationSidebar.map(japaneseSidebarItem),
+        outline: { level: [2, 3], label: 'このページの内容' },
+        lastUpdated: { text: '最終更新' },
+        docFooter: { prev: '前のページ', next: '次のページ' },
+        sidebarMenuLabel: 'メニュー',
+        returnToTopLabel: 'ページの先頭へ',
+        langMenuLabel: '言語を選択',
+        skipToContentLabel: '本文へ移動',
+        darkModeSwitchLabel: '表示テーマ',
+        lightModeSwitchTitle: 'ライトモードに切り替え',
+        darkModeSwitchTitle: 'ダークモードに切り替え',
+        notFound: {
+          title: 'ページが見つかりません',
+          quote: 'URLを確認するか、ドキュメントの先頭へ戻ってください。',
+          linkLabel: 'はじめに戻る',
+          linkText: 'はじめに戻る',
+        },
+      },
+    },
+  },
   sitemap: {
     hostname: docsOrigin,
     transformItems: sitemapPages,
@@ -239,11 +272,43 @@ export default defineConfig({
   ],
   transformHead({ page, title, description }) {
     const canonicalUrl = pageUrl(page);
+    const path = docPagePath(page);
+    const alternates: [string, Record<string, string>][] = [];
+    if (hasJapaneseTranslation(path)) {
+      alternates.push(
+        [
+          'link',
+          {
+            rel: 'alternate',
+            hreflang: 'en',
+            href: `${docsOrigin}${localizedDocLink(path, 'en')}`,
+          },
+        ],
+        [
+          'link',
+          {
+            rel: 'alternate',
+            hreflang: 'ja',
+            href: `${docsOrigin}${localizedDocLink(path, 'ja')}`,
+          },
+        ],
+        [
+          'link',
+          {
+            rel: 'alternate',
+            hreflang: 'x-default',
+            href: `${docsOrigin}${localizedDocLink(path, 'en')}`,
+          },
+        ],
+      );
+    }
     return [
       ['link', { rel: 'canonical', href: canonicalUrl }],
+      ...alternates,
       ['meta', { property: 'og:title', content: title }],
       ['meta', { property: 'og:description', content: description }],
       ['meta', { property: 'og:url', content: canonicalUrl }],
+      ['meta', { property: 'og:locale', content: path.startsWith('/ja/') ? 'ja_JP' : 'en_US' }],
       ['meta', { name: 'twitter:title', content: title }],
       ['meta', { name: 'twitter:description', content: description }],
     ];
@@ -267,7 +332,33 @@ export default defineConfig({
     logoLink: walletSiteOrigin,
     lastUpdated: { text: 'Last updated' },
     outline: [2, 3],
-    search: { provider: 'local' },
+    search: {
+      provider: 'local',
+      options: {
+        locales: {
+          ja: {
+            translations: {
+              button: { buttonText: '検索', buttonAriaLabel: 'ドキュメントを検索' },
+              modal: {
+                displayDetails: '詳細を表示',
+                resetButtonTitle: '検索をクリア',
+                backButtonTitle: '検索を閉じる',
+                noResultsText: '一致する結果が見つかりません',
+                footer: {
+                  selectText: '選択',
+                  selectKeyAriaLabel: 'Enterキー',
+                  navigateText: '移動',
+                  navigateUpKeyAriaLabel: '上矢印キー',
+                  navigateDownKeyAriaLabel: '下矢印キー',
+                  closeText: '閉じる',
+                  closeKeyAriaLabel: 'Escapeキー',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     nav: [
       { text: 'Documentation', link: '/', activeMatch: '^/(?!reference)' },
       { text: 'SDK reference', link: '/reference/', activeMatch: '^/reference/' },

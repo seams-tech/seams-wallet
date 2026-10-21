@@ -119,6 +119,16 @@
   display: none;
 }
 
+html:lang(ja) {
+  --vp-font-family-base: 'Inter', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+  line-break: strict;
+}
+
+html:lang(ja) .seams-doc-header__title {
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
 /* The sidebar shares the content's white and is separated by a rule, not by
    a tint. */
 .Layout .VPSidebar {

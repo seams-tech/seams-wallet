@@ -2,8 +2,13 @@
 import { computed, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
 import type { DefaultTheme } from 'vitepress/theme';
+import { docPagePath, docsMessages, localizedDocLink } from '../i18n';
 
-const { frontmatter, page, theme } = useData();
+const { frontmatter, lang, page, theme } = useData();
+const messages = computed(() => docsMessages[lang.value === 'ja' ? 'ja' : 'en']);
+const englishLink = computed(() =>
+  withBase(localizedDocLink(docPagePath(page.value.relativePath), 'en')),
+);
 
 function normalize(link: string): string {
   const path = link.replace(/index\.md$/, '').replace(/\.md$/, '');
@@ -52,7 +57,11 @@ async function copyPage(): Promise<void> {
 <template>
   <header class="seams-doc-header">
     <div class="seams-doc-header__bar">
-      <nav v-if="crumbs.length" class="seams-doc-header__breadcrumb" aria-label="Breadcrumb">
+      <nav
+        v-if="crumbs.length"
+        class="seams-doc-header__breadcrumb"
+        :aria-label="messages.breadcrumb"
+      >
         <template v-for="(crumb, index) in crumbs" :key="crumb.text">
           <a v-if="crumb.link" :href="withBase(crumb.link)">{{ crumb.text }}</a>
           <span v-else>{{ crumb.text }}</span>
@@ -77,9 +86,16 @@ async function copyPage(): Promise<void> {
           <rect width="14" height="14" x="8" y="8" rx="2" />
           <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
         </svg>
-        {{ copied ? 'Copied' : 'Copy page' }}
+        {{ copied ? messages.copied : messages.copyPage }}
       </button>
     </div>
+    <aside v-if="lang === 'ja'" class="seams-doc-header__translation" role="note">
+      <strong>日本語版（試験公開）</strong>
+      <p>
+        導入ガイドを先行公開しています。翻訳は調整中です。その他のページは英語版へ移動します。
+        <a :href="englishLink" lang="en">English</a>
+      </p>
+    </aside>
     <h1 class="seams-doc-header__title">{{ page.title }}</h1>
     <p v-if="frontmatter.description" class="seams-doc-header__subtitle">
       {{ frontmatter.description }}
@@ -99,6 +115,31 @@ async function copyPage(): Promise<void> {
   gap: 16px;
   min-height: 32px;
   margin-bottom: 12px;
+}
+
+.seams-doc-header__translation {
+  margin-bottom: 24px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: var(--vp-c-bg-soft);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--vp-c-text-2);
+}
+
+.seams-doc-header__translation strong {
+  color: var(--vp-c-text-1);
+}
+
+.seams-doc-header__translation p {
+  margin: 4px 0 0;
+}
+
+.seams-doc-header__translation a {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .seams-doc-header__title {

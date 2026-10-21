@@ -50,3 +50,19 @@ The production canonical origin is `https://wallet.seams.sh/docs`. The default
 base path is `/docs/`. Local preview uses VitePress with that base path.
 The private repository serves a staged static copy; it does not own another
 documentation source tree.
+
+## Languages
+
+English lives at `/docs/`. Tentative Japanese support lives at `/docs/ja/`.
+The Japanese edition currently covers installation and the four getting-started
+guides. The sidebar and footer link to the English edition for other topics.
+A notice on each Japanese page states that translation is in progress.
+
+Use the language selector in the sidebar or footer to switch editions. It keeps
+the current page, query, and heading anchor when a Japanese translation exists.
+For untranslated pages, selecting Japanese opens the Japanese start page.
+
+Keep translated Markdown in `src/ja/`. Import the same runnable examples from
+`src/examples`; do not duplicate example code. Preserve the English heading IDs
+with explicit `{#heading-id}` anchors. Add each translated route to `japanesePages`
+in `src/.vitepress/i18n.ts` so the sidebar, switcher, and alternate metadata agree.

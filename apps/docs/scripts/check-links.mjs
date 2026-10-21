@@ -92,7 +92,8 @@ function headingSlugs(sourceFile) {
     const match = line.match(/^#{1,6}\s+(.+?)\s*$/);
     if (!match) continue;
 
-    const baseSlug = slugifyHeading(headingText(match[1]));
+    const explicitId = match[1].match(/\s+\{#([^\s}]+)\}\s*$/)?.[1];
+    const baseSlug = explicitId ?? slugifyHeading(headingText(match[1]));
     const count = used.get(baseSlug) ?? 0;
     used.set(baseSlug, count + 1);
     slugs.add(count === 0 ? baseSlug : `${baseSlug}-${count}`);

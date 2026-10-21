@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, ref, watchPostEffect } from 'vue';
+import { computed, inject } from 'vue';
 import { useData } from 'vitepress';
 import { VPImage, VPNavBarSearch } from 'vitepress/theme';
+import LanguageSelector from './LanguageSelector.vue';
 
 const { isDark, site, theme } = useData();
 
@@ -16,10 +17,12 @@ const toggleAppearance = inject('toggle-appearance', () => {
   isDark.value = !isDark.value;
 });
 
-const switchTitle = ref('');
-watchPostEffect(() => {
-  switchTitle.value = isDark.value ? 'Switch to light theme' : 'Switch to dark theme';
-});
+function appearanceTitle(): string {
+  if (isDark.value) return theme.value.lightModeSwitchTitle ?? 'Switch to light theme';
+  return theme.value.darkModeSwitchTitle ?? 'Switch to dark theme';
+}
+
+const switchTitle = computed(appearanceTitle);
 </script>
 
 <template>
@@ -42,6 +45,7 @@ watchPostEffect(() => {
       </button>
     </div>
     <VPNavBarSearch class="seams-sidebar-header__search" />
+    <LanguageSelector class="seams-sidebar-header__language" />
   </div>
 </template>
 
@@ -56,6 +60,10 @@ watchPostEffect(() => {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.seams-sidebar-header__language {
+  margin-top: 12px;
 }
 
 .seams-sidebar-header__brand {
