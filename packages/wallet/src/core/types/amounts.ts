@@ -51,8 +51,8 @@ export function parseUnits(amount: string, decimals: number): bigint {
 
 /**
  * A NEAR amount in yoctoNEAR (1 NEAR = 10^24 yoctoNEAR), as a canonical
- * non-negative integer string. Only `near` and `yoctoNear` produce one, so an
- * amount reaches `transfer` already checked.
+ * non-negative integer string. Only `parseNear` and `yoctoNear` produce one,
+ * so an amount reaches `transfer` already checked.
  */
 export type YoctoNear = string & { readonly __yoctoNearBrand: 'YoctoNear' };
 
@@ -60,12 +60,12 @@ export type YoctoNear = string & { readonly __yoctoNearBrand: 'YoctoNear' };
  * Convert a decimal NEAR amount to yoctoNEAR.
  *
  * @example
- * near('1'); // '1000000000000000000000000'
- * near('0.5'); // '500000000000000000000000'
+ * parseNear('1'); // '1000000000000000000000000'
+ * parseNear('0.5'); // '500000000000000000000000'
  *
  * @throws {AmountError} as `parseUnits`, with at most 24 decimal places.
  */
-export function near(amount: string): YoctoNear {
+export function parseNear(amount: string): YoctoNear {
   return parseUnits(amount, 24).toString() as YoctoNear;
 }
 
@@ -89,11 +89,11 @@ export function yoctoNear(amount: string | bigint): YoctoNear {
  * and Base, POL on Polygon, and so on.
  *
  * @example
- * ether('1'); // 1000000000000000000n
- * ether('0.5'); // 500000000000000000n
+ * parseEther('1'); // 1000000000000000000n
+ * parseEther('0.5'); // 500000000000000000n
  *
  * @throws {AmountError} as `parseUnits`, with at most 18 decimal places.
  */
-export function ether(amount: string): bigint {
+export function parseEther(amount: string): bigint {
   return parseUnits(amount, 18);
 }

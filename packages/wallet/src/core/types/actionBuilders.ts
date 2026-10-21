@@ -43,11 +43,11 @@ export function functionCall(args: {
 }
 
 /**
- * Transfer NEAR. Build `amount` with `near` for a decimal NEAR amount, or with
+ * Transfer NEAR. Build `amount` with `parseNear` for a decimal NEAR amount, or with
  * `yoctoNear` for an amount that is already in yoctoNEAR.
  *
  * @example
- * transfer(near('1')); // 1 NEAR
+ * transfer(parseNear('1')); // 1 NEAR
  * transfer(yoctoNear('1000000000000000000000000')); // also 1 NEAR
  */
 export function transfer(amount: YoctoNear): TransferAction {

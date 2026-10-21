@@ -240,7 +240,7 @@ export {
   stake,
   transfer,
 } from './core/types/actionBuilders';
-export { AmountError, ether, near, parseUnits, yoctoNear } from './core/types/amounts';
+export { AmountError, parseEther, parseNear, parseUnits, yoctoNear } from './core/types/amounts';
 export type { AmountErrorCode, YoctoNear } from './core/types/amounts';
 
 // === Event logging ===

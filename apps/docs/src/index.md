@@ -70,11 +70,11 @@ Build actions with helpers such as `functionCall` and `transfer`. Avoid construc
 objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents()` to
 `onEvent` to log progress in the console.
 
-Give `transfer` an amount from `near`, which takes a decimal NEAR amount:
-`transfer(near('1'))` sends 1 NEAR. If an amount is already in yoctoNEAR, use
+Give `transfer` an amount from `parseNear`, which takes a decimal NEAR amount:
+`transfer(parseNear('1'))` sends 1 NEAR. If an amount is already in yoctoNEAR, use
 `yoctoNear('1000000000000000000000000')`.
 
-An EVM `value` is a `bigint` in wei. Write it with `ether('0.5')`, which takes a
+An EVM `value` is a `bigint` in wei. Write it with `parseEther('0.5')`, which takes a
 decimal amount of the chain's 18-decimal native coin (ETH, POL and so on). For a
 token with other decimals, such as an ERC-20, use `parseUnits('1.5', 6)`. All of
 these helpers throw `AmountError` for a negative, non-numeric or over-precise

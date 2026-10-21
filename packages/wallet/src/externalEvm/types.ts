@@ -93,7 +93,7 @@ export type ExternalEvmSnapshot = Readonly<{
 export type ExternalEvmTransactionInput = Readonly<{
   to: string;
   data: Hex;
-  /** Native coin in wei, for example `ether('0.5')`. */
+  /** Native coin in wei, for example `parseEther('0.5')`. */
   value: bigint;
   gas: { readonly kind: 'wallet' } | { readonly kind: 'limit'; readonly limit: bigint };
   fees: ReadonlyExclusiveUnion<

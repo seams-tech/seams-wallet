@@ -92,8 +92,8 @@ The main entrypoint includes:
   `NearAccountRef`, `ThresholdEcdsaChainTarget`, `WalletId`).
 - action builders — `functionCall`, `transfer`, `stake`, `addKey`,
   `deleteKey`, `deleteAccount`, `createAccount`, `deployContract`.
-- amounts — `near('1')` and `yoctoNear('…')` return a `YoctoNear`, the type
-  `transfer` takes. `ether('0.5')` returns wei for an EVM `value`, and
+- amounts — `parseNear('1')` and `yoctoNear('…')` return a `YoctoNear`, the type
+  `transfer` takes. `parseEther('0.5')` returns wei for an EVM `value`, and
   `parseUnits(amount, decimals)` covers other token decimals. All throw
   `AmountError`.
 - `logWalletEvents`, a ready-made `onEvent` handler.
