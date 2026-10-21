@@ -6,11 +6,6 @@ pub use execute_request::handle_cloudflare_router_ed25519_yao_execute_private_fe
 mod ceremony_execution;
 mod package_delivery;
 mod role_transport;
-#[cfg(any(
-    feature = "strict-worker-router-entrypoint",
-    feature = "strict-worker-deriver-a-entrypoint",
-    test
-))]
 pub(crate) use role_transport::post_role_request;
 use role_transport::{
     post_role_json, post_role_json_for_ceremony_with_span, post_wallet_routed_role_json,
