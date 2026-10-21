@@ -6972,9 +6972,7 @@ pub(crate) enum CloudflareTenantRootAuthorizedCleanupDecisionV1 {
     ReplayCompleted {
         receipt_bytes: Vec<u8>,
     },
-    ReplayFailed {
-        failure_receipt_bytes: Vec<u8>,
-    },
+    ReplayFailed,
 }
 
 /// Result of persisting one terminal tenant-root command receipt.
@@ -11496,13 +11494,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                                 receipt_bytes,
                             },
                         ),
-                        CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed {
-                            failure_receipt_bytes,
-                        } => Ok(
-                            CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
-                                failure_receipt_bytes,
-                            },
-                        ),
+                        CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed { .. } => {
+                            Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed)
+                        }
                         _ => Err(store_error(
                             "durable tenant-root cleanup replay returned an invalid decision",
                         )),
@@ -11586,13 +11580,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                             receipt_bytes,
                         },
                     ),
-                    CloudflareTenantRootCleanupPendingDecisionV1::ReplayFailed {
-                        failure_receipt_bytes,
-                    } => Ok(
-                        CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
-                            failure_receipt_bytes,
-                        },
-                    ),
+                    CloudflareTenantRootCleanupPendingDecisionV1::ReplayFailed { .. } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed)
+                    }
                 }
             }
             TenantRootRoleCleanupTargetV1::AbandonedCeremony {
@@ -11670,11 +11660,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                             receipt_bytes,
                         })
                     }
-                    CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed {
-                        failure_receipt_bytes,
-                    } => Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
-                        failure_receipt_bytes,
-                    }),
+                    CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed { .. } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed)
+                    }
                 }
             }
             TenantRootRoleCleanupTargetV1::Retired {
@@ -11749,13 +11737,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                                 receipt_bytes,
                             },
                         ),
-                        CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed {
-                            failure_receipt_bytes,
-                        } => Ok(
-                            CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
-                                failure_receipt_bytes,
-                            },
-                        ),
+                        CloudflareTenantRootCommandReplayDecisionV1::ReplayFailed { .. } => {
+                            Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed)
+                        }
                     };
                 };
                 validate_authorized_cleanup_retired(
@@ -11828,13 +11812,9 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                             receipt_bytes,
                         },
                     ),
-                    CloudflareTenantRootCleanupRetiredDecisionV1::ReplayFailed {
-                        failure_receipt_bytes,
-                    } => Ok(
-                        CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed {
-                            failure_receipt_bytes,
-                        },
-                    ),
+                    CloudflareTenantRootCleanupRetiredDecisionV1::ReplayFailed { .. } => {
+                        Ok(CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed)
+                    }
                 }
             }
         }
@@ -11901,7 +11881,7 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
                     "tenant-root authorized cleanup is already in progress",
                 ));
             }
-            CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed { .. } => {
+            CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed => {
                 return Err(store_error(
                     "tenant-root authorized cleanup previously failed",
                 ));
