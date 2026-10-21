@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import TouchIcon from './icons/TouchIcon';
 import { MailIcon } from './icons/MailIcon';
@@ -36,8 +37,12 @@ export function AuthenticationMethodRow({
               ))}
           </span>
           <div>
-            <strong>{title}</strong>
-            <small>{description}</small>
+            <strong>
+              <WalletText copy={title} />
+            </strong>
+            <small>
+              <WalletText copy={description} />
+            </small>
           </div>
           <HoverArrowIcon />
         </button>
@@ -55,10 +60,16 @@ export function AuthenticationMethodRow({
       </span>
       <div className="seams-linked-devices-modal-item-content">
         <div className="seams-linked-devices-modal-item-main">
-          <span className="seams-linked-devices-modal-item-name">{title}</span>
-          <span className="seams-linked-devices-modal-standing tone-active">Active</span>
+          <span className="seams-linked-devices-modal-item-name">
+            <WalletText copy={title} />
+          </span>
+          <span className="seams-linked-devices-modal-standing tone-active">
+            <WalletText message="Active" />
+          </span>
         </div>
-        <div className="seams-linked-devices-modal-item-detail">{description}</div>
+        <div className="seams-linked-devices-modal-item-detail">
+          <WalletText copy={description} />
+        </div>
         {children}
       </div>
       {action}

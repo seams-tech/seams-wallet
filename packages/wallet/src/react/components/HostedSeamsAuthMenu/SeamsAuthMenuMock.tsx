@@ -1,3 +1,4 @@
+import { WalletText, WalletLocaleContext } from '@/react/context/WalletLocale';
 import type { CSSProperties } from 'react';
 import type { HostedAuthMenuMode } from './types';
 
@@ -23,18 +24,30 @@ const rowStyle: CSSProperties = {
 };
 
 /** Inert artwork for loading and previews; contains no auth controls or wallet logic. */
-export function SeamsAuthMenuMock({ initialMode = 'login' }: { initialMode?: HostedAuthMenuMode }) {
+export function SeamsAuthMenuMock({
+  initialMode = 'login',
+  locale = 'en',
+}: {
+  initialMode?: HostedAuthMenuMode;
+  locale?: import('@/core/ui/locale').WalletLocale;
+}) {
   return (
-    <span data-seams-auth-menu-mock="true" aria-hidden="true" style={shellStyle}>
-      <strong style={{ fontSize: 24 }}>
-        {initialMode === 'register' ? 'Create a wallet' : 'Unlock wallet'}
-      </strong>
-      <span style={{ ...rowStyle, height: 12, width: '65%' }} />
-      <span style={rowStyle} />
-      <span style={rowStyle} />
-      <span style={{ ...rowStyle, height: 12, width: '30%', justifySelf: 'center' }} />
-      <span style={rowStyle} />
-      <span style={rowStyle} />
-    </span>
+    <WalletLocaleContext.Provider value={locale}>
+      <span data-seams-auth-menu-mock="true" aria-hidden="true" style={shellStyle}>
+        <strong style={{ fontSize: 24 }}>
+          {initialMode === 'register' ? (
+            <WalletText message="Create a wallet" />
+          ) : (
+            <WalletText message="Unlock wallet" />
+          )}
+        </strong>
+        <span style={{ ...rowStyle, height: 12, width: '65%' }} />
+        <span style={rowStyle} />
+        <span style={rowStyle} />
+        <span style={{ ...rowStyle, height: 12, width: '30%', justifySelf: 'center' }} />
+        <span style={rowStyle} />
+        <span style={rowStyle} />
+      </span>
+    </WalletLocaleContext.Provider>
   );
 }

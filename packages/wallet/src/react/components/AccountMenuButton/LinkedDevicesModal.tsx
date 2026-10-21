@@ -1,3 +1,6 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletDisplayText, walletText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import React, { useEffect } from 'react';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import type {
@@ -174,16 +177,16 @@ function deviceStateAttr(view: WalletDeviceView): string {
 }
 
 /** "today" / "yesterday" / a plain date — never a timestamp with seconds. */
-function friendlyDay(value: number, now: number): string {
+function friendlyDay(value: number, now: number, locale: WalletLocale): string {
   const then = new Date(value);
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
   const dayMs = 24 * 60 * 60 * 1000;
   const daysAgo = Math.floor((startOfToday.getTime() - then.setHours(0, 0, 0, 0)) / dayMs);
-  if (daysAgo <= 0) return 'today';
-  if (daysAgo === 1) return 'yesterday';
-  if (daysAgo < 7) return `${daysAgo} days ago`;
-  return new Date(value).toLocaleDateString(undefined, {
+  if (daysAgo <= 0) return walletText(locale, 'today');
+  if (daysAgo === 1) return walletText(locale, 'yesterday');
+  if (daysAgo < 7) return walletText(locale, '{value0} days ago', { value0: daysAgo });
+  return new Date(value).toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -216,18 +219,28 @@ function deviceMetaLine(
   deviceNumber: number,
   titleCollides: boolean,
   now: number,
+  locale: WalletLocale,
 ): string {
   const credential = viewCredential(view);
-  const parts: string[] = [`Device ${deviceNumber}`];
+  const parts: string[] = [walletText(locale, 'Device {value0}', { value0: deviceNumber })];
   if (credential.kind === 'passkey') {
-    parts.push(credential.device.synced ? 'Synced passkey' : 'Passkey');
+    parts.push(walletText(locale, credential.device.synced ? 'Synced passkey' : 'Passkey'));
     const provider = credential.device.providerLabel ?? credential.device.provider;
     if (provider) parts.push(provider);
   } else {
     parts.push(String(credential.email));
   }
-  if (titleCollides) parts.push(`Added ${friendlyDay(viewCreatedAtMs(view), now)}`);
-  parts.push(`Last used ${friendlyDay(viewLastActivityAtMs(view), now)}`);
+  if (titleCollides)
+    parts.push(
+      walletText(locale, 'Added {value0}', {
+        value0: friendlyDay(viewCreatedAtMs(view), now, locale),
+      }),
+    );
+  parts.push(
+    walletText(locale, 'Last used {value0}', {
+      value0: friendlyDay(viewLastActivityAtMs(view), now, locale),
+    }),
+  );
   return parts.join(' · ');
 }
 
@@ -242,22 +255,23 @@ function credentialIcon(credential: LinkedOwnerCredentialMetadataV1): React.Reac
 }
 
 /** "sign in with ___ first" — names the actual sibling instead of "the sibling method". */
-function siblingMethodName(siblings: readonly WalletDeviceView[]): string {
+function siblingMethodName(siblings: readonly WalletDeviceView[], locale: WalletLocale): string {
   if (siblings.length === 1) {
     const credential = viewCredential(siblings[0]);
     return credential.kind === 'email_otp'
-      ? 'your email code'
-      : `your "${credential.device.label}" passkey`;
+      ? walletText(locale, 'your email code')
+      : walletText(locale, 'your "{value0}" passkey', { value0: credential.device.label });
   }
   if (siblings.every((view) => viewCredential(view).kind === 'email_otp')) {
-    return 'your email code';
+    return walletText(locale, 'your email code');
   }
-  return 'another sign-in method';
+  return walletText(locale, 'another sign-in method');
 }
 
 function selectedMethodRemovalHint(
   target: WalletDeviceView,
   devices: readonly NumberedWalletDevice[],
+  locale: WalletLocale,
 ): string {
   const targetMethodId = String(viewCredential(target).walletAuthMethodId);
   const siblings = devices
@@ -267,8 +281,15 @@ function selectedMethodRemovalHint(
         isActiveWalletMethod(view) &&
         String(viewCredential(view).walletAuthMethodId) !== targetMethodId,
     );
-  const self = viewCredential(target).kind === 'email_otp' ? 'your email code' : 'this passkey';
-  return `You're signed in with ${self}. To remove it, sign in with ${siblingMethodName(siblings)} first.`;
+  const self = walletText(
+    locale,
+    viewCredential(target).kind === 'email_otp' ? 'your email code' : 'this passkey',
+  );
+  return walletText(
+    locale,
+    "You're signed in with {value0}. To remove it, sign in with {value1} first.",
+    { value0: self, value1: siblingMethodName(siblings, locale) },
+  );
 }
 
 function deviceDescription(view: WalletDeviceView, deviceNumber: number): string {
@@ -306,6 +327,7 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   onClose,
   presentation,
 }) => {
+  const locale = useWalletLocale();
   const { seams, loginState } = useSeams();
   const [loadState, setLoadState] = React.useState<LinkedDevicesLoadState>({ kind: 'idle' });
   const [revokeState, setRevokeState] = React.useState<RevokeState>({ kind: 'idle' });
@@ -401,48 +423,58 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
       dialogRef={dialogRef}
       contentClassName="seams-linked-devices-inventory-content"
       titleId="seams-linked-devices-modal-title"
-      title={selectedDevice ? 'Device details' : 'Linked devices'}
+      title={walletDisplayText(locale, selectedDevice ? 'Device details' : 'Linked devices')}
     >
       {selectedDevice ? (
         <AccountMenuDeviceDetails
-          title={credentialDescription(viewCredential(selectedDevice.view))}
-          description={deviceMetaLine(
-            selectedDevice.view,
-            selectedDevice.deviceNumber,
-            false,
-            Date.now(),
+          title={walletDisplayText(
+            locale,
+            credentialDescription(viewCredential(selectedDevice.view)),
+          )}
+          description={walletDisplayText(
+            locale,
+            deviceMetaLine(
+              selectedDevice.view,
+              selectedDevice.deviceNumber,
+              false,
+              Date.now(),
+              locale,
+            ),
           )}
           details={[{ label: 'Status', value: deviceStateAttr(selectedDevice.view) }]}
         />
       ) : (
         <p className="seams-linked-devices-modal-subtitle">
-          Anything listed here can unlock this wallet.
+          <WalletText message="Anything listed here can unlock this wallet." />
         </p>
       )}
 
       <div className="seams-linked-devices-modal-body">
         {loadState.kind === 'loading' || loadState.kind === 'idle' ? (
           <div className="seams-linked-devices-modal-placeholder" role="status">
-            Checking your devices…
+            <WalletText message="Checking your devices…" />
           </div>
         ) : null}
 
         {loadState.kind === 'error' ? (
           <div className="seams-linked-devices-modal-placeholder" role="alert">
-            <span>Unable to load your devices: {loadState.message}</span>
+            <span>
+              <WalletText message="Unable to load your devices:" />{' '}
+              <WalletText copy={loadState.message} />
+            </span>
             <button
               type="button"
               className="seams-linked-devices-modal-secondary"
               onClick={() => void loadDevices()}
             >
-              Try again
+              <WalletText message="Try again" />
             </button>
           </div>
         ) : null}
 
         {showEmpty ? (
           <div className="seams-linked-devices-modal-placeholder">
-            No other devices are using this wallet.
+            <WalletText message="No other devices are using this wallet." />
           </div>
         ) : null}
 
@@ -474,8 +506,11 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                     key={cardId}
                     kind={viewCredential(view).kind}
                     icon={credentialIcon(viewCredential(view))}
-                    title={title}
-                    description={deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
+                    title={walletDisplayText(locale, title)}
+                    description={walletDisplayText(
+                      locale,
+                      deviceMetaLine(view, deviceNumber, titleCollides, Date.now(), locale),
+                    )}
                     onSelect={setSelectedDeviceId.bind(null, cardId)}
                   />
                 );
@@ -493,39 +528,50 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                   </span>
                   <div className="seams-linked-devices-modal-item-content">
                     <div className="seams-linked-devices-modal-item-main">
-                      <span className="seams-linked-devices-modal-item-name">{title}</span>
+                      <span className="seams-linked-devices-modal-item-name">
+                        <WalletText copy={title} />
+                      </span>
                       {chip ? (
                         <span className={`seams-linked-devices-modal-standing tone-${chip.tone}`}>
-                          {chip.label}
+                          <WalletText copy={chip.label} />
                         </span>
                       ) : null}
                     </div>
                     <div className="seams-linked-devices-modal-item-detail">
-                      {deviceMetaLine(view, deviceNumber, titleCollides, Date.now())}
+                      <WalletText
+                        copy={deviceMetaLine(view, deviceNumber, titleCollides, Date.now(), locale)}
+                      />
                     </div>
                     {isSelectedMethod && hasRemovableSibling ? (
                       <div className="seams-linked-devices-modal-hint">
                         <LockIcon size={15} strokeWidth={1.75} />
-                        <span>{selectedMethodRemovalHint(view, devices)}</span>
+                        <span>
+                          <WalletText copy={selectedMethodRemovalHint(view, devices, locale)} />
+                        </span>
                       </div>
                     ) : null}
                     {confirming ? (
                       <div className="seams-linked-devices-modal-confirm">
-                        <span>Remove {title}? It will lose access right away.</span>
+                        <span>
+                          <WalletText
+                            message="Remove {value0}? It will lose access right away."
+                            values={{ value0: title }}
+                          />
+                        </span>
                         <div className="seams-linked-devices-modal-confirm-actions">
                           <button
                             type="button"
                             className="seams-linked-devices-modal-secondary"
                             onClick={() => setRevokeState({ kind: 'idle' })}
                           >
-                            Keep it
+                            <WalletText message="Keep it" />
                           </button>
                           <button
                             type="button"
                             className="seams-linked-devices-modal-danger"
                             onClick={() => void revokeMethod(view, deviceNumber)}
                           >
-                            Yes, remove
+                            <WalletText message="Yes, remove" />
                           </button>
                         </div>
                       </div>
@@ -536,10 +582,17 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
                       type="button"
                       className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
                       disabled={revocationInProgress}
-                      aria-label={`Remove ${deviceDescription(view, deviceNumber)}`}
+                      aria-label={walletDisplayText(
+                        locale,
+                        `Remove ${deviceDescription(view, deviceNumber)}`,
+                      )}
                       onClick={() => setRevokeState({ kind: 'confirming', walletAuthMethodId })}
                     >
-                      {working ? 'Removing…' : 'Remove'}
+                      {working ? (
+                        <WalletText message="Removing…" />
+                      ) : (
+                        <WalletText message="Remove" />
+                      )}
                     </button>
                   ) : null}
                 </li>
@@ -550,12 +603,12 @@ export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
 
         {revokeState.kind === 'error' ? (
           <div className="seams-linked-devices-modal-error" role="alert">
-            {revokeState.message}
+            <WalletText copy={revokeState.message} />
           </div>
         ) : null}
 
         <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
-          {announcement}
+          <WalletText copy={announcement} />
         </div>
       </div>
     </AccountMenuDialogFrame>

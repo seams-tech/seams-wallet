@@ -1,4 +1,11 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+  useWalletLocale,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component } from 'preact';
 import type { TreeNode } from '../transaction-display/tree';
 import type { TxDisplayModel } from '@/core/signingEngine/interfaces/display';
@@ -35,7 +42,8 @@ export function ReviewIcon({
     minimize: 'M5 12h14',
     check: 'm5 12 4 4L19 6',
     arrow: 'M7 17 17 7M7 7h10v10',
-    shield: 'M12 3 4.5 6v5.5c0 4.2 2.7 7.4 7.5 9.5 4.8-2.1 7.5-5.3 7.5-9.5V6L12 3Z M8.5 11.5l2.5 2.5 4.5-5',
+    shield:
+      'M12 3 4.5 6v5.5c0 4.2 2.7 7.4 7.5 9.5 4.8-2.1 7.5-5.3 7.5-9.5V6L12 3Z M8.5 11.5l2.5 2.5 4.5-5',
     copy: 'M8 8h12v12H8ZM4 16V4h12',
     loader: 'M12 3a9 9 0 1 1-9 9',
     alert: 'M12 8v5m0 3v.1M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
@@ -82,8 +90,13 @@ export function ReviewMiddleTruncated({
   value: string;
   class: string;
 }) {
+  const locale = useWalletLocale();
   return (
-    <bdi class={`seams-review-middle ${className}`} dir="ltr" title={value}>
+    <bdi
+      class={`seams-review-middle ${className}`}
+      dir="ltr"
+      title={walletDisplayText(locale, value)}
+    >
       <span>{value.slice(0, -8)}</span>
       <span>{value.slice(-8)}</span>
     </bdi>
@@ -141,7 +154,11 @@ export function ReviewAmount({
 export function WalletReceiptFooter() {
   return (
     <div class="seams-receipt-footer">
-      <ReviewIcon kind="shield" /> <span>Secured by</span> <SeamsWordmark />
+      <ReviewIcon kind="shield" />{' '}
+      <span>
+        <WalletText message="Secured by" />
+      </span>{' '}
+      <SeamsWordmark />
     </div>
   );
 }
@@ -162,12 +179,20 @@ function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: st
   return { value: total.nativeValue, symbol: total.nativeSymbol ?? '' };
 }
 
-export class CopyReviewValue extends Component<{ value: string; address?: boolean; label?: string }, { copied: boolean }> {
+export class CopyReviewValue extends Component<
+  { value: string; address?: boolean; label?: string },
+  { copied: boolean }
+> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state = { copied: false };
   private lifetime = new AbortController();
   private timer: ReturnType<typeof setTimeout> | null = null;
 
-  private resetCopied = (): void => { this.setState({ copied: false }); };
+  private resetCopied = (): void => {
+    this.setState({ copied: false });
+  };
 
   componentWillUnmount(): void {
     this.lifetime.abort();
@@ -202,9 +227,16 @@ export class CopyReviewValue extends Component<{ value: string; address?: boolea
         type="button"
         class={`seams-review-copy${this.props.address ? ' seams-review-copy-address' : ''}${this.state.copied ? ' copied' : ''}`}
         onClick={this.copy}
-        aria-label={this.state.copied ? 'Copied' : this.props.label ?? 'Copy value'}
+        aria-label={walletDisplayText(
+          this.context,
+          this.state.copied ? 'Copied' : (this.props.label ?? 'Copy value'),
+        )}
       >
-        {this.props.address && <bdi class="seams-review-full-address" dir="ltr">{this.props.value}</bdi>}
+        {this.props.address && (
+          <bdi class="seams-review-full-address" dir="ltr">
+            {this.props.value}
+          </bdi>
+        )}
         <CopyStatusIcon />
       </button>
     );
@@ -212,45 +244,77 @@ export class CopyReviewValue extends Component<{ value: string; address?: boolea
 }
 
 function ReviewDetailLabel({ node }: { node: TreeNode }) {
+  const locale = useWalletLocale();
   if (node.action || node.transaction) {
-    return <>{transactionLabelTitle(node)}</>;
+    return (
+      <>
+        <WalletText copy={transactionLabelTitle(node)} />
+      </>
+    );
   }
   const contract = contractPrefix(node);
   if (contract && node.contractAddress) {
     const address = node.contractAddress;
     return (
       <span class="seams-review-contract">
-        {contract.trim()}
+        <WalletText copy={contract.trim()} />
         <span class="seams-review-contract-value">
           <ReviewMiddleTruncated value={address} class="seams-review-contract-address" />
-          <CopyReviewValue value={address} label={`Copy contract address ${address}`} />
+          <CopyReviewValue
+            value={address}
+            label={walletDisplayText(locale, `Copy contract address ${address}`)}
+          />
         </span>
       </span>
     );
   }
   if (node.fieldLabel) {
     const value = node.label.slice(node.fieldLabel.length);
-    return <>{node.fieldLabel}{node.fieldLabel === 'Method:' ? <span class="seams-review-function">{value}</span> : value}</>;
+    return (
+      <>
+        <WalletText copy={node.fieldLabel} />
+        {node.fieldLabel === 'Method:' ? <span class="seams-review-function">{value}</span> : value}
+      </>
+    );
   }
   const call = /^(Call(?:ing)? )([^\s]+)(.*)$/.exec(node.label);
   if (call) {
-    return <>{call[1]}<span class="seams-review-function">{call[2]}</span>{call[3]}</>;
+    return (
+      <>
+        <WalletText copy={call[1]} />
+        <span class="seams-review-function">{call[2]}</span>
+        {call[3]}
+      </>
+    );
   }
-  return <>{node.label}</>;
+  return (
+    <>
+      <WalletText copy={node.label} />
+    </>
+  );
 }
 
 function ReviewDetail({ node }: { node: TreeNode }) {
+  const locale = useWalletLocale();
   const content = node.contentVariants?.decoded ?? node.content;
   const block = Boolean(node.contentVariants || content?.includes('\n'));
   return (
     <div class="seams-review-detail">
-      <div class={content ? `seams-review-detail-row${block ? ' seams-review-detail-row--block' : ''}` : 'seams-review-detail-label'}>
-        <span><ReviewDetailLabel node={node} /></span>
+      <div
+        class={
+          content
+            ? `seams-review-detail-row${block ? ' seams-review-detail-row--block' : ''}`
+            : 'seams-review-detail-label'
+        }
+      >
+        <span>
+          <ReviewDetailLabel node={node} />
+        </span>
         {content && <pre>{content}</pre>}
         {node.copyValue && <CopyReviewValue value={node.copyValue} />}
       </div>
       {node.contentVariants && (
-        <ReviewDisclosure label="Raw data" kind="raw">
+        <ReviewDisclosure label={walletText(locale, 'Raw data')} kind="raw">
           <pre>{node.contentVariants.raw}</pre>
         </ReviewDisclosure>
       )}
@@ -272,6 +336,7 @@ export function TransactionReview({
   data: TransactionReviewData;
   details?: boolean;
 }) {
+  const locale = useWalletLocale();
   const model = data.model;
   const operation = model?.operations[0];
   const recipient = reviewRecipient(model);
@@ -280,21 +345,29 @@ export function TransactionReview({
       <ReviewAmount model={model} />
       {model?.warnings?.map((warning) => (
         <div key={warning.code} class="seams-review-warning" role="alert">
-          {warning.message}
+          <WalletText copy={warning.message} />
         </div>
       ))}
       <dl class="seams-review-fields">
         {recipient && (
           <div>
-            <dt>To</dt>
+            <dt>
+              <WalletText message="To" />
+            </dt>
             <dd class="seams-review-recipient">
-              <CopyReviewValue value={recipient} address label={`Copy recipient address ${recipient}`} />
+              <CopyReviewValue
+                value={recipient}
+                address
+                label={walletDisplayText(locale, `Copy recipient address ${recipient}`)}
+              />
             </dd>
           </div>
         )}
         {model && (
           <div>
-            <dt>Network</dt>
+            <dt>
+              <WalletText message="Network" />
+            </dt>
             <dd>
               <span class="seams-review-network-dot" />
               {reviewNetwork(model)}
@@ -303,7 +376,9 @@ export function TransactionReview({
         )}
         {model?.totals?.estimatedFee && (
           <div>
-            <dt>Estimated network fee</dt>
+            <dt>
+              <WalletText message="Estimated network fee" />
+            </dt>
             <dd>
               {model.totals.estimatedFee} {model.totals.feeSymbol}
             </dd>
@@ -313,7 +388,10 @@ export function TransactionReview({
       {details && data.tree && (
         <ReviewDisclosure
           initiallyOpen={data.detailsInitiallyOpen}
-          label={operation?.kind === 'near.message' ? 'Message details' : 'Transaction details'}
+          label={walletDisplayText(
+            locale,
+            operation?.kind === 'near.message' ? 'Message details' : 'Transaction details',
+          )}
         >
           <ReviewDetail node={data.tree} />
         </ReviewDisclosure>
@@ -324,12 +402,15 @@ export function TransactionReview({
             S
           </span>
           <div>
-            Signing account
+            <WalletText message="Signing account" />
             <small>
               <CopyReviewValue
                 value={model.signerAccount}
                 address
-                label={`Copy signing account address ${model.signerAccount}`}
+                label={walletDisplayText(
+                  locale,
+                  `Copy signing account address ${model.signerAccount}`,
+                )}
               />
             </small>
           </div>

@@ -439,6 +439,8 @@ interface AppearanceThemeInput {
 }
 
 export interface AppearanceConfigInput {
+  /** SDK language. English is the default. */
+  locale?: import('../ui/locale').WalletLocale;
   theme?: AppearanceThemeInput;
   palette?: ThemePaletteName;
 }
@@ -451,6 +453,7 @@ export interface AppearanceTheme {
 }
 
 export interface AppearanceConfig {
+  locale?: import('../ui/locale').WalletLocale;
   theme: AppearanceTheme;
   palette: ThemePaletteName;
 }

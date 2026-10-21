@@ -1,4 +1,7 @@
 /** @jsxImportSource preact */
+import { WalletLocaleContext } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef } from 'preact';
 import type { EmailOtpConfirmPrompt } from '@/core/signingEngine/stepUpConfirmation/types';
 import { formatEmailOtpSentText } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/promptText';
@@ -22,6 +25,9 @@ export function EmailOtpContent(props: EmailOtpContentProps) {
 }
 
 class EmailOtpSessionView extends Component<EmailOtpContentProps, EmailOtpSessionSnapshot> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   private readonly session: EmailOtpSession;
   private readonly form = createRef<HTMLFormElement>();
   private lifetime:
@@ -135,7 +141,7 @@ class EmailOtpSessionView extends Component<EmailOtpContentProps, EmailOtpSessio
             this.props.prompt.helperText?.trim() ||
             formatEmailOtpSentText(this.lifetime.kind === 'active' ? this.lifetime.emailHint : '')
           }
-          errorMessage={this.state.error || undefined}
+          errorMessage={walletDisplayText(this.context, this.state.error || undefined)}
           state={this.inputState()}
           resend={this.resendAction()}
         />

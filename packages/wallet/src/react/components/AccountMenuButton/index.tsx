@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText } from '@/core/ui/messages';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScanIcon } from './icons/ScanIcon';
 import { KeyIcon } from './icons/KeyIcon';
@@ -187,6 +189,7 @@ const AccountMenuButtonInner: React.FC<
   onMenuOpenChange,
   highlightedMenuItem,
 }) => {
+  const locale = useWalletLocale();
   // Get values from context if not provided as props
   const { accountInputState, loginState, seams, lock } = useSeams();
   const recovery = useMemo(() => seams.recovery, [seams]);
@@ -551,7 +554,7 @@ const AccountMenuButtonInner: React.FC<
   const screens: Record<typeof screen, React.ReactNode> = {
     overview: null,
     'transaction-settings': (
-      <AccountMenuScreen title="Transaction settings" onBack={backToMenu}>
+      <AccountMenuScreen title={walletText(locale, 'Transaction settings')} onBack={backToMenu}>
         {currentConfirmConfig ? (
           <TransactionSettingsSection
             currentConfirmConfig={currentConfirmConfig}
@@ -562,13 +565,17 @@ const AccountMenuButtonInner: React.FC<
             theme={theme}
           />
         ) : (
-          <p role="status">Loading transaction settings…</p>
+          <p role="status">
+            <WalletText message="Loading transaction settings…" />
+          </p>
         )}
       </AccountMenuScreen>
     ),
     accounts: (
-      <AccountMenuScreen title="Accounts" onBack={backToMenu}>
-        <p className="seams-account-description">Your addresses across networks.</p>
+      <AccountMenuScreen title={walletText(locale, 'Accounts')} onBack={backToMenu}>
+        <p className="seams-account-description">
+          <WalletText message="Your addresses across networks." />
+        </p>
         <AccountsSection rows={accountsRows} />
       </AccountMenuScreen>
     ),
@@ -582,12 +589,12 @@ const AccountMenuButtonInner: React.FC<
       />
     ),
     'recovery-codes': (
-      <AccountMenuScreen title="Recovery codes" onBack={backToMenu}>
+      <AccountMenuScreen title={walletText(locale, 'Recovery codes')} onBack={backToMenu}>
         <p className="seams-account-description">
-          Keep a recovery code somewhere safe. Use it to restore access to your wallet.
+          <WalletText message="Keep a recovery code somewhere safe. Use it to restore access to your wallet." />
         </p>
         <div className="seams-account-inset">
-          Only you should have this code. Anyone with it can start recovering your wallet.
+          <WalletText message="Only you should have this code. Anyone with it can start recovering your wallet." />
         </div>
         <button
           type="button"
@@ -595,7 +602,11 @@ const AccountMenuButtonInner: React.FC<
           disabled={recoveryCodesOpen}
           onClick={startRecoveryCodesFlow}
         >
-          {recoveryCodesOpen ? 'Opening recovery codes…' : 'View recovery codes'}
+          {recoveryCodesOpen ? (
+            <WalletText message="Opening recovery codes…" />
+          ) : (
+            <WalletText message="View recovery codes" />
+          )}
         </button>
       </AccountMenuScreen>
     ),
@@ -655,7 +666,11 @@ const AccountMenuButtonInner: React.FC<
                 disabled={recoveryCodesOpen}
                 onClick={startRecoveryCodesFlow}
               >
-                {recoveryCodesOpen ? 'Opening recovery codes…' : 'View recovery codes'}
+                {recoveryCodesOpen ? (
+                  <WalletText message="Opening recovery codes…" />
+                ) : (
+                  <WalletText message="View recovery codes" />
+                )}
               </button>
             ),
             'authentication-methods': (
@@ -672,7 +687,7 @@ const AccountMenuButtonInner: React.FC<
                 className="seams-settings-action"
                 onClick={setShowQRScanner.bind(null, true)}
               >
-                Scan QR code
+                <WalletText message="Scan QR code" />
               </button>
             ),
             'linked-devices': (
@@ -693,7 +708,9 @@ const AccountMenuButtonInner: React.FC<
                 theme={theme}
               />
             ) : (
-              <p role="status">Loading transaction settings…</p>
+              <p role="status">
+                <WalletText message="Loading transaction settings…" />
+              </p>
             ),
           }}
         />
@@ -739,7 +756,7 @@ const AccountMenuButtonInner: React.FC<
           {screens[screen]}
           {settingsError ? (
             <p className="seams-account-error" role="alert">
-              {settingsError}
+              <WalletText copy={settingsError} />
             </p>
           ) : null}
         </>
@@ -774,9 +791,17 @@ export function WalletSettingsPage(props: Pick<HostedSeamsAuthMenuProps, 'extern
     <div className="seams-settings-page">
       <WalletSettingsHeader />
       <main className="seams-settings-sign-in">
-        <h1>Wallet settings</h1>
-        <p>Unlock your wallet to manage your accounts, security, and devices.</p>
-        {error ? <p role="alert">{error}</p> : null}
+        <h1>
+          <WalletText message="Wallet settings" />
+        </h1>
+        <p>
+          <WalletText message="Unlock your wallet to manage your accounts, security, and devices." />
+        </p>
+        {error ? (
+          <p role="alert">
+            <WalletText copy={error} />
+          </p>
+        ) : null}
         <HostedSeamsAuthMenu
           externalAuthBroker={props.externalAuthBroker}
           onOutcome={finishSettingsAuthentication.bind(null, refreshSession, setError)}

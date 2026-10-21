@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
 import React, { useEffect } from 'react';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
@@ -210,6 +212,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   onClose,
   presentation,
 }) => {
+  const locale = useWalletLocale();
   const { seams, loginState, refreshSession } = useSeams();
   const [loadState, setLoadState] = React.useState<LoadState>({ kind: 'idle' });
   const [actionState, setActionState] = React.useState<ActionState>({ kind: 'idle' });
@@ -376,7 +379,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       dialogRef={dialogRef}
       contentClassName="seams-auth-methods-modal-content"
       titleId="seams-auth-methods-modal-title"
-      title="Authentication methods"
+      title={walletText(locale, 'Authentication methods')}
     >
       <AuthenticationMethodsView
         walletLabel={walletId ?? 'Wallet'}
@@ -385,19 +388,22 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
         <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
           {loadState.kind === 'idle' ? (
             <div className="seams-linked-devices-modal-placeholder" role="status">
-              Checking authentication methods…
+              <WalletText message="Checking authentication methods…" />
             </div>
           ) : null}
 
           {loadState.kind === 'error' ? (
             <div className="seams-linked-devices-modal-placeholder" role="alert">
-              <span>Unable to load authentication methods: {loadState.message}</span>
+              <span>
+                <WalletText message="Unable to load authentication methods:" />{' '}
+                <WalletText copy={loadState.message} />
+              </span>
               <button
                 type="button"
                 className="seams-linked-devices-modal-secondary"
                 onClick={() => void loadInventory()}
               >
-                Try again
+                <WalletText message="Try again" />
               </button>
             </div>
           ) : null}
@@ -405,7 +411,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
           {inventory ? (
             <section
               className="seams-account-menu-section"
-              aria-label="Active authentication methods"
+              aria-label={walletText(locale, 'Active authentication methods')}
             >
               <ul className="seams-account-method-tiles">
                 {methods.map((method) => {
@@ -419,18 +425,22 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                     <AuthenticationMethodRow
                       key={method.walletAuthMethodId}
                       kind={method.kind}
-                      title={methodTitle(method)}
-                      description={methodDescription(method)}
+                      title={walletDisplayText(locale, methodTitle(method))}
+                      description={walletDisplayText(locale, methodDescription(method))}
                       action={
                         !confirming && canManageMethods && methods.length > 1 ? (
                           <button
                             type="button"
                             className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
                             disabled={actionInProgress}
-                            aria-label={`Remove ${methodTitle(method)}`}
+                            aria-label={walletDisplayText(locale, `Remove ${methodTitle(method)}`)}
                             onClick={() => setActionState({ kind: 'confirming_revoke', method })}
                           >
-                            {revoking ? 'Removing…' : 'Remove'}
+                            {revoking ? (
+                              <WalletText message="Removing…" />
+                            ) : (
+                              <WalletText message="Remove" />
+                            )}
                           </button>
                         ) : null
                       }
@@ -438,8 +448,10 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                       {confirming ? (
                         <div className="seams-linked-devices-modal-confirm">
                           <span>
-                            Remove {methodTitle(method)} from this device? You will need the other
-                            active method to unlock it.
+                            <WalletText
+                              message="Remove {value0} from this device? You will need the other active method to unlock it."
+                              values={{ value0: walletDisplayText(locale, methodTitle(method)) }}
+                            />
                           </span>
                           <div className="seams-linked-devices-modal-confirm-actions">
                             <button
@@ -447,20 +459,20 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                               className="seams-linked-devices-modal-secondary"
                               onClick={() => setActionState({ kind: 'idle' })}
                             >
-                              Keep it
+                              <WalletText message="Keep it" />
                             </button>
                             <button
                               type="button"
                               className="seams-linked-devices-modal-danger"
                               onClick={() => void revokeMethod()}
                             >
-                              Remove method
+                              <WalletText message="Remove method" />
                             </button>
                           </div>
                         </div>
                       ) : methods.length > 1 ? null : (
                         <span className="seams-linked-devices-modal-item-detail">
-                          Add another method before removing this one.
+                          <WalletText message="Add another method before removing this one." />
                         </span>
                       )}
                     </AuthenticationMethodRow>
@@ -476,7 +488,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               aria-labelledby="seams-auth-methods-add"
             >
               <h3 id="seams-auth-methods-add" className="seams-account-menu-section-label">
-                Add a method
+                <WalletText message="Add a method" />
               </h3>
               {!hasPasskey ? (
                 <div className="seams-linked-devices-modal-add-method">
@@ -487,12 +499,14 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                     onClick={() => void addMethod('passkey')}
                   >
                     <PlusIcon size={18} strokeWidth={1.75} />
-                    {actionState.kind === 'adding' && actionState.method === 'passkey'
-                      ? 'Adding…'
-                      : 'Add passkey'}
+                    {actionState.kind === 'adding' && actionState.method === 'passkey' ? (
+                      <WalletText message="Adding…" />
+                    ) : (
+                      <WalletText message="Add passkey" />
+                    )}
                   </button>
                   <p className="seams-linked-devices-modal-security-note">
-                    Use a passkey from this device to unlock the wallet.
+                    <WalletText message="Use a passkey from this device to unlock the wallet." />
                   </p>
                 </div>
               ) : null}
@@ -506,7 +520,9 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                       void addMethod('email_otp');
                     }}
                   >
-                    <label htmlFor={emailInputId}>Email address</label>
+                    <label htmlFor={emailInputId}>
+                      <WalletText message="Email address" />
+                    </label>
                     <input
                       id={emailInputId}
                       className="seams-linked-devices-modal-otp-input"
@@ -525,9 +541,11 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                       className="seams-linked-devices-modal-secondary"
                       disabled={actionInProgress || !canManageMethods}
                     >
-                      {actionState.kind === 'adding' && actionState.method === 'email_otp'
-                        ? 'Adding…'
-                        : 'Add Email OTP'}
+                      {actionState.kind === 'adding' && actionState.method === 'email_otp' ? (
+                        <WalletText message="Adding…" />
+                      ) : (
+                        <WalletText message="Add Email OTP" />
+                      )}
                     </button>
                   </form>
                 </div>
@@ -537,9 +555,11 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
 
           {loadState.kind === 'loaded' && inventory?.kind === 'local_selection' ? (
             <section className="seams-linked-devices-modal-add-method">
-              <h3>Unlock to manage methods</h3>
+              <h3>
+                <WalletText message="Unlock to manage methods" />
+              </h3>
               <p className="seams-linked-devices-modal-security-note">
-                Confirm your current authentication method to add or remove methods.
+                <WalletText message="Confirm your current authentication method to add or remove methods." />
               </p>
               <button
                 type="button"
@@ -547,19 +567,23 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                 disabled={actionInProgress}
                 onClick={() => void unlockOwnerSession()}
               >
-                {actionState.kind === 'unlocking' ? 'Unlocking…' : 'Unlock wallet'}
+                {actionState.kind === 'unlocking' ? (
+                  <WalletText message="Unlocking…" />
+                ) : (
+                  <WalletText message="Unlock wallet" />
+                )}
               </button>
             </section>
           ) : null}
 
           {actionState.kind === 'error' ? (
             <div className="seams-linked-devices-modal-error" role="alert">
-              {actionState.message}
+              <WalletText copy={actionState.message} />
             </div>
           ) : null}
 
           <div className="seams-linked-devices-modal-live" role="status" aria-live="polite">
-            {announcement}
+            <WalletText copy={announcement} />
           </div>
         </div>
       </AuthenticationMethodsView>

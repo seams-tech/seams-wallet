@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText } from '@/core/ui/messages';
 import {
   useCallback,
   useEffect,
@@ -522,24 +524,32 @@ function FactorSelection({
   return (
     <div className="qr-code-container" onClick={stopPropagation}>
       <div className="qr-body">
-        <div className="seams-otp-prompt" role="group" aria-labelledby="seams-device-link-factor-title">
+        <div
+          className="seams-otp-prompt"
+          role="group"
+          aria-labelledby="seams-device-link-factor-title"
+        >
           <div className="seams-otp-prompt-copy">
             <h2 id="seams-device-link-factor-title" className="seams-otp-title">
-              Match your other device
+              <WalletText message="Match your other device" />
             </h2>
             <p className="seams-otp-description">
-              Choose the unlock method for Device 2. Email code sends a one-time code to the address
-              you enter.
+              <WalletText message="Choose the unlock method for Device 2. Email code sends a one-time code to the address you enter." />
             </p>
           </div>
           <fieldset className="seams-device-link-factor-options">
-            <legend className="seams-field-label">Wallet unlock method</legend>
+            <legend className="seams-field-label">
+              <WalletText message="Wallet unlock method" />
+            </legend>
             <label className="seams-device-link-factor-option">
               <span className="seams-device-link-factor-icon" aria-hidden="true">
                 <FingerprintIcon size={22} />
               </span>
               <span className="seams-device-link-factor-label">
-                Passkey <span>(recommended)</span>
+                <WalletText message="Passkey" />{' '}
+                <span>
+                  <WalletText message="(recommended)" />
+                </span>
               </span>
               <input
                 type="radio"
@@ -553,7 +563,9 @@ function FactorSelection({
               <span className="seams-device-link-factor-icon" aria-hidden="true">
                 <EmailOtpMethodIcon />
               </span>
-              <span className="seams-device-link-factor-label">Email code</span>
+              <span className="seams-device-link-factor-label">
+                <WalletText message="Email code" />
+              </span>
               <input
                 type="radio"
                 name="seams-device-link-target-factor"
@@ -565,7 +577,9 @@ function FactorSelection({
           </fieldset>
           {emailTargetSelected ? (
             <label className="seams-device-link-email-field">
-              <span className="seams-field-label">Email address</span>
+              <span className="seams-field-label">
+                <WalletText message="Email address" />
+              </span>
               <input
                 type="email"
                 name="seams-device-link-target-email"
@@ -577,9 +591,11 @@ function FactorSelection({
             </label>
           ) : null}
           <p className="seams-otp-helper">
-            {emailTargetSelected
-              ? 'The address is normalized before the QR code is created.'
-              : 'Device 2 will create a new passkey for this wallet.'}
+            {emailTargetSelected ? (
+              <WalletText message="The address is normalized before the QR code is created." />
+            ) : (
+              <WalletText message="Device 2 will create a new passkey for this wallet." />
+            )}
           </p>
           <button
             type="button"
@@ -587,7 +603,7 @@ function FactorSelection({
             onClick={onStart}
             disabled={!canStart}
           >
-            Continue
+            <WalletText message="Continue" />
           </button>
         </div>
       </div>
@@ -619,15 +635,23 @@ function QrDisplay({
             )}
           </div>
           <div className="qr-header">
-            <h2 className="qr-title">Scan and Link Device</h2>
+            <h2 className="qr-title">
+              <WalletText message="Scan and Link Device" />
+            </h2>
           </div>
           <div className="qr-instruction">
-            {ready
-              ? 'Scan to backup your other device.'
-              : 'Preparing a one-time code for your other device.'}
+            {ready ? (
+              <WalletText message="Scan to backup your other device." />
+            ) : (
+              <WalletText message="Preparing a one-time code for your other device." />
+            )}
           </div>
           <div className="qr-status" role="status" aria-live="polite">
-            {ready ? state.lastMessage || 'Waiting for device to scan' : 'Generating QR code'}
+            {ready ? (
+              state.lastMessage || 'Waiting for device to scan'
+            ) : (
+              <WalletText message="Generating QR code" />
+            )}
             <span className="animated-ellipsis"></span>
           </div>
         </div>
@@ -653,10 +677,10 @@ function PasskeyActivation({
         >
           <div className="seams-otp-prompt-copy">
             <h2 id="seams-device-link-passkey-title" className="seams-otp-title">
-              Create a passkey
+              <WalletText message="Create a passkey" />
             </h2>
             <p className="seams-otp-description">
-              Confirm on this device to finish linking it to your wallet.
+              <WalletText message="Confirm on this device to finish linking it to your wallet." />
             </p>
           </div>
           <button
@@ -666,7 +690,11 @@ function PasskeyActivation({
             disabled={isCreating}
             aria-busy={isCreating}
           >
-            {isCreating ? 'Creating passkey…' : 'Create passkey'}
+            {isCreating ? (
+              <WalletText message="Creating passkey…" />
+            ) : (
+              <WalletText message="Create passkey" />
+            )}
           </button>
         </div>
       </div>
@@ -681,6 +709,7 @@ function EmailOtpActivation({
   readonly activation: LinkedDeviceTargetEmailOtpActivationV1;
   readonly onError: (activation: LinkedDeviceTargetEmailOtpActivationV1, error: unknown) => void;
 }) {
+  const locale = useWalletLocale();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -757,31 +786,36 @@ function EmailOtpActivation({
   return (
     <div className="qr-code-container" onClick={stopPropagation}>
       <div className="qr-body">
-        <div className="seams-otp-prompt" role="group" aria-labelledby="seams-device-link-email-title">
+        <div
+          className="seams-otp-prompt"
+          role="group"
+          aria-labelledby="seams-device-link-email-title"
+        >
           <div className="seams-otp-prompt-copy">
             <h2 id="seams-device-link-email-title" className="seams-otp-title">
-              Confirm with an email code
+              <WalletText message="Confirm with an email code" />
             </h2>
             {state.kind !== 'unavailable' && (
               <p className="seams-otp-description">
-                Use the code sent to <strong>{state.maskedEmailHint}</strong>. The destination is
-                managed by your wallet and cannot be changed here.
+                <WalletText message="Use the code sent to" />{' '}
+                <strong>{state.maskedEmailHint}</strong>
+                <WalletText message=". The destination is managed by your wallet and cannot be changed here." />
               </p>
             )}
           </div>
           {state.kind === 'sending' && (
             <div className="qr-status" role="status" aria-live="polite">
-              Sending your email code…
+              <WalletText message="Sending your email code…" />
             </div>
           )}
           {state.kind === 'resending' && (
             <div className="qr-status" role="status" aria-live="polite">
-              Sending a new email code…
+              <WalletText message="Sending a new email code…" />
             </div>
           )}
           {state.kind === 'completed' && (
             <div className="qr-status" role="status" aria-live="polite">
-              Email code accepted. Finishing device activation…
+              <WalletText message="Email code accepted. Finishing device activation…" />
             </div>
           )}
           {(state.kind === 'code_input' ||
@@ -789,7 +823,7 @@ function EmailOtpActivation({
             state.kind === 'incorrect') && (
             <form className="seams-otp-code-field" onSubmit={handleSubmit}>
               <label className="seams-field-label" htmlFor="seams-device-link-email-otp">
-                Email code
+                <WalletText message="Email code" />
               </label>
               <input
                 ref={inputRef}
@@ -800,7 +834,7 @@ function EmailOtpActivation({
                 autoComplete="one-time-code"
                 pattern="[0-9]{6}"
                 maxLength={6}
-                aria-label="Email verification code"
+                aria-label={walletText(locale, 'Email verification code')}
                 aria-invalid={state.kind === 'incorrect'}
                 aria-describedby={
                   state.kind === 'incorrect' ? 'seams-device-link-email-error' : undefined
@@ -814,7 +848,7 @@ function EmailOtpActivation({
               </div>
               {state.kind === 'incorrect' && (
                 <p id="seams-device-link-email-error" className="seams-otp-error" role="alert">
-                  {state.message}
+                  <WalletText copy={state.message} />
                 </p>
               )}
               <button
@@ -823,19 +857,23 @@ function EmailOtpActivation({
                 disabled={state.kind === 'submitting' || isSubmitting}
                 aria-busy={state.kind === 'submitting' || isSubmitting}
               >
-                {state.kind === 'submitting' || isSubmitting ? 'Checking code…' : 'Confirm code'}
+                {state.kind === 'submitting' || isSubmitting ? (
+                  <WalletText message="Checking code…" />
+                ) : (
+                  <WalletText message="Confirm code" />
+                )}
               </button>
             </form>
           )}
           {state.kind === 'expired' && (
             <p className="seams-otp-error" role="alert">
-              {state.message}
+              <WalletText copy={state.message} />
             </p>
           )}
           {state.kind === 'unavailable' && (
             <>
               <p className="seams-otp-error" role="alert">
-                {state.message}
+                <WalletText copy={state.message} />
               </p>
               <button
                 type="button"
@@ -844,7 +882,11 @@ function EmailOtpActivation({
                 disabled={isSending}
                 aria-busy={isSending}
               >
-                {isSending ? 'Trying again…' : 'Send code again'}
+                {isSending ? (
+                  <WalletText message="Trying again…" />
+                ) : (
+                  <WalletText message="Send code again" />
+                )}
               </button>
             </>
           )}
@@ -858,7 +900,11 @@ function EmailOtpActivation({
               disabled={isResending}
               aria-busy={isResending}
             >
-              {isResending ? 'Sending…' : 'Resend code'}
+              {isResending ? (
+                <WalletText message="Sending…" />
+              ) : (
+                <WalletText message="Resend code" />
+              )}
             </button>
           )}
         </div>
@@ -879,12 +925,14 @@ function FailureView({
       <div className="seams-link-device-failure-icon">
         <LinkFailedIcon />
       </div>
-      <h2 className="qr-title">Couldn&apos;t link device</h2>
+      <h2 className="qr-title">
+        <WalletText message="Couldn't link device" />
+      </h2>
       <p className="seams-link-device-failure-detail" role="alert">
-        {message || 'Device linking failed'}
+        <WalletText copy={message || 'Device linking failed'} />
       </p>
       <button type="button" className="seams-link-device-btn" onClick={onChooseAnother}>
-        Choose another factor
+        <WalletText message="Choose another factor" />
       </button>
     </div>
   );

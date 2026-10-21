@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import { KeyIcon } from './icons/KeyIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -56,9 +57,7 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
               key={row.chain}
               type="button"
               className="seams-export-keys-row"
-              disabled={
-                isBusy || (row.chain === 'near' ? !canExportNearKey : !canExportEvmKeys)
-              }
+              disabled={isBusy || (row.chain === 'near' ? !canExportNearKey : !canExportEvmKeys)}
               tabIndex={isOpen ? 0 : -1}
               onClick={(e) => {
                 e.stopPropagation();
@@ -70,11 +69,19 @@ export const ExportKeysSection: React.FC<ExportKeysSectionProps> = ({
                   <KeyIcon />
                 </span>
               ) : null}
-              <span className="seams-export-keys-row-label">{row.label}</span>
-              <span className="seams-export-keys-row-description">{row.description}</span>
+              <span className="seams-export-keys-row-label">
+                <WalletText copy={row.label} />
+              </span>
+              <span className="seams-export-keys-row-description">
+                <WalletText copy={row.description} />
+              </span>
               {presentation === 'page' ? (
                 <span className="seams-export-keys-action">
-                  {loadingChain === row.chain ? 'Preparing export…' : 'Export key'}
+                  {loadingChain === row.chain ? (
+                    <WalletText message="Preparing export…" />
+                  ) : (
+                    <WalletText message="Export key" />
+                  )}
                   <span aria-hidden="true">→</span>
                 </span>
               ) : null}

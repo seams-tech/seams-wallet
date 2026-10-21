@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import TouchIcon from './icons/TouchIcon';
 
@@ -21,8 +22,12 @@ export function AccountMenuDeviceDetails({
         <span className="seams-account-avatar">
           {icon ?? <TouchIcon width={30} height={30} strokeWidth={1.5} />}
         </span>
-        <h3>{title}</h3>
-        <p>{description}</p>
+        <h3>
+          <WalletText copy={title} />
+        </h3>
+        <p>
+          <WalletText copy={description} />
+        </p>
       </div>
       <dl className="seams-account-inset">{details.map(renderDetail)}</dl>
       {children}
@@ -32,8 +37,12 @@ export function AccountMenuDeviceDetails({
 function renderDetail(detail: { label: string; value: string }): React.JSX.Element {
   return (
     <div className="seams-account-detail-row" key={detail.label}>
-      <dt>{detail.label}</dt>
-      <dd>{detail.value}</dd>
+      <dt>
+        <WalletText copy={detail.label} />
+      </dt>
+      <dd>
+        <WalletText copy={detail.value} />
+      </dd>
     </div>
   );
 }

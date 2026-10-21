@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React, { useState } from 'react';
 
 async function copyCodes(
@@ -41,18 +42,18 @@ export function RecoveryCodeActions({ codes }: { codes: readonly string[] }): Re
           className="seams-account-action"
           onClick={copyCodes.bind(null, codes, setFeedback)}
         >
-          Copy all
+          <WalletText message="Copy all" />
         </button>
         <button
           type="button"
           className="seams-account-action"
           onClick={downloadCodes.bind(null, codes, setFeedback)}
         >
-          Download all
+          <WalletText message="Download all" />
         </button>
       </div>
       <p className="seams-recovery-code-action-status" role="status" aria-live="polite">
-        {feedback}
+        <WalletText copy={feedback} />
       </p>
     </>
   );

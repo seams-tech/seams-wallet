@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/wallet-locale.typecheck.ts",
     "typecheck/wallet-object-addresses.typecheck.ts",
     "typecheck/yao-registration-ceremony.typecheck.ts",
     "typecheck/wallet-command-inputs.typecheck.ts",

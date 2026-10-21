@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
 import React, { useLayoutEffect, useRef } from 'react';
 
 function focusHeading(heading: React.RefObject<HTMLHeadingElement | null>): void {
@@ -16,12 +18,22 @@ export function AccountMenuScreen({
   children: React.ReactNode;
   className?: string;
 }): React.JSX.Element {
+  const locale = useWalletLocale();
   const heading = useRef<HTMLHeadingElement>(null);
   useLayoutEffect(focusHeading.bind(null, heading), [title]);
   return (
-    <section key={title} className={`seams-account-screen ${className ?? ''}`} aria-label={title}>
+    <section
+      key={title}
+      className={`seams-account-screen ${className ?? ''}`}
+      aria-label={walletDisplayText(locale, title)}
+    >
       <div className="seams-account-heading">
-        <button type="button" className="seams-account-back" aria-label="Back" onClick={onBack}>
+        <button
+          type="button"
+          className="seams-account-back"
+          aria-label={walletText(locale, 'Back')}
+          onClick={onBack}
+        >
           <svg
             width="18"
             height="18"
@@ -34,7 +46,7 @@ export function AccountMenuScreen({
           </svg>
         </button>
         <h2 ref={heading} tabIndex={-1}>
-          {title}
+          <WalletText copy={title} />
         </h2>
       </div>
       {children}

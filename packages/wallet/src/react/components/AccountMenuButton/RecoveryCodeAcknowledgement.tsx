@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React, { useState } from 'react';
 
 function updateAcknowledgement(
@@ -17,7 +18,9 @@ export function RecoveryCodeAcknowledgement({ onDone }: { onDone: () => void }):
           checked={acknowledged}
           onChange={updateAcknowledgement.bind(null, setAcknowledged)}
         />
-        <span>I’ve saved these codes. They won’t be shown again.</span>
+        <span>
+          <WalletText message="I’ve saved these codes. They won’t be shown again." />
+        </span>
       </label>
       <button
         type="button"
@@ -25,7 +28,7 @@ export function RecoveryCodeAcknowledgement({ onDone }: { onDone: () => void }):
         disabled={!acknowledged}
         onClick={onDone}
       >
-        Done
+        <WalletText message="Done" />
       </button>
     </>
   );

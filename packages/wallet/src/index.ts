@@ -1,10 +1,24 @@
 export { parseWalletMoveId } from './SeamsWeb/publicApi/placement';
 export type {
-  WalletMoveId, WalletMoveRequest, WalletMoveStatus, WalletMoveStatusResult,
-  WalletPlacement, WalletPlacementCapability, WalletPlacementResult, WalletRegion,
+  WalletMoveId,
+  WalletMoveRequest,
+  WalletMoveStatus,
+  WalletMoveStatusResult,
+  WalletPlacement,
+  WalletPlacementCapability,
+  WalletPlacementResult,
+  WalletRegion,
 } from './SeamsWeb/publicApi/placement';
 export { SeamsWeb } from './SeamsWeb';
-export type { AuthMenuCapability, ClientConnectionState, ConfigCapability, ConnectionCapability, EventsCapability } from './SeamsWeb';
+export { normalizeWalletLocale } from './core/ui/locale';
+export type { WalletLocale } from './core/ui/locale';
+export type {
+  AuthMenuCapability,
+  ClientConnectionState,
+  ConfigCapability,
+  ConnectionCapability,
+  EventsCapability,
+} from './SeamsWeb';
 export * from './externalEvm';
 export {
   buildHostedAuthMenuOpenRequest,

@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef } from 'preact';
 import type { WalletRecoveryCodeStatusResult } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { WalletRecoveryCodeBackupRequestV1 } from '@/core/types/sdkSentEvents';
@@ -210,6 +216,9 @@ export class RecoveryCodeBackupSurface extends Component<
   RecoveryCodeBackupSurfaceProps,
   RecoveryCodeBackupSurfaceState
 > {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state = initialState(this.props.experience);
   private readonly root = createRef<HTMLDivElement>();
   private active = false;
@@ -278,10 +287,7 @@ export class RecoveryCodeBackupSurface extends Component<
     this.props.onStageChange(stageForState(this.state.viewState));
   }
 
-  private beginAccountStatus(
-    experience: RecoveryCodeBackupExperience,
-    generation: number,
-  ): void {
+  private beginAccountStatus(experience: RecoveryCodeBackupExperience, generation: number): void {
     if (experience.kind !== 'account_menu') return;
     void this.loadSummaryStatus(experience, generation);
   }
@@ -432,7 +438,8 @@ export class RecoveryCodeBackupSurface extends Component<
     this.clearFocusFrame();
     this.focusFrame = view.requestAnimationFrame(() => {
       this.focusFrame = null;
-      if (this.active) this.root.current?.querySelector<HTMLElement>('.recovery-backup-title')?.focus();
+      if (this.active)
+        this.root.current?.querySelector<HTMLElement>('.recovery-backup-title')?.focus();
     });
   }
 
@@ -445,7 +452,7 @@ export class RecoveryCodeBackupSurface extends Component<
         <button
           type="button"
           class="recovery-summary-close"
-          aria-label="Close recovery codes"
+          aria-label={walletText(this.context, 'Close recovery codes')}
           onClick={this.closeSummary}
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -453,31 +460,39 @@ export class RecoveryCodeBackupSurface extends Component<
           </svg>
         </button>
         <h1 id="seams-wallet-recovery-title" class="recovery-backup-title" tabIndex={-1}>
-          Wallet recovery codes
+          <WalletText message="Wallet recovery codes" />
         </h1>
         <p id="seams-wallet-recovery-description" class="recovery-backup-description">
-          View and save the recovery codes retained by this wallet after registration.
+          <WalletText message="View and save the recovery codes retained by this wallet after registration." />
         </p>
         <div class="recovery-summary-body">
-          <h2 class="recovery-summary-section-label">Security</h2>
+          <h2 class="recovery-summary-section-label">
+            <WalletText message="Security" />
+          </h2>
           <div class="recovery-summary-item">
             <span class="recovery-summary-item-icon" aria-hidden="true">
               <ShieldCheckIcon />
             </span>
             <span class="recovery-summary-item-text">
-              <span class="recovery-summary-item-title">Recovery codes</span>
+              <span class="recovery-summary-item-title">
+                <WalletText message="Recovery codes" />
+              </span>
               <span class="recovery-summary-item-detail">
-                {activeCodesDetail(state.loadState)}
+                <WalletText copy={activeCodesDetail(state.loadState)} />
               </span>
             </span>
-            <span class="recovery-summary-badge">{statusValue(state.loadState)}</span>
+            <span class="recovery-summary-badge">
+              <WalletText copy={statusValue(state.loadState)} />
+            </span>
           </div>
           <div class="recovery-summary-item">
             <span class="recovery-summary-item-icon" aria-hidden="true">
               <WalletIcon />
             </span>
             <span class="recovery-summary-item-text">
-              <span class="recovery-summary-item-title">Wallet</span>
+              <span class="recovery-summary-item-title">
+                <WalletText message="Wallet" />
+              </span>
               <span class="recovery-summary-item-detail">{state.walletId}</span>
             </span>
           </div>
@@ -490,7 +505,7 @@ export class RecoveryCodeBackupSurface extends Component<
             >
               {opening ? (
                 <>
-                  Opening recovery codes
+                  <WalletText message="Opening recovery codes" />
                   <span class="recovery-summary-ellipsis" aria-hidden="true">
                     <span>.</span>
                     <span>.</span>
@@ -498,18 +513,34 @@ export class RecoveryCodeBackupSurface extends Component<
                   </span>
                 </>
               ) : (
-                'View recovery codes'
+                <WalletText message="View recovery codes" />
               )}
             </button>
           )}
           <p class="recovery-summary-live-status" role="status" aria-live="polite">
-            {state.loadState.kind === 'loading' ? 'Loading recovery-code status…' : ''}
+            {state.loadState.kind === 'loading' ? (
+              <WalletText message="Loading recovery-code status…" />
+            ) : (
+              ''
+            )}
           </p>
-          {statusFailure && <p class="recovery-summary-error" role="alert">{statusFailure}</p>}
-          {state.actionError && <p class="recovery-summary-error" role="alert">{state.actionError}</p>}
+          {statusFailure && (
+            <p class="recovery-summary-error" role="alert">
+              <WalletText copy={statusFailure} />
+            </p>
+          )}
+          {state.actionError && (
+            <p class="recovery-summary-error" role="alert">
+              <WalletText copy={state.actionError} />
+            </p>
+          )}
           {state.loadState.kind === 'error' && (
-            <button type="button" class="recovery-backup-button secondary" onClick={this.retryStatus}>
-              Retry status
+            <button
+              type="button"
+              class="recovery-backup-button secondary"
+              onClick={this.retryStatus}
+            >
+              <WalletText message="Retry status" />
             </button>
           )}
         </div>
@@ -525,23 +556,28 @@ export class RecoveryCodeBackupSurface extends Component<
     return (
       <>
         <h1 id="seams-wallet-recovery-title" class="recovery-backup-title" tabIndex={-1}>
-          Save your recovery codes
+          <WalletText message="Save your recovery codes" />
         </h1>
         <p id="seams-wallet-recovery-description" class="recovery-backup-description">
-          {description}
+          <WalletText copy={description} />
         </p>
         <div class="recovery-code-sheet">
           <div class="recovery-code-sheet-heading">
-            <span>Recovery codes</span>
-            <span>{request.recoveryCodes.length} single-use codes</span>
+            <span>
+              <WalletText message="Recovery codes" />
+            </span>
+            <span>
+              <WalletText
+                message="{value0} single-use codes"
+                values={{ value0: request.recoveryCodes.length }}
+              />
+            </span>
           </div>
-          <ol class="recovery-code-list">
-            {request.recoveryCodes.map(renderRecoveryCodeItem)}
-          </ol>
+          <ol class="recovery-code-list">{request.recoveryCodes.map(renderRecoveryCodeItem)}</ol>
         </div>
         <div class="recovery-backup-actions">
           <button type="button" class="recovery-backup-button primary" onClick={this.download}>
-            Download codes
+            <WalletText message="Download codes" />
           </button>
           <button
             type="button"
@@ -549,7 +585,7 @@ export class RecoveryCodeBackupSurface extends Component<
             onClick={this.copy}
           >
             <CopyIcon />
-            Copy codes
+            <WalletText message="Copy codes" />
           </button>
         </div>
         <div class="recovery-backup-footer">
@@ -561,8 +597,10 @@ export class RecoveryCodeBackupSurface extends Component<
               onChange={this.onAcknowledgementChange}
             />
             <span>
-              I saved these recovery codes somewhere safe.
-              <small>They won’t be shown again after you finish.</small>
+              <WalletText message="I saved these recovery codes somewhere safe." />
+              <small>
+                <WalletText message="They won’t be shown again after you finish." />
+              </small>
             </span>
           </label>
           <button
@@ -571,11 +609,11 @@ export class RecoveryCodeBackupSurface extends Component<
             data-seams-wallet-recovery-backup-close
             onClick={this.closeRecoveryCodes}
           >
-            {recoveryCloseLabel(request, this.state.acknowledged)}
+            <WalletText copy={recoveryCloseLabel(request, this.state.acknowledged)} />
           </button>
         </div>
         <p class="recovery-backup-status" role="status">
-          {this.state.statusMessage}
+          <WalletText copy={this.state.statusMessage} />
         </p>
       </>
     );

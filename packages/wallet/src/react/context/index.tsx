@@ -1,3 +1,5 @@
+import { WalletLocaleContext } from './WalletLocale';
+import { normalizeWalletLocale } from '@/core/ui/locale';
 /* `React.FC` below is a type-position reference to the namespace, which .tsx
    resolves globally but the emitted .d.ts does not — leaving `React`
    unresolvable there and degrading every consumer of `useSeams` to `any`.
@@ -170,7 +172,11 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
     hostSetTheme: theme?.setTheme,
   });
 
-  return <SeamsContext.Provider value={value}>{children}</SeamsContext.Provider>;
+  return (
+    <WalletLocaleContext.Provider value={normalizeWalletLocale(config.appearance?.locale)}>
+      <SeamsContext.Provider value={value}>{children}</SeamsContext.Provider>
+    </WalletLocaleContext.Provider>
+  );
 };
 
 /** Authentication, lifecycle state, and the current wallet's bound signers. */

@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { Component, type TargetedEvent } from 'preact';
 
 export type EmailOtpInputState =
@@ -47,7 +48,7 @@ export class EmailOtpInput extends Component<EmailOtpInputProps> {
     return (
       <div class="email-otp-confirm">
         <label class="email-otp-confirm__label" for={this.id}>
-          Email code
+          <WalletText message="Email code" />
         </label>
         <div class="email-otp-confirm__code-field" data-disabled={disabled ? 'true' : 'false'}>
           <input
@@ -75,11 +76,11 @@ export class EmailOtpInput extends Component<EmailOtpInputProps> {
           </div>
         </div>
         <div id={helperId} class="email-otp-confirm__helper">
-          {this.props.helperText}
+          <WalletText copy={this.props.helperText} />
         </div>
         {this.props.errorMessage && (
           <div id={errorId} class="email-otp-confirm__error">
-            {this.props.errorMessage}
+            <WalletText copy={this.props.errorMessage} />
           </div>
         )}
         {this.props.resend && (
@@ -89,7 +90,7 @@ export class EmailOtpInput extends Component<EmailOtpInputProps> {
             disabled={this.props.resend.kind === 'unavailable'}
             onClick={this.resend}
           >
-            {this.props.resend.label}
+            <WalletText copy={this.props.resend.label} />
           </button>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useWalletLocale } from '../../context/WalletLocale';
 import React from 'react';
 import type { DesignTokens, UseThemeReturn } from './design-tokens';
 import { LIGHT_TOKENS, DARK_TOKENS } from './design-tokens';
@@ -62,10 +63,11 @@ const ThemeScope: React.FC<ThemeScopeProps> = ({
   children,
 }) => {
   const { theme, vars } = useThemeContext();
+  const locale = useWalletLocale();
   const Comp: any = tag;
   const attrs: any = { [dataAttr]: theme };
   return (
-    <Comp className={className} style={{ ...vars, ...style }} {...attrs}>
+    <Comp lang={locale} className={className} style={{ ...vars, ...style }} {...attrs}>
       {children}
     </Comp>
   );

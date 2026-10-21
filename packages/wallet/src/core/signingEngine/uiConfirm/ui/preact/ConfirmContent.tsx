@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef, type ComponentChildren } from 'preact';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { TreeNode } from '../transaction-display/tree';
@@ -39,6 +45,9 @@ function stopDragStart(event: Event): void {
 }
 
 export class ConfirmContent extends Component<ConfirmContentProps, { armed: boolean }> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state = { armed: false };
   private readonly id = `seams-confirm-content-${++nextContentId}`;
   private readonly root = createRef<HTMLDivElement>();
@@ -132,7 +141,7 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
         <div id={this.id} ref={this.root} class="txc-root">
           {this.props.errorMessage && (
             <div class="error" role="alert">
-              {this.props.errorMessage}
+              <WalletText copy={this.props.errorMessage} />
             </div>
           )}
           {this.props.tree && (
@@ -151,7 +160,7 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
           <div class="actions">
             {!this.props.cancelInHeader && (
               <button type="button" class="cancel" onClick={this.cancel}>
-                {this.props.cancelText}
+                <WalletText copy={this.props.cancelText} />
               </button>
             )}
             <button
@@ -163,13 +172,19 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
             >
               {preparing ? (
                 <>
-                  <span class="loading-indicator" role="progressbar" aria-label="Loading" />
-                  <span>Loading...</span>
+                  <span
+                    class="loading-indicator"
+                    role="progressbar"
+                    aria-label={walletText(this.context, 'Loading')}
+                  />
+                  <span>
+                    <WalletText message="Loading..." />
+                  </span>
                 </>
               ) : (
                 <>
                   {this.props.confirmIcon}
-                  {this.props.confirmText}
+                  <WalletText copy={this.props.confirmText} />
                 </>
               )}
             </button>

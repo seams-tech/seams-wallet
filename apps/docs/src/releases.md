@@ -7,12 +7,39 @@ description: Current SDK, server, CLI, and hosted runtime requirements for Seams
 
 These docs target version **0.17.0** of the browser SDK, server SDK, and recovery CLI.
 
-| Component | Version | Requirement |
-| --- | --- | --- |
-| Browser SDK `@seams/wallet` | **0.17.0** | Match application code and wallet-origin assets |
-| Server SDK `@seams/wallet-server` | **0.17.0** | Deploy the coordinated backend roles |
+| Component                               | Version    | Requirement                                               |
+| --------------------------------------- | ---------- | --------------------------------------------------------- |
+| Browser SDK `@seams/wallet`             | **0.17.0** | Match application code and wallet-origin assets           |
+| Server SDK `@seams/wallet-server`       | **0.17.0** | Deploy the coordinated backend roles                      |
 | Native CLI launcher `@seams/wallet-cli` | **0.17.0** | Use its signed native assets and the dashboard's commands |
-| Wallet iframe protocol | **16.0.0** | Match the application and wallet host |
+| Wallet iframe protocol                  | **16.0.0** | Match the application and wallet host                     |
+
+## Upcoming 0.18.0: English and Japanese controls
+
+The source tree prepares `@seams/wallet@0.18.0` and `@seams/wallet-server@0.18.0`.
+These packages are not published yet. The CLI remains on its separate 0.17.0 release.
+The iframe protocol remains 16.0.0 because locale uses the existing appearance configuration.
+
+Set the SDK language when creating the provider configuration:
+
+```tsx [Partial example]
+import { normalizeWalletLocale } from '@seams/wallet';
+
+const appearance = {
+  locale: normalizeWalletLocale(new URL(location.href).searchParams.get('locale')),
+};
+```
+
+Pass `appearance` to `defineSeamsConfig` or `SeamsWebProvider`'s `config`.
+Use `appearance: { locale: 'ja' }` for Japanese, or omit locale for English.
+The provider and wallet-origin controls share this configuration.
+SDK previews also accept `locale` on `AccountMenuButtonMock` and `SeamsAuthMenuMock`.
+Applications provide translations for their own headings and custom copy overrides.
+
+Publish the paired packages with `release-wallet-packages.yml` from `main`, using version `0.18.0`.
+The workflow requires both package manifests to match that version.
+Then pin the exact packages in Console and deploy the matching wallet-origin assets.
+An application-only update cannot translate an older hosted wallet build.
 
 ## Integration
 

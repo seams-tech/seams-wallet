@@ -14,6 +14,23 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## Wallet display language
+
+The SDK supports English (`en`) and Japanese (`ja`). English is the default.
+Applications set `appearance.locale` in the SDK configuration.
+Raw URL or browser language tags pass through `normalizeWalletLocale` at the application boundary.
+Japanese regional tags select Japanese. Unsupported language tags select English.
+
+The resolved appearance crosses the wallet iframe configuration boundary.
+Locale changes do not replace signing sessions or change authentication, custody, budgets, or transaction data.
+SDK controls, notices, accessible labels, and security warnings use the selected language.
+Brand names, account identifiers, addresses, method names, and raw transaction payloads retain their values.
+Applications translate their own custom copy. Unknown external service details retain their original text.
+
+The catalogue requires a Japanese translation for every message key.
+`tests/typecheck/wallet-locale.typecheck.ts` checks supported locales and message selection.
+Existing browser and lifecycle contracts continue to enforce their original behavior.
+
 ## Application confirmation preferences
 
 Preference setters update the application's display immediately. Each write captures
@@ -831,8 +848,6 @@ Expected behaviour:
   or credential collection. NEAR completion preserves the newly issued session's
   remaining budget and expiry.
 
-
-
 Failure behaviour:
 
 - If local persistence postconditions fail, registration must not report local
@@ -1130,7 +1145,6 @@ The SDK returns `state` unchanged, including an empty string. `state` is transpo
 data and does not enter the signed payload. Changes to message, nonce, recipient,
 or callback URL invalidate the signature.
 
-
 NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
 actions, options })`, including React bindings. A single action is a one-element
 `actions` array. Signing and submission failures reject the promise through the
@@ -1139,7 +1153,6 @@ existing send API; callers handle them with `try`/`catch`. There is no separate
 `success: false` result. Confirmation, callbacks, wait status, and nonce reporting
 retain the canonical send path's contracts.
 
-
 EVM and Tempo use `signTransaction` for signing without broadcast and
 `signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
 React wallet bindings use the same names. Existing result types, payload
@@ -1147,7 +1160,6 @@ verification, review reservations, cancellation, and nonce reporting retain thei
 contracts. Custom broadcasters report lifecycle outcomes through `advanced`.
 Tempo exposes `getFeeToken`, `validateFeeToken`, and `setFeeToken`.
 `setFeeToken` submits an on-chain transaction.
-
 
 ECDSA reusable Wallet Session finalization requires an already admitted prepare
 for the exact operation. An authenticated finalize with no matching prepare
@@ -1521,11 +1533,11 @@ restore, lane selection, or budget handling.
 | Adding Passkey reuses the Email OTP authority and enables every allowed signer and export family                 | `tests/e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts`                                            |
 | Auth-method addition works for Ed25519-only and ECDSA-only authorities                                           | `tests/e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts`                                      |
 | Passkey recovery preserves public identities, signs through the fresh authority, and refuses code reuse          | `tests/e2e/intended-behaviours/passkey.recovery.contract.test.ts`                                                 |
-| Recovered owners link after reload and unlock, preserving signing, export, retries, and revocation                | `tests/e2e/intended-behaviours/passkey.device-linking.contract.test.ts`                                           |
+| Recovered owners link after reload and unlock, preserving signing, export, retries, and revocation               | `tests/e2e/intended-behaviours/passkey.device-linking.contract.test.ts`                                           |
 | Google/Email OTP recovery preserves public identities, signs through the fresh authority, and refuses code reuse | `tests/e2e/intended-behaviours/google-email-otp.recovery.contract.test.ts`                                        |
 | Tenant-root rotation preserves signing and recovery across operational-share changes                             | Private acceptance coverage: `seams-monorepo/tests/e2e/intended-behaviours/tenant-root.rotation.contract.test.ts` |
 | Sibling revocation, inventory UI, and exact Email OTP boundary failures                                          | Private focused coverage in `seams-monorepo/tests/unit` as mapped by the owning change.                           |
-| External EVM discovery, connection binding, stale-request rejection, and transaction outcomes                    | `tests/unit/externalEvmController.unit.test.ts`                                                                    |
+| External EVM discovery, connection binding, stale-request rejection, and transaction outcomes                    | `tests/unit/externalEvmController.unit.test.ts`                                                                   |
 
 ## Non-Goals
 
@@ -1824,7 +1836,6 @@ If cancellation commits first, verification returns a refusal without a grant to
 Both new- and existing-enrollment verification propagate that refusal. Grant
 consumption remains a single-use transactional state change.
 
-
 ### Application session subscriptions
 
 `seams.auth.onSessionChange(listener)` publishes the complete reconciled
@@ -1855,7 +1866,6 @@ because its session changes after the response. React uses its session
 subscription to display the registered wallet without another status request.
 Signing prepare continues to enforce current revocation, expiry, and quota state.
 The iframe protocol requires matching client and wallet-host assets at version 16.0.0.
-
 
 ### Connection and operation preparation
 
@@ -1903,7 +1913,6 @@ cannot miss a readiness event between those operations. Omitting `timeoutMs`
 uses 120 seconds. Explicit timeouts and abort signals remain supported. The wait
 returns ready, retryable failure, or timeout; abort rejects and releases its
 subscription. A pending NEAR account does not block available EVM-family signing.
-
 
 Custom email-code UI requests delivery through `auth.requestEmailCode`. Use
 `{ method: 'google', idToken, target }` for Google, or
@@ -1982,8 +1991,6 @@ replies replay that acknowledgement. Changed receipts fail, and exact receipts
 remain replayable after cleanup. Imported inventory remains historical and does
 not hold a later generation open.
 
-
-
 Each new operation claim reads the active local generation in its insert statement.
 The database rejects an absent or inactive home before the claim can consume quota.
 The stored generation cannot change. In-progress retries read that stored generation.
@@ -2007,82 +2014,80 @@ and replay its terminal result after a worker restart.
 The native and wallet-DO stores commit initial Ed25519 execution authority with
 registration. Prepare and fresh finalize check that stored generation in the same
 transaction as their signing writes. Missing authority cannot default to generation
+
 1. Historical terminal replay remains available without creating new signing work.
-The Ed25519 source fence records the exact move identity under dedicated
-Router-to-SigningWorker authentication. It closes new preparation and registration
-writes. Repeated commands return the stored identity after restart. Changed move
-inputs fail. Admitted finalize can settle while this fence is draining, and exact
-terminal replay stays available. This fence alone does not attest a sealed snapshot.
-The settlement command counts admitted rounds in the transaction that closes
-preparation. A claimed round or an unexpired preparation keeps settlement draining.
-Expired unclaimed preparations do not block settlement. When no round remains,
-the source stores the exact settlement identity and rejects fresh finalization.
-Known terminal results remain replayable. Exact settlement retries survive restart.
-Settlement permits subsequent snapshot capture; it does not attest that snapshot.
-The wallet-DO source captures registrations, retired activation indexes, linked
-material, and round-1 history only after that exact move has settled. Each capture
-command reads at most 16 records from one collection. It commits immutable 4,096-byte
-segments with its cursor and rolling digest. Restart resumes that cursor. The final
-receipt binds the source, record count, segment count, and digest. Export requires
-the exact final receipt and returns one stored segment. Changed moves, receipts,
-and missing segments fail. Unsettled registration material cannot enter a snapshot.
-The destination prepares before source settlement and closes ordinary writes.
-Each imported segment commits with its acknowledgement and progress. Exact retries
-return that acknowledgement after restart. Changed or out-of-order segments fail.
-The Router accepts typed Ed25519 settlement and snapshot commands with
-Gateway-to-Router authentication and bounded JSON input. It forwards them through
-its SigningWorker binding with the separate Router-to-SigningWorker credential.
-The Worker E2E sends source settlement, capture, export, and cleanup through this
-transport. The private Wallet Runtime dispatcher admits only its explicit
-relocation operation list, POST, JSON, and bounded bodies. It uses its configured
-Gateway-to-Router credential and ignores caller-supplied credentials. Public origins
-and unknown operations cannot select this transport. The Ed25519 Worker scenario
-executes source relocation through the production Runtime handler and real Router
-and SigningWorker Workers. Console source-command authorization now checks the
-running freeze attempt, source Runtime deployment, and pinned resource verification.
-It builds Ed25519 settlement/capture and ECDSA freeze commands from the journal,
-including one stable invalidation timestamp. The directory E2E verifies exact
-replies and rejects the destination Runtime and Gateway. Runtime consumption of
-these authorized commands remains unconnected.
-The same Router transport accepts typed ECDSA freeze, export, and
-transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
-and activation replay through this boundary. A SigningWorker credential cannot
-authorize the Router request. Linked-presignature inventory, fence, freeze, export,
-and transfer commands use the same typed transport. The ECDSA Worker scenario
-settles and exports source sessions through the Router, including the race with
-terminal replay and the requirement for both session acknowledgements.
-An authenticated status command returns the destination cursor or its verified or
-activated state under the exact receipt. It does not change import state. The
-Worker E2E resumes transfer from this cursor after each eviction.
-The final segment must complete the expected record count and digest. Verification
-restores at most 16 segments per command and retains an incomplete record across
-calls. Production readers validate each record before insertion. Stored values
-must equal the original values, including nullable indexes and terminal history.
-The destination remains inactive until verification finishes. Activation installs
-the next execution generation and removes only its preparation fence. An exact
-activation retry preserves a later source fence. The restored wallet accepts fresh
-signing under the new generation and rejects the old generation. Prepare and
-finalize return exact results after eviction. The next snapshot preserves the
-completed signing result. The Worker E2E verifies the resulting Ed25519 signature.
-Source cleanup deletes at most 16 records per transaction. It requires the exact
-frozen receipt supplied by the authenticated coordinator after destination
-activation. It retains execution authority, settlement, and the write fence.
-The Worker E2E resumes cleanup across eviction and repeats its completed receipt.
-The cleaned source rejects registration and snapshot export. Fresh destination
-signing succeeds after cleanup. A cleaned location can prepare for a higher
-source generation with a different move ID. Preparation archives its old cleanup
-receipt and replaces authority atomically. Delayed cleanup returns that receipt
-without deleting new data. The Worker E2E restores registration and terminal history
-to the original location and verifies fresh generation-3 signing after delayed
-cleanup retries and eviction. Full relocation still requires composed verification.
+   The Ed25519 source fence records the exact move identity under dedicated
+   Router-to-SigningWorker authentication. It closes new preparation and registration
+   writes. Repeated commands return the stored identity after restart. Changed move
+   inputs fail. Admitted finalize can settle while this fence is draining, and exact
+   terminal replay stays available. This fence alone does not attest a sealed snapshot.
+   The settlement command counts admitted rounds in the transaction that closes
+   preparation. A claimed round or an unexpired preparation keeps settlement draining.
+   Expired unclaimed preparations do not block settlement. When no round remains,
+   the source stores the exact settlement identity and rejects fresh finalization.
+   Known terminal results remain replayable. Exact settlement retries survive restart.
+   Settlement permits subsequent snapshot capture; it does not attest that snapshot.
+   The wallet-DO source captures registrations, retired activation indexes, linked
+   material, and round-1 history only after that exact move has settled. Each capture
+   command reads at most 16 records from one collection. It commits immutable 4,096-byte
+   segments with its cursor and rolling digest. Restart resumes that cursor. The final
+   receipt binds the source, record count, segment count, and digest. Export requires
+   the exact final receipt and returns one stored segment. Changed moves, receipts,
+   and missing segments fail. Unsettled registration material cannot enter a snapshot.
+   The destination prepares before source settlement and closes ordinary writes.
+   Each imported segment commits with its acknowledgement and progress. Exact retries
+   return that acknowledgement after restart. Changed or out-of-order segments fail.
+   The Router accepts typed Ed25519 settlement and snapshot commands with
+   Gateway-to-Router authentication and bounded JSON input. It forwards them through
+   its SigningWorker binding with the separate Router-to-SigningWorker credential.
+   The Worker E2E sends source settlement, capture, export, and cleanup through this
+   transport. The private Wallet Runtime dispatcher admits only its explicit
+   relocation operation list, POST, JSON, and bounded bodies. It uses its configured
+   Gateway-to-Router credential and ignores caller-supplied credentials. Public origins
+   and unknown operations cannot select this transport. The Ed25519 Worker scenario
+   executes source relocation through the production Runtime handler and real Router
+   and SigningWorker Workers. Console source-command authorization now checks the
+   running freeze attempt, source Runtime deployment, and pinned resource verification.
+   It builds Ed25519 settlement/capture and ECDSA freeze commands from the journal,
+   including one stable invalidation timestamp. The directory E2E verifies exact
+   replies and rejects the destination Runtime and Gateway. Runtime consumption of
+   these authorized commands remains unconnected.
+   The same Router transport accepts typed ECDSA freeze, export, and
+   transfer commands. The ECDSA Worker scenario verifies freeze, export, activation,
+   and activation replay through this boundary. A SigningWorker credential cannot
+   authorize the Router request. Linked-presignature inventory, fence, freeze, export,
+   and transfer commands use the same typed transport. The ECDSA Worker scenario
+   settles and exports source sessions through the Router, including the race with
+   terminal replay and the requirement for both session acknowledgements.
+   An authenticated status command returns the destination cursor or its verified or
+   activated state under the exact receipt. It does not change import state. The
+   Worker E2E resumes transfer from this cursor after each eviction.
+   The final segment must complete the expected record count and digest. Verification
+   restores at most 16 segments per command and retains an incomplete record across
+   calls. Production readers validate each record before insertion. Stored values
+   must equal the original values, including nullable indexes and terminal history.
+   The destination remains inactive until verification finishes. Activation installs
+   the next execution generation and removes only its preparation fence. An exact
+   activation retry preserves a later source fence. The restored wallet accepts fresh
+   signing under the new generation and rejects the old generation. Prepare and
+   finalize return exact results after eviction. The next snapshot preserves the
+   completed signing result. The Worker E2E verifies the resulting Ed25519 signature.
+   Source cleanup deletes at most 16 records per transaction. It requires the exact
+   frozen receipt supplied by the authenticated coordinator after destination
+   activation. It retains execution authority, settlement, and the write fence.
+   The Worker E2E resumes cleanup across eviction and repeats its completed receipt.
+   The cleaned source rejects registration and snapshot export. Fresh destination
+   signing succeeds after cleanup. A cleaned location can prepare for a higher
+   source generation with a different move ID. Preparation archives its old cleanup
+   receipt and replaces authority atomically. Delayed cleanup returns that receipt
+   without deleting new data. The Worker E2E restores registration and terminal history
+   to the original location and verifies fresh generation-3 signing after delayed
+   cleanup retries and eviction. Full relocation still requires composed verification.
 
 The same fence prevents new Ed25519 recovery and linked-device mutations. Native
 refresh deliveries also check the fence. Each mutation commits with its fence check
 in one storage transaction. Native control routes reload durable state after errors
 and never save rejected in-memory mutations through automatic snapshot persistence.
-
-
-
 
 ### Restore authorization history during relocation
 
@@ -2270,7 +2275,6 @@ JavaScript's exact range. The transfer scenario consumes exported snapshot recor
 All nine authorization tables use production restore. This component contract
 does not establish a complete wallet move or signing after relocation.
 
-
 ### Reserve the authorization destination before source pause
 
 Gateway preparation compares the source and destination authorization schema digests.
@@ -2283,7 +2287,6 @@ source snapshot. The source remains usable until admission pauses it.
 `tests/e2e/authorization-storage-transfer.e2e.mjs` verifies these boundaries and then
 imports the source history into the reserved destination. This component evidence
 does not establish preparation or activation of every wallet participant.
-
 
 ### Reserve Deriver wallet destinations
 

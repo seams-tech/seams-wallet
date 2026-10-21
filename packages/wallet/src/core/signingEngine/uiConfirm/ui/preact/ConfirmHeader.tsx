@@ -1,4 +1,6 @@
 /** @jsxImportSource preact */
+import { WalletText, useWalletLocale } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText } from '@/core/ui/messages';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { PadlockIcon } from './PadlockIcon';
 import { PasskeyHaloLoading } from './PasskeyHaloLoading';
@@ -17,21 +19,30 @@ export type ConfirmHeaderProps = {
 };
 
 export function ConfirmHeader(props: ConfirmHeaderProps) {
+  const locale = useWalletLocale();
   return (
     <div class="hero seams-confirm-header">
       <PasskeyHaloLoading animated={!props.errorMessage} icon={props.icon} styles={props.styles} />
       <div class="hero-container">
-        <h2 class="hero-heading">{props.heading}</h2>
-        {props.errorMessage && <div class="error-banner">{props.errorMessage}</div>}
+        <h2 class="hero-heading">
+          <WalletText copy={props.heading} />
+        </h2>
+        {props.errorMessage && (
+          <div class="error-banner">
+            <WalletText copy={props.errorMessage} />
+          </div>
+        )}
         <div class="rpid-wrapper">
           <div class="rpid">
             <div class="secure-indicator">
               <PadlockIcon />
               <span role="status">
                 {props.website.kind === 'ready' ? (
-                  <span class="domain-text">{props.website.text}</span>
+                  <span class="domain-text">
+                    <WalletText copy={props.website.text} />
+                  </span>
                 ) : (
-                  <LoadingStatus label="Loading website" />
+                  <LoadingStatus label={walletText(locale, 'Loading website')} />
                 )}
               </span>
             </div>
@@ -53,9 +64,9 @@ export function ConfirmHeader(props: ConfirmHeaderProps) {
               </svg>
               <span role="status">
                 {props.chainDetails.kind === 'ready' ? (
-                  props.chainDetails.text
+                  <WalletText copy={props.chainDetails.text} />
                 ) : (
-                  <LoadingStatus label="Loading chain details" />
+                  <LoadingStatus label={walletText(locale, 'Loading chain details')} />
                 )}
               </span>
             </span>
@@ -74,7 +85,9 @@ export function LoadingStatus(props: { label: string }) {
         <span class="loading-ellipsis__dot">.</span>
         <span class="loading-ellipsis__dot">.</span>
       </span>
-      <span class="sr-only">{props.label}</span>
+      <span class="sr-only">
+        <WalletText copy={props.label} />
+      </span>
     </>
   );
 }

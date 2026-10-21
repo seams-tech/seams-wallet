@@ -92,6 +92,10 @@ export async function handleWalletHostRuntimeRequest(
     },
     {
       appearance: {
+        locale:
+          input.state.configuration.kind === 'configured'
+            ? input.state.configuration.config.ui.appearance.locale
+            : 'en',
         palette: 'default',
         theme: resolveAppearanceTheme({
           value:

@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import { withWalletLocale } from './WalletLocale';
 import type { AppearanceConfig } from '@/core/types/seams';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
@@ -60,6 +61,7 @@ class MountedExportSurface implements ExportSurfaceHandle {
 
   update(model: ExportSurfaceModel): void {
     if (this.state.kind === 'disposed') return;
+    this.element.lang = model.appearance.locale ?? 'en';
     this.element.dataset.theme = model.appearance.theme.mode;
     this.element.dataset.seamsExportVariant = model.variant;
     this.styles.setDynamicRule(
@@ -68,24 +70,30 @@ class MountedExportSurface implements ExportSurfaceHandle {
     );
     if (model.variant === 'modal') {
       render(
-        <ConfirmationModal context={this.context} label="Exported Keys" onCancel={this.dispose}>
-          <ExportPrivateKeySurface model={model.content} onClose={this.dispose} />
-        </ConfirmationModal>,
+        withWalletLocale(
+          model.appearance.locale ?? 'en',
+          <ConfirmationModal context={this.context} label="Exported Keys" onCancel={this.dispose}>
+            <ExportPrivateKeySurface model={model.content} onClose={this.dispose} />
+          </ConfirmationModal>,
+        ),
         this.element,
       );
       return;
     }
     render(
-      <ConfirmationDrawer
-        context={this.context}
-        label="Exported Keys"
-        dismissOnBackdrop={false}
-        styles={this.styles}
-        state={{ kind: 'open', interaction: 'ready' }}
-        onCancel={this.dispose}
-      >
-        <ExportPrivateKeySurface model={model.content} />
-      </ConfirmationDrawer>,
+      withWalletLocale(
+        model.appearance.locale ?? 'en',
+        <ConfirmationDrawer
+          context={this.context}
+          label="Exported Keys"
+          dismissOnBackdrop={false}
+          styles={this.styles}
+          state={{ kind: 'open', interaction: 'ready' }}
+          onCancel={this.dispose}
+        >
+          <ExportPrivateKeySurface model={model.content} />
+        </ConfirmationDrawer>,
+      ),
       this.element,
     );
   }

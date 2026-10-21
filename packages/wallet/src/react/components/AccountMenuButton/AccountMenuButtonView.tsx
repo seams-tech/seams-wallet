@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText } from '@/core/ui/messages';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { UserAccountButton } from './UserAccountButton';
 import { ProfileDropdown } from './ProfileDropdown';
@@ -81,6 +83,7 @@ export function AccountMenuButtonView({
   style,
   children,
 }: AccountMenuButtonViewProps): React.JSX.Element {
+  const locale = useWalletLocale();
   const contentRef = useRef<HTMLDivElement>(null);
   const hasScreen = children !== null && children !== undefined;
   const previousScreen = useRef(hasScreen);
@@ -112,7 +115,11 @@ export function AccountMenuButtonView({
             <header className="seams-account-origin">
               <LockKeyholeIcon size={14} />
               <span>{typeof window === 'undefined' ? '' : window.location.host}</span>
-              <button type="button" aria-label="Close wallet settings" onClick={dropdown.onClose}>
+              <button
+                type="button"
+                aria-label={walletText(locale, 'Close wallet settings')}
+                onClick={dropdown.onClose}
+              >
                 <svg
                   width="18"
                   height="18"
@@ -132,7 +139,7 @@ export function AccountMenuButtonView({
                     className="seams-account-identity"
                     tabIndex={-1}
                     role="group"
-                    aria-label="Wallet account"
+                    aria-label={walletText(locale, 'Wallet account')}
                   >
                     <span className="seams-account-avatar">
                       <TouchIcon width={23} height={23} strokeWidth={1.5} />
@@ -158,7 +165,9 @@ export function AccountMenuButtonView({
                 <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z" />
                 <path d="m8 12 3 3 5-6" />
               </svg>
-              <span>Secured by</span>
+              <span>
+                <WalletText message="Secured by" />
+              </span>
               <svg
                 className="seams-account-wordmark"
                 viewBox="0 0 1428 285"

@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import { withWalletLocale } from './WalletLocale';
 import type { AppearanceConfig } from '@/core/types/seams';
 import { appearanceTokenCssRule } from '../appearance-token-vars';
 import { confirmationDocumentStyles } from './confirmation-styles';
@@ -44,6 +45,7 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
     this.element = this.document.createElement('div');
     this.element.id = `seams-recovery-surface-${++nextRecoverySurfaceId}`;
     this.element.className = 'seams-wallet-ui seams-recovery-code-backup-host';
+    this.element.lang = input.appearance?.locale ?? 'en';
     this.element.dataset.seamsRecoverySurface = input.surface;
     if (input.appearance) {
       this.element.dataset.theme = input.appearance.theme.mode;
@@ -92,11 +94,14 @@ class MountedRecoveryCodeBackupSurface implements RecoveryCodeBackupSurfaceHandl
     if (this.state === 'disposed') return;
     this.element.dataset.seamsRecoveryEntry = experience.kind;
     render(
-      <RecoveryCodeBackupSurface
-        experience={experience}
-        onClose={this.input.onClose}
-        onStageChange={this.handleStageChange}
-      />,
+      withWalletLocale(
+        this.input.appearance?.locale ?? 'en',
+        <RecoveryCodeBackupSurface
+          experience={experience}
+          onClose={this.input.onClose}
+          onStageChange={this.handleStageChange}
+        />,
+      ),
       this.dialog,
     );
   }

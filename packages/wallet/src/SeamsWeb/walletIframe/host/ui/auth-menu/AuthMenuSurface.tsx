@@ -1,10 +1,40 @@
 /** @jsxImportSource preact */
-import { Component, Fragment, type ComponentChildren } from 'preact';
 import {
-  WALLET_RECOVERY_CODE_ALPHABET,
-  WALLET_RECOVERY_CODE_CHAR_LENGTH,
-  WALLET_RECOVERY_CODE_GROUP_LENGTH,
-} from '@shared/wallet-recovery/recoveryCodes';
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
+import {
+  recoveryInputCharacters,
+  rejectedRecoveryCharacters,
+  renderRecoveryCodeGroups,
+  type RecoveryCodeSelection,
+  type RecoveryCodeArrival,
+} from './recovery-code-input';
+import {
+  renderDemoEmailCode,
+  AUTH_MENU_TITLE_ID,
+  AUTH_MENU_ACCOUNT_LIST_ID,
+  otpCodeDigits,
+  recoveryCaretAtPoint,
+  renderOtpCodeDigit,
+  authViewKey,
+  recoveryAnnouncement,
+  recoveryBackLabel,
+  recoveryNavigationLocked,
+  modeSwitchCopy,
+  modeLabel,
+  passkeyButtonLabel,
+  menuNotice,
+  selectedLoginAccount,
+  selectedAccountPrimaryText,
+  accountSecondaryText,
+  savedAccountsTriggerLabel,
+  accountGroups,
+} from './presentation';
+import { Component, Fragment, type ComponentChildren } from 'preact';
+import { WALLET_RECOVERY_CODE_CHAR_LENGTH } from '@shared/wallet-recovery/recoveryCodes';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import {
   AUTH_MENU_WAITING_PROMPTS,
@@ -12,7 +42,6 @@ import {
   isAuthMenuGoogleActionReady,
   isAuthMenuLoadingStatus,
   isAuthMenuReady,
-  resolveAuthMenuLoginAccount,
   type AuthMenuAccountOption,
   type AuthMenuIntent,
   type AuthMenuLinkDeviceState,
@@ -45,233 +74,6 @@ import {
   rerollIcon,
 } from './icons';
 
-import { demoEmailOtpCodeFromDelivery } from '@/core/signingEngine/session/emailOtp/challengeDelivery';
-import type { EmailOtpChallengeDelivery } from '@/core/signingEngine/session/emailOtp/publicTypes';
-
-function renderDemoEmailCode(delivery: EmailOtpChallengeDelivery): ComponentChildren {
-  const code = demoEmailOtpCodeFromDelivery(delivery);
-  if (code === null) return null;
-  return (
-    <p class="seams-otp-description">
-      Demo email code: <code>{code}</code>
-    </p>
-  );
-}
-
-const AUTH_MENU_TITLE_ID = 'seams-auth-menu-title';
-const AUTH_MENU_ACCOUNT_LIST_ID = 'seams-auth-menu-account-list';
-
-function otpCodeDigits(code: string, length = 6): readonly string[] {
-  return code.padEnd(length, ' ').slice(0, length).split('');
-}
-
-const RECOVERY_CODE_CHARACTERS: ReadonlySet<string> = new Set(WALLET_RECOVERY_CODE_ALPHABET);
-
-/* Crockford Base32 reads O as 0 and I or L as 1, so a misread letter still
-   enters the character the code holds. Separators and any other character
-   are dropped: no code contains them. */
-function recoveryInputCharacters(code: string): string {
-  let characters = '';
-  for (const character of code.toUpperCase()) {
-    const read = character === 'O' ? '0' : character === 'I' || character === 'L' ? '1' : character;
-    if (RECOVERY_CODE_CHARACTERS.has(read)) characters += read;
-  }
-  return characters;
-}
-
-/** The part of the recovery code the input's selection covers, in code characters. */
-type RecoveryCodeSelection = { readonly start: number; readonly end: number };
-
-/** The characters the last edit added, which settle into their slots. */
-type RecoveryCodeArrival = { readonly start: number; readonly end: number };
-
-const RECOVERY_CODE_SEPARATOR = /[\s\-\u2010-\u2015\u2212]/;
-
-/** Characters the input dropped because no recovery code contains them, such as U. */
-function rejectedRecoveryCharacters(input: string): string[] {
-  const rejected = new Set<string>();
-  for (const character of input.toUpperCase()) {
-    if (RECOVERY_CODE_SEPARATOR.test(character)) continue;
-    if (recoveryInputCharacters(character)) continue;
-    rejected.add(character);
-  }
-  return Array.from(rejected).slice(0, 3);
-}
-
-function renderRecoveryCodeGroups(
-  code: string,
-  selection: RecoveryCodeSelection | null,
-  arrival: RecoveryCodeArrival | null,
-): ComponentChildren[] {
-  const caret = selection && selection.start === selection.end ? selection.start : null;
-  // A full code has no empty slot, so its caret sits after the last character.
-  const lastIndex = WALLET_RECOVERY_CODE_CHAR_LENGTH - 1;
-  const focusIndex = selection === null ? null : Math.min(selection.start, lastIndex);
-  const groups: ComponentChildren[] = [];
-  for (
-    let start = 0;
-    start < WALLET_RECOVERY_CODE_CHAR_LENGTH;
-    start += WALLET_RECOVERY_CODE_GROUP_LENGTH
-  ) {
-    const end = start + WALLET_RECOVERY_CODE_GROUP_LENGTH;
-    const slots: ComponentChildren[] = [];
-    for (let index = start; index < end; index += 1) {
-      const character = code[index] ?? '';
-      const classes = ['seams-otp-slot'];
-      if (character) classes.push('is-filled');
-      if (index === caret) classes.push('is-caret');
-      if (caret === WALLET_RECOVERY_CODE_CHAR_LENGTH && index === lastIndex) {
-        classes.push('is-caret-after');
-      }
-      if (selection && index >= selection.start && index < selection.end) {
-        classes.push('is-selected');
-      }
-      if (arrival && index >= arrival.start && index < arrival.end) classes.push('is-new');
-      slots.push(
-        <span class={classes.join(' ')} key={index} data-recovery-slot={index}>
-          {character}
-        </span>,
-      );
-    }
-    const groupClasses = ['seams-recovery-code-group'];
-    if (focusIndex !== null && focusIndex >= start && focusIndex < end) {
-      groupClasses.push('is-active');
-    }
-    if (code.length >= end) groupClasses.push('is-complete');
-    groups.push(
-      <div class={groupClasses.join(' ')} key={start}>
-        {slots}
-      </div>,
-    );
-  }
-  return groups;
-}
-
-/* The input lies over the slots and is transparent, so a click lands on its
-   hidden text, not on the slot under the pointer. Map the pointer to the slot:
-   its left half puts the caret before that character, its right half after. */
-function recoveryCaretAtPoint(
-  root: HTMLElement,
-  clientX: number,
-  clientY: number,
-  codeLength: number,
-): number | null {
-  let nearest: {
-    readonly index: number;
-    readonly distance: number;
-    readonly after: boolean;
-  } | null = null;
-  for (const slot of root.querySelectorAll<HTMLElement>('[data-recovery-slot]')) {
-    const index = Number(slot.dataset.recoverySlot);
-    const box = slot.getBoundingClientRect();
-    const dx = clientX < box.left ? box.left - clientX : Math.max(0, clientX - box.right);
-    const dy = clientY < box.top ? box.top - clientY : Math.max(0, clientY - box.bottom);
-    const distance = dx * dx + dy * dy;
-    if (nearest === null || distance < nearest.distance) {
-      nearest = { index, distance, after: clientX > box.left + box.width / 2 };
-    }
-  }
-  if (nearest === null) return null;
-  return Math.min(nearest.after ? nearest.index + 1 : nearest.index, codeLength);
-}
-
-function renderOtpCodeDigit(digit: string): ComponentChildren {
-  return (
-    <>
-      <span class={`seams-otp-slot ${digit.trim() ? 'is-filled' : ''}`}>{digit}</span>
-    </>
-  );
-}
-
-function authViewKey(viewModel: AuthMenuViewModel): string {
-  const stage = viewModel.kind === 'recovery' ? `:${viewModel.stage}` : '';
-  return `${viewModel.kind}:${viewModel.mode}:${viewModel.status.kind}${stage}`;
-}
-
-function recoveryAnnouncement(viewModel: AuthMenuRecoveryViewModel): string {
-  if (viewModel.status.kind === 'busy') return viewModel.status.headline;
-  if (viewModel.status.kind === 'recoverable') return viewModel.status.message;
-  if (viewModel.stage === 'passkey_ready') return 'Recovery code accepted.';
-  if (viewModel.stage === 'sign_in_ready') return 'Wallet recovered. Unlock it to continue.';
-  return '';
-}
-
-function recoveryBackLabel(viewModel: AuthMenuViewModel): string {
-  if (viewModel.kind !== 'recovery') return 'Back';
-  return viewModel.stage === 'choose_method' ? 'Back to recovery code' : 'Back to unlock wallet';
-}
-
-function recoveryNavigationLocked(viewModel: AuthMenuViewModel): boolean {
-  return viewModel.kind === 'recovery' && viewModel.stage === 'finalizing';
-}
-
-function modeSwitchCopy(mode: AuthMenuViewModel['mode']): {
-  prompt: string;
-  action: string;
-  nextMode: 'login' | 'register';
-} {
-  return mode === 'register'
-    ? { prompt: 'Already have a wallet?', action: 'Unlock wallet', nextMode: 'login' }
-    : { prompt: "Don't have a wallet?", action: 'Create a wallet', nextMode: 'register' };
-}
-
-function modeLabel(mode: AuthMenuViewModel['mode']): string {
-  return mode === 'register' ? 'Create a wallet' : 'Unlock wallet';
-}
-
-function passkeyButtonLabel(mode: AuthMenuViewModel['mode']): string {
-  return mode === 'register' ? 'Create wallet with passkey' : 'Unlock with passkey';
-}
-
-/** The failure the footer strip reports. Only the menu itself reports there. */
-function menuNotice(viewModel: AuthMenuViewModel): string | null {
-  if (viewModel.kind === 'google_otp_login' || viewModel.kind === 'google_registration') {
-    return viewModel.error || null;
-  }
-  return viewModel.kind === 'passkey' &&
-    viewModel.status.kind === 'recoverable' &&
-    viewModel.status.reason === 'error'
-    ? viewModel.status.message
-    : null;
-}
-
-function selectedLoginAccount(viewModel: AuthMenuLoginViewModel) {
-  return resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount)
-    .selectedAccount;
-}
-
-function selectedAccountPrimaryText(account: AuthMenuAccountOption): string {
-  return account.walletId;
-}
-
-function accountSecondaryText(account: AuthMenuAccountOption): string | null {
-  return account.authMethod === 'email_otp' ? account.emailAddress : null;
-}
-
-function savedAccountsTriggerLabel(account: AuthMenuAccountOption | null): string {
-  if (!account) return 'Saved wallets';
-  const emailAddress = accountSecondaryText(account);
-  return emailAddress
-    ? `Saved wallets. Selected wallet ID ${account.walletId}, email ${emailAddress}`
-    : `Saved wallets. Selected ${account.walletId}`;
-}
-
-type AuthMenuAccountGroup = Readonly<{
-  authMethod: AuthMenuAccountOption['authMethod'];
-  label: 'Passkey' | 'Email OTP';
-  accounts: readonly AuthMenuAccountOption[];
-}>;
-
-function accountGroups(options: readonly AuthMenuAccountOption[]): AuthMenuAccountGroup[] {
-  const passkeyAccounts = options.filter((option) => option.authMethod === 'passkey');
-  const emailOtpAccounts = options.filter((option) => option.authMethod === 'email_otp');
-  const groups: AuthMenuAccountGroup[] = [
-    { authMethod: 'passkey', label: 'Passkey', accounts: passkeyAccounts },
-    { authMethod: 'email_otp', label: 'Email OTP', accounts: emailOtpAccounts },
-  ];
-  return groups.filter((group) => group.accounts.length > 0);
-}
-
 type AuthMenuSurfaceProps = {
   readonly viewModel: AuthMenuViewModel;
   readonly element: HTMLElement;
@@ -293,6 +95,9 @@ type AuthMenuSurfaceState = {
 };
 
 export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSurfaceState> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state: AuthMenuSurfaceState = {
     accountMenu: 'closed',
     recoverySelection: null,
@@ -860,7 +665,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   : ''
               }`}
               type="button"
-              aria-label={recoveryBackLabel(viewModel)}
+              aria-label={walletDisplayText(this.context, recoveryBackLabel(viewModel))}
               data-auth-menu-close
               disabled={recoveryNavigationLocked(viewModel)}
               onClick={this.onBackClick}
@@ -869,7 +674,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             </button>
             {recovery ? (
               <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
-                {recoveryAnnouncement(viewModel)}
+                <WalletText copy={recoveryAnnouncement(viewModel)} />
               </div>
             ) : null}
             <div class="seams-content-area">
@@ -917,11 +722,19 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     return (
       <div class="seams-menu-header">
         {/* An app that titles the menu with the mode itself needs no second copy of it. */}
-        {eyebrow === viewModel.heading ? null : <div class="seams-menu-eyebrow">{eyebrow}</div>}
+        {eyebrow === viewModel.heading ? null : (
+          <div class="seams-menu-eyebrow">
+            <WalletText copy={eyebrow} />
+          </div>
+        )}
         <div class="seams-title" id={AUTH_MENU_TITLE_ID}>
-          {viewModel.heading}
+          <WalletText copy={viewModel.heading} />
         </div>
-        {viewModel.subtitle ? <div class="seams-subhead">{viewModel.subtitle}</div> : null}
+        {viewModel.subtitle ? (
+          <div class="seams-subhead">
+            <WalletText copy={viewModel.subtitle} />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -932,9 +745,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-header">
           <div>
             <div class="seams-title" id={AUTH_MENU_TITLE_ID}>
-              {viewModel.heading}
+              <WalletText copy={viewModel.heading} />
             </div>
-            <div class="seams-subhead">{viewModel.subtitle}</div>
+            <div class="seams-subhead">
+              <WalletText copy={viewModel.subtitle} />
+            </div>
           </div>
         </div>
       </>
@@ -975,7 +790,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   class="seams-account-menu-trigger"
                   type="button"
                   data-auth-menu-input
-                  aria-label={savedAccountsTriggerLabel(selected)}
+                  aria-label={walletDisplayText(this.context, savedAccountsTriggerLabel(selected))}
                   aria-haspopup="listbox"
                   aria-expanded={this.accountMenuOpen ? 'true' : 'false'}
                   aria-controls={AUTH_MENU_ACCOUNT_LIST_ID}
@@ -1002,7 +817,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                               aria-labelledby={groupLabelId}
                             >
                               <div id={groupLabelId} class="seams-account-menu-group-label">
-                                {group.label}
+                                <WalletText copy={group.label} />
                               </div>
                               {group.accounts.map((account) => {
                                 const isSelected =
@@ -1022,11 +837,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                                       type="button"
                                       role="option"
                                       aria-selected={isSelected ? 'true' : 'false'}
-                                      title={
+                                      title={walletDisplayText(
+                                        this.context,
                                         secondaryText
                                           ? `${account.walletId} ${secondaryText}`
-                                          : account.walletId
-                                      }
+                                          : account.walletId,
+                                      )}
                                       data-wallet-id={account.walletId}
                                       data-auth-method={account.authMethod}
                                       onClick={this.onLoginAccountSelect}
@@ -1042,7 +858,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                                         {secondaryText ? (
                                           <>
                                             <span class="seams-account-menu-account-secondary">
-                                              {secondaryText}
+                                              <WalletText copy={secondaryText} />
                                             </span>
                                           </>
                                         ) : null}
@@ -1077,7 +893,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                 data-auth-menu-input
                 type="text"
                 autocomplete="nickname"
-                placeholder={viewModel.passkeyNameLabel}
+                placeholder={walletDisplayText(this.context, viewModel.passkeyNameLabel)}
                 value={viewModel.passkeyName}
                 readonly={viewModel.passkeyNameReadOnly}
                 disabled={isAuthMenuLoadingStatus(viewModel.status)}
@@ -1089,8 +905,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                 <button
                   class="seams-input-action-trigger auth-menu-registration-reroll"
                   type="button"
-                  title="Generate another name"
-                  aria-label="Generate another name"
+                  title={walletText(this.context, 'Generate another name')}
+                  aria-label={walletText(this.context, 'Generate another name')}
                   onClick={this.onRegistrationReroll}
                   disabled={!isAuthMenuReady(viewModel)}
                 >
@@ -1119,7 +935,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             onClick={this.onPrimaryClick}
           >
             {fingerprintIcon()}
-            <span>{passkeyButtonLabel(viewModel.mode)}</span>
+            <span>
+              <WalletText copy={passkeyButtonLabel(viewModel.mode)} />
+            </span>
           </button>
           {googleEnabled ? (
             <button
@@ -1130,7 +948,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               onClick={this.onGoogleClick}
             >
               {googleIcon()}
-              <span>Continue with Google</span>
+              <span>
+                <WalletText message="Continue with Google" />
+              </span>
             </button>
           ) : null}
         </div>
@@ -1141,12 +961,17 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
   private renderOtherOptions(): ComponentChildren {
     return (
       <>
-        <div class="seams-menu-options-label">Other options</div>
+        <div class="seams-menu-options-label">
+          <WalletText message="Other options" />
+        </div>
         <div class="seams-menu-options">
           <button class="seams-menu-option" type="button" onClick={this.onLinkDeviceOpen}>
             <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
             <span class="seams-menu-option-text">
-              Link this device <small>Scan a code with your other device</small>
+              <WalletText message="Link this device" />
+              <small>
+                <WalletText message="Scan a code with your other device" />
+              </small>
             </span>
             {chevronIcon()}
           </button>
@@ -1158,7 +983,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           >
             <span class="seams-menu-option-icon">{recoveryIcon()}</span>
             <span class="seams-menu-option-text">
-              Recover wallet <small>Use your recovery code</small>
+              <WalletText message="Recover wallet" />
+              <small>
+                <WalletText message="Use your recovery code" />
+              </small>
             </span>
             {chevronIcon()}
           </button>
@@ -1187,13 +1015,13 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             aria-hidden={feedbackIsError ? 'false' : 'true'}
             role={feedbackIsError ? 'alert' : 'status'}
           >
-            {feedbackMessage}
+            <WalletText copy={feedbackMessage} />
           </p>
           <form class="seams-recovery-form" novalidate onSubmit={this.onRecoverySubmit}>
             <div class="seams-recovery-field">
               <div class="seams-recovery-field-header">
                 <label class="seams-field-label" for="seams-recovery-code">
-                  Recovery code
+                  <WalletText message="Recovery code" />
                 </label>
                 <span id="seams-recovery-code-count" class="seams-recovery-code-count">
                   {code.length}/{WALLET_RECOVERY_CODE_CHAR_LENGTH}
@@ -1243,9 +1071,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                 class={`seams-recovery-code-hint ${rejection ? 'is-error' : ''}`}
                 aria-live="polite"
               >
-                {rejection
-                  ? `Recovery codes don’t use ${rejection.characters.join(', ')}.`
-                  : 'You can paste the whole code.'}
+                {rejection ? (
+                  `Recovery codes don’t use ${rejection.characters.join(', ')}.`
+                ) : (
+                  <WalletText message="You can paste the whole code." />
+                )}
               </p>
             </div>
             {/* Continue stays enabled: the session names what a short code lacks. */}
@@ -1255,7 +1085,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               data-auth-menu-primary
               data-recovery-continue
             >
-              Continue
+              <WalletText message="Continue" />
             </button>
           </form>
         </>
@@ -1280,7 +1110,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             }`}
             aria-hidden="true"
           >
-            {statusMessage}
+            <WalletText copy={statusMessage} />
           </p>
           <div class="seams-auth-methods seams-recovery-methods">
             <button
@@ -1296,7 +1126,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               ) : (
                 fingerprintIcon()
               )}
-              <span>Create a passkey</span>
+              <span>
+                <WalletText message="Create a passkey" />
+              </span>
             </button>
             {googleEnabled ? (
               <button
@@ -1311,11 +1143,15 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                 ) : (
                   googleIcon()
                 )}
-                <span>Continue with Google</span>
+                <span>
+                  <WalletText message="Continue with Google" />
+                </span>
               </button>
             ) : null}
           </div>
-          <p class="seams-recovery-method-note">This adds a new sign-in method to your wallet.</p>
+          <p class="seams-recovery-method-note">
+            <WalletText message="This adds a new sign-in method to your wallet." />
+          </p>
         </>
       );
     }
@@ -1330,10 +1166,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <>
           {this.renderHeader(viewModel)}
           <div class="seams-otp-prompt" aria-live="polite">
-            <p class="seams-otp-description">{deliveryMessage}</p>
+            <p class="seams-otp-description">
+              <WalletText copy={deliveryMessage} />
+            </p>
             {renderDemoEmailCode(viewModel.delivery)}
             <label class="seams-field-label" for="seams-recovery-google-otp">
-              Email code
+              <WalletText message="Email code" />
             </label>
             <div
               class="seams-otp-code-field"
@@ -1372,7 +1210,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   class="seams-recovery-status seams-recovery-error"
                   role="alert"
                 >
-                  {viewModel.status.message}
+                  <WalletText copy={viewModel.status.message} />
                 </p>
               </>
             ) : null}
@@ -1383,7 +1221,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               disabled={!canSubmit}
               onClick={this.onRecoveryGoogleOtpSubmit}
             >
-              Verify email code
+              <WalletText message="Verify email code" />
             </button>
           </div>
         </>
@@ -1416,7 +1254,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-recovery-confirmation">
           {message === null ? null : (
             <>
-              <p class="seams-recovery-status">{message}</p>
+              <p class="seams-recovery-status">
+                <WalletText copy={message} />
+              </p>
             </>
           )}
           <button
@@ -1426,15 +1266,19 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             onClick={action}
           >
             {googleTarget && !finalizationRetry ? googleIcon() : null}
-            {signIn
-              ? googleTarget
-                ? 'Unlock with Google'
-                : 'Unlock with new passkey'
-              : finalizationRetry
-                ? 'Retry finalization'
-                : googleTarget
-                  ? 'Continue with Google'
-                  : 'Create new passkey'}
+            {signIn ? (
+              googleTarget ? (
+                <WalletText message="Unlock with Google" />
+              ) : (
+                <WalletText message="Unlock with new passkey" />
+              )
+            ) : finalizationRetry ? (
+              <WalletText message="Retry finalization" />
+            ) : googleTarget ? (
+              <WalletText message="Continue with Google" />
+            ) : (
+              <WalletText message="Create new passkey" />
+            )}
           </button>
         </div>
       </>
@@ -1446,13 +1290,15 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     return (
       <>
         <div class="seams-auth-intent-switch">
-          <span>{copy.prompt}</span>
+          <span>
+            <WalletText copy={copy.prompt} />
+          </span>
           <button
             type="button"
             data-auth-menu-mode={copy.nextMode}
             onClick={this.onIntentSwitchClick}
           >
-            {copy.action}
+            <WalletText copy={copy.action} />
           </button>
         </div>
       </>
@@ -1470,20 +1316,34 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       <>
         <div class="seams-waiting" role="status" aria-live="polite">
           {prompt ? (
-            <span class="seams-passkey-prompt" role="img" aria-label={prompt.label}>
+            <span
+              class="seams-passkey-prompt"
+              role="img"
+              aria-label={walletDisplayText(this.context, prompt.label)}
+            >
               {passkeyRingIcon()}
             </span>
           ) : null}
           <div class="seams-waiting-message">
-            <span class="seams-waiting-text">{waitingText}</span>
-            {prompt ? <span class="seams-passkey-instruction">{prompt.instruction}</span> : null}
+            <span class="seams-waiting-text">
+              <WalletText copy={waitingText} />
+            </span>
+            {prompt ? (
+              <span class="seams-passkey-instruction">
+                <WalletText copy={prompt.instruction} />
+              </span>
+            ) : null}
             {viewModel.showProgress && status.detail && status.detail !== waitingText ? (
               <>
-                <span class="seams-waiting-sdk-events">{status.detail}</span>
+                <span class="seams-waiting-sdk-events">
+                  <WalletText copy={status.detail} />
+                </span>
               </>
             ) : null}
           </div>
-          {prompt ? null : <div aria-label="Loading" class="seams-spinner"></div>}
+          {prompt ? null : (
+            <div aria-label={walletText(this.context, 'Loading')} class="seams-spinner"></div>
+          )}
         </div>
       </>
     );
@@ -1551,14 +1411,22 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                 </div>
                 <div class="qr-header">
                   <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-                    {viewModel.heading}
+                    <WalletText copy={viewModel.heading} />
                   </h2>
                 </div>
                 <div class="qr-instruction">
-                  {ready ? viewModel.subtitle : 'Preparing a one-time code for your other device.'}
+                  {ready ? (
+                    <WalletText copy={viewModel.subtitle} />
+                  ) : (
+                    <WalletText message="Preparing a one-time code for your other device." />
+                  )}
                 </div>
                 <div class="qr-status" role="status" aria-live="polite">
-                  {ready ? linkDevice.message : 'Generating QR code'}
+                  {ready ? (
+                    <WalletText copy={linkDevice.message} />
+                  ) : (
+                    <WalletText message="Generating QR code" />
+                  )}
                   <span class="animated-ellipsis"></span>
                 </div>
               </div>
@@ -1582,17 +1450,20 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       <>
         <div class="seams-link-device-confirmation">
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            Match your other device
+            <WalletText message="Match your other device" />
           </h2>
           <p class="seams-link-device-confirmation-copy">
-            Choose the unlock method for Device 2. Email code sends a one-time code to the address
-            you enter.
+            <WalletText message="Choose the unlock method for Device 2. Email code sends a one-time code to the address you enter." />
           </p>
           <fieldset class="seams-link-device-factor-options">
-            <legend class="sr-only">Wallet unlock method</legend>
+            <legend class="sr-only">
+              <WalletText message="Wallet unlock method" />
+            </legend>
             <label>
               <span class="seams-auth-method-choice-icon">{fingerprintIcon()}</span>
-              <span class="seams-auth-method-choice-label">Passkey</span>
+              <span class="seams-auth-method-choice-label">
+                <WalletText message="Passkey" />
+              </span>
               <input
                 type="radio"
                 name="linked-device-factor"
@@ -1603,7 +1474,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             </label>
             <label>
               <span class="seams-auth-method-choice-icon">{mailIcon()}</span>
-              <span class="seams-auth-method-choice-label">Email code</span>
+              <span class="seams-auth-method-choice-label">
+                <WalletText message="Email code" />
+              </span>
               <input
                 type="radio"
                 name="linked-device-factor"
@@ -1616,13 +1489,15 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           {emailTargetSelected ? (
             <>
               <label class="seams-link-device-target-email">
-                <span class="seams-field-label">Email address</span>
+                <span class="seams-field-label">
+                  <WalletText message="Email address" />
+                </span>
                 <input
                   type="email"
                   name="linked-device-target-email"
                   autocomplete="email"
                   value={emailAddress}
-                  aria-label="Email address"
+                  aria-label={walletText(this.context, 'Email address')}
                   aria-invalid={emailAddress.length > 0 && !canStart ? 'true' : 'false'}
                   onInput={this.onLinkDeviceTargetEmailInput}
                 />
@@ -1632,7 +1507,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           {linkDevice.error ? (
             <>
               <p class="seams-link-device-inline-error" role="alert">
-                {linkDevice.error}
+                <WalletText copy={linkDevice.error} />
               </p>
             </>
           ) : null}
@@ -1643,7 +1518,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             disabled={!canStart}
             onClick={this.onLinkDeviceStart}
           >
-            Continue
+            <WalletText message="Continue" />
           </button>
         </div>
       </>
@@ -1677,11 +1552,14 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         >
           {linkDeviceDotRing(view.ring, mailIcon())}
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            {view.heading}
+            <WalletText copy={view.heading} />
           </h2>
           {hint ? (
             <>
-              <div class="seams-link-device-email-chip" title={hint}>
+              <div
+                class="seams-link-device-email-chip"
+                title={walletDisplayText(this.context, hint)}
+              >
                 <span>{hint}</span>
               </div>
             </>
@@ -1692,7 +1570,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             role="status"
             aria-live="polite"
           >
-            {view.status}
+            <WalletText copy={view.status} />
             {view.pending ? (
               <>
                 <span class="animated-ellipsis" aria-hidden="true"></span>
@@ -1702,7 +1580,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           {showCodeField ? (
             <>
               <label class="sr-only" for="seams-linked-device-email-otp">
-                Email code
+                <WalletText message="Email code" />
               </label>
               <div class="seams-otp-code-field" data-disabled={busy ? 'true' : 'false'}>
                 <input
@@ -1714,7 +1592,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                   autocomplete="one-time-code"
                   pattern="[0-9]*"
                   maxLength={6}
-                  aria-label="Email verification code"
+                  aria-label={walletText(this.context, 'Email verification code')}
                   aria-describedby="seams-linked-device-otp-status"
                   aria-invalid={activation.kind === 'incorrect' ? 'true' : 'false'}
                   value={linkDevice.otpCode}
@@ -1750,7 +1628,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             data-link-device-error-dismiss
             onClick={this.onBackClick}
           >
-            Return to unlock wallet
+            <WalletText message="Return to unlock wallet" />
           </button>
         </>
       );
@@ -1763,7 +1641,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             type="button"
             onClick={this.onLinkDeviceEmailOtpResend}
           >
-            Send a new code
+            <WalletText message="Send a new code" />
           </button>
         </>
       );
@@ -1776,7 +1654,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           disabled={!input.canSubmit}
           onClick={this.onLinkDeviceEmailOtpSubmit}
         >
-          {activation.kind === 'submitting' ? 'Verifying' : 'Verify code'}
+          {activation.kind === 'submitting' ? (
+            <WalletText message="Verifying" />
+          ) : (
+            <WalletText message="Verify code" />
+          )}
         </button>
         <button
           class="seams-otp-resend"
@@ -1784,7 +1666,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           disabled={input.busy}
           onClick={this.onLinkDeviceEmailOtpResend}
         >
-          Send another code
+          <WalletText message="Send another code" />
         </button>
       </>
     );
@@ -1798,7 +1680,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       dismiss: 'error',
       title: activationFailed ? 'Device linked' : "Couldn't link device",
       detail: activationFailed ? (
-        <>Unable to open the wallet. Go back and try again. {linkDevice.message}</>
+        <>
+          <WalletText message="Unable to open the wallet. Go back and try again." />
+          <WalletText copy={linkDevice.message} />
+        </>
       ) : (
         linkDevice.message
       ),
@@ -1818,10 +1703,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-link-device-confirmation seams-link-device-failure">
           <div class="seams-link-device-failure-icon">{linkFailedIcon()}</div>
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            {panel.title}
+            <WalletText copy={panel.title} />
           </h2>
           <p class="seams-link-device-failure-detail" role="alert">
-            {panel.detail}
+            {typeof panel.detail === 'string' ? <WalletText copy={panel.detail} /> : panel.detail}
           </p>
           <button
             class="seams-link-device-btn"
@@ -1830,7 +1715,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             {...{ [`data-link-device-${panel.dismiss}-dismiss`]: true }}
             onClick={this.onBackClick}
           >
-            {panel.action}
+            <WalletText copy={panel.action} />
           </button>
         </div>
       </>
@@ -1845,10 +1730,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-link-device-confirmation">
           <span class="seams-spinner" aria-hidden="true"></span>
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID}>
-            Opening linked wallet
+            <WalletText message="Opening linked wallet" />
           </h2>
           <p class="seams-link-device-confirmation-copy" role="status" aria-live="polite">
-            {linkDevice.message}
+            <WalletText copy={linkDevice.message} />
           </p>
         </div>
       </>
@@ -1864,7 +1749,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-link-device-confirmation">
           {linkDeviceDotRing(creating ? 'waiting' : 'approved')}
           <h2 class="qr-title" id={AUTH_MENU_TITLE_ID} aria-live="polite">
-            {linkDevice.message}
+            <WalletText copy={linkDevice.message} />
           </h2>
           <button
             class="seams-link-device-btn seams-link-device-btn-primary"
@@ -1874,7 +1759,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             disabled={creating}
             onClick={this.onLinkDeviceCreatePasskey}
           >
-            {creating ? 'Waiting for passkey' : 'Create passkey'}
+            {creating ? (
+              <WalletText message="Waiting for passkey" />
+            ) : (
+              <WalletText message="Create passkey" />
+            )}
           </button>
         </div>
       </>
@@ -1892,17 +1781,24 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-otp-prompt" aria-live="polite">
           <div class="seams-otp-prompt-copy">
             <div class="seams-otp-title" id={AUTH_MENU_TITLE_ID}>
-              {viewModel.heading}
+              <WalletText copy={viewModel.heading} />
             </div>
-            <p class="seams-otp-description">{deliveryMessage}</p>
+            <p class="seams-otp-description">
+              <WalletText copy={deliveryMessage} />
+            </p>
             {renderDemoEmailCode(viewModel.delivery)}
-            <div class="seams-otp-account" title={viewModel.walletId}>
-              <span class="seams-otp-account-label">Wallet</span>
+            <div
+              class="seams-otp-account"
+              title={walletDisplayText(this.context, viewModel.walletId)}
+            >
+              <span class="seams-otp-account-label">
+                <WalletText message="Wallet" />
+              </span>
               <span class="seams-otp-account-value">{viewModel.walletId}</span>
             </div>
           </div>
           <label class="seams-field-label" for="seams-auth-menu-google-otp">
-            Email code
+            <WalletText message="Email code" />
           </label>
           <div class="seams-otp-code-field" data-disabled={viewModel.submitBusy ? 'true' : 'false'}>
             <input
@@ -1925,7 +1821,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               {digits.map(renderOtpCodeDigit)}
             </div>
           </div>
-          <p class="seams-otp-helper">{viewModel.prompt.helperText ?? ''}</p>
+          <p class="seams-otp-helper">
+            <WalletText copy={viewModel.prompt.helperText ?? ''} />
+          </p>
           <button
             class="seams-auth-method-btn seams-auth-method-btn-primary"
             type="button"
@@ -1933,7 +1831,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             disabled={!isAuthMenuActionReady(viewModel)}
             onClick={this.onPrimaryClick}
           >
-            {viewModel.submitBusy ? 'Unlocking…' : viewModel.ctaLabel}
+            {viewModel.submitBusy ? (
+              <WalletText message="Unlocking…" />
+            ) : (
+              <WalletText copy={viewModel.ctaLabel} />
+            )}
           </button>
           <button
             class="seams-otp-resend auth-menu-google-resend"
@@ -1941,7 +1843,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             disabled={viewModel.resendBusy || viewModel.submitBusy}
             onClick={this.onGoogleOtpResend}
           >
-            {viewModel.resendBusy ? 'Sending…' : 'Resend Code'}
+            {viewModel.resendBusy ? (
+              <WalletText message="Sending…" />
+            ) : (
+              <WalletText message="Resend Code" />
+            )}
           </button>
         </div>
       </>
@@ -1956,11 +1862,18 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div class="seams-otp-prompt" aria-live="polite">
           <div class="seams-otp-prompt-copy">
             <div class="seams-otp-title" id={AUTH_MENU_TITLE_ID}>
-              {viewModel.heading}
+              <WalletText copy={viewModel.heading} />
             </div>
-            <p class="seams-otp-description">{viewModel.subtitle}</p>
-            <div class="seams-otp-account" title={viewModel.walletId}>
-              <span class="seams-otp-account-label">Wallet</span>
+            <p class="seams-otp-description">
+              <WalletText copy={viewModel.subtitle} />
+            </p>
+            <div
+              class="seams-otp-account"
+              title={walletDisplayText(this.context, viewModel.walletId)}
+            >
+              <span class="seams-otp-account-label">
+                <WalletText message="Wallet" />
+              </span>
               <span class="seams-otp-account-value">{viewModel.walletId}</span>
             </div>
             <button
@@ -1969,7 +1882,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               disabled={viewModel.rerollBusy || viewModel.submitBusy}
               onClick={this.onGoogleRegistrationReroll}
             >
-              {viewModel.rerollBusy ? 'Generating…' : 'Generate another name'}
+              {viewModel.rerollBusy ? (
+                <WalletText message="Generating…" />
+              ) : (
+                <WalletText message="Generate another name" />
+              )}
             </button>
           </div>
           <button
@@ -1979,7 +1896,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             disabled={!isAuthMenuActionReady(viewModel)}
             onClick={this.onPrimaryClick}
           >
-            {viewModel.submitBusy ? 'Creating...' : viewModel.ctaLabel}
+            {viewModel.submitBusy ? (
+              <WalletText message="Creating..." />
+            ) : (
+              <WalletText copy={viewModel.ctaLabel} />
+            )}
           </button>
         </div>
       </>

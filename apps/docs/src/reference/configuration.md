@@ -67,6 +67,12 @@ If you set `relayerAccount`, the SDK skips discovery. Your value must match the 
 
 ## Appearance branch
 
+SDK 0.18.0 adds `appearance.locale: 'en' | 'ja'`. English is the default.
+Use `normalizeWalletLocale` from `@seams/wallet` to normalize raw language tags before configuration.
+For example, `ja-JP` selects `ja`. Unsupported tags select `en`.
+The locale reaches SDK-owned React controls and the hosted wallet iframe through appearance configuration.
+Locale has no effect on signing or authentication state.
+
 Initial appearance belongs in configuration. Use `seams.config.setAppearance` for runtime
 theme changes. Keep the app-owned React theme and wallet-owned iframe appearance
 on the same semantic palette.

@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { Component, type ComponentChildren } from 'preact';
 import { SeamsWordmark } from '@/core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
 import { alertIcon, shieldIcon } from './icons';
@@ -23,12 +24,16 @@ export class AuthMenuFooter extends Component<AuthMenuFooterProps> {
     return (
       <div class="seams-auth-footer" data-state={notice ? 'notice' : 'brand'}>
         <div class="seams-auth-footer-brand" aria-hidden={notice ? 'true' : undefined}>
-          {shieldIcon()} <span>Secured by</span> <SeamsWordmark />
+          {shieldIcon()}{' '}
+          <span>
+            <WalletText message="Secured by" />
+          </span>{' '}
+          <SeamsWordmark />
         </div>
         <div class="seams-auth-footer-notice">
           {alertIcon()}
           <span class="seams-auth-footer-text" aria-hidden="true">
-            {this.shownNotice}
+            <WalletText copy={this.shownNotice} />
           </span>
           <button
             class="seams-auth-footer-action"
@@ -36,12 +41,12 @@ export class AuthMenuFooter extends Component<AuthMenuFooterProps> {
             disabled={!notice}
             onClick={onRetry}
           >
-            Try again
+            <WalletText message="Try again" />
           </button>
         </div>
         {notice ? (
           <p class="sr-only" role="alert">
-            {notice}
+            <WalletText copy={notice} />
           </p>
         ) : null}
       </div>

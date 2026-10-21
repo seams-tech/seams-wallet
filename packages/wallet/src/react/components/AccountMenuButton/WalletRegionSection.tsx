@@ -1,3 +1,6 @@
+import { WalletText, WalletLocaleContext } from '@/react/context/WalletLocale';
+import { walletText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import React, { Component } from 'react';
 import { base64UrlEncode } from '@shared/utils/base64';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -47,7 +50,7 @@ function matchesRegion(value: string, region: (typeof REGIONS)[number]): boolean
 function renderRegion(region: (typeof REGIONS)[number]): React.ReactNode {
   return (
     <option key={region.value} value={region.value}>
-      {region.label}
+      <WalletText copy={region.label} />
     </option>
   );
 }
@@ -115,6 +118,9 @@ function assertNever(value: never): never {
 }
 
 export class WalletRegionSection extends Component<Props, { readonly view: State }> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state: { readonly view: State } = { view: { kind: 'loading' } };
   private mounted = false;
   private requestRevision = 0;
@@ -290,8 +296,10 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
   render(): React.ReactNode {
     const state = this.state.view;
     return (
-      <section aria-label="Wallet region">
-        <p role="status">{statusText(state)}</p>
+      <section aria-label={walletText(this.context, 'Wallet region')}>
+        <p role="status">
+          <WalletText copy={statusText(state)} />
+        </p>
         {this.renderContent(state)}
       </section>
     );
@@ -301,22 +309,30 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
     switch (state.kind) {
       case 'loading':
       case 'submitting':
-        return <p>You can lock this wallet. An accepted move continues on the server.</p>;
+        return (
+          <p>
+            <WalletText message="You can lock this wallet. An accepted move continues on the server." />
+          </p>
+        );
       case 'unavailable':
         return (
           <>
-            <p role="alert">{state.message}</p>
+            <p role="alert">
+              <WalletText copy={state.message} />
+            </p>
             <button type="button" className="seams-settings-action" onClick={this.load}>
-              Check again
+              <WalletText message="Check again" />
             </button>
           </>
         );
       case 'uncertain':
         return (
           <>
-            <p role="alert">{state.message}</p>
+            <p role="alert">
+              <WalletText copy={state.message} />
+            </p>
             <button type="button" className="seams-settings-action" onClick={this.retry}>
-              Retry same move
+              <WalletText message="Retry same move" />
             </button>
           </>
         );
@@ -326,9 +342,11 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
           state.status.move.progress.availability === 'active';
         return (
           <p>
-            {active
-              ? 'Your wallet is active in the new region. Another move must wait until cleanup completes.'
-              : 'Signing and wallet changes are paused. Closing or locking this wallet does not cancel the move.'}
+            {active ? (
+              <WalletText message="Your wallet is active in the new region. Another move must wait until cleanup completes." />
+            ) : (
+              <WalletText message="Signing and wallet changes are paused. Closing or locking this wallet does not cancel the move." />
+            )}
           </p>
         );
       }
@@ -336,22 +354,24 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
         return (
           <>
             <p>
-              Current region: <strong>{regionName(state.placement.region)}</strong>
+              <WalletText message="Current region:" />{' '}
+              <strong>
+                <WalletText copy={regionName(state.placement.region)} />
+              </strong>
             </p>
             <label>
-              Destination region{' '}
+              <WalletText message="Destination region" />{' '}
               <select value={state.selected} onChange={this.select}>
                 {REGIONS.map(renderRegion)}
               </select>
             </label>
             <p>
-              Moving your wallet ends signing sessions on all devices. After the move, unlock your
-              wallet again to sign.
+              <WalletText message="Moving your wallet ends signing sessions on all devices. After the move, unlock your wallet again to sign." />
             </p>
             {state.placement.nextMoveAtMs > Date.now() ? (
               <p>
-                Another move is available after{' '}
-                {new Date(state.placement.nextMoveAtMs).toLocaleString()}.
+                <WalletText message="Another move is available after" />{' '}
+                {new Date(state.placement.nextMoveAtMs).toLocaleString(this.context)}.
               </p>
             ) : null}
             <button
@@ -363,7 +383,7 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
               }
               onClick={this.submit}
             >
-              Move wallet
+              <WalletText message="Move wallet" />
             </button>
           </>
         );

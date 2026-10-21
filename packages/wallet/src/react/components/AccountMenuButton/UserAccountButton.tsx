@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
 import React from 'react';
 import TouchIcon from './icons/TouchIcon';
 import type { UserAccountButtonProps } from './types';
@@ -16,6 +18,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
   menuId,
   triggerId,
 }) => {
+  const locale = useWalletLocale();
   const onKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -49,7 +52,7 @@ export const UserAccountButton: React.FC<UserAccountButtonProps> = ({
           </div>
           {!hideWhenClosed && (
             <UserAccountId
-              label={label}
+              label={walletDisplayText(locale, label)}
               username={username}
               fullAccountId={fullAccountId}
               emailAddress={emailAddress}
@@ -77,16 +80,19 @@ const UserAccountId = ({
   isOpen: boolean;
   theme?: 'dark' | 'light';
 }) => {
+  const locale = useWalletLocale();
   const displayAccountId = (fullAccountId || username || '').trim();
 
   /* plain identity label (the wallet id) — explorer links live in the
      Accounts section of the dropdown */
   return (
     <div className="seams-user-account--user-details">
-      <p className="seams-user-account--username">{label}</p>
+      <p className="seams-user-account--username">
+        <WalletText copy={label} />
+      </p>
       <span
         aria-hidden={!isOpen}
-        title={displayAccountId || undefined}
+        title={walletDisplayText(locale, displayAccountId || undefined)}
         className={`seams-user-account--account-id ${isOpen ? 'visible' : 'hidden'}`}
       >
         {displayAccountId}
@@ -94,7 +100,7 @@ const UserAccountId = ({
       {emailAddress && (
         <span
           aria-hidden={!isOpen}
-          title={emailAddress}
+          title={walletDisplayText(locale, emailAddress)}
           className={`seams-user-account--email ${isOpen ? 'visible' : 'hidden'}`}
         >
           {emailAddress}

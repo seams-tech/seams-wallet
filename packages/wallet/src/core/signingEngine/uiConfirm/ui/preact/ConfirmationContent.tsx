@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef, type ComponentChildren } from 'preact';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import {
@@ -62,6 +68,9 @@ export class ConfirmationContent extends Component<{
   styles: CspStylesheetManager;
   variant: 'modal' | 'drawer';
 }> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   private readonly root = createRef<HTMLDivElement>();
   private readonly otpFormId = `seams-confirmation-email-${++nextConfirmationId}`;
   private readonly reflowId = `seams-confirmation-content-surface-${nextConfirmationId}`;
@@ -138,42 +147,53 @@ export class ConfirmationContent extends Component<{
     return (
       <div ref={this.root} class={contentClass}>
         <div class="seams-review-content">
-          {this.props.variant !== 'drawer' && <div class="seams-review-toolbar">
-            <div class="seams-review-origin">
-              {model.transaction.onBack && (
-                <button
-                  type="button"
-                  aria-label="Back to review"
-                  title="Back to review"
-                  disabled={decision.kind === 'preparing'}
-                  onClick={model.transaction.onBack}
-                >
-                  <ReviewIcon kind="back" />
-                </button>
-              )}
-              <PadlockIcon />
-              {model.header.website.kind === 'ready' ? (
-                model.header.website.text
-              ) : (
-                <LoadingStatus label="Loading website" />
-              )}
-            </div>
-            <button
-              type="button"
-              aria-label={model.transaction.cancelText}
-              onClick={model.transaction.onCancel}
-            >
-              <ReviewIcon kind="close" />
-            </button>
-          </div>}
-          {model.review.model && (
-            <div class="seams-review-eyebrow">
-              {model.review.model.operations.length === 1
-                ? model.review.model.operations[0].label.replace(/\s+using\s+[\d,.]+\s+gas$/i, '')
-                : 'Transaction'}
+          {this.props.variant !== 'drawer' && (
+            <div class="seams-review-toolbar">
+              <div class="seams-review-origin">
+                {model.transaction.onBack && (
+                  <button
+                    type="button"
+                    aria-label={walletText(this.context, 'Back to review')}
+                    title={walletText(this.context, 'Back to review')}
+                    disabled={decision.kind === 'preparing'}
+                    onClick={model.transaction.onBack}
+                  >
+                    <ReviewIcon kind="back" />
+                  </button>
+                )}
+                <PadlockIcon />
+                {model.header.website.kind === 'ready' ? (
+                  model.header.website.text
+                ) : (
+                  <LoadingStatus label={walletText(this.context, 'Loading website')} />
+                )}
+              </div>
+              <button
+                type="button"
+                aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
+                onClick={model.transaction.onCancel}
+              >
+                <ReviewIcon kind="close" />
+              </button>
             </div>
           )}
-          <h2 class="seams-review-title">{model.header.heading}</h2>
+          {model.review.model && (
+            <div class="seams-review-eyebrow">
+              {model.review.model.operations.length === 1 ? (
+                <WalletText
+                  copy={model.review.model.operations[0].label.replace(
+                    /\s+using\s+[\d,.]+\s+gas$/i,
+                    '',
+                  )}
+                />
+              ) : (
+                <WalletText message="Transaction" />
+              )}
+            </div>
+          )}
+          <h2 class="seams-review-title">
+            <WalletText copy={model.header.heading} />
+          </h2>
           <TransactionReview data={model.review} />
           <div class="seams-review-context">
             <ConfirmationBody model={model.body} onCopyAccount={this.copyAccount} />

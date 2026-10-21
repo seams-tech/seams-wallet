@@ -1,3 +1,5 @@
+import { useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
 import React from 'react';
 import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 
@@ -11,11 +13,12 @@ export function AuthenticationMethodsView({
   status: string;
   children: React.ReactNode;
 }): React.JSX.Element {
+  const locale = useWalletLocale();
   return (
     <>
       <AccountMenuDeviceDetails
-        title={walletLabel}
-        description="This wallet"
+        title={walletDisplayText(locale, walletLabel)}
+        description={walletText(locale, 'This wallet')}
         details={[{ label: 'Status', value: status }]}
       />
       {children}

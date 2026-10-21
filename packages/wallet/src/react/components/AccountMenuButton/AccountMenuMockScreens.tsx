@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
 import React from 'react';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
 import { RecoveryCodeAcknowledgement } from './RecoveryCodeAcknowledgement';
@@ -74,19 +76,23 @@ function deviceRow(
   );
 }
 function MethodTiles({ methods }: { methods: DeviceMethods }): React.JSX.Element {
+  const locale = useWalletLocale();
   return (
-    <ul className="seams-account-method-tiles" aria-label="Authentication methods">
+    <ul
+      className="seams-account-method-tiles"
+      aria-label={walletText(locale, 'Authentication methods')}
+    >
       {methods !== 'email_otp' ? (
         <AuthenticationMethodRow
           kind="passkey"
-          title="Passkey"
-          description="Touch ID · This device"
+          title={walletText(locale, 'Passkey')}
+          description={walletText(locale, 'Touch ID · This device')}
         />
       ) : null}
       {methods !== 'passkey' ? (
         <AuthenticationMethodRow
           kind="email_otp"
-          title="Email OTP"
+          title={walletText(locale, 'Email OTP')}
           description="alex@example.com"
         />
       ) : null}
@@ -130,13 +136,14 @@ export function AccountMenuMockScreens({
   transactionSettings: React.ReactNode;
   walletId: string;
 }): React.JSX.Element | null {
+  const locale = useWalletLocale();
   const back = setScreen.bind(null, { kind: 'overview' });
   switch (screen.kind) {
     case 'overview':
       return null;
     case 'transactions':
       return (
-        <AccountMenuScreen title="Transaction settings" onBack={back}>
+        <AccountMenuScreen title={walletText(locale, 'Transaction settings')} onBack={back}>
           {transactionSettings}
         </AccountMenuScreen>
       );
@@ -153,38 +160,51 @@ export function AccountMenuMockScreens({
     case 'export-key':
       return (
         <AccountMenuScreen
-          title={screen.chain === 'near' ? 'Export NEAR key' : 'Export EVM keys'}
+          title={walletDisplayText(
+            locale,
+            screen.chain === 'near' ? 'Export NEAR key' : 'Export EVM keys',
+          )}
           onBack={setScreen.bind(null, { kind: 'export-keys' })}
         >
           <p className="seams-account-description">
-            Your wallet requires authentication before revealing this signing key.
+            <WalletText message="Your wallet requires authentication before revealing this signing key." />
           </p>
           <dl className="seams-account-inset">
             <div className="seams-account-detail-row">
-              <dt>Wallet</dt>
+              <dt>
+                <WalletText message="Wallet" />
+              </dt>
               <dd>{walletId}</dd>
             </div>
             <div className="seams-account-detail-row">
-              <dt>Key type</dt>
+              <dt>
+                <WalletText message="Key type" />
+              </dt>
               <dd>{screen.chain === 'near' ? 'Ed25519' : 'ECDSA'}</dd>
             </div>
             <div className="seams-account-detail-row">
-              <dt>Protection</dt>
-              <dd>Authentication required</dd>
+              <dt>
+                <WalletText message="Protection" />
+              </dt>
+              <dd>
+                <WalletText message="Authentication required" />
+              </dd>
             </div>
           </dl>
         </AccountMenuScreen>
       );
     case 'accounts':
       return (
-        <AccountMenuScreen title="Accounts" onBack={back}>
-          <p className="seams-account-description">Your addresses across networks.</p>
+        <AccountMenuScreen title={walletText(locale, 'Accounts')} onBack={back}>
+          <p className="seams-account-description">
+            <WalletText message="Your addresses across networks." />
+          </p>
           <AccountsSection rows={accounts} />
         </AccountMenuScreen>
       );
     case 'methods':
       return (
-        <AccountMenuScreen title="Authentication methods" onBack={back}>
+        <AccountMenuScreen title={walletText(locale, 'Authentication methods')} onBack={back}>
           <AuthenticationMethodsView walletLabel={walletId} status="Active">
             <MethodTiles methods="both" />
           </AuthenticationMethodsView>
@@ -192,22 +212,24 @@ export function AccountMenuMockScreens({
       );
     case 'linked':
       return (
-        <AccountMenuScreen title="Linked devices" onBack={back}>
-          <p className="seams-account-description">Manage how your devices unlock your wallet.</p>
+        <AccountMenuScreen title={walletText(locale, 'Linked devices')} onBack={back}>
+          <p className="seams-account-description">
+            <WalletText message="Manage how your devices unlock your wallet." />
+          </p>
           <ul>{devices.map(deviceRow.bind(null, setScreen, screen.kind))}</ul>
           <button
             type="button"
             className="seams-account-action primary"
             onClick={setScreen.bind(null, { kind: 'scanner' })}
           >
-            Link a device
+            <WalletText message="Link a device" />
           </button>
         </AccountMenuScreen>
       );
     case 'device':
       return (
         <AccountMenuScreen
-          title="Device details"
+          title={walletText(locale, 'Device details')}
           onBack={setScreen.bind(null, { kind: screen.parent })}
         >
           <AccountMenuDeviceDetails
@@ -216,8 +238,8 @@ export function AccountMenuMockScreens({
                 <MailIcon size={30} strokeWidth={1.5} />
               ) : undefined
             }
-            title={screen.device.name}
-            description={methodLabel(screen.device.methods)}
+            title={walletDisplayText(locale, screen.device.name)}
+            description={walletDisplayText(locale, methodLabel(screen.device.methods))}
             details={[
               { label: 'Status', value: 'Active' },
               { label: 'Last used', value: screen.device.lastUsed },
@@ -229,9 +251,9 @@ export function AccountMenuMockScreens({
       );
     case 'scanner':
       return (
-        <AccountMenuScreen title="Link a device" onBack={back}>
+        <AccountMenuScreen title={walletText(locale, 'Link a device')} onBack={back}>
           <p className="seams-account-description">
-            Open your wallet on the other device, then scan its pairing code.
+            <WalletText message="Open your wallet on the other device, then scan its pairing code." />
           </p>
           <QRCodeScannerCamera>
             <div
@@ -240,31 +262,41 @@ export function AccountMenuMockScreens({
               style={{ background: 'radial-gradient(ellipse at 50% 48%, #3e403f, #222423 75%)' }}
             />
           </QRCodeScannerCamera>
-          <p className="seams-account-note">Position the QR code inside the frame.</p>
+          <p className="seams-account-note">
+            <WalletText message="Position the QR code inside the frame." />
+          </p>
         </AccountMenuScreen>
       );
     case 'recovery':
       return (
         <AccountMenuScreen
-          title={screen.revealed ? 'Your recovery codes' : 'Recovery codes'}
+          title={walletDisplayText(
+            locale,
+            screen.revealed ? 'Your recovery codes' : 'Recovery codes',
+          )}
           onBack={
             screen.revealed ? setScreen.bind(null, { kind: 'recovery', revealed: false }) : back
           }
         >
           <p className="seams-account-description">
-            {screen.revealed
-              ? 'Save these codes in your password manager or another secure place.'
-              : 'Keep your recovery codes somewhere safe. Use a code to restore access to your wallet.'}
+            {screen.revealed ? (
+              <WalletText message="Save these codes in your password manager or another secure place." />
+            ) : (
+              <WalletText message="Keep your recovery codes somewhere safe. Use a code to restore access to your wallet." />
+            )}
           </p>
           {screen.revealed ? (
-            <ol className="seams-account-recovery-codes" aria-label="Recovery codes">
+            <ol
+              className="seams-account-recovery-codes"
+              aria-label={walletText(locale, 'Recovery codes')}
+            >
               {recoveryCodes.map(recoveryCodeRow)}
             </ol>
           ) : null}
           {screen.revealed ? <RecoveryCodeActions codes={recoveryCodes} /> : null}
           {!screen.revealed ? (
             <div className="seams-account-inset">
-              Keep these codes private. Anyone with a code can start recovering your wallet.
+              <WalletText message="Keep these codes private. Anyone with a code can start recovering your wallet." />
             </div>
           ) : null}
           {screen.revealed ? (
@@ -275,7 +307,7 @@ export function AccountMenuMockScreens({
               className="seams-account-action primary"
               onClick={setScreen.bind(null, { kind: 'recovery', revealed: true })}
             >
-              Reveal with passkey
+              <WalletText message="Reveal with passkey" />
             </button>
           )}
         </AccountMenuScreen>

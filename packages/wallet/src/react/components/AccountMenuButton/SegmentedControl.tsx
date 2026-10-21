@@ -1,4 +1,5 @@
 import React from 'react';
+import { WalletText } from '../../context/WalletLocale';
 
 interface SegmentedControlItem {
   value: unknown;
@@ -122,7 +123,11 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
               onClick={() => onValueChange(item.value)}
               style={itemStyle}
             >
-              {item.label ?? String(item.value)}
+              {typeof item.label === 'string' ? (
+                <WalletText copy={item.label} />
+              ) : (
+                (item.label ?? String(item.value))
+              )}
             </button>
           );
         })}

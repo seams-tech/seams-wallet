@@ -1,3 +1,4 @@
+import { normalizeWalletLocale } from '@/core/ui/locale';
 import type { KeyExportDomainMethods } from '@/SeamsWeb/publicApi/keyExport';
 import type { ThemeMode, AppearanceConfig, AppearanceConfigInput } from '@/core/types/seams';
 import type {
@@ -125,6 +126,7 @@ export function resolveRuntimeAppearance(
 ): AppearanceConfig {
   const rawInput = input as Record<string, unknown>;
   return {
+    locale: normalizeWalletLocale(rawInput.locale ?? current.locale),
     theme: resolveAppearanceTheme({
       value: rawInput.theme,
       fallback: current.theme,

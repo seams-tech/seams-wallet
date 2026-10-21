@@ -1,4 +1,5 @@
 import type { Variant } from '@shared/utils/variant';
+import { normalizeWalletLocale } from '@/core/ui/locale';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { AppearanceConfig, SeamsClientConfig, SeamsConfigsReadonly } from '@/core/types/seams';
 import { THRESHOLD_ECDSA_PRESIGN_POOL_LIMITS } from '@/core/config/configBuilder';
@@ -44,6 +45,7 @@ function isAppearance(value: unknown): value is AppearanceConfig {
     return false;
   const theme = value.theme;
   return (
+    (value.locale === undefined || value.locale === 'en' || value.locale === 'ja') &&
     isString(theme.id) &&
     theme.id.trim().length > 0 &&
     (theme.mode === 'dark' || theme.mode === 'light') &&
@@ -215,7 +217,11 @@ function isWalletHostConfig(value: unknown): value is WalletHostConfig {
 
 function parseWalletHostConfig(value: unknown): WalletHostConfig {
   if (!isWalletHostConfig(value)) throw new Error('Invalid resolved wallet host configuration');
-  return value;
+  return replaceWalletHostAppearance(value, normalizeAppearanceLocale(value.ui.appearance));
+}
+
+function normalizeAppearanceLocale(appearance: AppearanceConfig): AppearanceConfig {
+  return { ...appearance, locale: normalizeWalletLocale(appearance.locale) };
 }
 
 export function replaceWalletHostAppearance(
@@ -264,7 +270,7 @@ export function parseWalletConfigurationUpdate(value: unknown): WalletConfigurat
     update.config === undefined &&
     update.assetsBaseUrl === undefined
   ) {
-    return { kind: 'appearance', appearance: update.appearance };
+    return { kind: 'appearance', appearance: normalizeAppearanceLocale(update.appearance) };
   }
   throw new Error('Invalid wallet configuration update');
 }

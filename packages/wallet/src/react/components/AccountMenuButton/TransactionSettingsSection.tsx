@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import type { TransactionSettingsSectionProps } from './types';
 import { SegmentedControl } from './SegmentedControl';
@@ -34,8 +35,12 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
     return (
       <div className="seams-transaction-page">
         <fieldset className="seams-transaction-group" disabled={disableAll}>
-          <legend>Review appearance</legend>
-          <p>Choose where transaction details appear before signing.</p>
+          <legend>
+            <WalletText message="Review appearance" />
+          </legend>
+          <p>
+            <WalletText message="Choose where transaction details appear before signing." />
+          </p>
           <div className="seams-transaction-choices">
             {UI_CHOICES.map(
               renderUiChoice.bind(null, currentConfirmConfig.uiMode ?? 'modal', onSetUiMode),
@@ -43,11 +48,15 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
           </div>
         </fieldset>
         <fieldset className="seams-transaction-group" disabled={disableAll || disableRequireClick}>
-          <legend>Confirmation step</legend>
+          <legend>
+            <WalletText message="Confirmation step" />
+          </legend>
           <p>
-            {disableRequireClick
-              ? 'Choose Modal or Drawer to configure the confirmation step.'
-              : 'Choose whether to click Continue before authentication starts.'}
+            {disableRequireClick ? (
+              <WalletText message="Choose Modal or Drawer to configure the confirmation step." />
+            ) : (
+              <WalletText message="Choose whether to click Continue before authentication starts." />
+            )}
           </p>
           <div className="seams-transaction-choices seams-transaction-choices--two">
             {BEHAVIOR_CHOICES.map(
@@ -80,7 +89,9 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
             }}
           >
             <div>
-              <div className="seams-confirmation-options">Confirmer UI</div>
+              <div className="seams-confirmation-options">
+                <WalletText message="Confirmer UI" />
+              </div>
               <div style={{ width: '100%' }}>
                 <SegmentedControl
                   items={[
@@ -110,7 +121,9 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
                 pointerEvents: disableRequireClick ? 'none' : 'auto',
               }}
             >
-              <div className="seams-confirmation-options">Confirmation Options</div>
+              <div className="seams-confirmation-options">
+                <WalletText message="Confirmation Options" />
+              </div>
               <div style={{ width: '100%' }}>
                 <SegmentedControl
                   items={[
@@ -195,8 +208,12 @@ function renderUiChoice(
       onClick={onSelect?.bind(null, choice.value)}
     >
       <span className="seams-transaction-choice-indicator" aria-hidden="true" />
-      <strong>{choice.label}</strong>
-      <span>{choice.description}</span>
+      <strong>
+        <WalletText copy={choice.label} />
+      </strong>
+      <span>
+        <WalletText copy={choice.description} />
+      </span>
     </button>
   );
 }
@@ -227,8 +244,12 @@ function renderBehaviorChoice(
       onClick={setBehavior.bind(null, config, setDelay, toggle, choice.value)}
     >
       <span className="seams-transaction-choice-indicator" aria-hidden="true" />
-      <strong>{choice.label}</strong>
-      <span>{choice.description}</span>
+      <strong>
+        <WalletText copy={choice.label} />
+      </strong>
+      <span>
+        <WalletText copy={choice.description} />
+      </span>
     </button>
   );
 }

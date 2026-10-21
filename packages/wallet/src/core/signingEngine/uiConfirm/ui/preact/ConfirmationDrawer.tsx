@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef, type ComponentChildren } from 'preact';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { drawerDragTranslate, shouldDismissDrawerDrag } from '../drawer-gesture';
@@ -42,6 +48,9 @@ export function ConfirmationDrawer(props: ConfirmationDrawerProps) {
 }
 
 class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean }> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state = { settled: false };
   private readonly id = `seams-confirmation-drawer-${++nextDrawerId}`;
   private readonly dialog = createRef<HTMLDialogElement>();
@@ -327,7 +336,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
           <button
             type="button"
             class="seams-drawer-handle"
-            aria-label="Dismiss confirmation"
+            aria-label={walletText(this.context, 'Dismiss confirmation')}
             disabled={!this.canDrag()}
             onClick={this.cancel}
           >
@@ -336,7 +345,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
           <button
             type="button"
             class="seams-drawer-close"
-            aria-label="Close"
+            aria-label={walletText(this.context, 'Close')}
             disabled={!this.canDrag()}
             onClick={this.cancel}
           >
@@ -344,7 +353,11 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
           </button>
         </div>
         <div class="seams-drawer-body" ref={this.body}>
-          {this.props.errorMessage && <div class="error">{this.props.errorMessage}</div>}
+          {this.props.errorMessage && (
+            <div class="error">
+              <WalletText copy={this.props.errorMessage} />
+            </div>
+          )}
           <div class="seams-drawer-content" ref={this.content}>
             {this.props.children}
           </div>
@@ -356,7 +369,7 @@ class DrawerShell extends Component<ConfirmationDrawerProps, { settled: boolean 
       <dialog
         class="seams-drawer-dialog"
         ref={this.dialog}
-        aria-label={this.props.label}
+        aria-label={walletDisplayText(this.context, this.props.label)}
         onCancel={this.cancel}
         onClick={this.backdropClick}
         onClickCapture={this.suppressDragClick}

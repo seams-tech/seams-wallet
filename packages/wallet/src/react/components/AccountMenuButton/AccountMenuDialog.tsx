@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import React from 'react';
 import { Theme, useTheme } from '../theme';
@@ -14,15 +16,8 @@ export const AccountMenuDialogFrame: React.FC<{
   readonly titleId: string;
   readonly title: string;
   readonly children: React.ReactNode;
-}> = ({
-  presentation,
-  onClose,
-  dialogRef,
-  contentClassName,
-  titleId,
-  title,
-  children,
-}) => {
+}> = ({ presentation, onClose, dialogRef, contentClassName, titleId, title, children }) => {
+  const locale = useWalletLocale();
   const { theme, tokens } = useTheme();
   const scopedTokens = React.useMemo(
     () => (theme === 'dark' ? { dark: tokens } : { light: tokens }),
@@ -30,7 +25,11 @@ export const AccountMenuDialogFrame: React.FC<{
   );
   if (presentation === 'embedded') {
     return (
-      <AccountMenuScreen title={title} onBack={onClose} className={contentClassName}>
+      <AccountMenuScreen
+        title={walletDisplayText(locale, title)}
+        onBack={onClose}
+        className={contentClassName}
+      >
         {children}
       </AccountMenuScreen>
     );
@@ -51,7 +50,7 @@ export const AccountMenuDialogFrame: React.FC<{
         >
           <div className="seams-account-menu-dialog-main">
             <h2 id={titleId} className="seams-linked-devices-modal-title">
-              {title}
+              <WalletText copy={title} />
             </h2>
             {children}
           </div>

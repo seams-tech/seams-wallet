@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef, type ComponentChildren } from 'preact';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { TreeNode } from '../transaction-display/tree';
@@ -72,6 +78,9 @@ export function TransactionTree(props: TransactionTreeProps): ComponentChildren 
 }
 
 class TransactionNode extends Component<NodeProps, NodeState> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state: NodeState = {
     mode: this.props.node.contentVariants?.defaultMode === 'raw' ? 'raw' : 'decoded',
     copied: false,
@@ -245,7 +254,10 @@ class TransactionNode extends Component<NodeProps, NodeState> {
         hidden={node.hideLabel}
       >
         {chevron && !node.hideChevron && <Chevron />}
-        <span class="label-text" title={transactionLabelTitle(node)}>
+        <span
+          class="label-text"
+          title={walletDisplayText(this.context, transactionLabelTitle(node))}
+        >
           <TransactionLabel node={node} explorers={this.props.explorers} />
         </span>
         {node.type === 'file' && node.copyValue && (
@@ -254,7 +266,7 @@ class TransactionNode extends Component<NodeProps, NodeState> {
             class="copy-badge"
             data-copied={String(this.state.copied)}
             onClick={this.copy}
-            title={this.state.copied ? 'Copied' : 'Copy'}
+            title={walletDisplayText(this.context, this.state.copied ? 'Copied' : 'Copy')}
           >
             {this.state.copied ? 'copied' : 'copy'}
           </button>
@@ -299,11 +311,11 @@ class TransactionNode extends Component<NodeProps, NodeState> {
                 <button
                   type="button"
                   class="file-content-mode-toggle"
-                  title={`Show ${toggleLabel}`}
-                  aria-label={`Show ${toggleLabel}`}
+                  title={walletDisplayText(this.context, `Show ${toggleLabel}`)}
+                  aria-label={walletDisplayText(this.context, `Show ${toggleLabel}`)}
                   onClick={this.toggleMode}
                 >
-                  {toggleLabel}
+                  <WalletText copy={toggleLabel} />
                 </button>
               )}
               <div class="file-content">{content}</div>

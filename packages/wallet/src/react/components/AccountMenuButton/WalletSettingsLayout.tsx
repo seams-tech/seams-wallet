@@ -1,3 +1,6 @@
+import { WalletText, WalletLocaleContext, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { WalletRegionSection } from './WalletRegionSection';
 import type { WalletPlacementCapability } from '@/SeamsWeb/publicApi/placement';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -77,6 +80,7 @@ const SETTINGS_ITEMS = [
 }[];
 
 export function WalletSettingsHeader() {
+  const locale = useWalletLocale();
   const { theme } = useTheme();
   const { seams } = useSeams();
   const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -85,11 +89,13 @@ export function WalletSettingsHeader() {
       <svg className="seams-settings-wordmark" viewBox="0 0 1428 285" role="img" aria-label="Seams">
         <path d={SEAMS_STANDARD_WORDMARK_PATH} fill="currentColor" fillRule="evenodd" />
       </svg>
-      <span>Wallet</span>
+      <span>
+        <WalletText message="Wallet" />
+      </span>
       <button
         className="seams-settings-theme-toggle"
         type="button"
-        aria-label={`Switch to ${nextTheme} mode`}
+        aria-label={walletDisplayText(locale, `Switch to ${nextTheme} mode`)}
         onClick={seams.config.setTheme.bind(null, nextTheme)}
       >
         {theme === 'dark' ? (
@@ -97,7 +103,13 @@ export function WalletSettingsHeader() {
         ) : (
           <MoonIcon size={20} animate={false} />
         )}
-        <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+        <span>
+          {theme === 'dark' ? (
+            <WalletText message="Light mode" />
+          ) : (
+            <WalletText message="Dark mode" />
+          )}
+        </span>
       </button>
     </header>
   );
@@ -122,6 +134,9 @@ type LayoutState = {
 };
 
 export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, LayoutState> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state: LayoutState = {
     regionReady: true,
     selected: 'authentication-methods',
@@ -195,8 +210,12 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
         {item.icon}
       </span>
       <span>
-        <strong>{item.label}</strong>
-        <small>{item.description}</small>
+        <strong>
+          <WalletText copy={item.label} />
+        </strong>
+        <small>
+          <WalletText copy={item.description} />
+        </small>
       </span>
     </button>
   );
@@ -215,7 +234,9 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
               <TouchIcon />
               <div>
                 <strong>{this.props.walletId}</strong>
-                <small>Unlocked on this device</small>
+                <small>
+                  <WalletText message="Unlocked on this device" />
+                </small>
               </div>
             </div>
             <button
@@ -225,13 +246,13 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
               aria-expanded={this.state.mobileMenuOpen}
               aria-controls="seams-settings-navigation"
             >
-              All settings
+              <WalletText message="All settings" />
             </button>
             <nav
               id="seams-settings-navigation"
               className="seams-settings-navigation"
               data-expanded={this.state.mobileMenuOpen}
-              aria-label="Wallet settings"
+              aria-label={walletText(this.context, 'Wallet settings')}
             >
               {SETTINGS_ITEMS.map(this.renderItem)}
               <div className="seams-settings-lock">
@@ -241,20 +262,36 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
                   disabled={this.state.lock.kind === 'locking'}
                 >
                   <LockIcon />
-                  <strong>{this.state.lock.kind === 'locking' ? 'Locking…' : 'Lock wallet'}</strong>
+                  <strong>
+                    {this.state.lock.kind === 'locking' ? (
+                      <WalletText message="Locking…" />
+                    ) : (
+                      <WalletText message="Lock wallet" />
+                    )}
+                  </strong>
                 </button>
               </div>
             </nav>
           </aside>
           <main className="seams-settings-main">
-            <p className="seams-settings-breadcrumb">Wallet settings</p>
+            <p className="seams-settings-breadcrumb">
+              <WalletText message="Wallet settings" />
+            </p>
             <h1 ref={this.heading} tabIndex={-1}>
-              {selected.label}
+              <WalletText copy={selected.label} />
             </h1>
-            <p className="seams-settings-description">{selected.description}</p>
-            {this.props.error ? <p role="alert">{this.props.error}</p> : null}
+            <p className="seams-settings-description">
+              <WalletText copy={selected.description} />
+            </p>
+            {this.props.error ? (
+              <p role="alert">
+                <WalletText copy={this.props.error} />
+              </p>
+            ) : null}
             {this.state.lock.kind === 'failed' ? (
-              <p role="alert">{this.state.lock.message}</p>
+              <p role="alert">
+                <WalletText copy={this.state.lock.message} />
+              </p>
             ) : null}
             <div className="seams-settings-content" hidden={selected.id !== 'wallet-region'}>
               {regionAllowed ? (
@@ -265,7 +302,9 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
                   onAvailability={this.regionAvailability}
                 />
               ) : (
-                <p>This setting is unavailable for the current wallet or device.</p>
+                <p>
+                  <WalletText message="This setting is unavailable for the current wallet or device." />
+                </p>
               )}
             </div>
             {selected.id !== 'wallet-region' ? (
@@ -273,11 +312,15 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
                 {available && !available.disabled ? (
                   this.props.sections[selected.id]
                 ) : (
-                  <p role="status">This setting is unavailable for the current wallet or device.</p>
+                  <p role="status">
+                    <WalletText message="This setting is unavailable for the current wallet or device." />
+                  </p>
                 )}
               </div>
             ) : null}
-            <footer>Your wallet. Your control.</footer>
+            <footer>
+              <WalletText message="Your wallet. Your control." />
+            </footer>
           </main>
         </div>
       </div>

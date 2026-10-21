@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import type { ComponentChildren } from 'preact';
 import { ActionType } from '@/core/types/actions';
 import type { TreeNode } from '../transaction-display/tree';
@@ -102,17 +103,18 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
         const deposit = formatDeposit(action.deposit);
         return (
           <>
-            Calling <span class="highlight-method-name">{action.methodName}</span>
+            <WalletText message="Calling" />{' '}
+            <span class="highlight-method-name">{action.methodName}</span>
             {deposit !== '0 NEAR' && (
               <>
                 {' '}
-                with <span class="highlight-method-name">{deposit}</span>
+                <WalletText message="with" /> <span class="highlight-method-name">{deposit}</span>
               </>
             )}
             {gas && (
               <>
                 {' '}
-                using <span class="highlight-method-name">{gas}</span>
+                <WalletText message="using" /> <span class="highlight-method-name">{gas}</span>
               </>
             )}
           </>
@@ -121,28 +123,36 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
       case ActionType.Transfer:
         return (
           <>
-            Transfer <span class="highlight-amount">{formatDeposit(action.amount)}</span>
+            <WalletText message="Transfer" />{' '}
+            <span class="highlight-amount">{formatDeposit(action.amount)}</span>
           </>
         );
       case ActionType.CreateAccount:
-        return 'Creating Account';
+        return <WalletText message="Creating Account" />;
       case ActionType.DeleteAccount:
-        return 'Deleting Account';
+        return <WalletText message="Deleting Account" />;
       case ActionType.Stake:
-        return `Staking ${formatDeposit(action.stake)}`;
+        return (
+          <WalletText message="Staking {value0}" values={{ value0: formatDeposit(action.stake) }} />
+        );
       case ActionType.AddKey:
-        return 'Adding Key';
+        return <WalletText message="Adding Key" />;
       case ActionType.DeleteKey:
-        return 'Deleting Key';
+        return <WalletText message="Deleting Key" />;
       case ActionType.DeployContract:
-        return `Deploying WASM contract (${formatCodeSize(action.code)})`;
+        return (
+          <WalletText
+            message="Deploying WASM contract ({value0})"
+            values={{ value0: formatCodeSize(action.code) }}
+          />
+        );
       case ActionType.DeployGlobalContract:
-        return transactionLabelTitle(node);
+        return <WalletText copy={transactionLabelTitle(node)} />;
       case ActionType.UseGlobalContract: {
         if (action.accountId)
           return (
             <>
-              Use global contract{' '}
+              <WalletText message="Use global contract" />{' '}
               <ReceiverLink base={explorers.near} address={action.accountId}>
                 {action.accountId}
               </ReceiverLink>
@@ -151,13 +161,13 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
         if (action.codeHash)
           return (
             <>
-              Use global contract by hash{' '}
+              <WalletText message="Use global contract by hash" />{' '}
               <span class="highlight-method-name">
                 {shortenPubkey(action.codeHash, { prefix: 10, suffix: 6 })}
               </span>
             </>
           );
-        return 'Use global contract';
+        return <WalletText message="Use global contract" />;
       }
       default:
         return assertNever(action);
@@ -170,7 +180,7 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
         : 'Transaction to ';
     return (
       <>
-        {prefix}
+        <WalletText copy={prefix} />
         <ReceiverLink base={explorers.near} address={node.transaction.receiverId}>
           {node.transaction.receiverId}
         </ReceiverLink>
@@ -183,7 +193,7 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
     const base = node.chain && node.chain !== 'unknown' ? explorers[node.chain] : undefined;
     return (
       <>
-        {prefix}
+        <WalletText copy={prefix} />
         {base ? (
           <ReceiverLink base={base} address={address}>
             {shortAddress(address)}
@@ -201,7 +211,7 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
     if (index < 0 && rest)
       return (
         <>
-          Calling <span class="highlight-method-name">{rest}</span>
+          <WalletText message="Calling" /> <span class="highlight-method-name">{rest}</span>
         </>
       );
     const method = rest.slice(0, index).trim();
@@ -209,10 +219,22 @@ export function TransactionLabel({ node, explorers }: LabelProps): ComponentChil
     if (index >= 0 && method)
       return (
         <>
-          Calling <span class="highlight-method-name">{method}</span>
-          {trailing && ` using ${trailing}`}
+          <WalletText message="Calling" /> <span class="highlight-method-name">{method}</span>
+          {trailing && (
+            <>
+              <WalletText message="using" /> {trailing}
+            </>
+          )}
         </>
       );
   }
-  return node.label;
+  if (node.fieldLabel) {
+    return (
+      <>
+        <WalletText copy={node.fieldLabel} />
+        {node.label.slice(node.fieldLabel.length)}
+      </>
+    );
+  }
+  return <WalletText copy={node.label} />;
 }

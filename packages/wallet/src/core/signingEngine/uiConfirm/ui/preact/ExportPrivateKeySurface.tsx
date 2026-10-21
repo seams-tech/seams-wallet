@@ -1,4 +1,11 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+  useWalletLocale,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef } from 'preact';
 import type {
   ExportGuidance,
@@ -49,10 +56,14 @@ export type ExportPrivateKeyViewModel = {
   | { kind: 'failed'; message: string }
 >;
 
-export function ExportPrivateKeySurface({ model, onClose }: {
+export function ExportPrivateKeySurface({
+  model,
+  onClose,
+}: {
   model: ExportPrivateKeyViewModel;
   onClose?: () => void;
 }) {
+  const locale = useWalletLocale();
   const entries = model.kind === 'failed' ? [] : model.entries;
   const showAccount = entries.length === 0 || entries.some(isNearKey);
   return (
@@ -65,12 +76,14 @@ export function ExportPrivateKeySurface({ model, onClose }: {
     >
       <div class="content">
         <div class="seams-export-header">
-          <h2 class="title">Exported Keys</h2>
+          <h2 class="title">
+            <WalletText message="Exported Keys" />
+          </h2>
           {onClose && (
             <button
               type="button"
               class="seams-export-modal-close"
-              aria-label="Close exported keys"
+              aria-label={walletText(locale, 'Close exported keys')}
               onClick={onClose}
             >
               ×
@@ -79,13 +92,15 @@ export function ExportPrivateKeySurface({ model, onClose }: {
         </div>
         {model.kind === 'failed' && (
           <div class="error-banner" role="alert">
-            {model.message}
+            <WalletText copy={model.message} />
           </div>
         )}
         <div class="fields">
           {showAccount && (
             <div class="field">
-              <div class="field-label">Near Account ID</div>
+              <div class="field-label">
+                <WalletText message="Near Account ID" />
+              </div>
               <div class="field-value">
                 <span class="value">{model.accountId || '—'}</span>
               </div>
@@ -97,7 +112,11 @@ export function ExportPrivateKeySurface({ model, onClose }: {
             <div class="field">
               <div class="field-value">
                 <span class="muted">
-                  {model.kind === 'loading' ? 'Preparing private key…' : 'No keys available'}
+                  {model.kind === 'loading' ? (
+                    <WalletText message="Preparing private key…" />
+                  ) : (
+                    <WalletText message="No keys available" />
+                  )}
                 </span>
               </div>
             </div>
@@ -105,8 +124,7 @@ export function ExportPrivateKeySurface({ model, onClose }: {
         </div>
         {model.guidance && <ExportGuidanceContent guidance={model.guidance} />}
         <div class="warning">
-          Warning: your private keys grant full control of your account and funds. Keep it in a
-          secret place.
+          <WalletText message="Warning: your private keys grant full control of your account and funds. Keep it in a secret place." />
         </div>
       </div>
     </div>
@@ -128,15 +146,25 @@ function stopDrag(event: Event): void {
 function ExportGuidanceContent({ guidance }: { guidance: ExportGuidance }) {
   return (
     <div class="warning">
-      <strong>{guidance.title || 'Next Steps'}</strong>
-      {guidance.body && <div>{guidance.body}</div>}
+      <strong>
+        <WalletText copy={guidance.title || 'Next Steps'} />
+      </strong>
+      {guidance.body && (
+        <div>
+          <WalletText copy={guidance.body} />
+        </div>
+      )}
       {guidance.steps?.length ? <ol>{guidance.steps.map(renderGuidanceStep)}</ol> : null}
     </div>
   );
 }
 
 function renderGuidanceStep(step: string, index: number) {
-  return <li key={index}>{step}</li>;
+  return (
+    <li key={index}>
+      <WalletText copy={step} />
+    </li>
+  );
 }
 
 type CopyField = 'public' | 'private';
@@ -147,6 +175,9 @@ type CardState = {
 };
 
 class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   state: CardState = { reveal: null, publicCopied: false, privateCopied: false };
   private readonly root = createRef<HTMLDivElement>();
   private frame: number | null = null;
@@ -279,10 +310,14 @@ class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> 
     const privateReady = entry.material.kind === 'ready' && this.state.reveal?.kind === 'settled';
     return (
       <div class="key-card" ref={this.root}>
-        <div class="key-title">{entry.label}</div>
+        <div class="key-title">
+          <WalletText copy={entry.label} />
+        </div>
         {entry.address && (
           <div class="field">
-            <div class="field-label">Address</div>
+            <div class="field-label">
+              <WalletText message="Address" />
+            </div>
             <div class="field-value">
               <span class="value">{entry.address}</span>
             </div>
@@ -292,11 +327,16 @@ class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> 
           <button
             type="button"
             class={`field copy-field${this.state.publicCopied ? ' copied' : ''}`}
-            aria-label={this.state.publicCopied ? 'Public key copied' : 'Copy public key'}
+            aria-label={walletDisplayText(
+              this.context,
+              this.state.publicCopied ? 'Public key copied' : 'Copy public key',
+            )}
             disabled={!entry.publicKey}
             onClick={this.copyPublic}
           >
-            <div class="field-label">Public Key</div>
+            <div class="field-label">
+              <WalletText message="Public Key" />
+            </div>
             <div class="field-value">
               <span class="value">{entry.publicKey || '—'}</span>
               <CopyStatusIcon />
@@ -306,11 +346,16 @@ class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> 
         <button
           type="button"
           class={`field copy-field${this.state.privateCopied ? ' copied' : ''}`}
-          aria-label={this.state.privateCopied ? 'Private key copied' : 'Copy private key'}
+          aria-label={walletDisplayText(
+            this.context,
+            this.state.privateCopied ? 'Private key copied' : 'Copy private key',
+          )}
           disabled={!privateReady}
           onClick={this.copyPrivate}
         >
-          <div class="field-label">Private Key</div>
+          <div class="field-label">
+            <WalletText message="Private Key" />
+          </div>
           <div class="field-value">
             <span class="value private-key">
               <PrivateKeyText material={entry.material} reveal={this.state.reveal} />
@@ -352,7 +397,7 @@ function PrivateKeyText({
           {renderSlots(reveal)}
         </span>
         <span class="seams-sr-only" role="status">
-          Decrypting private key
+          <WalletText message="Decrypting private key" />
         </span>
       </>
     );
@@ -362,7 +407,7 @@ function PrivateKeyText({
     <>
       <span>{maskedPrivateKey(material.value)}</span>
       <span class="seams-sr-only" role="status">
-        Private key ready
+        <WalletText message="Private key ready" />
       </span>
     </>
   );

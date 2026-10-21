@@ -1,4 +1,10 @@
 /** @jsxImportSource preact */
+import {
+  WalletText,
+  WalletLocaleContext,
+} from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, type RefObject } from 'preact';
 import type { PasskeyRegistrationConfirmDisplay } from '@/core/types';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
@@ -22,6 +28,9 @@ export type PasskeyRegistrationContentProps = {
 };
 
 export class PasskeyRegistrationContent extends Component<PasskeyRegistrationContentProps> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   private confirm = (): void => {
     if (this.props.decision.kind === 'ready') this.props.decision.onConfirm();
   };
@@ -42,15 +51,23 @@ export class PasskeyRegistrationContent extends Component<PasskeyRegistrationCon
             styles={this.props.styles}
           />
           <div class="hero-container passkey-registration-confirm__hero-copy">
-            <h2 class="hero-heading">{this.props.heading}</h2>
-            <p class="passkey-registration-confirm__body">{this.props.body}</p>
+            <h2 class="hero-heading">
+              <WalletText copy={this.props.heading} />
+            </h2>
+            <p class="passkey-registration-confirm__body">
+              <WalletText copy={this.props.body} />
+            </p>
           </div>
         </div>
-        {this.props.errorMessage && <div class="error-banner">{this.props.errorMessage}</div>}
+        {this.props.errorMessage && (
+          <div class="error-banner">
+            <WalletText copy={this.props.errorMessage} />
+          </div>
+        )}
         <PasskeyRegistrationDetails display={this.props.display} />
         <div class="passkey-registration-confirm__actions">
           <button type="button" class="btn btn-cancel" onClick={this.cancel}>
-            {this.props.cancelText}
+            <WalletText copy={this.props.cancelText} />
           </button>
           <button type="button" class="btn btn-confirm" disabled={creating} onClick={this.confirm}>
             {creating ? (
@@ -58,12 +75,14 @@ export class PasskeyRegistrationContent extends Component<PasskeyRegistrationCon
                 <span
                   class="loading-indicator passkey-registration-confirm__spinner"
                   role="progressbar"
-                  aria-label="Creating passkey"
+                  aria-label={walletText(this.context, 'Creating passkey')}
                 />
-                <span class="passkey-registration-confirm__busy-label">Creating passkey...</span>
+                <span class="passkey-registration-confirm__busy-label">
+                  <WalletText message="Creating passkey..." />
+                </span>
               </>
             ) : (
-              'Create passkey'
+              <WalletText message="Create passkey" />
             )}
           </button>
         </div>

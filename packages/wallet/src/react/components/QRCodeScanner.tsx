@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText } from '@/core/ui/messages';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
@@ -95,11 +97,12 @@ function ScannerFrame({
   tokens: React.ComponentProps<typeof Theme>['tokens'];
   children: React.ReactNode;
 }): React.JSX.Element {
+  const locale = useWalletLocale();
   if (presentation === 'embedded') {
     return (
-      <AccountMenuScreen title="Link a device" onBack={onClose}>
+      <AccountMenuScreen title={walletText(locale, 'Link a device')} onBack={onClose}>
         <p className="seams-account-description">
-          Open your wallet on the other device, then scan its pairing code.
+          <WalletText message="Open your wallet on the other device, then scan its pairing code." />
         </p>
         {children}
       </AccountMenuScreen>
@@ -124,6 +127,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   showCamera = true,
   presentation = 'modal',
 }) => {
+  const locale = useWalletLocale();
   const { theme, tokens } = useTheme();
   const { cancelLinking } = useSeams();
   const scopedTokens = React.useMemo(
@@ -485,14 +489,18 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           onMouseDown={stopEventPropagation}
         >
           <div className="qr-scanner-error-message">
-            <h2 id="qr-scanner-error-title">Unable to scan a QR code</h2>
-            <p role="alert">{qrCamera.error}</p>
+            <h2 id="qr-scanner-error-title">
+              <WalletText message="Unable to scan a QR code" />
+            </h2>
+            <p role="alert">
+              <WalletText copy={qrCamera.error} />
+            </p>
             <button
               type="button"
               onClick={qrCamera.startScanning}
               className="qr-scanner-error-button"
             >
-              Try Again
+              <WalletText message="Try Again" />
             </button>
             <button
               ref={closeButtonRef}
@@ -500,7 +508,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
               onClick={handleClose}
               className="qr-scanner-error-button"
             >
-              Close
+              <WalletText message="Close" />
             </button>
           </div>
         </div>
@@ -537,11 +545,17 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             onPointerDown={stopEventPropagation}
             onMouseDown={stopEventPropagation}
           >
-            <h2 id="qr-scanner-email-selection-title">Choose an Email OTP method</h2>
-            <p>Select the masked address to authorize this linked device.</p>
+            <h2 id="qr-scanner-email-selection-title">
+              <WalletText message="Choose an Email OTP method" />
+            </h2>
+            <p>
+              <WalletText message="Select the masked address to authorize this linked device." />
+            </p>
             {emailOtpSelection.kind === 'required' ? (
               <fieldset className="qr-scanner-email-choice-list">
-                <legend className="qr-scanner-email-choice-legend">Available methods</legend>
+                <legend className="qr-scanner-email-choice-legend">
+                  <WalletText message="Available methods" />
+                </legend>
                 {emailOtpSelection.choices.map((choice) => {
                   const choiceId = `qr-email-method-${String(choice.baseWalletAuthMethodId)}`;
                   return (
@@ -563,7 +577,9 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                 })}
               </fieldset>
             ) : (
-              <p role="status">Authorizing {emailOtpSelection.choice.maskedEmailHint}…</p>
+              <p role="status">
+                <WalletText message="Authorizing" /> {emailOtpSelection.choice.maskedEmailHint}…
+              </p>
             )}
             {emailOtpSelection.kind === 'required' && (
               <button
@@ -572,14 +588,14 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                 disabled={emailOtpSelection.selectedBaseWalletAuthMethodId === null}
                 onClick={selectEmailOtpBaseFactor}
               >
-                Continue
+                <WalletText message="Continue" />
               </button>
             )}
           </section>
           <button
             ref={closeButtonRef}
             type="button"
-            aria-label="Close scanner"
+            aria-label={walletText(locale, 'Close scanner')}
             onClick={handleClose}
             className="qr-scanner-close"
           >
@@ -618,15 +634,15 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           onMouseDown={stopEventPropagation}
         >
           <h2 id="qr-scanner-title" className="qr-scanner-visually-hidden">
-            Scan and link a device
+            <WalletText message="Scan and link a device" />
           </h2>
           {scannerState.kind === 'expired' ? (
             <div className="qr-scanner-progress" aria-labelledby="qr-scanner-progress-title">
               <h2 id="qr-scanner-progress-title" ref={progressTitleRef} tabIndex={-1}>
-                Linking expired
+                <WalletText message="Linking expired" />
               </h2>
               <p className="qr-scanner-progress-message" role="alert">
-                This linking request expired. Scan the QR code again to retry.
+                <WalletText message="This linking request expired. Scan the QR code again to retry." />
               </p>
               <div className="qr-scanner-progress-actions">
                 <button
@@ -634,21 +650,21 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                   className="qr-scanner-progress-cancel"
                   onClick={handleDismissExpiredLink}
                 >
-                  Close
+                  <WalletText message="Close" />
                 </button>
                 <button
                   type="button"
                   className="qr-scanner-progress-primary"
                   onClick={handleRetryExpiredLink}
                 >
-                  Try again
+                  <WalletText message="Try again" />
                 </button>
               </div>
             </div>
           ) : scannerState.kind === 'linking' ? (
             <div className="qr-scanner-progress" aria-labelledby="qr-scanner-progress-title">
               <h2 id="qr-scanner-progress-title" ref={progressTitleRef} tabIndex={-1}>
-                Linking device
+                <WalletText message="Linking device" />
               </h2>
               <div className="qr-scanner-progress-dots" aria-hidden="true">
                 <span />
@@ -656,7 +672,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                 <span />
               </div>
               <p className="qr-scanner-progress-message" role="status" aria-live="polite">
-                Continue linking on your other device.
+                <WalletText message="Continue linking on your other device." />
               </p>
               <div className="qr-scanner-progress-actions">
                 <button
@@ -664,7 +680,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
                   className="qr-scanner-progress-cancel"
                   onClick={handleCancelLinking}
                 >
-                  Cancel linking
+                  <WalletText message="Cancel linking" />
                 </button>
               </div>
             </div>
@@ -691,10 +707,12 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 
                 {/* Instructions */}
                 <div className="qr-scanner-instructions">
-                  <p>Position the QR code within the frame</p>
+                  <p>
+                    <WalletText message="Position the QR code within the frame" />
+                  </p>
                   {qrCamera.isScanning && (
                     <p className="qr-scanner-sub-instruction qr-scanner-sub-instruction--small">
-                      Scanning...
+                      <WalletText message="Scanning..." />
                     </p>
                   )}
                 </div>
@@ -725,7 +743,7 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
           <button
             ref={closeButtonRef}
             type="button"
-            aria-label="Close scanner"
+            aria-label={walletText(locale, 'Close scanner')}
             onClick={(event) => {
               event.stopPropagation();
               stopPropagationNative(event);

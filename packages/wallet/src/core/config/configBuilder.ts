@@ -1,3 +1,4 @@
+import { normalizeWalletLocale } from '@/core/ui/locale';
 import { toTrimmedString } from '@shared/utils/validation';
 import type {
   EmailOtpAuthPolicy,
@@ -347,6 +348,7 @@ export function buildConfigsFromDefaults(args: {
     },
     ui: {
       appearance: {
+        locale: normalizeWalletLocale(rawAppearance?.locale ?? defaults.ui.appearance.locale),
         theme: appearanceTheme,
         palette: appearancePalette,
       },

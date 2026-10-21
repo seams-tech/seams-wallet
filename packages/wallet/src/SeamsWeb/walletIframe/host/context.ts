@@ -167,6 +167,7 @@ export function applyWalletConfig(ctx: HostContext, configuration: ConfiguredWal
   // Keep wallet-host theme and dynamic appearance tokens in sync with app config.
   try {
     document.documentElement.setAttribute('data-seams-theme', nextTheme);
+    document.documentElement.lang = nextAppearance.locale ?? 'en';
     upsertThemeOverrideStyle(nextAppearance);
   } catch {}
 

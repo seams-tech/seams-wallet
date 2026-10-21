@@ -1,4 +1,7 @@
 /** @jsxImportSource preact */
+import { WalletLocaleContext } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
+import type { WalletLocale } from '@/core/ui/locale';
 import { Component, createRef, type ComponentChildren } from 'preact';
 
 type ConfirmationModalProps = {
@@ -15,6 +18,9 @@ export function ConfirmationModal(props: ConfirmationModalProps) {
 }
 
 class ModalShell extends Component<ConfirmationModalProps> {
+  static contextType = WalletLocaleContext;
+  declare context: WalletLocale;
+
   private readonly dialog = createRef<HTMLDialogElement>();
   private readonly hosted = createRef<HTMLDivElement>();
   private readonly containerId = `seams-confirmation-modal-${++nextModalId}`;
@@ -63,7 +69,7 @@ class ModalShell extends Component<ConfirmationModalProps> {
         <dialog
           ref={this.dialog}
           class="seams-confirmation-modal"
-          aria-label={this.props.label}
+          aria-label={walletDisplayText(this.context, this.props.label)}
           onCancel={this.cancel}
           onClick={this.backdropClick}
         >

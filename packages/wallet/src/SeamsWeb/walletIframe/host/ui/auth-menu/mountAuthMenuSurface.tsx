@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import { withWalletLocale } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import {
   createCspStylesheetManager,
   getDefaultCspNonce,
@@ -64,18 +65,22 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
 
   update(viewModel: AuthMenuViewModel): void {
     if (this.state.kind === 'disposed') return;
+    this.element.lang = viewModel.appearance.locale ?? 'en';
     this.element.dataset.theme = viewModel.appearance.theme.mode;
     this.styles.setDynamicRule(
       this.element.id + '-appearance',
       appearanceTokenCssRule(this.element.id, viewModel.appearance),
     );
     render(
-      <AuthMenuSurface
-        element={this.element}
-        viewModel={viewModel}
-        onIntent={this.state.onIntent}
-        styles={this.styles}
-      />,
+      withWalletLocale(
+        viewModel.appearance.locale ?? 'en',
+        <AuthMenuSurface
+          element={this.element}
+          viewModel={viewModel}
+          onIntent={this.state.onIntent}
+          styles={this.styles}
+        />,
+      ),
       this.element,
     );
   }

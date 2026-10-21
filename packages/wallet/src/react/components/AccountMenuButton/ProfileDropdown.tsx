@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletText, walletDisplayText } from '@/core/ui/messages';
 import React from 'react';
 import { MenuItem } from './MenuItem';
 import { LockMenuItem } from './LockMenuItem';
@@ -36,9 +38,12 @@ function MenuGroup({
   items: MenuItemModel[];
   props: ProfileDropdownProps;
 }): React.JSX.Element {
+  const locale = useWalletLocale();
   return (
-    <section className="seams-account-menu-group" aria-label={label}>
-      <h3>{label}</h3>
+    <section className="seams-account-menu-group" aria-label={walletDisplayText(locale, label)}>
+      <h3>
+        <WalletText copy={label} />
+      </h3>
       {items.map(renderItem.bind(null, props))}
     </section>
   );
@@ -56,12 +61,17 @@ function renderItem(props: ProfileDropdownProps, item: MenuItemModel): React.JSX
   );
 }
 export function ProfileDropdown(props: ProfileDropdownProps): React.JSX.Element {
+  const locale = useWalletLocale();
   props.menuItemsRef.current.length = props.menuItems.length;
   return (
     <div className="seams-profile-dropdown-menu">
-      <MenuGroup label="Addresses" items={props.menuItems.filter(isAccountItem)} props={props} />
       <MenuGroup
-        label="Security & devices"
+        label={walletText(locale, 'Addresses')}
+        items={props.menuItems.filter(isAccountItem)}
+        props={props}
+      />
+      <MenuGroup
+        label={walletText(locale, 'Security & devices')}
         items={props.menuItems.filter(isSecurityItem).sort(compareSecurityItems)}
         props={props}
       />

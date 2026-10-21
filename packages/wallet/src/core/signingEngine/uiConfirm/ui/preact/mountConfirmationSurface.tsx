@@ -1,5 +1,6 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import { withWalletLocale } from './WalletLocale';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { CspStylesheetManager } from '@/core/browser/walletIframe/csp-stylesheet';
 import { confirmationDocumentStyles } from './confirmation-styles';
@@ -42,7 +43,11 @@ type SurfaceState =
 
 const RECEIPT_MORPH_DURATION_MS = 360;
 const RECEIPT_MORPH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
-const RECEIPT_ANCHORS = ['.seams-receipt-symbol', '[role="status"]', '.seams-review-amount'] as const;
+const RECEIPT_ANCHORS = [
+  '.seams-receipt-symbol',
+  '[role="status"]',
+  '.seams-review-amount',
+] as const;
 
 type ReceiptAnchor = {
   selector: (typeof RECEIPT_ANCHORS)[number];
@@ -115,6 +120,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.element.dataset.seamsConfirmReady = String(
       model.content.kind === 'transaction' && model.content.transaction.decision.kind === 'ready',
     );
+    this.element.lang = model.appearance.locale ?? 'en';
     this.element.dataset.theme = model.appearance.theme.mode;
     this.styles.setDynamicRule(
       this.element.id,
@@ -144,7 +150,12 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.element.dataset.seamsConfirmVariant = 'modal';
     this.renderSurface();
     const target = this.element.querySelector<HTMLElement>('.modal-container-root');
-    if (viewChanged && previousBounds && target && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (
+      viewChanged &&
+      previousBounds &&
+      target &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       const bounds = target.getBoundingClientRect();
       // The shell and shared content travel independently, keeping text undistorted.
       const shell = this.element.ownerDocument.createElement('div');
@@ -153,10 +164,25 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       this.element.appendChild(shell);
       this.receiptShell = shell;
       this.element.setAttribute('data-receipt-morphing', '');
-      const morph = shell.animate([
-        { left: `${previousBounds.left}px`, top: `${previousBounds.top}px`, width: `${previousBounds.width}px`, height: `${previousBounds.height}px`, borderRadius: previousRadius },
-        { left: `${bounds.left}px`, top: `${bounds.top}px`, width: `${bounds.width}px`, height: `${bounds.height}px`, borderRadius: getComputedStyle(target).borderRadius },
-      ], { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING, fill: 'both' });
+      const morph = shell.animate(
+        [
+          {
+            left: `${previousBounds.left}px`,
+            top: `${previousBounds.top}px`,
+            width: `${previousBounds.width}px`,
+            height: `${previousBounds.height}px`,
+            borderRadius: previousRadius,
+          },
+          {
+            left: `${bounds.left}px`,
+            top: `${bounds.top}px`,
+            width: `${bounds.width}px`,
+            height: `${bounds.height}px`,
+            borderRadius: getComputedStyle(target).borderRadius,
+          },
+        ],
+        { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING, fill: 'both' },
+      );
       this.receiptMotion = [morph];
       const shared = new Set<HTMLElement>();
       for (const anchor of anchors) {
@@ -165,35 +191,45 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         const destination = element.getBoundingClientRect();
         shared.add(element);
         const scale = parseFloat(anchor.fontSize) / parseFloat(getComputedStyle(element).fontSize);
-        this.receiptMotion.push(element.animate([
-          {
-            transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
-            transformOrigin: 'top left',
-          },
-          {
-            transform: 'translate(0, 0) scale(1)',
-            transformOrigin: 'top left',
-          },
-        ], { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING }));
+        this.receiptMotion.push(
+          element.animate(
+            [
+              {
+                transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
+                transformOrigin: 'top left',
+              },
+              {
+                transform: 'translate(0, 0) scale(1)',
+                transformOrigin: 'top left',
+              },
+            ],
+            { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING },
+          ),
+        );
       }
       const details = target.querySelectorAll<HTMLElement>(
         '.seams-transaction-receipt > :not(.seams-receipt-heading), ' +
-        '.seams-receipt-heading > .seams-receipt-symbol, .seams-receipt-heading h2, ' +
-        '.seams-receipt-heading p, .seams-transaction-toast > :not(.seams-transaction-toast-text, .seams-toast-progress), ' +
-        '.seams-transaction-toast-text > *',
+          '.seams-receipt-heading > .seams-receipt-symbol, .seams-receipt-heading h2, ' +
+          '.seams-receipt-heading p, .seams-transaction-toast > :not(.seams-transaction-toast-text, .seams-toast-progress), ' +
+          '.seams-transaction-toast-text > *',
       );
       let order = 0;
       for (const detail of details) {
         if (shared.has(detail)) continue;
-        this.receiptMotion.push(detail.animate([
-          { opacity: 0, transform: 'translateY(8px)' },
-          { opacity: 1, transform: 'translateY(0)' },
-        ], {
-          duration: 120,
-          delay: model.view === 'toast' ? 240 : 180 + Math.min(order, 4) * 15,
-          fill: 'backwards',
-          easing: 'ease-out',
-        }));
+        this.receiptMotion.push(
+          detail.animate(
+            [
+              { opacity: 0, transform: 'translateY(8px)' },
+              { opacity: 1, transform: 'translateY(0)' },
+            ],
+            {
+              duration: 120,
+              delay: model.view === 'toast' ? 240 : 180 + Math.min(order, 4) * 15,
+              fill: 'backwards',
+              easing: 'ease-out',
+            },
+          ),
+        );
         order += 1;
       }
       morph.onfinish = this.clearReceiptMotion;
@@ -251,26 +287,34 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     if (state.kind === 'disposed') return;
     const source = state.model.content;
     const model = this.contentModel(source, state.kind === 'closing');
-    const content = this.receipt && source.kind === 'transaction' ? (
-      <TransactionReceipt
-        receipt={this.receipt}
-        data={source.review}
-        explorers={source.transaction.explorers}
-      />
-    ) : (
-      <ConfirmationContent
-        model={model}
-        styles={this.styles}
-        variant={this.presentation.variant}
-      />
-    );
+    const content =
+      this.receipt && source.kind === 'transaction' ? (
+        <TransactionReceipt
+          receipt={this.receipt}
+          data={source.review}
+          explorers={source.transaction.explorers}
+        />
+      ) : (
+        <ConfirmationContent
+          model={model}
+          styles={this.styles}
+          variant={this.presentation.variant}
+        />
+      );
     const label =
       source.kind === 'registration' ? source.registration.heading : source.header.heading;
     if (this.receipt || this.presentation.variant === 'modal') {
       render(
-        <ConfirmationModal context={this.receipt ? 'wallet-iframe' : this.presentation.context} label={label} onCancel={this.cancel}>
-          {content}
-        </ConfirmationModal>,
+        withWalletLocale(
+          state.model.appearance.locale ?? 'en',
+          <ConfirmationModal
+            context={this.receipt ? 'wallet-iframe' : this.presentation.context}
+            label={label}
+            onCancel={this.cancel}
+          >
+            {content}
+          </ConfirmationModal>,
+        ),
         this.element,
       );
       return;
@@ -278,27 +322,35 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     const decision =
       source.kind === 'registration' ? source.registration.decision : source.transaction.decision;
     render(
-      <ConfirmationDrawer
-        context={this.presentation.context}
-        label={label}
-        origin={source.kind === 'transaction' && source.header.website.kind === 'ready'
-          ? <><PadlockIcon />{source.header.website.text}</>
-          : undefined}
-        errorMessage={
-          source.kind === 'registration'
-            ? source.registration.errorMessage
-            : source.transaction.errorMessage
-        }
-        styles={this.styles}
-        state={
-          state.kind === 'closing'
-            ? { kind: 'closing', onClosed: this.dispose }
-            : { kind: 'open', interaction: decision.kind === 'ready' ? 'ready' : 'busy' }
-        }
-        onCancel={this.cancel}
-      >
-        {content}
-      </ConfirmationDrawer>,
+      withWalletLocale(
+        state.model.appearance.locale ?? 'en',
+        <ConfirmationDrawer
+          context={this.presentation.context}
+          label={label}
+          origin={
+            source.kind === 'transaction' && source.header.website.kind === 'ready' ? (
+              <>
+                <PadlockIcon />
+                {source.header.website.text}
+              </>
+            ) : undefined
+          }
+          errorMessage={
+            source.kind === 'registration'
+              ? source.registration.errorMessage
+              : source.transaction.errorMessage
+          }
+          styles={this.styles}
+          state={
+            state.kind === 'closing'
+              ? { kind: 'closing', onClosed: this.dispose }
+              : { kind: 'open', interaction: decision.kind === 'ready' ? 'ready' : 'busy' }
+          }
+          onCancel={this.cancel}
+        >
+          {content}
+        </ConfirmationDrawer>,
+      ),
       this.element,
     );
   }

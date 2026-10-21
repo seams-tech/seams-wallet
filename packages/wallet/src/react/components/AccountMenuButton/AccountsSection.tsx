@@ -1,3 +1,5 @@
+import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { walletDisplayText } from '@/core/ui/messages';
 import React from 'react';
 import type { AccountsSectionRow } from './types';
 import './AccountsSection.css';
@@ -25,6 +27,7 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
   className,
   style,
 }) => {
+  const locale = useWalletLocale();
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
@@ -50,12 +53,18 @@ export const AccountsSection: React.FC<AccountsSectionProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               tabIndex={isOpen ? 0 : -1}
-              title={row.address}
+              title={walletDisplayText(locale, row.address)}
             >
-              <span className="seams-accounts-row-chain">{row.label}</span>
-              <span className="seams-accounts-row-address">{presentation === 'page' ? row.address : shortenAddress(row.address)}</span>
+              <span className="seams-accounts-row-chain">
+                <WalletText copy={row.label} />
+              </span>
+              <span className="seams-accounts-row-address">
+                {presentation === 'page' ? row.address : shortenAddress(row.address)}
+              </span>
               {presentation === 'page' ? (
-                <span className="seams-accounts-explorer-label">View on explorer</span>
+                <span className="seams-accounts-explorer-label">
+                  <WalletText message="View on explorer" />
+                </span>
               ) : null}
               <svg
                 className="seams-accounts-row-arrow"

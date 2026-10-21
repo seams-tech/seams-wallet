@@ -1,3 +1,4 @@
+import { WalletText } from '@/react/context/WalletLocale';
 import { forwardRef, memo } from 'react';
 import type { MenuItemProps } from './types';
 import { HoverArrowIcon } from './icons/HoverArrowIcon';
@@ -33,8 +34,12 @@ export const MenuItem = memo(
         >
           <div className="seams-dropdown-menu-item-icon">{item.icon}</div>
           <div className="seams-dropdown-menu-item-content">
-            <div className="seams-dropdown-menu-item-label">{item.label}</div>
-            <div className="seams-dropdown-menu-item-description">{item.description}</div>
+            <div className="seams-dropdown-menu-item-label">
+              <WalletText copy={item.label} />
+            </div>
+            <div className="seams-dropdown-menu-item-description">
+              <WalletText copy={item.description} />
+            </div>
           </div>
           {!item.disabled ? <HoverArrowIcon /> : null}
         </button>

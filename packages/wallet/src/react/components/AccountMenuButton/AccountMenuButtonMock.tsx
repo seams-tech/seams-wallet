@@ -1,3 +1,4 @@
+import { WalletLocaleContext } from '../../context/WalletLocale';
 import React, { useState, useEffect } from 'react';
 import { Theme } from '../theme/ThemeProvider';
 import type { ThemeMode } from '../theme/ThemeProvider';
@@ -16,6 +17,7 @@ import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
 
 export interface AccountMenuButtonMockProps {
+  locale?: import('@/core/ui/locale').WalletLocale;
   /** Display-only identity. No wallet session or credentials are created. */
   username?: string;
   walletId?: string;
@@ -224,8 +226,10 @@ function AccountMenuPreview({
  */
 export function AccountMenuButtonMock(props: AccountMenuButtonMockProps): React.JSX.Element {
   return (
-    <Theme theme={props.theme ?? 'light'}>
-      <AccountMenuPreview {...props} />
-    </Theme>
+    <WalletLocaleContext.Provider value={props.locale ?? 'en'}>
+      <Theme theme={props.theme ?? 'light'}>
+        <AccountMenuPreview {...props} />
+      </Theme>
+    </WalletLocaleContext.Provider>
   );
 }
