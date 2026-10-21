@@ -9,6 +9,10 @@ Production integration has two parts: the product application and the isolated w
 runtime. Deploy each from reviewed artifacts. Give each its own origin and security
 policy. Keep custody-role secrets out of the browser.
 
+The wallet server roles run on Cloudflare Workers, Google Cloud VMs, and AWS
+EC2. See [hosting targets](/deploy-and-operate/hosting-targets) for what each
+target has been tested for.
+
 Use this section to prepare a release:
 
 1. [Host the wallet integration](/deploy-and-operate/hosted-integration).

@@ -183,6 +183,7 @@ const deployAndOperateSection: DefaultTheme.SidebarItem = {
   text: 'Deploy and operate',
   items: [
     { text: 'Overview', link: '/deploy-and-operate/' },
+    { text: 'Hosting targets', link: '/deploy-and-operate/hosting-targets' },
     { text: 'Hosted integration', link: '/deploy-and-operate/hosted-integration' },
     { text: 'Security boundaries', link: '/deploy-and-operate/security-boundaries' },
     { text: 'Tenant-root backups', link: '/deploy-and-operate/tenant-root-backups' },
