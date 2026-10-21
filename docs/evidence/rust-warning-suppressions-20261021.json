@@ -1,0 +1,545 @@
+{
+  "sourceBaseline": "d43d4e893912633ede13030f251efaa96cdb4596",
+  "metric": "Tracked Rust source matches for #!?[allow(...dead_code",
+  "beforeMatches": 89,
+  "removedAdapterAttributes": 50,
+  "retainedMatches": 39,
+  "actualRetainedAttributes": 38,
+  "note": "One retained match is a source-guard string. Conditional cfg_attr suppressions are outside this metric. No generated fixtures were edited.",
+  "entries": [
+    {
+      "path": "crates/ed25519-yao-cloudflare-bench/tests/source_guards.rs",
+      "line": 27,
+      "decision": "retained_source_guard_literal",
+      "reason": "This is a forbidden-source string in an existing benchmark guard. It is not a Rust lint attribute."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/ot.rs",
+      "line": 6,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/packages.rs",
+      "line": 1,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/phase5_process.rs",
+      "line": 7,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/role_protocol_support.rs",
+      "line": 3,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/roles.rs",
+      "line": 1,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/stream.rs",
+      "line": 11,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/stream_io.rs",
+      "line": 3,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/ed25519-yao/src/passive/stream_runtime.rs",
+      "line": 3,
+      "decision": "retained_protocol_module",
+      "reason": "Private protocol kernels support local-protocol and benchmark feature combinations. Preserve their formal and vector coverage. Narrowing requires the owning protocol-feature audit."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 748,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 751,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 932,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 1186,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 2528,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 2552,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 2699,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 2797,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3024,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3045,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3089,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3104,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3131,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3244,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3294,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3309,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 3421,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 4295,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 8928,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 8942,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 9015,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "line": 10622,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/env.rs",
+      "line": 1278,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/env.rs",
+      "line": 1319,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/env.rs",
+      "line": 1387,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/lib.rs",
+      "line": 337,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_operational_provider.rs",
+      "line": 1,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6317,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6325,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6347,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6354,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6366,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6441,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6459,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6495,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6506,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6528,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6535,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6547,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6637,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 6712,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 10516,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 10591,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 12182,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16104,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16116,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16126,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16175,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16237,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "line": 16748,
+      "decision": "removed",
+      "reason": "Adapter role, native host, PostgreSQL, and existing test-target checks now expose unused code. Live behavior and stored shapes remain intact."
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/support/mod.rs",
+      "line": 1,
+      "decision": "retained_test_support",
+      "reason": "Each integration test imports a different subset of the shared fixture module."
+    },
+    {
+      "path": "crates/router-ab-core/tests/support/mod.rs",
+      "line": 1,
+      "decision": "retained_test_support",
+      "reason": "Each integration test imports a different subset of the shared fixture module."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 19,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 23,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 26,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 30,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 33,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 36,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 39,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 42,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 45,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 48,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 51,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 54,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 57,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 60,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 63,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 67,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 70,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 73,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 76,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "crates/signer-core/fixtures/signing-vectors/v1_test_vectors.rs",
+      "line": 79,
+      "decision": "retained_generated_fixture",
+      "reason": "Generated signing vectors serve independent feature-selected test targets. Regeneration owns these attributes."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/lifecycle_persistence.rs",
+      "line": 413,
+      "decision": "retained_test_constructor",
+      "reason": "The recovery projection constructor serves the existing lifecycle-domain test at line 2768. Its suppression is local."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1023,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1028,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1033,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1038,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1043,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/semantic_artifacts.rs",
+      "line": 1050,
+      "decision": "retained_role_specific_macro_accessor",
+      "reason": "The descriptor macro builds Client and SigningWorker role types. Consumers read different fields for each role."
+    },
+    {
+      "path": "tools/ed25519-yao-generator/src/signing_worker_activation.rs",
+      "line": 284,
+      "decision": "retained_secret_lifetime",
+      "reason": "The scalar field owns activated secret material and its zeroizing lifetime. An unread field does not justify deleting it."
+    }
+  ]
+}

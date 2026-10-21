@@ -6314,7 +6314,6 @@ pub struct CloudflareTenantRootInsertPendingCommandV1 {
 /// The role store derives the pending lifecycle branch from the exact verified
 /// installation-evidence wire. Callers provide only the server-resolved
 /// identity and the locally sealed share material.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CloudflareTenantRootInitialCreationShareInputV1 {
     identity: TenantRootIdentityV1,
@@ -6322,7 +6321,6 @@ pub(crate) struct CloudflareTenantRootInitialCreationShareInputV1 {
     staged_at_ms: u64,
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootInitialCreationShareInputV1 {
     /// Creates the local sealed-share inputs for one initial role installation.
     pub(crate) fn new(
@@ -6344,14 +6342,12 @@ impl CloudflareTenantRootInitialCreationShareInputV1 {
 /// The bundle is intentionally non-cloneable. Its evidence token is carried
 /// through reservation, execution, and successful terminalization so a caller
 /// cannot substitute receipt payload bytes at a later lifecycle stage.
-#[allow(dead_code)]
 pub(crate) struct CloudflareTenantRootInitialCreationInputV1 {
     command: VerifiedTenantRootRoleCreationCommandV1,
     evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     record: CloudflareTenantRootRoleShareRecordV1,
 }
 
-#[allow(dead_code)]
 impl fmt::Debug for CloudflareTenantRootInitialCreationInputV1 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -6363,7 +6359,6 @@ impl fmt::Debug for CloudflareTenantRootInitialCreationInputV1 {
     }
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootInitialCreationInputV1 {
     /// Returns the sealed share ciphertext, for leak tests only.
     #[cfg(test)]
@@ -6438,7 +6433,6 @@ impl CloudflareTenantRootInitialCreationInputV1 {
 }
 
 /// Executable initial-creation insertion command retaining its exact evidence token.
-#[allow(dead_code)]
 pub(crate) struct CloudflareTenantRootInitialCreationPendingCommandV1 {
     command: CloudflareTenantRootInsertPendingCommandV1,
     evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -6456,7 +6450,6 @@ impl fmt::Debug for CloudflareTenantRootInitialCreationPendingCommandV1 {
 
 /// Executed initial-creation command retaining the evidence needed for its
 /// exact successful terminal receipt payload.
-#[allow(dead_code)]
 pub(crate) struct CloudflareTenantRootInitialCreationExecutedCommandV1 {
     executed: ExecutedTenantRootCommandV1,
     evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -6492,7 +6485,6 @@ impl fmt::Debug for CloudflareTenantRootInitialCreationExecutedCommandV1 {
 ///
 /// The sealed provider result retains the exact binding that authenticated the
 /// refresh evidence, role, epoch, commitment, and wrapping-key reference.
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct CloudflareTenantRootRefreshShareInputV1 {
     /// Server-resolved logical root identity.
@@ -6503,7 +6495,6 @@ pub(crate) struct CloudflareTenantRootRefreshShareInputV1 {
     staged_at_ms: u64,
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootRefreshShareInputV1 {
     /// Creates the local sealed-share inputs for one refresh installation.
     pub(crate) fn new(
@@ -6525,14 +6516,12 @@ impl CloudflareTenantRootRefreshShareInputV1 {
 /// The bundle is intentionally non-cloneable. Its evidence token is carried
 /// through reservation, execution, and successful terminalization so receipt
 /// payload bytes cannot be substituted after the provider call.
-#[allow(dead_code)]
 pub(crate) struct CloudflareTenantRootRefreshInputV1 {
     command: VerifiedTenantRootRoleRefreshCommandV1,
     evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     record: CloudflareTenantRootRoleShareRecordV1,
 }
 
-#[allow(dead_code)]
 impl fmt::Debug for CloudflareTenantRootRefreshInputV1 {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -6544,7 +6533,6 @@ impl fmt::Debug for CloudflareTenantRootRefreshInputV1 {
     }
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootRefreshInputV1 {
     /// Returns the exact signed installation evidence wire bytes.
     pub(crate) fn installation_evidence_bytes(&self) -> &[u8] {
@@ -6634,7 +6622,6 @@ fn validate_refresh_record_sealed_binding(
 
 /// Executed refresh insertion retaining the exact evidence needed to produce
 /// its successful terminal receipt payload.
-#[allow(dead_code)]
 pub(crate) struct CloudflareTenantRootRefreshExecutedCommandV1 {
     executed: ExecutedTenantRootCommandV1,
     evidence: VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -6709,7 +6696,6 @@ pub(crate) enum CloudflareTenantRootRefreshAdmissionDecisionV1 {
 }
 
 /// Durable decision for one creation-only pending-row reservation.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) enum CloudflareTenantRootInitialCreationDecisionV1 {
     /// The caller owns the newly reserved command and may execute it once.
@@ -10513,7 +10499,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) async fn reserve_initial_creation_pending(
         &self,
         creation: CloudflareTenantRootInitialCreationInputV1,
@@ -10588,7 +10573,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     }
 
     /// Inserts one creation-only pending row and retains evidence for terminalization.
-    #[allow(dead_code)]
     pub(crate) async fn insert_initial_creation_pending(
         &self,
         command: CloudflareTenantRootInitialCreationPendingCommandV1,
@@ -12179,7 +12163,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     }
 
     /// Commits the initial-creation receipt whose payload is the exact evidence wire.
-    #[allow(dead_code)]
     pub(crate) async fn complete_initial_creation(
         &self,
         executed: CloudflareTenantRootInitialCreationExecutedCommandV1,
@@ -16101,7 +16084,7 @@ fn validate_command_scope_for_record(
     Ok(())
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 fn initial_creation_scope_for_record(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
@@ -16113,7 +16096,6 @@ fn initial_creation_scope_for_record(
     initial_creation_scope_without_freshness(command, record)
 }
 
-#[allow(dead_code)]
 fn initial_creation_scope_without_freshness(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     record: &CloudflareTenantRootRoleShareRecordV1,
@@ -16123,7 +16105,6 @@ fn initial_creation_scope_without_freshness(
     Ok(scope)
 }
 
-#[allow(dead_code)]
 fn cloudflare_role_for_protocol(
     role: TwoPartyDeriverRole,
 ) -> RoleStoreResult<CloudflareTenantRootDeriverRoleV1> {
@@ -16172,7 +16153,6 @@ fn validate_initial_creation_role_signer(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn validate_initial_creation_binding(
     command: &VerifiedTenantRootRoleCreationCommandV1,
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
@@ -16234,7 +16214,6 @@ fn validate_initial_creation_binding(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn validate_initial_creation_success_receipt_payload(
     evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
     receipt: &VerifiedTenantRootCommandSuccessReceiptV1,
@@ -16745,7 +16724,6 @@ struct TenantRootRootUseAdmissionRowV1 {
 
 #[derive(Debug, serde::Deserialize)]
 struct TenantRootCreationTombstoneRowV1 {
-    #[allow(dead_code)]
     session_id_hex: String,
 }
 

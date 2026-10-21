@@ -153,8 +153,6 @@ use ecdsa_presign_live_session::{
 #[cfg(feature = "workers-rs")]
 #[allow(unused_imports)]
 pub(crate) use tenant_root_creation::{
-    execute_cloudflare_router_tenant_root_creation_commitment_call_v1,
-    execute_cloudflare_router_tenant_root_creation_installation_call_v1,
     execute_cloudflare_router_tenant_root_creation_journal_call_v1,
 };
 #[allow(unused_imports)]

@@ -1275,7 +1275,6 @@ pub(crate) struct CloudflareTenantRootCreationRoleSigningKeySelectionV1 {
     verifying_key: [u8; 32],
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootCreationRoleSigningKeySelectionV1 {
     fn new(
         binding: CloudflareTenantRootCreationRoleSigningKeyBindingV1,
@@ -1306,22 +1305,24 @@ impl CloudflareTenantRootCreationRoleSigningKeySelectionV1 {
     }
 
     /// Returns the selected Deriver role.
+    #[cfg(test)]
     pub(crate) const fn role(&self) -> TwoPartyDeriverRole {
         self.binding.role()
     }
 
     /// Returns the selected retained role-signing key identifier.
+    #[cfg(test)]
     pub(crate) fn signing_key_id(&self) -> &str {
         self.binding.signing_key_id()
     }
 
     /// Returns the binding selected with the trusted role key.
-    #[allow(dead_code)]
     pub(crate) fn binding(&self) -> &CloudflareTenantRootCreationRoleSigningKeyBindingV1 {
         &self.binding
     }
 
     /// Returns the selected public verifier bytes.
+    #[cfg(test)]
     pub(crate) fn verifying_key_bytes(&self) -> [u8; 32] {
         self.verifying_key
     }
@@ -1384,7 +1385,6 @@ impl core::fmt::Debug for CloudflareTenantRootCreationRoleSignerV1 {
     }
 }
 
-#[allow(dead_code)]
 impl CloudflareTenantRootCreationRoleSignerV1 {
     /// Returns the role bound to this signer.
     pub(crate) const fn role(&self) -> TwoPartyDeriverRole {

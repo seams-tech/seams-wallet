@@ -334,7 +334,6 @@ pub use tenant_root_recovery_reshare::{
     TENANT_ROOT_RECOVERY_RESHARE_PATH_V1,
 };
 mod tenant_root_restore_refresh_runtime;
-#[allow(dead_code)]
 #[cfg_attr(not(feature = "workers-rs"), allow(unused_imports))]
 mod tenant_root_role_runtime;
 pub use tenant_root_cutover_lifecycle::*;

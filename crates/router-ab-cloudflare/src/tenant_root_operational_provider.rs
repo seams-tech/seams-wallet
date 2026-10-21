@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use hpke_ng::{ChaCha20Poly1305, DhKemX25519HkdfSha256, HkdfSha256, Hpke, Kem};
 use router_ab_core::{
     MpcPrfSigningRootShareWireV1, RouterAbDerivationError, RouterAbDerivationErrorCode,
@@ -83,6 +81,7 @@ impl core::fmt::Debug for CloudflareTenantRootOperationalRotationProviderInputsV
 impl CloudflareTenantRootOperationalRotationProviderInputsV1 {
     /// Creates owned provider inputs; `from_inputs` performs full validation.
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub(crate) fn new(
         role: threshold_prf::TwoPartyDeriverRole,
         online_epoch_wrapping_key_ref: impl Into<String>,
@@ -235,6 +234,7 @@ impl CloudflareTenantRootOperationalRotationProviderV1 {
 
     /// Creates a role-local provider after validating both HPKE key pairs.
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub(crate) fn new(
         role: threshold_prf::TwoPartyDeriverRole,
         online_epoch_wrapping_key_ref: impl Into<String>,

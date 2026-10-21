@@ -60,8 +60,10 @@ use sha2::{Digest, Sha256};
 
 #[cfg(all(test, feature = "workers-rs"))]
 use crate::tenant_root_role_d1::CloudflareTenantRootPendingShareV1;
+#[cfg(test)]
+use crate::decode_role_verifying_keys;
 use crate::{
-    decode_base64url_bytes_v1, decode_role_verifying_keys, encode_base64url_bytes_v1,
+    decode_base64url_bytes_v1, encode_base64url_bytes_v1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
     TenantRootCreationRoleVerifyingKeysV1, TenantRootCutoverRecordV1,
 };
@@ -745,10 +747,8 @@ fn evaluate_tenant_root_destination_bootstrap_request_v1(
     }
 }
 
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_OBJECT_NAME_DOMAIN_V1: &[u8] =
     b"seams/tenant-root-creation-object-name/v1";
-#[allow(dead_code)]
 const TENANT_ROOT_CREATION_OBJECT_NAME_PREFIX_V1: &str = "tenant-root-creation-v1";
 const TENANT_ROOT_CREATION_JOURNAL_MAX_BASE64URL_BYTES_V1: usize =
     base64url_len_for_bytes(TENANT_ROOT_CREATION_JOURNAL_MAX_BYTES_V1);
@@ -929,7 +929,6 @@ const TENANT_ROOT_REFRESH_INSTALLATION_RESPONSE_MAX_BYTES_V1: usize = 4096;
 const TENANT_ROOT_REFRESH_CONTRIBUTION_RESPONSE_MAX_BYTES_V1: usize =
     TENANT_ROOT_REFRESH_CONTRIBUTION_MAX_BASE64URL_BYTES_V1 * 2 + 2048;
 
-#[allow(dead_code)]
 pub fn tenant_root_creation_object_name_v1(
     identity_digest: TenantRootIdentityDigestV1,
     custody_lineage: TenantRootCustodyLineageId,
@@ -1183,7 +1182,6 @@ fn refresh_contribution_response(
     })
 }
 
-#[allow(dead_code)]
 fn validate_tenant_root_creation_object_binding_v1(
     object_id: &str,
     expected_authority_id: TenantRootControlPlaneAuthorityIdV1,
@@ -2525,7 +2523,6 @@ struct CloudflareTenantRootRefreshContributionRendezvousRecordV1 {
     state: CloudflareTenantRootRefreshContributionRendezvousStateV1,
 }
 
-#[allow(dead_code)]
 fn validate_cloudflare_tenant_root_creation_journal_response_v1(
     response: &CloudflareTenantRootCreationJournalResponseV1,
     expected_revision: u64,
@@ -2549,7 +2546,6 @@ fn validate_cloudflare_tenant_root_creation_journal_response_v1(
     )
 }
 
-#[allow(dead_code)]
 fn validate_response_digest(
     field: &str,
     encoded: &str,
@@ -2696,7 +2692,6 @@ pub async fn tenant_root_creation_abandonment_call_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 pub(crate) async fn execute_cloudflare_router_tenant_root_creation_journal_call_v1(
     env: &worker::Env,
     journal: &TenantRootCreationJournalV1,
@@ -2794,7 +2789,6 @@ impl TenantRootCreationStateTransportV1 for CloudflareTenantRootCreationStateTra
 }
 
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
 async fn execute_cloudflare_router_tenant_root_creation_private_call_v1<
     TRequest: Serialize,
@@ -3021,7 +3015,6 @@ pub(crate) async fn execute_cloudflare_router_tenant_root_cutover_write_call_v1(
 }
 
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 fn response_has_json_content_type(
     response: &worker::Response,
     label: &str,
@@ -3042,7 +3035,6 @@ fn response_has_json_content_type(
 }
 
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 async fn read_bounded_response_body(
     response: &mut worker::Response,
     max_bytes: usize,
@@ -3086,7 +3078,6 @@ async fn read_bounded_response_body(
 }
 
 #[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
 async fn decode_bounded_json_response<T: DeserializeOwned>(
     response: &mut worker::Response,
     max_bytes: usize,
@@ -3101,7 +3092,6 @@ async fn decode_bounded_json_response<T: DeserializeOwned>(
     })
 }
 
-#[allow(dead_code)]
 fn validate_commitment_wire_for_role_command(
     bytes: &[u8],
     command: &VerifiedTenantRootRoleCreationCommandV1,
@@ -3128,7 +3118,6 @@ fn validate_commitment_wire_for_role_command(
     verify_creation_commitment(signed, &context, expected_role, role_keys)
 }
 
-#[allow(dead_code)]
 fn validate_creation_commitment_response_v1(
     response: &CloudflareTenantRootCreationCommitmentResponseV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
@@ -3241,7 +3230,6 @@ fn validate_creation_commitment_response_v1(
     }
 }
 
-#[allow(dead_code)]
 fn validate_response_lineage(
     field: &str,
     encoded: &str,
@@ -3290,23 +3278,6 @@ pub async fn tenant_root_creation_commitment_call_v1(
     validate_creation_commitment_response_v1(&response, command, &commitment_bytes, role_keys)
 }
 
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_commitment_call_v1(
-    env: &worker::Env,
-    command: &VerifiedTenantRootRoleCreationCommandV1,
-    commitment: &VerifiedTenantRootCreationCommitmentV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootCreationCommitmentOutcomeV1> {
-    tenant_root_creation_commitment_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        &read_tenant_root_creation_role_verifying_keys(env)?,
-        command,
-        commitment,
-    )
-    .await
-}
-
-#[allow(dead_code)]
 fn validate_installation_response_v1(
     response: &CloudflareTenantRootCreationInstallationResponseV1,
     command: &VerifiedTenantRootRoleCreationCommandV1,
@@ -3415,21 +3386,6 @@ pub async fn tenant_root_creation_installation_call_v1(
     )
     .await?;
     validate_installation_response_v1(&response, command, evidence)
-}
-
-#[cfg(feature = "workers-rs")]
-#[allow(dead_code)]
-pub(crate) async fn execute_cloudflare_router_tenant_root_creation_installation_call_v1(
-    env: &worker::Env,
-    command: &VerifiedTenantRootRoleCreationCommandV1,
-    evidence: &VerifiedTenantRootSignedShareInstallationEvidenceWireV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootCreationInstallationOutcomeV1> {
-    tenant_root_creation_installation_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        command,
-        evidence,
-    )
-    .await
 }
 
 /// Sends one verified cleanup command and its exact successful terminal receipt
@@ -4292,7 +4248,6 @@ enum TenantRootCreationCommitmentRendezvousEvaluationV1 {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum CloudflareTenantRootCreationCommitmentOutcomeV1 {
     WaitingForPeer {
@@ -7624,7 +7579,6 @@ impl RouterAbTenantRootCreationDurableObject {
         result
     }
 
-
     async fn read_cutover_record(
         &self,
     ) -> RouterAbProtocolResult<CloudflareTenantRootCutoverReadResponseV1> {
@@ -7709,7 +7663,6 @@ impl RouterAbTenantRootCreationDurableObject {
         })?;
         result
     }
-
 
     async fn persist_creation_abandonment(
         &self,
@@ -8039,7 +7992,6 @@ impl RouterAbTenantRootCreationDurableObject {
         result
     }
 
-
     pub(crate) async fn persist_refresh_activation(
         &self,
         request: CloudflareTenantRootRefreshActivationRequestV1,
@@ -8335,10 +8287,11 @@ pub(crate) fn read_required_worker_var(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn read_tenant_root_creation_role_verifying_keys(
     env: &worker::Env,
 ) -> RouterAbProtocolResult<TenantRootCreationRoleVerifyingKeysV1> {
-    decode_role_verifying_keys(&read_required_worker_var(
+    crate::decode_role_verifying_keys(&read_required_worker_var(
         env,
         crate::ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON_ENV,
     )?)
@@ -8925,7 +8878,6 @@ struct ValidatedTenantRootRefreshActiveStateV1 {
     active_pair: router_ab_core::TenantRootActiveRootPairV1,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TenantRootRefreshActiveStateProjectionV1 {
     activation_receipt_b64u: String,
@@ -8939,7 +8891,6 @@ struct TenantRootRefreshActiveStateProjectionV1 {
     lifecycle_revision: u64,
 }
 
-#[allow(dead_code)]
 fn refresh_active_state_projection(
     record: &CloudflareTenantRootRefreshActiveStateRecordV1,
 ) -> TenantRootRefreshActiveStateProjectionV1 {
@@ -9012,7 +8963,6 @@ fn validate_refresh_terminal_response(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn refresh_active_state_record_from_verified_receipt(
     activation_receipt: router_ab_core::VerifiedTenantRootSignedActivationReceiptV1,
     lifecycle_revision: u64,
@@ -10619,7 +10569,6 @@ fn refresh_checkpoint_scope(
     })
 }
 
-#[allow(dead_code)]
 enum ValidatedTenantRootRefreshInstallationStateV1 {
     OneRole {
         role: TwoPartyDeriverRole,

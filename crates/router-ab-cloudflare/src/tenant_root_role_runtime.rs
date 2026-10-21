@@ -29,7 +29,7 @@ use router_ab_core::{
     TenantRootCeremonyEpochsV1, TenantRootControlPlaneAuthorityIdV1, TenantRootCustodyLineageId,
     TenantRootIdentityDigestV1, TenantRootManagedBackupSealRequestV1,
     TenantRootOnlineRoleShareSealRequestV1, TenantRootRefreshContributionAadV1,
-    TenantRootRefreshHpkeKeypairV1, TenantRootRefreshHpkePublicKeyV1,
+    TenantRootRefreshHpkeKeypairV1,
     TenantRootRestoreRefreshRoleCommandV1, TenantRootRoleCreationCommandPackageV1,
     TenantRootRoleRefreshCommandV1, TenantRootSealedOnlineRoleShareV1, TenantRootShareEpoch,
     TenantRootSignedCreationCommitmentV1, TenantRootSignedRefreshCommitmentV1,
@@ -46,6 +46,9 @@ use router_ab_core::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
+#[cfg(test)]
+use router_ab_core::TenantRootRefreshHpkePublicKeyV1;
+#[cfg(test)]
 use threshold_prf::SigningRootShare;
 use threshold_prf::{RootShareRefreshContributionWire, SigningRootShareWire};
 
@@ -297,10 +300,18 @@ where
     Ok((input, managed_backup, provider_canary_receipt))
 }
 
-/// Maximum accepted request size for one Deriver creation call.
-pub const DERIVER_TENANT_ROOT_CREATE_ROLE_SHARE_REQUEST_MAX_BYTES_V1: usize = 96 * 1024;
-pub const DERIVER_TENANT_ROOT_CLEANUP_REQUEST_MAX_BYTES_V1: usize = 24 * 1024;
+/// Maximum accepted request size for one Deriver restore import-key request.
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub const DERIVER_TENANT_ROOT_RESTORE_ROLE_IMPORT_KEY_REQUEST_MAX_BYTES_V1: usize = 64 * 1024;
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub const DERIVER_TENANT_ROOT_RESTORE_SESSION_CLEANUP_REQUEST_MAX_BYTES_V1: usize = 24 * 1024;
 
 /// Router -> Deriver: execute this role's part of one creation ceremony.
@@ -587,6 +598,11 @@ pub struct CloudflareDeriverTenantRootPreactivationCleanupResponseV1 {
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_restore_preactivation_cleanup(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -835,6 +851,7 @@ pub(crate) enum TenantRootRoleCreationCompletionV1 {
 // variant owns the provider-backed pending-row input after finalization.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
+#[cfg(test)]
 pub(crate) enum TenantRootRoleRefreshProgressV1 {
     Committed {
         pending: PendingTenantRootRefreshRoleAttemptV1,
@@ -852,6 +869,7 @@ pub(crate) enum TenantRootRoleRefreshProgressV1 {
 /// Starts one role-local refresh attempt from already-verified public state
 /// and the provider-opened current share.
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) fn begin_tenant_root_role_refresh_v1<R>(
     command: VerifiedTenantRootRoleRefreshCommandV1,
     context: TenantRootCeremonyContextV1,
@@ -887,6 +905,7 @@ where
 /// role-private pending-row insertion path.
 #[cfg(feature = "workers-rs")]
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) async fn finalize_tenant_root_role_refresh_v1<Online, Backup, R>(
     pending: PendingTenantRootRefreshRoleAttemptV1,
     commitment_pair: VerifiedTenantRootRefreshCommitmentPairV1,
@@ -2228,17 +2247,6 @@ fn tenant_root_creation_package_authority_v1(
     creation_state.creation_authority_id(context.identity_digest(), context.custody_lineage())
 }
 
-#[cfg(feature = "workers-rs")]
-fn tenant_root_role_runtime_provider_config_from_env_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
-) -> RouterAbProtocolResult<TenantRootRoleRuntimeProviderConfigV1> {
-    tenant_root_role_runtime_provider_config_v1(
-        worker_role,
-        &crate::CloudflareWorkerEnvReaderV1::new(env),
-    )
-}
-
 fn tenant_root_role_runtime_provider_config_v1(
     worker_role: crate::CloudflareWorkerRoleV1,
     reader: &impl crate::CloudflareEnvReaderV1,
@@ -2266,6 +2274,11 @@ fn tenant_root_store_error_v1(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 fn decode_exact_tenant_root_status_digest_v1(
     field: &'static str,
     encoded: &str,
@@ -2468,6 +2481,11 @@ fn restore_import_accept_response_v1(
 /// seals the IKM with the established role-private D1 HPKE provider, and
 /// durably records the public response before returning it.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_key_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -2641,6 +2659,11 @@ pub async fn tenant_root_deriver_restore_role_import_key_v1<Host: TenantRootDeri
 /// row. The command freshness window authorizes key issuance; the persisted
 /// key window authorizes first-time envelope acceptance.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_role_import_accept_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -2869,6 +2892,11 @@ pub async fn tenant_root_deriver_restore_role_import_accept_v1<Host: TenantRootD
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_status_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -3429,6 +3457,11 @@ async fn require_router_current_refresh_attempt_v1<Host: TenantRootDeriverHostV1
 /// Verifies and applies one control-plane initial-activation receipt at its
 /// owning Deriver.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -3446,6 +3479,11 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_initial_activation_v1(
 /// Closes one tenant-held restore import session after its initial activation.
 /// Tombstoning and secret nulling are performed by the role-private D1 store.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_session_cleanup_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -3650,31 +3688,6 @@ fn restore_refresh_promotion_response_v1(
         provider_canary_receipt_digest_b64u,
         completed_at_ms,
     }
-}
-
-/// Promotes one finalized restore-refresh attempt into the role's epoch-one
-/// online provider and durably checkpoints the opaque result before replying.
-///
-/// The authority id is supplied by the Router's authenticated DO admission.
-/// This role-local boundary carries it into the provider canary; the control
-/// plane verifies that the returned canary is bound to its own admission.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn handle_cloudflare_deriver_tenant_root_restore_refresh_promotion_v1(
-    env: &worker::Env,
-    worker_role: crate::CloudflareWorkerRoleV1,
-    identity: TenantRootIdentityV1,
-    role_refresh_command_b64u: String,
-    authority_id_b64u: String,
-    now_ms: u64,
-) -> RouterAbProtocolResult<CloudflareDeriverTenantRootRestoreRefreshPromotionResponseV1> {
-    tenant_root_deriver_restore_refresh_promotion_v1(
-        &CloudflareTenantRootDeriverHostV1::new(env, worker_role, None),
-        identity,
-        role_refresh_command_b64u,
-        authority_id_b64u,
-        now_ms,
-    )
-    .await
 }
 
 /// Promotes one finalized restore-refresh attempt into the role's epoch-one
@@ -6152,6 +6165,11 @@ fn validate_replayed_refresh_evidence_v1(
 
 /// The Workers entrypoint for a Deriver's refresh-swap activation.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -6168,6 +6186,11 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_refresh_activation_v1(
 
 /// The Workers entrypoint for one role's refresh.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_refresh_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -6596,6 +6619,11 @@ pub async fn tenant_root_deriver_create_role_share_v1<Host: TenantRootDeriverHos
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_create_role_share_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -6758,6 +6786,11 @@ pub async fn tenant_root_deriver_creation_evidence_v1<Host: TenantRootDeriverHos
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_creation_evidence_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -7058,6 +7091,11 @@ pub async fn tenant_root_deriver_cleanup_v1<Host: TenantRootDeriverHostV1>(
 
 /// Removes the exact pending row authorized by the control-plane issuer.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -7075,6 +7113,11 @@ pub(crate) async fn handle_cloudflare_deriver_tenant_root_cleanup_v1(
 
 /// Deriver B's side of Deriver A's retirement recovery on Cloudflare.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_peer_pair_fence_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -7349,6 +7392,11 @@ pub async fn tenant_root_deriver_managed_restore_v1<Host: TenantRootDeriverHostV
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -7706,6 +7754,11 @@ pub async fn tenant_root_deriver_managed_restore_forward_refresh_v1<Host: Tenant
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(
+    feature = "strict-worker-deriver-a-entrypoint",
+    feature = "strict-worker-deriver-b-entrypoint",
+    test
+))]
 pub(crate) async fn handle_cloudflare_deriver_tenant_root_managed_restore_forward_refresh_v1(
     env: &worker::Env,
     worker_role: crate::CloudflareWorkerRoleV1,
@@ -7823,6 +7876,7 @@ impl TenantRootRestoreRefreshPromotionArtifactsV1 {
 /// identifier is supplied by the owning control-plane object. Both are bound to
 /// the canary before the role signer emits it.
 #[allow(clippy::too_many_arguments)]
+#[cfg(test)]
 pub(crate) fn compose_restore_refresh_promotion_v1<Online>(
     command: VerifiedTenantRootRestoreRefreshRoleCommandV1,
     share_wire: SigningRootShareWire,
@@ -8105,6 +8159,7 @@ where
 /// provider ciphertext. The provider result is opened immediately so a bad
 /// provider response cannot reach D1.
 #[cfg(feature = "workers-rs")]
+#[cfg(test)]
 pub(crate) fn compose_refresh_tenant_root_role_runtime_v1<Online>(
     attempt: VerifiedTenantRootRefreshRoleAttemptV1,
     identity: TenantRootIdentityV1,
