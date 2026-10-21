@@ -229,9 +229,9 @@ Eight compilation checks and the bloat check passed. Worker warning occurrences 
 
 ### C06 — Review the unread failure receipt without losing replay evidence
 
-- [ ] Trace `CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed`
+- [x] Trace `CloudflareTenantRootAuthorizedCleanupDecisionV1::ReplayFailed`
       from stored terminal receipt to runtime refusal.
-- [ ] Decide whether the runtime must consume the exact receipt bytes.
+- [x] Decide whether the runtime must consume the exact receipt bytes.
       Delete an in-memory copy only after establishing its redundancy.
 
 Location: `crates/router-ab-cloudflare/src/tenant_root_role_d1.rs:7105`, field
@@ -242,6 +242,12 @@ Other decision types use the same field name.
 Classification: **retain pending semantic review**.
 Preserve durable failure receipts, replay refusal, and cleanup authorization.
 An unread field gives insufficient evidence for changing stored receipt data.
+
+Completed in `838636af256e5da515bc9fa6d4f45f246da2e3cf`.
+Five lower-level replay decisions already validate and retain their terminal receipt data.
+The single higher-level consumer uses only the failure state. Its redundant payload is deleted.
+Durable receipts and replay checks remain intact. Eight compilation checks and the bloat check passed.
+Worker warning occurrences fell from 552 to 547.
 
 ### C07 — Narrow existing worker-role and host configuration
 
@@ -433,7 +439,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01, C02, C03, C04, C05, C12. Other cleanup batches remain pending.
+Completed batches: C01, C02, C03, C04, C05, C06, C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -448,7 +454,7 @@ Use one ledger row per actual batch. Split rows further when necessary.
 | C03 — Durable Object readers      | Complete                   | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`. | —             |
 | C04 — D1 methods                  | Complete                   | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.       | —             |
 | C05 — Test accessors / R2 wrapper | Complete                   | `1b3819183f3080de2ab16d3a1c493a09734336db` | `1e122a0569ec3fe2f1dd48770b685f605fd4565e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 567 → 552. Evidence: `.artifacts/rust-cleanup-20261021/after/c05/`.       | —             |
-| C06 — Failure receipt             | Retain pending review      | —                                          | —                                          | —                                                                                                                                                                | —             |
+| C06 — Failure receipt             | Complete                   | `d47edf57f40ae722b0347beea7e8e0a775e8206d` | `838636af256e5da515bc9fa6d4f45f246da2e3cf` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 552 → 547. Evidence: `.artifacts/rust-cleanup-20261021/after/c06/`.       | —             |
 | C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                                                                | —             |
 | C08 — Unused parameters           | Needs ownership review     | —                                          | —                                          | —                                                                                                                                                                | —             |
 | C09 — Client export configuration | Preserve live export       | —                                          | —                                          | —                                                                                                                                                                | —             |
