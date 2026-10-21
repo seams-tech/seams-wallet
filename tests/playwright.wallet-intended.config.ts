@@ -1,11 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const hostedBenchmark = process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
+const hostedMlDsa = Boolean(process.env.ML_DSA_HOSTED_DEPLOYMENT);
+const hostedBenchmark = hostedMlDsa || process.env.SEAMS_INTENDED_EXTERNAL_GATEWAY === '1';
 
 export default defineConfig({
   tsconfig: './tsconfig.wallet-intended.json',
   testDir: '.',
-  testMatch: ['**/e2e/intended-behaviours/**/*.contract.test.ts'],
+  testMatch: hostedMlDsa
+    ? ['**/e2e/intended-behaviours/ml-dsa.hosted.test.ts']
+    : ['**/e2e/intended-behaviours/**/*.contract.test.ts'],
   fullyParallel: false,
   workers: 1,
   retries: 0,

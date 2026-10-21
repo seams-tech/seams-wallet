@@ -1,0 +1,47 @@
+{
+  "observedAt": "2026-10-21T09:39:15.145550+00:00",
+  "kind": "unpublished_release_candidate",
+  "packages": [
+    {
+      "name": "@seams/wallet",
+      "version": "0.16.0",
+      "filename": "seams-wallet-0.16.0.tgz",
+      "integrity": "sha512-SyN4Uaf8mrrAH+095LMvZ9Gdda0hqifTwUjrJGah5XWVypaUfafOYHlYz3pWz42PsUJHthQ4K1TOyIpBJaWIGw==",
+      "sha256": "67f9cad92dd3469d3f2dc164a436b8e8a99b96e8e2e5bc5c65040ca1fe6fc9c6"
+    },
+    {
+      "name": "@seams/wallet-server",
+      "version": "0.16.0",
+      "filename": "seams-wallet-server-0.16.0.tgz",
+      "integrity": "sha512-WUpuXoEqy2GqWRRoPSa9yQCdO5EBwT9ev7v1c8SsYvpiCWFiBMXWyTLnyD/Kuc/Kn+4cbIHkOE+YqCStpUbGHA==",
+      "sha256": "9cc453af102df96c4b595158fe45d211195820cd8aa251ed4b799839fa41063b"
+    }
+  ],
+  "privateProductSourceRevision": "c95be00959c286e3323e4c61286f52df570dec76",
+  "scope": "Exact unpublished 0.16.0 tarballs installed through overrides in an isolated private monorepo snapshot. Live package pins and registry publication are unchanged.",
+  "checks": {
+    "packedPackageBoundaries": true,
+    "sdkExternalConsumers": true,
+    "privateServerTypeCheck": true,
+    "privateWalletActivationAcceptance": true,
+    "privateConsoleInvitationAcceptance": true,
+    "hostedWorkerBinariesMatch": true
+  },
+  "productEvidenceSha256": {
+    "report.json": "42fbabc57491bcb32ed7939b43a94079881f2bfbae0e6addbb173d969bfcd0e7",
+    "after-restart.json": "4bf28c5a906bf80c5e4962b8efdf71c52de65979df4bf2bce613161296b96087",
+    "before-restart.json": "13ade153c28ef6022390e37ae128212a41cce0e9337f07c9b1130ea2b3477f32"
+  },
+  "hostedWorkerSha256": {
+    "router": "1e29d1fe584c4d7bb9e6dddf1118b04b99381113abc061473968339ce9147258",
+    "deriver-a": "5c877bb23af5b11526ece168935a4c5cac6c0993dcc857250406530452399da0",
+    "deriver-b": "a327de6501e1734596258fea950e2f067c9d5e6b45fdc665d3956a87ae644233",
+    "signing-worker": "8c043e61ce27892167cb0b3350d2f0a529d418963005189efa3ee725af289649",
+    "tenant-root-control-plane": "17f1db05bed564c8dcb82d751974e71fd478e5f379a679ae75bfad91b0c08dcd"
+  },
+  "validationLogSha256": {
+    "privateServerTypeCheck": "331e518e5ce433f0b4bdb1bfb1c8662bd94692d0ac9dc38f8e03f59647f6ea85",
+    "privateWalletActivationAcceptance": "9540b01a9250c997c0307eeed06b6e5af9c7bffc50b195176f2adf9b289b11df",
+    "packedPackageBoundaries": "0705657ad235d780f5dfe8f159c61fac2c7424720380437464c403fe3fe4e435"
+  }
+}

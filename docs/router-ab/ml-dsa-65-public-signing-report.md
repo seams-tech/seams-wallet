@@ -141,9 +141,9 @@ Gateway/D1/Router/A/B Workers. Existing ownership and custody were fixture-seede
 
 Next work:
 
-1. Reconcile interrupted private rounds that have no verified public completion. Complete participant relocation.
-2. Qualify the complete normal SDK path on hosted Workers. Measure registration, rejection tails, refill, and multi-wallet load.
-3. Complete the production security review and consume exact package releases in composed product tests.
+1. Qualify more partial-installation interruptions. Expired unpublished creation now restarts through fresh owner approval and a higher epoch. Participant relocation remains blocked.
+2. Reduce the remaining registration, rejection, and capacity tails. The [hosted SDK qualification](ml-dsa-65-sdk-release-qualification.md) now covers the complete lifecycle and simultaneous-wallet signing.
+3. Complete the broader production security review and registry release. Exact unpublished candidates already pass isolated private product acceptance.
 
 The [lifecycle follow-up](ml-dsa-65-wallet-lifecycle-report.md) adds production enrollment
 through the existing NEAR approval surface, authenticated signer discovery, and signing
