@@ -165,6 +165,8 @@ Full-reserve preparation takes 204–274 seconds in this campaign. This includes
 These small samples include durable installation and settlement. They provide no production percentile or sustained-load guarantee.
 The [preparation comparison plan](ml-dsa-65-preparation-comparison-plan.md) compares improved Yao/GMW preparation with Quantus signing after private canonical-key conversion.
 That earlier plan targeted 10–20 seconds of useful preparation and up to two seconds of online signing, with full-reserve and recovery costs reported separately.
+The [Mithril feasibility report](ml-dsa-65-mithril-feasibility.md) specifies private canonical import and its remaining security and resource requirements.
+Mithril remains a research candidate. Its short-share leakage, recovery policy, and Worker performance do not yet qualify it for production.
 The [ready-pool report](ml-dsa-65-ready-pool-report.md) records an earlier prepared-protocol pool campaign. Those measurements have a narrower boundary than complete durable Worker registration.
 Prepared registration takes 1.978–2.676 seconds across four sessions.
 Twenty-three successful signing requests take 0.214–1.321 seconds, including eleven automatic rollovers.
