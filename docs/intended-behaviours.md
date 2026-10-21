@@ -3599,6 +3599,8 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Verify the threshold signature through RustCrypto before publication. The SDK must verify the signature and complete signed bytes before submission.
 - Preserve NEAR u64 nonce values exactly. Bound unsigned transactions to 32 KiB so completed results fit the existing durable replay limit.
 - Return an explicit retry time for pool, capacity, cooldown, and running waits. Internal candidate rejection remains within the admitted Router operation.
+- Bound service-capacity retry hints to 500 milliseconds from the Gateway response, even when the active lease expires later. Preserve the exact approved request and deadline. Keep cooldown and empty-pool retry times unchanged.
+- An empty pool before participant reservation leaves the exact operation waiting for stock. Release its capacity claim without charging cooldown. After the retry time, obtain a fresh claim for that operation. Reject stale claims and changed inputs. A cancellation after uncertain reservation remains terminal.
 - Recheck authority digest, revocation epoch, auth method, publication version, wallet generation, origin, and expiry before releasing cached signatures.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.
 - For a fresh transaction approval, require verified factor evidence and an operation-specific owner proof within their validity windows.
@@ -3611,7 +3613,7 @@ Its verified factor inputs, operation-claim persistence, and custody activation 
 The public routes use authoritative publication records and durable exact-operation claims. Dedicated ML-DSA sessions require explicit owner-approved budgets and expiry.
 
 The [custody E2E campaign](../tools/ml-dsa-investigation/README.md#wallet-seed-recovery) checks native establishment, joining, recovery, encrypted delivery, authenticated results, manifests, and ordinary-key export.
-The [lifecycle report](router-ab/ml-dsa-65-wallet-lifecycle-report.md) records browser recovery, QR linking, normal Wallet signing, canonical seed import, public participant restoration, and finalized testnet submission. Its separate Worker fixtures check concurrency, replay, revocation, and participant loss. Hosted qualification and the broader production security review remain required.
+The [lifecycle report](router-ab/ml-dsa-65-wallet-lifecycle-report.md) records browser recovery, QR linking, normal Wallet signing, canonical seed import, public participant restoration, and finalized testnet submission. Its separate Worker fixtures check concurrency, replay, revocation, and participant loss. The [hosted qualification](router-ab/ml-dsa-65-sdk-release-qualification.md) repeats the browser lifecycle against real Cloudflare Workers. Consistent five-second performance and the broader production security review remain open.
 
 The [Chromium custody campaign](router-ab/ml-dsa-65-experiment-contract.md#browser-custody-boundary) also checks the consuming Wasm handles and typed SDK worker messages.
 Discarded and wrong-step ceremonies must explicitly free their Wasm handles.

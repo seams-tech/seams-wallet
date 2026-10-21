@@ -155,7 +155,10 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let a = Db::open(&a_path);
     let b = Db::open(&b_path);
     let key = key("wallet");
-    let policy = Policy::default();
+    let policy = Policy::parse(
+        r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"operation_timeout_ms":30000,"candidate_group_size":2,"preparation_group_size":4,"minimum_ready_batches":4,"refill_target_batches":4}"#,
+    )
+    .unwrap();
     fill(&a, &key, Participant::A, &[1; 32], 0, 4);
     fill(&b, &key, Participant::B, &[2; 32], 0, 4);
     drop(a);
@@ -190,7 +193,45 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let mut changed_activation = activation.clone();
     changed_activation.ceremony_id = [46; 32];
     assert!(tx(&router, admission::commit_key(&router, changed_activation)).is_err());
+    let empty_claim = claim(&router, &policy, first.clone(), 500);
+    tx(
+        &router,
+        admission::await_stock(&router, &empty_claim, 1_000),
+    )
+    .unwrap();
+    drop(router);
+    let router = Db::open(&service_path);
+    assert!(matches!(
+        tx(
+            &router,
+            admission::begin(&router, &policy, first.clone(), 999)
+        )
+        .unwrap(),
+        Decision::Unavailable {
+            reason: admission::UnavailableReason::EmptyPool,
+            retry_at_ms: 1_000,
+        }
+    ));
+    let mut changed_waiting = first.clone();
+    changed_waiting.message_digest = [98; 32];
+    assert!(tx(
+        &router,
+        admission::begin(&router, &policy, changed_waiting, 1_000)
+    )
+    .is_err());
     let first_claim = claim(&router, &policy, first.clone(), 1_000);
+    assert_ne!(first_claim.token, empty_claim.token);
+    assert!(tx(
+        &router,
+        admission::admit(
+            &router,
+            &policy,
+            empty_claim,
+            vec![[0; 32], [1; 32], [2; 32], [3; 32]],
+            1_001
+        )
+    )
+    .is_err());
     assert!(matches!(
         tx(
             &router,
@@ -892,6 +933,11 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
     std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
         "policy": policy,
+        "stock_wait": {
+            "survives_restart": true,
+            "rejects_changed_inputs": true,
+            "requires_fresh_claim": true,
+        },
         "refill_fairness": refill_fairness,
         "registration_stock_delivery_idempotent":true,"consumed_registration_stock_not_reinstalled":true,"registration_allocator":true,"refill_waits_for_settlement_and_registration":true,"pending_activation_blocks_signing":true,"pending_activation_survives_restart":true,"stale_activation_commit_rejected":true,"recovery_waits_for_installation":true,"reserved_stock_does_not_trigger_refill":true,"consumption_triggers_refill":true,"preprocessing_capacity_and_restart_replay":true,"paired_publication_has_distinct_single_use_records":true,"expired_preprocessing_uses_fresh_id":true,"expired_producer_publication_rejected":true,"schema":"seams.ml-dsa-durable-admission-e2e.v1","passed":true,"production_eligible":false,"worker_http_routes_exercised":false,"successful_settlement_fences_and_reconciles":true,"interrupted_reservation_orphans_retired":true,"separate_sqlite_stores":4,
         "restart_and_single_use":true,"one_sided_take_failure_burns_both_pools":true,"refill_requests_are_key_scoped":true,"readiness_covers_operation_lifetime":true,"changed_message_replay_rejected":true,"cross_role_open_rejected":true,"prior_aes_suite_rejected":true,

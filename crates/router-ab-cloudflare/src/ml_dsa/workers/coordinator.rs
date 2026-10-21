@@ -55,8 +55,9 @@ async fn admit(
             let _: bool = service_call(
                 env,
                 CallAuthority::Gateway(headers),
-                &AdmissionCommand::Cancel {
+                &AdmissionCommand::AwaitStock {
                     claim: claim.clone(),
+                    retry_at_ms,
                 },
             )
             .await?;
@@ -233,7 +234,7 @@ pub(crate) async fn handle_complete(
         Status::Succeeded { .. } => pool::Settlement::Succeeded,
         Status::Failed => pool::Settlement::Failed,
         Status::Declined => pool::Settlement::Declined,
-        Status::Preparing { .. } | Status::Running { .. } => {
+        Status::AwaitingStock { .. } | Status::Preparing { .. } | Status::Running { .. } => {
             return Response::error("ML-DSA completion is not terminal", 409)
         }
     };

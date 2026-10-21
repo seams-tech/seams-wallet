@@ -11,6 +11,7 @@ pub struct Permit {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Status {
+    AwaitingStock { retry_at_ms: u64 },
     Preparing { claim: Claim },
     Running { permit: Permit },
     Succeeded { signature: Vec<u8> },
@@ -196,7 +197,10 @@ pub async fn lookup(
     let expired = match &record.status {
         Status::Preparing { claim } => now_ms >= claim.expires_at_ms,
         Status::Running { permit } => now_ms >= permit.expires_at_ms,
-        Status::Succeeded { .. } | Status::Failed | Status::Declined => false,
+        Status::AwaitingStock { .. }
+        | Status::Succeeded { .. }
+        | Status::Failed
+        | Status::Declined => false,
     };
     if expired {
         record.status = match record.status {
@@ -215,8 +219,15 @@ pub async fn begin(
     request: SigningRequest,
     now_ms: u64,
 ) -> Result<Decision> {
-    if let Some(operation) = lookup(store, &request, now_ms).await? {
-        return Ok(Decision::Existing { operation });
+    match lookup(store, &request, now_ms).await? {
+        Some(Status::AwaitingStock { retry_at_ms }) if now_ms < retry_at_ms => {
+            return Ok(Decision::Unavailable {
+                reason: UnavailableReason::EmptyPool,
+                retry_at_ms,
+            });
+        }
+        Some(Status::AwaitingStock { .. }) | None => {}
+        Some(operation) => return Ok(Decision::Existing { operation }),
     }
     if active_key(store, &request.key)
         .await?
@@ -337,6 +348,20 @@ pub async fn admit(
     Ok(Decision::Admitted { permit })
 }
 pub async fn cancel(store: &impl Store, claim: &Claim) -> Result<()> {
+    release_claim(store, claim, ClaimRelease::Cancelled).await
+}
+
+/// No participant reservation exists when the coordinator reports empty inventory.
+pub async fn await_stock(store: &impl Store, claim: &Claim, retry_at_ms: u64) -> Result<()> {
+    release_claim(store, claim, ClaimRelease::AwaitingStock { retry_at_ms }).await
+}
+
+enum ClaimRelease {
+    Cancelled,
+    AwaitingStock { retry_at_ms: u64 },
+}
+
+async fn release_claim(store: &impl Store, claim: &Claim, outcome: ClaimRelease) -> Result<()> {
     let key = claim.request.record_key()?;
     let mut record = store
         .get::<Record>(&key)
@@ -347,7 +372,10 @@ pub async fn cancel(store: &impl Store, claim: &Claim) -> Result<()> {
     {
         return Err(invalid("ML-DSA cancellation does not own the claim"));
     }
-    record.status = Status::Declined;
+    record.status = match outcome {
+        ClaimRelease::Cancelled => Status::Declined,
+        ClaimRelease::AwaitingStock { retry_at_ms } => Status::AwaitingStock { retry_at_ms },
+    };
     let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
     active.retain(|slot| slot.record_key != key);
     store.put("active", &active).await?;
@@ -384,7 +412,9 @@ pub async fn finish(
     }
     let current = match &record.status {
         Status::Running { permit } => permit,
-        Status::Preparing { .. } => return Err(invalid("ML-DSA signing has not been admitted")),
+        Status::AwaitingStock { .. } | Status::Preparing { .. } => {
+            return Err(invalid("ML-DSA signing has not been admitted"))
+        }
         Status::Succeeded { .. } | Status::Failed | Status::Declined => return Ok(record.status),
     };
     if current != permit {
