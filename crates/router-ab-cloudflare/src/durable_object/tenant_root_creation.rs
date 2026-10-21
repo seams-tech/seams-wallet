@@ -3887,32 +3887,6 @@ pub async fn tenant_root_refresh_attempt_reservation_call_v1(
     )
 }
 
-/// Reserves the exact refresh context and both issuer commands before either
-/// Deriver is invoked. A replay returns the already persisted attempt, so a
-/// restarted Router resumes the same session and nonce.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_router_tenant_root_refresh_attempt_reservation_call_v1(
-    env: &worker::Env,
-    identity_digest: TenantRootIdentityDigestV1,
-    custody_lineage: TenantRootCustodyLineageId,
-    refresh_context_b64u: String,
-    deriver_a_refresh_command_b64u: String,
-    deriver_b_refresh_command_b64u: String,
-    manual_operation_id: Option<String>,
-) -> RouterAbProtocolResult<CloudflareVerifiedTenantRootActiveStateV1> {
-    tenant_root_refresh_attempt_reservation_call_v1(
-        &CloudflareTenantRootCreationStateTransportV1::new(env),
-        &worker_issuer_verifying_keys_v1(env)?,
-        identity_digest,
-        custody_lineage,
-        refresh_context_b64u,
-        deriver_a_refresh_command_b64u,
-        deriver_b_refresh_command_b64u,
-        manual_operation_id,
-    )
-    .await
-}
-
 /// Atomically admits one manual refresh before command minting or role work.
 pub async fn tenant_root_refresh_admission_call_v1(
     state: &impl TenantRootCreationStateTransportV1,
@@ -3951,17 +3925,6 @@ pub async fn tenant_root_refresh_admission_call_v1(
             "tenant-root manual refresh admission response omitted its outcome",
         )
     })
-}
-
-/// The control-plane issuer keys this Worker trusts.
-#[cfg(feature = "workers-rs")]
-fn worker_issuer_verifying_keys_v1(
-    env: &worker::Env,
-) -> RouterAbProtocolResult<BTreeMap<String, [u8; 32]>> {
-    crate::env::decode_issuer_verifying_keys(&read_required_worker_var(
-        env,
-        crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    )?)
 }
 
 /// Verifies an active-state response against the request and the trusted

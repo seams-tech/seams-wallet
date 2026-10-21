@@ -1203,7 +1203,6 @@ pub use live::{
 #[allow(unused_imports)]
 pub(crate) use live::{
     post_bounded_service_json_v1,
-    execute_cloudflare_tenant_root_control_plane_restore_initial_activation_service_call_v1,
     handle_cloudflare_tenant_root_control_plane_initial_activation_v1,
     handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1,
     handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1,
@@ -3442,7 +3441,7 @@ pub fn control_plane_assemble_recovery_manifest_v1(
 mod live {
     use super::*;
     use crate::durable_object::tenant_root_creation::{
-        decode_canonical_base64url, derive_tenant_root_creation_authority_object_v1,
+        derive_tenant_root_creation_authority_object_v1,
         execute_cloudflare_router_tenant_root_creation_active_state_with_revision_read_call_v1,
         execute_cloudflare_router_tenant_root_creation_journal_call_v1,
     };
@@ -3453,15 +3452,6 @@ mod live {
     };
     use router_ab_core::{TenantRootCustodyLineageId, TenantRootIdentityDigestV1};
     use zeroize::Zeroize;
-
-    const ROUTER_TENANT_ROOT_CREATION_DO_BINDING_V1: &str = "ROUTER_TENANT_ROOT_CREATION_DO";
-
-    fn local(message: String) -> RouterAbProtocolError {
-        RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            message,
-        )
-    }
 
     pub(crate) async fn recovery_command_v1(
         request: RecoveryCommandRequestV1,
@@ -3754,10 +3744,6 @@ mod live {
         .await
     }
 
-
-    fn refused_owned(message: String) -> RouterAbProtocolError {
-        RouterAbProtocolError::new(RouterAbProtocolErrorCode::ForbiddenLocalBinding, message)
-    }
 
     /// Loads the issuer signing seed for one operation.
     fn load_issuer_seed(
@@ -4057,109 +4043,6 @@ mod live {
                 format!("{label} response JSON parse failed: {error}"),
             )
         })
-    }
-
-    /// Sends the restore initial-activation request over the private
-    /// control-plane binding and validates the returned receipt transition.
-    pub(crate) async fn execute_cloudflare_tenant_root_control_plane_restore_initial_activation_service_call_v1(
-        env: &worker::Env,
-        request: &CloudflareTenantRootControlPlaneRestoreInitialActivationRequestV1,
-    ) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1>
-    {
-        let label = "tenant-root control-plane restore initial activation request";
-        let request_body = crate::cloudflare_service_json_request_body_v1(label, request)?;
-        if request_body.len()
-            > TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_REQUEST_MAX_BYTES_V1
-        {
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("{label} exceeds its maximum size"),
-            ));
-        }
-        let fetcher = env
-            .service(crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1)
-            .map_err(|error| {
-                crate::worker_binding_error(
-                    crate::worker_binding_error_code(
-                        &error,
-                        crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-                    ),
-                    crate::TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-                    "service",
-                    error,
-                )
-            })?;
-        let headers = worker::Headers::new();
-        headers
-            .set("content-type", "application/json")
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    format!("{label} request headers failed: {error}"),
-                )
-            })?;
-        crate::set_cloudflare_internal_service_auth_header_v1(env, &headers, label)?;
-        let mut init = worker::RequestInit::new();
-        init.with_method(worker::Method::Post)
-            .with_headers(headers)
-            .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&request_body)));
-        let request_for_fetch = worker::Request::new_with_init(
-            crate::cloudflare_tenant_root_control_plane_restore_initial_activation_service_url(),
-            &init,
-        )
-        .map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!("{label} request construction failed: {error}"),
-            )
-        })?;
-        let mut response = fetcher
-            .fetch_request(request_for_fetch)
-            .await
-            .map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                    format!("{label} request failed: {error}"),
-                )
-            })?;
-        let status = response.status_code();
-        let response_body = read_bounded_initial_activation_response_body_v1(
-            &mut response,
-            TENANT_ROOT_CONTROL_PLANE_INITIAL_ACTIVATION_RESPONSE_MAX_BYTES_V1,
-            label,
-        )
-        .await?;
-        if !(200..=299).contains(&status) {
-            let response_detail = String::from_utf8_lossy(&response_body);
-            return Err(RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                format!(
-                    "{label} service returned HTTP status {status}: {}",
-                    response_detail.trim()
-                ),
-            ));
-        }
-        let parsed: CloudflareTenantRootControlPlaneInitialActivationReceiptResponseV1 =
-            serde_json::from_slice(&response_body).map_err(|error| {
-                RouterAbProtocolError::new(
-                    RouterAbProtocolErrorCode::MalformedWirePayload,
-                    format!("{label} response JSON parse failed: {error}"),
-                )
-            })?;
-        let receipt_bytes = decode_canonical_base64url(
-            "tenant-root restore initial activation receipt",
-            &parsed.activation_receipt_b64u,
-            TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1,
-            TENANT_ROOT_ACTIVATION_RECEIPT_MAX_BYTES_V1 * 2,
-        )?;
-        let receipt = TenantRootSignedActivationReceiptV1::decode_canonical_bytes(&receipt_bytes)
-            .map_err(derivation)?;
-        if receipt.transition() != TenantRootActivationReceiptTransitionV1::InitialCreation {
-            return Err(refused(
-                "tenant-root control-plane returned a non-initial restore activation receipt",
-            ));
-        }
-        Ok(parsed)
     }
 
     /// Genesis on Cloudflare: the shared issuer operation over Worker secrets

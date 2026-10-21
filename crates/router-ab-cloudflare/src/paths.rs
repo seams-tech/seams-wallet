@@ -343,36 +343,6 @@ const CLOUDFLARE_DERIVER_B_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL: &str = concat
     "/router-ab/internal/deriver/tenant-root/status/v1/read"
 );
 #[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/issue-initial-activation"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/challenge"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/authorize"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/register-manifest"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/issue-import-key"
-);
-#[cfg(feature = "workers-rs")]
-const CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_PRIVATE_REQUEST_URL: &str = concat!(
-    "https://router-ab-tenant-root-control-plane.internal",
-    "/tenant-root-control-plane/restore/v1/issue-refresh-commands"
-);
-#[cfg(feature = "workers-rs")]
 const CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_URL: &str = concat!(
     "https://router-ab-signing-worker.internal",
     "/router-ab/signing-worker/ecdsa-derivation/activate"
@@ -501,42 +471,6 @@ pub(crate) fn cloudflare_deriver_tenant_root_status_service_url(
         CLOUDFLARE_DERIVER_B_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL,
         "tenant-root status can target only Deriver A or Deriver B",
     )
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_restore_initial_activation_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_INITIAL_ACTIVATION_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_managed_restore_challenge_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_managed_restore_authorize_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_register_manifest_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_REGISTER_MANIFEST_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_restore_role_import_key_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_ROLE_IMPORT_KEY_PRIVATE_REQUEST_URL
-}
-
-#[cfg(feature = "workers-rs")]
-pub(crate) const fn cloudflare_tenant_root_control_plane_restore_refresh_commands_service_url(
-) -> &'static str {
-    CLOUDFLARE_TENANT_ROOT_CONTROL_PLANE_RESTORE_REFRESH_COMMANDS_PRIVATE_REQUEST_URL
 }
 
 #[cfg(feature = "workers-rs")]

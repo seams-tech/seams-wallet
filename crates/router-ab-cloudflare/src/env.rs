@@ -2531,18 +2531,6 @@ pub(crate) fn decode_role_verifying_keys(
     })
 }
 
-#[cfg(feature = "workers-rs")]
-/// Loads and verifies the current Deriver's dormant tenant-root role-signing Secret.
-pub(crate) fn load_cloudflare_tenant_root_creation_role_signing_key_v1(
-    env: &worker::Env,
-    worker_role: CloudflareWorkerRoleV1,
-) -> RouterAbProtocolResult<(
-    CloudflareTenantRootCreationRoleSigningKeyBindingV1,
-    CloudflareTenantRootCreationRoleSignerV1,
-)> {
-    load_tenant_root_creation_role_signing_key_v1(worker_role, &CloudflareWorkerEnvReaderV1::new(env))
-}
-
 /// Loads and verifies the current Deriver's role-signing Secret on any host.
 pub(crate) fn load_tenant_root_creation_role_signing_key_v1(
     worker_role: CloudflareWorkerRoleV1,
