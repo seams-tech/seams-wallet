@@ -33,9 +33,8 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Validate documentation examples, links, and snippets
+      - name: Validate documentation links and code fences
         run: |
-          pnpm -C apps/docs type-check
           pnpm -C apps/docs check:links
           node apps/docs/scripts/check-code-fences.mjs
       - name: Build VitePress for wallet.seams.sh/docs

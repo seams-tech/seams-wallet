@@ -1,6 +1,7 @@
 # Private celld binding proof
 
-The private `0.6.2-seams.1` build passes the local cross-script object capability test.
+The current private `0.6.2-seams.7` build passes the local cross-script object capability test.
+The first private build, `0.6.2-seams.1`, passed the original version of that test.
 The original [stock-runtime failure](celld-bindings.md) remains reproducible with celld 0.6.2.
 This proof adds no Wallet forwarding endpoint and changes no application protocol.
 
@@ -83,8 +84,38 @@ It rejects cloning a locked, consumed, or disturbed body.
 The recorded workerd reference permits cloning after a partial read and reader release.
 That difference remains explicit; the checks do not claim complete API parity.
 
+The `.4` build identity and results are in Git history. The two files below now hold the `.7` run.
+
+## Current `.7` binding run
+
+On October 21, the private build command built `0.6.2-seams.7` from pristine source and the reviewed patch.
+The capability test then exited with status 0 twice in a row. Both runtimes passed in each run:
+
+- Workerd through Miniflare: the service increments to 1, the external object to 2, and the service reads 2.
+- Celld `.7`: it continues stock state, then passes aliases, restart, object-only, cycle, refusal, recovery and downgrade checks.
+- Celld `.7` passes raw EC public-key checks and the streaming clone check with the documented difference.
+
+Identity of the recorded run:
+
+- Wallet revision: `a98cac9f9403bf590959189816378299fe177f07`.
+- Patch: `seams-monorepo/deployment/celld/workers-runtime.patch`, SHA-256 `df1dab7009abf9dc8bcbbb07f694ff96a5106235927bfef9a63d770d14736bc7`.
+- Source archive SHA-256: `52fadca649043d81c91f00a8f7826275bcf8480646f6ecebbcfeb83b11a31fa8`.
+- Candidate: `celld 0.6.2-seams.7 (debug)`, SHA-256 `4234b9f9889e518ed7834b21d72ec39faa047de351bed131c55517cc60663e9d`.
+- Baseline: attested `celld 0.6.2`, archive SHA-256 `b81a3829…e76d`, executable SHA-256 `92ededd2…c15a`.
+- Harness SHA-256: `5f0d1e530756710c005137f6260929f0e250190fdd2783aaf0f1858b250cbe64`.
+- macOS ARM64, Node `v24.18.0`, Rust and Cargo `1.97.1`, Miniflare `4.20260710.0`, workerd `1.20260710.1`.
+
+```sh
+git clone --branch v0.6.2 --depth 1 https://github.com/denoland/celld.git "$SCRATCH/celld-upstream"
+node ../seams-monorepo/deployment/celld/build.mjs "$SCRATCH/celld-upstream" "$SCRATCH/celld-candidate" dev
+node tests/e2e/celld-bindings.e2e.mjs "$SCRATCH/celld-candidate/celld" "$PWD/.artifacts/celld-runtime/celld"
+```
+
 - [Current pristine-source build identity](celld-private-patch/current-runtime-build.json).
 - [Current binding and stream results](celld-private-patch/current-bindings.json).
+
+This run is a debug build on macOS. It does not qualify a release executable or a Linux host.
+The complete Wallet graph on `.7` has separate private evidence in `seams-monorepo/deployment/celld/evidence/`.
 
 The private deployment repository also retains the exact Wallet Server and SDK 0.9.3 lifecycle run.
 All six unchanged browser contracts pass: mixed registration/signing, lost-response retry, quota contention,

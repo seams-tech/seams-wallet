@@ -1,7 +1,8 @@
 # Celld cross-script Durable Object compatibility
 
 Celld 0.6.2 fails the cross-script object gate required by our current Worker topology.
-A subsequent [private runtime proof](celld-private-patch.md) passes the local binding check.
+The fault is in celld, not in our Worker configuration.
+The private `0.6.2-seams.7` runtime passes the same gate on October 21. See the [private runtime proof](celld-private-patch.md).
 Keep the existing hosting implementations until the remaining consolidation gates pass.
 
 This is an `environment_or_infrastructure_failure`: the proposed runtime cannot load a required binding graph.
@@ -54,6 +55,26 @@ collects each binding's class as a local class and omits `script_name` from its 
 The [generation builder](https://github.com/denoland/celld/blob/90b43017241f81189453d326d05948f388b34652/crates/celld/generation.rs#L529-L599)
 rejects a user class declared by multiple scripts. The observed startup error matches that path.
 
+## Configuration recheck
+
+On October 21, direct stock-runtime controls removed the two configuration causes.
+Each control starts the caller in a dev directory where the owner is already deployed.
+The raw record is [celld-bindings/stock-current.json](celld-bindings/stock-current.json).
+
+| Candidate cause                          | Control                                            | Observed result                                                          | Assessment |
+| ---------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ | ---------- |
+| The caller omits `script_name`           | One external binding with `script_name = "owner"`  | Same startup error: `exported by more than one co-hosted script`.        | Removed    |
+|                                          | The same binding without `script_name`             | The same error. Stock celld ignores the field.                           |            |
+| The caller re-exports the class          | `caller.mjs` exports only its default handler      | No `TenantRoot` export exists in the caller.                             | Removed    |
+| Celld treats a binding as a local export | Two bindings to the same owner class in one caller | `duplicate Durable Object class TenantRoot`: a second local-class check. | Supported  |
+
+The production manifests set `script_name` on every external `RouterAbTenantRootCreationDurableObject` binding.
+No configuration change in this repository can pass the gate on stock 0.6.2.
+
+The current harness also checks streaming `Response.clone()` before the cross-script stage.
+Stock 0.6.2 now stops at that earlier stage with `Cannot clone a streaming response before consumption`.
+The direct controls above preserve the original cross-script measurement.
+
 ## Relevance and limits
 
 Our [control-plane manifest](../../crates/router-ab-cloudflare/wrangler.tenant-root-control-plane.toml)
@@ -98,6 +119,7 @@ node tests/e2e/celld-bindings.e2e.mjs \
   "$PWD/.artifacts/celld-runtime/celld"
 ```
 
+With the stock runtime as both arguments, the test exits with status 1. Pass the private build as the first argument to check the fix.
 Use the matching release asset on another platform. Recheck its attestation and record its hash.
 The script prints its evidence directory and stops its child processes.
 It uses loopback listeners and local celld storage. It requires no cloud credentials.
@@ -105,7 +127,7 @@ It uses loopback listeners and local celld storage. It requires no cloud credent
 ## Next acceptance condition
 
 A candidate runtime must pass the object-ownership contract before application migration starts.
-The private build now passes an expanded version of this check.
+The private `0.6.2-seams.7` build now passes an expanded version of this check.
 Then prove the complete role graph, exact release artifacts, storage isolation, and the remaining lifecycle gates.
 The user selected a private runtime proof. Production adoption, a new HTTP object adapter, or a changed custody boundary still needs its own design decision.
 No upstream issue, pull request, or maintainer contact was made.

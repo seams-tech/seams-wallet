@@ -1,0 +1,101 @@
+{
+  "recordedAt": "2026-10-21T09:21:31Z",
+  "purpose": "Stock celld 0.6.2 controls for the current harness and direct cross-script configurations",
+  "harnessRun": {
+    "command": "node tests/e2e/celld-bindings.e2e.mjs <stock> <stock>",
+    "exitCode": 1,
+    "sourceCommit": "a98cac9f9403bf590959189816378299fe177f07",
+    "celld": "celld 0.6.2",
+    "celldSha256": "92ededd2bcfebeb1e78cc2d97219f00214a79eb6606f0eef48208fca3f98c15a",
+    "archiveSha256": "b81a38299800679e9651fd7c1544540185682dcb59eed1a24c8cc36c6b31e76d",
+    "attestation": {
+      "verified": true,
+      "sourceRepositoryDigest": "90b43017241f81189453d326d05948f388b34652",
+      "signer": "https://github.com/denoland/celld/.github/workflows/release.yml@refs/heads/candidate"
+    },
+    "node": "v24.18.0",
+    "miniflare": "4.20260710.0",
+    "workerd": "1.20260710.1",
+    "harnessSha256": "5f0d1e530756710c005137f6260929f0e250190fdd2783aaf0f1858b250cbe64",
+    "fixtureHashes": {
+      "owner": "f1757db99b33273cb9d1137cc37d1659b4b25522ba1ac8bb4dc6f56b36c8d9a6",
+      "caller": "c6bcbc32e90305495c8a076cc07ab723d54f26bb9f6dd508cb43d7f87ebb5050"
+    },
+    "status": "failed",
+    "stage": "celld-streaming-response-clone",
+    "reference": {
+      "throughService": 1,
+      "throughObject": 2,
+      "readThroughService": 2
+    },
+    "owner": [
+      {
+        "owner": "router",
+        "count": 1,
+        "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+      }
+    ],
+    "serviceControl": [
+      {
+        "owner": "router",
+        "count": 2,
+        "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+      },
+      {
+        "owner": "router",
+        "count": 2,
+        "id": "75736acaf0d7d1f31535a08ac5c036ef670966a14fd86fbbfe2cfcb6b7a65a86"
+      }
+    ],
+    "error": "AssertionError [ERR_ASSERTION]: Worker failed: rejected: TypeError: Cannot clone a streaming response before consumption [at Response.clone (<anonymous>:364:13) <- at streamClone (worker.js:12:25)]"
+  },
+  "directStartup": {
+    "command": "celld dev <config>.json --no-watch --logs (same dev directory, owner already deployed)",
+    "external-single": {
+      "bindings": [
+        {
+          "name": "TENANT_ROOT",
+          "class_name": "TenantRoot",
+          "script_name": "owner"
+        }
+      ],
+      "exitCode": 1,
+      "errors": [
+        "Error: Durable Object class TenantRoot is exported by more than one co-hosted script",
+        "Error: the local node exited before it announced its operator listener"
+      ]
+    },
+    "external-noscript": {
+      "bindings": [
+        {
+          "name": "TENANT_ROOT",
+          "class_name": "TenantRoot"
+        }
+      ],
+      "exitCode": 1,
+      "errors": [
+        "Error: Durable Object class TenantRoot is exported by more than one co-hosted script",
+        "Error: the local node exited before it announced its operator listener"
+      ]
+    },
+    "external-alias": {
+      "bindings": [
+        {
+          "name": "TENANT_ROOT",
+          "class_name": "TenantRoot",
+          "script_name": "owner"
+        },
+        {
+          "name": "ALIAS",
+          "class_name": "TenantRoot",
+          "script_name": "owner"
+        }
+      ],
+      "exitCode": 1,
+      "errors": [
+        "Error: duplicate Durable Object class TenantRoot",
+        "Error: the local node exited before it announced its operator listener"
+      ]
+    }
+  }
+}

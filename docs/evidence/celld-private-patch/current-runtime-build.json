@@ -1,9 +1,9 @@
 {
   "sourceRevision": "90b43017241f81189453d326d05948f388b34652",
-  "patchSha256": "eed28bc04cb90d2bcbef62b986b53e631da29cf2e177106dbe755e8c7083fe4d",
+  "patchSha256": "df1dab7009abf9dc8bcbbb07f694ff96a5106235927bfef9a63d770d14736bc7",
   "sourceArchiveSha256": "52fadca649043d81c91f00a8f7826275bcf8480646f6ecebbcfeb83b11a31fa8",
-  "executableSha256": "bd678035c263be78f0b663c6a7731f9aac462cea372e14774625e2a61599c564",
-  "version": "celld 0.6.2-seams.4 (debug)",
+  "executableSha256": "4234b9f9889e518ed7834b21d72ec39faa047de351bed131c55517cc60663e9d",
+  "version": "celld 0.6.2-seams.7 (debug)",
   "profile": "dev",
   "platform": "darwin",
   "architecture": "arm64",
