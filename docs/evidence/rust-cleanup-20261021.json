@@ -2556,5 +2556,566 @@
       "restoreRetryReturnsDurableOutcome": true
     },
     "ownerExportSessionStatusRequestCount": 18
+  },
+  "deletionReReview": {
+    "dateLocal": "2026-10-22",
+    "timeZone": "Asia/Tokyo",
+    "reviewedRustBase": "d43d4e893912633ede13030f251efaa96cdb4596",
+    "reviewedRustHead": "2f50c39c5ae46137d9d82f10f5e861c255970f18",
+    "repositoryHeadDuringReview": "929832198f18da0aa4891e3f97f3f327446504e2",
+    "conclusion": "No confirmed required deletion. No Rust source restoration is justified by this review.",
+    "restoredSymbols": [],
+    "exactSourceReferenceAudit": {
+      "repositories": ["seams-wallet", "seams-monorepo"],
+      "removedLongFormSymbolsChecked": 24,
+      "remainingExactSourceReferences": 0,
+      "limit": "Generic method names were reviewed through their owning types and callers. Source searches alone do not establish that runtime invariants remain intact."
+    },
+    "additionalCompilationChecks": [
+      {
+        "name": "generic-workers-wasm",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--target",
+          "wasm32-unknown-unknown",
+          "--features",
+          "workers-rs",
+          "--lib"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "native-postgres-all-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--features",
+          "postgres",
+          "--all-targets"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "native-dev-all-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-dev/Cargo.toml",
+          "--all-targets"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "cli-all-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/seams-cli/Cargo.toml",
+          "--all-targets"
+        ],
+        "exitCode": 0
+      }
+    ],
+    "workerBindingAudit": {
+      "workerEnvironmentConfigurations": 15,
+      "bindings": 27,
+      "localBindings": 18,
+      "externalBindings": 9,
+      "allClassesAvailable": true,
+      "declaredMigrationClassesAvailable": true,
+      "details": [
+        {
+          "environment": "default",
+          "bindingWorker": "router",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "router",
+          "binding": "ROUTER_WALLET_DO",
+          "class": "RouterAbRouterWalletDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "deriver-a",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "deriver-a",
+          "binding": "DERIVER_A_WALLET_DO",
+          "class": "RouterAbDeriverAWalletDurableObject",
+          "ownerWorker": "deriver-a",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "deriver-b",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "deriver-b",
+          "binding": "DERIVER_B_WALLET_DO",
+          "class": "RouterAbDeriverBWalletDurableObject",
+          "ownerWorker": "deriver-b",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+          "class": "RouterAbSigningWorkerPresignSessionDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_WALLET_DO",
+          "class": "RouterAbSigningWorkerWalletDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "default",
+          "bindingWorker": "tenant-root-control-plane",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "router",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "router",
+          "binding": "ROUTER_WALLET_DO",
+          "class": "RouterAbRouterWalletDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "deriver-a",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "deriver-a",
+          "binding": "DERIVER_A_WALLET_DO",
+          "class": "RouterAbDeriverAWalletDurableObject",
+          "ownerWorker": "deriver-a",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "deriver-b",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "deriver-b",
+          "binding": "DERIVER_B_WALLET_DO",
+          "class": "RouterAbDeriverBWalletDurableObject",
+          "ownerWorker": "deriver-b",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+          "class": "RouterAbSigningWorkerPresignSessionDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_WALLET_DO",
+          "class": "RouterAbSigningWorkerWalletDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "staging",
+          "bindingWorker": "tenant-root-control-plane",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "router",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "router",
+          "binding": "ROUTER_WALLET_DO",
+          "class": "RouterAbRouterWalletDurableObject",
+          "ownerWorker": "router",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "deriver-a",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "deriver-a",
+          "binding": "DERIVER_A_WALLET_DO",
+          "class": "RouterAbDeriverAWalletDurableObject",
+          "ownerWorker": "deriver-a",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "deriver-b",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "deriver-b",
+          "binding": "DERIVER_B_WALLET_DO",
+          "class": "RouterAbDeriverBWalletDurableObject",
+          "ownerWorker": "deriver-b",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_PRESIGN_SESSION_DO",
+          "class": "RouterAbSigningWorkerPresignSessionDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "signing-worker",
+          "binding": "SIGNING_WORKER_WALLET_DO",
+          "class": "RouterAbSigningWorkerWalletDurableObject",
+          "ownerWorker": "signing-worker",
+          "external": false,
+          "available": true
+        },
+        {
+          "environment": "production-testnet",
+          "bindingWorker": "tenant-root-control-plane",
+          "binding": "ROUTER_TENANT_ROOT_CREATION_DO",
+          "class": "RouterAbTenantRootCreationDurableObject",
+          "ownerWorker": "router",
+          "external": true,
+          "available": true
+        }
+      ]
+    },
+    "structuralReview": {
+      "largeOwnerBodiesRechecked": 4,
+      "largeOwnerBodiesUnchangedAfterScopeAndFormattingNormalization": true,
+      "relocationFunctionsRechecked": 28,
+      "relocationFunctionsUnchangedAfterScopePathAndFormattingNormalization": true,
+      "relocationDetails": [
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "handle_relocation",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "3db19eac3bb8a4bad454f82356fb44cf8353aeacb53f4eb842ab16e6df7380d7",
+          "movedSha256": "3db19eac3bb8a4bad454f82356fb44cf8353aeacb53f4eb842ab16e6df7380d7"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "handle_export",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "e0b652ef021c4104e0cec5f4d9ee75e46ae376c2967eaa910b460ec5670a0db9",
+          "movedSha256": "e0b652ef021c4104e0cec5f4d9ee75e46ae376c2967eaa910b460ec5670a0db9"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "forward_export",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "39330ea821a65d8cf81b73e8018a1f3ba9228433d507323d6f1b2908f8103443",
+          "movedSha256": "39330ea821a65d8cf81b73e8018a1f3ba9228433d507323d6f1b2908f8103443"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "snapshot_digest",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "b789f40a2efeae92549b3036e4f099c6abfb42d80cdc1ca783d71231a98adfc4",
+          "movedSha256": "b789f40a2efeae92549b3036e4f099c6abfb42d80cdc1ca783d71231a98adfc4"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "handle_freeze",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "8971a7a923769b8e44810c4ff540a0a821ca572b26bc244b638e1ab20ef632dd",
+          "movedSha256": "8971a7a923769b8e44810c4ff540a0a821ca572b26bc244b638e1ab20ef632dd"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "record_wallet_freeze",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "a1c777edab27f796f7dc71190d7e80ffa7520212e9092d28d1d39eb021fd54f6",
+          "movedSha256": "a1c777edab27f796f7dc71190d7e80ffa7520212e9092d28d1d39eb021fd54f6"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "freeze_transaction",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "99ce51c5f5da5b23347619a90f7262c8f27d4e0f56c7f0d254a786e6a2dd5562",
+          "movedSha256": "99ce51c5f5da5b23347619a90f7262c8f27d4e0f56c7f0d254a786e6a2dd5562"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "seal_snapshot",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "ee345d527dbe45d4e9cfaaf9898456c9a33a2486a4646890bbbaab41e7bbc373",
+          "movedSha256": "ee345d527dbe45d4e9cfaaf9898456c9a33a2486a4646890bbbaab41e7bbc373"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "transaction_error",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "ed186ccd7b127c93ca2baec3477a461a4b250031c196d5e0effd67541b4d31ce",
+          "movedSha256": "ed186ccd7b127c93ca2baec3477a461a4b250031c196d5e0effd67541b4d31ce"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "forward_fence",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "1b3409830854b5bc12d9f1f523e1432c1e74b2002e6e707d534faf88821049a2",
+          "movedSha256": "1b3409830854b5bc12d9f1f523e1432c1e74b2002e6e707d534faf88821049a2"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "forward_freeze",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "569d145288024106e7c40341efc3a407ee77f080d4fb123639807cc8cd563b10",
+          "movedSha256": "569d145288024106e7c40341efc3a407ee77f080d4fb123639807cc8cd563b10"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "forward_command",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "7eaf492e0635df911dab0b2547b53949b79fc9c60897e77b023ba5fc77e96139",
+          "movedSha256": "7eaf492e0635df911dab0b2547b53949b79fc9c60897e77b023ba5fc77e96139"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "handle_fence",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "db7656c45d9e1000c7e7f5f3b0079a97826e5246405f29360775dfd48041a42e",
+          "movedSha256": "db7656c45d9e1000c7e7f5f3b0079a97826e5246405f29360775dfd48041a42e"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "fence_transaction",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "93600441ec4fe0e56573ebcad3de15deb25f8e0fcc2b1fdb7533ea0390fa8497",
+          "movedSha256": "93600441ec4fe0e56573ebcad3de15deb25f8e0fcc2b1fdb7533ea0390fa8497"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "fence_initialization",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "27ba3f76ea4f7c8cb7ed5dea1d21a954d17a96ede8cf5f96c521a3e4e488929c",
+          "movedSha256": "27ba3f76ea4f7c8cb7ed5dea1d21a954d17a96ede8cf5f96c521a3e4e488929c"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "registered_initialization",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "bcc7f6a9447372a615772311631b6d0542498ce73293037cd71a609114057eb1",
+          "movedSha256": "bcc7f6a9447372a615772311631b6d0542498ce73293037cd71a609114057eb1"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "require_open",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "3e63ba1fc074229f6ee959592a4cfcf2995263e81a5dc041ffad0f9108845ba7",
+          "movedSha256": "3e63ba1fc074229f6ee959592a4cfcf2995263e81a5dc041ffad0f9108845ba7"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+          "function": "require_open_transaction",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "7b07afdb8a0996eea5497c55149ed38a39bd6e1e0965a561e3aedc4f2958732c",
+          "movedSha256": "7b07afdb8a0996eea5497c55149ed38a39bd6e1e0965a561e3aedc4f2958732c"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "forward",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "e5a8bb5d2b05e82592beb25c2ec1aaae918e85004029800ca0b82c3f42c79ebb",
+          "movedSha256": "e5a8bb5d2b05e82592beb25c2ec1aaae918e85004029800ca0b82c3f42c79ebb"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "handle",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "ecf9254306820df94c215075fee250d14ae935b4a4c1ef4cbb42fe45cb7d818d",
+          "movedSha256": "ecf9254306820df94c215075fee250d14ae935b4a4c1ef4cbb42fe45cb7d818d"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "status",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "fb607e1ac4d6695adae918ae2792ff30e64e14cacd7ada235bd6bf0678c1aabe",
+          "movedSha256": "fb607e1ac4d6695adae918ae2792ff30e64e14cacd7ada235bd6bf0678c1aabe"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "prepare",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "582024bfef60c6508d51591a8e1d5a8135ccc9b3df049f23fca824c30e139609",
+          "movedSha256": "582024bfef60c6508d51591a8e1d5a8135ccc9b3df049f23fca824c30e139609"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "chunk_key",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "2efa30c8873ee2af5a1301bee2b8a6f060a3b373bba6db3476547c2f96d70b56",
+          "movedSha256": "2efa30c8873ee2af5a1301bee2b8a6f060a3b373bba6db3476547c2f96d70b56"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "decode_chunk",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "557ad095df2aa72ff2b074dcb305669548585fdfd1e663980ae2c59f3304cc28",
+          "movedSha256": "557ad095df2aa72ff2b074dcb305669548585fdfd1e663980ae2c59f3304cc28"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "import",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "fd891d670e32b144682d97c80cd245327b825319e2d4f68ac6ba9053ba036255",
+          "movedSha256": "fd891d670e32b144682d97c80cd245327b825319e2d4f68ac6ba9053ba036255"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "verify",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "dac5583a333de7e05cf5051a13b552aff03dfc73adfc515aff12526afd881bdc",
+          "movedSha256": "dac5583a333de7e05cf5051a13b552aff03dfc73adfc515aff12526afd881bdc"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "has_import",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "97b65af05e14a4956484a613948ba807229a9195c247cacc20d0cd06c492c601",
+          "movedSha256": "97b65af05e14a4956484a613948ba807229a9195c247cacc20d0cd06c492c601"
+        },
+        {
+          "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/import/owner.rs",
+          "function": "has_import_transaction",
+          "sameBodyAfterScopePathAndFormattingNormalization": true,
+          "originalSha256": "d06f82dffb0ef07b82ed83088b4b0ca6713447f00386ccd2da1c1d5721c7b4b6",
+          "movedSha256": "d06f82dffb0ef07b82ed83088b4b0ca6713447f00386ccd2da1c1d5721c7b4b6"
+        }
+      ]
+    },
+    "additionalEndToEndCase": {
+      "title": "a linked device links a third device, which signs NEAR and Tempo and exports both keys",
+      "command": [
+        "pnpm",
+        "-C",
+        "tests",
+        "exec",
+        "playwright",
+        "test",
+        "-c",
+        "playwright.wallet-intended.ci.config.ts",
+        "e2e/intended-behaviours/passkey.device-linking.contract.test.ts",
+        "--grep",
+        "a linked device links a third device, which signs NEAR and Tempo and exports both keys",
+        "--reporter=line"
+      ],
+      "exitCode": 0,
+      "sourceRevision": "db1c32ce57b2b4c52f983b40419838b896b665ef",
+      "walletDistRoot": ".artifacts/rust-cleanup-20261021/before/wallet-dist",
+      "logPath": ".artifacts/rust-cleanup-rereview-20261022/linked-device.log",
+      "logSha256": "04b4d16d4c23c151853a3ca95178473759fb67b48a58599824f4e8debff936a3"
+    },
+    "preservedInvariants": [
+      "The Signing Worker entrypoint retains its wallet Durable Object claim-and-consume transaction and terminal-response persistence. The deleted D1 helper served the excluded non-Signing-Worker fallback.",
+      "Linked-device and rotatable-lane material readers remain live. The additional three-device E2E verifies NEAR and Tempo signing, both key exports, and continued signing on earlier devices.",
+      "Restore-record row conversion still calls record.validate and checks installation evidence. Deleted timestamp getters and unused constructors do not remove stored fields or row validation.",
+      "Authorized-cleanup failure receipt bytes remain in durable rows and lower-level replay decisions. The removed higher-level Vec copy had no consumer.",
+      "The CLI retains the same response fields, Serde names, types, defaults, and unknown-field policy. Field renaming does not remove accepted wire data.",
+      "Role feature conditions preserve every class required by the default, staging, and production-testnet bindings and migrations."
+    ],
+    "limits": "Previously recorded missing Google credentials and private-harness routing fixture failures remain. The temporary-harness concurrent 503 result still lacks a baseline control. No source restoration follows from those unverified cases.",
+    "newTestsAdded": 0,
+    "walletSiteNavigationTestsAdded": 0
   }
 }

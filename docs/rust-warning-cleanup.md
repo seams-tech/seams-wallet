@@ -69,6 +69,41 @@ Remaining work includes 187 distinct diagnostics across the selected roles, prot
 The retained checks protect different envelopes, lifecycle rules, or test invariants.
 Their warning status alone gives insufficient evidence for deleting them.
 
+### Deletion re-review — 2026-10-22
+
+**This review found no deletion that requires restoration.**
+The review covers the Rust changes from `d43d4e893912633ede13030f251efaa96cdb4596` through `2f50c39c5ae46137d9d82f10f5e861c255970f18`.
+It excludes the independent documentation and locale changes.
+
+The review checks current consumers, preserved behavior, feature conditions, wire data, and deployment bindings.
+Searches across both repositories find no source references to 24 deleted functions with distinctive names.
+Generic methods require inspection through their owning types and callers.
+
+| Reviewed area           | Required code that remains                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ECDSA finalize fallback | The Signing Worker still claims and consumes material inside its wallet Durable Object transaction. Terminal persistence remains. The deleted D1 helper served the excluded fallback. |
+| Linked-device material  | Rotatable-lane and linked-device material readers remain live. The additional three-device E2E signs NEAR and Tempo, exports both keys, and checks earlier devices.                   |
+| Restore records         | Row conversion still calls `record.validate()` and checks installation evidence. Stored timestamps, lifecycle fields, and ciphertext bindings remain.                                 |
+| Cleanup failures        | Durable failure receipts and lower-level replay data remain. The deleted higher-level byte copy had no consumer.                                                                      |
+| CLI responses           | Serde names, field types, defaults, and strict unknown-field rules remain. The cleanup renamed Rust fields without deleting accepted response data.                                   |
+| Worker ownership        | All 27 bindings resolve across 15 default, staging, and production-testnet configurations. All declared migration classes remain available.                                           |
+| Structural moves        | All four large-owner bodies match their originals after scope and formatting normalization. All 28 moved relocation functions also match after relative-path normalization.           |
+
+Four additional compilation checks pass:
+
+- Generic `workers-rs` library on `wasm32-unknown-unknown`.
+- Cloudflare adapter with PostgreSQL and all native targets.
+- Native development host with all targets.
+- CLI with all targets.
+
+The existing scenario “a linked device links a third device, which signs NEAR and Tempo and exports both keys” passes.
+This review adds no tests and changes no Rust source.
+Local evidence is under `.artifacts/rust-cleanup-rereview-20261022/`.
+The shareable evidence JSON includes the commands, binding audit, normalized hashes, and E2E result under `deletionReReview`.
+
+The validation limits below remain. They prevent an unconditional guarantee for every deployment and private-harness scenario.
+They provide no demonstrated reason to restore deleted code.
+
 ### Validation limits
 
 | Check                                   | Result and classification                                                                                                                                                         |
