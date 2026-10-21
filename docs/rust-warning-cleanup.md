@@ -77,9 +77,9 @@ ledger before starting the next batch.
 
 ### C01 — Delete five unused internal wrapper items
 
-- [ ] Delete the four wrappers and their private role-selection helper in
+- [x] Delete the four wrappers and their private role-selection helper in
       `crates/router-ab-cloudflare/src/lib.rs`.
-- [ ] Delete imports that become unused. Preserve shared constants and transport
+- [x] Delete imports that become unused. Preserve shared constants and transport
       functions that still have callers.
 
 | Baseline line | Exact symbol                                                                            |
@@ -96,6 +96,10 @@ The live creation, refresh, and restore coordinators call `tenant_root_transport
 directly. Preserve its cleanup and initial-activation functions.
 
 Classification: **deletion candidates**. Check all five worker builds afterward.
+
+Completed in `74220467a6e97d8497d9626ddd7fc754fd9fce49`.
+The batch deletes 78 lines. All five role checks and the bloat check passed.
+Worker warning occurrences fell from 732 to 707.
 
 ### C02 — Delete obsolete transport adapters and URL helpers
 
@@ -409,7 +413,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-The first completed batch is C12. Other cleanup batches remain pending.
+Completed batches: C01 and C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -419,7 +423,7 @@ Use one ledger row per actual batch. Split rows further when necessary.
 
 | Batch                             | Status                     | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                       | Revert commit |
 | --------------------------------- | -------------------------- | ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| C01 — Internal wrappers           | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C01 — Internal wrappers           | Complete                   | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.     | —             |
 | C02 — Transport adapters          | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
 | C03 — Durable Object readers      | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
 | C04 — D1 methods                  | Needs classification       | —                                          | —                                          | —                                                                                                                             | —             |
