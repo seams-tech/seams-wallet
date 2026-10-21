@@ -240,6 +240,8 @@ export {
   stake,
   transfer,
 } from './core/types/actionBuilders';
+export { NearAmountError, near, yoctoNear } from './core/types/nearAmount';
+export type { NearAmountErrorCode, YoctoNear } from './core/types/nearAmount';
 
 // === Event logging ===
 export { logWalletEvents } from './core/types/eventLogging';

@@ -13,6 +13,7 @@ import {
   TransactionReviewHost,
   SHAPE_PRESETS,
   defineSeamsConfig,
+  near,
   transfer,
   useSeams,
   useWallet,
@@ -355,7 +356,7 @@ function WalletPlayground({
       await seams.near.signTransaction({
         transaction: {
           receiverId: wallet.near.accountId,
-          actions: [transfer('0')],
+          actions: [transfer(near('0'))],
         },
         options: {
           confirmerText: {

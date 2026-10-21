@@ -70,6 +70,11 @@ Build actions with helpers such as `functionCall` and `transfer`. Avoid construc
 objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents()` to
 `onEvent` to log progress in the console.
 
+Give `transfer` an amount from `near`, which takes a decimal NEAR amount:
+`transfer(near('1'))` sends 1 NEAR. If an amount is already in yoctoNEAR, use
+`yoctoNear('1000000000000000000000000')`. Both throw `NearAmountError` for a
+negative, non-numeric or over-precise amount.
+
 `seams.evm` and `seams.tempo` both provide `signTransaction`, `signAndSendTransaction`, and
 `advanced`. They use separate transaction formats: EIP-1559 for EVM and EIP-2718 for
 Tempo.
