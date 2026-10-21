@@ -48,7 +48,7 @@ SDKは対象チェーンから`tx.chainId`を設定し、チェーン設定のRP
 ## 認証の手間を減らす {#sign-with-less-friction}
 
 導入中は取引ごとの承認を使ってください。取引ごとの認証画面を省いて複数回署名する場合は、`unlock`で署名セッションを作成します。
-[ウォレットセッションと署名レーン](/guides/wallet-sessions-and-signing-lanes)を参照してください。
+[ウォレットセッションと署名レーン](/ja/guides/wallet-sessions-and-signing-lanes)を参照してください。
 
 ## キャンセルと再試行 {#handle-cancellation-and-retries}
 

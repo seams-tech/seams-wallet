@@ -54,8 +54,8 @@ ECDSAのエクスポートでは、設定済みチェーンを指定します。
 ## 権限の委任と鍵のローテーション {#delegation-and-rotation}
 
 エージェントへの権限委任、レーンの更新、鍵のローテーションには、製品に応じたポリシーとデプロイの選択が必要です。
-[権限を委任したエージェント](/guides/delegated-agents)、[リンク済みデバイス](/guides/linked-devices)、
-[復元・エクスポート・鍵のローテーション](/guides/recovery-export-and-rotation)から確認してください。
+[権限を委任したエージェント](/ja/guides/delegated-agents)、[リンク済みデバイス](/ja/guides/linked-devices)、
+[復元・エクスポート・鍵のローテーション](/ja/guides/recovery-export-and-rotation)から確認してください。
 
 ## 安全な再試行 {#safe-retries}
 

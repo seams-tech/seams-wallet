@@ -54,9 +54,10 @@ documentation source tree.
 ## Languages
 
 English lives at `/docs/`. Tentative Japanese support lives at `/docs/ja/`.
-The Japanese edition currently covers installation and the four getting-started
-guides. The sidebar and footer link to the English edition for other topics.
-A notice on each Japanese page states that translation is in progress.
+The Japanese edition covers installation, the four getting-started guides, the
+complete guides section, and the five other section overview pages. The sidebar
+and footer link to the English edition for untranslated topics. A notice on each
+Japanese page states that translation is in progress.
 
 Use the language selector in the sidebar or footer to switch editions. It keeps
 the current page, query, and heading anchor when a Japanese translation exists.

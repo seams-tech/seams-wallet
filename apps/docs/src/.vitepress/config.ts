@@ -28,7 +28,7 @@ const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
-    { text: 'Release 0.17.0', link: '/releases' },
+    { text: 'Release 0.18.0', link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {
@@ -237,8 +237,8 @@ export default defineConfig({
       themeConfig: {
         logoLink: `${walletSiteOrigin}/ja/`,
         nav: [
-          { text: 'ドキュメント', link: '/ja/', activeMatch: '^/ja/' },
-          { text: 'SDKリファレンス', link: '/reference/' },
+          { text: 'ドキュメント', link: '/ja/', activeMatch: '^/ja/(?!reference)' },
+          { text: 'SDKリファレンス', link: '/ja/reference/', activeMatch: '^/ja/reference/' },
         ],
         sidebar: documentationSidebar.map(japaneseSidebarItem),
         outline: { level: [2, 3], label: 'このページの内容' },

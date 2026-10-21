@@ -92,7 +92,7 @@ async function copyPage(): Promise<void> {
     <aside v-if="lang === 'ja'" class="seams-doc-header__translation" role="note">
       <strong>日本語版（試験公開）</strong>
       <p>
-        導入ガイドを先行公開しています。翻訳は調整中です。その他のページは英語版へ移動します。
+        翻訳は調整中です。未翻訳のページは英語版へ移動します。
         <a :href="englishLink" lang="en">English</a>
       </p>
     </aside>

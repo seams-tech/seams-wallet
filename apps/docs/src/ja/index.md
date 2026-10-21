@@ -82,9 +82,9 @@ EVMの`value`はwei単位の`bigint`です。`parseEther('0.5')`で記述でき�
 
 これらの要求に事前のアンロック操作は不要です。
 取引ごとの認証画面を省いて繰り返し署名する場合は、署名セッションを作成します。
-[ウォレットセッションと署名レーン](/guides/wallet-sessions-and-signing-lanes)を参照してください。
+[ウォレットセッションと署名レーン](/ja/guides/wallet-sessions-and-signing-lanes)を参照してください。
 
 ## 高度な機能を追加 {#add-advanced-capabilities}
 
 最初の署名処理が動作したら、[デバイス連携、鍵のエクスポート、復元](/ja/getting-started/delegate-or-rotate)に進んでください。
-認証方法、ポリシー、デプロイ時の境界については[ガイド](/guides/)を参照してください。
+認証方法、ポリシー、デプロイ時の境界については[ガイド](/ja/guides/)を参照してください。
