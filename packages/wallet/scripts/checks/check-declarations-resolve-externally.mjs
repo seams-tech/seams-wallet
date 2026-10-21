@@ -46,6 +46,21 @@ export type ProviderIsTyped = Assert<
 export type ReactContextIsTyped = Assert<
   IsAny<ReturnType<typeof useSeams>> extends false ? true : false
 >;
+type ReactWallet = NonNullable<ReturnType<typeof useSeams>['wallet']>;
+export type ReactWalletIsTyped = Assert<IsAny<ReactWallet> extends false ? true : false>;
+export type ReactNearSignerIsTyped = Assert<
+  IsAny<NonNullable<ReactWallet['near']>> extends false ? true : false
+>;
+declare const reactContext: ReturnType<typeof useSeams>;
+void reactContext.unlock('wallet.testnet');
+// @ts-expect-error Signing requires an authenticated render.
+void reactContext.wallet.evm;
+if (reactContext.wallet?.near) {
+  void reactContext.wallet.near.signAndSendTransaction({
+    receiverId: 'receiver.testnet',
+    actions: [],
+  });
+}
 export type RuntimeIsTyped = Assert<
   IsAny<ReturnType<typeof createSigningRuntime>> extends false ? true : false
 >;

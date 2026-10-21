@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
-import type { AccountInputState, LoginState, SeamsContextType } from '../types';
+import type { AccountInputState, LoginState, SeamsContextType, SeamsContextValue } from '../types';
 import type { ThemeMode } from '@/core/types/seams';
 import { useSDKFlowRuntime } from './useSDKFlowRuntime';
 import { useSeamsWithSdkFlow } from './useSeamsWithSdkFlow';
@@ -17,7 +17,7 @@ export function useSeamsContextValue(args: {
   setAccountName: SeamsContextType['setAccountName'];
   refreshAccountData: SeamsContextType['refreshAccountData'];
   hostSetTheme?: (theme: ThemeMode) => void;
-}): SeamsContextType {
+}): SeamsContextValue {
   const {
     seams,
     loginState,

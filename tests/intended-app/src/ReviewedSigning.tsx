@@ -1,8 +1,10 @@
 import React from 'react';
-import { useWallet, type TransactionReviewControls } from '@seams/wallet/react';
+import { useSeams, type BoundEvmSigner, type TransactionReviewControls } from '@seams/wallet/react';
 
-type EvmSigner = NonNullable<ReturnType<typeof useWallet>['evm']>;
-type SigningInput = Pick<Parameters<EvmSigner['signTransaction']>[0], 'chainTarget' | 'request'>;
+type SigningInput = Pick<
+  Parameters<BoundEvmSigner['signTransaction']>[0],
+  'chainTarget' | 'request'
+>;
 type SigningState =
   | { kind: 'idle' }
   | { kind: 'pending' }
@@ -10,14 +12,14 @@ type SigningState =
   | { kind: 'failed'; message: string };
 
 export function ReviewedSigning({ input }: { input: SigningInput }): React.ReactNode {
-  const wallet = useWallet();
+  const { wallet } = useSeams();
   const [state, setState] = React.useState<SigningState>({ kind: 'idle' });
   return (
     <section>
       <button
         type="button"
-        disabled={!wallet.evm || state.kind === 'pending'}
-        onClick={wallet.evm ? signReviewed.bind(null, wallet.evm, input, setState) : undefined}
+        disabled={!wallet || state.kind === 'pending'}
+        onClick={wallet ? signReviewed.bind(null, wallet.evm, input, setState) : undefined}
       >
         Review Arc testnet signature
       </button>
@@ -46,7 +48,7 @@ function renderReview(controls: TransactionReviewControls): React.ReactNode {
 }
 
 async function signReviewed(
-  signer: EvmSigner,
+  signer: BoundEvmSigner,
   input: SigningInput,
   setState: React.Dispatch<React.SetStateAction<SigningState>>,
 ): Promise<void> {

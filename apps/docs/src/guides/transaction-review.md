@@ -5,7 +5,7 @@ description: Show your React component before wallet approval, with explicit exp
 
 # Custom transaction review
 
-Pass a `review` object to a transaction method returned by `useWallet()` to show
+Pass a `review` object to a transaction method on `useSeams().wallet` to show
 your own React component before wallet approval. The flow is:
 
 **Your review → Continue to wallet → wallet approval → transaction result.**
@@ -79,7 +79,7 @@ self-transfer. Gas fees apply. Use a testnet wallet to try it.
 
 ## Supported methods and settings
 
-| Signer from `useWallet()` | Methods accepting `review` |
+| Signer on `useSeams().wallet` | Methods accepting `review` |
 | --- | --- |
 | `near` | `signAndSendTransaction` |
 | `evm` | `signTransaction`, `signAndSendTransaction` |

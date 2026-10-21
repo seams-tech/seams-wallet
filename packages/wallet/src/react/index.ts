@@ -142,14 +142,12 @@ export type {
 // === REACT HOOKS ===
 ////////////////////////////
 
-export { useWallet } from './hooks/useWallet';
 export type {
   BoundEvmSigner,
   BoundNearSigner,
   BoundTempoSigner,
   BoundWallet,
-  UseWalletResult,
-} from './hooks/useWallet';
+} from './boundWallet';
 export { useWalletAuth } from './hooks/useWalletAuth';
 export type { UseWalletAuthResult } from './hooks/useWalletAuth';
 export { useWalletDevices } from './hooks/useWalletDevices';

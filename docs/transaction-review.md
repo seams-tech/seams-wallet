@@ -6,7 +6,7 @@ that host. Context follows the host's ancestry; a provider local to the calling
 button is not captured by passing a renderer.
 
 ```tsx
-import { TransactionReviewHost, useWallet } from '@seams/wallet/react';
+import { TransactionReviewHost, useSeams } from '@seams/wallet/react';
 
 <SeamsWebProvider config={config}>
   <PurchaseContext.Provider value={purchase}>
@@ -16,10 +16,13 @@ import { TransactionReviewHost, useWallet } from '@seams/wallet/react';
 ```
 
 Pass `review` to `near.signAndSendTransaction` or the EVM and
-Tempo `signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
+Tempo `signTransaction` and `signAndSendTransaction` methods on `useSeams().wallet`.
 The existing result and lifecycle callbacks retain their meanings.
 
 ```tsx
+const { wallet } = useSeams();
+if (!wallet?.near) return <SignInButton />;
+
 await wallet.near.signAndSendTransaction({
   receiverId,
   actions,

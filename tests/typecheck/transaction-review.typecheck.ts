@@ -32,7 +32,7 @@ void missingDeadline;
 void contradictoryValidity;
 void missingValidity;
 
-import type { BoundNearSigner, BoundEvmSigner, BoundTempoSigner } from '@/react/hooks/useWallet';
+import type { BoundNearSigner, BoundEvmSigner, BoundTempoSigner } from '@/react/boundWallet';
 
 type NearReviewInput = Parameters<BoundNearSigner['signAndSendTransaction']>[0];
 const ordinaryDrawer: NearReviewInput = {

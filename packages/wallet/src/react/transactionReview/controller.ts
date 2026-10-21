@@ -63,7 +63,7 @@ export class ReviewOwner {
     if (this.disposed)
       throw new TransactionReviewError(
         'review_owner_disposed',
-        'This useWallet instance has been disposed',
+        'This useSeams wallet owner has been disposed',
       );
   }
 }

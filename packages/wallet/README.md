@@ -93,10 +93,18 @@ recovery material out of app configuration and logs.
 
 ## Signing and lifecycle
 
-`useSeams()` exposes the SDK client and authentication state. `useWallet()`
-provides `near`, `evm`, and `tempo` signers bound to the authenticated wallet.
-`near` is null until a NEAR account is ready. Check registration's pending
+`useSeams()` exposes authentication actions, lifecycle state, and the current
+`wallet`. The wallet is null while signed out. An authenticated wallet provides
+`near`, `evm`, and `tempo` signers bound to its identity.
+`wallet.near` is null until a NEAR account is ready. Check registration's pending
 branches and use `registration.waitForNearAccount` before signing NEAR.
+
+```tsx
+const { unlock, lock, wallet } = useSeams();
+```
+
+Unlock updates the wallet in a subsequent React render. Use the authenticated
+render's wallet in signing handlers. `wallet.walletId` identifies that wallet.
 
 The framework-neutral `SeamsWeb` client groups operations under `registration`,
 `auth`, `near`, `evm`, `tempo`, `recovery`, `devices`, and `keys`. Signing can

@@ -18,31 +18,37 @@ import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/r
 | ------------------------------------------------- | ------------------------------------------------------- |
 | `SeamsWebProvider`                                | Creates and owns the SDK client for a React subtree.    |
 | `SeamsContextProvider`                            | Supplies an existing context value.                     |
-| `useSeams`                                        | Reads the current SDK capabilities and lifecycle state. |
-| `useWallet`                                       | The signed-in wallet, with signing bound to it.         |
+| `useSeams`                                        | Authentication, lifecycle state, and the current wallet's bound signers. |
 | `useWalletAuth`                                   | The sign-in, sign-out, and registration slice.          |
 | `useWalletDevices`                                | The linked-device slice.                                |
 | `useDeviceLinking`                                | Runs the approving-device side of a link flow.          |
 | `useNearClient`, `useAccountInput`, `useQRCamera` | Focused integration helpers.                            |
 
-### `useWallet`
+### `useSeams`
 
-Returns `{ status, wallet, near, evm, tempo, walletId, nearAccountId }`. `near`, `evm`,
-and `tempo` are top-level fields. Check the relevant field before signing:
+Use one hook for authentication and signing. `unlock`, `lock`, and `registerWallet`
+remain available while signed out. `wallet` is `null` until authentication succeeds.
+The authenticated wallet provides `near`, `evm`, `tempo`, and `exportKey`.
+Check the relevant signer before signing:
 
 ```tsx [Partial example]
-const { near } = useWallet();
-if (!near) return <SignInButton />;
+const { unlock, wallet } = useSeams();
+if (!wallet?.near) return <SignInButton onUnlock={unlock} />;
 
-await near.signAndSendTransaction({
+await wallet.near.signAndSendTransaction({
   receiverId: 'guest-book.testnet',
   actions: [functionCall({ method: 'set_greeting', args: { greeting: 'hi' } })],
 });
 ```
 
-`near` is `null` both when nobody is signed in and when the signed-in wallet has
-no NEAR account. Read `status` — `'signed_out' | 'no_near_account' | 'ready'` —
-when the UI needs to say something different about each.
+`wallet.near` is `null` when the authenticated wallet has no NEAR account.
+`wallet.evm` and `wallet.tempo` remain available in that state. Each signer binds
+requests to the wallet that the component rendered. Use `wallet.walletId` for
+its identity and `wallet.near.accountId` for its NEAR account.
+
+After `unlock` succeeds, React supplies the authenticated wallet in a subsequent
+render. A handler retains the wallet from its own render. Keep unlock and signing
+in their respective user actions.
 
 `useWalletAuth` and `useWalletDevices` read different parts of the same context.
 `useSeams` exposes the complete context.
@@ -114,7 +120,7 @@ SSR-specific imports:
 
 Mount `TransactionReviewHost` beneath the wallet provider, then pass `review` to
 `near.signAndSendTransaction` or the EVM and Tempo
-`signTransaction` and `signAndSendTransaction` methods returned by `useWallet()`.
+`signTransaction` and `signAndSendTransaction` methods on `useSeams().wallet`.
 
 | Export                       | Purpose                                                                   |
 | ---------------------------- | ------------------------------------------------------------------------- |

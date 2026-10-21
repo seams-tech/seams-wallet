@@ -1565,8 +1565,15 @@ Receipt behavior: `tests/wallet-ui/external-evm-receipt.browser.test.ts` produce
 
 ## Application transaction review
 
+`useSeams()` supplies authentication actions, lifecycle state, and the current
+bound `wallet`. Authentication actions remain available while signed out, when
+`wallet` is `null`. An authenticated wallet provides EVM and Tempo signers;
+its NEAR signer remains `null` until a NEAR account is ready.
+Unlock refreshes React state. The authenticated wallet appears in a subsequent
+render, and each signing handler retains the wallet that its component rendered.
+
 Hosted React transactions may supply an application review through an explicit
-`TransactionReviewHost`. The six reviewed `useWallet()` transaction methods retain
+`TransactionReviewHost`. The reviewed `useSeams().wallet` transaction methods retain
 their existing core results and callbacks. Ordinary calls need no review host.
 
 - The application review and wallet approval share the existing transaction queue

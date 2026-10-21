@@ -28,8 +28,9 @@ waits for `EXECUTED_OPTIMISTIC`.
 
 <<< ./near-signing.tsx
 
-The button resolves after the configured execution status. `useWallet` returns `near` as
-`null` until the wallet has a NEAR account. The type guard before the button prevents
+The button resolves after the configured execution status. `useSeams()` returns
+`wallet: null` while signed out and `wallet.near: null` until a NEAR account is ready.
+The type guard before the button prevents
 signing without that account.
 
 ## Sign a NEP-413 message

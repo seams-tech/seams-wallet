@@ -1,6 +1,6 @@
 import type { SeamsWeb } from '../../SeamsWeb';
 import type { NearAccountRef, WalletSessionRef } from '../../boundary/walletRefs';
-import type { BoundNearSigner, BoundEvmSigner, BoundTempoSigner } from '../hooks/useWallet';
+import type { BoundNearSigner, BoundEvmSigner, BoundTempoSigner } from '../boundWallet';
 import type { TransactionReviewCapabilities } from '../../SeamsWeb/publicApi/transactionReview';
 import {
   resolveEvmChainTarget,
@@ -29,7 +29,7 @@ function requireHost(env: BoundReviewEnvironment): ReviewHostController {
   if (!env.host)
     throw new TransactionReviewError(
       'review_host_unavailable',
-      'Wrap this useWallet component in TransactionReviewHost inside SeamsWebProvider',
+      'Wrap this useSeams component in TransactionReviewHost inside SeamsWebProvider',
     );
   return env.host;
 }
@@ -209,7 +209,10 @@ async function tempoExecute(
 ): ReturnType<BoundTempoSigner['signAndSendTransaction']> {
   const { review, ...ordinary } = args;
   if (review === undefined)
-    return env.seams.tempo.signAndSendTransaction({ ...ordinary, walletSession: env.walletSession });
+    return env.seams.tempo.signAndSendTransaction({
+      ...ordinary,
+      walletSession: env.walletSession,
+    });
   const host = requireHost(env);
   const { options, postFinalizationCheck, ...data } = ordinary;
   const copied = snapshotTransactionInput(data);

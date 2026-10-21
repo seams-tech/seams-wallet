@@ -55,7 +55,7 @@ and retry guidance.
 
 ## 4. Sign a transaction
 
-After the requested signer is ready, `useWallet()` provides signing methods for the
+After the requested signer is ready, `useSeams().wallet` provides signing methods for the
 signed-in wallet. Pass only the transaction to these methods. Each request opens the
 wallet confirmation. The user approves that transaction with the wallet's authentication
 method.

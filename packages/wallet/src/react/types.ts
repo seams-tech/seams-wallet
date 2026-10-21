@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import type { BoundWallet } from './boundWallet';
+import type { Variant } from '@shared/utils/variant';
 import type {
   LoginHooksOptions,
   ActionHooksOptions,
@@ -59,6 +61,9 @@ export type LoginState =
       thresholdEcdsaEthereumAddress?: string | null;
       thresholdEcdsaPublicKeyB64u?: string | null;
     };
+
+export type AuthenticatedLoginState = Variant<LoginState, 'isLoggedIn', true>;
+type SignedOutLoginState = Variant<LoginState, 'isLoggedIn', false>;
 
 export interface StoredAccountOption {
   walletId: string;
@@ -162,7 +167,14 @@ export type SDKFlowRuntime = SDKFlowState & {
 
 type WalletLockState = { readonly kind: 'idle' } | { readonly kind: 'cleaning_up' };
 
-export interface SeamsContextType {
+export type SeamsWalletState =
+  | { readonly loginState: SignedOutLoginState; readonly wallet: null }
+  | { readonly loginState: AuthenticatedLoginState; readonly wallet: BoundWallet };
+
+export type SeamsContextType = Omit<SeamsContextValue, 'loginState'> & SeamsWalletState;
+
+/** Shared provider state. Each consumer owns its bound wallet and transaction reviews. */
+export interface SeamsContextValue {
   // Core SeamsWeb instance - provides all user-facing functionality
   seams: SeamsWeb;
 

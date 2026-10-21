@@ -11,15 +11,19 @@ import { useNearProvisioningStateRefresh } from './useNearProvisioningStateRefre
 import { useSeamsContextValue } from './useSeamsContextValue';
 import { useWalletIframeLifecycle } from './useWalletIframeLifecycle';
 import { getOrCreateSeamsManager } from './seamsManagerSingleton';
+import { createBoundWallet } from '../boundWallet';
+import { useTransactionReviewOwner } from '../transactionReview/TransactionReviewHost';
 import { buildNoCurrentWalletAuthMethod } from '@shared/utils/walletCapabilityBindings';
 import type {
   SeamsContextType,
+  SeamsContextValue,
+  SeamsWalletState,
   SeamsContextProviderProps,
   LoginState,
   AccountInputState,
 } from '../types';
 
-const SeamsContext = createContext<SeamsContextType | undefined>(undefined);
+const SeamsContext = createContext<SeamsContextValue | undefined>(undefined);
 
 export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
   children,
@@ -169,13 +173,40 @@ export const SeamsContextProvider: React.FC<SeamsContextProviderProps> = ({
   return <SeamsContext.Provider value={value}>{children}</SeamsContext.Provider>;
 };
 
-export const useSeams = () => {
+/** Authentication, lifecycle state, and the current wallet's bound signers. */
+export function useSeams(): SeamsContextType {
   const context = useContext(SeamsContext);
   if (context === undefined) {
     throw new Error('useSeams must be used within a SeamsContextProvider');
   }
-  return context;
-};
+  const { seams, loginState } = context;
+  // Review ownership follows the wallet identity while NEAR provisioning completes.
+  const { host, owner } = useTransactionReviewOwner(loginState.walletId);
+  const walletState = useMemo(bindCurrentWallet.bind(null, seams, loginState, host, owner), [
+    seams,
+    loginState,
+    host,
+    owner,
+  ]);
+  return useMemo(buildSeamsContext.bind(null, context, walletState), [context, walletState]);
+}
+
+function bindCurrentWallet(
+  seams: SeamsContextValue['seams'],
+  loginState: LoginState,
+  host: Parameters<typeof createBoundWallet>[2],
+  owner: Parameters<typeof createBoundWallet>[3],
+): SeamsWalletState {
+  if (!loginState.isLoggedIn) return { loginState, wallet: null };
+  return { loginState, wallet: createBoundWallet(seams, loginState, host, owner) };
+}
+
+function buildSeamsContext(
+  context: SeamsContextValue,
+  walletState: SeamsWalletState,
+): SeamsContextType {
+  return { ...context, ...walletState };
+}
 
 // Re-export types for convenience
 export type { SeamsContextType, RegistrationResult, LoginResult } from '../types';

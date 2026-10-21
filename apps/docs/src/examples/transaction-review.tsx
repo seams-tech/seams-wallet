@@ -2,11 +2,10 @@ import { useState } from 'react';
 import {
   TransactionReviewError,
   transfer,
-  useWallet,
+  useSeams,
+  type BoundNearSigner,
   type TransactionReviewControls,
 } from '@seams/wallet/react';
-
-type NearSigner = NonNullable<ReturnType<typeof useWallet>['near']>;
 
 function TransferReview({ controls }: { controls: TransactionReviewControls }) {
   return (
@@ -26,7 +25,7 @@ function renderReview(controls: TransactionReviewControls) {
   return <TransferReview controls={controls} />;
 }
 
-async function submitTransfer(signer: NearSigner, setMessage: (message: string) => void) {
+async function submitTransfer(signer: BoundNearSigner, setMessage: (message: string) => void) {
   setMessage('Waiting for review and wallet approval…');
   try {
     const result = await signer.signAndSendTransaction({
@@ -52,13 +51,13 @@ async function submitTransfer(signer: NearSigner, setMessage: (message: string) 
 }
 
 export function ReviewedTransferButton() {
-  const { near } = useWallet();
+  const { wallet } = useSeams();
   const [message, setMessage] = useState('');
-  if (!near) return <p>Sign in with a NEAR account to try this example.</p>;
+  if (!wallet?.near) return <p>Sign in with a NEAR account to try this example.</p>;
 
   return (
     <>
-      <button type="button" onClick={submitTransfer.bind(null, near, setMessage)}>
+      <button type="button" onClick={submitTransfer.bind(null, wallet.near, setMessage)}>
         Review transfer
       </button>
       <p role="status">{message}</p>

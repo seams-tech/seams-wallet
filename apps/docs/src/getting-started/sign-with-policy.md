@@ -10,7 +10,7 @@ subject to resolve the signed-in wallet. EVM-family calls require a `chainTarget
 a configured chain. Name the wallet explicitly when your product manages more than one
 wallet at a time. No unlock step is required. Every request opens the wallet
 confirmation. The user approves that transaction with the wallet's authentication
-method. The examples below use `useWallet` for buttons and the `SeamsWeb` client for
+method. The examples below use `useSeams().wallet` for buttons and the `SeamsWeb` client for
 standalone signing calls.
 
 ## NEAR transaction
@@ -20,7 +20,7 @@ Replace the receiver, action, and execution status with values from your app.
 
 <<< ../examples/near-signing.tsx
 
-`near` from `useWallet()` is `null` until the wallet has a NEAR account. The check next
+`wallet.near` from `useSeams()` is `null` until the wallet has a NEAR account. The check next
 to the sign button prevents requests before that account exists. For an exact subject,
 call `seams.near.signAndSendTransaction` with `walletSession` and `nearAccount` built
 from `walletSessionRefFromSession` and `nearAccountRefFromAccountId`.

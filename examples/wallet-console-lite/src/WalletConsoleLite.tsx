@@ -15,8 +15,6 @@ import {
   defineSeamsConfig,
   transfer,
   useSeams,
-  useWallet,
-  useWalletAuth,
   type LoginState,
   type SeamsContextType,
   type WalletShapeId,
@@ -297,9 +295,7 @@ function WalletPlayground({
   shape: WalletShapeId;
   onShapeChange: (event: ChangeEvent<HTMLSelectElement>) => void;
 }) {
-  const { seams, walletIframeConnected } = useSeams();
-  const { loginState, refreshSession } = useWalletAuth();
-  const wallet = useWallet();
+  const { seams, wallet, walletIframeConnected, loginState, refreshSession } = useSeams();
   const [signingCheck, setSigningCheck] = useState<SigningCheckState>({ kind: 'idle' });
   const [exportingKey, setExportingKey] = useState<PlaygroundExportChain | null>(null);
   const [authMenu, setAuthMenu] = useState<AuthMenuState>({ kind: 'closed' });
@@ -319,7 +315,7 @@ function WalletPlayground({
   }, []);
 
   const runMessageSigningCheck = useCallback(async () => {
-    if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
+    if (!wallet?.near || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'message' });
     try {
       const result = await wallet.near.signMessage({
@@ -349,7 +345,7 @@ function WalletPlayground({
   }, [loginState.isLoggedIn, wallet]);
 
   const runTransactionSigningCheck = useCallback(async () => {
-    if (wallet.status !== 'ready' || !loginState.isLoggedIn) return;
+    if (!wallet?.near || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'transaction' });
     try {
       await seams.near.signTransaction({
@@ -454,7 +450,7 @@ function WalletPlayground({
               loginState={loginState}
               signingCheck={signingCheck}
               exportingKey={exportingKey}
-              canSign={wallet.status === 'ready'}
+              canSign={Boolean(wallet?.near)}
               onRefresh={refreshSelectedWallet}
               onAccountMenuLock={handleAccountMenuLock}
               onAccountMenuError={handleAccountMenuError}

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
@@ -33,6 +34,15 @@ const hostScript = `
     confirmationConfig: basePreferenceSnapshot.confirmationConfig,
     revision: 0,
   };
+  window.reviewSession = ${JSON.stringify(session)};
+  function reviewSessionObservation() {
+    return {
+      revision: ++sessionObservationRevision,
+      walletId: basePreferenceSnapshot.walletId,
+      state: exactSessionState,
+      session: window.reviewSession,
+    };
+  }
   window.reviewClosedReceipts = [];
   window.reviewPostActivity = (requestId, payload) => adoptedPort.postMessage({
     type: 'TRANSACTION_ACTIVITY', requestId, payload,
@@ -61,7 +71,43 @@ const hostScript = `
       if (message.type === 'PM_HAS_PASSKEY') { postResult(message.requestId, false); return; }
       if (message.type === 'PM_GET_RECENT_UNLOCKS') { postResult(message.requestId, []); return; }
       if (message.type === 'PM_GET_WALLET_SESSION') {
-        postResult(message.requestId, ${JSON.stringify(session)});
+        postResult(message.requestId, window.reviewSession);
+        return;
+      }
+      if (message.type === 'PM_GET_EXACT_WALLET_SESSION_STATE') {
+        postResult(message.requestId, reviewSessionObservation());
+        return;
+      }
+      if (message.type === 'PM_LOCK') {
+        exactSessionState = { kind: 'wallet_locked' };
+        window.reviewSession = publicSessionForState(exactSessionState);
+        adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: reviewSessionObservation() });
+        postResult(message.requestId, undefined);
+        return;
+      }
+      if (message.type === 'PM_UNLOCK') {
+        exactSessionState = {
+          kind: 'wallet_unlocked_without_signing_session',
+          walletId: 'review.testnet',
+          reason: 'absent',
+        };
+        window.reviewSession = publicSessionForState(exactSessionState);
+        adoptedPort.postMessage({
+          type: 'PROGRESS',
+          requestId: message.requestId,
+          payload: {
+            version: 2, flow: 'unlock', step: 7, phase: 'unlock.completed',
+            status: 'succeeded', message: 'Wallet unlocked',
+            flowId: 'unlock:review.testnet', requestId: message.requestId,
+            accountId: 'review.testnet', authMethod: 'passkey',
+          },
+        });
+        adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: reviewSessionObservation() });
+        postResult(message.requestId, {
+          success: true,
+          kind: 'ecdsa_wallet_unlocked',
+          walletId: 'review.testnet',
+        });
         return;
       }
       if (message.type === 'PM_SET_TRANSACTION_VIEW') {
@@ -144,7 +190,6 @@ async function mountReviewApplication(page: Page): Promise<void> {
       const React = await import('react');
       const { createRoot } = await import('react-dom/client');
       const { SeamsWebProvider } = await import('/_test-sdk/esm/react/context/SeamsWebProvider.js');
-      const { useWallet } = await import('/_test-sdk/esm/react/hooks/useWallet.js');
       const { TransactionReviewHost } =
         await import('/_test-sdk/esm/react/transactionReview/TransactionReviewHost.js');
       const { useSeams } = await import('/_test-sdk/esm/react/context/index.js');
@@ -199,12 +244,13 @@ async function mountReviewApplication(page: Page): Promise<void> {
         state.reviewResults.push({ kind: 'error', code: error.code, message: error.message });
       }
       function Checkout() {
-        const wallet = useWallet();
-        const { seams } = useSeams();
+        const context = useSeams();
+        const { seams, wallet } = context;
+        state.reviewContext = context;
         state.reviewWallet = wallet;
         state.reviewSeams = seams;
         function start() {
-          if (!wallet.near) return;
+          if (!wallet?.near) return;
           const args = {
             receiverId: 'receiver.testnet',
             actions: [{ type: 'Transfer', amount: '1' }],
@@ -218,7 +264,7 @@ async function mountReviewApplication(page: Page): Promise<void> {
           args.receiverId = 'mutated.testnet';
           args.actions[0].amount = '999';
         }
-        return h('button', { onClick: start, disabled: !wallet.near }, 'Buy');
+        return h('button', { onClick: start, disabled: !wallet?.near }, 'Buy');
       }
       const config = {
         iframeWallet: { walletOrigin },
@@ -256,6 +302,94 @@ test.setTimeout(25_000);
 
 test.beforeEach(async ({ page }) => {
   await mountReviewApplication(page);
+});
+
+test('one hook locks, unlocks, provisions NEAR, and replaces disposed review ownership', async ({
+  page,
+}, testInfo) => {
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await expect(page.getByText('Purchase context preserved')).toBeVisible();
+  await page.evaluate(async () => {
+    const state = window as any;
+    state.previousNear = state.reviewWallet.near;
+    await state.reviewContext.lock();
+  });
+  await expect.poll(() => page.evaluate(() => (window as any).reviewWallet)).toBeNull();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.code))
+    .toBe('review_identity_changed');
+  await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+  const unlockResult = await page.evaluate(async () => {
+    return (window as any).reviewContext.unlock('review.testnet');
+  });
+  expect(unlockResult).toMatchObject({ success: true, kind: 'ecdsa_wallet_unlocked' });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewWallet?.walletId))
+    .toBe(walletId);
+  const pendingNear = await page.evaluate(() => {
+    const wallet = (window as any).reviewWallet;
+    return {
+      walletId: wallet.walletId,
+      near: wallet.near,
+      evm: typeof wallet.evm.signTransaction,
+      tempo: typeof wallet.tempo.signTransaction,
+    };
+  });
+  expect(pendingNear).toEqual({ walletId, near: null, evm: 'function', tempo: 'function' });
+  await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeDisabled();
+
+  const frame = page.frames().find((frame) => frame.url().startsWith(walletOrigin))!;
+  await frame.evaluate((session) => {
+    (window as any).reviewSession = session;
+  }, session);
+  await page.evaluate(async () => {
+    await (window as any).reviewContext.refreshSession('review.testnet');
+  });
+  await expect(page.getByRole('button', { name: 'Buy', exact: true })).toBeEnabled();
+
+  const staleOwnerCode = await page.evaluate(async () => {
+    const { previousNear } = window as any;
+    try {
+      await previousNear.signAndSendTransaction({
+        receiverId: 'receiver.testnet',
+        actions: [],
+        review: { title: 'Old wallet', validity: { kind: 'unbounded' }, render: () => null },
+      });
+      return null;
+    } catch (error: any) {
+      return error.code;
+    }
+  });
+  expect(staleOwnerCode).toBe('review_owner_disposed');
+  await page.getByRole('button', { name: 'Buy', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue to wallet' }).click();
+  await expect(page.locator('iframe.seams-wallet-overlay-iframe')).not.toHaveAttribute('inert', '');
+  await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewResults[1]))
+    .toEqual({ kind: 'result', value: { success: true, transactionId: 'review-transaction' } });
+  const evidence = await page.evaluate(() => {
+    const state = window as any;
+    return {
+      walletId: state.reviewWallet.walletId,
+      nearAccountId: state.reviewWallet.near.accountId,
+      results: state.reviewResults,
+      dispatches: state.reviewDispatches.length,
+      signatures: state.reviewSigned,
+      cspViolations: state.reviewViolations,
+    };
+  });
+  expect(evidence).toMatchObject({ dispatches: 1, signatures: 1, cspViolations: [] });
+  const evidencePath = testInfo.outputPath('seams-context-lifecycle.json');
+  await writeFile(
+    evidencePath,
+    JSON.stringify({ unlockResult, pendingNear, staleOwnerCode, ...evidence }, null, 2),
+  );
+  await testInfo.attach('seams-context-lifecycle.json', {
+    path: evidencePath,
+    contentType: 'application/json',
+  });
 });
 
 test('context, immutable intent, continuous iframe handoff and explicit wallet approval', async ({
@@ -911,7 +1045,7 @@ test('missing and duplicate hosts reject before dispatch and disposed methods st
     const calls = createReviewedBoundCalls({
       seams: state.reviewSeams,
       walletId: 'review.testnet',
-      walletSession: state.reviewWallet.wallet.walletSession,
+      walletSession: state.reviewWallet.walletSession,
       nearAccount: { kind: 'named', accountId: 'review.testnet' },
       host: null,
       owner: new ReviewOwner(),
