@@ -8,16 +8,17 @@
   --vp-c-gray-soft: rgb(113 113 122 / 0.12);
 
   /* VitePress derives --vp-c-brand-* from the indigo slots, so the accent is
-     set here: the docs green. */
-  --vp-c-indigo-1: #15803d;
-  --vp-c-indigo-2: #166534;
-  --vp-c-indigo-3: #16a34a;
-  --vp-c-indigo-soft: rgb(22 163 74 / 0.12);
+     set here: the teal of the site's teal-peach gradient, darkened until text
+     in it keeps a 5:1 contrast ratio on white. */
+  --vp-c-indigo-1: #00769f;
+  --vp-c-indigo-2: #005f80;
+  --vp-c-indigo-3: #0082af;
+  --vp-c-indigo-soft: rgb(0 130 175 / 0.12);
 
-  --vp-c-green-1: #15803d;
-  --vp-c-green-2: #166534;
-  --vp-c-green-3: #16a34a;
-  --vp-c-green-soft: rgb(22 163 74 / 0.12);
+  --vp-c-green-1: #00769f;
+  --vp-c-green-2: #005f80;
+  --vp-c-green-3: #0082af;
+  --vp-c-green-soft: rgb(0 130 175 / 0.12);
 
   --vp-c-yellow-1: #8a4b08;
   --vp-c-yellow-2: #8a4b08;
@@ -40,9 +41,9 @@
   --vp-c-text-2: #3f3f46;
   --vp-c-text-3: #71717a;
 
-  /* Accent surfaces (active markers, rails) take the gradient; accent text
-     stays flat so it keeps its contrast ratio. */
-  --seams-accent-gradient: linear-gradient(180deg, #22c55e 0%, #16a34a 55%, #15803d 100%);
+  /* Accent surfaces (active markers, rails) take the teal-peach gradient;
+     accent text stays flat teal so it keeps its contrast ratio. */
+  --seams-accent-gradient: linear-gradient(180deg, #0082af 0%, #8d94b9 55%, #d8a5b1 100%);
 
   /* Inline code is body text in a chip, not an accent: black on a lighter
      grey. Code inside a link keeps the accent so the link still reads as one. */
@@ -59,15 +60,15 @@
   --vp-c-gray-3: #1f1f22;
   --vp-c-gray-soft: rgb(161 161 170 / 0.16);
 
-  --vp-c-indigo-1: #4ade80;
-  --vp-c-indigo-2: #86efac;
-  --vp-c-indigo-3: #22c55e;
-  --vp-c-indigo-soft: rgb(74 222 128 / 0.16);
+  --vp-c-indigo-1: #38a3c3;
+  --vp-c-indigo-2: #7cc4db;
+  --vp-c-indigo-3: #1e9bbc;
+  --vp-c-indigo-soft: rgb(56 163 195 / 0.16);
 
-  --vp-c-green-1: #4ade80;
-  --vp-c-green-2: #86efac;
-  --vp-c-green-3: #22c55e;
-  --vp-c-green-soft: rgb(74 222 128 / 0.16);
+  --vp-c-green-1: #38a3c3;
+  --vp-c-green-2: #7cc4db;
+  --vp-c-green-3: #1e9bbc;
+  --vp-c-green-soft: rgb(56 163 195 / 0.16);
 
   --vp-c-yellow-1: #e0ac68;
   --vp-c-yellow-2: #e0ac68;
@@ -90,7 +91,7 @@
   --vp-c-text-2: #a1a1aa;
   --vp-c-text-3: #71717a;
 
-  --seams-accent-gradient: linear-gradient(180deg, #86efac 0%, #4ade80 55%, #22c55e 100%);
+  --seams-accent-gradient: linear-gradient(180deg, #38a3c3 0%, #b2a7b4 55%, #fab8bc 100%);
 
   --vp-code-bg: #1c1c1f;
   --vp-code-color: var(--vp-c-text-1);
