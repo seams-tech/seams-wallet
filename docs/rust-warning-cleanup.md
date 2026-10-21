@@ -103,8 +103,8 @@ Worker warning occurrences fell from 732 to 707.
 
 ### C02 — Delete obsolete transport adapters and URL helpers
 
-- [ ] Recheck the following wrapper chains, then delete each complete unused chain.
-- [ ] Preserve the shared host transport, live route handlers, route paths,
+- [x] Recheck the following wrapper chains, then delete each complete unused chain.
+- [x] Preserve the shared host transport, live route handlers, route paths,
       issuer verification, and service-binding constants with other callers.
 
 All paths in this table start with `crates/router-ab-cloudflare/src/`.
@@ -141,6 +141,11 @@ in `durable_object/tenant_root_creation.rs:861` has live callers.
 Classification: **deletion candidates after a complete reference check**.
 Include the unused control-plane re-export when deleting its implementation.
 Check all five worker builds and the native host afterward.
+
+Completed in `01239ce6b803e91c97365d89f45aeb0ba2151a43`.
+The batch deletes obsolete transport adapters and six private URL/helper pairs.
+All five worker checks, the native host check, and the PostgreSQL check passed.
+Worker warning occurrences fell from 707 to 612. The bloat check passed.
 
 ### C03 — Delete superseded Durable Object readers
 
@@ -413,7 +418,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01 and C12. Other cleanup batches remain pending.
+Completed batches: C01, C02, C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -421,20 +426,20 @@ Afterward, record its full commit SHA and verification evidence here.
 Commit the ledger update before starting the next batch.
 Use one ledger row per actual batch. Split rows further when necessary.
 
-| Batch                             | Status                     | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                       | Revert commit |
-| --------------------------------- | -------------------------- | ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| C01 — Internal wrappers           | Complete                   | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.     | —             |
-| C02 — Transport adapters          | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
-| C03 — Durable Object readers      | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
-| C04 — D1 methods                  | Needs classification       | —                                          | —                                          | —                                                                                                                             | —             |
-| C05 — Test accessors / R2 wrapper | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
-| C06 — Failure receipt             | Retain pending review      | —                                          | —                                          | —                                                                                                                             | —             |
-| C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
-| C08 — Unused parameters           | Needs ownership review     | —                                          | —                                          | —                                                                                                                             | —             |
-| C09 — Client export configuration | Preserve live export       | —                                          | —                                          | —                                                                                                                             | —             |
-| C10 — Suppressions                | Needs classification       | —                                          | —                                          | —                                                                                                                             | —             |
-| C11 — Duplication and large files | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
-| C12 — CLI response fields         | Complete, parsing retained | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`. | —             |
+| Batch                             | Status                     | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                                          | Revert commit |
+| --------------------------------- | -------------------------- | ------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| C01 — Internal wrappers           | Complete                   | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                        | —             |
+| C02 — Transport adapters          | Complete                   | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`. | —             |
+| C03 — Durable Object readers      | Pending                    | —                                          | —                                          | —                                                                                                                                                | —             |
+| C04 — D1 methods                  | Needs classification       | —                                          | —                                          | —                                                                                                                                                | —             |
+| C05 — Test accessors / R2 wrapper | Pending                    | —                                          | —                                          | —                                                                                                                                                | —             |
+| C06 — Failure receipt             | Retain pending review      | —                                          | —                                          | —                                                                                                                                                | —             |
+| C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                                                | —             |
+| C08 — Unused parameters           | Needs ownership review     | —                                          | —                                          | —                                                                                                                                                | —             |
+| C09 — Client export configuration | Preserve live export       | —                                          | —                                          | —                                                                                                                                                | —             |
+| C10 — Suppressions                | Needs classification       | —                                          | —                                          | —                                                                                                                                                | —             |
+| C11 — Duplication and large files | Pending                    | —                                          | —                                          | —                                                                                                                                                | —             |
+| C12 — CLI response fields         | Complete, parsing retained | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                    | —             |
 
 For each completed row, record changed paths, deleted symbols, warning-count
 changes, source-line changes, and any release-WASM byte measurements actually taken.
