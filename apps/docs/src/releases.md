@@ -1,17 +1,17 @@
 ---
 title: Releases and compatibility
-description: Published SDK versions, release changes from 0.13, protocol compatibility, and prepared changes.
+description: Published SDK versions, release changes from 0.13, protocol compatibility, and coordinated upgrades.
 ---
 
 # Releases and compatibility
 
-Publication status checked October 20, 2026:
+Publication status checked October 21, 2026:
 
 | Component | Published version | Compatibility |
 | --- | --- | --- |
-| Browser SDK `@seams/wallet` | **0.15.4** | Match application code and wallet-origin assets |
-| Server SDK `@seams/wallet-server` | **0.15.4** | Deploy the coordinated backend roles described below |
-| Native CLI launcher `@seams/wallet-cli` | **0.15.0** | Use its signed native assets and the dashboard's commands |
+| Browser SDK `@seams/wallet` | **0.17.0** | Match application code and wallet-origin assets |
+| Server SDK `@seams/wallet-server` | **0.17.0** | Deploy the coordinated backend roles described below |
+| Native CLI launcher `@seams/wallet-cli` | **0.17.0** | Use its signed native assets and the dashboard's commands |
 | Wallet iframe protocol | **16.0.0** | Introduced in SDK 0.14.0 |
 
 Package publication, hosted deployment, and source availability are separate
@@ -125,7 +125,7 @@ This release changes the React API. `useSeams()` now supplies authentication
 actions and the current bound `wallet`. The `useWallet()` hook and
 `UseWalletResult` type are removed. Replace the two hook calls with:
 
-```tsx
+```tsx [Partial example]
 const { unlock, lock, wallet } = useSeams();
 ```
 
