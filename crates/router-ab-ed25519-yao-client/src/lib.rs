@@ -31,7 +31,6 @@ use signer_core::ed25519_yao_derivation::{
 };
 use signer_core::near_ed25519_recovery::expand_ed25519_seed;
 use signer_core::near_threshold_frost::compute_threshold_ed25519_group_public_key_2p_from_verifying_shares;
-use signer_core::wallet_seed_derivation::derive_ed25519_yao_client_root_from_seed_v1;
 use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -775,6 +774,7 @@ fn prepare_client_export_from_root_v1(
 ///
 /// The seed and derived root remain inside this crate. Linked-device export
 /// uses the separate factor-sealed Client-root envelope path.
+#[cfg(all(target_arch = "wasm32", feature = "wasm-bindings"))]
 pub(crate) fn prepare_client_export_from_custody_seed_v1(
     admission: &RouterAbEd25519YaoExportAdmissionReceiptV1,
     application: &RouterAbEd25519YaoApplicationBindingFactsV1,
@@ -784,7 +784,7 @@ pub(crate) fn prepare_client_export_from_custody_seed_v1(
 ) -> Result<PreparedClientExportV1, ClientActivationError> {
     let context = stable_key_derivation_context_v1(application, participant_ids)
         .map_err(|_| ClientActivationError::DerivationFailed)?;
-    let root = derive_ed25519_yao_client_root_from_seed_v1(
+    let root = signer_core::wallet_seed_derivation::derive_ed25519_yao_client_root_from_seed_v1(
         custody_seed,
         context.application_binding_digest(),
     )
