@@ -1,6 +1,7 @@
 # Wallet storage portability
 
-The native PostgreSQL role-store backend passes E2E tests against real local PostgreSQL 18.6.
+The native PostgreSQL role-store backend passes E2E tests against real local PostgreSQL 18.6
+and against Amazon RDS for PostgreSQL 18.6.
 The same tenant-root lifecycle code also runs on D1.
 Gateway, Console, SigningWorker, Durable Object coordination, and backup services retain their existing storage implementations.
 
@@ -118,7 +119,11 @@ Changes to these files do not invalidate the Workers harness's production source
 
 Each run saves its result, command, server version, image identity, source hashes, and log under `.artifacts/postgres-role-store/`.
 The committed run is in [the PostgreSQL evidence](evidence/postgres-role-store-20261021.json).
-Local PostgreSQL evidence does not establish cloud failover or the behavior of a provider's pooler or HTTP access method.
+The same E2E also passes against a private Amazon RDS for PostgreSQL 18.6 instance in `ap-southeast-1`.
+Its results and protocol exchange counts equal the local run. See [the RDS evidence](evidence/postgres-role-store-rds-20261021.json).
+That run reaches RDS through a plain TCP forwarder on a runner in the same VPC, with `rds.force_ssl` off on that private path.
+A separate `verify-full` connection to the same instance negotiates TLS 1.3.
+Neither run establishes Multi-AZ failover, a provider pooler such as RDS Proxy, or an HTTP access method.
 Run the same lifecycle scenarios through the intended deployment connection before claiming that deployment ready.
 
 The complete Wallet backend still needs additional ports.

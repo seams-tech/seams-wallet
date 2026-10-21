@@ -1,0 +1,131 @@
+{
+  "activatedEpochs": [
+    2,
+    2
+  ],
+  "atomicEpochSwapPerRole": true,
+  "checkpointMismatchRollsBackEarlierShareInsert": true,
+  "coherentReadSnapshotAcrossConcurrentCommit": true,
+  "encryptedCreationAndSignedReceiptReplay": true,
+  "kind": "postgres_role_store_e2e_v1",
+  "literalBindingsPreserveHostileTextAndNull": true,
+  "lostCommitAcknowledgementReconcilesExactReceipt": true,
+  "managedRestoreRemainsPendingUntilForwardRefresh": true,
+  "missedSwapCheckpointRestoresBothEpochsAndReplay": true,
+  "protocolExchanges": {
+    "repeatedRead": 1,
+    "rootAdmission": 2,
+    "serializationConflictAndConcurrentRead": 3,
+    "sessionRoleCheck": 1,
+    "singleRead": 1,
+    "threeMutationEpochSwap": 1,
+    "threeStatementSnapshot": 1
+  },
+  "reopenedConnectionDecryptsSameRecord": true,
+  "restoreImportAndRetentionRoundTrips": true,
+  "retiredEpochCleanupPreservesActiveSuccessor": true,
+  "separateRoleDatabasesAndCredentials": true,
+  "serializationRetriesCompleteTransaction": true,
+  "server": "PostgreSQL 18.6 on aarch64-unknown-linux-gnu, compiled by aarch64-unknown-linux-gnu-gcc (GCC) 12.4.0, 64-bit",
+  "sessionAvailableDuringRetryDelay": true,
+  "sourceRetirementRejectsLateWrites": true,
+  "unclaimedCancellationAndClaimedSettlement": true,
+  "wrongRoleSessionRejected": true,
+  "recordedAt": "2026-10-21T11:18:13Z",
+  "target": "Amazon RDS for PostgreSQL",
+  "sourceRevision": "6c610628dabcc1ad70bdb931e5791544ef990943",
+  "rds": {
+    "region": "ap-southeast-1",
+    "availabilityZone": "ap-southeast-1a",
+    "engineVersion": "18.6",
+    "instanceClass": "db.t4g.small",
+    "storage": "gp3 20 GiB, encrypted",
+    "multiAz": false,
+    "publiclyAccessible": false,
+    "masterUserRole": "rds_superuser member, not a PostgreSQL superuser",
+    "parameterOverrides": {
+      "rds.force_ssl": "0"
+    }
+  },
+  "runner": {
+    "instanceType": "m7i.xlarge",
+    "image": "Ubuntu 24.04 x86-64",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "network": "same VPC; the database security group admits 5432 from the runner group only"
+  },
+  "connectionPath": "The E2E client and its counting proxy speak plaintext PostgreSQL, and the proxy forwards to 127.0.0.1. socat on the runner carries 127.0.0.1:5432 to the private RDS endpoint. rds.force_ssl is off for this private path only. No test source changed.",
+  "verifiedTlsCheck": {
+    "server": "PostgreSQL 18.6 on aarch64-unknown-linux-gnu, compiled by aarch64-unknown-linux-gnu-gcc (GCC) 12.4.0, 64-bit",
+    "ssl": true,
+    "tls": "TLSv1.3",
+    "cipher": "TLS_AES_256_GCM_SHA384",
+    "sslmode": "verify-full",
+    "rootCertificate": "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
+  },
+  "matchesLocalEvidence": "Every boolean and protocol exchange count equals postgres-role-store-20261021.json; only the server string differs.",
+  "cargo": "cargo test --locked --features postgres --lib postgres_role_store_e2e -- --nocapture",
+  "durationSeconds": 10.49,
+  "log": {
+    "sha256": "79cec5786c9e00afd3c64f1a1eeaf61fc2e399a4a294b7c2641fc97944a2f9a8"
+  },
+  "setupFailure": "The first run connected the counting proxy to 127.0.0.1 with the RDS port and no local listener, and failed with ConnectionReset before any role-store call. environment_or_infrastructure_failure; the forwarder fixed the path.",
+  "limits": [
+    "Covers the Deriver tenant-root role store only. Gateway, Console and SigningWorker stores still use D1.",
+    "No D1-to-PostgreSQL data import tool exists yet; this run starts from empty role databases.",
+    "Single-AZ instance. Multi-AZ failover, RDS Proxy pooling and the TLS E2E client path remain untested."
+  ],
+  "sources": [
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.toml",
+      "sha256": "119185d487734a535d432e37948306e1ce9a087c4491c3adfc88e7b681a83664"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs",
+      "sha256": "3b65f2367c55472d98cbcf2788c0ec0ef93888ca72dcc9f618a6d5c64aec27e7"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql.rs",
+      "sha256": "3f47efdd154ef7954b29606aa304e8ed6233801e28dce495da9f1e1ecf4610ea"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/d1.rs",
+      "sha256": "a47a3da9873fb88b8da45e32f295aa942ad9ba5f03ef5680b7696cfef80ea391"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "sha256": "f45a3a235e71d98438177a7c25d230532752699daa4ab22991c306be8896bf1f"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/mod.rs",
+      "sha256": "dc1470c1df548739fedf71891fd7fb3c337048194b2315dfc84af99eb7c3d4ba"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/protocol_proxy.rs",
+      "sha256": "cf73710e9bb0284cb16c26418b11463ed77097e2843541e746729bf615c58521"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/lifecycle.rs",
+      "sha256": "76a9ad0e4a34176a41bbbece4c84e2415176ec674b76df301d14c7cae797f5e6"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+      "sha256": "96bd27fdc914035782e6889794abefaa8dbd24917fdca288bb0b51284c66ea61"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/recovery.rs",
+      "sha256": "8f00af78dc56472b5a998883cab182e5d7833ecbc36bc9070d2b05fe066f1008"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/source_retirement.rs",
+      "sha256": "531632877826d664f32e27fcddd46af232368be300210fc24f3adbba7821e325"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/migrations/postgres/0001_role_store.sql",
+      "sha256": "f0259cb7cc0088bf0ea6b5ee941591417ac27c36efc396533acb2fa05f673782"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.lock",
+      "sha256": "46195f043359547de25e665fad0d224805564a5a3e4fd62a7dca18117ae9b97d"
+    }
+  ]
+}
