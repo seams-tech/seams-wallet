@@ -68,7 +68,7 @@ const switchTitle = computed(appearanceTitle);
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  gap: 6px;
+  gap: 4px;
 }
 
 .seams-sidebar-header__brand {
@@ -87,25 +87,37 @@ const switchTitle = computed(appearanceTitle);
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 8px;
-  width: 30px;
-  height: 30px;
-  color: var(--vp-c-text-2);
-  transition:
-    border-color 0.25s,
-    color 0.25s;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--vp-c-text-1);
+  transition: background-color 150ms ease;
 }
 
-.seams-sidebar-header__appearance:hover {
-  border-color: var(--vp-c-brand-1);
-  color: var(--vp-c-brand-1);
+.seams-sidebar-header__appearance:focus-visible {
+  outline: none;
+  background: var(--vp-c-default-soft);
+  box-shadow: inset 0 0 0 1px var(--vp-c-text-3);
+}
+
+@media (hover: hover) {
+  .seams-sidebar-header__appearance:hover {
+    background: var(--vp-c-default-soft);
+  }
+}
+
+@media (pointer: coarse) {
+  .seams-sidebar-header__appearance {
+    height: 44px;
+  }
 }
 
 .sun,
 .moon {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 /* The search button ships sized for the nav bar; in the sidebar it becomes a
