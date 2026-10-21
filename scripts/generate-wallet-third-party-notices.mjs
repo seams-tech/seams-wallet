@@ -136,7 +136,7 @@ function runCargoMetadata(manifestPath) {
       '--manifest-path',
       path.join(repositoryRoot, manifestPath),
     ],
-    { encoding: 'utf8', cwd: repositoryRoot },
+    { encoding: 'utf8', cwd: repositoryRoot, maxBuffer: 32 * 1024 * 1024 },
   );
   if (result.error) throw result.error;
   if (result.status !== 0) {
