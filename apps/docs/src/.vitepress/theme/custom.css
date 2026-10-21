@@ -41,9 +41,14 @@
   --vp-c-text-2: #3f3f46;
   --vp-c-text-3: #71717a;
 
-  /* Accent surfaces (active markers, rails) take the teal-peach gradient;
-     accent text stays flat teal so it keeps its contrast ratio. */
+  /* Text uses a darker teal-peach ramp to stay readable on light surfaces. */
   --seams-accent-gradient: linear-gradient(180deg, #0082af 0%, #8d94b9 55%, #d8a5b1 100%);
+  --seams-accent-text-gradient: linear-gradient(
+    110deg in srgb,
+    #00769f 0%,
+    #765a80 55%,
+    #a34f50 100%
+  );
 
   /* Inline code is body text in a chip, not an accent: black on a lighter
      grey. Code inside a link keeps the accent so the link still reads as one. */
@@ -92,6 +97,12 @@
   --vp-c-text-3: #71717a;
 
   --seams-accent-gradient: linear-gradient(180deg, #38a3c3 0%, #b2a7b4 55%, #fab8bc 100%);
+  --seams-accent-text-gradient: linear-gradient(
+    110deg in srgb,
+    #38a3c3 0%,
+    #b2a7b4 55%,
+    #fab8bc 100%
+  );
 
   --vp-code-bg: #1c1c1f;
   --vp-code-color: var(--vp-c-text-1);
@@ -190,6 +201,48 @@
 /* The outline's active marker is the same rail on the other side. */
 .VPDocAsideOutline .outline-marker {
   background: var(--seams-accent-gradient);
+}
+
+.VPSidebarItem .link > .text {
+  flex-grow: 0;
+}
+
+.VPDocFooter .pager-link .title {
+  display: inline-block;
+}
+
+.vp-doc a:not(.header-anchor),
+.VPSidebarItem.is-active > .item .link > .text,
+.VPSidebarItem .link:hover > .text,
+.VPDocAsideOutline .outline-link.active,
+.VPDocFooter .pager-link .title,
+.seams-docs-footer__group a:hover,
+.seams-doc-header__breadcrumb a:hover {
+  background-image: var(--seams-accent-text-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Linked symbols keep their code chip beneath the gradient lettering. */
+.vp-doc a > code {
+  background-image:
+    var(--seams-accent-text-gradient), linear-gradient(var(--vp-code-bg), var(--vp-code-bg));
+  background-clip: text, padding-box;
+  -webkit-background-clip: text, padding-box;
+}
+
+@media (forced-colors: active) {
+  .vp-doc a,
+  .vp-doc a > code,
+  .VPSidebarItem .text,
+  .VPDocAsideOutline .outline-link,
+  .VPDocFooter .title,
+  .seams-docs-footer__group a,
+  .seams-doc-header__breadcrumb a {
+    background-image: none !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
 }
 
 /* Inline code carries symbol names inside sentences, so it takes weight to
