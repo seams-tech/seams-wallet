@@ -139,7 +139,7 @@ separate from wallet-owned regional state.
 
 Staging now supports US, WEUR, APAC and OC (Oceania). The OC D1 primary serves from
 Sydney. Its Gateway and Wallet Runtime target Sydney. Production OC allocations
-remain pending. Wallet Server 0.10.0 includes the `oc` data-jurisdiction type.
+remain pending. Wallet Server includes the `oc` data-jurisdiction type.
 
 ## Custody model
 

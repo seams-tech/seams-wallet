@@ -11,8 +11,8 @@ approvals required for hosted operations. The CLI never accepts recovery or
 destination credentials through command-line arguments or environment
 variables.
 
-The current launcher is **0.15.0**. Its signed native assets are published at
-tag `seams-cli-v0.15.0`. From 0.14.0, the launcher carries the Wallet release number.
+The launcher uses **0.17.0**. Its signed native assets are published at
+tag [`seams-cli-v0.17.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.17.0).
 
 ## Install and retain an offline copy
 

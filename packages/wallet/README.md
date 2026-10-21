@@ -1,20 +1,19 @@
 # Seams Wallet SDK
 
-`@seams/wallet` **0.15.4** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/wallet` **0.17.0** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets.
 
 ## Install
 
 ```sh
-pnpm add @seams/wallet@0.15.4
+pnpm add @seams/wallet@0.17.0
 ```
 
 React integrations support React 18 and 19. Import the provider and UI from
 `@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
 Keep the application package, wallet-origin assets, and
-`@seams/wallet-server@0.15.4` on the matching release. The wallet iframe protocol
-is `16.0.0`. A 0.13 application and a 0.14-or-later wallet host reject each other
-with a protocol version mismatch.
+`@seams/wallet-server@0.17.0` on the matching release. The wallet iframe protocol
+is `16.0.0`. The application and wallet host must use the same protocol version.
 
 ## Current API
 

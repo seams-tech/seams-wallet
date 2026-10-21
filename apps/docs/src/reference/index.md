@@ -5,7 +5,7 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/wallet 0.15.4**. The Seams package provides a small set
+This reference describes **@seams/wallet 0.17.0**. The Seams package provides a small set
 of public import paths. Start with the browser or React API. Use lower-level import
 paths only when your integration manages the corresponding runtime or protocol.
 
@@ -25,8 +25,8 @@ wallet HTML asset. Those surfaces are documented on the [React
 reference](/reference/react) and [hosted integration](/deploy-and-operate/hosted-integration)
 pages.
 
-The browser and server baseline is 0.15.4. The CLI baseline is 0.15.0.
-See [release status](/releases) for compatibility and prepared changes.
+The browser SDK, server SDK, and CLI use **0.17.0**.
+See [Release 0.17.0](/releases) for integration and deployment requirements.
 
 ## State and failure references
 

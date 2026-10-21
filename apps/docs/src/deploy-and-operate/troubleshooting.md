@@ -21,9 +21,8 @@ browser console origin errors. Correct the deployment or origin allowlist. Then 
 rejects unsupported wallet-management protocols with HTTP 409 and an
 upgrade message. Display it and reload the matching application and wallet
 assets. Stop automatic retries of the same incompatible request. Follow the
-[current upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-15-4).
+[deployment requirements](/deploy-and-operate/hosted-integration#release-0-17-0).
 The application and wallet host must also agree on iframe protocol 16.0.0.
-Crossing the 0.13-to-0.14 boundary requires updating both together.
 
 ## Registration signs but is absent from Console
 

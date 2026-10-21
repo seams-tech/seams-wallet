@@ -60,22 +60,14 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Upgrading to 0.15.4
+## Release 0.17.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.15.4**. Use `@seams/wallet-cli` **0.15.0**.
+Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.17.0**.
+See [Release 0.17.0](/releases) for the supported integration.
 
-Publication status was checked October 20, 2026. See [release notes](/releases)
-for individual patches and prepared changes. The instructions below describe
-the published baseline.
-
-From a release before 0.15.4: APAC wallet objects now request Southeast Asia
-placement. Verify the actual object and database locations before accepting a
-hosted deployment.
-
-The auth menu retains the 0.15.2 passkey ring spinner. Account-menu row arrows
-and hover states prepared as 0.15.3 first published on npm in 0.15.4.
-Deploy the matching custody Workers
-and update the private Console relocation caller for the new APAC hint.
+APAC wallet objects request Southeast Asia placement through `apac-se`.
+Verify the actual object and database locations before accepting a hosted
+deployment. The Console relocation caller must use the same placement hint.
 
 An expired initial tenant authorization can be renewed only before its creation journal starts.
 The Router records a durable fence before Console issues the replacement authorization.
@@ -83,18 +75,14 @@ The fence blocks delayed requests under the expired authorization.
 Started ceremonies retain their exact original authorization for recovery.
 Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
 both Derivers, and Signing Worker.
-The private address-allocation response now carries a batch, so the custody
-Workers must move together. The public wallet iframe protocol is **16.0.0**. A 0.13 client and a
-0.14-or-later wallet host report a protocol mismatch. Upgrade both together.
+The private address-allocation response carries a batch, so the custody
+Workers must move together. The application and wallet host both use public
+wallet iframe protocol **16.0.0**.
 
 Registration reuses committed admission, commits custody with its completion
 receipt, and can finish after A's validated completion without waiting for B's
 preparation reply. Hosted activation also schedules obsolete ceremony cleanup
 after its response. These changes preserve proof, custody, and replay checks.
-
-The SDK removes the `relink_required` result variants that no operation produces.
-Remove those branches from TypeScript consumers. The unexported Vite/Next hosting
-plugins and unused account-menu modal implementation are also removed.
 
 ## Registration completion
 

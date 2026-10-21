@@ -43,8 +43,8 @@ the [repository README](../../README.md#packaged-local-runtime).
 - Apply Gateway migration `0081_registration_directory_publications.sql` before
   serving registration. A custom Gateway must schedule
   `resumeRegistrationDirectoryPublicationsV1` from the `cloud-host` entry point.
-- Deploy Router, Deriver A, Deriver B, and Signing Worker together when upgrading
-  to the batched object-address allocation contract introduced in 0.15.0.
+- Deploy Router, Deriver A, Deriver B, and Signing Worker together. Their private
+  object-address allocation contract uses batches.
 - Renew an expired initial tenant authorization only before its creation journal
   starts. Retain the original authorization for an already-started ceremony.
 - Verify APAC object hosts and database primaries. The `apac-se` hint requests

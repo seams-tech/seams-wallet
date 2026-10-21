@@ -10,9 +10,8 @@ users.
 
 ## Build and identity
 
-- [ ] Browser SDK, Wallet Server, and hosted assets use the published 0.15.4
-      baseline, or a newer verified release. Record exact package versions and
-      source revisions. Record CLI 0.15.0 separately.
+- [ ] Browser SDK, Wallet Server, hosted assets, and recovery CLI use **0.17.0**.
+      Record exact package versions and source revisions.
 - [ ] Application and wallet host both use iframe protocol 16.0.0.
 - [ ] An already-open older client shows an upgrade message. After reload,
       registration and signing complete with the current release.

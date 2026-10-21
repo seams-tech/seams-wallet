@@ -11,16 +11,16 @@ setting that used it.
 
 ## Availability
 
-Publication status checked October 20, 2026. Deployment availability remains
-environment-specific. See [release status](/releases).
+These docs target **0.17.0**. Deployment availability remains
+environment-specific. See [Release 0.17.0](/releases).
 
 | Capability | Status | Scope |
 | --- | --- | --- |
-| Wallet browser and server SDKs | Published as 0.15.4 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
+| Wallet browser and server SDKs | Version 0.17.0 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
 | Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups. Verify custody and refresh policy in the deployed environment. |
-| Tenant-controlled root recovery | CLI launcher 0.15.0 is published with its signed native assets. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
+| Tenant-controlled root recovery | CLI launcher 0.17.0 is published with its signed native assets. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
 | Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
-| Owner-selected wallet-region relocation | Included in 0.10.0 | The owner authorizes each move from the wallet region setting. The deployment must provide the destination region. |
+| Owner-selected wallet-region relocation | Included | The owner authorizes each move from the wallet region setting. The deployment must provide the destination region. |
 | Automatic wallet-region relocation | Planned | A wallet keeps its home across devices and travel until its owner moves it |
 
 Wallet SDK publication does not establish recovery-tool availability or enable

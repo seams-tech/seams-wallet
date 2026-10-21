@@ -55,7 +55,7 @@ for export would violate this custody model.
 
 The ceremony uses bounded streaming. The client and Router exchange compact envelopes
 measured in kibibytes (KiB). The garbled-circuit stream spans several mebibytes (MiB).
-It travels directly between Deriver A and Deriver B with bounded memory. The 0.10.0
+It travels directly between Deriver A and Deriver B with bounded memory. The
 hosted stack uses Cloudflare Workers, Durable Objects, regional D1, and Rust compute
 compiled to WebAssembly. The selected same-account profile shares an administrative control plane.
 Independently administered Deriver accounts remain a deferred deployment profile. See
@@ -90,7 +90,7 @@ platform-wide hosting-provider compromise, fairness, and guaranteed output deliv
 
 ## Status
 
-Streaming Yao is implemented in the 0.10.0 lifecycle path. Its current claim does not
+Streaming Yao is implemented in the Wallet lifecycle path. Its current claim does not
 include malicious Deriver behavior. Active security and independently administered
 Deriver deployments require their own implementation, review, and deployment evidence.
 See [the current security

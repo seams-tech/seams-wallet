@@ -41,11 +41,10 @@ user the recovery action associated with the current branch.
 `seams.keys.exportKey()` returns `{ kind: 'exported' }` after the wallet-origin
 viewer opens. It never returns a private key to the application. Missing exact
 lane, missing material, and full-login requirements reject the promise. Catch
-that rejection in custom UI. The unused `relink_required` result was removed
-in 0.15.0. Remove consumers' corresponding branches.
+that rejection in custom UI.
 
-Device-link activation also removed its unused `relink_required` variant.
-Continue to handle its actual typed refusal and integrity-error branches.
+Device-link activation exposes typed refusal and integrity-error branches.
+Handle each branch in the result type.
 
 ## Error handling rule
 

@@ -24,13 +24,13 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.15.4**. Keep the wallet-origin assets and
+These docs target `@seams/wallet` **0.17.0**. Keep the wallet-origin assets and
 `@seams/wallet-server` on the matching release. See
-[the current upgrade instructions](/deploy-and-operate/hosted-integration#upgrading-to-0-15-4)
+[the deployment requirements](/deploy-and-operate/hosted-integration#release-0-17-0)
 before updating an existing integration.
 
-The wallet iframe protocol is **16.0.0**. The recovery CLI remains **0.15.0**.
-See [releases and compatibility](/releases) for publication status and prepared changes.
+The wallet iframe protocol is **16.0.0**. The recovery CLI uses **0.17.0**.
+See [Release 0.17.0](/releases) for integration and deployment requirements.
 
 <<< ./examples/setup.tsx
 

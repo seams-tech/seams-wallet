@@ -36,7 +36,7 @@ const year = new Date().getFullYear();
           <a :href="withBase('/concepts/architecture')">Architecture</a>
           <a :href="withBase('/concepts/auth-methods/')">Authentication</a>
           <a :href="withBase('/concepts/policy/')">Policies</a>
-          <a :href="withBase('/releases')">Releases</a>
+          <a :href="withBase('/releases')">Release 0.17.0</a>
         </div>
         <div class="seams-docs-footer__group">
           <h2>Seams</h2>
