@@ -1,5 +1,6 @@
 import type { NearCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/nearCommands';
 import type { EvmFamilyCommands } from '../../packages/wallet/src/SeamsWeb/publicApi/evmFamilyCommands';
+import type { WalletRegistrationCommand } from '../../packages/wallet/src/SeamsWeb/publicApi/createPublicApi';
 import type { ThresholdEd25519ComputeNep413SigningDigestRequest } from '../../packages/wallet/src/core/types/signer-worker';
 
 declare const nep413Digest: ThresholdEd25519ComputeNep413SigningDigestRequest;
@@ -72,6 +73,21 @@ preferenceState.applyWalletHostConfirmationConfig({
 
 import type { SeamsWeb } from '../../packages/wallet/src/SeamsWeb/SeamsWeb';
 declare const applicationClient: SeamsWeb;
+declare const registrationCommand: WalletRegistrationCommand;
+const registrationWithDefaults = {
+  authMethod: registrationCommand.authMethod,
+  signerSelection: registrationCommand.signerSelection,
+};
+void applicationClient.registration.registerWallet(registrationWithDefaults);
+// @ts-expect-error Defaults must be resolved before internal registration commands.
+const unresolvedRegistration: WalletRegistrationCommand = registrationWithDefaults;
+const missingRegistrationWallet: WalletRegistrationCommand = {
+  ...registrationCommand,
+  // @ts-expect-error A broad spread cannot erase the internal wallet selection.
+  wallet: undefined,
+};
+void unresolvedRegistration;
+void missingRegistrationWallet;
 applicationClient.config.setTheme('dark');
 applicationClient.config.setAppearance({ theme: { id: 'default', mode: 'light' } });
 applicationClient.config.chainTarget('tempo-testnet');

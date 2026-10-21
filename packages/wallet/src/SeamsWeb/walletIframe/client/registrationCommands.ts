@@ -1,6 +1,9 @@
 import type { RegistrationCapability } from '@/SeamsWeb/signingSurface/types';
 import type { RegistrationResult } from '@/core/types/seams';
-import type { WalletRegistrationCommands } from '@/SeamsWeb/publicApi/createPublicApi';
+import type {
+  WalletRegistrationCommand,
+  WalletRegistrationCommands,
+} from '@/SeamsWeb/publicApi/createPublicApi';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { toError } from '@shared/utils/errors';
@@ -26,7 +29,7 @@ export function createApplicationRegistrationCommands(
 
 async function registerWallet(
   walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['registerWallet']>[0],
+  args: WalletRegistrationCommand,
 ): Promise<RegistrationResult> {
   try {
     const walletRouterId =

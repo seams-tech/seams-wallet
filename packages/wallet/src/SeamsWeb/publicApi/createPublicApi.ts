@@ -29,15 +29,22 @@ import type { TransactionReviewReservation } from '../walletIframe/client/transa
 import type { CreateEvmFamilyCommands } from './evmFamilyCommands';
 import type { CreateNearCommands } from './nearCommands';
 import { registerTransactionReviewBridge } from './transactionReview';
+import type { RegisterWalletInput } from '@shared/utils/registrationAuthMethodInput';
+
+/** A registration request after public defaults are resolved. */
+export type WalletRegistrationCommand = Omit<
+  Parameters<RegistrationCapability['registerWallet']>[0],
+  'wallet'
+> & { readonly wallet: RegisterWalletInput };
+
 export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
-  | 'registerWallet'
-  | 'getNearAccountState'
-  | 'addSigner'
-  | 'addPasskey'
-  | 'removeAuthMethod'
-  | 'addEmail'
->;
+  'getNearAccountState' | 'addSigner' | 'addPasskey' | 'removeAuthMethod' | 'addEmail'
+> & {
+  registerWallet(
+    args: WalletRegistrationCommand,
+  ): ReturnType<RegistrationCapability['registerWallet']>;
+};
 export type RegistrationCapabilityDomainMethods = WalletRegistrationCommands & {
   onNearAccountChange: RegistrationCapability['onNearAccountChange'];
 };
@@ -99,7 +106,7 @@ export function createPublicApi(
       addPasskey: deps.registration.addPasskey,
       addEmail: deps.registration.addEmail,
       removeAuthMethod: deps.registration.removeAuthMethod,
-      registerWallet: deps.registration.registerWallet,
+      registerWallet: registerWallet.bind(null, deps.registration),
     },
     recovery: deps.recovery,
     devices,
@@ -113,6 +120,18 @@ export function createPublicApi(
     evm: evmFamily.evm,
   };
 }
+function registerWallet(
+  commands: WalletRegistrationCommands,
+  args: Parameters<RegistrationCapability['registerWallet']>[0],
+): ReturnType<RegistrationCapability['registerWallet']> {
+  return commands.registerWallet({
+    authMethod: args.authMethod,
+    wallet: args.wallet === undefined ? { kind: 'server_allocated' } : args.wallet,
+    signerSelection: args.signerSelection,
+    options: args.options,
+  });
+}
+
 export function createApplicationPublicApi(
   deps: PublicApiDependencies & { getWalletIframe: () => WalletIframeCoordinator },
 ): SeamsWebPublicApi {

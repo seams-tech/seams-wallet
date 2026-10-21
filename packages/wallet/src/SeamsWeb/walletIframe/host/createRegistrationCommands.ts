@@ -3,7 +3,10 @@ import type {
   RegistrationWebContext,
 } from '@/SeamsWeb/signingSurface/types';
 import type { RegistrationResult } from '@/core/types/seams';
-import type { WalletRegistrationCommands } from '@/SeamsWeb/publicApi/createPublicApi';
+import type {
+  WalletRegistrationCommand,
+  WalletRegistrationCommands,
+} from '@/SeamsWeb/publicApi/createPublicApi';
 import {
   addSigner as addSignerWithUnifiedCeremony,
   registerWallet as registerWalletWithUnifiedCeremony,
@@ -30,7 +33,7 @@ export function createWalletHostRegistrationCommands(
 
 async function registerWallet(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['registerWallet']>[0],
+  args: WalletRegistrationCommand,
 ): Promise<RegistrationResult> {
   const context = getContext();
   return await registerWalletWithUnifiedCeremony({

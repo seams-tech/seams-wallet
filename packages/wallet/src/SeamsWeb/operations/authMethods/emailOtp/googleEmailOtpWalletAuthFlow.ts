@@ -38,8 +38,8 @@ import type {
   GoogleEmailOtpWalletAuthResult,
   GoogleEmailOtpWalletAuthStartInput,
   GoogleEmailOtpWalletAuthSubmitSuccess,
-  RegistrationCapability,
 } from '@/SeamsWeb/publicApi/types';
+import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import type {
   EmailOtpChallengeDelivery,
   GoogleEmailOtpProviderResolution,
@@ -51,7 +51,7 @@ import type { EmailOtpAuthoritySelector } from '@/core/signingEngine/workerManag
 
 const DEFAULT_FLOW_TTL_MS = 10 * 60 * 1000;
 
-type GoogleEmailOtpWalletRegistrationArgs = Parameters<RegistrationCapability['registerWallet']>[0];
+type GoogleEmailOtpWalletRegistrationArgs = WalletRegistrationCommand;
 
 type EmailLoginOptions = Pick<
   GoogleEmailOtpWalletAuthStartInput,

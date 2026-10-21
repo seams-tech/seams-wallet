@@ -1,4 +1,5 @@
 import { createIframePlacementCommands } from './placementCommands';
+import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { AuthCapability } from '@/SeamsWeb/publicApi/types';
@@ -2979,7 +2980,7 @@ export class WalletIframeRouter {
   }
 
   async registerWallet(
-    payload: Parameters<RegistrationCapability['registerWallet']>[0],
+    payload: WalletRegistrationCommand,
   ): Promise<RegistrationResult> {
     const transport = hostedWalletRegistrationTransport(payload.authMethod);
     await this.ensureHostedWalletSeamsSession(transport.sessionSource);

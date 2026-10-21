@@ -756,7 +756,8 @@ export interface RegistrationCapability {
   }): Promise<RevokeAuthMethodResult>;
   registerWallet(args: {
     authMethod: RegistrationAuthMethodInput;
-    wallet: RegisterWalletInput;
+    /** Omit to let the server assign a new wallet ID. */
+    wallet?: RegisterWalletInput;
     signerSelection: RegistrationSignerSetSelection;
     options?: RegistrationHooksOptions;
   }): Promise<RegistrationResult>;

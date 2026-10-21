@@ -82,7 +82,7 @@ export function useSeamsWithSdkFlow(args: {
 
     const registerWalletWithSdkFlow: RegisterWalletFn = async (registerWalletArgs) => {
       const walletLabel =
-        registerWalletArgs.wallet.kind === 'provided'
+        registerWalletArgs.wallet?.kind === 'provided'
           ? String(registerWalletArgs.wallet.walletId)
           : undefined;
       const seq = beginSdkFlow('register', walletLabel);

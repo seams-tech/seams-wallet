@@ -35,6 +35,7 @@ const hostScript = `
     revision: 0,
   };
   window.reviewSession = ${JSON.stringify(session)};
+  window.registrationRequests = [];
   function reviewSessionObservation() {
     return {
       revision: ++sessionObservationRevision,
@@ -68,6 +69,34 @@ const hostScript = `
     const ordinary = adoptedPort.onmessage;
     adoptedPort.onmessage = async function(event) {
       const message = event.data;
+      if (message.type === 'PM_REGISTER_WALLET') {
+        window.registrationRequests.push(message.payload);
+        const registeredWalletId = message.payload.wallet.kind === 'provided'
+          ? message.payload.wallet.walletId
+          : 'allocated.testnet';
+        adoptedPort.postMessage({
+          type: 'PROGRESS',
+          requestId: message.requestId,
+          payload: {
+            version: 2,
+            flow: 'registration',
+            step: 11,
+            phase: 'registration.completed',
+            status: 'succeeded',
+            message: 'Wallet registered',
+            flowId: 'registration:' + message.requestId,
+            requestId: message.requestId,
+            accountId: registeredWalletId,
+          },
+        });
+        postResult(message.requestId, {
+          success: true,
+          kind: 'near_wallet_registered_pending',
+          walletId: registeredWalletId,
+          nearProvisioning: { status: 'pending' },
+        });
+        return;
+      }
       if (message.type === 'PM_HAS_PASSKEY') { postResult(message.requestId, false); return; }
       if (message.type === 'PM_GET_RECENT_UNLOCKS') { postResult(message.requestId, []); return; }
       if (message.type === 'PM_GET_WALLET_SESSION') {
@@ -302,6 +331,76 @@ test.setTimeout(25_000);
 
 test.beforeEach(async ({ page }) => {
   await mountReviewApplication(page);
+});
+
+test('registration defaults resolve before transport and preserve explicit wallet IDs', async ({
+  page,
+}, testInfo) => {
+  const results = await page.evaluate(async () => {
+    const state = window as any;
+    const request = {
+      authMethod: { kind: 'passkey', rpId: 'wallet.example.localhost' },
+      signerSelection: {
+        kind: 'signer_set',
+        signers: [
+          {
+            kind: 'near_ed25519',
+            accountProvisioning: {
+              kind: 'implicit_account',
+              accountIdSource: 'ed25519_public_key',
+            },
+            signerSlot: 1,
+            participantIds: [1, 2],
+            derivationVersion: 1,
+          },
+        ],
+      },
+    };
+    const allocated = await state.reviewContext.registerWallet(request);
+    const provided = await state.reviewContext.registerWallet({
+      authMethod: request.authMethod,
+      signerSelection: request.signerSelection,
+      wallet: { kind: 'provided', walletId: 'provided.testnet' },
+    });
+    const clientAllocated = await state.reviewSeams.registration.registerWallet(request);
+    return { allocated, provided, clientAllocated };
+  });
+  expect(results).toEqual({
+    allocated: {
+      success: true,
+      kind: 'near_wallet_registered_pending',
+      walletId: 'allocated.testnet',
+      nearProvisioning: { status: 'pending' },
+    },
+    provided: {
+      success: true,
+      kind: 'near_wallet_registered_pending',
+      walletId: 'provided.testnet',
+      nearProvisioning: { status: 'pending' },
+    },
+    clientAllocated: {
+      success: true,
+      kind: 'near_wallet_registered_pending',
+      walletId: 'allocated.testnet',
+      nearProvisioning: { status: 'pending' },
+    },
+  });
+  const frame = page.frames().find((frame) => frame.url().startsWith(walletOrigin))!;
+  const requests = await frame.evaluate(() => (window as any).registrationRequests);
+  expect(requests.map((request: any) => request.wallet)).toEqual([
+    { kind: 'server_allocated' },
+    { kind: 'provided', walletId: 'provided.testnet' },
+    { kind: 'server_allocated' },
+  ]);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).reviewContext.sdkFlow.status))
+    .toBe('success');
+  const evidencePath = testInfo.outputPath('registration-defaults.json');
+  await writeFile(evidencePath, JSON.stringify({ results, requests }, null, 2));
+  await testInfo.attach('registration-defaults.json', {
+    path: evidencePath,
+    contentType: 'application/json',
+  });
 });
 
 test('one hook locks, unlocks, provisions NEAR, and replaces disposed review ownership', async ({

@@ -13,9 +13,10 @@ identifies the available capability.
 
 Use the hook when your product owns the registration button and result UI.
 Render `CreateWalletButton` inside the `SeamsWebProvider` from [Start
-here](/). Supply its `registration` prop with an explicit `authMethod`, `wallet`,
-and `signerSelection`. Select passkey or email authentication through `authMethod`.
-Use `{ kind: "server_allocated" }` for a new server-assigned wallet identity.
+here](/). Supply its `registration` prop with an explicit `authMethod` and
+`signerSelection`. Select passkey or email authentication through `authMethod`.
+The server assigns a wallet ID when `wallet` is omitted. To supply an ID, pass
+`wallet: { kind: 'provided', walletId }`.
 The signer selection declares the required NEAR and EVM-family capabilities.
 
 For example, this request creates a passkey wallet with an implicit NEAR account:

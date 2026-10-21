@@ -134,6 +134,9 @@ The wallet is `null` while signed out. Its NEAR signer remains `null` until a
 NEAR account is ready. Check `wallet?.near` before signing. Use the wallet
 from the authenticated render after unlock completes.
 
+Registration now defaults to a server-assigned wallet ID. Omit `wallet` in
+`registerWallet` for that flow. Explicit wallet selection remains available.
+
 The release also gives the Google sign-in waiting screen
 the same ring, headline, and instruction layout as the passkey waiting screen.
 It also loads the NEAR signing and export WASM modules before finalization,

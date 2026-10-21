@@ -6,7 +6,6 @@ if (!rpId.ok) throw new Error(rpId.error.message);
 
 export const registration: Parameters<SeamsWeb['registration']['registerWallet']>[0] = {
   authMethod: { kind: 'passkey', rpId: rpId.value },
-  wallet: { kind: 'server_allocated' },
   signerSelection: {
     kind: 'signer_set',
     signers: [

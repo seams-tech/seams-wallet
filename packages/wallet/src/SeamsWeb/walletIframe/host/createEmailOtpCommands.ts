@@ -3,6 +3,7 @@ import {
   recoverPendingRegistration,
 } from '@/SeamsWeb/operations/registration/pendingRegistrationRecovery';
 import { resolveUnlockSessionPolicy } from '@/SeamsWeb/operations/auth/unlockSessionPolicy';
+import type { WalletRegistrationCommands } from '@/SeamsWeb/publicApi/createPublicApi';
 import { walletIdFromString } from '@shared/utils/registrationIds';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { ExactWalletSessionAuthorization } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
@@ -22,7 +23,6 @@ import type {
   EmailOtpOperationChallengeResult,
   EmailOtpEcdsaCapabilityResult,
   SeamsWebContext,
-  RegistrationCapability,
 } from '@/SeamsWeb/signingSurface/types';
 import type { LoginWithEmailOtpEcdsaCapabilityInternalResult } from '@/core/signingEngine/flows/signEvmFamily/emailOtpPublic';
 import {
@@ -249,7 +249,7 @@ function emitEmailOtpUnlockWorkerProgress(
 
 type HostEmailOtpDependencies = {
   getContext: () => SeamsWebContext;
-  registerWallet: RegistrationCapability['registerWallet'];
+  registerWallet: WalletRegistrationCommands['registerWallet'];
   getWalletSession: AuthCapability['getSession'];
   resumePendingAcknowledgements: () => void;
 };
