@@ -60,10 +60,10 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.17.0
+## Release 0.18.0
 
-Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.17.0**.
-See [Release 0.17.0](/releases) for the supported integration.
+Pin `@seams/wallet`, `@seams/wallet-server`, and `@seams/wallet-cli` to **0.18.0**.
+See [Release 0.18.0](/releases) for the supported integration.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.
 Verify the actual object and database locations before accepting a hosted
