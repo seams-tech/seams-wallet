@@ -30,9 +30,12 @@ use router_ab_ed25519_yao::{
     build_activation_deriver_a, build_activation_deriver_b, build_export_deriver_a,
     build_export_deriver_b, combine_ed25519_yao_signing_worker_packages_source_preserving_v1,
     combine_ed25519_yao_signing_worker_packages_v1, derive_ed25519_yao_recipient_key_pair_v1,
-    seal_ed25519_yao_package_v1, ActivationDeriverA, ActivationDeriverAContribution,
-    ActivationDeriverB, ActivationDeriverBContribution, Ed25519YaoSigningWorkerPackageDeliveryV1,
-    ExportDeriverA, ExportDeriverAContribution, ExportDeriverB, ExportDeriverBContribution,
+    seal_ed25519_yao_activation_deriver_a_execution_v1,
+    seal_ed25519_yao_activation_deriver_b_execution_v1, seal_ed25519_yao_package_v1,
+    ActivationDeriverA, ActivationDeriverAContribution, ActivationDeriverB,
+    ActivationDeriverBContribution, Ed25519YaoActiveSigningMaterialV1, Ed25519YaoRoleExecutionV1,
+    Ed25519YaoSigningWorkerPackageDeliveryV1, ExportDeriverA, ExportDeriverAContribution,
+    ExportDeriverB, ExportDeriverBContribution, LocalEd25519YaoActivationRecipientsV1,
 };
 use signer_core::ed25519_yao_derivation::{
     derive_ed25519_yao_client_contributions_v1,
@@ -83,6 +86,15 @@ fn binding(
     work_kind: ExpensiveWorkKindV1,
     session: [u8; 32],
 ) -> Ed25519YaoCeremonyBindingV1 {
+    activation_binding(operation, work_kind, session, "activation-1")
+}
+
+fn activation_binding(
+    operation: Ed25519YaoOperationV1,
+    work_kind: ExpensiveWorkKindV1,
+    session: [u8; 32],
+    activation_id: &str,
+) -> Ed25519YaoCeremonyBindingV1 {
     Ed25519YaoCeremonyBindingV1::new(
         lifecycle(work_kind),
         operation,
@@ -91,7 +103,7 @@ fn binding(
             "b5601ad156882b545a2e4a4a694e87c7982842d37a4c666645302604b2720655",
         )),
         MpcMaterialActivationRefV1::new(
-            "activation-1",
+            activation_id,
             "capability-1",
             "account-1",
             "key-1",
@@ -685,6 +697,343 @@ fn builders_reject_wrong_family_and_cross_lifecycle_activation_shapes() {
         ActivationDeriverBContribution::refresh(&context, client_b, server_b),
     )
     .is_ok());
+}
+
+/// Deterministic HPKE sealing randomness; no assertion depends on its output.
+struct SealingRng(u64);
+
+impl rand_core_09::RngCore for SealingRng {
+    fn next_u32(&mut self) -> u32 {
+        self.next_u64() as u32
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        self.0
+    }
+
+    fn fill_bytes(&mut self, destination: &mut [u8]) {
+        for chunk in destination.chunks_mut(8) {
+            let bytes = self.next_u64().to_le_bytes();
+            chunk.copy_from_slice(&bytes[..chunk.len()]);
+        }
+    }
+}
+
+impl rand_core_09::CryptoRng for SealingRng {}
+
+/// One real activation ceremony: the sealed Signing Worker deliveries and the
+/// Client share combined from the same role completions.
+struct SealedActivation {
+    deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    client_scalar: Zeroizing<[u8; 32]>,
+}
+
+fn signing_worker_delivery(
+    execution: Ed25519YaoRoleExecutionV1,
+) -> Ed25519YaoSigningWorkerPackageDeliveryV1 {
+    let Ed25519YaoRoleExecutionV1::Activation(execution) = execution else {
+        panic!("expected an activation role execution");
+    };
+    Ed25519YaoSigningWorkerPackageDeliveryV1 {
+        binding: execution.binding,
+        client_commitment: execution.client_commitment,
+        signing_worker_commitment: execution.signing_worker_commitment,
+        package: execution.signing_worker_package,
+    }
+}
+
+fn seal_activation(
+    rng: &mut SealingRng,
+    binding: Ed25519YaoCeremonyBindingV1,
+    recipients: LocalEd25519YaoActivationRecipientsV1,
+) -> SealedActivation {
+    let (context, client_a, client_b, server_a, server_b) = derive_vector_contributions();
+    let session = binding.session_id.into_bytes();
+    let role_a = build_activation_deriver_a(
+        &binding,
+        ActivationDeriverAContribution::base(&context, client_a, server_a),
+    )
+    .expect("activation A");
+    let role_b = build_activation_deriver_b(
+        &binding,
+        ActivationDeriverBContribution::base(&context, client_b, server_b),
+    )
+    .expect("activation B");
+    let (completion_a, completion_b) = run_roles(
+        session,
+        role_a,
+        role_b,
+        ActivationDeriverA::handle,
+        ActivationDeriverB::handle,
+        ActivationDeriverA::instruction,
+        ActivationDeriverB::instruction,
+    );
+    let client_scalar = Zeroizing::new(
+        combine_client_activation_packages(
+            session,
+            completion_a.final_transcript(),
+            completion_a.client_package(),
+            completion_b.client_package(),
+        )
+        .expect("Client package combination")
+        .into_bytes(),
+    );
+    let deriver_a = signing_worker_delivery(
+        seal_ed25519_yao_activation_deriver_a_execution_v1(
+            rng,
+            binding.clone(),
+            recipients,
+            &completion_a,
+        )
+        .expect("seal Deriver A execution"),
+    );
+    let deriver_b = signing_worker_delivery(
+        seal_ed25519_yao_activation_deriver_b_execution_v1(rng, binding, recipients, &completion_b)
+            .expect("seal Deriver B execution"),
+    );
+    SealedActivation {
+        deriver_a,
+        deriver_b,
+        client_scalar,
+    }
+}
+
+fn group_public_key(client_scalar: &[u8; 32], signing_worker_scalar: &[u8; 32]) -> [u8; 32] {
+    compute_threshold_ed25519_group_public_key_2p_from_verifying_shares(
+        &verifying_share_bytes_from_signing_share_bytes(client_scalar),
+        &verifying_share_bytes_from_signing_share_bytes(signing_worker_scalar),
+        1,
+        2,
+    )
+    .expect("group public key")
+}
+
+fn source_preserving_refusal(
+    private_key: &router_ab_ed25519_yao::Ed25519YaoRecipientPrivateKeyV1,
+    deriver_a: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    deriver_b: Ed25519YaoSigningWorkerPackageDeliveryV1,
+    source: &Ed25519YaoActiveSigningMaterialV1,
+) -> String {
+    combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+        private_key,
+        deriver_a,
+        deriver_b,
+        source,
+    )
+    .expect_err("source-preserving activation must refuse")
+    .message()
+    .to_owned()
+}
+
+/// Registration, then recovery, then a linked target registration whose
+/// source is the recovered material. The source operation is the only fact
+/// that separates the recovered source from a registered one: the same
+/// material under a registration label preserves the key and advances the
+/// epoch, while the target's own freshness, identity, pairing and recipient
+/// checks still refuse stale or substituted packages.
+#[test]
+fn recovered_source_preserves_the_key_for_a_linked_target() {
+    let expected_public_key =
+        decode_hex_32("ccd255d0b88721771947038f1a7c29b49eee3902d6aa732e5e448251537bf077");
+    let signing_worker =
+        derive_ed25519_yao_recipient_key_pair_v1(&[0x71; 32]).expect("SigningWorker recipient");
+    let client = derive_ed25519_yao_recipient_key_pair_v1(&[0x72; 32]).expect("Client recipient");
+    let recipients = LocalEd25519YaoActivationRecipientsV1 {
+        client_public_key: client.public_key,
+        signing_worker_public_key: signing_worker.public_key,
+    };
+    let mut rng = SealingRng(0x5eed);
+
+    let registration_session = [0x81; 32];
+    let registration = seal_activation(
+        &mut rng,
+        activation_binding(
+            Ed25519YaoOperationV1::Registration,
+            ExpensiveWorkKindV1::RegistrationPrepare,
+            registration_session,
+            "registration-activation",
+        ),
+        recipients,
+    );
+    let (registered, _) = combine_ed25519_yao_signing_worker_packages_v1(
+        &signing_worker.private_key,
+        registration.deriver_a,
+        registration.deriver_b,
+        None,
+    )
+    .expect("registration activation")
+    .into_parts();
+    assert_eq!(registered.registered_public_key(), expected_public_key);
+    assert_eq!(registered.state_epoch().get(), 1);
+    assert_eq!(
+        group_public_key(&registration.client_scalar, registered.scalar()),
+        expected_public_key
+    );
+
+    let recovery_session = [0x82; 32];
+    let recovery = seal_activation(
+        &mut rng,
+        activation_binding(
+            Ed25519YaoOperationV1::Recovery,
+            ExpensiveWorkKindV1::Recovery,
+            recovery_session,
+            "recovery-activation",
+        ),
+        recipients,
+    );
+    let replayed_recovery = (recovery.deriver_a.clone(), recovery.deriver_b.clone());
+    let (recovered, _) = combine_ed25519_yao_signing_worker_packages_v1(
+        &signing_worker.private_key,
+        recovery.deriver_a,
+        recovery.deriver_b,
+        Some(&registered),
+    )
+    .expect("recovery activation")
+    .into_parts();
+    assert_eq!(
+        recovered.binding().operation,
+        Ed25519YaoOperationV1::Recovery
+    );
+    assert_eq!(recovered.registered_public_key(), expected_public_key);
+    assert_eq!(recovered.state_epoch().get(), 2);
+    assert_eq!(
+        group_public_key(&recovery.client_scalar, recovered.scalar()),
+        expected_public_key
+    );
+
+    let target_binding = activation_binding(
+        Ed25519YaoOperationV1::Registration,
+        ExpensiveWorkKindV1::RegistrationPrepare,
+        [0x83; 32],
+        "linked-target-activation",
+    );
+    let target = seal_activation(&mut rng, target_binding.clone(), recipients);
+
+    // Today the combiner refuses the recovered source on its operation alone.
+    assert_eq!(
+        source_preserving_refusal(
+            &signing_worker.private_key,
+            target.deriver_a.clone(),
+            target.deriver_b.clone(),
+            &recovered,
+        ),
+        "source-preserving ordinary activation requires registered source material"
+    );
+
+    // The same recovered material under a registration label: scalar, epoch,
+    // transcript, public key, session and activation stay the recovered ones.
+    let relabeled_source = Ed25519YaoActiveSigningMaterialV1::from_parts(
+        *recovered.scalar(),
+        activation_binding(
+            Ed25519YaoOperationV1::Registration,
+            ExpensiveWorkKindV1::RegistrationPrepare,
+            recovery_session,
+            "recovery-activation",
+        ),
+        recovered.state_epoch(),
+        recovered.transcript(),
+        recovered.registered_public_key(),
+    )
+    .expect("relabeled recovered source");
+    let (linked, linked_receipt) =
+        combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+            &signing_worker.private_key,
+            target.deriver_a.clone(),
+            target.deriver_b.clone(),
+            &relabeled_source,
+        )
+        .expect("linked target from the recovered source")
+        .into_parts();
+    assert_eq!(linked.binding(), &target_binding);
+    assert_eq!(linked.registered_public_key(), expected_public_key);
+    assert_eq!(linked_receipt.registered_public_key, expected_public_key);
+    assert_eq!(linked.state_epoch().get(), 3);
+    assert_eq!(linked_receipt.state_epoch.get(), 3);
+    assert_eq!(
+        group_public_key(&target.client_scalar, linked.scalar()),
+        expected_public_key
+    );
+
+    // Replayed recovery packages are not a registration target.
+    assert_eq!(
+        source_preserving_refusal(
+            &signing_worker.private_key,
+            replayed_recovery.0,
+            replayed_recovery.1,
+            &relabeled_source,
+        ),
+        "source-preserving ordinary activation requires a registration binding"
+    );
+
+    // A target that names the source activation is not fresh material.
+    let mut reused_a = target.deriver_a.clone();
+    let mut reused_b = target.deriver_b.clone();
+    reused_a.binding.material_activation = relabeled_source.binding().material_activation.clone();
+    reused_b.binding.material_activation = relabeled_source.binding().material_activation.clone();
+    assert_eq!(
+        source_preserving_refusal(
+            &signing_worker.private_key,
+            reused_a,
+            reused_b,
+            &relabeled_source,
+        ),
+        "source-preserving ordinary activation requires a fresh material activation"
+    );
+
+    // A target under another root share epoch changes the signing identity.
+    let mut moved_a = target.deriver_a.clone();
+    let mut moved_b = target.deriver_b.clone();
+    let other_epoch = RootShareEpoch::new("epoch-2").expect("other root epoch");
+    moved_a.binding.lifecycle.root_share_epoch = other_epoch.clone();
+    moved_b.binding.lifecycle.root_share_epoch = other_epoch;
+    assert_eq!(
+        source_preserving_refusal(
+            &signing_worker.private_key,
+            moved_a,
+            moved_b,
+            &relabeled_source,
+        ),
+        "source-preserving ordinary activation changed the stable signing identity"
+    );
+
+    // Deriver packages from two target ceremonies do not form one pair.
+    let other_target = seal_activation(
+        &mut rng,
+        activation_binding(
+            Ed25519YaoOperationV1::Registration,
+            ExpensiveWorkKindV1::RegistrationPrepare,
+            [0x84; 32],
+            "linked-target-activation",
+        ),
+        recipients,
+    );
+    assert_eq!(
+        source_preserving_refusal(
+            &signing_worker.private_key,
+            target.deriver_a.clone(),
+            other_target.deriver_b,
+            &relabeled_source,
+        ),
+        "Signing Worker activation package bindings do not match"
+    );
+
+    // Packages sealed to this Signing Worker do not open under another key.
+    let other_signing_worker =
+        derive_ed25519_yao_recipient_key_pair_v1(&[0x73; 32]).expect("other recipient");
+    assert!(
+        combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
+            &other_signing_worker.private_key,
+            target.deriver_a,
+            target.deriver_b,
+            &relabeled_source,
+        )
+        .is_err()
+    );
 }
 
 fn preservation_rng(seed: u8) -> ChaCha20Rng {
