@@ -16,6 +16,7 @@
     "repeatedRead": 1,
     "rootAdmission": 2,
     "serializationConflictAndConcurrentRead": 3,
+    "sessionRoleCheck": 1,
     "singleRead": 1,
     "threeMutationEpochSwap": 1,
     "threeStatementSnapshot": 1
@@ -30,14 +31,14 @@
   "sourceRetirementRejectsLateWrites": true,
   "unclaimedCancellationAndClaimedSettlement": true,
   "wrongRoleSessionRejected": true,
-  "recordedAt": "2026-10-21T01:16:26.619Z",
+  "recordedAt": "2026-10-21T02:00:39.310Z",
   "reproduce": "pnpm -C crates/router-ab-cloudflare test:postgres-role-store",
   "image": "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
   "imageId": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
   "cargo": "cargo test --features postgres --lib postgres_role_store_e2e -- --nocapture",
   "log": {
     "path": ".artifacts/postgres-role-store/run.log",
-    "sha256": "bc453580fd67de0528e5d73af572f8bda29511f43956336831e91dfeef89ee68"
+    "sha256": "d7be6b3477813de13e976b7b3230a4ad5e6bdcc91c6e1bf8ad7b898cebeaecfa"
   },
   "sources": [
     {
@@ -62,7 +63,7 @@
     },
     {
       "path": "crates/router-ab-cloudflare/tests/postgres_role_store/mod.rs",
-      "sha256": "0d00a662b1365052bd452b9d24eaacfc922582edfa618cebf7587f45b7e1a3c0"
+      "sha256": "dc1470c1df548739fedf71891fd7fb3c337048194b2315dfc84af99eb7c3d4ba"
     },
     {
       "path": "crates/router-ab-cloudflare/tests/postgres_role_store/protocol_proxy.rs",
@@ -330,5 +331,40 @@
   "recordedLocalDate": "2026-10-21 Asia/Tokyo",
   "d1CompatibilityScope": "The recorded D1 checks cover the unchanged D1 driver and shared lifecycle SQL. This revision changes only the native PostgreSQL driver, its schema, and test-only fixtures. It preserves the D1 call pattern.",
   "protocolMeasurement": "The TCP proxy counts ReadyForQuery responses after authentication and role-session setup. Each counted response terminates one Query message or Sync. Successful batches use one Query message. Each serialization retry is a separate batch attempt.",
-  "workerBuildInputs": "PostgreSQL E2E modules moved outside src to tests/postgres_role_store. The Worker freshness walker scans src and Cargo.toml, so edits to these E2E modules do not invalidate Worker build stamps."
+  "workerBuildInputs": "PostgreSQL E2E modules moved outside src to tests/postgres_role_store. The Worker freshness walker scans src and Cargo.toml, so edits to these E2E modules do not invalidate Worker build stamps.",
+  "roundTripVerification": {
+    "baselineCommit": "275b7a2f9426c5a9badde5f154b78c8053d59e1d",
+    "comparedThroughCommit": "50450436293fdb9d72cee0d397b2ac32107c06df",
+    "baselineMethod": "Source inspection of the original D1 adapter and bound-share lifecycle. D1 uses one request for a read or batch. Fresh root admission uses an initial read and one batch.",
+    "measurements": [
+      {
+        "operation": "single read",
+        "originalD1Requests": 1,
+        "postgresExchanges": 1
+      },
+      {
+        "operation": "repeated read",
+        "originalD1Requests": 1,
+        "postgresExchanges": 1
+      },
+      {
+        "operation": "three-statement snapshot",
+        "originalD1Requests": 1,
+        "postgresExchanges": 1
+      },
+      {
+        "operation": "epoch swap with execution checkpoint",
+        "originalD1Requests": 1,
+        "postgresExchanges": 1
+      },
+      {
+        "operation": "fresh root admission",
+        "originalD1Requests": 2,
+        "postgresExchanges": 2
+      }
+    ],
+    "postgresStartup": "The trace verifies one role-identity query per new session. This occurs before operation counters reset and is separate from steady-state operation counts.",
+    "serializationConflict": "Two attempts plus one concurrent reader produce three exchanges. The retry adds one batch attempt and no separate rollback request.",
+    "scope": "Verifies role-store round-trip counts. It does not measure database CPU, cloud latency, provider poolers, or request paths outside this role store."
+  }
 }

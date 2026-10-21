@@ -42,7 +42,10 @@ async fn traced_store(
         .expect("database config");
     config.options("-c standard_conforming_strings=off");
     let (client, probe) = protocol_proxy::connect(&config).await;
-    (store_with_client(client, role).await, probe)
+    probe.reset();
+    let store = store_with_client(client, role).await;
+    assert_eq!(probe.exchanges(), 1, "one role check per new session");
+    (store, probe)
 }
 
 async fn store_with_client(client: Client, role: CloudflareTenantRootDeriverRoleV1) -> Store {
@@ -986,7 +989,7 @@ async fn postgres_role_store_e2e() {
         "serializationRetriesCompleteTransaction": true,
         "sessionAvailableDuringRetryDelay": true,
         "literalBindingsPreserveHostileTextAndNull": true,
-        "protocolExchanges": {"singleRead": 1, "repeatedRead": 1, "rootAdmission": 2,
+        "protocolExchanges": {"sessionRoleCheck": 1, "singleRead": 1, "repeatedRead": 1, "rootAdmission": 2,
             "threeMutationEpochSwap": 1, "threeStatementSnapshot": 1,
             "serializationConflictAndConcurrentRead": 3},
         "activatedEpochs": [active_a.record.epoch().get().get(), active_b.record.epoch().get().get()]
