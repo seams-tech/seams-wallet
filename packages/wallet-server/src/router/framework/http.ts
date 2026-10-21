@@ -7,7 +7,8 @@ import { failure } from '@shared/utils/failure';
 import { WALLET_MANAGEMENT_PROTOCOL_HEADER } from '@shared/utils/walletManagementProtocol';
 
 const CORS_ALLOW_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
-const CORS_PREFLIGHT_MAX_AGE_SECONDS = 600;
+// Chromium caps the preflight cache at 7200 s; Firefox allows longer.
+const CORS_PREFLIGHT_MAX_AGE_SECONDS = 7200;
 const CORS_ALLOW_HEADERS = [
   'Content-Type',
   WALLET_MANAGEMENT_PROTOCOL_HEADER,

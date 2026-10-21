@@ -13,7 +13,7 @@ test('preflight caches an allowed origin while actual responses still check the 
     new Request(endpoint, { method: 'OPTIONS', headers: { Origin: corsOrigins[0] } }),
   );
   expect(preflight.get('Access-Control-Allow-Origin')).toBe(corsOrigins[0]);
-  expect(preflight.get('Access-Control-Max-Age')).toBe('600');
+  expect(preflight.get('Access-Control-Max-Age')).toBe('7200');
 
   const allowedResponse = new Headers();
   withCors(
