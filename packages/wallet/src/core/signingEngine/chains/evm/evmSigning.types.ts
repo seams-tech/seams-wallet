@@ -28,6 +28,7 @@ export type Eip1559UnsignedTx = {
   maxFeePerGas: bigint;
   gasLimit: bigint;
   to?: EvmAddress | null; // null/undefined = contract creation
+  /** Native coin in wei, for example `ether('0.5')`. */
   value: bigint;
   data?: EvmBytes; // defaults to 0x
   abi?: EvmContractAbi; // optional ABI used for tx confirmer calldata decoding

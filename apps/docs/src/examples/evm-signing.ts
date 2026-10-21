@@ -1,4 +1,4 @@
-import { logWalletEvents, type SeamsWeb } from '@seams/wallet';
+import { ether, logWalletEvents, type SeamsWeb } from '@seams/wallet';
 
 // EIP-1559 on any configured EVM chain. `seams.tempo` mirrors this API for
 // Tempo's EIP-2718 typed transactions; the two stay separate because the
@@ -18,7 +18,7 @@ export async function executeEvmTransaction(seams: SeamsWeb): Promise<string> {
         maxFeePerGas: 1n,
         gasLimit: 21_000n,
         to: '0x1234567890abcdef1234567890abcdef12345678',
-        value: 0n,
+        value: ether('0'),
         data: '0x',
       },
     },

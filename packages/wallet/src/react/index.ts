@@ -101,8 +101,8 @@ export {
   stake,
   transfer,
 } from '../core/types/actionBuilders';
-export { NearAmountError, near, yoctoNear } from '../core/types/nearAmount';
-export type { NearAmountErrorCode, YoctoNear } from '../core/types/nearAmount';
+export { AmountError, ether, near, parseUnits, yoctoNear } from '../core/types/amounts';
+export type { AmountErrorCode, YoctoNear } from '../core/types/amounts';
 export { logWalletEvents } from '../core/types/eventLogging';
 // Type exports for action shapes
 export type {

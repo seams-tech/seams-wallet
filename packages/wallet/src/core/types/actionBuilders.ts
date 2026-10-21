@@ -9,7 +9,7 @@ import {
   type StakeAction,
   type TransferAction,
 } from '@/core/types/actions';
-import type { YoctoNear } from '@/core/types/nearAmount';
+import type { YoctoNear } from '@/core/types/amounts';
 
 /**
  * Action builders.

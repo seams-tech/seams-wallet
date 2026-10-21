@@ -72,8 +72,13 @@ objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents(
 
 Give `transfer` an amount from `near`, which takes a decimal NEAR amount:
 `transfer(near('1'))` sends 1 NEAR. If an amount is already in yoctoNEAR, use
-`yoctoNear('1000000000000000000000000')`. Both throw `NearAmountError` for a
-negative, non-numeric or over-precise amount.
+`yoctoNear('1000000000000000000000000')`.
+
+An EVM `value` is a `bigint` in wei. Write it with `ether('0.5')`, which takes a
+decimal amount of the chain's 18-decimal native coin (ETH, POL and so on). For a
+token with other decimals, such as an ERC-20, use `parseUnits('1.5', 6)`. All of
+these helpers throw `AmountError` for a negative, non-numeric or over-precise
+amount.
 
 `seams.evm` and `seams.tempo` both provide `signTransaction`, `signAndSendTransaction`, and
 `advanced`. They use separate transaction formats: EIP-1559 for EVM and EIP-2718 for
