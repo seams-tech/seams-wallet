@@ -541,6 +541,8 @@ throughout the resize. Reduced-motion behavior remains immediate.
   Hosts must preserve these checks when combining authentication and environment
   resolution with home reservation. Rejected credentials create no reservation. The Console service-binding E2E verifies durable
   key rotation, revocation, environment changes, and archival.
+- A refused setup keeps the server's error code on the SDK error, for example
+  `production_paused` when the host stops new production sign-ups.
 - After a lost NEAR-only completion reply, credential-free replay may restore
   the committed wallet identity and sealed local material for exact-method unlock.
   When no local session exists, restoration creates a locked selection and installs
@@ -1091,6 +1093,13 @@ Failure behaviour:
   outcomes, parent-window messages, or logs.
 
 ## Transaction Signing
+
+A successful NEAR or EVM signature writes one `wallet_signature_completions` row in
+the statement that completes its authorized operation. Failed operations, key
+exports, and operation history copied by a relocation write none. The hosting
+deployment delivers each row to its usage count and then deletes it. A host may
+refuse new signatures for a project through the normal-signing project policy
+(`project_policy_rejected`); recovery and key export do not read that policy.
 
 NEAR nonce recovery reads current chain state once per exact wallet/key lane in
 each recovery pass. It shares that observation across saved nonce reservations.

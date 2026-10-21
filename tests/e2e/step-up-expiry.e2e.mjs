@@ -365,6 +365,12 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
   assert.equal(quota.lifecycle_kind, 'exhausted');
   assert.equal(quota.expires_at_ms, state.deadline);
   assert.equal(route.grantConsumed, method === 'email_otp' && pause !== 'failed-factor');
+  // A claimed or refused operation has produced no signature yet.
+  assert.equal(
+    (await database.prepare('SELECT COUNT(*) AS count FROM wallet_signature_completions').first())
+      .count,
+    0,
+  );
   if (pause === 'none' || pause === 'relocation') {
     assert.equal(response.status, 200, JSON.stringify(body));
     assert.equal(claims.length, 1);
@@ -405,6 +411,26 @@ async function exerciseStepUpExpiry({ database, migrations }, host, method, paus
     });
     assert.deepEqual(preserved, completed);
     result.completedReplayAfterExpiry = replay.kind;
+    // The successful completion records one signature; the rejected rewrite records none.
+    const claim = await database
+      .prepare('SELECT owner_scope_org_id, owner_scope_project_id, owner_scope_env_id FROM authorized_operations')
+      .first();
+    const signatures = (
+      await database.prepare('SELECT * FROM wallet_signature_completions').all()
+    ).results;
+    assert.deepEqual(signatures, [
+      {
+        namespace: 'expiry-e2e',
+        tenant_id: String(completed.tenantId),
+        authorized_operation_id: String(completed.authorizedOperationId),
+        operation_kind: 'evm.sign_transaction',
+        org_id: claim.owner_scope_org_id,
+        project_id: claim.owner_scope_project_id,
+        env_id: claim.owner_scope_env_id,
+        completed_at_ms: completed.completedAtMs,
+      },
+    ]);
+    result.signatureCompletions = signatures;
     assert.deepEqual(
       await database.prepare('SELECT * FROM authorization_wallet_session_quotas').first(),
       quota,
