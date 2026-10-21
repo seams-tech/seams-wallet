@@ -132,3 +132,37 @@ Private Console stores live in `seams-monorepo`.
 They contain their own SQLite JSON functions, time functions, conflict rules, triggers, and transaction boundaries.
 Port and test each store with its lifecycle behavior.
 Runtime hosting, Durable Object coordination, R2 replacement, data import, and production cutover remain separate work.
+
+## Cloudflare Workers with Hyperdrive
+
+PostgreSQL can replace D1 while the Workers and Durable Objects stay on Cloudflare.
+[Hyperdrive](https://developers.cloudflare.com/hyperdrive/) gives a Worker a pooled connection to a PostgreSQL origin such as RDS.
+This path is possible, but it is not built or tested yet. Status on 2026-10-21:
+
+| Item | Status |
+| --- | --- |
+| Role-store adapter on native hosts | Passes against local PostgreSQL 18.6 and Amazon RDS 18.6. |
+| Role-store adapter inside a Worker | Not available. The `postgres` feature compiles only when `target_arch` is not `wasm32`. |
+| Worker connection support | `worker` 0.8.4 has a Hyperdrive binding with `connection_string()` and a `tokio-postgres` feature with `postgres_tls::PassthroughTls` over Workers sockets. |
+| Gateway, SigningWorker and Console stores | Still D1 only. Each needs its own PostgreSQL port. |
+| D1 data import | No tool exists. |
+
+To run the role store through Hyperdrive:
+
+1. Build the `postgres` feature for `wasm32`. Replace `tokio::time::sleep` in the serialization retry with a Workers timer, and enable the `worker` crate's `tokio-postgres` feature.
+2. In each Deriver Worker, open a `worker::Socket` to the Hyperdrive host and connect with `Config::connect_raw(socket, PassthroughTls)`.
+   Pass the connected client to `PostgresRoleSqlSessionV1::new`, as on a native host.
+3. Create one Hyperdrive configuration for each Deriver database, with separate credentials. Never share one configuration between A and B.
+4. Create each configuration with `--caching-disabled`. Hyperdrive caches read queries by default and does not invalidate them after writes.
+   A cached read breaks the store's coherent-read and serializable rules.
+5. Keep TLS verified between Hyperdrive and the origin.
+6. Run the role-store lifecycle E2E through the Hyperdrive connection. Claim the path ready only after it passes.
+
+The adapter's transaction design is compatible with Hyperdrive's transaction-mode pooling.
+Each batch is one Simple Query message, so PostgreSQL runs it as one implicit transaction on one server connection.
+Its `SET TRANSACTION` and `SET LOCAL` statements apply only inside that message.
+The adapter uses no SQL-level `PREPARE`, advisory locks, `LISTEN`, or session state, which Hyperdrive does not support.
+Two behaviors still need evidence through Hyperdrive: serialization-failure retries, and reconciliation after a lost commit acknowledgement.
+
+Durable Objects keep their own storage and coordination. This path changes only the SQL stores that use D1 today.
+A PostgreSQL origin has one primary region. Place it near the Workers that write to it, and measure the added round trips before production use.
