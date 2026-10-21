@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const browserTestOrigin = process.env.SEAMS_TEST_FRONTEND_URL ?? 'http://localhost:4203';
 const browserTestPort = new URL(browserTestOrigin).port;
@@ -6,14 +9,10 @@ const browserTestPort = new URL(browserTestOrigin).port;
 process.env.NO_CADDY = '1';
 process.env.SEAMS_TEST_FRONTEND_URL = browserTestOrigin;
 
-export default defineConfig({
+const browserConfig = defineConfig({
   tsconfig: './tsconfig.wallet-browser.json',
   testDir: '.',
-  testMatch: [
-    '**/wallet-iframe/**/*.test.ts',
-    '**/wallet-ui/**/*.test.ts',
-    '**/unit/**/*.test.ts',
-  ],
+  testMatch: ['**/wallet-iframe/**/*.test.ts', '**/wallet-ui/**/*.test.ts', '**/unit/**/*.test.ts'],
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -42,5 +41,14 @@ export default defineConfig({
     url: browserTestOrigin,
     reuseExistingServer: false,
     timeout: 60_000,
+  },
+});
+
+export default Object.assign(browserConfig, {
+  '@playwright/test': {
+    // Remove type-only fields before Playwright transforms class features.
+    babelPlugins: [
+      [require.resolve('@babel/plugin-transform-typescript'), { allowDeclareFields: true }],
+    ],
   },
 });

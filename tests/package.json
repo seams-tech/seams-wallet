@@ -16,6 +16,7 @@
     "test:wallet-unit": "playwright test -c playwright.wallet-browser.config.ts unit"
   },
   "devDependencies": {
+    "@babel/plugin-transform-typescript": "7.28.5",
     "@noble/ed25519": "^2.1.0",
     "@playwright/test": "^1.40.0",
     "@types/node": "^24.1.0",
