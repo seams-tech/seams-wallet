@@ -4193,20 +4193,8 @@ impl CloudflareTenantRootRestoreImportKeyRecordV1 {
         self.envelope_digest
     }
 
-    pub(crate) const fn installed_at_ms(&self) -> Option<u64> {
-        self.installed_at_ms
-    }
-
     pub(crate) const fn receipt_digest(&self) -> Option<[u8; 32]> {
         self.receipt_digest
-    }
-
-    pub(crate) const fn created_at_ms(&self) -> u64 {
-        self.created_at_ms
-    }
-
-    pub(crate) const fn updated_at_ms(&self) -> u64 {
-        self.updated_at_ms
     }
 
     fn validate(&self) -> RoleStoreResult<()> {
@@ -4287,14 +4275,6 @@ pub(crate) enum CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1 {
 }
 
 impl CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1 {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Refreshed => "refreshed",
-            Self::Closed => "closed",
-        }
-    }
-
     fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "pending" => Ok(Self::Pending),
@@ -4319,14 +4299,6 @@ pub(crate) enum CloudflareTenantRootRestoreRefreshPromotionLifecycleV1 {
 }
 
 impl CloudflareTenantRootRestoreRefreshPromotionLifecycleV1 {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Unstarted => "unstarted",
-            Self::Reserved => "reserved",
-            Self::Completed => "completed",
-        }
-    }
-
     fn parse(value: &str) -> RoleStoreResult<Self> {
         match value {
             "unstarted" => Ok(Self::Unstarted),
@@ -4366,9 +4338,6 @@ impl CloudflareTenantRootRestoreRefreshPromotionSourceV1 {
         )
     }
 
-    pub(crate) const fn refreshed_at_ms(&self) -> u64 {
-        self.refreshed_at_ms
-    }
 }
 
 /// Provider bytes and public canary retained after a promotion completes.
@@ -4510,12 +4479,6 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptAdmissionV1 {
         }
     }
 
-    pub(crate) fn evidence_bytes(&self) -> Option<&[u8]> {
-        match self {
-            Self::Refreshed { evidence_bytes, .. } => Some(evidence_bytes),
-            _ => None,
-        }
-    }
 }
 
 /// The exact accepted import and issuer command selected by one restore
@@ -4677,90 +4640,6 @@ impl fmt::Debug for CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
 }
 
 impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
-    fn pending(
-        binding: CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
-        encrypted_seed_json: String,
-    ) -> RoleStoreResult<Self> {
-        if encrypted_seed_json.is_empty() {
-            return Err(store_error(
-                "tenant-root restore refresh replay seed ciphertext is empty",
-            ));
-        }
-        let record = Self {
-            binding,
-            encrypted_seed_json: Some(encrypted_seed_json),
-            encrypted_refreshed_share_json: None,
-            installation_evidence_b64u: None,
-            installation_evidence_digest: None,
-            lifecycle: CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Pending,
-            refreshed_at_ms: None,
-            promotion_lifecycle: CloudflareTenantRootRestoreRefreshPromotionLifecycleV1::Unstarted,
-            promotion_reserved_at_ms: None,
-            encrypted_online_role_share_json: None,
-            provider_canary_receipt_b64u: None,
-            promotion_completed_at_ms: None,
-            created_at_ms: 0,
-            updated_at_ms: 0,
-        };
-        record.validate()?;
-        Ok(record)
-    }
-
-    fn refreshed(
-        binding: CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
-        encrypted_seed_json: String,
-        encrypted_refreshed_share_json: String,
-        installation_evidence_b64u: String,
-        installation_evidence_digest: [u8; 32],
-        refreshed_at_ms: u64,
-        created_at_ms: u64,
-        updated_at_ms: u64,
-    ) -> RoleStoreResult<Self> {
-        let record = Self {
-            binding,
-            encrypted_seed_json: Some(encrypted_seed_json),
-            encrypted_refreshed_share_json: Some(encrypted_refreshed_share_json),
-            installation_evidence_b64u: Some(installation_evidence_b64u),
-            installation_evidence_digest: Some(installation_evidence_digest),
-            lifecycle: CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Refreshed,
-            refreshed_at_ms: Some(refreshed_at_ms),
-            promotion_lifecycle: CloudflareTenantRootRestoreRefreshPromotionLifecycleV1::Unstarted,
-            promotion_reserved_at_ms: None,
-            encrypted_online_role_share_json: None,
-            provider_canary_receipt_b64u: None,
-            promotion_completed_at_ms: None,
-            created_at_ms,
-            updated_at_ms,
-        };
-        record.validate()?;
-        Ok(record)
-    }
-
-    fn closed(
-        binding: CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1,
-        created_at_ms: u64,
-        updated_at_ms: u64,
-    ) -> RoleStoreResult<Self> {
-        let record = Self {
-            binding,
-            encrypted_seed_json: None,
-            encrypted_refreshed_share_json: None,
-            installation_evidence_b64u: None,
-            installation_evidence_digest: None,
-            lifecycle: CloudflareTenantRootRestoreRefreshRoleAttemptLifecycleV1::Closed,
-            refreshed_at_ms: None,
-            promotion_lifecycle: CloudflareTenantRootRestoreRefreshPromotionLifecycleV1::Unstarted,
-            promotion_reserved_at_ms: None,
-            encrypted_online_role_share_json: None,
-            provider_canary_receipt_b64u: None,
-            promotion_completed_at_ms: None,
-            created_at_ms,
-            updated_at_ms,
-        };
-        record.validate()?;
-        Ok(record)
-    }
-
     pub(crate) const fn binding(&self) -> &CloudflareTenantRootRestoreRefreshRoleAttemptBindingV1 {
         &self.binding
     }
@@ -4821,14 +4700,6 @@ impl CloudflareTenantRootRestoreRefreshRoleAttemptRecordV1 {
 
     pub(crate) const fn promotion_completed_at_ms(&self) -> Option<u64> {
         self.promotion_completed_at_ms
-    }
-
-    pub(crate) const fn created_at_ms(&self) -> u64 {
-        self.created_at_ms
-    }
-
-    pub(crate) const fn updated_at_ms(&self) -> u64 {
-        self.updated_at_ms
     }
 
     fn encrypted_seed_json(&self) -> RoleStoreResult<&str> {
@@ -9551,37 +9422,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
     /// Durably admits one verified refresh before any randomness or provider
     /// material is produced. The replay row stores the exact issuer command
     /// bytes so a later worker can distinguish regeneration from resumption.
-    ///
-    /// This lookup must run before resolving the active row. A refresh retry
-    /// can arrive after the lifecycle swap retired that row, while its replay
-    /// record still authoritatively owns the exact command.
-    pub(crate) async fn preflight_refresh_replay(
-        &self,
-        raw_command: &TenantRootRoleRefreshCommandV1,
-    ) -> RoleStoreResult<Option<CloudflareTenantRootRefreshAdmissionDecisionV1>> {
-        let key = TenantRootCommandReplayKeyV1::new(
-            raw_command.identity_digest(),
-            raw_command.custody_lineage(),
-            raw_command.session_id(),
-            raw_command.nonce(),
-            raw_command.role(),
-        );
-        self.require_command_role(&key)?;
-        let command_bytes = raw_command
-            .canonical_bytes()
-            .map_err(|error| store_error(error.message()))?;
-        let command_digest = raw_command
-            .digest()
-            .map_err(|error| store_error(error.message()))?;
-        let Some(stored) = self.load_command_replay(&key).await? else {
-            return Ok(None);
-        };
-        Self::reconcile_refresh_admission(&stored, key, command_digest, &command_bytes).map(Some)
-    }
-
-    /// Durably admits one verified refresh before any randomness or provider
-    /// material is produced. The replay row stores the exact issuer command
-    /// bytes so a later worker can distinguish regeneration from resumption.
     // The insert-only admission chooses one encrypted seed before either contender publishes.
     fn seal_refresh_seed(
         &self,
@@ -10905,42 +10745,6 @@ impl<S: RoleSqlSessionV1> TenantRootRoleShareStoreV1<S> {
         receipt: VerifiedTenantRootCommandSuccessReceiptV1,
     ) -> RoleStoreResult<CloudflareTenantRootCommandTerminalCommitV1> {
         self.complete_command(executed, receipt).await
-    }
-
-    /// Loads the one active role share authorized by the control-plane binding.
-    ///
-    /// The store's configured role supplies the role selector. Identity, lineage,
-    /// epoch, commitment, and activation receipt all come from the authenticated
-    /// custody binding; no caller can choose them independently.
-    pub(crate) async fn load_active(
-        &self,
-        custody_binding: &TenantRootCustodyBindingV1,
-    ) -> RoleStoreResult<CloudflareStoredTenantRootRoleShareV1> {
-        custody_binding
-            .validate()
-            .map_err(|error| store_error(error.message()))?;
-        let active = self
-            .load_active_resolution(custody_binding.identity_digest())
-            .await?
-            .require_active()?;
-        let observed = active_binding_from_stored(&active)?;
-        let expected_role = self.cipher.role.managed_restore_role();
-        let expected_commitment = match expected_role {
-            TenantRootManagedRestoreRoleV1::DeriverA => custody_binding.commitments().deriver_a(),
-            TenantRootManagedRestoreRoleV1::DeriverB => custody_binding.commitments().deriver_b(),
-        };
-        if observed.identity_digest() != custody_binding.identity_digest()
-            || observed.custody_lineage() != custody_binding.custody_lineage()
-            || observed.epoch() != custody_binding.epoch()
-            || observed.role() != expected_role
-            || observed.share_commitment() != expected_commitment
-            || observed.activation_receipt_digest() != custody_binding.activation_receipt_digest()
-        {
-            return Err(store_error(
-                "tenant-root active role share does not match authenticated custody binding",
-            ));
-        }
-        Ok(active)
     }
 
     /// Observes all active rows for the debug lifecycle probe.
