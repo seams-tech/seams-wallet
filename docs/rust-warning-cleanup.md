@@ -251,11 +251,11 @@ Worker warning occurrences fell from 552 to 547.
 
 ### C07 — Narrow existing worker-role and host configuration
 
-- [ ] Review the 11 distinct unused-import diagnostics and role-dependent
+- [x] Review the 11 distinct unused-import diagnostics and role-dependent
       dead-code groups. Use the existing entrypoint features at their owning boundaries.
-- [ ] Delete redundant imports and re-exports when direct consumers already import
+- [x] Delete redundant imports and re-exports when direct consumers already import
       their owner. Preserve implementations with callers in another role.
-- [ ] Check native host and PostgreSQL consumers before restricting shared SQL code.
+- [x] Check native host and PostgreSQL consumers before restricting shared SQL code.
 
 Concrete starting points under `crates/router-ab-cloudflare/src/`:
 
@@ -279,11 +279,16 @@ The native host emits 17 diagnostics with its current features.
 Several concern excluded Worker or database implementations.
 Keep live feature paths. Add no new feature flags or compatibility paths.
 
+Completed in `e8c4226f`.
+Durable Object classes now compile only for their existing owning Worker and test targets.
+Shared relocation wire types retain their names and fields. Signing Worker storage handlers live in two small owner modules.
+Role imports and host-specific SQL and KMS helpers use existing features. No binding, migration, or class name changed.
+
 ### C08 — Review the nine unused-variable diagnostics
 
-- [ ] Delete redundant parameters only after checking their ownership and routing
+- [x] Delete redundant parameters only after checking their ownership and routing
       responsibilities. Update every caller in the same batch.
-- [ ] Keep gateway routing validation and owner-generation checks where required.
+- [x] Keep gateway routing validation and owner-generation checks where required.
       A leading underscore alone does not establish that a parameter is redundant.
 
 All locations are under `crates/router-ab-cloudflare/src/`:
@@ -297,6 +302,12 @@ All locations are under `crates/router-ab-cloudflare/src/`:
 Classification: **ownership review required**.
 The unused generation alone establishes no ownership defect.
 Any change to a required owner check needs a separate behavior fix and evidence.
+
+Completed in `e8c4226f`.
+The HTTP ECDSA adapter has only Signing Worker callers. Its obsolete D1 fallback and private finalize module are deleted.
+The active wallet Durable Object path remains intact. Linked-device material loading retains its live D1 path.
+The redundant runtime and completion-generation parameters are deleted. Physical-object selection, fencing, owner checks, and completion checks remain intact.
+This batch shares C07's commit because the caller audit determines both feature ownership and parameter use.
 
 ### C09 — Scope the Ed25519 client export helper to its existing owner
 
@@ -439,7 +450,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01, C02, C03, C04, C05, C06, C12. Other cleanup batches remain pending.
+Completed batches: C01, C02, C03, C04, C05, C06, C07, C08, C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -447,20 +458,20 @@ Afterward, record its full commit SHA and verification evidence here.
 Commit the ledger update before starting the next batch.
 Use one ledger row per actual batch. Split rows further when necessary.
 
-| Batch                             | Status                     | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                                                          | Revert commit |
-| --------------------------------- | -------------------------- | ------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| C01 — Internal wrappers           | Complete                   | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                                        | —             |
-| C02 — Transport adapters          | Complete                   | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`.                 | —             |
-| C03 — Durable Object readers      | Complete                   | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`. | —             |
-| C04 — D1 methods                  | Complete                   | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.       | —             |
-| C05 — Test accessors / R2 wrapper | Complete                   | `1b3819183f3080de2ab16d3a1c493a09734336db` | `1e122a0569ec3fe2f1dd48770b685f605fd4565e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 567 → 552. Evidence: `.artifacts/rust-cleanup-20261021/after/c05/`.       | —             |
-| C06 — Failure receipt             | Complete                   | `d47edf57f40ae722b0347beea7e8e0a775e8206d` | `838636af256e5da515bc9fa6d4f45f246da2e3cf` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 552 → 547. Evidence: `.artifacts/rust-cleanup-20261021/after/c06/`.       | —             |
-| C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                                                                | —             |
-| C08 — Unused parameters           | Needs ownership review     | —                                          | —                                          | —                                                                                                                                                                | —             |
-| C09 — Client export configuration | Preserve live export       | —                                          | —                                          | —                                                                                                                                                                | —             |
-| C10 — Suppressions                | Needs classification       | —                                          | —                                          | —                                                                                                                                                                | —             |
-| C11 — Duplication and large files | Pending                    | —                                          | —                                          | —                                                                                                                                                                | —             |
-| C12 — CLI response fields         | Complete, parsing retained | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                                    | —             |
+| Batch                             | Status                      | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                                                                                             | Revert commit |
+| --------------------------------- | --------------------------- | ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| C01 — Internal wrappers           | Complete                    | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                                                                           | —             |
+| C02 — Transport adapters          | Complete                    | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`.                                                    | —             |
+| C03 — Durable Object readers      | Complete                    | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`.                                    | —             |
+| C04 — D1 methods                  | Complete                    | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.                                          | —             |
+| C05 — Test accessors / R2 wrapper | Complete                    | `1b3819183f3080de2ab16d3a1c493a09734336db` | `1e122a0569ec3fe2f1dd48770b685f605fd4565e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 567 → 552. Evidence: `.artifacts/rust-cleanup-20261021/after/c05/`.                                          | —             |
+| C06 — Failure receipt             | Complete                    | `d47edf57f40ae722b0347beea7e8e0a775e8206d` | `838636af256e5da515bc9fa6d4f45f246da2e3cf` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 552 → 547. Evidence: `.artifacts/rust-cleanup-20261021/after/c06/`.                                          | —             |
+| C07 — Role and host configuration | Complete, combined with C08 | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f`                                 | Eight compilation checks and bloat passed. Worker warnings 547 → 518. Production unused imports and variables both fell to zero. Evidence: `.artifacts/rust-cleanup-20261021/after/c07-c08-final/`. | —             |
+| C08 — Unused parameters           | Complete, combined with C07 | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f`                                 | Same eight checks as C07. 1,434 insertions and 1,795 deletions include structural moves. No protocol or persistence shape changed.                                                                  | —             |
+| C09 — Client export configuration | Preserve live export        | —                                          | —                                          | —                                                                                                                                                                                                   | —             |
+| C10 — Suppressions                | Needs classification        | —                                          | —                                          | —                                                                                                                                                                                                   | —             |
+| C11 — Duplication and large files | Pending                     | —                                          | —                                          | —                                                                                                                                                                                                   | —             |
+| C12 — CLI response fields         | Complete, parsing retained  | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                                                                       | —             |
 
 For each completed row, record changed paths, deleted symbols, warning-count
 changes, source-line changes, and any release-WASM byte measurements actually taken.
