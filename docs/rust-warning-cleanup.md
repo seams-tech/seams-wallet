@@ -1,11 +1,12 @@
 # Rust warning cleanup checklist and revert log
 
-Review date: **2026-10-21**. Status: **review complete. Cleanup pending.**
+Review date: **2026-10-21**. Status: **cleanup in progress**.
 
 The review found unused transport wrappers, broad worker imports, and repeated
 lifecycle code. Start with the internal wrappers that have no callers.
 Review role ownership and response contracts before deleting other flagged code.
-This review changes documentation only. It leaves Rust code unchanged.
+The initial review changed documentation only. The change ledger records later
+Rust changes and their recovery points.
 
 ## Source baseline and measurements
 
@@ -334,10 +335,10 @@ identifiers stable during structural work.
 
 ### C12 — Review the CLI's parsed response fields
 
-- [ ] Review the three CLI diagnostics in `crates/seams-cli/src/console.rs`.
-- [ ] Establish whether each field constrains an accepted response, carries needed
+- [x] Review the three CLI diagnostics in `crates/seams-cli/src/console.rs`.
+- [x] Establish whether each field constrains an accepted response, carries needed
       lifecycle state, or serves only display data.
-- [ ] Preserve valid server-response acceptance and the intended success/refusal
+- [x] Preserve valid server-response acceptance and the intended success/refusal
       behavior before simplifying the boundary types.
 
 | Baseline line | Type and unread fields                                 |
@@ -351,6 +352,13 @@ The refusal and polled-operation types use `serde(deny_unknown_fields)`.
 Deleting an accepted field from either type can reject current server responses.
 The start path also parses `status` without using it to select a domain outcome.
 Check that behavior against the server contract before treating the field as waste.
+
+Completed in `15155578c522e98f8f4fa98f19765d29b056680e`.
+HTTP status selects the current server's completed, refused, and throttled outcomes.
+The CLI retains each field's type, wire name, default, and strict unknown-field rule.
+Explicit Serde names permit intentionally unused Rust field names.
+No accepted response field was deleted. CLI compilation now emits zero warnings.
+All eight existing Console response-contract checks passed before and after this change.
 
 ## Verification and repeatable evidence
 
@@ -401,7 +409,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-All cleanup batches remain pending.
+The first completed batch is C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -409,20 +417,20 @@ Afterward, record its full commit SHA and verification evidence here.
 Commit the ledger update before starting the next batch.
 Use one ledger row per actual batch. Split rows further when necessary.
 
-| Batch                             | Status                 | Before commit | Cleanup commit | Verification / artifact | Revert commit |
-| --------------------------------- | ---------------------- | ------------- | -------------- | ----------------------- | ------------- |
-| C01 — Internal wrappers           | Pending                | —             | —              | —                       | —             |
-| C02 — Transport adapters          | Pending                | —             | —              | —                       | —             |
-| C03 — Durable Object readers      | Pending                | —             | —              | —                       | —             |
-| C04 — D1 methods                  | Needs classification   | —             | —              | —                       | —             |
-| C05 — Test accessors / R2 wrapper | Pending                | —             | —              | —                       | —             |
-| C06 — Failure receipt             | Retain pending review  | —             | —              | —                       | —             |
-| C07 — Role and host configuration | Pending                | —             | —              | —                       | —             |
-| C08 — Unused parameters           | Needs ownership review | —             | —              | —                       | —             |
-| C09 — Client export configuration | Preserve live export   | —             | —              | —                       | —             |
-| C10 — Suppressions                | Needs classification   | —             | —              | —                       | —             |
-| C11 — Duplication and large files | Pending                | —             | —              | —                       | —             |
-| C12 — CLI response fields         | Needs contract review  | —             | —              | —                       | —             |
+| Batch                             | Status                     | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                       | Revert commit |
+| --------------------------------- | -------------------------- | ------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| C01 — Internal wrappers           | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C02 — Transport adapters          | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C03 — Durable Object readers      | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C04 — D1 methods                  | Needs classification       | —                                          | —                                          | —                                                                                                                             | —             |
+| C05 — Test accessors / R2 wrapper | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C06 — Failure receipt             | Retain pending review      | —                                          | —                                          | —                                                                                                                             | —             |
+| C07 — Role and host configuration | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C08 — Unused parameters           | Needs ownership review     | —                                          | —                                          | —                                                                                                                             | —             |
+| C09 — Client export configuration | Preserve live export       | —                                          | —                                          | —                                                                                                                             | —             |
+| C10 — Suppressions                | Needs classification       | —                                          | —                                          | —                                                                                                                             | —             |
+| C11 — Duplication and large files | Pending                    | —                                          | —                                          | —                                                                                                                             | —             |
+| C12 — CLI response fields         | Complete, parsing retained | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`. | —             |
 
 For each completed row, record changed paths, deleted symbols, warning-count
 changes, source-line changes, and any release-WASM byte measurements actually taken.
