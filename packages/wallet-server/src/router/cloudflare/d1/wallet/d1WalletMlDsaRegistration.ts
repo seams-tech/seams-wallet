@@ -304,12 +304,18 @@ export class D1WalletMlDsaRegistration {
     let materialEpoch = 1;
     switch (input.purpose.kind) {
       case 'create':
-        if (
-          existing.kind === 'present' &&
-          (existing.value.phase.kind !== 'expired_admission' ||
-            existing.value.preparation.purpose.kind !== 'create')
-        )
-          return failure('signer_conflict', 'The ML-DSA signer slot is reserved');
+        if (existing.kind === 'present') {
+          const previous = existing.value;
+          if (
+            previous.preparation.purpose.kind !== 'create' ||
+            previous.phase.kind === 'published' ||
+            (previous.phase.kind !== 'expired_admission' && previous.expiresAtMs > Date.now())
+          )
+            return failure('signer_conflict', 'The ML-DSA signer slot is reserved');
+          // Fresh approval replaces an expired, unpublished attempt. Never resume
+          // its private state or reuse its epoch, inputs, or preparation.
+          materialEpoch = previous.preparation.protocolInputs.materialEpoch + 1;
+        }
         break;
       case 'restore': {
         if (existing.kind !== 'present')
@@ -331,11 +337,11 @@ export class D1WalletMlDsaRegistration {
             'ML-DSA restoration changed the recorded key or an operation is active',
           );
         materialEpoch = previous.preparation.protocolInputs.materialEpoch + 1;
-        if (!Number.isSafeInteger(materialEpoch))
-          return failure('unavailable', 'ML-DSA material epoch is exhausted');
         break;
       }
     }
+    if (!Number.isSafeInteger(materialEpoch))
+      return failure('unavailable', 'ML-DSA material epoch is exhausted');
     const recipients = await discoverMlDsaRecipientKeys(this.options.proxy);
     if (recipients.kind !== 'ready')
       return failure('unavailable', 'ML-DSA recipients are unavailable');

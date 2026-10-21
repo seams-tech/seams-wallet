@@ -3429,12 +3429,13 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - A failed Router round must discard the driver's live custody handle. A successful driver result remains proposed commit data until durable custody publication.
 - ML-DSA device linking must authorize the existing server-held signer without transferring the wallet custody seed or server signing shares. Owner custody joining does not establish device enrollment.
 - Enroll only the published signer's full public key through the existing account's ordinary NEAR owner approval. Require the publication and Wallet Session to name the same wallet.
+- Before requesting AddKey approval, read finalized protocol configuration from the selected NEAR client. Require protocol version 85 or later. Return a typed refusal for earlier versions and an unavailable result for failed reads. Read-only enrollment continuation never submits another transaction.
 - Confirm enrollment from the finalized access-key list. Match the hashed ML-DSA handle through the existing Rust codec. Refuse an existing restricted key instead of silently changing its permission.
 - Preserve a public continuation after an uncertain enrollment submission. Resume by checking chain state. A resume must have no submission port.
 - Authenticated signer inventory requires a fresh origin-bound WebAuthn assertion over a Gateway-issued nonce with at most five minutes of validity. Pin the issued challenge to the current authority. Refuse caller-selected nonces or expiry changes. Inventory must neither consume signing material nor authorize a signature.
 - Return published key identities and explicit unpublished registration states. Release no seed, role input, private label, or signing share through inventory.
 - Restore ordinary wallet owner authority through the existing recovery ceremony. Keep the ML-DSA publication, epoch, seed binding, and participant material unchanged during this retention path.
-- Distinguish signer creation from participant restoration in the owner-approved intent. Creation requires an unused slot. Restoration requires the recorded public key, manifest, and material epoch.
+- Distinguish signer creation from participant restoration in the owner-approved intent. Creation requires an unused slot or an expired unpublished creation. Restoration requires the recorded public key, manifest, and material epoch.
 - `restoreMlDsaNearSigner` must use the active owner's existing custody envelope and a fresh Passkey approval. It must not replace the wallet seed, custody envelope, recovery codes, or on-chain public key.
 - Bind restoration to fresh participant delivery inputs and a higher material epoch. Both participants must reproduce the recorded public key and manifest before publication.
 - Suspend public signing while restoration is pending. Fence old prepared operations and cached results through the publication version and material epoch.
@@ -3461,7 +3462,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Return the same publication receipt after a lost acknowledgement or Gateway restart.
 - Retain the verified public custody completion before its first publication request. Replay that exact completion after startup or unlock. An installed completion may publish after the execution deadline while its owner, envelope, operation, and epoch remain current. Expiry never permits new execution or replacement of uncertain material.
 - Expire unused admissions with a retained versioned record. A delayed execute must never overwrite a replacement ceremony.
-- Keep dispatched signer slots reserved after interruption. Recovery must reconcile uncertain participant state before reuse.
+- Keep dispatched signer slots reserved until their registration expires. An active custody owner can restart an expired unpublished creation with fresh approval, encrypted inputs, preparation, and a higher material epoch. Participant activation and storage must preserve any previously installed canonical public key. A stale execution or publication cannot replace the new journal. Creation must never replace a published signer or an interrupted restoration.
 - Permit admitted work to settle while relocation drains. Block new admissions while draining.
 - Reject participant relocation after ML-DSA execution starts until participant-state transfer exists. Never omit an installed or uncertain ML-DSA key from a relocation.
 - Code recovery must preserve the wallet seed when sealing the replacement factor.

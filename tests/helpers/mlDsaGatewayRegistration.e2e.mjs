@@ -16,7 +16,7 @@ import {
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { readFile, writeFile, mkdir, readdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
@@ -214,6 +214,29 @@ class Gateway {
   }
 }
 
+class CompletionLossProxy {
+  constructor(proxy) {
+    this.proxy = proxy;
+    this.internalServiceAuthSecret = proxy.internalServiceAuthSecret;
+    this.loseKeyId = null;
+    this.completion = null;
+  }
+  async fetch(request) {
+    const input =
+      this.loseKeyId && new URL(request.url).pathname === '/router-ab/ml-dsa/register'
+        ? await request.clone().json()
+        : null;
+    const response = await this.proxy.fetch(request);
+    if (input?.key_id !== this.loseKeyId || !this.loseKeyId || response.status !== 200)
+      return response;
+    const body = await response.clone().json();
+    if (body.operation?.state !== 'complete') return response;
+    this.completion = body.operation.result;
+    this.loseKeyId = null;
+    return new Response('Injected lost Router completion', { status: 503 });
+  }
+}
+
 class PublicationDatabase {
   mode = 'none';
   paused = Promise.withResolvers();
@@ -266,6 +289,7 @@ export async function verifyMlDsaGatewayRegistration({
   privatePost,
   loseParticipantMaterial,
 }) {
+  const delivery = new CompletionLossProxy(proxy);
   const folder = join(directory, 'gateway');
   await mkdir(folder, { recursive: true, mode: 0o700 });
   const bundlePath = join(folder, 'gateway-api.mjs');
@@ -349,7 +373,7 @@ export async function verifyMlDsaGatewayRegistration({
     );
 
     let traced = new PublicationDatabase(api, database, scope, walletId);
-    let gateway = new Gateway(api, traced, scope, proxy);
+    let gateway = new Gateway(api, traced, scope, delivery);
     const { issued, body } = await issueAdmission(gateway, scope, walletId, key, 1, {
       kind: 'create',
     });
@@ -483,7 +507,7 @@ export async function verifyMlDsaGatewayRegistration({
     );
     assert.deepEqual(await phase(database, scope, walletId), beforePublish);
     checks.relocationCannotOmitInstalledMlDsa = true;
-    await expireInstalledPublication(database, scope, walletId);
+    await expireRegistration(database, scope, walletId, 1);
     traced.mode = 'lost_reply';
     assert.equal(
       (await gateway.post(walletId, 'ml-dsa/publish', publication)).body.code,
@@ -495,7 +519,7 @@ export async function verifyMlDsaGatewayRegistration({
     runtime = databaseRuntime(folder);
     database = await runtime.getD1Database('GATEWAY');
     traced = new PublicationDatabase(api, database, scope, walletId);
-    gateway = new Gateway(api, traced, scope, proxy);
+    gateway = new Gateway(api, traced, scope, delivery);
     const replay = await gateway.post(walletId, 'ml-dsa/publish', publication);
     assert.equal(replay.status, 200, JSON.stringify(replay.body));
     assert.deepEqual(replay.body.key, finished.commit.key);
@@ -531,7 +555,7 @@ export async function verifyMlDsaGatewayRegistration({
     runtime = databaseRuntime(folder);
     database = await runtime.getD1Database('GATEWAY');
     traced = new PublicationDatabase(api, database, scope, walletId);
-    gateway = new Gateway(api, traced, scope, proxy);
+    gateway = new Gateway(api, traced, scope, delivery);
     await replayPublicMlDsaSigning(api, gateway, publicSigning.replay, 'signed');
     publicSigning.evidence.checks.completedSigningSurvivesD1Restart = true;
     const lifecycle = await verifyMlDsaRetainedSignerLifecycle({
@@ -598,6 +622,21 @@ export async function verifyMlDsaGatewayRegistration({
     const restoredRecord = await phase(database, scope, walletId);
     assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
     checks.restorationPreservesCustody = true;
+    const interruptedCreation = await verifyInterruptedCreation({
+      api,
+      root,
+      sourcePath,
+      gateway,
+      database,
+      scope,
+      walletId,
+      key,
+      walletScope,
+      privatePost,
+      delivery,
+    });
+    assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
+    checks.interruptedCreationRestartsWithFreshMaterial = true;
     const revoked = await new api.D1WalletAuthorityStore({
       database,
       scope,
@@ -666,6 +705,7 @@ export async function verifyMlDsaGatewayRegistration({
       publicSigning: publicSigning.evidence,
       lifecycle,
       restoration,
+      interruptedCreation,
       publication: replay.body,
       scope:
         'Real Gateway routes, fresh P-256 WebAuthn verification, local D1, and prepared Worker key generation. Existing wallet ownership is seeded with shared factories. No ML-DSA-only wallet creation or public transaction-signing route is tested.',
@@ -880,9 +920,8 @@ function isRestoringEntry(entry) {
   return entry.kind === 'restoring';
 }
 
-async function expireInstalledPublication(database, scope, walletId) {
-  const installed = await phase(database, scope, walletId);
-  assert.equal(JSON.parse(installed.record_json).phase.kind, 'installed');
+async function expireRegistration(database, scope, walletId, slot) {
+  const installed = await phase(database, scope, walletId, slot);
   const result = await database
     .prepare(
       `UPDATE router_ab_yao_versioned_json_records
@@ -903,24 +942,7 @@ async function expireInstalledPublication(database, scope, walletId) {
 }
 
 async function replaceExpiredRestoration(input, purpose, interrupted) {
-  const record = await phase(input.database, input.scope, input.walletId);
-  const expiredAt = Date.now() - 1000;
-  await input.database
-    .prepare(
-      `UPDATE router_ab_yao_versioned_json_records
-    SET version=version+1, record_json=json_set(record_json,'$.expiresAtMs',?)
-    WHERE namespace=? AND org_id=? AND project_id=? AND env_id=? AND record_key=? AND version=?`,
-    )
-    .bind(
-      expiredAt,
-      input.scope.namespace,
-      input.scope.orgId,
-      input.scope.projectId,
-      input.scope.envId,
-      `ml-dsa-registration:${JSON.stringify([input.walletId, interrupted.mlDsa.protocolInputs.signingKeyId])}`,
-      record.version,
-    )
-    .run();
+  await expireRegistration(input.database, input.scope, input.walletId, 1);
   await input.api.expireUnusedMlDsaAdmissions(
     input.database,
     input.scope,
@@ -948,4 +970,167 @@ async function replaceExpiredRestoration(input, purpose, interrupted) {
   assert.equal(started.body.ok, true, JSON.stringify(started.body));
   assert.notEqual(started.body.addSignerCeremonyId, interrupted.addSignerCeremonyId);
   return started;
+}
+
+async function creationClient(input) {
+  const process = spawn(
+    join(input.root, 'tools/ml-dsa-investigation/target/release/ml-dsa-investigation'),
+    ['gateway-registration-client', input.sourcePath],
+    { stdio: ['pipe', 'pipe', 'inherit'] },
+  );
+  const client = {
+    process,
+    lines: createInterface({ input: process.stdout })[Symbol.asyncIterator](),
+  };
+  return { client, ready: await next(client) };
+}
+
+async function creationInputs(client, protocol) {
+  client.process.stdin.write(
+    JSON.stringify({
+      signing_key_id: protocol.signingKeyId,
+      operation: Array.from(Buffer.from(protocol.operationIdB64u, 'base64url')),
+      epoch: protocol.materialEpoch,
+      continuity: { kind: 'create' },
+      holder_public_keys: [
+        Array.from(Buffer.from(protocol.roleAPublicKeyB64u, 'base64url')),
+        Array.from(Buffer.from(protocol.roleBPublicKeyB64u, 'base64url')),
+      ],
+    }) + '\n',
+  );
+  return next(client);
+}
+
+async function verifyInterruptedCreation(input) {
+  const { gateway, scope, database, api } = input;
+  const walletId = `${input.walletId}-interrupted`;
+  const walletScope = { ...input.walletScope, wallet: walletId };
+  const key = credentialKey();
+  const owner = await api.gatewayOwner({
+    walletId,
+    label: 'interrupted-creation-owner',
+    credentialIdB64u: key.credentialId,
+    credentialPublicKeyB64u: key.publicKey,
+  });
+  await api.seedOwner(database, scope, owner);
+  await database
+    .prepare(
+      `INSERT INTO wallet_execution_generations
+     (namespace,org_id,project_id,env_id,wallet_id,generation,origin,origin_id,state,registration_completion)
+     VALUES (?,?,?,?,?,1,'registration','interrupted-fixture','active','established')`,
+    )
+    .bind(scope.namespace, scope.orgId, scope.projectId, scope.envId, walletId)
+    .run();
+  const sourcePath = join(dirname(input.sourcePath), 'interrupted-source.json');
+  await writeFile(
+    sourcePath,
+    JSON.stringify({
+      wallet_id: walletId,
+      wallet_auth_method_id: owner.authMethod.walletAuthMethodId,
+      rp_id: 'wallet.example.test',
+      credential_id_b64u: key.credentialId,
+    }),
+    { mode: 0o600 },
+  );
+  const original = await creationClient({ root: input.root, sourcePath });
+  let replacement = null;
+  try {
+    await api.seedCustody(database, scope, owner, original.ready);
+    const custodyBefore = await custodySnapshot(database, scope, walletId);
+    const intent = await issueAdmission(gateway, scope, walletId, key, 1, { kind: 'create' });
+    const first = await gateway.post(walletId, 'start', intent.body);
+    assert.equal(first.body.ok, true, JSON.stringify(first.body));
+    const originalInputs = await creationInputs(original.client, first.body.mlDsa.protocolInputs);
+    const initialStock = await input.privatePost('/router-ab/ml-dsa/registration/prepare', {
+      wallet: walletScope,
+    });
+    assert.equal(initialStock.ready, true);
+    const oldExecution = {
+      addSignerCeremonyId: first.body.addSignerCeremonyId,
+      encryptedInputs: originalInputs.inputs,
+    };
+    input.delivery.loseKeyId = first.body.mlDsa.protocolInputs.signingKeyId;
+    const lost = await gateway.post(walletId, 'ml-dsa/execute', oldExecution);
+    assert.equal(lost.body.code, 'ml_dsa_refused', JSON.stringify(lost.body));
+    const completion = input.delivery.completion;
+    assert.ok(completion);
+    assert.equal(
+      JSON.parse((await phase(database, scope, walletId, 1)).record_json).phase.kind,
+      'executing',
+    );
+    // Discard the live client. No verified public custody completion survives.
+    original.client.process.kill();
+    const blockedIntent = await issueAdmission(gateway, scope, walletId, key, 1, {
+      kind: 'create',
+    });
+    assert.equal(
+      (await gateway.post(walletId, 'start', blockedIntent.body)).body.code,
+      'signer_conflict',
+    );
+    await expireRegistration(database, scope, walletId, 1);
+    assert.equal(
+      (await gateway.post(walletId, 'ml-dsa/execute', oldExecution)).body.code,
+      'expired',
+    );
+    const freshIntent = await issueAdmission(gateway, scope, walletId, key, 1, { kind: 'create' });
+    const fresh = await gateway.post(walletId, 'start', freshIntent.body);
+    assert.equal(fresh.body.ok, true, JSON.stringify(fresh.body));
+    const protocol = fresh.body.mlDsa.protocolInputs;
+    assert.equal(protocol.materialEpoch, first.body.mlDsa.protocolInputs.materialEpoch + 1);
+    assert.notEqual(protocol.operationIdB64u, first.body.mlDsa.protocolInputs.operationIdB64u);
+    replacement = await creationClient({ root: input.root, sourcePath });
+    const replacementInputs = await creationInputs(replacement.client, protocol);
+    assert.notDeepEqual(replacementInputs.inputs, originalInputs.inputs);
+    const stock = await input.privatePost('/router-ab/ml-dsa/registration/prepare', {
+      wallet: walletScope,
+    });
+    assert.equal(stock.ready, true);
+    assert.notDeepEqual(stock.job.id, initialStock.job.id);
+    const installed = await gateway.post(walletId, 'ml-dsa/execute', {
+      addSignerCeremonyId: fresh.body.addSignerCeremonyId,
+      encryptedInputs: replacementInputs.inputs,
+    });
+    assert.equal(installed.body.ok, true, JSON.stringify(installed.body));
+    replacement.client.process.stdin.write(installed.body.protocolResultJson + '\n');
+    const finished = await next(replacement.client);
+    assert.equal(finished.canonicalKeyVerified, true);
+    assert.equal(
+      finished.commit.key.publicKeyB64u,
+      Buffer.from(completion.a.public_key).toString('base64url'),
+    );
+    assert.equal(
+      finished.commit.key.keyManifestDigestB64u,
+      Buffer.from(completion.a.activation.manifest_digest).toString('base64url'),
+    );
+    assert.equal((await gateway.post(walletId, 'ml-dsa/execute', oldExecution)).body.ok, false);
+    const publication = await gateway.post(walletId, 'ml-dsa/publish', {
+      addSignerCeremonyId: fresh.body.addSignerCeremonyId,
+      custodyCommit: finished.commit,
+    });
+    assert.equal(publication.body.ok, true, JSON.stringify(publication.body));
+    const overwriteIntent = await issueAdmission(gateway, scope, walletId, key, 1, {
+      kind: 'create',
+    });
+    assert.equal(
+      (await gateway.post(walletId, 'start', overwriteIntent.body)).body.code,
+      'signer_conflict',
+    );
+    assert.equal(await custodySnapshot(database, scope, walletId), custodyBefore);
+    return {
+      materialEpoch: protocol.materialEpoch,
+      checks: {
+        lostCompletionLeavesExecutingJournal: true,
+        unexpiredCreationCannotBeReplaced: true,
+        oldExecutionExpires: true,
+        freshApprovalAndEpochRequired: true,
+        newInputsAndPreparation: true,
+        canonicalKeyAndManifestPreserved: true,
+        delayedExecutionCannotOverwriteReplacement: true,
+        publishedCreationCannotBeReplaced: true,
+      },
+    };
+  } finally {
+    original.client.process.kill();
+    replacement?.client.process.kill();
+  }
 }

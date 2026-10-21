@@ -64,6 +64,10 @@ class EnrollmentOwner {
     if (this.unavailable) throw new TypeError('Injected RPC outage');
     return this.reader.viewAccessKeyList(account, finality);
   }
+  async viewProtocolConfig() {
+    if (this.unavailable) throw new TypeError('Injected RPC outage');
+    return this.reader.viewProtocolConfig();
+  }
   async signAndSendTransaction(request) {
     this.broadcasts += 1;
     assert.equal(this.broadcasts, 1, 'Uncertain enrollment must never submit another transaction');
@@ -189,7 +193,10 @@ try {
   owner.publicKeyObject = pair.publicKey;
   const target = {
     near: { signAndSendTransaction: owner.signAndSendTransaction.bind(owner) },
-    nearClient: { viewAccessKeyList: owner.viewAccessKeyList.bind(owner) },
+    nearClient: {
+      viewAccessKeyList: owner.viewAccessKeyList.bind(owner),
+      viewProtocolConfig: owner.viewProtocolConfig.bind(owner),
+    },
     walletSession: {
       ...api.walletSessionRefFromSession({ walletId: baseline.walletId }),
       leakedFactor: 'fixture-private-field',
@@ -207,6 +214,27 @@ try {
   assert.deepEqual(wrongWallet, { kind: 'refused', reason: 'wrong_wallet' });
   assert.equal(owner.broadcasts, 0);
   report.checks.publicationCannotEnrollAnotherWallet = true;
+  const unavailable = await api.enrollMlDsaNearSigner({
+    ...target,
+    nearClient: {
+      viewAccessKeyList: target.nearClient.viewAccessKeyList,
+      viewProtocolConfig: rejectProtocolRead,
+    },
+  });
+  assert.deepEqual(unavailable, { kind: 'unavailable', reason: 'rpc_unavailable' });
+  const unsupported = await api.enrollMlDsaNearSigner({
+    ...target,
+    nearClient: {
+      viewAccessKeyList: target.nearClient.viewAccessKeyList,
+      viewProtocolConfig: oldProtocol,
+    },
+  });
+  assert.deepEqual(unsupported, { kind: 'refused', reason: 'unsupported_protocol' });
+  assert.equal(owner.broadcasts, 0);
+  report.checks.protocolFailureNeverRequestsOwnerApproval = true;
+  report.checks.preActivationNetworkNeverRequestsOwnerApproval = true;
+  report.protocolConfig = await owner.viewProtocolConfig();
+  assert.ok(report.protocolConfig.protocolVersion >= 85);
   const pending = await api.enrollMlDsaNearSigner(target);
   assert.equal(pending.kind, 'pending', JSON.stringify(pending));
   assert.equal(pending.reason, 'rpc_unavailable');
@@ -274,4 +302,10 @@ try {
 }
 function isExpectedMlDsaKey(key) {
   return key.public_key === report.expectedHandle && key.access_key.permission === 'FullAccess';
+}
+async function rejectProtocolRead() {
+  throw new TypeError('Injected protocol configuration outage');
+}
+async function oldProtocol() {
+  return { chainId: 'pre-activation-test-network', protocolVersion: 84 };
 }

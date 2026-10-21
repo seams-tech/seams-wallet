@@ -7,6 +7,17 @@ import {
 
 export type NearRpcResultDecoder<T> = (value: unknown) => T;
 
+export function decodeNearProtocolConfig(value: unknown): {
+  chainId: string;
+  protocolVersion: number;
+} {
+  const record = requireRecord(value, 'NEAR protocol configuration');
+  return {
+    chainId: requireString(record.chain_id, 'NEAR protocol chain_id'),
+    protocolVersion: requireSafeInteger(record.protocol_version, 'NEAR protocol version'),
+  };
+}
+
 export type NearRpcErrorType =
   | 'InvalidTxError'
   | 'ActionError'
