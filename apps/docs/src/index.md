@@ -12,7 +12,7 @@ relayer URL, and managed-registration credentials.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.15.4
+pnpm add @seams/wallet@0.17.0
 ```
 
 ## 2. Mount the provider

@@ -35,6 +35,7 @@ packages/wallet/LICENSE.md
 packages/wallet-server/LICENSE.md
 
 # Benchmark artifacts
+crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/
 crates/router-ab-cloudflare/reports/startup-latencies/*.json
 
 # WASM worker outputs

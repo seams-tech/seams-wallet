@@ -5,14 +5,14 @@ implementation crates, documentation, examples, and recovery CLI.
 
 Published packages:
 
-- `@seams/wallet@0.15.4`
-- `@seams/wallet-server@0.15.4`
-- `@seams/wallet-cli@0.15.0` — with its signed native release;
+- `@seams/wallet@0.17.0`
+- `@seams/wallet-server@0.17.0`
+- `@seams/wallet-cli@0.17.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
-Publication status checked October 20, 2026. The browser and server SDKs use
+Publication status checked October 21, 2026. The browser and server SDKs use
 wallet iframe protocol `16.0.0`. Keep application code and wallet-origin assets
 on the same release. The CLI has its own release cadence.
 See [release notes](./apps/docs/src/releases.md) and the

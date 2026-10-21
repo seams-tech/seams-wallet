@@ -117,10 +117,9 @@ The recorded staging finalization p95 fell from 1,381 ms to 858 ms across
 comparison does not establish an overall registration latency guarantee.
 See the [dated evidence](https://github.com/seams-tech/seams-wallet/blob/main/docs/evidence/release-0130-staging-20261017.md).
 
-## Prepared changes
+## 0.17.0
 
-The development checkout contains version 0.16.0. Publication and deployment
-are pending.
+The browser SDK, server SDK, and recovery CLI use version 0.17.0.
 
 This release changes the React API. `useSeams()` now supplies authentication
 actions and the current bound `wallet`. The `useWallet()` hook and
@@ -144,4 +143,3 @@ the same ring, headline, and instruction layout as the passkey waiting screen.
 It also loads the NEAR signing and export WASM modules before finalization,
 with shared initialization for concurrent callers. It retains compatibility
 with 0.15.4 custody Workers.
-Use the published baseline until publication and deployment are verified.

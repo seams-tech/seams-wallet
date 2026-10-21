@@ -7,6 +7,7 @@ mod reference;
 mod rounding_evidence;
 mod sampler_evidence;
 mod signing_mask_evidence;
+mod worker_fixtures;
 
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -15,6 +16,9 @@ use std::{env, error::Error, fs, path::PathBuf, process::Command, time::SystemTi
 type InvestigationResult<T> = Result<T, Box<dyn Error>>;
 
 enum Invocation {
+    ExportWorkerFixtures {
+        directory: PathBuf,
+    },
     Report {
         output: PathBuf,
         samples: usize,
@@ -43,6 +47,12 @@ fn run() -> InvestigationResult<()> {
         return Ok(());
     }
     match parse_invocation()? {
+        Invocation::ExportWorkerFixtures { directory } => {
+            println!(
+                "{}",
+                serde_json::to_string(&worker_fixtures::export(&directory)?)?
+            );
+        }
         Invocation::RecoverPublicFixture { name } => {
             let recovery = reference::recover_public_fixture(&name)?;
             println!("{}", serde_json::to_string(&recovery)?);
@@ -70,6 +80,14 @@ fn run() -> InvestigationResult<()> {
 fn parse_invocation() -> InvestigationResult<Invocation> {
     let mut args = env::args().skip(1);
     if let Some(first) = args.next() {
+        if first == "export-worker-fixtures" {
+            let directory = PathBuf::from(
+                args.next()
+                    .ok_or("A fixture output directory is required.")?,
+            );
+            require(args.next().is_none(), "Unexpected fixture export argument.")?;
+            return Ok(Invocation::ExportWorkerFixtures { directory });
+        }
         if first == "recover-public-fixture" {
             let name = args.next().ok_or("A public fixture name is required.")?;
             require(args.next().is_none(), "Unexpected recovery argument.")?;
@@ -181,6 +199,7 @@ fn generate_report(
         "src/private_keygen.rs",
         "src/rounding_evidence.rs",
         "src/signing_mask_evidence.rs",
+        "src/worker_fixtures.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(manifest.join(path))?)}));
     }

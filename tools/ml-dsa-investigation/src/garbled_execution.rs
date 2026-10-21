@@ -286,7 +286,7 @@ fn encode_metrics(metrics: &KernelRoleMetrics) -> Value {
     })
 }
 
-fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
+pub(super) fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     let mut bits = Vec::with_capacity(bytes.len() * 8);
     for byte in bytes {
         for bit in 0..8 {
@@ -296,7 +296,7 @@ fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     bits
 }
 
-fn pack_bits(bits: &[bool]) -> Vec<u8> {
+pub(super) fn pack_bits(bits: &[bool]) -> Vec<u8> {
     let mut output = vec![0; bits.len().div_ceil(8)];
     for (index, bit) in bits.iter().enumerate() {
         output[index / 8] |= u8::from(*bit) << (index % 8);

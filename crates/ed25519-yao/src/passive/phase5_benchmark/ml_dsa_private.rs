@@ -1,120 +1,75 @@
-//! Investigation-only passive private execution of fixed ML-DSA compositions.
+//! Host I/O and wall-clock adapter for the resumable private ML-DSA runtime.
 //!
-//! Input transfer uses the existing fresh-base Chou-Orlandi and IKNP protocol.
-//! Only B receives private output translations. B returns the declared public
-//! outputs to A. This facade provides no transport authentication, persistence,
-//! signing protocol, production admission, or reviewed composition proof.
+//! Crypto, fixed schemas, and role output ownership live in ml_dsa_runtime.
+//! This adapter trusts locally compiled schedules. Deployed adapters must pin
+//! their expected digest separately. It provides no production admission.
+//! Timing method 2 sums synchronous gate transitions separately from table I/O.
+//! Table buffer counts include the existing eight-byte envelope.
 
-use core::mem::size_of;
+use super::super::ml_dsa_runtime::{
+    begin_evaluator, begin_garbler, MessageKind, RuntimeError, RuntimeMetrics, RuntimePhase, Step,
+    TrustedMlDsaSchedule, TABLE_PAYLOAD_BYTES,
+};
+use core::fmt;
+use sha2::{Digest, Sha256};
 use std::{
     io::{Read, Write},
     time::Instant,
 };
-
-use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use super::super::ot::{
-    BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaRoundingOtFamily,
-    MlDsaSamplingOtFamily, MlDsaSeedOtFamily, OtError, OtFamily, OtSessionId, ReceiverChoices,
-    ReceiverStart, SenderPayloads, SenderStart,
-};
-use super::super::runtime::{empty_arena, install_inputs, required_wire};
-use super::super::{
-    Evaluator, EvaluatorWire, Garbler, GarblerWire, GlobalDelta, SessionDomain, WireValue,
-    AND_GATE_BYTES, LABEL_BYTES,
-};
-use super::ml_dsa_kernel::{
-    ensure, fresh_domain, missing_wire, ordinal, write_frame, KernelBenchmarkError,
-    PublicKernelSchedule, TableReader, FRAME_BYTES,
-};
-
-const STREAM_MAGIC: &[u8; 8] = b"MLDSAP01";
-const STREAM_HEADER_BYTES: usize = 80;
-const PRIVATE_SHAPES: &[(u8, usize, usize)] = &[
-    (0x87, 1_280, 1_024),
-    (0x88, 6_912, 5_889),
-    (0x89, 17_664, 8_448),
-    (0x8a, 6_912, 5_888),
-];
-type Result<T> = std::result::Result<T, KernelBenchmarkError>;
-
-#[derive(Clone, Copy)]
-enum Workload {
-    Seed,
-    Sampling,
-    Rounding,
-    ExpandMask,
+/// Failure from the core runtime or the host transport.
+#[derive(Debug)]
+pub enum PrivateBenchmarkError {
+    /// The resumable runtime rejected an input or protocol transition.
+    Runtime(RuntimeError),
+    /// The host reader or writer failed.
+    Io(std::io::Error),
 }
-
-impl Workload {
-    const fn a_inputs(self) -> usize {
+impl fmt::Display for PrivateBenchmarkError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Seed => 1_024,
-            Self::Sampling | Self::ExpandMask => 6_400,
-            Self::Rounding => 11_776,
-        }
-    }
-
-    const fn b_inputs(self) -> usize {
-        match self {
-            Self::Seed => 256,
-            Self::Sampling | Self::ExpandMask => 512,
-            Self::Rounding => 5_888,
-        }
-    }
-
-    const fn public_bytes(self) -> usize {
-        match self {
-            Self::Seed => 32,
-            Self::Sampling => 1,
-            Self::Rounding => 320,
-            Self::ExpandMask => 0,
-        }
-    }
-
-    fn public_output(self, output: &[u8]) -> Vec<u8> {
-        match self {
-            Self::Sampling => vec![output[0] & 1],
-            Self::ExpandMask => Vec::new(),
-            Self::Seed | Self::Rounding => output[..self.public_bytes()].to_vec(),
+            Self::Runtime(error) => error.fmt(formatter),
+            Self::Io(error) => error.fmt(formatter),
         }
     }
 }
+impl std::error::Error for PrivateBenchmarkError {}
+impl From<RuntimeError> for PrivateBenchmarkError {
+    fn from(error: RuntimeError) -> Self {
+        Self::Runtime(error)
+    }
+}
+impl From<std::io::Error> for PrivateBenchmarkError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+type Result<T> = std::result::Result<T, PrivateBenchmarkError>;
 
-/// A fixed private composition, distinct from the public benchmark schedule.
+/// A locally compiled private schedule used by the host investigation harness.
 pub struct PrivateKernelSchedule<'a> {
-    inner: PublicKernelSchedule<'a>,
-    workload: Workload,
+    inner: TrustedMlDsaSchedule<'a>,
 }
-
 impl<'a> PrivateKernelSchedule<'a> {
-    /// Validates one fixed composed circuit and its explicit input ownership.
+    /// Validates the local artifact against its complete locally calculated digest.
     pub fn parse(bytes: &'a [u8]) -> Result<Self> {
-        let inner = PublicKernelSchedule::parse_shapes(bytes, PRIVATE_SHAPES)?;
-        let workload = match bytes[8] {
-            0x87 => Workload::Seed,
-            0x88 => Workload::Sampling,
-            0x89 => Workload::Rounding,
-            0x8a => Workload::ExpandMask,
-            _ => unreachable!("private shape was validated"),
-        };
-        Ok(Self { inner, workload })
+        let digest: [u8; 32] = Sha256::digest(bytes).into();
+        Ok(Self {
+            inner: TrustedMlDsaSchedule::parse(bytes, digest)?,
+        })
     }
-
-    /// Exact A input bit count in the fixed private schema.
+    /// Returns the exact A input bit count.
     pub const fn garbler_input_bits(&self) -> usize {
-        self.workload.a_inputs()
+        self.inner.garbler_input_bits()
     }
-
-    /// Exact B input bit count in the fixed private schema.
+    /// Returns the exact B input bit count.
     pub const fn evaluator_input_bits(&self) -> usize {
-        self.workload.b_inputs()
+        self.inner.evaluator_input_bits()
     }
-
-    /// Exact B output bit count, including its declared public prefix.
+    /// Returns the full packed B output bit count.
     pub const fn evaluator_output_bits(&self) -> usize {
-        self.inner.outputs
+        self.inner.evaluator_output_bits()
     }
 }
 
@@ -139,15 +94,15 @@ pub struct PrivateRoleMetrics {
     pub public_return_bytes: usize,
     /// Actual reusable wire arena capacity times its element size.
     pub label_arena_allocation_bytes: usize,
-    /// Actual table buffer capacity.
+    /// Largest table message buffer, including its eight-byte envelope.
     pub table_buffer_allocation_bytes: usize,
     /// Largest encoded control-flight or direct-label allocation.
     pub largest_control_buffer_bytes: usize,
     /// Public schedule bytes held outside the arena.
     pub schedule_bytes: usize,
-    /// Input label generation and complete OT setup duration.
+    /// Wall duration before the first gate transition or table request.
     pub setup_wall_ns: u128,
-    /// Gate loop duration after subtracting measured table I/O duration.
+    /// Sum of synchronous gate-transition durations, excluding transport I/O.
     pub gate_compute_wall_ns: u128,
     /// Measured table I/O duration.
     pub table_io_wall_ns: u128,
@@ -167,449 +122,173 @@ pub struct PrivateKernelEvaluation {
     pub metrics: PrivateRoleMetrics,
 }
 
-/// Executes A with only A's fixed-schema fixture inputs and a duplex transport.
-///
-/// A retains its masks outside this function. No B private output labels or
-/// bytes return to A. Caller-supplied residues must follow the honest schema.
+/// Drives A's resumable role with only A's fixed-schema fixture inputs.
 pub fn garble_private_fixture<R: Read, W: Write>(
     schedule: &PrivateKernelSchedule<'_>,
-    fixture_bits_a: &[bool],
+    bits: &[bool],
     reader: R,
     writer: W,
 ) -> Result<PrivateKernelEvaluation> {
-    let mut reader = CountingReader {
-        inner: reader,
-        bytes: 0,
-    };
-    let mut writer = CountingWriter {
-        inner: writer,
-        bytes: 0,
-    };
-    let evaluation = match schedule.workload {
-        Workload::Seed => {
-            garble::<MlDsaSeedOtFamily, _, _>(schedule, fixture_bits_a, &mut reader, &mut writer)
-        }
-        Workload::Sampling | Workload::ExpandMask => garble::<MlDsaSamplingOtFamily, _, _>(
-            schedule,
-            fixture_bits_a,
-            &mut reader,
-            &mut writer,
-        ),
-        Workload::Rounding => garble::<MlDsaRoundingOtFamily, _, _>(
-            schedule,
-            fixture_bits_a,
-            &mut reader,
-            &mut writer,
-        ),
-    }?;
-    ensure(
-        evaluation.metrics.garbler_to_evaluator_wire_bytes == writer.bytes
-            && evaluation.metrics.evaluator_to_garbler_wire_bytes == reader.bytes,
-        "Observed private A byte counts differ from the fixed schema.",
-    )?;
-    Ok(evaluation)
+    let started = Instant::now();
+    let step = begin_garbler(&schedule.inner, bits)?;
+    drive(step, Role::A, reader, writer, started)
 }
 
-/// Executes B with only B's fixed-schema fixture inputs and a duplex transport.
-///
-/// B receives one selected label per input through OT. The public-fixture
-/// recipient can inspect the returned B shares for independent verification.
+/// Drives B's resumable role with only B's fixed-schema fixture inputs.
 pub fn evaluate_private_fixture<R: Read, W: Write>(
     schedule: &PrivateKernelSchedule<'_>,
-    fixture_bits_b: &[bool],
+    bits: &[bool],
     reader: R,
     writer: W,
 ) -> Result<PrivateKernelEvaluation> {
-    let mut reader = CountingReader {
-        inner: reader,
-        bytes: 0,
-    };
-    let mut writer = CountingWriter {
-        inner: writer,
-        bytes: 0,
-    };
-    let evaluation = match schedule.workload {
-        Workload::Seed => {
-            evaluate::<MlDsaSeedOtFamily, _, _>(schedule, fixture_bits_b, &mut reader, &mut writer)
+    let started = Instant::now();
+    let step = begin_evaluator(&schedule.inner, bits)?;
+    drive(step, Role::B, reader, writer, started)
+}
+
+#[derive(Clone, Copy)]
+enum Role {
+    A,
+    B,
+}
+enum SetupTiming {
+    Running,
+    Complete(u128),
+}
+struct Timings {
+    setup: SetupTiming,
+    gate_compute_ns: u128,
+    table_io_ns: u128,
+}
+impl Timings {
+    fn begin(&mut self, phase: RuntimePhase, started: Instant) {
+        if phase == RuntimePhase::Gates && matches!(self.setup, SetupTiming::Running) {
+            self.setup = SetupTiming::Complete(started.elapsed().as_nanos());
         }
-        Workload::Sampling | Workload::ExpandMask => evaluate::<MlDsaSamplingOtFamily, _, _>(
-            schedule,
-            fixture_bits_b,
-            &mut reader,
-            &mut writer,
-        ),
-        Workload::Rounding => evaluate::<MlDsaRoundingOtFamily, _, _>(
-            schedule,
-            fixture_bits_b,
-            &mut reader,
-            &mut writer,
-        ),
-    }?;
-    ensure(
-        evaluation.metrics.garbler_to_evaluator_wire_bytes == reader.bytes
-            && evaluation.metrics.evaluator_to_garbler_wire_bytes == writer.bytes,
-        "Observed private B byte counts differ from the fixed schema.",
-    )?;
-    Ok(evaluation)
+    }
+    fn record(&mut self, phase: RuntimePhase, elapsed: u128) {
+        if phase == RuntimePhase::Gates {
+            self.gate_compute_ns += elapsed;
+        }
+    }
 }
-
-struct CountingReader<R> {
-    inner: R,
-    bytes: usize,
+struct InputBuffers {
+    control: Zeroizing<Vec<u8>>,
+    table: Zeroizing<Vec<u8>>,
 }
-
-impl<R: Read> Read for CountingReader<R> {
-    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-        let bytes = self.inner.read(buffer)?;
-        self.bytes += bytes;
-        Ok(bytes)
+impl InputBuffers {
+    fn read<R: Read>(
+        &mut self,
+        kind: MessageKind,
+        length: usize,
+        reader: &mut R,
+    ) -> std::io::Result<&[u8]> {
+        let buffer = if kind == MessageKind::TableFrame {
+            &mut self.table
+        } else {
+            &mut self.control
+        };
+        if buffer.capacity() < length {
+            buffer.reserve_exact(length.saturating_sub(buffer.len()));
+        }
+        buffer.resize(length, 0);
+        reader.read_exact(buffer)?;
+        Ok(buffer)
     }
 }
 
-struct CountingWriter<W> {
-    inner: W,
-    bytes: usize,
-}
-
-impl<W: Write> Write for CountingWriter<W> {
-    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
-        let bytes = self.inner.write(buffer)?;
-        self.bytes += bytes;
-        Ok(bytes)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.flush()
-    }
-}
-
-fn garble<F: OtFamily, R: Read, W: Write>(
-    private: &PrivateKernelSchedule<'_>,
-    fixture_bits: &[bool],
+fn drive<R: Read, W: Write>(
+    mut step: Step<'_>,
+    role: Role,
     mut reader: R,
     mut writer: W,
-) -> Result<PrivateKernelEvaluation> {
-    let started = Instant::now();
-    let schedule = &private.inner;
-    ensure(
-        fixture_bits.len() == private.garbler_input_bits(),
-        "Wrong private A input count.",
-    )?;
-    let domain = fresh_domain()?;
-    let (header, session, binding) = fresh_header(schedule, domain)?;
-    writer.write_all(&header)?;
-    writer.flush()?;
-    let garbler = Garbler::new(
-        GlobalDelta::random()
-            .map_err(|_| KernelBenchmarkError::Invalid("OS randomness failed."))?,
-        domain,
-    );
-    let inputs = GarblerWire::random_batch(schedule.inputs)
-        .map_err(|_| KernelBenchmarkError::Invalid("OS randomness failed."))?;
-    let mut direct = Zeroizing::new(Vec::with_capacity(fixture_bits.len() * LABEL_BYTES));
-    for (input, bit) in inputs.iter().zip(fixture_bits) {
-        garbler
-            .encode(input, WireValue::from_secret_bit(u8::from(*bit)))
-            .append_secret_bytes(&mut direct);
-    }
-    let mut pairs = Vec::with_capacity(F::OT_COUNT);
-    for input in &inputs[fixture_bits.len()..] {
-        pairs.push(garbler.encoded_pair(input));
-    }
-    let payloads = SenderPayloads::<F>::new(pairs).map_err(ot_error)?;
-    let offer_bytes = read_control(&mut reader, BaseOffer::<F>::wire_bytes())?;
-    let offer = BaseOffer::<F>::decode_for_session(&offer_bytes, session).map_err(ot_error)?;
-    let (sender, choices) = SenderStart::<F>::new()
-        .begin_os(offer, payloads)
-        .map_err(ot_error)?;
-    let choices_bytes = Zeroizing::new(choices.encode());
-    writer.write_all(&choices_bytes)?;
-    writer.write_all(&direct)?;
-    writer.flush()?;
-    let extension_bytes = read_control(&mut reader, ExtensionMatrix::<F>::wire_bytes())?;
-    let extension = ExtensionMatrix::<F>::decode(&extension_bytes).map_err(ot_error)?;
-    let masked = sender.accept(extension).map_err(ot_error)?;
-    let masked_bytes = Zeroizing::new(masked.encode());
-    writer.write_all(&masked_bytes)?;
-    writer.flush()?;
-    let largest_control_buffer_bytes = direct
-        .capacity()
-        .max(masked_bytes.capacity())
-        .max(extension_bytes.capacity());
-    drop(direct);
-    drop(offer_bytes);
-    drop(choices_bytes);
-    drop(extension_bytes);
-    drop(masked_bytes);
-    drop(masked);
-    let mut arena = empty_arena(schedule.slots);
-    install_inputs(&mut arena, inputs);
-    let arena_bytes = arena.capacity() * size_of::<Option<GarblerWire>>();
-    let mut frame = Zeroizing::new(Vec::with_capacity(FRAME_BYTES));
-    let setup_wall_ns = started.elapsed().as_nanos();
-    let gate_started = Instant::now();
-    let mut table_io_wall_ns = 0;
-    let mut frame_count = 0;
-    let mut table_bytes = 0;
-    for index in 0..schedule.gates {
-        let gate = schedule.gate(index);
-        let left = required_wire(&arena, gate.left).map_err(missing_wire)?;
-        let right = required_wire(&arena, gate.right).map_err(missing_wire)?;
-        let output = match gate.opcode {
-            1 => garbler.xor(left, right),
-            2 => {
-                let (output, table) = garbler.garble_and(ordinal(index)?, left, right);
-                table.append_encoded(&mut frame);
-                if frame.len() == FRAME_BYTES {
-                    table_io_wall_ns += write_frame(&mut writer, &frame, frame_count)?;
-                    table_bytes += frame.len();
-                    frame_count += 1;
-                    frame.clear();
-                }
-                output
-            }
-            3 => garbler.invert(left),
-            _ => unreachable!("validated opcode"),
-        };
-        arena[gate.output] = Some(output);
-    }
-    if !frame.is_empty() {
-        table_io_wall_ns += write_frame(&mut writer, &frame, frame_count)?;
-        table_bytes += frame.len();
-        frame_count += 1;
-    }
-    let gate_compute_wall_ns = gate_started
-        .elapsed()
-        .as_nanos()
-        .saturating_sub(table_io_wall_ns);
-    let mut translation = Zeroizing::new(vec![0_u8; schedule.outputs.div_ceil(8)]);
-    for (index, slot) in schedule.output_slots().enumerate() {
-        let wire = required_wire(&arena, slot).map_err(missing_wire)?;
-        translation[index / 8] |= wire.zero.selection_bit().0 << (index % 8);
-    }
-    writer.write_all(&translation)?;
-    writer.flush()?;
-    let output = read_control(&mut reader, private.workload.public_bytes())?;
-    if matches!(private.workload, Workload::Sampling) {
-        ensure(output[0] <= 1, "Invalid public sampling result.")?;
-    }
-    let metrics = metrics::<F>(
-        private,
-        arena_bytes,
-        frame.capacity(),
-        largest_control_buffer_bytes,
-        table_bytes,
-        frame_count,
-        setup_wall_ns,
-        gate_compute_wall_ns,
-        table_io_wall_ns,
-        started,
-        binding,
-    );
-    Ok(PrivateKernelEvaluation { output, metrics })
-}
-
-fn evaluate<F: OtFamily, R: Read, W: Write>(
-    private: &PrivateKernelSchedule<'_>,
-    fixture_bits: &[bool],
-    mut reader: R,
-    mut writer: W,
-) -> Result<PrivateKernelEvaluation> {
-    let started = Instant::now();
-    let schedule = &private.inner;
-    ensure(
-        fixture_bits.len() == private.evaluator_input_bits(),
-        "Wrong private B input count.",
-    )?;
-    let mut header = [0_u8; STREAM_HEADER_BYTES];
-    reader.read_exact(&mut header)?;
-    let (domain, session, binding) = parse_header(schedule, &header)?;
-    let choices =
-        ReceiverChoices::<F>::from_packed_bytes(pack_bits(fixture_bits)).map_err(ot_error)?;
-    let (receiver, offer) = ReceiverStart::<F>::new()
-        .begin_os(session, choices)
-        .map_err(ot_error)?;
-    let offer_bytes = Zeroizing::new(offer.encode());
-    writer.write_all(&offer_bytes)?;
-    writer.flush()?;
-    let choices_bytes = read_control(&mut reader, BaseChoices::<F>::wire_bytes())?;
-    let choices =
-        BaseChoices::<F>::decode_for_session(&choices_bytes, session).map_err(ot_error)?;
-    let mut direct = read_control(&mut reader, private.garbler_input_bits() * LABEL_BYTES)?;
-    let (receiver, extension) = receiver.accept(choices).map_err(ot_error)?;
-    let extension_bytes = Zeroizing::new(extension.encode());
-    writer.write_all(&extension_bytes)?;
-    writer.flush()?;
-    let masked_bytes = read_control(&mut reader, MaskedPayloads::<F>::wire_bytes())?;
-    let masked = MaskedPayloads::<F>::decode(&masked_bytes).map_err(ot_error)?;
-    let selected = receiver.accept(masked).map_err(ot_error)?;
-    let largest_control_buffer_bytes = direct
-        .capacity()
-        .max(masked_bytes.capacity())
-        .max(extension_bytes.capacity());
-    let mut inputs = Vec::with_capacity(schedule.inputs);
-    for label in direct.chunks_exact_mut(LABEL_BYTES) {
-        let active: [u8; LABEL_BYTES] = label.try_into().expect("fixed label width");
-        inputs.push(EvaluatorWire::from_secret_bytes(active));
-    }
-    for label in selected.as_slice() {
-        inputs.push(EvaluatorWire::from_secret_bytes(*label));
-    }
-    drop(selected);
-    drop(direct);
-    drop(masked_bytes);
-    drop(extension_bytes);
-    drop(extension);
-    drop(choices_bytes);
-    drop(offer_bytes);
-    let evaluator = Evaluator::new(domain);
-    let mut arena = empty_arena(schedule.slots);
-    install_inputs(&mut arena, inputs);
-    let arena_bytes = arena.capacity() * size_of::<Option<EvaluatorWire>>();
-    let mut frames = TableReader::new(schedule.and_gates * AND_GATE_BYTES);
-    let setup_wall_ns = started.elapsed().as_nanos();
-    let gate_started = Instant::now();
-    for index in 0..schedule.gates {
-        let gate = schedule.gate(index);
-        let left = required_wire(&arena, gate.left).map_err(missing_wire)?;
-        let right = required_wire(&arena, gate.right).map_err(missing_wire)?;
-        let output = match gate.opcode {
-            1 => evaluator.xor(left, right),
-            2 => evaluator.evaluate_and(ordinal(index)?, left, right, &frames.next(&mut reader)?),
-            3 => evaluator.invert(left),
-            _ => unreachable!("validated opcode"),
-        };
-        arena[gate.output] = Some(output);
-    }
-    let gate_compute_wall_ns = gate_started
-        .elapsed()
-        .as_nanos()
-        .saturating_sub(frames.io_wall_ns);
-    ensure(
-        frames.consumed == frames.expected_bytes && frames.cursor == frames.length,
-        "Incomplete private table stream.",
-    )?;
-    let translation = read_control(&mut reader, schedule.outputs.div_ceil(8))?;
-    let mut output = Zeroizing::new(vec![0_u8; schedule.outputs.div_ceil(8)]);
-    for (index, slot) in schedule.output_slots().enumerate() {
-        let wire = required_wire(&arena, slot).map_err(missing_wire)?;
-        let bit = wire.active.selection_bit().0 ^ ((translation[index / 8] >> (index % 8)) & 1);
-        output[index / 8] |= bit << (index % 8);
-    }
-    let public_output = private.workload.public_output(&output);
-    writer.write_all(&public_output)?;
-    writer.flush()?;
-    let metrics = metrics::<F>(
-        private,
-        arena_bytes,
-        frames.bytes.capacity(),
-        largest_control_buffer_bytes,
-        frames.consumed,
-        frames.count,
-        setup_wall_ns,
-        gate_compute_wall_ns,
-        frames.io_wall_ns,
-        started,
-        binding,
-    );
-    Ok(PrivateKernelEvaluation { output, metrics })
-}
-
-fn fresh_header(
-    schedule: &PublicKernelSchedule<'_>,
-    domain: SessionDomain,
-) -> Result<([u8; STREAM_HEADER_BYTES], OtSessionId, [u8; 32])> {
-    let mut header = [0_u8; STREAM_HEADER_BYTES];
-    header[..8].copy_from_slice(STREAM_MAGIC);
-    header[8..16].copy_from_slice(&domain.0.to_be_bytes());
-    header[16..48].copy_from_slice(&schedule.digest());
-    getrandom::getrandom(&mut header[48..])
-        .map_err(|_| KernelBenchmarkError::Invalid("OS randomness failed."))?;
-    let (_, session, binding) = parse_header(schedule, &header)?;
-    Ok((header, session, binding))
-}
-
-fn parse_header(
-    schedule: &PublicKernelSchedule<'_>,
-    header: &[u8; STREAM_HEADER_BYTES],
-) -> Result<(SessionDomain, OtSessionId, [u8; 32])> {
-    ensure(
-        &header[..8] == STREAM_MAGIC && header[16..48] == schedule.digest(),
-        "Wrong private stream or schedule.",
-    )?;
-    let domain = SessionDomain::from_protocol_value(u64::from_be_bytes(
-        header[8..16].try_into().expect("fixed domain"),
-    ))
-    .ok_or(KernelBenchmarkError::Invalid("Zero gate domain."))?;
-    let binding: [u8; 32] = Sha256::digest(header).into();
-    let session = OtSessionId::new(binding).map_err(ot_error)?;
-    Ok((domain, session, binding))
-}
-
-fn read_control<R: Read>(reader: &mut R, bytes: usize) -> Result<Zeroizing<Vec<u8>>> {
-    let mut encoded = Zeroizing::new(vec![0_u8; bytes]);
-    reader.read_exact(&mut encoded)?;
-    Ok(encoded)
-}
-
-fn pack_bits(bits: &[bool]) -> Vec<u8> {
-    let mut packed = vec![0_u8; bits.len().div_ceil(8)];
-    for (index, bit) in bits.iter().enumerate() {
-        packed[index / 8] |= u8::from(*bit) << (index % 8);
-    }
-    packed
-}
-
-fn ot_error(_: OtError) -> KernelBenchmarkError {
-    KernelBenchmarkError::Invalid("Passive input-transfer protocol failed.")
-}
-
-#[allow(clippy::too_many_arguments)]
-fn metrics<F: OtFamily>(
-    private: &PrivateKernelSchedule<'_>,
-    arena_bytes: usize,
-    table_buffer_bytes: usize,
-    control_buffer_bytes: usize,
-    table_bytes: usize,
-    frame_count: usize,
-    setup_wall_ns: u128,
-    gate_compute_wall_ns: u128,
-    table_io_wall_ns: u128,
     started: Instant,
-    binding: [u8; 32],
-) -> PrivateRoleMetrics {
-    let direct_label_bytes = private.garbler_input_bits() * LABEL_BYTES;
-    let output_translation_bytes = private.inner.outputs.div_ceil(8);
-    let public_return_bytes = private.workload.public_bytes();
-    let garbler_to_evaluator_wire_bytes = STREAM_HEADER_BYTES
-        + BaseChoices::<F>::wire_bytes()
-        + direct_label_bytes
-        + MaskedPayloads::<F>::wire_bytes()
-        + table_bytes
-        + frame_count * 8
-        + output_translation_bytes;
-    let evaluator_to_garbler_wire_bytes =
-        BaseOffer::<F>::wire_bytes() + ExtensionMatrix::<F>::wire_bytes() + public_return_bytes;
+) -> Result<PrivateKernelEvaluation> {
+    let mut timings = Timings {
+        setup: SetupTiming::Running,
+        gate_compute_ns: 0,
+        table_io_ns: 0,
+    };
+    let mut buffers = InputBuffers {
+        control: Zeroizing::new(Vec::new()),
+        table: Zeroizing::new(Vec::with_capacity(TABLE_PAYLOAD_BYTES + 8)),
+    };
+    let mut sent = 0;
+    let mut received = 0;
+    loop {
+        step = match step {
+            Step::Send(outgoing) => {
+                let io_started = Instant::now();
+                writer.write_all(outgoing.bytes())?;
+                writer.flush()?;
+                sent += outgoing.bytes().len();
+                if outgoing.kind() == MessageKind::TableFrame {
+                    timings.table_io_ns += io_started.elapsed().as_nanos();
+                }
+                let phase = outgoing.resume_phase();
+                timings.begin(phase, started);
+                let transition_started = Instant::now();
+                let step = outgoing.resume()?;
+                timings.record(phase, transition_started.elapsed().as_nanos());
+                step
+            }
+            Step::Receive(incoming) => {
+                let phase = incoming.phase();
+                timings.begin(phase, started);
+                let io_started = Instant::now();
+                let bytes =
+                    buffers.read(incoming.kind(), incoming.expected_bytes(), &mut reader)?;
+                received += bytes.len();
+                if incoming.kind() == MessageKind::TableFrame {
+                    timings.table_io_ns += io_started.elapsed().as_nanos();
+                }
+                let transition_started = Instant::now();
+                let step = incoming.accept(bytes)?;
+                timings.record(phase, transition_started.elapsed().as_nanos());
+                step
+            }
+            Step::Complete(result) => {
+                let (a_to_b, b_to_a) = match role {
+                    Role::A => (sent, received),
+                    Role::B => (received, sent),
+                };
+                if result.metrics.garbler_to_evaluator_wire_bytes != a_to_b
+                    || result.metrics.evaluator_to_garbler_wire_bytes != b_to_a
+                {
+                    return Err(RuntimeError::CounterMismatch.into());
+                }
+                let metrics = host_metrics(result.metrics, timings, started);
+                return Ok(PrivateKernelEvaluation {
+                    output: result.output,
+                    metrics,
+                });
+            }
+        };
+    }
+}
+
+fn host_metrics(metrics: RuntimeMetrics, timings: Timings, started: Instant) -> PrivateRoleMetrics {
+    let setup_wall_ns = match timings.setup {
+        SetupTiming::Complete(elapsed) => elapsed,
+        SetupTiming::Running => started.elapsed().as_nanos(),
+    };
     PrivateRoleMetrics {
-        table_bytes,
-        frame_count,
-        garbler_to_evaluator_wire_bytes,
-        evaluator_to_garbler_wire_bytes,
-        ot_wire_bytes: BaseOffer::<F>::wire_bytes()
-            + BaseChoices::<F>::wire_bytes()
-            + ExtensionMatrix::<F>::wire_bytes()
-            + MaskedPayloads::<F>::wire_bytes(),
-        direct_label_bytes,
-        output_translation_bytes,
-        public_return_bytes,
-        label_arena_allocation_bytes: arena_bytes,
-        table_buffer_allocation_bytes: table_buffer_bytes,
-        largest_control_buffer_bytes: control_buffer_bytes,
-        schedule_bytes: private.inner.bytes.len(),
+        table_bytes: metrics.table_bytes,
+        frame_count: metrics.frame_count,
+        garbler_to_evaluator_wire_bytes: metrics.garbler_to_evaluator_wire_bytes,
+        evaluator_to_garbler_wire_bytes: metrics.evaluator_to_garbler_wire_bytes,
+        ot_wire_bytes: metrics.ot_wire_bytes,
+        direct_label_bytes: metrics.direct_label_bytes,
+        output_translation_bytes: metrics.output_translation_bytes,
+        public_return_bytes: metrics.public_return_bytes,
+        label_arena_allocation_bytes: metrics.label_arena_allocation_bytes,
+        table_buffer_allocation_bytes: metrics.table_buffer_allocation_bytes,
+        largest_control_buffer_bytes: metrics.largest_control_buffer_bytes,
+        schedule_bytes: metrics.schedule_bytes,
         setup_wall_ns,
-        gate_compute_wall_ns,
-        table_io_wall_ns,
+        gate_compute_wall_ns: timings.gate_compute_ns,
+        table_io_wall_ns: timings.table_io_ns,
         role_wall_ns: started.elapsed().as_nanos(),
-        execution_binding_sha256: binding,
+        execution_binding_sha256: metrics.execution_binding_sha256,
     }
 }

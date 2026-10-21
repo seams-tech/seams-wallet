@@ -4,12 +4,12 @@ This package owns the reusable signer server surface: route adapters,
 WebAuthn verification policy, threshold signing services, signer storage
 adapters, and server wasm bindings.
 
-The current published package is `@seams/wallet-server@0.15.4`, checked
-October 20, 2026. Pair it with `@seams/wallet@0.15.4` and matching hosted assets.
-The CLI remains `@seams/wallet-cli@0.15.0`.
+The current published package is `@seams/wallet-server@0.17.0`, checked
+October 21, 2026. Pair it with `@seams/wallet@0.17.0` and matching hosted assets.
+Use `@seams/wallet-cli@0.17.0`.
 
 ```sh
-pnpm add @seams/wallet-server@0.15.4
+pnpm add @seams/wallet-server@0.17.0
 ```
 
 ## Supported runtime and entry points

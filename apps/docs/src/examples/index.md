@@ -14,7 +14,7 @@ Install the SDK and configure the wallet origin, relayer, and registration
 environment variables used by your app.
 
 ```sh
-pnpm add @seams/wallet@0.15.4
+pnpm add @seams/wallet@0.17.0
 ```
 
 <<< ./setup.tsx

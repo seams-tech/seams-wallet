@@ -14,11 +14,16 @@ mod metrics;
 #[cfg(any(
     test,
     feature = "passive-benchmark",
+    feature = "ml-dsa-runtime-benchmark",
     feature = "passive-wasm-benchmark",
     feature = "phase9-role-benchmark",
     feature = "local-protocol"
 ))]
 mod passive;
+
+#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+#[doc(hidden)]
+pub use passive::ml_dsa_runtime;
 
 #[cfg(feature = "passive-benchmark")]
 #[doc(hidden)]

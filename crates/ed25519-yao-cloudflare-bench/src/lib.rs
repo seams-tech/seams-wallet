@@ -2,6 +2,25 @@
 #![deny(missing_docs)]
 //! Benchmark-only Cloudflare adapter for the fixed activation/128 KiB Yao roles.
 
+#[cfg(any(feature = "ml-dsa-a", feature = "ml-dsa-b"))]
+mod ml_dsa;
+
+#[cfg(any(
+    all(feature = "ml-dsa-a", feature = "ml-dsa-b"),
+    all(
+        any(feature = "ml-dsa-a", feature = "ml-dsa-b"),
+        any(
+            feature = "deriver-a",
+            feature = "deriver-a-cross-account",
+            feature = "deriver-a-same-account-websocket",
+            feature = "deriver-b",
+            feature = "deriver-b-cross-account",
+            feature = "deriver-b-same-account-websocket"
+        )
+    )
+))]
+compile_error!("select exactly one benchmark role feature");
+
 #[cfg(any(
     feature = "deriver-a-same-account-websocket",
     feature = "deriver-a-cross-account",
@@ -158,6 +177,8 @@ compile_error!("fault-session-mismatch requires same-account deriver-b");
 #[cfg(all(
     target_arch = "wasm32",
     not(any(
+        feature = "ml-dsa-a",
+        feature = "ml-dsa-b",
         feature = "deriver-a",
         feature = "deriver-a-cross-account",
         feature = "deriver-a-same-account-websocket",

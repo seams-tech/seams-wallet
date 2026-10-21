@@ -13,6 +13,8 @@ crate-type = ["rlib", "cdylib"]
 
 [features]
 default = []
+ml-dsa-a = ["ed25519-yao/ml-dsa-runtime-benchmark"]
+ml-dsa-b = ["ed25519-yao/ml-dsa-runtime-benchmark"]
 deriver-a = []
 deriver-a-cross-account = []
 deriver-a-same-account-rpc = ["deriver-a"]

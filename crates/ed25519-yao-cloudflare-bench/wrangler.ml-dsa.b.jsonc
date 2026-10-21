@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "ml-dsa-kernel-20261013-b",
+  "main": "build/ml-dsa-b/index.js",
+  "compatibility_date": "2026-07-02",
+  "workers_dev": false,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 30000 },
+  "build": {
+    "command": "worker-build --release --out-dir build/ml-dsa-b --features ml-dsa-b",
+    "watch_dir": "src"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}
