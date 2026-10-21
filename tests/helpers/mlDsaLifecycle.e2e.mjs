@@ -66,14 +66,36 @@ async function signRetainedKey(input, key) {
   const confused = await input.api.executeMlDsaNearSigning({
     relayerUrl,
     preparation: prepared.preparation,
-    credential: signingAssertion(key, inventoryApproval.challengeB64u, 2),
+    authorization: {
+      kind: 'passkey',
+      credential: signingAssertion(key, inventoryApproval.challengeB64u, 2),
+    },
   });
   assert.equal(confused.kind, 'refused');
   assert.equal(confused.code, 'unauthorized');
+  const tokenB64u = randomBytes(32).toString('base64url');
+  const session = await input.api.prepareMlDsaSigningSession({
+    relayerUrl,
+    request: {
+      walletId: input.walletId,
+      operationIdB64u: prepared.preparation.request.operationIdB64u,
+      tokenDigestB64u: createHash('sha256')
+        .update(`seams/ml-dsa/session-token/v1|${tokenB64u}`)
+        .digest('base64url'),
+      maxOperations: 2,
+      durationMs: 600000,
+    },
+  });
+  assert.equal(session.kind, 'prepared', JSON.stringify(session));
   const request = {
     relayerUrl,
     preparation: prepared.preparation,
-    credential: signingAssertion(key, prepared.preparation.challengeB64u, 2),
+    authorization: {
+      kind: 'session_start',
+      credential: signingAssertion(key, session.preparation.challengeB64u, 2),
+      sessionIdB64u: session.preparation.sessionIdB64u,
+      tokenB64u,
+    },
   };
   const retries = [];
   let signed = await input.api.executeMlDsaNearSigning(request);

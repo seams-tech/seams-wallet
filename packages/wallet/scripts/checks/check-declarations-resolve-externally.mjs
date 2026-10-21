@@ -27,12 +27,29 @@ const repoRoot = resolve(packageRoot, '../..');
 const compiler = fileURLToPath(new URL('./bin/tsrs', import.meta.resolve('tsrs/package.json')));
 
 const CONSUMER_SOURCE = `
-import type { SeamsWeb, NearProvisioningState } from '@seams/wallet';
+import type { SeamsWeb, NearProvisioningState, AddedMlDsaSignerCapability, NearTransactionSignerSelection, MlDsaSigningSessionPolicy } from '@seams/wallet';
 import { SeamsWebProvider, useSeams } from '@seams/wallet/react';
 import { createSigningRuntime } from '@seams/wallet/runtime';
 import { addMlDsaNearSigner, restoreMlDsaNearSigner, enrollMlDsaNearSigner, resumeMlDsaNearEnrollment, prepareMlDsaSignerInventory, fetchMlDsaSignerInventory } from '@seams/wallet/advanced';
 type IsAny<T> = 0 extends (1 & T) ? true : false;
 type Assert<T extends true> = T;
+export type MlDsaPublicKeyIsTyped = Assert<
+  IsAny<AddedMlDsaSignerCapability['publicKeyB64u']> extends false ? true : false
+>;
+type NearSigningRequest = Parameters<SeamsWeb['near']['signTransaction']>[0];
+export type MlDsaSessionPolicyIsTyped = Assert<
+  IsAny<NonNullable<NearSigningRequest['options']>['mlDsaSigningSession']> extends false ? true : false
+>;
+declare const publicWallet: SeamsWeb;
+declare const mlDsaSigner: AddedMlDsaSignerCapability;
+const mlDsaPolicy: MlDsaSigningSessionPolicy = { maxOperations: 2, durationMs: 600_000 };
+const mlDsaSelection: NearTransactionSignerSelection = mlDsaSigner;
+void publicWallet.near.signTransaction({
+  signer: mlDsaSelection,
+  transaction: { receiverId: 'receiver.testnet', actions: [] },
+  options: { mlDsaSigningSession: mlDsaPolicy },
+});
+void publicWallet.keys.exportKey({ kind: 'ml_dsa_65', signer: mlDsaSigner });
 type Registration = SeamsWeb['registration'];
 type AccountState = Awaited<ReturnType<Registration['getNearAccountState']>>;
 type AccountWait = Awaited<ReturnType<Registration['waitForNearAccount']>>;

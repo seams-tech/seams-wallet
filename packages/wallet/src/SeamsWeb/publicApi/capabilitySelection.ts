@@ -4,6 +4,7 @@ import {
   NEAR_ED25519_MPC_OPERATION_KINDS,
   buildEvmEcdsaMpcOperationRef,
   buildNearEd25519MpcOperationRef,
+  buildNearMlDsa65MpcOperationRef,
   buildVaultOperationRef,
   type CapabilityOperationRef,
 } from '@shared/authorization/capabilityKinds';
@@ -30,6 +31,9 @@ type VaultBrowserCapabilityOperation = Extract<
 >;
 
 type BrowserCapabilitySelectionRequest =
+  | (Extract<CapabilityOperationRef, { capabilityKind: 'near_ml_dsa_65_mpc_signing' }> & {
+      readonly chainTarget?: never;
+    })
   | (NearBrowserCapabilityOperation & { readonly chainTarget?: never })
   | (EvmBrowserCapabilityOperation & { readonly chainTarget: ThresholdEcdsaChainTarget })
   | (VaultBrowserCapabilityOperation & { readonly chainTarget?: never });
@@ -127,6 +131,12 @@ export function selectBrowserCapabilityOperation(
       return disabled(buildVaultOperationRef(request.operationKind), 'capability_not_deployed');
     case CAPABILITY_KINDS.nearEd25519MpcSigning:
       return selectNearBrowserCapabilityOperation(configs, request);
+    case CAPABILITY_KINDS.nearMlDsa65MpcSigning: {
+      const operation = buildNearMlDsa65MpcOperationRef(request.operationKind);
+      return configs.signing.routerAb.normalSigning.mode === 'enabled'
+        ? selected(operation)
+        : disabled(operation, 'router_ab_normal_signing_disabled');
+    }
     case CAPABILITY_KINDS.evmEcdsaMpcSigning:
       return selectEvmBrowserCapabilityOperation(configs, request);
   }

@@ -14,6 +14,7 @@ import {
 import type { WalletCustodyCeremonySurface } from '@/SeamsWeb/signingSurface/ports';
 import type { RegistrationResult } from '@/core/types/seams';
 import { joinCustodyWireFromEnvelopeRecord } from './joinCustodyWire';
+import { retainMlDsaPublication, clearMlDsaPublication } from './pendingMlDsaPublication';
 
 type Started = Variant<WalletAddSignerStartResponse, 'kind', 'near_ml_dsa_65'>;
 type Round = { readonly relayerUrl: string; readonly started: Started };
@@ -118,16 +119,23 @@ export async function addPasskeyMlDsaWalletSigner(input: {
     const selection = input.started.intent.signerSelection;
     if (selection.mode !== 'ml_dsa_65') throw new Error('Wrong ML-DSA signer selection');
     const purpose = selection.mlDsa.purpose;
-    if (purpose.kind === 'restore' &&
-        (commit.key.publicKeyB64u !== purpose.publicKeyB64u ||
-         commit.key.keyManifestDigestB64u !== purpose.keyManifestDigestB64u ||
-         commit.key.materialEpoch <= purpose.materialEpoch))
+    if (
+      purpose.kind === 'restore' &&
+      (commit.key.publicKeyB64u !== purpose.publicKeyB64u ||
+        commit.key.keyManifestDigestB64u !== purpose.keyManifestDigestB64u ||
+        commit.key.materialEpoch <= purpose.materialEpoch)
+    )
       throw new Error('ML-DSA restoration changed the recorded signer');
     const target = {
       relayerUrl: input.relayerUrl,
       walletId: input.started.intent.walletId,
       addSignerCeremonyId: input.started.addSignerCeremonyId,
     };
+    await retainMlDsaPublication({
+      relayerUrl: input.relayerUrl,
+      addSignerCeremonyId: target.addSignerCeremonyId,
+      commit,
+    });
     while (Date.now() < input.started.mlDsa.expiresAtMs) {
       try {
         const published = await publishWalletAddSignerMlDsa(target, commit);
@@ -135,6 +143,7 @@ export async function addPasskeyMlDsaWalletSigner(input: {
           await waitForRetry(round, published);
           continue;
         }
+        await clearMlDsaPublication({ relayerUrl: input.relayerUrl, commit });
         return {
           success: true,
           kind: 'wallet_signer_added',

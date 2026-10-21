@@ -90,6 +90,54 @@ impl WasmPasskeyCustodyHandleV1 {
         self.secret = Zeroizing::new(Vec::new());
         self.admitted = None;
     }
+
+    /// Explicit export only. Normal signing never constructs this full seed.
+    pub fn export_ml_dsa65_seed(
+        self,
+        wallet_id: &str,
+        signing_key_id: &str,
+        expected_public_key_b64u: &str,
+    ) -> Result<String, JsValue> {
+        use ml_dsa::{Keypair, MlDsa65, SigningKey};
+        use sha3::digest::{ExtendableOutput, Update, XofReader};
+        use signer_core::wallet_seed_derivation::{
+            compute_ml_dsa65_application_binding_digest_v1, derive_ml_dsa65_owner_root_from_seed_v1,
+        };
+
+        match self.admitted.as_ref() {
+            Some(WasmCustodyAdmissionV1::SealedEnvelope(admitted))
+                if admitted.wallet_id() == wallet_id => {}
+            _ => {
+                return Err(js_error(
+                    "ML-DSA export requires this wallet's custody seed envelope",
+                ))
+            }
+        }
+        let binding = compute_ml_dsa65_application_binding_digest_v1(wallet_id, signing_key_id)
+            .map_err(js_error)?;
+        let root =
+            derive_ml_dsa65_owner_root_from_seed_v1(&self.secret, &binding).map_err(js_error)?;
+        let mut hash = sha3::Shake256::default();
+        hash.update(b"seams/ml-dsa-65/canonical-seed/v1");
+        hash.update(root.as_ref());
+        let mut seed = Zeroizing::new([0u8; 32]);
+        hash.finalize_xof().read(seed.as_mut());
+        let seed_ref: &ml_dsa::Seed = seed.as_slice().try_into().map_err(js_error)?;
+        let key = SigningKey::<MlDsa65>::from_seed(seed_ref);
+        let public_key_b64u =
+            Base64UrlUnpadded::encode_string(key.verifying_key().encode().as_slice());
+        if public_key_b64u != expected_public_key_b64u {
+            return Err(js_error(
+                "ML-DSA export did not reproduce the published key",
+            ));
+        }
+        serde_json::to_string(&serde_json::json!({
+            "format": "fips-204-ml-dsa-65-seed-v1",
+            "publicKeyB64u": public_key_b64u,
+            "seedB64u": Base64UrlUnpadded::encode_string(seed.as_ref()),
+        }))
+        .map_err(js_error)
+    }
 }
 
 fn parse_envelope_binding(binding_json: &str) -> Result<PasskeyCustodyEnvelopeBindingV1, JsValue> {

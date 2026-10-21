@@ -15,6 +15,12 @@ import { exactRecord } from '@shared/utils/exactRecord';
 import { requireRecord } from '@shared/utils/validation';
 import { alphabetizeStringify } from '@shared/utils/digests';
 import {
+  type MlDsaSigningAuthorization,
+  type MlDsaSigningSessionRequest,
+  type MlDsaSigningSessionCredential,
+  parseMlDsaSigningSessionPreparation,
+} from '@shared/near/mlDsaSigningSession';
+import {
   WALLET_MANAGEMENT_PROTOCOL_HEADER,
   WALLET_MANAGEMENT_PROTOCOL_VERSION,
 } from '@shared/utils/walletManagementProtocol';
@@ -42,7 +48,7 @@ export function serializeMlDsaWebAuthnApproval(
 async function post(
   relayerUrl: string,
   walletId: string,
-  path: 'sign/prepare' | 'sign',
+  path: 'sign/prepare' | 'sign' | 'session/prepare' | 'session/revoke',
   body: unknown,
 ): Promise<unknown> {
   const response = await fetch(
@@ -96,14 +102,14 @@ export async function prepareMlDsaNearSigning(input: {
 export async function executeMlDsaNearSigning(input: {
   readonly relayerUrl: string;
   readonly preparation: MlDsaSigningPreparation;
-  readonly credential: WebAuthnAuthenticationCredential;
+  readonly authorization: MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>;
 }): Promise<MlDsaSigningOutcome> {
   const preparation = input.preparation;
   const raw = requireRecord(
     await post(input.relayerUrl, preparation.request.walletId, 'sign', {
       walletId: preparation.request.walletId,
       operationIdB64u: preparation.request.operationIdB64u,
-      credential: redactCredentialExtensionOutputs(input.credential),
+      authorization: encodedAuthorization(input.authorization),
     }),
     'ML-DSA signing outcome',
   );
@@ -143,6 +149,67 @@ export async function executeMlDsaNearSigning(input: {
     default:
       throw new Error('Invalid ML-DSA signing outcome');
   }
+}
+
+function encodedAuthorization(
+  authorization: MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
+) {
+  switch (authorization.kind) {
+    case 'passkey':
+      return {
+        kind: 'passkey',
+        credential: redactCredentialExtensionOutputs(authorization.credential),
+      };
+    case 'session_start':
+      return {
+        kind: 'session_start',
+        credential: redactCredentialExtensionOutputs(authorization.credential),
+        sessionIdB64u: authorization.sessionIdB64u,
+        tokenB64u: authorization.tokenB64u,
+      };
+    case 'session':
+      return {
+        kind: 'session',
+        sessionIdB64u: authorization.sessionIdB64u,
+        tokenB64u: authorization.tokenB64u,
+      };
+    default:
+      return assertNever(authorization);
+  }
+}
+function assertNever(value: never): never {
+  throw new Error(`Unknown ML-DSA signing authorization: ${String(value)}`);
+}
+
+export async function prepareMlDsaSigningSession(input: {
+  readonly relayerUrl: string;
+  readonly request: MlDsaSigningSessionRequest;
+}) {
+  const response = requireRecord(
+    await post(input.relayerUrl, input.request.walletId, 'session/prepare', input.request),
+    'ML-DSA session preparation',
+  );
+  if (response.kind === 'refused') return parseMlDsaSigningFailure(response);
+  const prepared = exactRecord(response, ['kind', 'preparation'], 'ML-DSA session preparation');
+  if (prepared.kind !== 'prepared') throw new Error('Invalid ML-DSA session preparation');
+  return {
+    kind: 'prepared' as const,
+    preparation: parseMlDsaSigningSessionPreparation(prepared.preparation),
+  };
+}
+
+export async function revokeMlDsaSigningSession(input: {
+  readonly relayerUrl: string;
+  readonly credential: MlDsaSigningSessionCredential;
+}) {
+  const response = requireRecord(
+    await post(input.relayerUrl, input.credential.walletId, 'session/revoke', input.credential),
+    'ML-DSA session revocation',
+  );
+  if (response.kind === 'refused') return parseMlDsaSigningFailure(response);
+  exactRecord(response, ['kind'], 'ML-DSA session revocation');
+  if (response.kind !== 'revoked') throw new Error('Invalid ML-DSA session revocation');
+  return { kind: 'revoked' as const };
 }
 
 /** Submission verifies the complete transaction again before using the existing NEAR RPC client. */

@@ -195,7 +195,18 @@ export type WarmSessionRehydrateResult =
   | { ok: true; remainingUses: number; expiresAtMs: number }
   | { ok: false; code: string; message: string };
 
-export type ExportPrivateKeyScheme = 'ed25519' | 'secp256k1';
+export type ExportPrivateKeyScheme = 'ed25519' | 'secp256k1' | 'ml_dsa_65';
+export type MlDsaSeedExportWorkerPayload = ExportPrivateKeysWithUiWorkerPayloadBase & {
+  readonly artifactKind: 'ml-dsa-65-fips-seed-export-v1';
+  readonly viewerSessionId: string;
+  readonly walletId: string;
+  readonly nearAccountId: string;
+  readonly relayerUrl: string;
+  readonly rpId: string;
+  readonly credentialIdB64u: string;
+  readonly signer: import('./seams').AddedMlDsaSignerCapability;
+  readonly envelope: PasskeyCustodyEnvelopeRecord;
+};
 export const ROUTER_AB_ED25519_YAO_EXPORT_ARTIFACT_KIND_V1 =
   'router-ab-ed25519-yao-seed-export-v1' as const;
 
@@ -242,6 +253,7 @@ type ExportPrivateKeysWithUiWorkerPayloadBase = {
 };
 
 export type ExportPrivateKeysWithUiWorkerPayload =
+  | MlDsaSeedExportWorkerPayload
   | (ExportPrivateKeysWithUiWorkerPayloadBase & {
       walletId: string;
       credentialIdB64u: string;

@@ -43,7 +43,8 @@ function parseExportPrivateKeysWithUiWorkerResult(
   const rawSchemes = Array.isArray(data.exportedSchemes) ? data.exportedSchemes : null;
   if (!rawSchemes) return null;
   const exportedSchemes = rawSchemes.filter(
-    (value): value is 'ed25519' | 'secp256k1' => value === 'ed25519' || value === 'secp256k1',
+    (value): value is 'ed25519' | 'secp256k1' | 'ml_dsa_65' =>
+      value === 'ed25519' || value === 'secp256k1' || value === 'ml_dsa_65',
   );
   if (exportedSchemes.length !== rawSchemes.length) return null;
   if (kind === 'completed') {

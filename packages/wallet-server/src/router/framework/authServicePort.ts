@@ -1310,6 +1310,8 @@ export interface RouterApiWalletAuthMethodService {
   prepareMlDsaSignerInventory: D1WalletMlDsaSigning['prepareInventory'];
   readMlDsaSignerInventory: D1WalletMlDsaSigning['inventory'];
   prepareMlDsaSigning: D1WalletMlDsaSigning['prepare'];
+  prepareMlDsaSigningSession: D1WalletMlDsaSigning['prepareSigningSession'];
+  revokeMlDsaSigningSession: D1WalletMlDsaSigning['revokeSigningSession'];
   signMlDsaTransaction: D1WalletMlDsaSigning['sign'];
   resolveActiveWalletSessionAuthority(input: {
     readonly walletId: WalletId;

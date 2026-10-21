@@ -1,47 +1,70 @@
-import { expect, type TestInfo } from '@playwright/test';
-import { createHash, createPublicKey, verify } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { expect, type TestInfo, type Page, type Route } from '@playwright/test';
+import {
+  createHash,
+  createPublicKey,
+  createPrivateKey,
+  sign as ordinarySign,
+  verify,
+} from 'node:crypto';
+import { base58Encode } from '@shared/utils/base58';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { openReadOnlyGatewayD1 } from './local-gateway-database';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import type { AddedMlDsaSignerCapability } from '../../../packages/wallet/src/core/types/seams';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
+import { fundImplicitWallet, testnetRpc } from './ml-dsa-testnet';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
 test('ML-DSA survives full browser recovery and QR linking under separate owners', async ({
   harness,
   browser,
+  page,
 }, testInfo) => {
   test.setTimeout(900_000);
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
   const context = await harness.runMlDsaCommand({ kind: 'context' });
-  if (!('walletId' in context) || !('nearAccountId' in context) || !('credentialIdB64u' in context))
+  if (
+    !('walletId' in context) ||
+    typeof context.walletId !== 'string' ||
+    !('nearAccountId' in context) ||
+    typeof context.nearAccountId !== 'string' ||
+    !('credentialIdB64u' in context) ||
+    typeof context.credentialIdB64u !== 'string'
+  )
     throw new Error('Missing browser wallet identity');
+  const funding = await fundImplicitWallet(context.nearAccountId);
   await preparePool(context.walletId);
-  const signer = await publish(harness);
-  const unsignedTransactionBorshB64u = transaction(context.nearAccountId, signer);
-  const original = await sign(
-    harness,
-    signer,
-    unsignedTransactionBorshB64u,
-    context.credentialIdB64u,
-  );
+  const signer = await publishAcrossReload(page, harness);
+  await harness.useLiveNearTestnetRpc();
+  const enrollment = await harness.runMlDsaCommand({ kind: 'enroll', signer });
+  expect(enrollment).toMatchObject({ kind: 'enrolled' });
+  const original = await sign(harness, signer, { maxOperations: 2, durationMs: 600_000 });
+  await pause(60_000);
+  const walletFrame = page
+    .locator('iframe[allow*="publickey-credentials-get"]')
+    .last()
+    .contentFrame();
+  await walletFrame.locator('body').evaluate(blockPasskeyPrompts);
+  let warm;
+  try {
+    warm = await sign(harness, signer);
+    await expect(sign(harness, signer)).rejects.toThrow();
+  } finally {
+    await walletFrame.locator('body').evaluate(restorePasskeyPrompts);
+  }
 
   const linked = await harness.openLinkedDevice(browser);
   await harness.linkDeviceWithPasskey(linked);
+  await linked.useLiveNearTestnetRpc();
   const linkedActor = await readActor(linked);
   expect(linkedActor.credentialIdB64u).not.toBe(context.credentialIdB64u);
   await discover(linked, signer, linkedActor.credentialIdB64u);
+  await expect(linked.runMlDsaCommand({ kind: 'export', signer })).rejects.toThrow('custody owner');
   await pause(60_000);
-  const device = await sign(
-    linked,
-    signer,
-    unsignedTransactionBorshB64u,
-    linkedActor.credentialIdB64u,
-  );
+  const device = await sign(linked, signer);
 
   await harness.discardPasskeyCredentials();
   await harness.recoverPasskeyWalletFromFreshBrowser();
@@ -53,14 +76,14 @@ test('ML-DSA survives full browser recovery and QR linking under separate owners
   expect(recoveredActor.credentialIdB64u).not.toBe(context.credentialIdB64u);
   expect(recoveredActor.credentialIdB64u).not.toBe(linkedActor.credentialIdB64u);
   await discover(harness, signer, recoveredActor.credentialIdB64u);
+  await assertCanonicalExport(page, harness, signer);
   await pause(60_000);
-  const recovered = await sign(
-    harness,
-    signer,
-    unsignedTransactionBorshB64u,
-    recoveredActor.credentialIdB64u,
+  const recovered = await sign(harness, signer);
+  await test.step(
+    'Revoke the linked owner after recovered signing',
+    harness.revokeLinkedDeviceWithOwnerPasskey.bind(harness),
+    { timeout: 90_000 },
   );
-  await harness.revokeLinkedDeviceWithOwnerPasskey();
   const revoked = await linked.runMlDsaCommand({
     kind: 'inventory',
     credentialIdB64u: linkedActor.credentialIdB64u,
@@ -77,20 +100,39 @@ test('ML-DSA survives full browser recovery and QR linking under separate owners
   await discover(harness, restoration.signer, recoveredActor.credentialIdB64u);
   await verifyRestorationOwner(context.walletId, recoveredActor.walletAuthMethodId);
   await pause(60_000);
-  const restored = await sign(
-    harness,
-    restoration.signer,
-    unsignedTransactionBorshB64u,
-    recoveredActor.credentialIdB64u,
+  const restored = await sign(harness, restoration.signer);
+  const broadcast = await harness.runMlDsaCommand({ kind: 'broadcast_last' });
+  expect('success' in broadcast && broadcast.success).toBe(true);
+  const final = await testnetRpc('tx', {
+    tx_hash: restored.transactionHash,
+    sender_account_id: context.nearAccountId,
+    wait_until: 'FINAL',
+  });
+  expect(final.final_execution_status).toBe('FINAL');
+  expect(requireRecord(final.status, 'threshold transaction status')).toHaveProperty(
+    'SuccessValue',
   );
+  const onChainTransaction = requireRecord(final.transaction, 'final threshold transaction');
+  expect(onChainTransaction.signer_id).toBe(context.nearAccountId);
+  expect(onChainTransaction.public_key).toBe(
+    'ml-dsa-65:' + base58Encode(Buffer.from(signer.publicKeyB64u, 'base64url')),
+  );
+  expect(onChainTransaction.hash).toBe(restored.transactionHash);
+  expect(onChainTransaction.actions).toEqual([{ Transfer: { deposit: '0' } }]);
   await harness.assertConsumedRecoveryCodeReportedAsUsed();
   await saveEvidence(testInfo, {
     observedAt: new Date().toISOString(),
     scope:
-      'Chromium, real recovery-code ceremony, separate QR target browser and authenticators, public SDK and Gateway, local Cloudflare workerd. Transactions are independently verified without broadcasting.',
+      'Chromium, real recovery-code ceremony, separate QR target browser and authenticators, public SDK and Gateway, local Cloudflare workerd. Live testnet RPC qualifies Wallet-approved key enrollment and a finalized ML-DSA threshold transaction.',
     walletId: context.walletId,
     signer,
-    signatures: { original, recovered, linked: device, restored },
+    testnet: {
+      accountId: context.nearAccountId,
+      funding,
+      transaction: onChainTransaction,
+      finalStatus: final.status,
+    },
+    signatures: { original, warm, recovered, linked: device, restored },
     restoredSigner: restoration.signer,
     actors: {
       original: context.credentialIdB64u,
@@ -105,6 +147,12 @@ test('ML-DSA survives full browser recovery and QR linking under separate owners
       linkedAuthorityRevoked: true,
       recoveredAuthorityRetained: true,
       independentSignaturesVerified: true,
+      normalWalletTransactionApi: true,
+      verifiedPublicationResumesAfterBrowserReload: true,
+      reusableSessionRequiresNoPasskeyPrompt: true,
+      exhaustedSessionRequiresFreshApproval: true,
+      thresholdTransactionBroadcast: true,
+      independentCanonicalSeedImport: true,
       publicRestorationFromRecoveredFactor: true,
       distinctOwnerCredentials: true,
       restorationOwnerMatchesRecoveredMethod: true,
@@ -119,12 +167,45 @@ test('ML-DSA survives full browser recovery and QR linking under separate owners
   });
 });
 
-async function publish(harness: IntendedBehaviourHarness): Promise<AddedMlDsaSignerCapability> {
-  const result = await harness.runMlDsaCommand({ kind: 'publish' });
-  if (!('kind' in result) || result.kind !== 'near_ml_dsa_65')
-    throw new Error(`Unexpected publication: ${JSON.stringify(result)}`);
-  return result;
+async function publishAcrossReload(
+  page: Page,
+  harness: IntendedBehaviourHarness,
+): Promise<AddedMlDsaSignerCapability> {
+  const pattern = '**/wallets/*/signers/ml-dsa/publish';
+  await page.route(pattern, abortPublication);
+  const pendingRequest = page.waitForRequest(pattern, { timeout: 120_000 });
+  const publishing = harness.runMlDsaCommand({ kind: 'publish' });
+  const first = await Promise.race([pendingRequest, publishing]);
+  expect('url' in first).toBe(true);
+  void publishing.catch(ignoreInterruptedPublication);
+  await harness.refreshPagePreservingWalletStorage();
+  await page.unroute(pattern, abortPublication);
+  await harness.unlockPasskeyWallet();
+  const actor = await readActor(harness);
+  const inventory = await harness.runMlDsaCommand({
+    kind: 'inventory',
+    credentialIdB64u: actor.credentialIdB64u,
+  });
+  if (
+    !('kind' in inventory) ||
+    inventory.kind !== 'inventory' ||
+    inventory.entries.length !== 1 ||
+    inventory.entries[0].kind !== 'published'
+  )
+    throw new Error('The retained ML-DSA completion did not publish after browser reload');
+  const key = inventory.entries[0].key;
+  return {
+    kind: 'near_ml_dsa_65',
+    signingKeyId: key.signingKeyId,
+    publicKeyB64u: key.publicKeyB64u,
+    keyManifestDigestB64u: key.keyManifestDigestB64u,
+    materialEpoch: key.materialEpoch,
+  };
 }
+async function abortPublication(route: Route): Promise<void> {
+  await route.abort('failed');
+}
+function ignoreInterruptedPublication(): void {}
 
 async function discover(
   harness: IntendedBehaviourHarness,
@@ -145,16 +226,14 @@ async function discover(
 async function sign(
   harness: IntendedBehaviourHarness,
   signer: AddedMlDsaSignerCapability,
-  unsignedTransactionBorshB64u: string,
-  credentialIdB64u: string,
+  sessionPolicy: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy | null = null,
 ) {
   const result = await harness.runMlDsaCommand({
-    kind: 'sign',
-    credentialIdB64u,
+    kind: 'normal_sign',
     signer,
-    unsignedTransactionBorshB64u,
+    sessionPolicy,
   });
-  if (!('kind' in result) || result.kind !== 'signed')
+  if (!('kind' in result) || result.kind !== 'sdk_signed')
     throw new Error(`Browser signature failed: ${JSON.stringify(result)}`);
   const key = createPublicKey({
     key: Buffer.concat([
@@ -164,34 +243,32 @@ async function sign(
     format: 'der',
     type: 'spki',
   });
-  const hash = createHash('sha256')
-    .update(Buffer.from(unsignedTransactionBorshB64u, 'base64url'))
-    .digest();
-  expect(verify(null, hash, key, Buffer.from(result.transaction.signatureB64u, 'base64url'))).toBe(
-    true,
-  );
-  return result.transaction;
+  const signed = Buffer.from(result.signedTransactionBorshB64u, 'base64url');
+  expect(signed[signed.length - 3310]).toBe(2);
+  expect(signed.subarray(-3309).equals(Buffer.from(result.signatureB64u, 'base64url'))).toBe(true);
+  const hash = createHash('sha256').update(signed.subarray(0, -3310)).digest();
+  expect(verify(null, hash, key, Buffer.from(result.signatureB64u, 'base64url'))).toBe(true);
+  return {
+    signedTransactionBorshB64u: result.signedTransactionBorshB64u,
+    signatureB64u: result.signatureB64u,
+    transactionHash: base58Encode(hash),
+  };
 }
 
-function transaction(accountId: string, signer: AddedMlDsaSignerCapability): string {
-  const result = spawnSync(
-    path.resolve('..', 'tools/ml-dsa-investigation/target/release/ml-dsa-investigation'),
-    ['near-enrollment-fixture'],
-    {
-      input:
-        JSON.stringify({
-          kind: 'ml_dsa_transfer',
-          accountId,
-          publicKeyB64u: signer.publicKeyB64u,
-        }) + '\n',
-      encoding: 'utf8',
-    },
+function blockPasskeyPrompts(): void {
+  Reflect.set(navigator.credentials, '__mlDsaSavedGet', navigator.credentials.get);
+  Reflect.set(
+    navigator.credentials,
+    'get',
+    Promise.reject.bind(Promise, new Error('ML-DSA warm signing requested a passkey')),
   );
-  if (result.status !== 0) throw new Error(`Transaction codec failed: ${result.stderr}`);
-  return requireCanonicalString(
-    requireRecord(JSON.parse(result.stdout), 'transaction codec').unsignedTransactionBorshB64u,
-    'unsigned transaction',
-  );
+}
+function restorePasskeyPrompts(): void {
+  const saved = Reflect.get(navigator.credentials, '__mlDsaSavedGet');
+  if (typeof saved !== 'function')
+    throw new Error('The passkey prompt override lost its saved method');
+  Reflect.set(navigator.credentials, 'get', saved);
+  Reflect.deleteProperty(navigator.credentials, '__mlDsaSavedGet');
 }
 
 async function preparePool(walletId: string): Promise<void> {
@@ -234,8 +311,28 @@ function schedulePause(milliseconds: number, resolve: () => void): void {
 function pause(milliseconds: number): Promise<void> {
   return new Promise(schedulePause.bind(undefined, milliseconds));
 }
-async function saveEvidence(testInfo: TestInfo, evidence: unknown): Promise<void> {
-  const text = JSON.stringify(evidence, null, 2) + '\n';
+async function saveEvidence(testInfo: TestInfo, evidence: Record<string, unknown>): Promise<void> {
+  const sources: Record<string, string> = {};
+  for (const file of [
+    'tests/e2e/intended-behaviours/ml-dsa.lifecycle.contract.test.ts',
+    'tests/e2e/intended-behaviours/harness.ts',
+    'tests/e2e/intended-behaviours/ml-dsa-testnet.ts',
+    'packages/wallet/src/core/signingEngine/flows/signNear/mlDsaTransaction.ts',
+    'packages/wallet/src/core/signingEngine/workerManager/workers/mlDsaSeedExport.ts',
+    'packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaSigningSessions.ts',
+    'crates/router-ab-core/src/protocol/normal_signing.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs',
+    'wasm/near_signer/src/passkey_custody_wasm.rs',
+    'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm',
+    'crates/router-ab-cloudflare/build/router/index_bg.wasm',
+    'crates/router-ab-cloudflare/build/deriver-a/index_bg.wasm',
+    'crates/router-ab-cloudflare/build/deriver-b/index_bg.wasm',
+  ]) {
+    sources[file] = createHash('sha256')
+      .update(await readFile(new URL('../../../' + file, import.meta.url)))
+      .digest('hex');
+  }
+  const text = JSON.stringify({ ...evidence, sources }, null, 2) + '\n';
   await testInfo.attach('ml-dsa-browser-lifecycle', {
     body: text,
     contentType: 'application/json',
@@ -252,9 +349,75 @@ async function readActor(harness: IntendedBehaviourHarness) {
   if (!('credentialIdB64u' in result) || !('walletAuthMethodId' in result))
     throw new Error('Browser did not resolve an exact owner credential');
   return {
-    credentialIdB64u: result.credentialIdB64u,
-    walletAuthMethodId: result.walletAuthMethodId,
+    credentialIdB64u: requireCanonicalString(result.credentialIdB64u, 'credentialIdB64u'),
+    walletAuthMethodId: requireCanonicalString(result.walletAuthMethodId, 'walletAuthMethodId'),
   };
+}
+
+async function assertCanonicalExport(
+  page: Page,
+  harness: IntendedBehaviourHarness,
+  signer: AddedMlDsaSignerCapability,
+): Promise<void> {
+  const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
+  await frame.locator('body').evaluate(captureExportClipboard);
+  try {
+    const outcome = await harness.runMlDsaCommand({ kind: 'export', signer });
+    expect('kind' in outcome && outcome.kind).toBe('exported');
+    const seedField = frame.getByRole('button', { name: 'Copy private key', exact: true });
+    await expect(seedField).toBeEnabled({ timeout: 30_000 });
+    await seedField.click();
+    const text = await frame.locator('body').evaluate(readCapturedExport);
+    if (!/^[A-Za-z0-9_-]{43}$/.test(text))
+      throw new Error('The export viewer did not copy a canonical 32-byte seed');
+    const seed = Buffer.from(text, 'base64url');
+    try {
+      const imported = createPrivateKey({
+        key: Buffer.concat([
+          Buffer.from('3034020100300b060960864801650304031204228020', 'hex'),
+          seed,
+        ]),
+        format: 'der',
+        type: 'pkcs8',
+      });
+      const publicDer = createPublicKey(imported).export({ format: 'der', type: 'spki' });
+      expect(publicDer.subarray(-1952).equals(Buffer.from(signer.publicKeyB64u, 'base64url'))).toBe(
+        true,
+      );
+      const message = Buffer.from('seams ML-DSA recovered-owner export qualification');
+      const signature = ordinarySign(null, message, imported);
+      expect(verify(null, message, createPublicKey(imported), signature)).toBe(true);
+    } finally {
+      seed.fill(0);
+    }
+  } finally {
+    await frame.locator('body').evaluate(restoreExportClipboard);
+    const close = frame.getByRole('button', { name: 'Close exported keys', exact: true });
+    if (await close.isVisible()) await close.click();
+  }
+}
+
+function captureExportClipboard(): void {
+  const clipboard = navigator.clipboard;
+  Reflect.set(clipboard, '__mlDsaSavedWriteText', clipboard.writeText);
+  // Capture the authorized Copy action inside the Wallet frame. Preserve the OS clipboard.
+  Reflect.set(clipboard, 'writeText', Reflect.set.bind(Reflect, clipboard, '__mlDsaCopiedSeed'));
+}
+
+function readCapturedExport(): string {
+  const value: unknown = Reflect.get(navigator.clipboard, '__mlDsaCopiedSeed');
+  Reflect.deleteProperty(navigator.clipboard, '__mlDsaCopiedSeed');
+  if (typeof value !== 'string') throw new Error('The Wallet export did not copy its seed');
+  return value;
+}
+
+function restoreExportClipboard(): void {
+  const clipboard = navigator.clipboard;
+  const saved = Reflect.get(clipboard, '__mlDsaSavedWriteText');
+  if (typeof saved !== 'function') throw new Error('The Clipboard API override lost its method');
+  Reflect.set(clipboard, 'writeText', saved);
+  Reflect.deleteProperty(clipboard, '__mlDsaSavedWriteText');
+  Reflect.deleteProperty(clipboard, '__mlDsaCopiedSeed');
 }
 async function verifyRestorationOwner(walletId: string, walletAuthMethodId: string): Promise<void> {
   const opened = await openReadOnlyGatewayD1();

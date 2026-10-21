@@ -132,7 +132,7 @@ export function ExportPrivateKeySurface({
 }
 
 function isNearKey(entry: ExportKeyViewModel): boolean {
-  return entry.scheme === 'ed25519';
+  return entry.scheme !== 'secp256k1';
 }
 
 function renderKey(entry: ExportKeyViewModel) {
@@ -323,7 +323,7 @@ class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> 
             </div>
           </div>
         )}
-        {entry.scheme === 'ed25519' && (
+        {isNearKey(entry) && (
           <button
             type="button"
             class={`field copy-field${this.state.publicCopied ? ' copied' : ''}`}
@@ -354,7 +354,7 @@ class ExportKeyCard extends Component<{ entry: ExportKeyViewModel }, CardState> 
           onClick={this.copyPrivate}
         >
           <div class="field-label">
-            <WalletText message="Private Key" />
+            <WalletText message={entry.scheme === 'ml_dsa_65' ? 'FIPS Seed' : 'Private Key'} />
           </div>
           <div class="field-value">
             <span class="value private-key">

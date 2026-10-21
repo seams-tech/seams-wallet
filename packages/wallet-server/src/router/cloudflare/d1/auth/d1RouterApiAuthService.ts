@@ -1732,6 +1732,12 @@ function createD1WalletAuthMethodRouteService(
   return {
     activateVoiceId: voiceIdActivation.activate.bind(voiceIdActivation),
     prepareMlDsaSigning: assembly.mlDsaSigning.prepare.bind(assembly.mlDsaSigning),
+    prepareMlDsaSigningSession: assembly.mlDsaSigning.prepareSigningSession.bind(
+      assembly.mlDsaSigning,
+    ),
+    revokeMlDsaSigningSession: assembly.mlDsaSigning.revokeSigningSession.bind(
+      assembly.mlDsaSigning,
+    ),
     readMlDsaSignerInventory: assembly.mlDsaSigning.inventory.bind(assembly.mlDsaSigning),
     prepareMlDsaSignerInventory: assembly.mlDsaSigning.prepareInventory.bind(assembly.mlDsaSigning),
     signMlDsaTransaction: assembly.mlDsaSigning.sign.bind(assembly.mlDsaSigning),

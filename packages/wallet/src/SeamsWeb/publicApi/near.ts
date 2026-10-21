@@ -7,10 +7,12 @@ import { toError } from '@shared/utils/errors';
 import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
 import type { CurrentWalletResolver } from './currentWallet';
 import type { NearCommands } from './nearCommands';
+import { parseNearTransactionSigner } from '@/core/signingEngine/chains/near/transactionSigner';
 import { requireBrowserCapabilityOperation } from './capabilitySelection';
 import {
   CAPABILITY_KINDS,
   NEAR_ED25519_MPC_OPERATION_KINDS,
+  NEAR_ML_DSA_65_MPC_OPERATION_KINDS,
 } from '@shared/authorization/capabilityKinds';
 import {
   delegateRelayerAuthFromConfigs,
@@ -49,11 +51,16 @@ class NearSigner {
     rawArgs: Parameters<NearSignerCapability['signAndSendTransaction']>[0],
   ): ReturnType<NearSignerCapability['signAndSendTransaction']> {
     let subject: Awaited<ReturnType<CurrentWalletResolver['nearSubject']>>;
+    let signer: ReturnType<typeof parseNearTransactionSigner>;
     try {
       subject = await this.deps.currentWallet.nearSubject(rawArgs);
+      signer = parseNearTransactionSigner(rawArgs.signer ?? { kind: 'ed25519' });
       requireBrowserCapabilityOperation(this.deps.configs, {
-        capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-        operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+        capabilityKind:
+          signer.kind === 'near_ml_dsa_65'
+            ? CAPABILITY_KINDS.nearMlDsa65MpcSigning
+            : CAPABILITY_KINDS.nearEd25519MpcSigning,
+        operationKind: NEAR_ML_DSA_65_MPC_OPERATION_KINDS.signTransaction,
       });
     } catch (error) {
       return nearTransactionFailure(error, 'not_submitted');
@@ -62,6 +69,7 @@ class NearSigner {
       ...rawArgs,
       ...subject,
       options: rawArgs.options ?? {},
+      signer,
     });
   }
 
@@ -72,10 +80,14 @@ class NearSigner {
       ...rawArgs,
       ...(await this.deps.currentWallet.nearSubject(rawArgs)),
       options: rawArgs.options ?? {},
+      signer: parseNearTransactionSigner(rawArgs.signer ?? { kind: 'ed25519' }),
     };
     requireBrowserCapabilityOperation(this.deps.configs, {
-      capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-      operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+      capabilityKind:
+        args.signer.kind === 'near_ml_dsa_65'
+          ? CAPABILITY_KINDS.nearMlDsa65MpcSigning
+          : CAPABILITY_KINDS.nearEd25519MpcSigning,
+      operationKind: NEAR_ML_DSA_65_MPC_OPERATION_KINDS.signTransaction,
     });
     return await this.deps.commands.signTransaction(args);
   }

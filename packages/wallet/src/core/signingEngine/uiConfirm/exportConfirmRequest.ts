@@ -73,7 +73,7 @@ function exportSummary(value: unknown): ExportSummary {
 function displayKey(value: unknown): ExportPrivateKeyDisplayEntry {
   const entry = object(value, 'key');
   const scheme = entry.scheme;
-  if (scheme !== 'ed25519' && scheme !== 'secp256k1') {
+  if (scheme !== 'ed25519' && scheme !== 'secp256k1' && scheme !== 'ml_dsa_65') {
     throw new Error('Invalid export confirmation: unsupported key scheme');
   }
   return {

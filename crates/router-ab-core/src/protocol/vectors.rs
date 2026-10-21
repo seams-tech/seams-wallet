@@ -586,10 +586,7 @@ where
 }
 
 fn normal_signing_fixture_public_key_v2() -> RouterAbNearPublicKeyBorsh {
-    RouterAbNearPublicKeyBorsh {
-        key_type: 0,
-        key_data: [0; 32],
-    }
+    RouterAbNearPublicKeyBorsh::Ed25519([0; 32])
 }
 
 fn normal_signing_fixture_near_unsigned_transaction_b64u_v2() -> String {

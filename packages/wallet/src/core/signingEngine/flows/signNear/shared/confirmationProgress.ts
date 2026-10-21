@@ -13,7 +13,7 @@ import {
   resolveSigningConfirmationAuthMethod,
 } from '../../shared/signingConfirmation';
 
-function emitNearSigningEvent(
+export function emitNearSigningEvent(
   onEvent: ((event: SigningFlowEvent) => void) | undefined,
   accountId: AccountId | string,
   event: Omit<CreateSigningFlowEventInput, 'flowId' | 'accountId'>,

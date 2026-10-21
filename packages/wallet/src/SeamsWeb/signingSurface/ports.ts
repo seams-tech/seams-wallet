@@ -178,6 +178,9 @@ export interface NonceCoordinatorSurface {
 }
 
 export interface NearSigningSurface extends NonceCoordinatorSurface {
+  signMlDsaNearTransaction(
+    input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
+  ): Promise<import('@/core/types/seams').SignTransactionResult>;
   signNear<TRequest extends NearSignIntentRequest>(
     request: TRequest,
   ): Promise<NearSignIntentResult<TRequest>>;
@@ -897,7 +900,7 @@ export interface KeyExportSigningSurface {
   ): Promise<SigningEngineResolveExactKeyExportLaneResult>;
   exportKeypairWithUI(
     input: SigningEngineExportKeypairWithUIInput,
-  ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1'> }>;
+  ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1' | 'ml_dsa_65'> }>;
 }
 
 export interface EmailOtpRegistrationEnrollmentSurface {

@@ -709,6 +709,7 @@ const walletMessages = [
   ['Private key copied', '秘密鍵をコピーしました'],
   ['Copy private key', '秘密鍵をコピー'],
   ['Private Key', '秘密鍵'],
+  ['FIPS Seed', 'FIPS シード'],
   ['Decrypting private key', '秘密鍵を復号中'],
   ['Private key ready', '秘密鍵の準備完了'],
   ['Data', 'データ'],

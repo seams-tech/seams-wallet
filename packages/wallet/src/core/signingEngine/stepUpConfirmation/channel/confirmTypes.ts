@@ -273,7 +273,7 @@ export interface AuthorizeKeyExportPayload {
   challengeB64u?: string;
 }
 
-export type ExportPrivateKeyScheme = 'ed25519' | 'secp256k1';
+export type ExportPrivateKeyScheme = 'ed25519' | 'secp256k1' | 'ml_dsa_65';
 
 export interface ExportPrivateKeyDisplayEntry {
   scheme: ExportPrivateKeyScheme;
@@ -317,6 +317,12 @@ interface SignNep413Payload {
 
 export type SignIntentDigestSubject =
   | {
+      kind: 'near_ml_dsa_wallet';
+      walletId: string;
+      nearAccountId: string;
+      credentialIdB64u: string;
+    }
+  | {
       kind: 'near_wallet';
       walletId: string;
       nearAccountId: string;
@@ -340,10 +346,22 @@ type SignIntentDigestPayloadBase = {
 
 export type SignIntentDigestPayload =
   | (SignIntentDigestPayloadBase & {
+      signingSubject: Extract<SignIntentDigestSubject, { kind: 'near_ml_dsa_wallet' }>;
+      signingAuthPlan: {
+        kind: 'ml_dsa_session';
+        method: 'passkey';
+        sessionIdB64u: string;
+        expiresAtMs: number;
+        remainingOperations: number;
+      };
+      webauthnChallenge?: never;
+    })
+  | (SignIntentDigestPayloadBase & {
       signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
       webauthnChallenge: WebAuthnChallenge;
     })
   | (SignIntentDigestPayloadBase & {
+      signingSubject: Exclude<SignIntentDigestSubject, { kind: 'near_ml_dsa_wallet' }>;
       signingAuthPlan: Exclude<
         SigningAuthPlan,
         Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>

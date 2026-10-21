@@ -1011,9 +1011,12 @@ export interface ActionHooksOptions {
   confirmationConfig?: Partial<ConfirmationConfig>;
 }
 
-export interface SignAndSendTransactionHooksOptions extends ActionHooksOptions {}
+export interface SignAndSendTransactionHooksOptions extends ActionHooksOptions {
+  mlDsaSigningSession?: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy;
+}
 
 export interface SignTransactionHooksOptions {
+  mlDsaSigningSession?: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy;
   onEvent?: EventCallback<SigningFlowEvent>;
   onError?: (error: Error) => void;
 

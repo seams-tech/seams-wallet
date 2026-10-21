@@ -3,6 +3,8 @@ import {
   NEAR_ML_DSA_65_MPC_OPERATION_KINDS,
   parseCapabilityId,
   parseTenantId,
+  parseCapabilityOperationId,
+  type CapabilityOperationId,
   type CapabilityId,
   type TenantId,
 } from '@shared/authorization/capabilityKinds';
@@ -37,6 +39,7 @@ import type {
   VerifiedOwnerProof,
   SessionOrigin,
 } from '../../../authorization/domain';
+import type { ApprovedMlDsaSessionOperation } from '../../cloudflare/d1/wallet/d1MlDsaSigningSessions';
 
 /** Public registry data. Parsing this record grants no custody or signing authority. */
 export class MlDsaSigningTarget {
@@ -176,7 +179,7 @@ export type MlDsaOwnerAdmission =
 /**
  * The caller loads the target and claimed operation from trusted stores and supplies
  * the factor verifier's proof. HTTP authentication and custody activation precede this gate.
- * Reusable session grants are refused until their ML-DSA authority projection exists.
+ * Dedicated ML-DSA grants use the separate verified-session entry point below.
  */
 export async function prepareMlDsaOwnerOperation(input: {
   readonly target: MlDsaSigningTarget;
@@ -253,40 +256,78 @@ export async function prepareMlDsaOwnerOperation(input: {
   ) {
     return { kind: 'refused', reason: 'binding_mismatch' };
   }
+  return {
+    kind: 'prepared',
+    operation: await preparedOperation(
+      target,
+      intent,
+      envelope.operationId,
+      Math.min(evidence.expiresAtMs, ownerProof.expiresAtMs),
+    ),
+  };
+}
+
+export async function prepareMlDsaSessionOwnerOperation(
+  admission: ApprovedMlDsaSessionOperation,
+): Promise<PreparedMlDsaOwnerOperation> {
+  const record = admission.record;
+  if (
+    record.target.key.lifecycle.state !== 'active' ||
+    record.phase.kind !== 'session_approved' ||
+    record.phase.sessionIdB64u !== admission.sessionIdB64u ||
+    Date.now() >= admission.expiresAtMs
+  )
+    throw new Error('The ML-DSA session operation is not active');
+  return preparedOperation(
+    record.target,
+    MlDsaTransactionIntent.parse({
+      transactionHash: record.preparation.transaction.transactionHashB64u,
+    }),
+    requireParsed(
+      parseCapabilityOperationId(`ml-dsa:${record.preparation.request.operationIdB64u}`),
+      'operationId',
+    ),
+    admission.expiresAtMs,
+  );
+}
+
+async function preparedOperation(
+  target: MlDsaSigningTarget,
+  intent: MlDsaTransactionIntent,
+  operation: CapabilityOperationId,
+  expiresAtMs: number,
+): Promise<PreparedMlDsaOwnerOperation> {
   const publicKey = base64UrlDecode(target.key.registeredPublicKeyB64u);
   const message = base64UrlDecode(intent.transactionHash);
   const operationId = await sha256BytesUtf8(
     `seams/ml-dsa/authorized-operation/v1|${alphabetizeStringify({
       tenantId: target.tenantId,
-      capabilityId: envelope.capabilityId,
-      operationId: envelope.operationId,
+      capabilityId: target.capabilityId,
+      operationId: operation,
     })}`,
   );
-  return {
-    kind: 'prepared',
-    operation: new PreparedMlDsaOwnerOperationProof(
-      {
-        request: {
-          key: {
-            wallet: {
-              org: target.identity.orgId,
-              project: target.identity.projectId,
-              environment: target.identity.envId,
-              wallet: target.identity.walletId,
-            },
-            key_id: target.key.mlDsaSigningKeyId,
-            epoch: target.key.materialEpoch,
-            public_key_digest: Array.from(base64UrlDecode(await sha256DigestB64u(publicKey))),
-            schedule_digest: Array.from(base64UrlDecode(target.scheduleDigest)),
+  return new PreparedMlDsaOwnerOperationProof(
+    {
+      request: {
+        key: {
+          wallet: {
+            org: target.identity.orgId,
+            project: target.identity.projectId,
+            environment: target.identity.envId,
+            wallet: target.identity.walletId,
           },
-          operation: Array.from(operationId),
-          message_digest: Array.from(base64UrlDecode(await sha256DigestB64u(message))),
-          context_digest: Array.from(base64UrlDecode(await sha256DigestB64u(new Uint8Array()))),
+          key_id: target.key.mlDsaSigningKeyId,
+          epoch: target.key.materialEpoch,
+          public_key_digest: Array.from(base64UrlDecode(await sha256DigestB64u(publicKey))),
+          schedule_digest: Array.from(base64UrlDecode(target.scheduleDigest)),
         },
-        message: Array.from(message),
-        context: [],
+        operation: Array.from(operationId),
+        message_digest: Array.from(base64UrlDecode(await sha256DigestB64u(message))),
+        context_digest: Array.from(base64UrlDecode(await sha256DigestB64u(new Uint8Array()))),
       },
-      Math.min(evidence.expiresAtMs, ownerProof.expiresAtMs),
-    ),
-  };
+      message: Array.from(message),
+      context: [],
+    },
+    expiresAtMs,
+  );
 }

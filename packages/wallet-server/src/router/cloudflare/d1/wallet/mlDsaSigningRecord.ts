@@ -74,6 +74,7 @@ export type MlDsaSigningRecord = {
   readonly origin: SessionOrigin;
   readonly phase: ReadonlyExclusiveUnion<
     | { readonly kind: 'awaiting_approval' }
+    | { readonly kind: 'session_approved'; readonly sessionIdB64u: DigestB64u }
     | {
         readonly kind: 'approved';
         readonly verifiedAtMs: number;
@@ -84,13 +85,15 @@ export type MlDsaSigningRecord = {
 
 export function encodeMlDsaSigningRecord(record: MlDsaSigningRecord): VersionedJsonObject {
   const phase: VersionedJsonObject =
-    record.phase.kind === 'approved'
-      ? {
-          kind: 'approved',
-          verifiedAtMs: record.phase.verifiedAtMs,
-          assertionDigest: record.phase.assertionDigest,
-        }
-      : { kind: 'awaiting_approval' };
+    record.phase.kind === 'session_approved'
+      ? { kind: 'session_approved', sessionIdB64u: record.phase.sessionIdB64u }
+      : record.phase.kind === 'approved'
+        ? {
+            kind: 'approved',
+            verifiedAtMs: record.phase.verifiedAtMs,
+            assertionDigest: record.phase.assertionDigest,
+          }
+        : { kind: 'awaiting_approval' };
   return {
     preparation: {
       request: {
@@ -141,6 +144,9 @@ export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null
       case 'awaiting_approval':
         phase = { kind: 'awaiting_approval' };
         break;
+      case 'session_approved':
+        phase = { kind: 'session_approved', sessionIdB64u: parseDigestB64u(p.sessionIdB64u) };
+        break;
       case 'approved':
         if (
           typeof p.verifiedAtMs !== 'number' ||
@@ -171,5 +177,12 @@ export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null
 }
 function phaseFields(raw: unknown): readonly string[] {
   const r = requireRecord(raw, 'ML-DSA phase');
-  return r.kind === 'approved' ? ['kind', 'verifiedAtMs', 'assertionDigest'] : ['kind'];
+  switch (r.kind) {
+    case 'approved':
+      return ['kind', 'verifiedAtMs', 'assertionDigest'];
+    case 'session_approved':
+      return ['kind', 'sessionIdB64u'];
+    default:
+      return ['kind'];
+  }
 }

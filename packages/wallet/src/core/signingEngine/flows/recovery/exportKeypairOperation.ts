@@ -43,6 +43,10 @@ import {
 } from '../../session/identity/clientSessionPersistenceState';
 import type { ReadClientWalletSessionAuthorizationRequest } from '../../session/persistence/clientSessionPersistence';
 import { walletSessionFailureFromError } from '../../session/lifecycle/walletSessionFailure';
+import {
+  exportMlDsaKeyWithFreshAuthorization,
+  type MlDsaExportDependencies,
+} from './mlDsaExportFlow';
 
 type KeyExportWalletSessionLifecycleDeps = {
   readonly readAuthorization: (
@@ -57,13 +61,14 @@ type KeyExportWalletSessionLifecycleDeps = {
 };
 
 export type ExportKeypairWithUIDeps = {
+  mlDsa: MlDsaExportDependencies;
   laneSelection: ExportLaneSelectionDeps;
   ecdsa: EcdsaExportFlowDeps;
   ed25519Yao: Ed25519YaoExportFlowDeps;
   sessionLifecycle: KeyExportWalletSessionLifecycleDeps;
 };
 
-type ExportedKeySchemes = Array<'ed25519' | 'secp256k1'>;
+type ExportedKeySchemes = Array<'ed25519' | 'secp256k1' | 'ml_dsa_65'>;
 type ExportKeypairResult = { accountId: string; exportedSchemes: ExportedKeySchemes };
 
 type PreparedEcdsaExport =
@@ -360,6 +365,8 @@ export async function exportKeypairWithUI(
 ): Promise<ExportKeypairResult> {
   return await runKeyExportWithFlowEvents(input, async (args) => {
     switch (args.kind) {
+      case 'ml_dsa_65':
+        return await exportMlDsaKeyWithFreshAuthorization(deps.mlDsa, args);
       case 'ecdsa':
         return await exportEcdsaKeypairWithSessionLifecycle(deps, args, { kind: 'initial' });
       case 'ed25519':

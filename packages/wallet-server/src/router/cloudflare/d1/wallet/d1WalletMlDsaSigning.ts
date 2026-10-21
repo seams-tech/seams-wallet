@@ -68,6 +68,7 @@ import {
   MlDsaTransactionIntent,
   mlDsaOwnerOperationDigests,
   prepareMlDsaOwnerOperation,
+  prepareMlDsaSessionOwnerOperation,
 } from '../../../domains/signingOperations/mlDsaOwnerAdmission';
 import { dispatchMlDsaOwnerOperation } from '../../../transport/fetch/routes/mlDsaSigning';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
@@ -85,6 +86,12 @@ import {
   parseMlDsaInventoryChallenge,
   type MlDsaInventoryChallengeRecord,
 } from './mlDsaSigningRecord';
+import { D1MlDsaSigningSessions } from './d1MlDsaSigningSessions';
+import type {
+  MlDsaSigningSessionRequest,
+  MlDsaSigningAuthorization,
+  MlDsaSigningSessionCredential,
+} from '@shared/near/mlDsaSigningSession';
 import {
   ml_dsa65_inspect_near_transaction,
   ml_dsa65_finalize_near_transaction,
@@ -93,7 +100,7 @@ import {
 export type MlDsaSigningExecuteRequest = {
   readonly walletId: WalletId;
   readonly operationIdB64u: DigestB64u;
-  readonly credential: WebAuthnAuthenticationCredential;
+  readonly authorization: MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>;
 };
 export type MlDsaInventoryRequest = {
   readonly preparation: MlDsaInventoryPreparation;
@@ -140,8 +147,9 @@ function approvedRecord(
   };
 }
 
-/** Exact passkey operations. Generic signing sessions do not admit ML-DSA. */
+/** Exact transaction approvals and separate key-scoped ML-DSA signing grants. */
 export class D1WalletMlDsaSigning {
+  private readonly signingSessions: D1MlDsaSigningSessions;
   private readonly records: CloudflareD1VersionedJsonRecordStore<MlDsaSigningRecord>;
   private readonly inventoryChallenges: CloudflareD1VersionedJsonRecordStore<MlDsaInventoryChallengeRecord>;
   private wasmState: SignerWasmRuntimeState = { signerWasmReady: false };
@@ -166,6 +174,13 @@ export class D1WalletMlDsaSigning {
       keyPrefix: 'ml-dsa-signing',
       encode: encodeMlDsaSigningRecord,
       parse: parseMlDsaSigningRecord,
+    });
+    this.signingSessions = new D1MlDsaSigningSessions({
+      database: options.database,
+      scope: options.scope,
+      operations: this.records,
+      webAuthnStore: options.webAuthnStore,
+      guard: this.guard.bind(this),
     });
     this.inventoryChallenges = new CloudflareD1VersionedJsonRecordStore({
       database: options.database,
@@ -385,6 +400,17 @@ export class D1WalletMlDsaSigning {
       return refusal('conflict', 'Signing preparation changed; retry the same operation');
     return { kind: 'prepared', preparation: record.preparation };
   }
+  async prepareSigningSession(request: MlDsaSigningSessionRequest, origin: SessionOrigin) {
+    const read = await this.records.read(requestKey(request.walletId, request.operationIdB64u));
+    if (read.kind !== 'present')
+      return refusal('not_found', 'The ML-DSA signing operation is absent');
+    if (read.value.origin !== origin || !(await this.current(read.value)))
+      return refusal('unauthorized', 'The ML-DSA signing owner is no longer active');
+    return this.signingSessions.prepare(request, read.value);
+  }
+  async revokeSigningSession(request: MlDsaSigningSessionCredential, origin: SessionOrigin) {
+    return this.signingSessions.revoke(request, origin);
+  }
   async sign(
     request: MlDsaSigningExecuteRequest,
     origin: SessionOrigin,
@@ -398,12 +424,18 @@ export class D1WalletMlDsaSigning {
       return refusal('unauthorized', 'The signing approval or published key is no longer valid');
     if (Date.now() >= record.preparation.expiresAtMs)
       return refusal('expired', 'The signing approval expired');
+    if (request.authorization.kind !== 'passkey') {
+      return this.signUsingSession(request.authorization, record, read.version, origin);
+    }
+    if (record.phase.kind === 'session_approved')
+      return refusal('idempotency_conflict', 'The operation already belongs to a signing session');
+    const credential = request.authorization.credential;
     if (
-      request.credential.id !== record.preparation.request.credentialIdB64u ||
-      request.credential.rawId !== request.credential.id
+      credential.id !== record.preparation.request.credentialIdB64u ||
+      credential.rawId !== credential.id
     )
       return refusal('unauthorized', 'The signing credential differs');
-    const assertionDigest = await sha256Utf8DigestB64u(alphabetizeStringify(request.credential));
+    const assertionDigest = await sha256Utf8DigestB64u(alphabetizeStringify(credential));
     let counter: D1MlDsaWebAuthnVerification | null = null;
     if (record.phase.kind === 'approved') {
       if (record.phase.assertionDigest !== assertionDigest)
@@ -415,7 +447,7 @@ export class D1WalletMlDsaSigning {
         rpId: record.preparation.request.rpId,
         expectedOrigin: origin,
         expectedChallenge: record.preparation.challengeB64u,
-        webauthnAuthentication: request.credential,
+        webauthnAuthentication: credential,
         authenticatorStore: counter,
         logger: normalizeLogger(),
       });
@@ -543,6 +575,47 @@ export class D1WalletMlDsaSigning {
       return refusal('conflict', 'Signing completion changed');
     return parseSigningOutcome(JSON.parse(completed.response.bodyText));
   }
+  private async signUsingSession(
+    authorization: Exclude<
+      MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
+      { kind: 'passkey' }
+    >,
+    record: MlDsaSigningRecord,
+    recordVersion: string,
+    origin: SessionOrigin,
+  ): Promise<MlDsaSigningOutcome> {
+    if (!this.options.proxy) return refusal('not_configured', 'ML-DSA signing is not configured');
+    const approved = await this.signingSessions.admit({
+      authorization,
+      record,
+      recordVersion,
+      origin,
+    });
+    if (approved.kind !== 'approved') return approved;
+    const cached = await this.signingSessions.result(approved.admission);
+    if (
+      !(await this.current(approved.admission.record)) ||
+      !(await this.signingSessions.active(approved.admission))
+    )
+      return refusal('unauthorized', 'The ML-DSA session owner or grant changed');
+    if (cached !== null) return cached;
+    const operation = await prepareMlDsaSessionOwnerOperation(approved.admission);
+    let response: Response;
+    try {
+      response = await dispatchMlDsaOwnerOperation(this.options.proxy, operation);
+    } catch {
+      return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 1000 };
+    }
+    const outcome = await this.routerOutcome(approved.admission.record, response);
+    if (outcome.kind === 'retry') return outcome;
+    const completed = await this.signingSessions.complete(approved.admission, outcome);
+    if (
+      !(await this.current(approved.admission.record)) ||
+      !(await this.signingSessions.active(approved.admission))
+    )
+      return refusal('unauthorized', 'The ML-DSA session owner or grant changed');
+    return completed;
+  }
   private async routerOutcome(
     record: MlDsaSigningRecord,
     response: Response,
@@ -632,7 +705,7 @@ export class D1WalletMlDsaSigning {
     );
   }
   private async current(record: MlDsaSigningRecord): Promise<boolean> {
-    const condition = this.ownerCondition(record, record.phase.kind === 'approved');
+    const condition = this.ownerCondition(record, record.phase.kind !== 'awaiting_approval');
     const row = await prepareD1TenantStatement(
       this.options.database,
       this.options.scope,

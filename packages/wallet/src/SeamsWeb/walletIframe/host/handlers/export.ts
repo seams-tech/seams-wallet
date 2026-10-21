@@ -9,11 +9,24 @@ import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOk, respondOkResult } from './shared';
 import type { PMExportKeypairUiPayload } from '../../shared/messages';
+import { parseNearTransactionSigner } from '@/core/signingEngine/chains/near/transactionSigner';
 
 function keyExportInputFromPayload(
   payload: PMExportKeypairUiPayload,
 ): SigningEngineExportKeypairWithUIInput {
   switch (payload.kind) {
+    case 'ml_dsa_65': {
+      const signer = parseNearTransactionSigner(payload.signer);
+      if (signer.kind !== 'near_ml_dsa_65')
+        throw new Error('ML-DSA export requires an ML-DSA signer');
+      return {
+        kind: 'ml_dsa_65',
+        walletSession: payload.walletSession,
+        nearAccount: payload.nearAccount,
+        signer,
+        options: payload.options,
+      };
+    }
     case 'ecdsa': {
       const laneIdentity = parseExactEcdsaSigningLaneIdentity(payload.laneIdentity);
       if (String(laneIdentity.signer.walletId) !== String(payload.walletSession.walletId)) {
@@ -69,6 +82,21 @@ export function createExportWalletIframeHandlers(deps: HandlerDeps): HandlerMap 
       if (deps.respondIfCancelled(req.requestId)) return;
       try {
         const exportInput = keyExportInputFromPayload(payload);
+        if (exportInput.kind === 'ml_dsa_65') {
+          await pm.keys.exportKeypairWithUI({
+            kind: 'ml_dsa_65',
+            walletSession: exportInput.walletSession,
+            nearAccount: exportInput.nearAccount,
+            signer: exportInput.signer,
+            options: {
+              ...exportInput.options,
+              onEvent: deps.postProgress.bind(deps, req.requestId),
+            },
+          });
+          if (deps.respondIfCancelled(req.requestId)) return;
+          respondOk(deps, req.requestId);
+          return;
+        }
         await pm.keys.exportKeypairWithUI(
           exportInput.kind === 'ecdsa'
             ? {

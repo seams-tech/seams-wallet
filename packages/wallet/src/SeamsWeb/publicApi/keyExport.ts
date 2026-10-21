@@ -13,10 +13,13 @@ import {
   CAPABILITY_KINDS,
   EVM_ECDSA_MPC_OPERATION_KINDS,
   NEAR_ED25519_MPC_OPERATION_KINDS,
+  NEAR_ML_DSA_65_MPC_OPERATION_KINDS,
 } from '@shared/authorization/capabilityKinds';
 import { requireBrowserCapabilityOperation } from '@/SeamsWeb/publicApi/capabilitySelection';
 import { resolveConfiguredChainTarget } from '@/SeamsWeb/publicApi/chainTargets';
 import type { CurrentWalletResolver } from '@/SeamsWeb/publicApi/currentWallet';
+import { parseNearTransactionSigner } from '@/core/signingEngine/chains/near/transactionSigner';
+import type { Variant } from '@shared/utils/variant';
 
 /**
  * Domain methods sit below the public boundary: `options` has already been
@@ -31,9 +34,17 @@ export type KeyExportDomainMethods = {
 
 export function requireKeyExportCapability(
   configs: SeamsConfigsReadonly,
-  input: ResolveExactKeyExportLaneInput,
+  input:
+    | ResolveExactKeyExportLaneInput
+    | Variant<SigningEngineExportKeypairWithUIInput, 'kind', 'ml_dsa_65'>,
 ): void {
   switch (input.kind) {
+    case 'ml_dsa_65':
+      requireBrowserCapabilityOperation(configs, {
+        capabilityKind: CAPABILITY_KINDS.nearMlDsa65MpcSigning,
+        operationKind: NEAR_ML_DSA_65_MPC_OPERATION_KINDS.exportKey,
+      });
+      return;
     case 'ed25519':
       requireBrowserCapabilityOperation(configs, {
         capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
@@ -66,6 +77,22 @@ async function exportKey(
   input: ExportKeyInput,
 ): Promise<KeyExportOutcome> {
   const options = input.options ?? {};
+  if (input.kind === 'ml_dsa_65') {
+    const subject = await deps.currentWallet.nearSubject(input);
+    const signer = parseNearTransactionSigner(input.signer);
+    if (signer.kind !== 'near_ml_dsa_65')
+      throw new Error('ML-DSA export requires an ML-DSA signer');
+    const resolved = {
+      kind: 'ml_dsa_65' as const,
+      walletSession: subject.walletSession,
+      nearAccount: subject.nearAccount,
+      signer,
+      options,
+    };
+    requireKeyExportCapability(deps.configs, resolved);
+    await deps.domain.exportKeypairWithUI(resolved);
+    return { kind: 'exported' };
+  }
   if (input.kind === 'ed25519') {
     const subject = await deps.currentWallet.nearSubject(input);
     const laneInput = { kind: 'ed25519' as const, ...subject };
@@ -83,10 +110,7 @@ async function exportKey(
     return { kind: 'exported' };
   }
   const walletSession = await deps.currentWallet.walletSession(input.walletSession);
-  const chainTarget = resolveConfiguredChainTarget(
-    deps.configs.network.chains,
-    input.chainTarget,
-  );
+  const chainTarget = resolveConfiguredChainTarget(deps.configs.network.chains, input.chainTarget);
   const laneInput = { kind: 'ecdsa' as const, walletSession, chainTarget };
   requireKeyExportCapability(deps.configs, laneInput);
   const lane = await deps.domain.resolveExactKeyExportLane(laneInput);

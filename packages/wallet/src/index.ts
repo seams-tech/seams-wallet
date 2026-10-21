@@ -196,6 +196,8 @@ export type {
   // Registration
   AddedEvmFamilyEcdsaSignerCapability,
   AddedNearEd25519SignerCapability,
+  AddedMlDsaSignerCapability,
+  NearTransactionSignerSelection,
   RegisteredEvmFamilyEcdsaCapability,
   RegisteredNearEd25519Capability,
   RegistrationResult,
@@ -208,6 +210,7 @@ export type {
   // Actions
   ActionResult,
 } from './core/types/seams';
+export type { MlDsaSigningSessionPolicy } from '@shared/near/mlDsaSigningSession';
 
 export type {
   // Hooks Options

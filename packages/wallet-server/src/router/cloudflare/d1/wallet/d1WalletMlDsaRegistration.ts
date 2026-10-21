@@ -80,7 +80,8 @@ type RegistrationRecord = {
 };
 type Failure = MlDsaRegistrationFailure;
 type PreparationResult =
-  { readonly ok: true; readonly preparation: MlDsaAddSignerPreparation } | Failure;
+  | { readonly ok: true; readonly preparation: MlDsaAddSignerPreparation }
+  | Failure;
 
 function failure(code: MlDsaRegistrationFailureCode, message: string): Failure {
   return { ok: false, code, message };
@@ -436,14 +437,19 @@ export class D1WalletMlDsaRegistration {
     return { ok: true as const, result: result.result };
   }
 
-  async publish(preparation: MlDsaAddSignerPreparation, commit: MlDsaCustodyCommit) {
-    const read = await this.records.read(recordKey(preparation));
-    if (
-      read.kind !== 'present' ||
-      alphabetizeStringify(read.value.preparation) !== alphabetizeStringify(preparation)
-    )
+  async publish(input: {
+    readonly walletId: WalletId;
+    readonly addSignerCeremonyId: string;
+    readonly custodyCommit: MlDsaCustodyCommit;
+  }) {
+    const commit = input.custodyCommit;
+    if (commit.key.walletId !== input.walletId)
+      return failure('custody_mismatch', 'ML-DSA completion names a different wallet');
+    const read = await this.records.read(JSON.stringify([input.walletId, commit.key.signingKeyId]));
+    if (read.kind !== 'present' || read.value.ceremonyId !== input.addSignerCeremonyId)
       return failure('not_found', 'ML-DSA registration is absent');
     const record = read.value;
+    const preparation = record.preparation;
     const phase = record.phase;
     if (phase.kind !== 'installed' && phase.kind !== 'published')
       return failure('not_ready', 'Both ML-DSA participant installations must complete');
@@ -465,7 +471,8 @@ export class D1WalletMlDsaRegistration {
     await this.assertCurrentOwner(preparation);
     if (phase.kind === 'published')
       return { ok: true as const, key: commit.key, publishedAtMs: phase.publishedAtMs };
-    if (record.expiresAtMs <= Date.now()) return failure('expired', 'ML-DSA publication expired');
+    // Both installations committed before the deadline. Their exact verified
+    // completion may publish after a restart while the owner and epoch remain current.
     const publishedAtMs = Date.now();
     const stored = await this.commit(
       withPhase(record, {
@@ -652,11 +659,7 @@ export class D1WalletMlDsaRegistration {
         [{ key, value: record, expectedVersion: version }],
         [
           this.guard(record.preparation, record.phase.kind !== 'admitted'),
-          this.options.database
-            .prepare(
-              "INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) SELECT 1 WHERE ?1 <= CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)",
-            )
-            .bind(record.expiresAtMs),
+          ...this.executionDeadlineStatements(record),
           ...lifecycleWriteFenceStatements(
             this.options,
             new Set([record.preparation.identity.walletId]),
@@ -677,5 +680,15 @@ export class D1WalletMlDsaRegistration {
       if (saved.key === key) return { kind: 'stored' as const, version: saved.version };
     }
     throw new Error('ML-DSA commit omitted its version');
+  }
+  private executionDeadlineStatements(record: RegistrationRecord) {
+    if (record.phase.kind === 'published') return [];
+    return [
+      this.options.database
+        .prepare(
+          "INSERT INTO router_ab_yao_versioned_json_cas_guard (guard_id) SELECT 1 WHERE ?1 <= CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)",
+        )
+        .bind(record.expiresAtMs),
+    ];
   }
 }

@@ -67,6 +67,7 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
 import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
+import type { NearTransactionSignerSelection } from '@/core/types/seams';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
   RegistrationTimingSpanV1,
@@ -1272,10 +1273,12 @@ export type PMGoogleEmailOtpWalletAuthCompleteRegistrationWireResult =
   PMGoogleEmailOtpWalletAuthWireResult<GoogleEmailOtpWalletAuthRegistrationCompleted>;
 
 interface PMSignTxPayload {
+  signer: NearTransactionSignerSelection;
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
   options: {
+    mlDsaSigningSession?: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy;
     signerSlot?: number;
     confirmationConfig?: Partial<ConfirmationConfig>;
     confirmerText?: { title?: string; body?: string };
@@ -1284,10 +1287,12 @@ interface PMSignTxPayload {
 }
 
 interface PMSignAndSendTxPayload {
+  signer: NearTransactionSignerSelection;
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
   options: {
+    mlDsaSigningSession?: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy;
     signerSlot?: number;
     // Keep only serializable fields; functions are bridged via PROGRESS
     waitUntil?:
@@ -1385,6 +1390,13 @@ type PMReconcileTempoNonceLanePayload = PMTempoNonceLifecyclePayloadBase;
 type PMResolveExactKeyExportLanePayload = ResolveExactKeyExportLaneInput;
 
 export type PMExportKeypairUiPayload =
+  | {
+      kind: 'ml_dsa_65';
+      walletSession: WalletSessionRef;
+      nearAccount: NearAccountRef;
+      signer: unknown;
+      options: KeyExportUiOptions;
+    }
   | {
       kind: 'ecdsa';
       chainTarget: ThresholdEcdsaChainTarget;

@@ -13,7 +13,9 @@ pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
         RoleCommand::Install { key }
         | RoleCommand::Inventory { key, .. }
         | RoleCommand::WakeRefill { key } => Some(key),
-        RoleCommand::Take { permit, .. } => Some(&permit.request.key),
+        RoleCommand::Take { permit, .. } | RoleCommand::LoadSigningInputs { permit } => {
+            Some(&permit.request.key)
+        }
         RoleCommand::Release { request, .. } => Some(&request.key),
         _ => None,
     }

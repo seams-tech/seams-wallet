@@ -483,6 +483,7 @@ export async function verifyMlDsaGatewayRegistration({
     );
     assert.deepEqual(await phase(database, scope, walletId), beforePublish);
     checks.relocationCannotOmitInstalledMlDsa = true;
+    await expireInstalledPublication(database, scope, walletId);
     traced.mode = 'lost_reply';
     assert.equal(
       (await gateway.post(walletId, 'ml-dsa/publish', publication)).body.code,
@@ -500,6 +501,7 @@ export async function verifyMlDsaGatewayRegistration({
     assert.deepEqual(replay.body.key, finished.commit.key);
     assert.deepEqual(await phase(database, scope, walletId), committed);
     checks.publicationSurvivesLostAcknowledgementAndRestart = true;
+    checks.completedPublicationSurvivesExpiredRequest = true;
     checks.admittedOperationSettlesDuringDraining = true;
     await new api.D1WalletRelocationWriteBlock(database, scope).release(move, Date.now());
     const published = await new api.D1WalletMlDsaRegistration({
@@ -806,7 +808,10 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
     const request = {
       relayerUrl: 'https://gateway.example.test',
       preparation: prepared.preparation,
-      credential: assertion(input.key, prepared.preparation.challengeB64u),
+      authorization: {
+        kind: 'passkey',
+        credential: assertion(input.key, prepared.preparation.challengeB64u),
+      },
     };
     let signed = await input.api.executeMlDsaNearSigning(request);
     let attempts = 1;
@@ -873,6 +878,28 @@ async function verifyRestoringInventory(input, expected) {
 }
 function isRestoringEntry(entry) {
   return entry.kind === 'restoring';
+}
+
+async function expireInstalledPublication(database, scope, walletId) {
+  const installed = await phase(database, scope, walletId);
+  assert.equal(JSON.parse(installed.record_json).phase.kind, 'installed');
+  const result = await database
+    .prepare(
+      `UPDATE router_ab_yao_versioned_json_records
+    SET version=version+1, record_json=json_set(record_json,'$.expiresAtMs',?)
+    WHERE namespace=? AND org_id=? AND project_id=? AND env_id=? AND record_key=? AND version=?`,
+    )
+    .bind(
+      Date.now() - 1000,
+      scope.namespace,
+      scope.orgId,
+      scope.projectId,
+      scope.envId,
+      `ml-dsa-registration:${JSON.stringify([walletId, JSON.parse(installed.record_json).preparation.protocolInputs.signingKeyId])}`,
+      installed.version,
+    )
+    .run();
+  assert.equal(result.meta.changes, 1);
 }
 
 async function replaceExpiredRestoration(input, purpose, interrupted) {

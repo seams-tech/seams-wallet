@@ -310,6 +310,10 @@ import { walletCustodyEd25519ActiveClientMetadataV1 } from '@/core/signingEngine
 import { requestWalletCustodyCeremonyOperation, walletCustodyCeremonyStepRunner, type WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
 import { runMlDsaCustodyKeySetCeremony } from '@/core/signingEngine/walletCustody/ceremonyDriver';
 import {
+  clearMlDsaSigningSessions,
+  retireMlDsaSigningSessions,
+} from '@/core/signingEngine/walletCustody/mlDsaSigningSessions';
+import {
   disposeWalletCustodyEd25519ActiveClientV1,
   WalletCustodyEd25519ActiveClientV1,
 } from '@/core/signingEngine/walletCustody/ed25519ActiveClient';
@@ -3202,6 +3206,7 @@ export class BrowserSigningSurface {
   }
 
   async retireActiveWalletSessionAuthorizationForLock(walletId: WalletId): Promise<void> {
+    await retireMlDsaSigningSessions(walletId);
     const retiredAtMs = Date.now();
     const retiredExact = await walletSessionAuthorizations.retireExactActiveForWallet({
       walletId,
@@ -3244,6 +3249,7 @@ export class BrowserSigningSurface {
   setWalletAuthenticated(
     state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,
   ): void {
+    clearMlDsaSigningSessions();
     // Switching wallets ends the previous wallet's authority here without
     // passing through clearWalletAuthentication, so its unlocked export-root
     // capability is destroyed at the switch itself.
@@ -3259,6 +3265,7 @@ export class BrowserSigningSurface {
   }
 
   clearWalletAuthentication(): void {
+    clearMlDsaSigningSessions();
     this.walletAuthenticationState = { kind: 'signed_out' };
     // Logout and wallet switch both land here, and both end the authority the
     // unlocked export-root capability was scoped to.
@@ -3653,6 +3660,23 @@ export class BrowserSigningSurface {
       }
       throw error;
     }
+  }
+
+  async signMlDsaNearTransaction(
+    input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
+  ): Promise<import('@/core/types/seams').SignTransactionResult> {
+    const { signMlDsaNearTransaction } = await import(
+      '@/core/signingEngine/flows/signNear/mlDsaTransaction'
+    );
+    return await signMlDsaNearTransaction(
+      {
+        configs: this.seamsWebConfigs,
+        nearClient: this.nearClient,
+        nonceCoordinator: this.nonceCoordinator,
+        confirm: this.touchConfirm,
+      },
+      input,
+    );
   }
 
   private async terminateWalletStateAfterSigningFailure(walletId: WalletId): Promise<void> {
@@ -6413,7 +6437,7 @@ export class BrowserSigningSurface {
 
   async exportKeypairWithUI(
     input: SigningEngineExportKeypairWithUIInput,
-  ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1'> }> {
+  ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519' | 'secp256k1' | 'ml_dsa_65'> }> {
     return await recoveryPublic.exportKeypairWithUI(this.recoveryPublicDeps, input);
   }
 

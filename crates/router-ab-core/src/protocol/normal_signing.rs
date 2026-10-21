@@ -46,10 +46,31 @@ impl RouterAbNearNetworkIdV2 {
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct RouterAbNearAccountIdBorsh(pub(crate) String);
 
+#[repr(u8)]
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
-pub(crate) struct RouterAbNearPublicKeyBorsh {
-    pub(crate) key_type: u8,
-    pub(crate) key_data: [u8; 32],
+#[borsh(use_discriminant = true)]
+pub(crate) enum RouterAbNearPublicKeyBorsh {
+    Ed25519([u8; 32]) = 0,
+    Secp256k1([u8; 64]) = 1,
+    MlDsa65(Box<[u8; 1952]>) = 2,
+}
+
+impl RouterAbNearPublicKeyBorsh {
+    fn key_type(&self) -> u8 {
+        match self {
+            Self::Ed25519(_) => 0,
+            Self::Secp256k1(_) => 1,
+            Self::MlDsa65(_) => 2,
+        }
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Ed25519(bytes) => bytes,
+            Self::Secp256k1(bytes) => bytes,
+            Self::MlDsa65(bytes) => bytes.as_slice(),
+        }
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
@@ -1534,10 +1555,10 @@ fn delegate_action_fingerprint_value(
 
 fn public_key_fingerprint_value(public_key: &RouterAbNearPublicKeyBorsh) -> JsonValue {
     json_object([
-        ("keyData", bytes_json_array(&public_key.key_data)),
+        ("keyData", bytes_json_array(public_key.as_bytes())),
         (
             "keyType",
-            JsonValue::Number(JsonNumber::from(public_key.key_type)),
+            JsonValue::Number(JsonNumber::from(public_key.key_type())),
         ),
     ])
 }
@@ -1596,15 +1617,14 @@ fn access_key_json_string(
 }
 
 fn public_key_string(public_key: &RouterAbNearPublicKeyBorsh) -> RouterAbProtocolResult<String> {
-    if public_key.key_type != 0 {
-        return Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::MalformedWirePayload,
-            "NEAR action public key must be Ed25519",
-        ));
-    }
+    let scheme = match public_key {
+        RouterAbNearPublicKeyBorsh::Ed25519(_) => "ed25519",
+        RouterAbNearPublicKeyBorsh::Secp256k1(_) => "secp256k1",
+        RouterAbNearPublicKeyBorsh::MlDsa65(_) => "ml-dsa-65",
+    };
     Ok(format!(
-        "ed25519:{}",
-        bs58::encode(public_key.key_data).into_string()
+        "{scheme}:{}",
+        bs58::encode(public_key.as_bytes()).into_string()
     ))
 }
 
