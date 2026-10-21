@@ -917,11 +917,9 @@ fn source_preserving_refusal(
 }
 
 /// Registration, then recovery, then a linked target registration whose
-/// source is the recovered material. The source operation is the only fact
-/// that separates the recovered source from a registered one: the same
-/// material under a registration label preserves the key and advances the
-/// epoch, while the target's own freshness, identity, pairing and recipient
-/// checks still refuse stale or substituted packages.
+/// source is the recovered material. Linking preserves the key and advances
+/// the epoch. Freshness, identity, pairing and recipient checks still refuse
+/// stale or substituted packages.
 #[test]
 fn recovered_source_preserves_the_key_for_a_linked_target() {
     let expected_public_key =
@@ -1000,38 +998,12 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
     );
     let target = seal_activation(&mut rng, target_binding.clone(), recipients);
 
-    // Today the combiner refuses the recovered source on its operation alone.
-    assert_eq!(
-        source_preserving_refusal(
-            &signing_worker.private_key,
-            target.deriver_a.clone(),
-            target.deriver_b.clone(),
-            &recovered,
-        ),
-        "source-preserving ordinary activation requires registered source material"
-    );
-
-    // The same recovered material under a registration label: scalar, epoch,
-    // transcript, public key, session and activation stay the recovered ones.
-    let relabeled_source = Ed25519YaoActiveSigningMaterialV1::from_parts(
-        *recovered.scalar(),
-        activation_binding(
-            Ed25519YaoOperationV1::Registration,
-            ExpensiveWorkKindV1::RegistrationPrepare,
-            recovery_session,
-            "recovery-activation",
-        ),
-        recovered.state_epoch(),
-        recovered.transcript(),
-        recovered.registered_public_key(),
-    )
-    .expect("relabeled recovered source");
     let (linked, linked_receipt) =
         combine_ed25519_yao_signing_worker_packages_source_preserving_v1(
             &signing_worker.private_key,
             target.deriver_a.clone(),
             target.deriver_b.clone(),
-            &relabeled_source,
+            &recovered,
         )
         .expect("linked target from the recovered source")
         .into_parts();
@@ -1051,7 +1023,7 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
             &signing_worker.private_key,
             replayed_recovery.0,
             replayed_recovery.1,
-            &relabeled_source,
+            &recovered,
         ),
         "source-preserving ordinary activation requires a registration binding"
     );
@@ -1059,14 +1031,14 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
     // A target that names the source activation is not fresh material.
     let mut reused_a = target.deriver_a.clone();
     let mut reused_b = target.deriver_b.clone();
-    reused_a.binding.material_activation = relabeled_source.binding().material_activation.clone();
-    reused_b.binding.material_activation = relabeled_source.binding().material_activation.clone();
+    reused_a.binding.material_activation = recovered.binding().material_activation.clone();
+    reused_b.binding.material_activation = recovered.binding().material_activation.clone();
     assert_eq!(
         source_preserving_refusal(
             &signing_worker.private_key,
             reused_a,
             reused_b,
-            &relabeled_source,
+            &recovered,
         ),
         "source-preserving ordinary activation requires a fresh material activation"
     );
@@ -1082,7 +1054,7 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
             &signing_worker.private_key,
             moved_a,
             moved_b,
-            &relabeled_source,
+            &recovered,
         ),
         "source-preserving ordinary activation changed the stable signing identity"
     );
@@ -1103,7 +1075,7 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
             &signing_worker.private_key,
             target.deriver_a.clone(),
             other_target.deriver_b,
-            &relabeled_source,
+            &recovered,
         ),
         "Signing Worker activation package bindings do not match"
     );
@@ -1116,7 +1088,7 @@ fn recovered_source_preserves_the_key_for_a_linked_target() {
             &other_signing_worker.private_key,
             target.deriver_a,
             target.deriver_b,
-            &relabeled_source,
+            &recovered,
         )
         .is_err()
     );
