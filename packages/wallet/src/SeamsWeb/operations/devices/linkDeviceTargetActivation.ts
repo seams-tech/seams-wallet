@@ -277,7 +277,7 @@ export function createExportRootEnvelopeIdV1(): PasskeyEnvelopeId {
   return parsed.value;
 }
 
-export function createEmailOtpFactorSecretV1(): Uint8Array {
+export function createEmailOtpFactorSecretV1(): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(32));
 }
 

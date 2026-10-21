@@ -24,6 +24,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repoRoot = resolve(packageRoot, '../..');
+const compiler = fileURLToPath(new URL('./bin/tsrs', import.meta.resolve('tsrs/package.json')));
 
 const CONSUMER_SOURCE = `
 import type { SeamsWeb, NearProvisioningState } from '@seams/wallet';
@@ -184,10 +185,14 @@ try {
     'utf8',
   );
 
-  const result = spawnSync('npx', ['tsc', '--noEmit', '-p', join(workspace, 'tsconfig.json')], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
+  const result = spawnSync(
+    process.execPath,
+    [compiler, '--noEmit', '-p', join(workspace, 'tsconfig.json')],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    },
+  );
   const output = `${result.stdout || ''}${result.stderr || ''}`;
 
   if (result.error || result.status !== 0) {
@@ -225,10 +230,14 @@ try {
       join(coreWorkspace, 'tsconfig.json'),
       await readFile(join(workspace, 'tsconfig.json'), 'utf8'),
     );
-    execFileSync('npx', ['tsc', '--noEmit', '-p', join(coreWorkspace, 'tsconfig.json')], {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    });
+    execFileSync(
+      process.execPath,
+      [compiler, '--noEmit', '-p', join(coreWorkspace, 'tsconfig.json')],
+      {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      },
+    );
     execFileSync(process.execPath, [join(coreWorkspace, 'import.mjs')], {
       cwd: coreWorkspace,
       encoding: 'utf8',

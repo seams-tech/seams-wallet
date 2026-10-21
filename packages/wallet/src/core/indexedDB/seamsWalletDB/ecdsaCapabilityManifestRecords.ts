@@ -671,7 +671,7 @@ function buildPreparedJournalForExpectations(
   }
 }
 
-function decodeCanonicalStateBlob(value: string, label: string): Uint8Array {
+function decodeCanonicalStateBlob(value: string, label: string): Uint8Array<ArrayBuffer> {
   if (typeof value !== 'string' || value.length === 0 || !/^[A-Za-z0-9_-]+$/.test(value)) {
     throw new Error(`${label} must be non-empty unpadded base64url`);
   }
@@ -683,7 +683,7 @@ function decodeCanonicalStateBlob(value: string, label: string): Uint8Array {
   return bytes;
 }
 
-export function additionalData(projection: unknown): Uint8Array {
+export function additionalData(projection: unknown): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(alphabetizeStringify(projection));
 }
 

@@ -58,7 +58,10 @@
       "default": "./dist/esm/react/externalEvm.js",
       "types": "./dist/types/wallet/src/react/externalEvm.d.ts"
     },
-    "./react/styles": "./dist/esm/react/styles/styles.css",
+    "./react/styles": {
+      "types": "./dist/types/wallet/src/react/styles.d.ts",
+      "default": "./dist/esm/react/styles/styles.css"
+    },
     "./web/wallet-iframe-client-html": {
       "import": "./dist/esm/SeamsWeb/walletIframe/client/html.js",
       "default": "./dist/esm/SeamsWeb/walletIframe/client/html.js",
@@ -107,7 +110,7 @@
     "prepack": "node ../../scripts/package-license.mjs stage",
     "postpack": "node ../../scripts/package-license.mjs clean",
     "build:sdk": "./scripts/build/build-sdk.sh",
-    "build:types": "tsc -p tsconfig.build.json && node ./scripts/build/rewrite-declaration-aliases.mjs",
+    "build:types": "tsrs -p tsconfig.build.json && node ./scripts/build/rewrite-declaration-aliases.mjs",
     "build:wasm": "./scripts/build/build-wasm.sh",
     "build:sdk-full": "./scripts/build/build-full.sh",
     "build:prod": "./scripts/build/build-prod.sh",
@@ -128,7 +131,7 @@
     "size:lite": "node ./scripts/reports/report-lite-bundle-sizes.mjs",
     "size:lite:check": "node ./scripts/reports/report-lite-bundle-sizes.mjs --check",
     "evidence:yaos-ab:local-artifacts": "node ./scripts/reports/report-yaos-ab-local-artifacts.mjs ../../docs/evidence/yaos-ab-phase14b-local-artifacts-v1.json",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsrs --noEmit",
     "check:declarations-external": "node ./scripts/checks/check-declarations-resolve-externally.mjs"
   },
   "keywords": [
@@ -190,7 +193,6 @@
     "@types/react-dom": "^19.1.9",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "rolldown": "^1.0.0-beta.27",
-    "typescript": "^5.8.3"
+    "rolldown": "^1.0.0-beta.27"
   }
 }

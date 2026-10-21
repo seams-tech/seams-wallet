@@ -1649,11 +1649,9 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     ];
   }> {
     assertRecipientRequestsMatchManifest(input);
-    const admitted = await admitD1EstablishedWalletHome(
-      this.options.database,
-      this.options.scope,
-      { walletId: input.walletId },
-    );
+    const admitted = await admitD1EstablishedWalletHome(this.options.database, this.options.scope, {
+      walletId: input.walletId,
+    });
     if (!admitted.ok) throw new Error(admitted.message);
     const ownershipGeneration = admitted.ownershipGeneration;
     let ed25519: OrdinaryEd25519SignerMaterialReservationV1 | undefined;
@@ -2182,8 +2180,10 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
   private async readInstallationsByWallet(
     walletId: WalletId,
   ): Promise<readonly StoredInstallationRow[]> {
-    const rows = await this.prepareInstallationsByWalletRead(walletId)
-      .all<Readonly<Record<string, unknown>>>();
+    const rows =
+      await this.prepareInstallationsByWalletRead(walletId).all<
+        Readonly<Record<string, unknown>>
+      >();
     return (rows.results ?? []).map(parseStoredInstallationRow);
   }
 
@@ -2231,7 +2231,10 @@ export async function parseInstalledEcdsaCustodySnapshotV1(input: {
     }
     return {
       readSnapshot: EcdsaMaterialReadSnapshot.linked(
-        input.scope, input.walletId, installations, signers,
+        input.scope,
+        input.walletId,
+        installations,
+        signers,
       ),
       chain: installedEcdsaAuthorityChain(rows, input.materialActivation),
       signers: parseWalletEcdsaSignerRows(signers, input.walletId),
@@ -3692,8 +3695,8 @@ async function sealLinkedDeviceWalletSessionCredentialV1(input: {
     encodeLinkedDeviceWalletSessionCredentialDeliveryAadV1(aad),
   );
   const plaintext = new TextEncoder().encode(alphabetizeStringify(input.operationCredential));
-  let recipientBytes: Uint8Array | null = null;
-  let nonce: Uint8Array | null = null;
+  let recipientBytes: Uint8Array<ArrayBuffer> | null = null;
+  let nonce: Uint8Array<ArrayBuffer> | null = null;
   try {
     recipientBytes = base64UrlDecode(recipientPublicKey);
     const importedRecipient = await crypto.subtle.importKey(

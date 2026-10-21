@@ -79,19 +79,19 @@ export function equalBytes(left: readonly number[], right: readonly number[]): b
   return true;
 }
 
-function u32BigEndian(value: number): Uint8Array {
+function u32BigEndian(value: number): Uint8Array<ArrayBuffer> {
   const bytes = new Uint8Array(4);
   new DataView(bytes.buffer).setUint32(0, value, false);
   return bytes;
 }
 
-function u16BigEndian(value: number): Uint8Array {
+function u16BigEndian(value: number): Uint8Array<ArrayBuffer> {
   const bytes = new Uint8Array(2);
   new DataView(bytes.buffer).setUint16(0, value, false);
   return bytes;
 }
 
-function u64BigEndian(value: number): Uint8Array {
+function u64BigEndian(value: number): Uint8Array<ArrayBuffer> {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error('u64 value must be a positive safe integer');
   }
@@ -100,7 +100,7 @@ function u64BigEndian(value: number): Uint8Array {
   return bytes;
 }
 
-function concatenateBytes(chunks: readonly Uint8Array[]): Uint8Array {
+function concatenateBytes(chunks: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
   let length = 0;
   for (const chunk of chunks) length += chunk.length;
   const output = new Uint8Array(length);
@@ -112,15 +112,15 @@ function concatenateBytes(chunks: readonly Uint8Array[]): Uint8Array {
   return output;
 }
 
-function lengthDelimited(value: Uint8Array): Uint8Array {
+function lengthDelimited(value: Uint8Array): Uint8Array<ArrayBuffer> {
   return concatenateBytes([u32BigEndian(value.length), value]);
 }
 
-function labeledField(label: string, value: Uint8Array): Uint8Array {
+function labeledField(label: string, value: Uint8Array): Uint8Array<ArrayBuffer> {
   return concatenateBytes([lengthDelimited(UTF8.encode(label)), lengthDelimited(value)]);
 }
 
-async function sha256(value: Uint8Array): Promise<Uint8Array> {
+async function sha256(value: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const digest = await globalThis.crypto.subtle.digest('SHA-256', value);
   return new Uint8Array(digest);
 }

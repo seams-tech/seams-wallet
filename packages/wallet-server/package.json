@@ -85,12 +85,12 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && node ./scripts/rewrite-declaration-imports.mjs && rolldown -c rolldown.config.ts && node ./scripts/copy-wasm-assets.mjs",
+    "build": "rm -rf dist && tsrs -p tsconfig.build.json && node ./scripts/rewrite-declaration-imports.mjs && rolldown -c rolldown.config.ts && node ./scripts/copy-wasm-assets.mjs",
     "package:cloudflare-runtime": "node ./scripts/copy-cloudflare-router-runtime.mjs && node ./scripts/write-artifact-manifest.mjs",
     "d1:local:migrate": "node ./scripts/d1-local-migrate-signer.mjs",
     "prepack": "pnpm run package:cloudflare-runtime && node ../../scripts/package-license.mjs stage",
     "postpack": "node ../../scripts/package-license.mjs clean",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsrs --noEmit"
   },
   "keywords": [
     "seams",
@@ -120,7 +120,6 @@
   "devDependencies": {
     "@near-js/types": "^2.4.0",
     "@types/node": "^20.19.9",
-    "rolldown": "^1.0.0-beta.27",
-    "typescript": "^5.8.3"
+    "rolldown": "^1.0.0-beta.27"
   }
 }

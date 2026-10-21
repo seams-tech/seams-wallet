@@ -25,16 +25,15 @@ export type TenantRootEnvironmentIdV1 = DomainId<'TenantRootEnvironmentIdV1'>;
 export type TenantRootSigningRootIdV1 = SigningRootId;
 export type TenantRootSigningRootVersionV1 = SigningRootVersion;
 
-export type TenantRootIdentityFieldValueV1<F extends TenantRootIdentityFieldV1> =
-  F extends 'orgId'
-    ? TenantRootOrganizationIdV1
-    : F extends 'projectId'
-      ? TenantRootProjectIdV1
-      : F extends 'envId'
-        ? TenantRootEnvironmentIdV1
-        : F extends 'signingRootId'
-          ? TenantRootSigningRootIdV1
-          : TenantRootSigningRootVersionV1;
+export type TenantRootIdentityFieldValueV1<F extends TenantRootIdentityFieldV1> = F extends 'orgId'
+  ? TenantRootOrganizationIdV1
+  : F extends 'projectId'
+    ? TenantRootProjectIdV1
+    : F extends 'envId'
+      ? TenantRootEnvironmentIdV1
+      : F extends 'signingRootId'
+        ? TenantRootSigningRootIdV1
+        : TenantRootSigningRootVersionV1;
 
 export type TenantRootIdentityWireV1 = {
   readonly orgId: string;
@@ -108,7 +107,7 @@ const TENANT_ROOT_IDENTITY_FIELD_SET_V1: ReadonlySet<string> = new Set(
   TENANT_ROOT_IDENTITY_FIELDS_V1,
 );
 
-function concatenateBytes(parts: readonly Uint8Array[]): Uint8Array {
+function concatenateBytes(parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
   let length = 0;
   for (const part of parts) length += part.length;
   const output = new Uint8Array(length);
@@ -194,9 +193,7 @@ function brandTenantRootIdentityField<F extends TenantRootIdentityFieldV1>(
   }
 }
 
-function invalidField(
-  field: TenantRootIdentityFieldV1,
-): TenantRootIdentityDecodeResultV1<never> {
+function invalidField(field: TenantRootIdentityFieldV1): TenantRootIdentityDecodeResultV1<never> {
   return { ok: false, error: { kind: 'invalid_field', field } };
 }
 
@@ -294,7 +291,9 @@ function tenantRootIdentityFieldBytes(value: string, label: string): Uint8Array 
 }
 
 /** Encodes the exact Rust-compatible canonical identity bytes. */
-export function encodeTenantRootIdentityV1(identity: TenantRootIdentityV1): Uint8Array {
+export function encodeTenantRootIdentityV1(
+  identity: TenantRootIdentityV1,
+): Uint8Array<ArrayBuffer> {
   const encodedFields = [
     tenantRootIdentityFieldBytes(identity.orgId, 'identity.orgId'),
     tenantRootIdentityFieldBytes(identity.projectId, 'identity.projectId'),

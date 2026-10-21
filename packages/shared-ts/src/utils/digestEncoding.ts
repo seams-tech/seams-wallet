@@ -7,7 +7,7 @@ import { parseDigestB64u, type DigestB64u } from './canonicalPrimitives';
 
 const TEXT_ENCODER = new TextEncoder();
 
-export function concat(parts: readonly Uint8Array[]): Uint8Array {
+export function concat(parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
   let length = 0;
   for (const part of parts) length += part.length;
   const output = new Uint8Array(length);

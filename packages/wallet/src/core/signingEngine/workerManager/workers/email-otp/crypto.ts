@@ -170,16 +170,16 @@ export async function generateEmailOtpFactorReleaseKeyPair(label: string): Promi
 export async function openEmailOtpFactorReleaseCiphertext(args: {
   readonly subtle: SubtleCrypto;
   readonly workerPrivateKey: CryptoKey;
-  readonly serverPublicKey: Uint8Array;
-  readonly nonce: Uint8Array;
-  readonly ciphertext: Uint8Array;
+  readonly serverPublicKey: Uint8Array<ArrayBuffer>;
+  readonly nonce: Uint8Array<ArrayBuffer>;
+  readonly ciphertext: Uint8Array<ArrayBuffer>;
   readonly walletId: string;
   readonly enrollmentId: string;
   readonly enrollmentSealKeyVersion: string;
   readonly challengeId: string;
 }): Promise<Uint8Array> {
-  let sharedSecret: Uint8Array | null = null;
-  let aad: Uint8Array | null = null;
+  let sharedSecret: Uint8Array<ArrayBuffer> | null = null;
+  let aad: Uint8Array<ArrayBuffer> | null = null;
   let factorSecret32: Uint8Array | null = null;
   try {
     const serverKey = await args.subtle.importKey(
@@ -235,9 +235,9 @@ export async function decryptEmailOtpFactorReleaseEnvelope(args: {
   if (released.challengeId !== args.challengeId) {
     throw new Error('Email OTP factor release challenge binding changed');
   }
-  let serverPublicKey: Uint8Array | null = null;
-  let nonce: Uint8Array | null = null;
-  let ciphertext: Uint8Array | null = null;
+  let serverPublicKey: Uint8Array<ArrayBuffer> | null = null;
+  let nonce: Uint8Array<ArrayBuffer> | null = null;
+  let ciphertext: Uint8Array<ArrayBuffer> | null = null;
   try {
     serverPublicKey = base64UrlDecode(released.serverEphemeralPublicKey65B64u);
     if (serverPublicKey.length !== 65 || serverPublicKey[0] !== 4) {

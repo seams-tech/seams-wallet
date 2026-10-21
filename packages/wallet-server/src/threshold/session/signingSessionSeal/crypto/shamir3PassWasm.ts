@@ -38,9 +38,8 @@ async function initializeCompiledModule(module: WebAssembly.Module): Promise<voi
 
 async function loadBundledModule(): Promise<WebAssembly.Module | null> {
   try {
-    const imported = await import(
-      '../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm'
-    );
+    const imported =
+      await import('../../../../../../../wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm');
     return imported.default instanceof WebAssembly.Module ? imported.default : null;
   } catch {
     return null;
@@ -53,7 +52,7 @@ async function initializeNodeRuntime(): Promise<void> {
   for (const url of wasmUrls()) {
     try {
       const bytes = await readFile(fileURLToPath(url));
-      await initializeCompiledModule(await WebAssembly.compile(bytes));
+      await initializeCompiledModule(await WebAssembly.compile(new Uint8Array(bytes)));
       return;
     } catch {
       // Try the next package layout.

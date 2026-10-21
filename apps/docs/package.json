@@ -6,7 +6,7 @@
     "dev": "VITE_SITE_ORIGIN=${VITE_SITE_ORIGIN:-https://localhost} VITE_DOCS_ORIGIN=${VITE_DOCS_ORIGIN:-https://docs.localhost} vitepress dev src --port 4006",
     "build": "vitepress build src --outDir dist",
     "preview": "vitepress preview src --port 4006",
-    "type-check": "pnpm -C ../../packages/wallet build:types && tsc --noEmit",
+    "type-check": "pnpm -C ../../packages/wallet build:types && tsrs --noEmit",
     "check:links": "node scripts/check-links.mjs"
   },
   "devDependencies": {
@@ -15,7 +15,6 @@
     "@types/react-dom": "^19.1.9",
     "mermaid": "^11.12.1",
     "react": "^19.1.1",
-    "typescript": "~5.8.3",
     "vitepress": "^1.5.0",
     "vue": "^3.5.22"
   }

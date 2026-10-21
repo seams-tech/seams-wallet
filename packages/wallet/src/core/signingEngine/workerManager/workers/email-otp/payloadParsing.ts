@@ -186,7 +186,7 @@ export const SIGNING_SESSION_SEAL_TRANSPORT_FIELDS = [
   'groupId',
 ] as const;
 
-export function requireFixed32ArrayBuffer(value: unknown, label: string): Uint8Array {
+export function requireFixed32ArrayBuffer(value: unknown, label: string): Uint8Array<ArrayBuffer> {
   if (!(value instanceof ArrayBuffer)) {
     throw new Error(`${label} must be an ArrayBuffer`);
   }

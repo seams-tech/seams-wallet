@@ -1,15 +1,15 @@
 {
   "extends": "../../packages/wallet/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "../../packages/wallet",
+    "rootDir": "../..",
     "types": ["vite/client", "node", "react", "react-dom"],
     "paths": {
-      "@/*": ["src/*"],
-      "@build-paths": ["build-paths.ts"],
-      "@seams/wallet": ["src/index.ts"],
-      "@seams/wallet/advanced": ["src/advanced.ts"],
-      "@seams/wallet/react": ["src/react/index.ts"],
-      "@shared/*": ["../shared-ts/src/*"]
+      "@/*": ["../../packages/wallet/src/*"],
+      "@build-paths": ["../../packages/wallet/build-paths.ts"],
+      "@seams/wallet": ["../../packages/wallet/src/index.ts"],
+      "@seams/wallet/advanced": ["../../packages/wallet/src/advanced.ts"],
+      "@seams/wallet/react": ["../../packages/wallet/src/react/index.ts"],
+      "@shared/*": ["../../packages/shared-ts/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

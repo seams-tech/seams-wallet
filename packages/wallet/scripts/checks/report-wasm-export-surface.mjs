@@ -71,7 +71,8 @@ function walkFiles(rootAbs, include) {
 
 function categoryForFile(relPath) {
   if (relPath.startsWith('tests/')) return 'test';
-  if (relPath.startsWith('packages/wallet/scripts/') || relPath.endsWith('rolldown.config.ts')) return 'build';
+  if (relPath.startsWith('packages/wallet/scripts/') || relPath.endsWith('rolldown.config.ts'))
+    return 'build';
   return 'runtime';
 }
 
@@ -234,7 +235,7 @@ for (const pkg of packageFiles) {
     for (const entry of imports) {
       // An import naming something the wrapper does not export. This is the
       // drift catch: `pkg/` is a gitignored build artifact, so a stale one lets
-      // `tsc` validate source against generated typings for code that is gone.
+      // `tsrs` validate source against generated typings for code that is gone.
       for (const named of [...entry.named, ...entry.namedTypes]) {
         if (!importableNames.has(named)) {
           unknownImports.push({ file: file.relPath, exportName: named });
@@ -250,7 +251,10 @@ for (const pkg of packageFiles) {
         for (const exportName of exportNames) {
           if (exportName === 'default') continue;
           const usagePatterns = [
-            new RegExp(`\\b${escapeRegex(entry.namespaceAlias)}\\.${escapeRegex(exportName)}\\b`, 'g'),
+            new RegExp(
+              `\\b${escapeRegex(entry.namespaceAlias)}\\.${escapeRegex(exportName)}\\b`,
+              'g',
+            ),
             new RegExp(`\\.${escapeRegex(exportName)}\\b`, 'g'),
             new RegExp(`\\[['"]${escapeRegex(exportName)}['"]\\]`, 'g'),
           ];
@@ -317,7 +321,7 @@ if (assertMode) {
     '[report-wasm-export-surface] FAIL: imports name exports the generated wrapper does not have.',
   );
   console.error(
-    '  A stale pkg/ is the usual cause — it is a gitignored build artifact, so tsc may be',
+    '  A stale pkg/ is the usual cause — it is a gitignored build artifact, so tsrs may be',
   );
   console.error('  checking your source against typings for code that no longer exists.');
   console.error('  Rebuild the package, then re-run. If it still fails, the import is wrong.');

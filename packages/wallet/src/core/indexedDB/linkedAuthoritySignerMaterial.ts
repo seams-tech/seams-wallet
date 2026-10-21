@@ -60,7 +60,7 @@ type LinkedAuthorityMaterialSealInputV1 = {
 
 type OpenWalletAuthorityLinkedSignerMaterialInputV1 = {
   readonly record: WalletAuthorityLinkedSignerMaterialRecordV1;
-  readonly factorSecret: Uint8Array;
+  readonly factorSecret: Uint8Array<ArrayBuffer>;
   readonly expected: LinkedAuthorityMaterialSealInputV1;
 };
 
@@ -115,9 +115,9 @@ function linkedAuthorityMaterialSealAadV1(input: LinkedAuthorityMaterialSealInpu
 }
 
 export async function sealWalletAuthorityLinkedSignerMaterialV1(input: {
-  readonly factorSecret: Uint8Array;
+  readonly factorSecret: Uint8Array<ArrayBuffer>;
   readonly aad: LinkedAuthorityMaterialSealInputV1;
-  readonly material: Uint8Array;
+  readonly material: Uint8Array<ArrayBuffer>;
 }): Promise<{
   readonly sealedMaterialB64u: string;
   readonly sealedMaterialDigestB64u: DigestB64u;

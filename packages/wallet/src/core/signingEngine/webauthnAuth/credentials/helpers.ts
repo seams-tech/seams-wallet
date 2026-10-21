@@ -273,12 +273,12 @@ export function isSerializedRegistrationCredential(
  * @param nearAccountId - NEAR account ID to scope the salt to
  * @returns 32-byte Uint8Array salt for ChaCha20Poly1305 key derivation
  */
-export function getPrfFirstSaltV1(): Uint8Array {
+export function getPrfFirstSaltV1(): Uint8Array<ArrayBuffer> {
   // Defensive copy to discourage accidental mutation by callers.
   return new Uint8Array(PRF_FIRST_SALT_V1);
 }
 
-export function getPrfSecondSaltV1(): Uint8Array {
+export function getPrfSecondSaltV1(): Uint8Array<ArrayBuffer> {
   // Defensive copy to discourage accidental mutation by callers.
   return new Uint8Array(PRF_SECOND_SALT_V1);
 }

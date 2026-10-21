@@ -176,7 +176,7 @@ export type DeviceLinkingOrdinaryMaterialSealerV1 = {
       ...DeviceLinkingOrdinarySignerMaterialReservationPreparationV1[],
     ];
     readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
-    readonly factorSecret: Uint8Array;
+    readonly factorSecret: Uint8Array<ArrayBuffer>;
   }): Promise<SealedLocalAuthorityMaterialSetV1>;
 };
 

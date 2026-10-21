@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsrs --noEmit"
   },
   "dependencies": {
     "@seams/wallet": "workspace:*",
@@ -15,7 +15,6 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "~5.8.3",
     "vite": "^8.0.0"
   }
 }

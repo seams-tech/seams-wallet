@@ -753,7 +753,7 @@ async function recoverAndCommitPasskeyEd25519Unlock(
   const custodyWire = joinCustodyWireFromEnvelopeRecord(input.parsed.walletCustody.envelope);
   if (!custodyWire.ok) throw new Error(custodyWire.reason);
   const cacheSecret = input.ownedFactorSecret.slice();
-  let rejoinSecret: Uint8Array | null = null;
+  let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
   let openSecret: Uint8Array | null = null;
   let activeClient: PasskeyEd25519YaoRecoveryResultV1['activeClient'] | null = null;
   try {

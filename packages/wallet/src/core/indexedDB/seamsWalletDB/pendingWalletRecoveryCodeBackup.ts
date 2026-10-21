@@ -108,7 +108,7 @@ function parseRow(value: unknown, walletId: string): PendingWalletRecoveryCodeBa
   };
 }
 
-function additionalData(walletId: string, issuedAtMs: number): Uint8Array {
+function additionalData(walletId: string, issuedAtMs: number): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(JSON.stringify({ kind: RECORD_ID, walletId, issuedAtMs }));
 }
 
@@ -178,9 +178,9 @@ class PendingWalletRecoveryCodeBackupRepository {
     try {
       plaintext = new Uint8Array(
         await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: row.iv, additionalData: aad },
+          { name: 'AES-GCM', iv: row.iv.slice(), additionalData: aad },
           row.key,
-          row.ciphertext,
+          row.ciphertext.slice(),
         ),
       );
       const decoded: unknown = JSON.parse(new TextDecoder().decode(plaintext));

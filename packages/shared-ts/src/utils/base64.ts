@@ -28,7 +28,7 @@ export const base64Encode = (value: ArrayBufferLike | ArrayBufferView): string =
  * @returns Uint8Array containing the decoded bytes
  * @throws Error if decoding fails due to invalid base64 input
  */
-export function base64Decode(base64: string): Uint8Array {
+export function base64Decode(base64: string): Uint8Array<ArrayBuffer> {
   const normalized = String(base64 || '').trim();
   if (!normalized) return new Uint8Array();
 
@@ -73,7 +73,7 @@ export const base64UrlEncode = (value: ArrayBufferLike | ArrayBufferView): strin
  * @returns Uint8Array containing the decoded bytes
  * @throws Error if decoding fails due to invalid base64url input
  */
-export function base64UrlDecode(base64Url: string): Uint8Array {
+export function base64UrlDecode(base64Url: string): Uint8Array<ArrayBuffer> {
   const normalized = String(base64Url || '')
     .trim()
     .replace(/-/g, '+')

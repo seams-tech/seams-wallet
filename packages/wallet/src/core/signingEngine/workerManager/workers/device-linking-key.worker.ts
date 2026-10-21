@@ -252,7 +252,7 @@ async function openOrdinarySignerMaterial(input: {
   readonly preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1;
   readonly packageValue: LinkedSignerPackageForMaterialV1;
   readonly recipientInput: DeviceLinkingOrdinarySignerMaterialRecipientInputV1;
-}): Promise<Uint8Array> {
+}): Promise<Uint8Array<ArrayBuffer>> {
   if (
     'kind' in input.preparation &&
     input.packageValue.keyFamily === 'ed25519' &&
@@ -541,7 +541,7 @@ async function signRequest(
     expiresAtMs: request.expiresAtMs,
     signatureB64u: base64UrlEncode(zeroSignature),
   };
-  let canonicalBytes: Uint8Array | undefined;
+  let canonicalBytes: Uint8Array<ArrayBuffer> | undefined;
   let signatureBytes: Uint8Array | undefined;
   try {
     canonicalBytes = encodeLinkedDeviceRequestProofV1(proof);
@@ -560,8 +560,8 @@ async function signRequest(
 }
 
 async function createX25519RecipientPair(): Promise<{
-  readonly privateKey: Uint8Array;
-  readonly publicKey: Uint8Array;
+  readonly privateKey: Uint8Array<ArrayBuffer>;
+  readonly publicKey: Uint8Array<ArrayBuffer>;
 }> {
   const pair = requireCryptoKeyPair(
     await globalThis.crypto.subtle.generateKey({ name: 'X25519' }, true, ['deriveBits']),
@@ -984,11 +984,11 @@ async function openDeliveryRecipientEnvelope(input: {
   };
   readonly aad: () => string;
 }): Promise<Uint8Array> {
-  let serverPublicKey: Uint8Array | null = null;
-  let nonce: Uint8Array | null = null;
-  let ciphertext: Uint8Array | null = null;
-  let sharedSecret: Uint8Array | null = null;
-  let aad: Uint8Array | null = null;
+  let serverPublicKey: Uint8Array<ArrayBuffer> | null = null;
+  let nonce: Uint8Array<ArrayBuffer> | null = null;
+  let ciphertext: Uint8Array<ArrayBuffer> | null = null;
+  let sharedSecret: Uint8Array<ArrayBuffer> | null = null;
+  let aad: Uint8Array<ArrayBuffer> | null = null;
   try {
     serverPublicKey = base64UrlDecode(input.envelope.serverEphemeralPublicKey65B64u);
     nonce = base64UrlDecode(input.envelope.nonce12B64u);

@@ -22,7 +22,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
+    "rootDir": "..",
     "types": ["node", "react", "react-dom", "qrcode"],
     "typeRoots": [
       "./node_modules/@types",
@@ -32,17 +32,18 @@
       "../node_modules",
       "../../node_modules"
     ],
-    "useDefineForClassFields": false,
     "paths": {
-      "@/core/runtime": ["src/core/runtime/index.ts"],
-      "@/core/runtime/*": ["src/core/runtime/*"],
-      "@/*": ["src/*"],
+      "@/core/runtime": ["./src/core/runtime/index.ts"],
+      "@/core/runtime/*": ["./src/core/runtime/*"],
+      "@/*": ["./src/*"],
       "@shared/*": ["../shared-ts/src/*"],
       "@server": ["../wallet-server/src/index.ts"],
       "@server/*": ["../wallet-server/src/*"],
-      "@seams/wallet/advanced": ["src/advanced.ts"],
+      "@seams/wallet/advanced": ["./src/advanced.ts"],
       "@seams/wallet-server": ["../wallet-server/src/index.ts"],
-      "@seams/wallet-server/router/cloudflare": ["../wallet-server/src/router/cloudflare-adaptor.ts"],
+      "@seams/wallet-server/router/cloudflare": [
+        "../wallet-server/src/router/cloudflare-adaptor.ts"
+      ],
       "@seams/wallet-server/router/ror": ["../wallet-server/src/router/ror-adaptor.ts"],
       "@seams/wallet-server/wasm/signer": ["../wallet-server/src/wasm/signer.ts"],
       "@build-paths": ["./build-paths.ts"],
@@ -51,8 +52,7 @@
       "react-dom": ["./node_modules/@types/react-dom/index.d.ts"],
       "react-dom/client": ["./node_modules/@types/react-dom/client.d.ts"],
       "react-dom/server": ["./node_modules/@types/react-dom/server.d.ts"],
-      "qrcode": ["./node_modules/@types/qrcode/index.d.ts"],
-      "*": ["./node_modules/*", "../node_modules/*", "../../node_modules/*"]
+      "qrcode": ["./node_modules/@types/qrcode/index.d.ts"]
     }
   },
   "include": ["src/**/*", "../wallet-server/src/**/*", "../shared-ts/src/**/*"],

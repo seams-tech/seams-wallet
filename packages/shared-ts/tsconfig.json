@@ -1,11 +1,10 @@
 {
   "extends": "../wallet/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "rootDir": ".",
     "types": ["node"],
     "paths": {
-      "@shared/*": ["src/*"]
+      "@shared/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

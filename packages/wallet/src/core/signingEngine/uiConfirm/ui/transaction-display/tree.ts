@@ -288,30 +288,8 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
       ];
       break;
 
-    default: {
-      let raw = '';
-      try {
-        raw = JSON.stringify(action, null, 2);
-      } catch {
-        raw = String(action);
-      }
-      actionNodes = [
-        {
-          id: `a${idx}-action`,
-          label: `Action: ${action.type || 'Unknown'}`,
-          open: false,
-          type: 'file',
-        },
-        {
-          id: `a${idx}-raw`,
-          label: 'Raw Data',
-          type: 'file',
-          open: false,
-          content: raw,
-        },
-      ];
-      break;
-    }
+    default:
+      return assertNeverAction(action);
   }
 
   return {
@@ -324,6 +302,10 @@ function buildActionNode(action: ActionArgs, idx: number): TreeNode {
     actionIndex: idx,
     children: actionNodes,
   };
+}
+
+function assertNeverAction(action: never): never {
+  throw new Error(`Unsupported NEAR action: ${String(action)}`);
 }
 
 function buildTransactionNode(

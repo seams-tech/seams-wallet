@@ -32,9 +32,9 @@ const ecdsaWarmSessionSigningAuthPlan = {
 } satisfies SigningAuthPlan;
 void ecdsaWarmSessionSigningAuthPlan;
 
-// @ts-expect-error ECDSA warm authorization has no threshold session identity.
 const ecdsaWarmSessionWithThresholdId: SigningAuthPlan = {
   ...ecdsaWarmSessionSigningAuthPlan,
+  // @ts-expect-error ECDSA warm authorization has no threshold session identity.
   thresholdSessionId: 'fabricated-threshold-session',
 };
 void ecdsaWarmSessionWithThresholdId;

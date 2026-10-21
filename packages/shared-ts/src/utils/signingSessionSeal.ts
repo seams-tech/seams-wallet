@@ -25,7 +25,9 @@ export const ROUTER_AB_ED25519_NORMAL_SIGNING_PREPARE_PATH =
 export const ROUTER_AB_ED25519_NORMAL_SIGNING_PATH = '/router-ab/ed25519/sign' as const;
 export const WALLET_SESSION_SEAL_BASE_PATH = '/wallet-session/seal' as const;
 
-export function decodeSigningSessionSecret32(plaintext: Uint8Array): Uint8Array | null {
+export function decodeSigningSessionSecret32(
+  plaintext: Uint8Array,
+): Uint8Array<ArrayBuffer> | null {
   if (plaintext.length < 1 || plaintext.length > 32) return null;
   // Group elements use minimal big-endian encoding; the original secret has fixed width.
   const secret32 = new Uint8Array(32);

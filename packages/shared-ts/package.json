@@ -24,7 +24,7 @@
     "./tenant-root/*": "./src/tenant-root/*.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "tsrs --noEmit"
   },
   "dependencies": {
     "@near-js/types": "^2.4.0",

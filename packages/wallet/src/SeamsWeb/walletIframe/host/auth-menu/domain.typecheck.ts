@@ -64,10 +64,10 @@ const invalidMethodChoice: AuthMenuRecoveryViewModel = {
   status: { kind: 'busy', headline: 'Checking recovery code…' },
 };
 
-// @ts-expect-error Finalization retry must stay recoverable until retried.
 const invalidFinalization: AuthMenuRecoveryViewModel = {
   ...recoveryCommon,
   stage: 'finalizing',
+  // @ts-expect-error Finalization retry must stay recoverable until retried.
   status: { kind: 'idle', interaction: 'actionable' },
 };
 

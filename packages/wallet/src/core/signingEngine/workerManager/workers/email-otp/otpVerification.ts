@@ -143,9 +143,9 @@ export async function releaseEmailOtpFactorSecret(
   if (workerPublicKey.length !== 65) {
     throw new Error('Email OTP factor release generated an invalid public key');
   }
-  let serverPublicKey: Uint8Array | null = null;
-  let nonce: Uint8Array | null = null;
-  let ciphertext: Uint8Array | null = null;
+  let serverPublicKey: Uint8Array<ArrayBuffer> | null = null;
+  let nonce: Uint8Array<ArrayBuffer> | null = null;
+  let ciphertext: Uint8Array<ArrayBuffer> | null = null;
   try {
     const released = await postEmailOtpJson({
       relayUrl: args.relayUrl,

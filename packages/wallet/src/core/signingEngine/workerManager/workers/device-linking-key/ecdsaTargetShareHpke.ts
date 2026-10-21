@@ -21,8 +21,8 @@ const HPKE_SUITE_ID_V1 = concat([
 
 export async function openLinkedDeviceEcdsaTargetClientShare(input: {
   readonly envelope: CommittedEcdsaSignerPackageV1['encryptedTargetClientShare'];
-  readonly recipientPrivateKey: Uint8Array;
-}): Promise<Uint8Array> {
+  readonly recipientPrivateKey: Uint8Array<ArrayBuffer>;
+}): Promise<Uint8Array<ArrayBuffer>> {
   if (input.recipientPrivateKey.length !== 32) {
     throw new Error('ECDSA client recipient private key must be 32 bytes');
   }
@@ -30,10 +30,10 @@ export async function openLinkedDeviceEcdsaTargetClientShare(input: {
   const recipientPublicKey = base64UrlDecode(input.envelope.recipientPublicKeyB64u);
   const bindingDigest = base64UrlDecode(input.envelope.bindingDigestB64u);
   const ciphertext = base64UrlDecode(input.envelope.ciphertextB64u);
-  let privatePkcs8: Uint8Array | null = null;
-  let sharedSecret: Uint8Array | null = null;
-  let kemSharedSecret: Uint8Array | null = null;
-  let secret: Uint8Array | null = null;
+  let privatePkcs8: Uint8Array<ArrayBuffer> | null = null;
+  let sharedSecret: Uint8Array<ArrayBuffer> | null = null;
+  let kemSharedSecret: Uint8Array<ArrayBuffer> | null = null;
+  let secret: Uint8Array<ArrayBuffer> | null = null;
   let key: CryptoKey | null = null;
   try {
     privatePkcs8 = x25519PrivateKeyPkcs8(input.recipientPrivateKey);
@@ -126,11 +126,11 @@ export async function openLinkedDeviceEcdsaTargetClientShare(input: {
 }
 
 async function hpkeLabeledExtract(
-  suiteId: Uint8Array,
+  suiteId: Uint8Array<ArrayBuffer>,
   label: string,
-  input: Uint8Array,
-  salt: Uint8Array = new Uint8Array(0),
-): Promise<Uint8Array> {
+  input: Uint8Array<ArrayBuffer>,
+  salt: Uint8Array<ArrayBuffer> = new Uint8Array(0),
+): Promise<Uint8Array<ArrayBuffer>> {
   return await hmacSha256(
     salt.length === 0 ? new Uint8Array(32) : salt,
     concat([HPKE_VERSION_V1, suiteId, new TextEncoder().encode(label), input]),
@@ -138,12 +138,12 @@ async function hpkeLabeledExtract(
 }
 
 async function hpkeLabeledExpand(
-  suiteId: Uint8Array,
-  prk: Uint8Array,
+  suiteId: Uint8Array<ArrayBuffer>,
+  prk: Uint8Array<ArrayBuffer>,
   label: string,
-  info: Uint8Array,
+  info: Uint8Array<ArrayBuffer>,
   length: number,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const labeledInfo = concat([
     uint16Bytes(length),
     HPKE_VERSION_V1,
@@ -154,7 +154,11 @@ async function hpkeLabeledExpand(
   return await hkdfExpand(prk, labeledInfo, length);
 }
 
-async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+async function hkdfExpand(
+  prk: Uint8Array<ArrayBuffer>,
+  info: Uint8Array<ArrayBuffer>,
+  length: number,
+): Promise<Uint8Array<ArrayBuffer>> {
   const output = new Uint8Array(length);
   let previous = new Uint8Array(0);
   try {
@@ -175,7 +179,10 @@ async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Pr
   }
 }
 
-async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+async function hmacSha256(
+  keyBytes: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
     keyBytes,
@@ -191,15 +198,15 @@ const X25519_PKCS8_PREFIX = Uint8Array.from([
   0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x04, 0x22, 0x04, 0x20,
 ]);
 
-function x25519PrivateKeyPkcs8(privateKey: Uint8Array): Uint8Array {
+function x25519PrivateKeyPkcs8(privateKey: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
   return concat([X25519_PKCS8_PREFIX, privateKey]);
 }
 
-function uint16Bytes(value: number): Uint8Array {
+function uint16Bytes(value: number): Uint8Array<ArrayBuffer> {
   return new Uint8Array([(value >>> 8) & 0xff, value & 0xff]);
 }
 
-export function extractX25519PrivateKey(pkcs8: Uint8Array): Uint8Array {
+export function extractX25519PrivateKey(pkcs8: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
   if (pkcs8.length !== X25519_PKCS8_PREFIX.length + 32) {
     throw new Error('ordinary signer material recipient private key encoding is invalid');
   }

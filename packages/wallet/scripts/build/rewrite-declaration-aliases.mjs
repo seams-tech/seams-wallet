@@ -3,7 +3,7 @@
  * Rewrites the internal `@/` path alias to relative specifiers in the emitted
  * declarations.
  *
- * `tsc` resolves `@/...` through this package's `paths` mapping but emits the
+ * The compiler resolves `@/...` through this package's `paths` mapping but emits the
  * specifier verbatim, so consumers read declarations referring to an alias
  * they do not define. That does not fail loudly: a consumer with its own `@/`
  * mapping — seams-site maps it to its own `src` — resolves the import against
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const typesRoot = join(packageRoot, 'dist/types');
 const emittedWasmRoot = join(packageRoot, 'dist/esm/wasm');
-/* Each alias maps to a package `src` that tsc emits under its own subtree. */
+/* Each alias maps to a package `src` emitted under its own subtree. */
 const ALIAS_ROOTS = [
   { prefix: '@/', root: join(typesRoot, 'wallet/src') },
   { prefix: '@shared/', root: join(typesRoot, 'shared-ts/src') },
@@ -45,6 +45,7 @@ const GENERATED_WASM_TARGETS = [
 
 /** Matches the specifier in `from '<alias>x'`, `import('<alias>x')`, etc. */
 const ALIAS_SPECIFIER = /(['"])(@\/|@shared\/)([^'"]+)\1/g;
+const STYLESHEET_IMPORT = /^import\s+(['"])[^'"\r\n]+\.css\1;\r?\n/gm;
 
 async function* declarationFiles(dir) {
   let entries;
@@ -84,10 +85,12 @@ function toEmittedWasmSpecifier(fromFile, specifier) {
 
 let rewrittenFiles = 0;
 let rewrittenSpecifiers = 0;
+let removedStylesheetImports = 0;
 for await (const file of declarationFiles(typesRoot)) {
   const source = await readFile(file, 'utf8');
   let count = 0;
   const next = source
+    .replace(STYLESHEET_IMPORT, '')
     .replace(ALIAS_SPECIFIER, (_match, quote, prefix, target) => {
       count += 1;
       return `${quote}${toRelativeSpecifier(file, prefix, target)}${quote}`;
@@ -97,12 +100,13 @@ for await (const file of declarationFiles(typesRoot)) {
       if (rewritten !== specifier) count += 1;
       return `${quote}${rewritten}${quote}`;
     });
-  if (count === 0) continue;
+  if (next === source) continue;
+  removedStylesheetImports += source.match(STYLESHEET_IMPORT)?.length ?? 0;
   await writeFile(file, next, 'utf8');
   rewrittenFiles += 1;
   rewrittenSpecifiers += count;
 }
 
 console.log(
-  `[declarations] rewrote ${rewrittenSpecifiers} alias specifier(s) across ${rewrittenFiles} file(s)`,
+  `[declarations] rewrote ${rewrittenSpecifiers} alias specifier(s) and removed ${removedStylesheetImports} stylesheet import(s) across ${rewrittenFiles} file(s)`,
 );

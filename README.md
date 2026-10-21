@@ -40,6 +40,44 @@ session inspection, safe message signing, and the public CLI workflows for serve
 export, rotation, and deployment restore. See
 [`examples/wallet-console-lite`](./examples/wallet-console-lite/README.md).
 
+### TypeScript compiler
+
+Project checks, declaration builds, and the packed SDK consumer check use the exact
+`tsrs` version in the root `package.json`. The root `typescript` dependency supplies
+the JavaScript API used by build-analysis scripts and declaration comparison.
+Vite, Rolldown, and Bun still produce application JavaScript.
+
+```sh
+pnpm type-check
+pnpm -C packages/wallet build:sdk
+pnpm -C packages/wallet-server build
+pnpm -C packages/wallet check:declarations-external
+```
+
+The SDK build uses existing WASM outputs. Use `pnpm build:wasm` when those outputs
+need regeneration.
+
+Compare tsrs with its matching upstream compiler from the repository root:
+
+```sh
+npm install --prefix .artifacts/typescript-reference --ignore-scripts --no-audit --no-fund typescript@7.1.0-dev.20260930.4
+node tests/e2e/typescript-compiler-comparison.e2e.mjs \
+  --reference .artifacts/typescript-reference/node_modules/typescript/bin/tsc \
+  --candidate node_modules/.bin/tsrs
+```
+
+The comparison covers ten configurations, including lifecycle type fixtures and
+browser tests, plus both declaration builds. It compares checked source files and
+declaration syntax. Record property order may differ. Overload and signature order
+must match. Declaration maps must have matching metadata and source paths, while
+encoded position mappings may differ. Run the comparison without concurrent builds
+or tests. It excludes one warmup and records three samples per project.
+
+Logs, declarations, source manifests, times, and peak resident memory go to
+`.artifacts/typescript-compiler-comparison/result/`. A successful run prints
+`Verified` and sets `verified: true` in `result.json`. Linux requires GNU
+`/usr/bin/time`; macOS uses its bundled `/usr/bin/time`.
+
 ### Packaged local runtime
 
 `@seams/wallet-server` includes prebuilt Worker roles, signer/private-role

@@ -14,7 +14,10 @@ type WebAuthnClientDataJson = {
   readonly type: string;
 };
 
-export function decodeWebAuthnBase64UrlOrBase64(input: string, fieldName: string): Uint8Array {
+export function decodeWebAuthnBase64UrlOrBase64(
+  input: string,
+  fieldName: string,
+): Uint8Array<ArrayBuffer> {
   try {
     return base64UrlDecode(input);
   } catch {

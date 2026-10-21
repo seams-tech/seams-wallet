@@ -3,6 +3,8 @@ import type {
   WalletSessionOperationCredentialV1,
 } from '../../packages/shared-ts/src/device-linking/contracts';
 import type { DeviceLinkingAuthorityInstallationPortV1 } from '../../packages/wallet/src/SeamsWeb/operations/devices/deviceLinkingAuthorityInstallation';
+import type { DeviceLinkingOrdinaryMaterialSealerV1 } from '../../packages/wallet/src/core/signingEngine/workerManager/deviceLinkingPorts';
+import type { DeviceLinkingOrdinaryMaterialStateV1 } from '../../packages/wallet/src/core/signingEngine/workerManager/workers/device-linking-key/ordinaryMaterialState';
 import type {
   LinkedDeviceEd25519SourceContributionPreparationV1,
   LinkedDeviceEd25519SourceContributionV1,
@@ -15,6 +17,16 @@ import type {
 declare const installation: DeviceLinkingAuthorityInstallationPortV1;
 declare const activation: ActivateInstalledAuthorityResultV1;
 declare const operationCredential: WalletSessionOperationCredentialV1;
+declare const sharedFactorSecret: Uint8Array<SharedArrayBuffer>;
+
+type SealingInput = Parameters<
+  DeviceLinkingOrdinaryMaterialSealerV1['sealCommittedAuthorityPackagesV1']
+>[0];
+// @ts-expect-error Web Crypto requires a factor secret backed by an ordinary ArrayBuffer.
+const sharedSealingSecret: SealingInput['factorSecret'] = sharedFactorSecret;
+// @ts-expect-error Worker state must retain the transferable ArrayBuffer backing type.
+const sharedWorkerSecret: DeviceLinkingOrdinaryMaterialStateV1['factorSecret'] = sharedFactorSecret;
+void [sharedSealingSecret, sharedWorkerSecret];
 
 if (activation.kind === 'active') {
   void installation.finalizeLocalAuthorityActivationV1({

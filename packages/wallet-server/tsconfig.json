@@ -20,7 +20,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
+    "rootDir": "..",
     "types": ["node"],
     "typeRoots": [
       "./node_modules/@types",
@@ -30,13 +30,11 @@
       "../node_modules",
       "../../node_modules"
     ],
-    "useDefineForClassFields": false,
     "paths": {
       "@seams-internal/shared-ts/*": ["../shared-ts/src/*"],
       "@shared/*": ["../shared-ts/src/*"],
-      "@server": ["src/index.ts"],
-      "@server/*": ["src/*"],
-      "*": ["./node_modules/*", "../node_modules/*", "../../node_modules/*"]
+      "@server": ["./src/index.ts"],
+      "@server/*": ["./src/*"]
     }
   },
   "include": ["src/**/*", "../shared-ts/src/**/*"],

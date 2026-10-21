@@ -616,6 +616,15 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
     });
   };
 
+  let ecdsaSigningMaterialSource: EcdsaSigningMaterialSource | null = null;
+  // Prepare the exact operation step-up before confirmation. Its canonical digest binds the
+  // Passkey challenge and the server's parsed preparation. Reuse it for confirmation and grants.
+  let preparedEcdsaOperationStepUp: {
+    readonly prepared: PreparedEcdsaOperationStepUp;
+    readonly operation: EvmFamilyThresholdEcdsaOperation;
+    readonly operationDigests: OperationDigestSet;
+  } | null = null;
+
   const intentPreparationTask = (async () => {
     if (input.prepareRequestWithManagedNonce) {
       const prepared = await input.prepareRequestWithManagedNonce();
@@ -712,16 +721,6 @@ export async function signEvmFamilyWithUiConfirm<TRequest, TResult extends objec
   let intentPrepared: PreparedIntent | null = null;
   let intentHasSecp256k1Request = false;
   let signedResult: TResult | null = null;
-  let ecdsaSigningMaterialSource: EcdsaSigningMaterialSource | null = null;
-  // The exact operation step-up prepared BEFORE confirmation. Its canonical
-  // digest is what the Passkey challenge signs and what the server recomputes
-  // from the parsed preparation, so the object is built once and threaded
-  // through confirmation and grant issuance unchanged.
-  let preparedEcdsaOperationStepUp: {
-    readonly prepared: PreparedEcdsaOperationStepUp;
-    readonly operation: EvmFamilyThresholdEcdsaOperation;
-    readonly operationDigests: OperationDigestSet;
-  } | null = null;
 
   const ensureReadySecp256k1SigningMaterial = async (
     _signReq: SignRequest,

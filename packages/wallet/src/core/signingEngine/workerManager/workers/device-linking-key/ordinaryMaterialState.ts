@@ -54,7 +54,7 @@ export type DeviceLinkingOrdinaryMaterialStateV1 = {
   readonly targetFactor: DeviceLinkingOrdinaryTargetFactorBindingV1;
   readonly preparations: OrdinaryPreparationsV1;
   readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
-  readonly factorSecret: Uint8Array;
+  readonly factorSecret: Uint8Array<ArrayBuffer>;
 };
 
 type DeviceLinkingSealReplayIdentityV1 = string & {

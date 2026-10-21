@@ -78,7 +78,7 @@ export type DurableClientPresignatureAdmissionInput = {
   readonly presignatureId: string;
   readonly groupPublicKey33: Uint8Array;
   readonly bigR33: Uint8Array;
-  readonly plaintext97: Uint8Array;
+  readonly plaintext97: Uint8Array<ArrayBuffer>;
   readonly createdAtMs: number;
   readonly expiresAtMs: number;
 };
@@ -87,7 +87,7 @@ export type DurableClientPresignatureTakeResult =
   | {
       readonly kind: 'opened';
       readonly metadata: DurableClientPresignatureMetadata;
-      readonly plaintext97: Uint8Array;
+      readonly plaintext97: Uint8Array<ArrayBuffer>;
     }
   | {
       readonly kind: Exclude<EcdsaClientPresignUnavailableReason, 'not_found'>;
@@ -208,9 +208,7 @@ async function deleteExpiredClientPresignatureRows(
   walletId: string,
   nowMs: number,
 ): Promise<number> {
-  const expiryIndex = context
-    .store(PRESIGNATURE_STORE)
-    .index(SEAMS_WALLET_INDEXES.walletExpiresAt);
+  const expiryIndex = context.store(PRESIGNATURE_STORE).index(SEAMS_WALLET_INDEXES.walletExpiresAt);
   return await deleteCursorRows(
     await expiryIndex.openCursor(IDBKeyRange.bound([walletId, 0], [walletId, nowMs])),
     MAX_EXPIRED_CLIENT_PRESIGNATURE_DELETIONS_PER_TRANSACTION,
@@ -230,8 +228,9 @@ export async function readAvailableClientPresignatureRows(
     .getAll(ecdsaClientPresignPoolKey(poolIdentity));
   if (poolIdentity.ownershipGeneration === 1) {
     rows.push(
-      ...await store.index(SEAMS_WALLET_INDEXES.poolIdentityKey)
-        .getAll(initialGenerationPoolKey(poolIdentity)),
+      ...(await store
+        .index(SEAMS_WALLET_INDEXES.poolIdentityKey)
+        .getAll(initialGenerationPoolKey(poolIdentity))),
     );
   }
   const available: SealedAvailableClientPresignatureRow[] = [];
@@ -414,7 +413,7 @@ export function metadataFromPresignatureRow(
 
 export async function encryptPresignatureBytes(input: {
   readonly key: CryptoKey;
-  readonly plaintext97: Uint8Array;
+  readonly plaintext97: Uint8Array<ArrayBuffer>;
   readonly metadata: DurableClientPresignatureMetadata;
 }): Promise<{
   readonly iv12B64u: ReturnType<typeof parseEcdsaIv12B64u>;
@@ -454,11 +453,11 @@ export async function decryptPresignatureBytes(input: {
   readonly key: CryptoKey;
   readonly metadata: DurableClientPresignatureMetadata;
   readonly sealed: SealedAvailableClientPresignatureRow['sealed'];
-}): Promise<Uint8Array> {
+}): Promise<Uint8Array<ArrayBuffer>> {
   const iv12 = base64UrlDecode(input.sealed.iv12_b64u);
   const ciphertext = base64UrlDecode(input.sealed.ciphertext_b64u);
   const aad = additionalData(presignatureAadProjection(input.metadata));
-  let plaintext: Uint8Array | null = null;
+  let plaintext: Uint8Array<ArrayBuffer> | null = null;
   try {
     const digest = base64UrlEncode(await sha256Bytes(ciphertext));
     if (digest !== input.sealed.ciphertext_digest_b64u) {

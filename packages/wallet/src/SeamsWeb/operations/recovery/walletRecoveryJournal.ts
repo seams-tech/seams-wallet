@@ -50,7 +50,7 @@ type WalletRecoveryDurableAadInput = {
   readonly target: PendingWalletRecoveryCommitV1['target'];
 };
 
-function walletRecoveryDurableAad(input: WalletRecoveryDurableAadInput): Uint8Array {
+function walletRecoveryDurableAad(input: WalletRecoveryDurableAadInput): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(
     alphabetizeStringify({
       kind: WALLET_RECOVERY_DURABLE_PAYLOAD_AAD_KIND,
@@ -60,7 +60,7 @@ function walletRecoveryDurableAad(input: WalletRecoveryDurableAadInput): Uint8Ar
   );
 }
 
-function durablePayloadAad(payload: WalletRecoveryDurablePayloadV1): Uint8Array {
+function durablePayloadAad(payload: WalletRecoveryDurablePayloadV1): Uint8Array<ArrayBuffer> {
   return walletRecoveryDurableAad({
     recoveryOperationId: payload.recoveryOperationId,
     walletId: payload.walletId,
@@ -107,11 +107,11 @@ export async function decryptWalletRecoveryDurablePayload(
   const plaintext = await crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
-      iv: record.localMaterial.iv,
+      iv: record.localMaterial.iv.slice(),
       additionalData: durablePayloadAadForPendingRecord(record),
     },
     record.localMaterial.key,
-    record.localMaterial.ciphertext,
+    record.localMaterial.ciphertext.slice(),
   );
   const payload = parseWalletRecoveryDurablePayload(
     JSON.parse(new TextDecoder().decode(plaintext)) as unknown,
@@ -123,7 +123,9 @@ export async function decryptWalletRecoveryDurablePayload(
   return payload;
 }
 
-function durablePayloadAadForPendingRecord(record: PendingWalletRecoveryCommitV1): Uint8Array {
+function durablePayloadAadForPendingRecord(
+  record: PendingWalletRecoveryCommitV1,
+): Uint8Array<ArrayBuffer> {
   return walletRecoveryDurableAad({
     recoveryOperationId: record.recoveryOperationId,
     walletId: record.walletId,

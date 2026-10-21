@@ -10,7 +10,7 @@ type EmailOtpRouteResponse = {
   body: Record<string, unknown>;
 };
 
-function decodeEmailOtpFactorSecret32(value: string): Uint8Array {
+function decodeEmailOtpFactorSecret32(value: string): Uint8Array<ArrayBuffer> {
   const magnitude = base64UrlDecode(value);
   if (magnitude.length === 0 || magnitude.length > 32) {
     magnitude.fill(0);
@@ -27,7 +27,7 @@ function emailOtpFactorReleaseAad(input: {
   readonly enrollmentId: string;
   readonly enrollmentSealKeyVersion: string;
   readonly challengeId: string;
-}): Uint8Array {
+}): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(
     [
       EMAIL_OTP_FACTOR_RELEASE_AAD_DOMAIN_V1,
@@ -55,8 +55,8 @@ export async function sealEmailOtpFactorSecretForWorker(input: {
     }
   | { readonly ok: false; readonly code: string; readonly message: string }
 > {
-  let factorSecret32: Uint8Array;
-  let workerPublicKey65: Uint8Array;
+  let factorSecret32: Uint8Array<ArrayBuffer>;
+  let workerPublicKey65: Uint8Array<ArrayBuffer>;
   try {
     factorSecret32 = decodeEmailOtpFactorSecret32(input.factorSecret32B64u);
     workerPublicKey65 = base64UrlDecode(input.workerEphemeralPublicKey65B64u);

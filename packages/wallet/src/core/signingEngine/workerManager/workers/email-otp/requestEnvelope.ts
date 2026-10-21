@@ -610,7 +610,8 @@ export function parseEmailOtpWorkerRequest(raw: unknown): EmailOtpWorkerRequest 
             kind: 'resolved_worker_payload',
           }),
           envelope: parseWalletCustodyCacheEnvelope(payload.envelope),
-          factorSecret32: requireFixed32ArrayBuffer(payload.factorSecret32, 'factorSecret32'),
+          factorSecret32: requireFixed32ArrayBuffer(payload.factorSecret32, 'factorSecret32')
+            .buffer,
         },
       };
     }

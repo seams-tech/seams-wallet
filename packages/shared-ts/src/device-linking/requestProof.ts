@@ -25,7 +25,9 @@ export type LinkedDeviceRequestProofV1 = {
   readonly signatureB64u: string;
 };
 
-export function encodeLinkedDeviceRequestProofV1(proof: LinkedDeviceRequestProofV1): Uint8Array {
+export function encodeLinkedDeviceRequestProofV1(
+  proof: LinkedDeviceRequestProofV1,
+): Uint8Array<ArrayBuffer> {
   validateProofShapeV1(proof);
   return concat([
     text(LINKED_DEVICE_REQUEST_PROOF_DOMAIN_V1, 'domain'),

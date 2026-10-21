@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
+  "devDependencies": {
+    "tsrs": "0.18.0-ts7.1.0-dev.20260929",
+    "typescript": "5.8.3"
+  },
   "scripts": {
     "build:wasm": "pnpm -C packages/wallet build:wasm",
     "build:workers": "pnpm -C crates/router-ab-cloudflare build:signing-worker && pnpm -C crates/router-ab-cloudflare build:deriver-a && pnpm -C crates/router-ab-cloudflare build:deriver-b && pnpm -C crates/router-ab-cloudflare build:router && pnpm -C crates/router-ab-cloudflare build:tenant-root-control-plane",

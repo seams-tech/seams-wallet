@@ -25,7 +25,7 @@ function resolveRpId(override: string | undefined, host: string | undefined): st
   return (override || host || '').toLowerCase();
 }
 
-function decodeChallengeB64u(challengeB64u: string): Uint8Array {
+function decodeChallengeB64u(challengeB64u: string): Uint8Array<ArrayBuffer> {
   const decoded = base64UrlDecode(String(challengeB64u || ''));
   if (decoded.length !== 32) {
     throw new Error(`Invalid WebAuthn challenge: expected 32 bytes, got ${decoded.length}`);

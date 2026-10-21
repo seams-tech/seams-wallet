@@ -276,9 +276,7 @@ import {
   type WalletUnlockSelection,
 } from '@/core/signingEngine/session/passkey/unlockEcdsaWarmupPlanner';
 import type { ThresholdEcdsaKeyIdentityInventoryEntry } from '@/core/signingEngine/session/passkey/ecdsaKeyFactsInventory';
-import {
-  DEFAULT_UNLOCK_REMAINING_USES,
-} from '@/core/signingEngine/threshold/sessionPolicy';
+import { DEFAULT_UNLOCK_REMAINING_USES } from '@/core/signingEngine/threshold/sessionPolicy';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/utils/ecdsaKeyFactsInventory';
 import {
@@ -340,7 +338,6 @@ import { resolveEcdsaActivationJournalSelectors } from './walletUnlockEcdsaSubje
 function fetchWithGlobalThis(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return globalThis.fetch(input, init);
 }
-
 
 function resolveLoginWalletUnlockSelection(
   selection: LoginHooksOptions['unlockSelection'] | undefined,
@@ -5542,7 +5539,7 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
   const envelope = walletCustodyCacheEnvelopeFromRecordV1(input.custody.envelope);
   let activeClient: Awaited<ReturnType<typeof openWalletCustodyEd25519ActiveClientV1>> | null =
     null;
-  let rejoinSecret: Uint8Array | null = null;
+  let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
   let openSecret: Uint8Array | null = null;
   try {
     if (cached.kind === 'found') {
@@ -6708,7 +6705,8 @@ function resolveThresholdLoginWarmupPlan(args: {
     signersToWarm = ['ed25519', ...signersToWarm];
   }
   const ed25519DependsOnEcdsa = false;
-  const ecdsaDependsOnEd25519 = signersToWarm.includes('ed25519') && signersToWarm.includes('ecdsa');
+  const ecdsaDependsOnEd25519 =
+    signersToWarm.includes('ed25519') && signersToWarm.includes('ecdsa');
   if (!signersToWarm.length) {
     throw new Error('[login] ECDSA unlock requested with no configured ECDSA targets');
   }
