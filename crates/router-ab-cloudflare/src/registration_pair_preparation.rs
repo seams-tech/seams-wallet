@@ -2,7 +2,7 @@
 
 use router_ab_core::{
     Ed25519YaoCeremonyBindingV1, Ed25519YaoInputPairBindingV1, Ed25519YaoOperationV1,
-    PublicDigest32, RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbProtocolError,
+    RouterAbEd25519YaoApplicationBindingFactsV1, RouterAbProtocolError,
     RouterAbProtocolErrorCode, RouterAbProtocolResult, TenantRootCustodyBindingV1,
     TenantRootProtocolDigestV1,
 };
@@ -144,7 +144,7 @@ pub(crate) async fn prepare_pair(
     hash.update(
         serde_json::to_vec(&(&request, route)).map_err(|_| invalid("Invalid preparation scope"))?,
     );
-    let digest = PublicDigest32::new(hash.finalize().into());
+    let digest = router_ab_core::PublicDigest32::new(hash.finalize().into());
     let (operation, session, nonce) = crate::derive_cloudflare_tenant_root_ecdsa_scope_v1(
         digest,
         b"seams/yao/registration-preparation/operation/v1",

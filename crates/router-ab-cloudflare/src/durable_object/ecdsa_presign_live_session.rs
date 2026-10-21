@@ -26,6 +26,10 @@ use super::{
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
 };
 use crate::{
+    CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1,
+    CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1,
+    CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,
+    CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
     cloudflare_now_unix_ms_v1, decode_base64url_bytes_v1, decode_base64url_fixed_32_v1,
     decode_base64url_fixed_33_v1, encode_base64url_bytes_v1, require_non_empty,
     require_positive_ms, ActiveSigningWorkerStateV1, CloudflareSignerProofGetrandomRngV1,
@@ -69,48 +73,6 @@ pub(super) struct CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureR
     pub(super) scope_digest: PublicDigest32,
     pub(super) record: CloudflareSigningWorkerEcdsaPresignatureRecordV1,
     pub(super) response: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1 {
-    pub(crate) request: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
-    pub(crate) active_signing_worker_state: ActiveSigningWorkerStateV1,
-    pub(crate) relayer_share32_b64u: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1 {
-    pub(crate) server_presignature_id: String,
-    pub(crate) scope_digest: router_ab_core::PublicDigest32,
-    pub(crate) request_digest: router_ab_core::PublicDigest32,
-    pub(crate) signing_digest: router_ab_core::PublicDigest32,
-    pub(crate) now_unix_ms: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub(crate) enum CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1 {
-    Continue {
-        presign_session_id: String,
-        stage: String,
-        event: String,
-        outgoing_messages_b64u: Vec<String>,
-    },
-    Complete {
-        presign_session_id: String,
-        server_presignature_id: String,
-        server_big_r33_b64u: String,
-        signing_worker_rerandomization_contribution32_b64u: String,
-        prepared_response: RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningPrepareResponseV1,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1 {
-    pub(crate) record: CloudflareSigningWorkerEcdsaPresignatureRecordV1,
 }
 
 #[cfg(feature = "workers-rs")]

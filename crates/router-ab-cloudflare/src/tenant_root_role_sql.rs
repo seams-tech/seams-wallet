@@ -191,6 +191,7 @@ pub trait RoleSqlSessionV1 {
 
 /// Locates numbered parameters while preserving quoted SQL literals and names.
 /// Shared role-store statements use `$1`, `$2`, and repeated positions.
+#[cfg(any(feature = "workers-rs", feature = "postgres", test))]
 fn parameter_positions(sql: &str) -> RoleStoreResult<Vec<(core::ops::Range<usize>, usize)>> {
     let bytes = sql.as_bytes();
     let mut positions = Vec::new();

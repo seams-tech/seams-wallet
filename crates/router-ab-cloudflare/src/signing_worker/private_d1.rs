@@ -5,10 +5,6 @@ use worker::{D1Database, D1DatabaseSession, D1SessionConstraint, Env, Method, Re
 
 mod ecdsa_material;
 pub(crate) use ecdsa_material::load_cloudflare_signing_worker_ecdsa_active_material_v1;
-mod ecdsa_effect;
-pub(crate) use ecdsa_effect::{
-    prepare_cloudflare_signing_worker_ecdsa_finalize_v1, EcdsaFinalizePreparation,
-};
 
 pub const SIGNING_WORKER_PRIVATE_D1_BINDING_V1: &str = "SIGNING_WORKER_PRIVATE_DB";
 

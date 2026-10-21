@@ -35,11 +35,24 @@ mod deriver_b_pair;
     )
 ))]
 mod deriver_relocation;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 mod ecdsa_presign_live_session;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 mod linked_presign_history;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(
+        feature = "strict-worker-router-entrypoint",
+        feature = "strict-worker-signing-worker-entrypoint",
+        test
+    )
+))]
 pub(crate) mod presign_session_relocation;
 #[cfg(feature = "workers-rs")]
 pub(crate) mod registration_preparation;
@@ -53,7 +66,7 @@ pub(crate) use router_wallet::{
 pub(crate) use wallet_startup::start_registration_wallets;
 #[cfg(feature = "workers-rs")]
 pub(crate) mod wallet_startup;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 pub use router_wallet::RouterAbRouterWalletDurableObject;
 #[cfg(all(
     feature = "workers-rs",
@@ -79,10 +92,13 @@ pub(crate) use deriver_a_pair::{
     call_preparation as prepare_deriver_a_wallet_relocation,
     call_snapshot as snapshot_deriver_a_wallet_source,
     call_source_fence as fence_deriver_a_wallet_source,
-    read_relocation_context as read_deriver_a_relocation_context, DeriverAPairDoCommandV1,
-    DeriverAPairDoResponseV1, DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
+    read_relocation_context as read_deriver_a_relocation_context,
     CONTEXT_PATH as DERIVER_A_CONTEXT_PATH, PREPARATION_PATH as DERIVER_A_PREPARATION_PATH,
     SNAPSHOT_PATH as DERIVER_A_SNAPSHOT_PATH, SOURCE_FENCE_PATH as DERIVER_A_SOURCE_FENCE_PATH,
+};
+#[cfg(all(feature = "workers-rs", test))]
+pub(crate) use deriver_a_pair::{
+    DeriverAPairDoCommandV1, DeriverAPairDoResponseV1, DeriverAPairPayloadV1, DeriverAWalletOwnerV1,
 };
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
@@ -90,7 +106,7 @@ pub use deriver_b_pair::RouterAbDeriverBWalletDurableObject;
 pub(crate) use deriver_b_pair::{
     call_deriver_b_wallet_do_v1, call_preparation as prepare_deriver_b_wallet_relocation,
     call_snapshot as snapshot_deriver_b_wallet_source,
-    call_source_fence as fence_deriver_b_wallet_source, deriver_b_wallet_object_name_v1,
+    call_source_fence as fence_deriver_b_wallet_source,
     read_relocation_context as read_deriver_b_relocation_context,
     reconcile_deriver_b_wallet_pair_v1, require_deriver_b_pair_writes_open,
     DeriverBWalletDoRequestV1, CONTEXT_PATH as DERIVER_B_CONTEXT_PATH,
@@ -114,13 +130,19 @@ pub(crate) use signing_worker_wallet::{
 #[cfg(any(feature = "workers-rs", test))]
 #[cfg(feature = "workers-rs")]
 mod command_timing;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 mod owner_presign_storage;
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code, unused_imports))]
 pub(crate) mod tenant_root_creation;
 #[cfg(feature = "workers-rs")]
 mod worker_storage;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 use ecdsa_presign_live_session::{
     handle_cloudflare_signing_worker_ecdsa_presign_session_do_fetch_v1,
     handle_cloudflare_signing_worker_linked_ecdsa_presign_session_do_fetch_v1,
@@ -128,16 +150,6 @@ use ecdsa_presign_live_session::{
     CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordsV1,
     CloudflareSigningWorkerLinkedDeviceEcdsaPresignLiveSessionsV1,
 };
-#[cfg(feature = "workers-rs")]
-pub(crate) use ecdsa_presign_live_session::{
-    CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1,
-    CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1,
-    CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1,
-    CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1,
-};
-#[cfg(feature = "workers-rs")]
-#[allow(unused_imports)]
-pub(crate) use tenant_root_creation::RouterAbTenantRootCreationDurableObject;
 #[cfg(feature = "workers-rs")]
 #[allow(unused_imports)]
 pub(crate) use tenant_root_creation::{
@@ -162,12 +174,20 @@ pub(crate) use tenant_root_creation::{
 #[cfg(feature = "workers-rs")]
 pub(crate) use worker_storage::{
     execute_cloudflare_durable_object_custom_json_call_v1,
-    execute_cloudflare_durable_object_custom_json_call_with_timing_v1, warm_owner_presign_host,
+    execute_cloudflare_durable_object_custom_json_call_with_timing_v1,
     PresignHost,
 };
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
+pub(crate) use worker_storage::warm_owner_presign_host;
 
 /// SigningWorker ECDSA presign rendezvous with durable terminal records.
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 #[worker::durable_object(alarm)]
 pub struct RouterAbSigningWorkerPresignSessionDurableObject {
     env: worker::Env,
@@ -178,7 +198,10 @@ pub struct RouterAbSigningWorkerPresignSessionDurableObject {
         CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordsV1,
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-signing-worker-entrypoint", test)
+))]
 impl worker::DurableObject for RouterAbSigningWorkerPresignSessionDurableObject {
     fn new(state: worker::State, env: worker::Env) -> Self {
         Self {

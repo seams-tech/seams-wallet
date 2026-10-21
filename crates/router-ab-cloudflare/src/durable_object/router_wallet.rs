@@ -5,20 +5,21 @@
 //! A refusal crosses back to the Router with its protocol code, never as a
 //! bare server error.
 
-use std::cell::RefCell;
-use std::rc::Rc;
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use std::{cell::RefCell, rc::Rc};
 
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use worker::{durable_object, DurableObject, Env, Method, Request, Response, State};
+use worker::{Env, Method, Request};
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use worker::{durable_object, DurableObject, Response, State};
 
 use crate::router_wallet::{
-    router_wallet_serve_v1, RouterWalletCommandV1, RouterWalletOwnerV1,
-    RouterWalletRegistrationRecordV1, RouterWalletRequestV1, RouterWalletResponseV1,
-    RouterWalletStoreV1, REGISTRATION_KEY_PREFIX,
-};
+    RouterWalletCommandV1, RouterWalletOwnerV1,
+    RouterWalletRequestV1, RouterWalletResponseV1,
+    };
 use crate::{
-    freeze_router_wallet_v1, transfer_router_wallet_v1, RouterWalletFreezeRequestV1,
+    RouterWalletFreezeRequestV1,
     RouterWalletFreezeResponseV1, RouterWalletTransferRequestV1, RouterWalletTransferResponseV1,
     ROUTER_WALLET_FREEZE_PATH_V1, ROUTER_WALLET_TRANSFER_PATH_V1,
 };
@@ -26,6 +27,7 @@ use crate::{
 const BINDING: &str = "ROUTER_WALLET_DO";
 const COMMAND_PATH: &str = "/router-wallet/v1/command";
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 enum WalletCall {
     Ordinary(RouterWalletRequestV1),
     Freeze(RouterWalletFreezeRequestV1),
@@ -40,12 +42,14 @@ struct RouterWalletRefusalV1 {
     message: String,
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 #[durable_object]
 pub struct RouterAbRouterWalletDurableObject {
     state: State,
     timing: super::command_timing::WalletCommandTiming,
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl DurableObject for RouterAbRouterWalletDurableObject {
     fn new(state: State, _env: Env) -> Self {
         let timing = super::command_timing::WalletCommandTiming::new(state.id().to_string());
@@ -58,6 +62,7 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
     }
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl RouterAbRouterWalletDurableObject {
     async fn handle_request(&self, mut request: Request) -> worker::Result<Response> {
         if request.method() == Method::Post && request.path() == super::wallet_startup::PATH {
@@ -125,6 +130,7 @@ impl RouterAbRouterWalletDurableObject {
     }
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 async fn transact<T, F, Fut>(
     state: &State,
     operation: &'static str,
@@ -166,6 +172,7 @@ where
     })
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn refusal_response(error: &RouterAbProtocolError) -> worker::Result<Response> {
     Response::from_json(&RouterWalletRefusalV1 {
         code: error.code(),
@@ -326,6 +333,7 @@ fn decode<T: DeserializeOwned>(text: &str, what: &str) -> RouterAbProtocolResult
     })
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn encode_response<T: Serialize>(response: T) -> RouterAbProtocolResult<serde_json::Value> {
     serde_json::to_value(response)
         .map_err(|error| unavailable(format!("Router wallet response encoding failed: {error}")))
@@ -341,11 +349,13 @@ fn unavailable(message: String) -> RouterAbProtocolError {
 /// One wallet-object storage transaction as the shared store. A storage
 /// failure is kept so the transaction aborts instead of committing a partial
 /// write.
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 struct TransactionStoreV1 {
     transaction: worker::Transaction,
     storage_error: Rc<RefCell<Option<String>>>,
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl TransactionStoreV1 {
     fn record(&self, error: worker::Error) -> RouterAbProtocolError {
         let message = error.to_string();
@@ -359,6 +369,7 @@ impl TransactionStoreV1 {
     }
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl RouterWalletStoreV1 for TransactionStoreV1 {
     async fn delete_key(&self, key: &str) -> RouterAbProtocolResult<()> {
         self.transaction
@@ -434,3 +445,8 @@ impl RouterWalletStoreV1 for TransactionStoreV1 {
             .map_err(|error| self.record(error))
     }
 }
+
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use crate::{freeze_router_wallet_v1, transfer_router_wallet_v1};
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use crate::router_wallet::{router_wallet_serve_v1, RouterWalletRegistrationRecordV1, RouterWalletStoreV1, REGISTRATION_KEY_PREFIX};

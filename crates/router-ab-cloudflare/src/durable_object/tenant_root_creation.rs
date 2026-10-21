@@ -1,11 +1,11 @@
 mod grant_renewal;
 pub use grant_renewal::tenant_root_creation_persist_journal_v1;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 pub(crate) use grant_renewal::{renewal_call, RENEWAL_PATH};
 
 use std::{collections::BTreeMap, fmt};
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 use std::{cell::RefCell, rc::Rc};
 
 use router_ab_core::{
@@ -63,9 +63,11 @@ use crate::tenant_root_role_d1::CloudflareTenantRootPendingShareV1;
 use crate::{
     decode_base64url_bytes_v1, decode_role_verifying_keys, encode_base64url_bytes_v1,
     RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult,
-    TenantRootCreationRoleVerifyingKeysV1, TenantRootCutoverRecordUpdateV1,
-    TenantRootCutoverRecordV1,
+    TenantRootCreationRoleVerifyingKeysV1, TenantRootCutoverRecordV1,
 };
+
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
+use crate::TenantRootCutoverRecordUpdateV1;
 
 #[cfg_attr(not(feature = "workers-rs"), allow(dead_code))]
 pub const CLOUDFLARE_TENANT_ROOT_CREATION_JOURNAL_PATH: &str =
@@ -1020,6 +1022,7 @@ pub(crate) fn require_base64url_matches(
     Ok(())
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn authority_id_from_object_id(
     authority_object_id: &str,
 ) -> RouterAbProtocolResult<TenantRootControlPlaneAuthorityIdV1> {
@@ -1229,6 +1232,7 @@ pub(crate) fn derive_tenant_root_creation_authority_object_v1(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn require_tenant_root_creation_authority_object_v1(
     env: &worker::Env,
     authority_object_id: &str,
@@ -5486,6 +5490,7 @@ fn installation_response(
     })
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn evaluate_cutover_write(
     current: Option<&TenantRootCutoverRecordV1>,
     request: CloudflareTenantRootCutoverWriteRequestV1,
@@ -5532,6 +5537,7 @@ fn evaluate_cutover_write(
     }
 }
 
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn cutover_conflict(message: &'static str) -> RouterAbProtocolError {
     RouterAbProtocolError::new(RouterAbProtocolErrorCode::ConflictingPair, message)
 }
@@ -6983,7 +6989,7 @@ fn restore_bootstrap_destruction_receipt_v1(
     ))
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 #[worker::durable_object(fetch)]
 pub struct RouterAbTenantRootCreationDurableObject {
     storage: worker::Storage,
@@ -6991,7 +6997,7 @@ pub struct RouterAbTenantRootCreationDurableObject {
     authority_object_id: String,
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
     fn new(state: worker::State, env: worker::Env) -> Self {
         Self {
@@ -7572,7 +7578,7 @@ pub(crate) fn build_creation_journal_read_response(
     })
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 impl RouterAbTenantRootCreationDurableObject {
     async fn destination_bootstrap_v1(
         &self,
@@ -8164,6 +8170,7 @@ impl RouterAbTenantRootCreationDurableObject {
 /// protocol default.
 #[cfg(feature = "workers-rs")]
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 pub(crate) fn refresh_schedule_v1(env: &worker::Env) -> RouterAbProtocolResult<TenantRootRefreshScheduleV1> {
     parse_tenant_root_refresh_schedule_v1(&crate::CloudflareWorkerEnvReaderV1::new(env))
 }
@@ -8228,6 +8235,7 @@ pub fn parse_tenant_root_retirement_grace_ms_v1(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 async fn storage_get_optional<T: serde::de::DeserializeOwned>(
     storage: &worker::Storage,
     key: &str,
@@ -8236,6 +8244,7 @@ async fn storage_get_optional<T: serde::de::DeserializeOwned>(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 async fn transaction_get_optional<T: serde::de::DeserializeOwned>(
     transaction: &worker::Transaction,
     key: &str,
@@ -8248,6 +8257,7 @@ async fn transaction_get_optional<T: serde::de::DeserializeOwned>(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn request_has_json_content_type(request: &worker::Request) -> worker::Result<bool> {
     let Some(content_type) = request.headers().get("content-type")? else {
         return Ok(false);
@@ -8296,6 +8306,7 @@ pub(crate) async fn decode_bounded_json_request<T: DeserializeOwned>(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 async fn decode_bounded_creation_request(
     request: &mut worker::Request,
 ) -> RouterAbProtocolResult<CloudflareTenantRootCreationJournalRequestV1> {
@@ -8378,6 +8389,7 @@ pub(crate) fn decode_canonical_base64url(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn durable_storage_protocol_error(error: worker::Error) -> RouterAbProtocolError {
     RouterAbProtocolError::new(
         RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -8386,6 +8398,7 @@ fn durable_storage_protocol_error(error: worker::Error) -> RouterAbProtocolError
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn tenant_root_creation_do_error_response(
     error: RouterAbProtocolError,
 ) -> worker::Result<worker::Response> {
@@ -15248,6 +15261,7 @@ pub async fn tenant_root_creation_serve_v1<Store: TenantRootCreationStoreV1>(
 /// The creation Durable Object's storage as the shared creation store,
 /// before it is bound to one storage transaction.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 struct DurableObjectCreationStoreV1 {
     env: worker::Env,
     authority_object_id: String,
@@ -15255,6 +15269,7 @@ struct DurableObjectCreationStoreV1 {
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl DurableObjectCreationStoreV1 {
     fn new(env: &worker::Env, authority_object_id: &str) -> RouterAbProtocolResult<Self> {
         Ok(Self {
@@ -15279,6 +15294,7 @@ impl DurableObjectCreationStoreV1 {
 /// storage failure is kept so the caller aborts the transaction instead of
 /// committing a partial write.
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 struct OwnedDurableObjectTransactionStoreV1 {
     transaction: worker::Transaction,
     env: worker::Env,
@@ -15288,6 +15304,7 @@ struct OwnedDurableObjectTransactionStoreV1 {
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl OwnedDurableObjectTransactionStoreV1 {
     fn record_storage_error(&self, error: worker::Error) -> RouterAbProtocolError {
         let message = error.to_string();
@@ -15301,6 +15318,7 @@ impl OwnedDurableObjectTransactionStoreV1 {
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 impl TenantRootCreationStoreV1 for OwnedDurableObjectTransactionStoreV1 {
     fn authority_id(&self) -> TenantRootControlPlaneAuthorityIdV1 {
         self.authority_id

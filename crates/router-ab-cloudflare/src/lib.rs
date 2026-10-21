@@ -4,9 +4,9 @@
 //! This crate pins role-specific binding and storage-scope rules before the
 //! `workers-rs` adapter layer is added.
 
-#[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 mod ecdsa_signing_fetch;
-#[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub use ecdsa_signing_fetch::*;
 
 mod auth;
@@ -357,7 +357,7 @@ pub use wallet_object_address::{WalletObjectAddresses, WalletObjectId, WalletObj
 use wallet_object::SigningWorkerWalletRoute;
 pub use router_wallet::*;
 mod router_wallet_relocation;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 mod signing_worker_relocation_transport;
 mod router_wallet_transfer;
 pub use router_wallet_transfer::{
@@ -535,9 +535,9 @@ mod strict_worker;
 pub use durable_object::RouterAbDeriverAWalletDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-deriver-b-entrypoint"))]
 pub use durable_object::RouterAbDeriverBWalletDurableObject;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 pub use durable_object::RouterAbRouterWalletDurableObject;
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-signing-worker-entrypoint", test)))]
 pub use durable_object::RouterAbSigningWorkerPresignSessionDurableObject;
 #[cfg(all(feature = "workers-rs", feature = "strict-worker-signing-worker-entrypoint"))]
 pub use durable_object::RouterAbSigningWorkerWalletDurableObject;
@@ -599,15 +599,18 @@ use router_ab_core::{
 };
 use router_ab_core::{
     evaluate_mpc_prf_stable_signer_partial_with_threshold_backend_v2,
-    resolve_authoritative_active_tenant_root_pair_binding_v1, Ed25519YaoInputPairBindingV1,
-    Ed25519YaoOuterBindingV2, Ed25519YaoPairSessionIdV2, MpcPrfOutputRequestV1,
+    resolve_authoritative_active_tenant_root_pair_binding_v1,
+    MpcPrfOutputRequestV1,
     MpcPrfStablePartialProofBundleV2, MpcPrfStableRecipientProofBundlePayloadV2,
     MpcPrfStableThresholdSignerInputV2, RouterAbEcdsaDerivationDeriverEnvelopePlaintextV1,
     RouterAbEcdsaDerivationRegistrationPurposeV1, SignerInputQuorumPolicyV1,
     TenantRootActiveRoleBindingV1, TenantRootActiveRoleResolutionV1, TenantRootActiveRoleRowKeyV1,
-    TenantRootCustodyBindingV1, TenantRootDeriverIdentitiesV1, TenantRootManagedRestoreRoleV1,
+    TenantRootCustodyBindingV1, TenantRootManagedRestoreRoleV1,
     TwoPartyDeriverRole, VerifiedTenantRootOnlineRoleShareV1,
 };
+
+#[cfg(any(feature = "workers-rs", test))]
+use router_ab_core::{Ed25519YaoInputPairBindingV1, Ed25519YaoOuterBindingV2, Ed25519YaoPairSessionIdV2, TenantRootDeriverIdentitiesV1};
 use router_ab_core::{RouterAbProtocolError, RouterAbProtocolErrorCode, RouterAbProtocolResult};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -8378,6 +8381,7 @@ pub async fn activate_cloudflare_signing_worker_server_output_v1(
 
 /// Activates Router A/B ECDSA derivation SigningWorker material.
 #[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_output_v1(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
@@ -8391,7 +8395,6 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
         activation,
     )?;
     let (generic_activation, material) = opened.stored_parts();
-    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     let signing_worker_output: CloudflareSigningWorkerOutputActivationReceiptV1 = {
         let response = durable_object::call_signing_worker_wallet_do_v1(
             env,
@@ -8410,16 +8413,6 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
             "SigningWorker wallet-DO ECDSA activation",
         )
         .await?
-    };
-    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
-    let signing_worker_output = {
-        let call = runtime.signing_worker_output_activate_request(
-            generic_activation.clone(),
-            material.clone(),
-            activated_at_ms,
-        )?;
-        let response = execute_cloudflare_signing_worker_private_d1_request_v1(env, &call).await?;
-        require_signing_worker_output_activate_response_v1(&call, response)?
     };
     opened.receipt(signing_worker_output)
 }
@@ -10767,6 +10760,7 @@ pub async fn handle_cloudflare_signing_worker_recipient_proof_bundle_activation_
 
 /// Handles SigningWorker's Router A/B ECDSA derivation activation route.
 #[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_fetch_v1(
     mut request: worker::Request,
     env: &worker::Env,
@@ -10914,6 +10908,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
 
 /// Handles SigningWorker's private normal-signing round-1 prepare route.
 #[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub async fn handle_cloudflare_signing_worker_normal_signing_round1_prepare_private_fetch_v1<
     Handler,
 >(
@@ -11579,7 +11574,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_init_
             Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
         };
     let do_request =
-        durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1 {
+        CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1 {
             request: parsed,
             active_signing_worker_state: active_signing_worker,
             relayer_share32_b64u: encode_base64url_bytes_v1(material.output_material.as_bytes()),
@@ -11597,7 +11592,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_init_
         Ok(value) => value,
         Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
     };
-    let durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Continue {
+    let CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Continue {
         presign_session_id,
         stage,
         event,
@@ -11976,7 +11971,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_step_
         Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
     };
     match progress {
-        durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Continue {
+        CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Continue {
             presign_session_id,
             stage,
             event,
@@ -11989,7 +11984,7 @@ pub async fn handle_cloudflare_signing_worker_linked_ecdsa_presign_session_step_
                 outgoing_messages_b64u,
             },
         ),
-        durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Complete {
+        CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1::Complete {
             presign_session_id,
             server_presignature_id,
             server_big_r33_b64u,
@@ -12127,14 +12122,14 @@ pub(crate) async fn consume_cloudflare_signing_worker_linked_ecdsa_presignature_
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaPresignatureRecordV1> {
     let request =
-        durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1 {
+        CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1 {
             server_presignature_id,
             scope_digest,
             request_digest,
             signing_digest,
             now_unix_ms,
         };
-    let response: durable_object::CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1 =
+    let response: CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1 =
         durable_object::execute_cloudflare_durable_object_custom_json_call_v1(
             env,
             wallet_objects,
@@ -12347,6 +12342,7 @@ fn cloudflare_signing_worker_normal_signing_terminal_response_v1(
 
 /// Handles SigningWorker's private normal-signing route.
 #[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 pub async fn handle_cloudflare_signing_worker_normal_signing_private_fetch_v1<Handler>(
     mut request: worker::Request,
     env: &worker::Env,
@@ -12785,6 +12781,7 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
@@ -12792,44 +12789,23 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
     response: &RouterAbEcdsaDerivationEvmDigestSigningResponseV1,
     now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerTerminalResponseCommitV1> {
-    #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
-    {
-        let scope = &request.wallet_scope;
-        let do_response = durable_object::call_signing_worker_wallet_do_v1(
-            env,
-            wallet_objects,
-            durable_object::SigningWorkerWalletDoRequestV1::CommitEcdsaTerminal {
-                scope: scope.clone(),
-                request: request.clone(),
-                response: response.clone(),
-                now_unix_ms,
-            },
-        )
-        .await?;
-        return parse_cloudflare_signing_worker_wallet_do_json_response_v1(
-            do_response,
-            "SigningWorker wallet-DO ECDSA terminal",
-        )
-        .await;
-    }
-    #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
-    {
-        let response_json = serde_json::to_string(response).map_err(|error| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::MalformedWirePayload,
-                format!("SigningWorker ECDSA terminal is invalid: {error}"),
-            )
-        })?;
-        commit_cloudflare_signing_worker_terminal_response_v1(
-            env,
-            &request.effect_operation_key()?,
-            request.effect_request_digest()?,
-            &response_json,
+    let scope = &request.wallet_scope;
+    let do_response = durable_object::call_signing_worker_wallet_do_v1(
+        env,
+        wallet_objects,
+        durable_object::SigningWorkerWalletDoRequestV1::CommitEcdsaTerminal {
+            scope: scope.clone(),
+            request: request.clone(),
+            response: response.clone(),
             now_unix_ms,
-            None,
-        )
-        .await
-    }
+        },
+    )
+    .await?;
+    parse_cloudflare_signing_worker_wallet_do_json_response_v1(
+        do_response,
+        "SigningWorker wallet-DO ECDSA terminal",
+    )
+    .await
 }
 
 #[cfg(feature = "workers-rs")]

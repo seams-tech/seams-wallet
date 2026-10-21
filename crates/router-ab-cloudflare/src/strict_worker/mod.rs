@@ -62,6 +62,8 @@ use crate::{
 };
 #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
 use crate::{
+    require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
+    require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1,
     cloudflare_now_unix_ms_v1,
     handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_fetch_v1,
     handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_refresh_fetch_v1,
@@ -141,9 +143,7 @@ use crate::{
 ))]
 use crate::{
     cloudflare_private_service_auth_error_response_v1,
-    require_cloudflare_gateway_to_signing_worker_presign_auth_request_v1,
     require_cloudflare_internal_service_auth_request_v1,
-    require_cloudflare_router_to_signing_worker_ecdsa_auth_request_v1,
     CLOUDFLARE_INTERNAL_PREWARM_PATH,
 };
 #[cfg(all(

@@ -133,7 +133,7 @@ pub(crate) async fn renewal_call(
     .await
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(feature = "workers-rs", any(feature = "strict-worker-router-entrypoint", test)))]
 impl RouterAbTenantRootCreationDurableObject {
     pub(super) async fn handle_creation_grant_route(
         &self,
@@ -226,6 +226,7 @@ impl RouterAbTenantRootCreationDurableObject {
 }
 
 #[cfg(feature = "workers-rs")]
+#[cfg(any(feature = "strict-worker-router-entrypoint", test))]
 fn serialize_outcome<T: Serialize>(value: T) -> RouterAbProtocolResult<worker::Response> {
     worker::Response::from_json(&value).map_err(durable_storage_protocol_error)
 }

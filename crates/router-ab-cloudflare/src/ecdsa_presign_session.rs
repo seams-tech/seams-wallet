@@ -29,6 +29,7 @@ pub struct CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
 }
 
 impl CloudflareSigningWorkerEcdsaPresignLiveSessionV1 {
+    #[cfg(any(feature = "strict-worker-signing-worker-entrypoint", test))]
     pub(crate) fn expires_at_ms(&self) -> u64 {
         self.ceremony_expires_at_ms
     }
@@ -69,6 +70,53 @@ pub enum CloudflareSigningWorkerEcdsaPresignSessionDoProgressV1 {
         pool_put_request:
             CloudflareSigningWorkerRouterAbEcdsaDerivationPresignaturePoolPutRequestV1,
     },
+}
+
+#[cfg(feature = "workers-rs")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoInitRequestV1 {
+    pub(crate) request: CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionInitRequestV1,
+    pub(crate) active_signing_worker_state: ActiveSigningWorkerStateV1,
+    pub(crate) relayer_share32_b64u: String,
+}
+
+#[cfg(feature = "workers-rs")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeRequestV1 {
+    pub(crate) server_presignature_id: String,
+    pub(crate) scope_digest: router_ab_core::PublicDigest32,
+    pub(crate) request_digest: router_ab_core::PublicDigest32,
+    pub(crate) signing_digest: router_ab_core::PublicDigest32,
+    pub(crate) now_unix_ms: u64,
+}
+
+#[cfg(feature = "workers-rs")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1 {
+    Continue {
+        presign_session_id: String,
+        stage: String,
+        event: String,
+        outgoing_messages_b64u: Vec<String>,
+    },
+    Complete {
+        presign_session_id: String,
+        server_presignature_id: String,
+        server_big_r33_b64u: String,
+        signing_worker_rerandomization_contribution32_b64u: String,
+        prepared_response:
+            router_ab_core::RouterAbEcdsaDerivationLinkedDeviceEvmDigestSigningPrepareResponseV1,
+    },
+}
+
+#[cfg(feature = "workers-rs")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CloudflareSigningWorkerLinkedDeviceEcdsaPresignatureDoConsumeResponseV1 {
+    pub(crate) record: CloudflareSigningWorkerEcdsaPresignatureRecordV1,
 }
 
 /// Starts one session from its first client message.
@@ -297,7 +345,9 @@ pub fn admit_signing_worker_wallet_ecdsa_presignature_v1<Sql: SigningWorkerWalle
     request.validate_at(now_unix_ms)?;
     crate::require_positive_ms("Presign completion time", completed_at_ms)?;
     if completed_at_ms > now_unix_ms {
-        return Err(presign_protocol_error("Presign completion time is in the future"));
+        return Err(presign_protocol_error(
+            "Presign completion time is in the future",
+        ));
     }
     store.load_presign_authority(wallet_scope, presign_session_id, now_unix_ms)?;
     let (active, material) = store.load_normal_signing_material(

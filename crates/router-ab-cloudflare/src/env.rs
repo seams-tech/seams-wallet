@@ -941,6 +941,7 @@ pub(crate) fn validate_google_cloud_kms_key_version_v1(
     Ok(())
 }
 
+#[cfg(any(feature = "workers-rs", test))]
 pub(crate) fn google_cloud_kms_crypto_key_from_version_v1(
     key_version: &str,
 ) -> RouterAbProtocolResult<String> {

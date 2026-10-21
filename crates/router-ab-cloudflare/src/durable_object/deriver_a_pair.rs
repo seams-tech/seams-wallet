@@ -881,7 +881,6 @@ impl RouterAbDeriverAWalletDurableObject {
                 return self.complete_work(
                     owner,
                     pair,
-                    request.tenant_root.ownership_generation,
                     execution_id,
                     CloudflareEd25519YaoPairExecuteResponseV1 {
                         deriver_a_execution: role_result.deriver_a_execution,
@@ -940,7 +939,6 @@ impl RouterAbDeriverAWalletDurableObject {
         &self,
         owner: DeriverAWalletOwnerV1,
         pair: &Ed25519YaoInputPairBindingV1,
-        ownership_generation: u64,
         execution_id: Ed25519YaoExecutionIdV1,
         outcome: CloudflareEd25519YaoPairExecuteResponseV1,
     ) -> worker::Result<CloudflareEd25519YaoPairExecuteResponseV1> {

@@ -540,7 +540,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_private_fetch_from_pool_v1(
                 request,
                 &env,
-                &runtime,
                 now_unix_ms,
             )
             .await

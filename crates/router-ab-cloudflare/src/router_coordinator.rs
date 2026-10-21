@@ -6,6 +6,11 @@ pub use execute_request::handle_cloudflare_router_ed25519_yao_execute_private_fe
 mod ceremony_execution;
 mod package_delivery;
 mod role_transport;
+#[cfg(any(
+    feature = "strict-worker-router-entrypoint",
+    feature = "strict-worker-deriver-a-entrypoint",
+    test
+))]
 pub(crate) use role_transport::post_role_request;
 use role_transport::{
     post_role_json, post_role_json_for_ceremony_with_span, post_wallet_routed_role_json,
@@ -20,7 +25,7 @@ use crate::{
     set_cloudflare_internal_service_auth_header_v1, set_cloudflare_trace_id_header_v1,
     CloudflareDeriverBWalletPairScopeV1, CloudflareEd25519YaoInactiveReservationResponseV1,
     CloudflareEd25519YaoPackagePairDeliveryV1, CloudflareEd25519YaoPairExecuteRequestV1,
-    CloudflareEd25519YaoPairExecuteResponseV1, CloudflareEd25519YaoPairLookupRequestV1,
+    CloudflareEd25519YaoPairExecuteResponseV1,
     CloudflareEd25519YaoPairPreparationV1, CloudflareEd25519YaoPairPrepareRequestV1,
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoRoleFailureResponseV1,
     CloudflareEd25519YaoSourcePreservingInactiveReservationRequestV1,
@@ -1095,7 +1100,7 @@ async fn reconcile_router_replay_v1(
     #[cfg(feature = "strict-worker-router-entrypoint")]
     let status_a = async { wallet_pair_outcome_status(outcome_a) };
     #[cfg(not(feature = "strict-worker-router-entrypoint"))]
-    let a_lookup = CloudflareEd25519YaoPairLookupRequestV1 {
+    let a_lookup = crate::CloudflareEd25519YaoPairLookupRequestV1 {
         session: pair_binding.session(),
         pair_digest: pair_binding.pair_digest().bytes,
     };
@@ -1208,7 +1213,7 @@ async fn reconcile_router_replay_v1(
                 DERIVER_A_SERVICE_URL,
                 CLOUDFLARE_DERIVER_A_ED25519_YAO_BURN_PAIR_PATH,
                 "Deriver A pair burn",
-                &CloudflareEd25519YaoPairLookupRequestV1 {
+                &crate::CloudflareEd25519YaoPairLookupRequestV1 {
                     session: pair_binding.session(),
                     pair_digest: pair_binding.pair_digest().bytes,
                 },

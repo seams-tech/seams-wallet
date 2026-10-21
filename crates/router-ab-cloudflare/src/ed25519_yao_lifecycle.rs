@@ -1,15 +1,18 @@
 mod bound_root;
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
 mod deriver_a_execute;
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
 pub(crate) use deriver_a_execute::execute_deriver_a_role;
 mod deriver_b_start;
 mod deriver_b_state;
 #[cfg(feature = "strict-worker-deriver-b-entrypoint")]
 mod registration_peer;
 use crate::tenant_root_role_d1::RootUseAccess;
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
 pub(crate) use bound_root::DeriverATargetSource;
-use bound_root::{
-    load_ed25519_yao_tenant_root_role_share_v2, prepare_deriver_a_target, PreparedDeriverATarget,
-};
+use bound_root::load_ed25519_yao_tenant_root_role_share_v2;
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
+use bound_root::{prepare_deriver_a_target, PreparedDeriverATarget};
 #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
 pub(crate) use bound_root::{prepare_deriver_a_pair_for_wallet_do_v1, DeriverAPairPreparationV1};
 use core::{fmt, future::Future};
@@ -33,24 +36,34 @@ use router_ab_core::{
     TenantRootCustodyBindingV1, TwoPartyDeriverRole, VerifiedTenantRootOnlineRoleShareV1,
 };
 use router_ab_ed25519_yao::{
-    build_product_activation_deriver_a_with_server_v1,
     build_product_activation_deriver_b_with_server_v1,
-    build_product_export_deriver_a_with_server_v1, build_product_export_deriver_b_with_server_v1,
-    build_product_lane_deriver_a_with_server_v1, build_product_lane_deriver_b_with_server_v1,
+    build_product_export_deriver_b_with_server_v1,
+    build_product_lane_deriver_b_with_server_v1,
     duplex::{
-        run_activation_deriver_a, run_activation_deriver_b_open, run_export_deriver_a,
-        run_export_deriver_b_open, run_lane_materialization_deriver_a,
-        run_lane_materialization_deriver_b_open,
+        run_activation_deriver_b_open, run_export_deriver_b_open, run_lane_materialization_deriver_b_open,
     },
-    open_ed25519_yao_activation_deriver_a_input_v1, open_ed25519_yao_activation_deriver_b_input_v1,
-    open_ed25519_yao_export_deriver_a_input_v1, open_ed25519_yao_export_deriver_b_input_v1,
-    open_ed25519_yao_lane_deriver_a_input_v1, open_ed25519_yao_lane_deriver_b_input_v1,
-    seal_ed25519_yao_activation_deriver_a_execution_v1,
+    open_ed25519_yao_activation_deriver_b_input_v1,
+    open_ed25519_yao_export_deriver_b_input_v1,
+    open_ed25519_yao_lane_deriver_b_input_v1,
     seal_ed25519_yao_activation_deriver_b_execution_v1,
-    seal_ed25519_yao_export_deriver_a_execution_v1, seal_ed25519_yao_export_deriver_b_execution_v1,
-    seal_ed25519_yao_lane_deriver_a_execution_v1, seal_ed25519_yao_lane_deriver_b_execution_v1,
+    seal_ed25519_yao_export_deriver_b_execution_v1,
+    seal_ed25519_yao_lane_deriver_b_execution_v1,
     stable_key_derivation_context_v1, AdapterError, Ed25519YaoRecipientPrivateKeyV1,
     Ed25519YaoRoleExecutionV1,
+};
+
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
+use router_ab_ed25519_yao::{
+    build_product_activation_deriver_a_with_server_v1,
+    build_product_export_deriver_a_with_server_v1,
+    build_product_lane_deriver_a_with_server_v1,
+    open_ed25519_yao_activation_deriver_a_input_v1,
+    open_ed25519_yao_export_deriver_a_input_v1,
+    open_ed25519_yao_lane_deriver_a_input_v1,
+    seal_ed25519_yao_activation_deriver_a_execution_v1,
+    seal_ed25519_yao_export_deriver_a_execution_v1,
+    seal_ed25519_yao_lane_deriver_a_execution_v1,
+    duplex::{run_activation_deriver_a, run_export_deriver_a, run_lane_materialization_deriver_a},
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,15 +87,16 @@ use crate::ed25519_yao_websocket::{
 use crate::{
     decode_cloudflare_signer_envelope_hpke_private_key_secret_v1,
     parse_cloudflare_signer_envelope_hpke_public_key_set_v1,
-    parse_cloudflare_trace_id_from_request_v1, CloudflareDeriverAWorkerRuntimeV1,
-    CloudflareDeriverBWalletPairScopeV1, CloudflareDeriverBWorkerRuntimeV1,
+    parse_cloudflare_trace_id_from_request_v1, CloudflareDeriverBWalletPairScopeV1, CloudflareDeriverBWorkerRuntimeV1,
     CloudflareEd25519YaoCircuitV1, CloudflareEd25519YaoPairPreparationV1,
-    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStartErrorV1,
-    CloudflareEd25519YaoPairStartRefusalReasonV1, CloudflareEd25519YaoPairStartRefusalV1,
+    CloudflareEd25519YaoPairPrepareRequestV1, CloudflareEd25519YaoPairStartRefusalReasonV1, CloudflareEd25519YaoPairStartRefusalV1,
     CloudflareEd25519YaoPairStatusResponseV1, CloudflareEd25519YaoWebSocketBindingV1,
     CloudflareEd25519YaoWebSocketTransportV1, CloudflareHpkeGetrandomRngV1, CloudflareTraceIdV1,
     CloudflareWorkerEnvReaderV1, CloudflareWorkerRoleV1,
 };
+
+#[cfg(any(feature = "strict-worker-deriver-a-entrypoint", test))]
+use crate::{CloudflareDeriverAWorkerRuntimeV1, CloudflareEd25519YaoPairStartErrorV1};
 
 use crate::hpke::{
     parse_cloudflare_hpke_x25519_public_key_v1, CloudflareHpkeKemV1, CloudflareHpkeSuiteV1,

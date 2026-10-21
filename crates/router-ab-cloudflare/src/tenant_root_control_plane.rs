@@ -1182,7 +1182,10 @@ pub struct RecoveryManifestAssemblyRequestV1 {
     control_plane_certificate_chain: Vec<String>,
 }
 
-#[cfg(feature = "workers-rs")]
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-tenant-root-control-plane-entrypoint", test)
+))]
 pub(crate) use live::{
     assemble_recovery_manifest_v1, recovery_command_v1, recovery_recipient_proof_v1,
     recovery_trust_bundle_json_v1,
@@ -1194,10 +1197,15 @@ pub use live::{
     handle_cloudflare_tenant_root_control_plane_create_tenant_root_v1,
     handle_cloudflare_tenant_root_control_plane_refresh_commands_v1,
     handle_cloudflare_tenant_root_control_plane_register_manifest_v1,
-    handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1,
     handle_cloudflare_tenant_root_control_plane_restore_role_import_key_v1,
     handle_cloudflare_tenant_root_control_plane_role_creation_command_v1,
 };
+
+#[cfg(all(
+    feature = "workers-rs",
+    any(feature = "strict-worker-tenant-root-control-plane-entrypoint", test)
+))]
+pub use live::handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1;
 
 #[cfg(feature = "workers-rs")]
 #[allow(unused_imports)]

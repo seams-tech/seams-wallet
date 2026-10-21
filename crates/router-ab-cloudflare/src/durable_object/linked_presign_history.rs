@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use super::ecdsa_presign_live_session::{
     CloudflareSigningWorkerLinkedDeviceEcdsaCompletedPresignatureRecordV1 as Completion,
-    CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1 as Progress,
 };
+use crate::CloudflareSigningWorkerLinkedDeviceEcdsaPresignSessionDoProgressV1 as Progress;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "reason", rename_all = "snake_case", deny_unknown_fields)]
