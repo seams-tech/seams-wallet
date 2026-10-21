@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   TransactionReviewError,
-  parseNear,
   transfer,
   useWallet,
   type TransactionReviewControls,
@@ -32,7 +31,7 @@ async function submitTransfer(signer: NearSigner, setMessage: (message: string) 
   try {
     const result = await signer.signAndSendTransaction({
       receiverId: signer.accountId,
-      actions: [transfer(parseNear('0'))],
+      actions: [transfer('0 NEAR')],
       options: {
         confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
       },

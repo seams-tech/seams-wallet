@@ -70,9 +70,10 @@ Build actions with helpers such as `functionCall` and `transfer`. Avoid construc
 objects such as `{ type: ActionType.FunctionCall, … }`. Pass `logWalletEvents()` to
 `onEvent` to log progress in the console.
 
-Give `transfer` an amount from `parseNear`, which takes a decimal NEAR amount:
-`transfer(parseNear('1'))` sends 1 NEAR. If an amount is already in yoctoNEAR, use
-`yoctoNear('1000000000000000000000000')`.
+Give `transfer` an amount with its unit: `transfer('1 NEAR')` sends 1 NEAR, and
+`transfer('1000 yoctoNEAR')` sends 1000 yoctoNEAR. A string without a unit does not
+compile. For an amount computed at run time, use `parseNear(amount)` for a decimal
+NEAR string or `yoctoNear(amount)` for an amount already in yoctoNEAR.
 
 An EVM `value` is a `bigint` in wei. Write it with `parseEther('0.5')`, which takes a
 decimal amount of the chain's 18-decimal native coin (ETH, POL and so on). For a

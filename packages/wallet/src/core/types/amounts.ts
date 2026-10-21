@@ -52,7 +52,7 @@ export function parseUnits(amount: string, decimals: number): bigint {
 /**
  * A NEAR amount in yoctoNEAR (1 NEAR = 10^24 yoctoNEAR), as a canonical
  * non-negative integer string. Only `parseNear` and `yoctoNear` produce one,
- * so an amount reaches `transfer` already checked.
+ * so a `YoctoNear` is always a checked amount.
  */
 export type YoctoNear = string & { readonly __yoctoNearBrand: 'YoctoNear' };
 
@@ -80,6 +80,30 @@ export function parseNear(amount: string): YoctoNear {
 export function yoctoNear(amount: string | bigint): YoctoNear {
   const digits = typeof amount === 'bigint' ? amount.toString() : amount;
   return parseUnits(digits, 0).toString() as YoctoNear;
+}
+
+/**
+ * A NEAR amount that `transfer` takes: a `YoctoNear`, or a literal with its
+ * unit, such as `'1 NEAR'` or `'1000 yoctoNEAR'`. A string without a unit does
+ * not compile, because it could mean either unit.
+ */
+export type NearAmount = YoctoNear | `${number} NEAR` | `${bigint} yoctoNEAR`;
+
+const YOCTO_NEAR_SUFFIX = ' yoctoNEAR';
+const NEAR_SUFFIX = ' NEAR';
+
+/**
+ * Resolve a `NearAmount` to yoctoNEAR with the same exact parsers.
+ *
+ * @throws {AmountError} for a negative, non-numeric or over-precise amount,
+ * or for spacing other than one space before the unit.
+ */
+export function toYoctoNear(amount: NearAmount): YoctoNear {
+  if (amount.endsWith(YOCTO_NEAR_SUFFIX)) {
+    return yoctoNear(amount.slice(0, -YOCTO_NEAR_SUFFIX.length));
+  }
+  if (amount.endsWith(NEAR_SUFFIX)) return parseNear(amount.slice(0, -NEAR_SUFFIX.length));
+  return yoctoNear(amount);
 }
 
 /**

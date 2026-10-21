@@ -241,7 +241,7 @@ export {
   transfer,
 } from './core/types/actionBuilders';
 export { AmountError, parseEther, parseNear, parseUnits, yoctoNear } from './core/types/amounts';
-export type { AmountErrorCode, YoctoNear } from './core/types/amounts';
+export type { AmountErrorCode, NearAmount, YoctoNear } from './core/types/amounts';
 
 // === Event logging ===
 export { logWalletEvents } from './core/types/eventLogging';

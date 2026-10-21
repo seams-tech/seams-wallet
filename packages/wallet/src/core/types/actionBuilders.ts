@@ -9,7 +9,7 @@ import {
   type StakeAction,
   type TransferAction,
 } from '@/core/types/actions';
-import type { YoctoNear } from '@/core/types/amounts';
+import { toYoctoNear, type NearAmount } from '@/core/types/amounts';
 
 /**
  * Action builders.
@@ -43,15 +43,21 @@ export function functionCall(args: {
 }
 
 /**
- * Transfer NEAR. Build `amount` with `parseNear` for a decimal NEAR amount, or with
- * `yoctoNear` for an amount that is already in yoctoNEAR.
+ * Transfer NEAR. Write a literal `amount` with its unit, `'1 NEAR'` or
+ * `'1000 yoctoNEAR'`. Build a computed amount with `parseNear` (decimal NEAR)
+ * or `yoctoNear` (already in yoctoNEAR). A string without a unit does not
+ * compile.
  *
  * @example
- * transfer(parseNear('1')); // 1 NEAR
- * transfer(yoctoNear('1000000000000000000000000')); // also 1 NEAR
+ * transfer('1 NEAR');
+ * transfer('0.5 NEAR');
+ * transfer(parseNear(amountInput)); // a decimal NEAR string from elsewhere
+ * transfer(yoctoNear(balance)); // already in yoctoNEAR
+ *
+ * @throws {AmountError} for a negative, non-numeric or over-precise amount.
  */
-export function transfer(amount: YoctoNear): TransferAction {
-  return { type: ActionType.Transfer, amount };
+export function transfer(amount: NearAmount): TransferAction {
+  return { type: ActionType.Transfer, amount: toYoctoNear(amount) };
 }
 
 export function createAccount(): CreateAccountAction {
