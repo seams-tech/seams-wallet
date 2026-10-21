@@ -114,8 +114,17 @@ node tests/e2e/celld-bindings.e2e.mjs "$SCRATCH/celld-candidate/celld" "$PWD/.ar
 - [Current pristine-source build identity](celld-private-patch/current-runtime-build.json).
 - [Current binding and stream results](celld-private-patch/current-bindings.json).
 
-This run is a debug build on macOS. It does not qualify a release executable or a Linux host.
-The complete Wallet graph on `.7` has separate private evidence in `seams-monorepo/deployment/celld/evidence/`.
+The recorded run started at `09:22:33Z`. The repeat run started at `09:22:48Z` with the same executable, Wallet revision and harness hashes.
+It also passed at `celld-downgrade-refusal`. Only the first run's record is committed.
+The shell reported exit status 0 for both runs; `result.json` records `status: passed` and has no exit-code field.
+
+Limits of this run:
+
+- The workerd reference checks one service path and one object path. Aliases, restart, cycles and refusals run on celld only.
+- The patch also changes service and R2 binding brands, streaming clone, raw EC keys and peer WebSockets.
+  This pass covers the combined patch. It does not isolate the object-binding change.
+- This run is a debug build on macOS. It does not qualify a release executable or a Linux host.
+  The complete Wallet graph on `.7` has separate private evidence in `seams-monorepo/deployment/celld/evidence/`.
 
 The private deployment repository also retains the exact Wallet Server and SDK 0.9.3 lifecycle run.
 All six unchanged browser contracts pass: mixed registration/signing, lost-response retry, quota contention,

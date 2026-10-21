@@ -1,7 +1,7 @@
 # Celld cross-script Durable Object compatibility
 
 Celld 0.6.2 fails the cross-script object gate required by our current Worker topology.
-The fault is in celld, not in our Worker configuration.
+The cause is a missing celld feature, not our Worker configuration: stock celld does not support external object bindings.
 The private `0.6.2-seams.7` runtime passes the same gate on October 21. See the [private runtime proof](celld-private-patch.md).
 Keep the existing hosting implementations until the remaining consolidation gates pass.
 
@@ -70,6 +70,14 @@ The raw record is [celld-bindings/stock-current.json](celld-bindings/stock-curre
 
 The production manifests set `script_name` on every external `RouterAbTenantRootCreationDurableObject` binding.
 No configuration change in this repository can pass the gate on stock 0.6.2.
+
+The production graph differs from the probe in one way. The workers-rs shim makes every role bundle export every
+Durable Object class of the crate, including `RouterAbTenantRootCreationDurableObject`.
+That export does not cause the collision. The pinned
+[generation builder](https://github.com/denoland/celld/blob/90b43017241f81189453d326d05948f388b34652/crates/celld/generation.rs#L569-L598)
+registers only the classes in `do_classes`, which the deployment parser fills from the configuration bindings.
+The private `seams-monorepo/deployment/celld/evidence/packaged-role-graph.json` record loads the five packaged role bundles on the patched runtime.
+The probe itself does not model the extra exports.
 
 The current harness also checks streaming `Response.clone()` before the cross-script stage.
 Stock 0.6.2 now stops at that earlier stage with `Cannot clone a streaming response before consumption`.

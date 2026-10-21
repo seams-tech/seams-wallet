@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-21T09:21:31Z",
+  "recordedAt": "2026-10-21T09:21:17.825Z",
   "purpose": "Stock celld 0.6.2 controls for the current harness and direct cross-script configurations",
   "harnessRun": {
     "command": "node tests/e2e/celld-bindings.e2e.mjs <stock> <stock>",
@@ -11,7 +11,9 @@
     "attestation": {
       "verified": true,
       "sourceRepositoryDigest": "90b43017241f81189453d326d05948f388b34652",
-      "signer": "https://github.com/denoland/celld/.github/workflows/release.yml@refs/heads/candidate"
+      "signer": "https://github.com/denoland/celld/.github/workflows/release.yml@refs/heads/candidate",
+      "command": "gh attestation verify celld-aarch64-apple-darwin.gz --repo denoland/celld --format json",
+      "exitCode": 0
     },
     "node": "v24.18.0",
     "miniflare": "4.20260710.0",
@@ -50,7 +52,7 @@
     "error": "AssertionError [ERR_ASSERTION]: Worker failed: rejected: TypeError: Cannot clone a streaming response before consumption [at Response.clone (<anonymous>:364:13) <- at streamClone (worker.js:12:25)]"
   },
   "directStartup": {
-    "command": "celld dev <config>.json --no-watch --logs (same dev directory, owner already deployed)",
+    "command": "perl -e \"alarm 20; exec @ARGV\" <stock-celld> dev <config>.json --host 127.0.0.1 --port 18999 --no-watch --logs",
     "external-single": {
       "bindings": [
         {
@@ -96,6 +98,9 @@
         "Error: duplicate Durable Object class TenantRoot",
         "Error: the local node exited before it announced its operator listener"
       ]
-    }
+    },
+    "recordedAt": "2026-10-21T09:21:31Z",
+    "directory": "the harness evidence directory of harnessRun, after its owner and service stages",
+    "exitCodeSource": "shell $? after each command"
   }
 }
