@@ -327,8 +327,8 @@ struct LabelledWire {
 #[serde(rename_all = "camelCase")]
 struct RotationResponseWire {
     ok: bool,
-    #[serde(default)]
-    status: Option<String>,
+    #[serde(default, rename = "status")]
+    _status: Option<String>,
     #[serde(default)]
     activation_receipt_digest_b64u: Option<String>,
     #[serde(default)]
@@ -338,11 +338,11 @@ struct RotationResponseWire {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RotationRefusalWire {
-    #[serde(default)]
-    ok: bool,
+    #[serde(default, rename = "ok")]
+    _ok: bool,
     code: String,
-    #[serde(default)]
-    message: Option<String>,
+    #[serde(default, rename = "message")]
+    _message: Option<String>,
     #[serde(default)]
     retry_at_ms: Option<u64>,
 }
@@ -359,10 +359,10 @@ struct RotationReadResponseWire {
 struct PolledOperationWire {
     operation_id: String,
     status: String,
-    #[serde(default)]
-    failure_code: Option<String>,
-    #[serde(default)]
-    accepted_result: Option<serde_json::Value>,
+    #[serde(default, rename = "failureCode")]
+    _failure_code: Option<String>,
+    #[serde(default, rename = "acceptedResult")]
+    _accepted_result: Option<serde_json::Value>,
 }
 
 /// One started or replayed rotation.
