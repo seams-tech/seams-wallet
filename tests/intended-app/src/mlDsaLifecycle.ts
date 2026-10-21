@@ -77,6 +77,7 @@ export class IntendedMlDsaLifecycle {
           publication: { walletId: toWalletId(context.walletId), signer: command.signer },
         });
       case 'normal_sign': {
+        const startedAt = performance.now();
         const result = await context.wallet.near.signTransaction({
           walletSession: context.walletId,
           nearAccount: context.nearAccountId,
@@ -91,6 +92,7 @@ export class IntendedMlDsaLifecycle {
         this.lastSignedTransaction = result.signedTransaction;
         return {
           kind: 'sdk_signed' as const,
+          sdkElapsedMs: performance.now() - startedAt,
           signedTransactionBorshB64u: base64UrlEncode(
             Uint8Array.from(result.signedTransaction.borsh_bytes),
           ),
@@ -126,6 +128,7 @@ export class IntendedMlDsaLifecycle {
         };
       }
       case 'publish': {
+        const startedAt = performance.now();
         const result = await context.wallet.registration.addSigner({
           walletId: toWalletId(context.walletId),
           rpId: rpId.value,
@@ -140,7 +143,11 @@ export class IntendedMlDsaLifecycle {
           result.capabilities[0].kind !== 'near_ml_dsa_65'
         )
           throw new Error(`ML-DSA publication failed: ${JSON.stringify(result)}`);
-        return result.capabilities[0];
+        return {
+          kind: 'sdk_published' as const,
+          signer: result.capabilities[0],
+          sdkElapsedMs: performance.now() - startedAt,
+        };
       }
       case 'restore':
         return restoreMlDsaNearSigner({

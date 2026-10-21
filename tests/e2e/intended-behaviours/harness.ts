@@ -1,4 +1,5 @@
 import type { MlDsaBrowserCommand } from '../../intended-app/src/mlDsaLifecycle';
+import { hostedBenchmarkAccessToken, hostedGatewayHeaders } from './hosted-gateway-access';
 import {
   captureWalletBudgetStatusRequest,
   capturePreparedWalletBudgetStatus,
@@ -1324,7 +1325,7 @@ export class IntendedBehaviourHarness {
   }
 
   async runMlDsaCommand(command: MlDsaBrowserCommand) {
-    const timeoutMs = command.kind === 'normal_sign' ? 60_000 : 180_000;
+    const timeoutMs = command.kind === 'normal_sign' ? 315_000 : 180_000;
     const deadline = new AbortController();
     try {
       const result = await autoConfirmWalletIframeUntil(
@@ -3488,6 +3489,7 @@ export class IntendedBehaviourHarness {
         headers: {
           'Content-Type': 'application/json',
           Origin: new URL(this.config.appUrl).origin,
+          ...hostedGatewayHeaders(this.networkMode),
         },
         data: {
           recoveryCodeB64u: base64UrlEncode(decodeWalletRecoveryCode(recoveryCode)),
@@ -4371,10 +4373,7 @@ export class IntendedBehaviourHarness {
   private async assertServicesReady(): Promise<void> {
     // The hosted ingress admits readiness only with the benchmark token, and
     // API requests do not pass through the context route that adds it.
-    const routerHeaders: Record<string, string> =
-      this.networkMode === 'external_staging'
-        ? { 'x-r150-benchmark-access': hostedBenchmarkAccessToken() }
-        : {};
+    const routerHeaders = hostedGatewayHeaders(this.networkMode);
     await assertHttpOk(this.request, this.config.appUrl, 'site');
     await assertHttpOk(
       this.request,
@@ -4829,11 +4828,8 @@ export class IntendedBehaviourHarness {
       Authorization: captured.authorization,
       'Content-Type': captured.contentType,
       Origin: new URL(this.config.walletOrigin).origin,
+      ...hostedGatewayHeaders(this.networkMode),
     };
-    // API requests bypass the browser route that supplies benchmark access.
-    if (this.networkMode === 'external_staging') {
-      headers['x-r150-benchmark-access'] = hostedBenchmarkAccessToken();
-    }
     return this.request.post(captured.url, { headers, data: captured.body });
   }
 
@@ -5259,14 +5255,6 @@ export const intendedTest = base.extend<{
     harness.assertNoWrongAuthPath();
   },
 });
-
-function hostedBenchmarkAccessToken(): string {
-  const accessToken = process.env.SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN;
-  if (!accessToken || accessToken.length < 32) {
-    throw new Error('Hosted benchmark access token must contain at least 32 characters');
-  }
-  return accessToken;
-}
 
 async function installHostedBenchmarkAccess(context: BrowserContext): Promise<void> {
   const accessToken = hostedBenchmarkAccessToken();

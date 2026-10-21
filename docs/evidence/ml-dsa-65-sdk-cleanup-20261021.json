@@ -1,0 +1,45 @@
+{
+  "prefix": "ml-dsa-sdk-1021-b407e6",
+  "startedAt": "2026-10-21T09:39:15.198Z",
+  "workers": [
+    "ml-dsa-sdk-1021-b407e6-ingress",
+    "ml-dsa-sdk-1021-b407e6-gateway",
+    "ml-dsa-sdk-1021-b407e6-prep-a",
+    "ml-dsa-sdk-1021-b407e6-prep-b",
+    "ml-dsa-sdk-1021-b407e6-deriver-a",
+    "ml-dsa-sdk-1021-b407e6-deriver-b",
+    "ml-dsa-sdk-1021-b407e6-signing-worker",
+    "ml-dsa-sdk-1021-b407e6-tenant-root-control-plane",
+    "ml-dsa-sdk-1021-b407e6-router"
+  ],
+  "databases": [
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-gateway-db",
+      "id": "ee38abad-35fb-4e03-b939-6b8ac628c65b"
+    },
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-deriver-a-db",
+      "id": "8821a297-3411-4884-b44e-080dbd49c66c"
+    },
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-deriver-b-db",
+      "id": "2fd8e33f-bba0-4233-92e4-5c83bd156f10"
+    },
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-signing-worker-db",
+      "id": "030ed7d3-8472-47d5-843e-17f95a1c968c"
+    }
+  ],
+  "buckets": [
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-deriver-a-backup",
+      "deletedObjects": 10
+    },
+    {
+      "name": "ml-dsa-sdk-1021-b407e6-deriver-b-backup",
+      "deletedObjects": 10
+    }
+  ],
+  "complete": true,
+  "completedAt": "2026-10-21T09:39:50.554Z"
+}

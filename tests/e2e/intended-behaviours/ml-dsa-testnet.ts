@@ -1,5 +1,11 @@
 import { expect } from '@playwright/test';
-import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import {
+  createPrivateKey,
+  createPublicKey,
+  generateKeyPairSync,
+  randomBytes,
+  sign,
+} from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { base58Encode } from '@shared/utils/base58';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
@@ -16,15 +22,19 @@ export async function testnetRpc(method: string, params: unknown) {
     body: JSON.stringify({ jsonrpc: '2.0', id: 'ml-dsa-wallet-lifecycle', method, params }),
     signal: AbortSignal.timeout(60_000),
   });
-  expect(response.ok).toBe(true);
-  const body = requireRecord(await response.json(), 'NEAR RPC response');
+  const text = await response.text();
+  if (!response.ok)
+    throw new Error(`Testnet RPC ${method} returned ${response.status}: ${text.slice(0, 240)}`);
+  const body = requireRecord(JSON.parse(text), 'NEAR RPC response');
   if (!body.result) throw new Error(`Testnet RPC failed: ${JSON.stringify(body.error)}`);
   return requireRecord(body.result, 'NEAR RPC result');
 }
 
-/** Funds the Wallet's implicit account without receiving any Wallet private key. */
-export async function fundImplicitWallet(accountId: string) {
-  if (!/^[0-9a-f]{64}$/.test(accountId)) throw new Error('Expected an implicit Ed25519 account');
+let sponsor: ReturnType<typeof createSponsor> | null = null;
+
+async function createSponsor() {
+  const path = process.env.SEAMS_INTENDED_TESTNET_SPONSOR_FILE;
+  if (path) return readSponsor(path);
   const pair = generateKeyPairSync('ed25519');
   const publicKey =
     'ed25519:' + base58Encode(pair.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32));
@@ -35,8 +45,10 @@ export async function fundImplicitWallet(accountId: string) {
     body: JSON.stringify({ newAccountId: sponsorId, newAccountPublicKey: publicKey }),
     signal: AbortSignal.timeout(60_000),
   });
-  expect(response.ok).toBe(true);
-  const funded = requireRecord(await response.json(), 'faucet result');
+  const text = await response.text();
+  if (!response.ok)
+    throw new Error(`Testnet faucet returned ${response.status}: ${text.slice(0, 240)}`);
+  const funded = requireRecord(JSON.parse(text), 'faucet result');
   expect(requireRecord(funded.status, 'faucet status')).toHaveProperty('SuccessValue');
   const creation = requireRecord(funded.transaction, 'faucet transaction');
   const created = await testnetRpc('tx', {
@@ -45,6 +57,39 @@ export async function fundImplicitWallet(accountId: string) {
     wait_until: 'FINAL',
   });
   expect(created.final_execution_status).toBe('FINAL');
+  return { pair, publicKey, sponsorId };
+}
+
+async function readSponsor(path: string) {
+  const record = requireRecord(JSON.parse(await readFile(path, 'utf8')), 'testnet sponsor');
+  const jwk = requireRecord(record.privateJwk, 'testnet sponsor key');
+  if (jwk.kty !== 'OKP' || jwk.crv !== 'Ed25519')
+    throw new Error('Expected an Ed25519 test sponsor');
+  const privateKey = createPrivateKey({
+    key: {
+      kty: 'OKP',
+      crv: 'Ed25519',
+      x: requireCanonicalString(jwk.x, 'sponsor public key'),
+      d: requireCanonicalString(jwk.d, 'sponsor private key'),
+    },
+    format: 'jwk',
+  });
+  const publicKey = createPublicKey(privateKey);
+  const bytes = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);
+  const sponsorId = requireCanonicalString(record.accountId, 'sponsor account');
+  if (sponsorId !== bytes.toString('hex'))
+    throw new Error('Test sponsor key differs from its implicit account');
+  return {
+    pair: { publicKey, privateKey },
+    sponsorId,
+    publicKey: 'ed25519:' + base58Encode(bytes),
+  };
+}
+
+/** Each test process uses one disposable sponsor. Funding calls are sequential. */
+export async function fundImplicitWallet(accountId: string) {
+  if (!/^[0-9a-f]{64}$/.test(accountId)) throw new Error('Expected an implicit Ed25519 account');
+  const { pair, publicKey, sponsorId } = await (sponsor ??= createSponsor());
   const access = decodeNearAccessKeyView(
     await testnetRpc('query', {
       request_type: 'view_access_key',

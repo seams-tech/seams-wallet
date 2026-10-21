@@ -19,12 +19,15 @@ Linked devices hold an Ed25519 Client-root envelope and cannot export a wallet s
 The SDK retains verified public custody completions before publication.
 Startup and unlock retry those exact completions after a lost response or browser reload.
 Installed completions can publish after the execution deadline while owner and epoch fences remain valid.
-An interrupted private round still needs participant reconciliation or fresh authorized restoration.
+An expired unpublished creation can restart through fresh owner approval and a higher material epoch.
+Both participant pools preserve any installed canonical public key. Published signers use the separate restoration flow.
+The [release qualification](ml-dsa-65-sdk-release-qualification.md) records the interrupted-creation control and remaining review limits.
 The journal never stores an unsealed seed or private protocol state.
 
 Each signing participant now loads its encrypted key material and consumes its first prepared pair in one storage request.
 This removes one storage round trip per participant. It changes no pool or cooldown policy.
-A matched hosted latency comparison remains required.
+The [hosted qualification](ml-dsa-65-sdk-release-qualification.md) measures the current combined flow.
+It does not isolate this storage change. Consistent five-second performance remains open.
 
 These functions ship through `@seams/wallet/advanced`:
 
@@ -267,6 +270,9 @@ Gateway, D1, and Worker behavior with shared authority factories.
 They do not qualify browser recovery-code or QR-link ceremonies by themselves.
 The earlier [hosted browser campaign](ml-dsa-65-browser-hosted-report.md)
 qualifies signing and finality under its documented existing-owner fixture scope.
+The [full hosted SDK campaign](ml-dsa-65-sdk-release-qualification.md) now repeats recovery-code ceremonies,
+QR linking, canonical export, restoration, and finalized signing against real Cloudflare Workers.
+Its browser assets remain local and its Console admission uses a disposable static authority.
 
 Repeat the enrollment campaign with a private output directory:
 

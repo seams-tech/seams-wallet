@@ -4,6 +4,18 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
+## Qualification checkpoint — October 21, 2026
+
+The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records the real Cloudflare browser lifecycle.
+Recovery, full-owner QR linking, canonical FIPS export, participant restoration, and a finalized NEAR transaction pass.
+Expired unpublished creation can restart under fresh owner approval and a higher epoch.
+NEAR enrollment checks finalized protocol support before requesting AddKey approval.
+Exact unpublished package candidates pass private product type checks and both Console activation acceptance scenarios.
+The five-second target and broader production security review remain open.
+The clean two-wallet capacity repeat records three verified signatures, then a stock wait reaches the Wallet RPC deadline.
+Refill throughput and SDK backpressure remain release gates.
+GPU preparation, product UI changes, and registry publication remain deferred.
+
 ## Current priority — October 19, 2026
 
 Complete the public SDK lifecycle before further latency optimization. Keep the current
@@ -62,8 +74,9 @@ The [lifecycle report](ml-dsa-65-wallet-lifecycle-report.md) describes canonical
 
 Participant relocation is explicitly refused after execution starts. Its future implementation
 must transfer participant state and the publication journal together. Expired unused admissions
-release their slots through versioned tombstones. Dispatched interruptions keep their slots
-reserved until recovery reconciles the participants.
+release their slots through versioned tombstones. An active custody owner can replace an expired,
+unpublished creation with fresh preparation and a higher epoch. Published and interrupted restoration
+records retain their existing protections.
 
 ## Fixed requirements
 
@@ -122,7 +135,7 @@ Exit: SDK registration and recovery create a durable signer that survives Worker
 - [x] Add reusable sessions only after the ML-DSA authority and revocation projections exist.
 - [x] Expose native transaction display, signing, signature verification, and RPC submission through the advanced SDK.
 - [x] Connect the standard Wallet transaction-review UI and iframe lifecycle.
-- [ ] Enforce the selected NEAR network's protocol support before on-chain key enrollment. Live protocol status was checked separately.
+- [x] Enforce the selected NEAR network's protocol support before on-chain key enrollment. The SDK reads finalized protocol configuration before AddKey approval. See the [release qualification](ml-dsa-65-sdk-release-qualification.md).
 - [x] Confirm a threshold-signed transaction through the complete SDK path.
 
 Exit: public requests cannot select another wallet, key, epoch, transaction, or algorithm through approval reuse.
