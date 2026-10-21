@@ -1,13 +1,13 @@
-//! Storage E2E: real PostgreSQL, runtime credentials, encrypted records, and signed commands.
-//! Run through scripts/test-postgres-role-store.mjs, which owns a disposable local database.
+// Storage E2E: real PostgreSQL, runtime credentials, encrypted records, and signed commands.
+// Run through scripts/test-postgres-role-store.mjs, which owns a disposable local database.
 
 use super::*;
 use crate::{apply_postgres_role_store_schema_v1, PostgresRoleSqlSessionV1};
 use serde_json::json;
 use tokio_postgres::{Client, Config, NoTls};
 
-mod commit_proxy;
 mod lifecycle;
+mod protocol_proxy;
 
 type Store = TenantRootRoleShareStoreV1<PostgresRoleSqlSessionV1>;
 
@@ -30,6 +30,19 @@ async fn connect_config(config: &Config) -> Client {
 
 async fn store(variable: &str, role: CloudflareTenantRootDeriverRoleV1) -> Store {
     store_with_client(connect(variable).await, role).await
+}
+
+async fn traced_store(
+    variable: &str,
+    role: CloudflareTenantRootDeriverRoleV1,
+) -> (Store, protocol_proxy::ProtocolProbe) {
+    let mut config: Config = std::env::var(variable)
+        .expect("E2E database URL")
+        .parse()
+        .expect("database config");
+    config.options("-c standard_conforming_strings=off");
+    let (client, probe) = protocol_proxy::connect(&config).await;
+    (store_with_client(client, role).await, probe)
 }
 
 async fn store_with_client(client: Client, role: CloudflareTenantRootDeriverRoleV1) -> Store {
@@ -134,8 +147,9 @@ async fn create_and_activate(
                 .expect("A URL")
                 .parse()
                 .expect("A config");
-            let (client, proxy) = commit_proxy::connect(&config).await;
+            let (client, mut proxy) = protocol_proxy::connect(&config).await;
             let through_proxy = store_with_client(client, role).await;
+            proxy.drop_next_commit();
             assert!(
                 through_proxy
                     .complete_initial_creation(executed, receipt)
@@ -143,10 +157,7 @@ async fn create_and_activate(
                     .is_err(),
                 "lost COMMIT acknowledgement must remain an uncertain outcome"
             );
-            assert!(
-                proxy.await.expect("proxy task").expect("proxy relay"),
-                "the real server must send COMMIT before the fault"
-            );
+            proxy.assert_committed_fault().await;
         }
         CloudflareTenantRootDeriverRoleV1::DeriverB => {
             store
@@ -248,12 +259,13 @@ async fn checkpoint_rollback(store: &Store, admin: &Client) {
     admin.batch_execute("DROP TRIGGER skip_checkpoint ON tenant_root_command_replays; DROP FUNCTION skip_checkpoint();").await.expect("remove fault");
 }
 
-async fn root_admissions(store: &Store) {
+async fn root_admissions(store: &Store, probe: &protocol_proxy::ProtocolProbe) {
     let binding = test_custody_binding();
     let cancelled = TenantRootRootUseAttemptV1::Ed25519YaoPairSession {
         session: [0x01; 32],
         pair_object: None,
     };
+    probe.reset();
     assert!(matches!(
         store
             .load_bound(&binding, &cancelled, 41)
@@ -261,6 +273,11 @@ async fn root_admissions(store: &Store) {
             .expect("admit"),
         TenantRootBoundShareV1::Readable(_)
     ));
+    assert_eq!(
+        probe.exchanges(),
+        2,
+        "admission preserves D1's two exchanges"
+    );
     store
         .cancel_unclaimed_root_use_admissions(
             binding.identity_digest(),
@@ -401,51 +418,14 @@ fn refresh_activation(
     VerifiedTenantRootSignedActivationReceiptV1,
 ) {
     let context = postgres_refresh_context();
-    let evidence_a =
-        test_signed_installation_evidence(&context, TwoPartyDeriverRole::DeriverA, 18, 31);
-    let evidence_b =
-        test_signed_installation_evidence(&context, TwoPartyDeriverRole::DeriverB, 18, 31);
-    let backup_a = test_verified_managed_backup(
-        &context,
-        TwoPartyDeriverRole::DeriverA,
-        18,
-        0x88,
-        &evidence_a,
-    );
-    let backup_b = test_verified_managed_backup(
-        &context,
-        TwoPartyDeriverRole::DeriverB,
-        31,
-        0x89,
-        &evidence_b,
-    );
     let target = TenantRootEpochCommitmentsV1::new(
         pair_commitment(CloudflareTenantRootDeriverRoleV1::DeriverA, 18),
         pair_commitment(CloudflareTenantRootDeriverRoleV1::DeriverB, 31),
     )
     .expect("new commitments preserve the public root");
     assert_eq!(target.root_commitment(), current.root_commitment());
-    let ecdsa = test_verified_provider_canary(
-        &context,
-        TenantRootActivationReceiptTransitionV1::RefreshSwap,
-        epoch(2),
-        &target,
-        TenantRootCanaryCurveFamilyV1::Ecdsa,
-        0x8a,
-    );
-    let ed25519 = test_verified_provider_canary(
-        &context,
-        TenantRootActivationReceiptTransitionV1::RefreshSwap,
-        epoch(2),
-        &target,
-        TenantRootCanaryCurveFamilyV1::Ed25519,
-        0x8b,
-    );
     let bundle =
-        VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_managed_backups(
-            current, evidence_a, evidence_b, backup_a, backup_b, ecdsa, ed25519, 2, 3,
-        )
-        .expect("refresh evidence");
+        test_refresh_activation_bundle_for_context(&context, current, &target, 18, 31, 0x88, 0x8a);
     let key = SigningKey::from_bytes(&[0x89; 32]);
     let authority = TenantRootControlPlaneAuthorityIdV1::from_bytes([0x48; 32]);
     let signed = TenantRootSignedActivationReceiptV1::sign_refresh_swap(
@@ -650,6 +630,7 @@ async fn swap_checkpoint_rollback(
 async fn rotate(
     store: &Store,
     admin: &Client,
+    probe: &protocol_proxy::ProtocolProbe,
     active: CloudflareStoredTenantRootRoleShareV1,
     pair: &TenantRootActiveRootPairV1,
     current: &TenantRootEpochCommitmentsV1,
@@ -698,10 +679,16 @@ async fn rotate(
         CloudflareTenantRootSwapActiveEpochDecisionV1::ResumeExecution { command } => command,
         _ => panic!("rolled-back swap must resume execution"),
     };
+    probe.reset();
     let ((retired, activated), executed) = store
         .swap_active_epoch(command, 60)
         .await
         .expect("atomic retire and activate");
+    assert_eq!(
+        probe.exchanges(),
+        1,
+        "all three mutations share one exchange"
+    );
     let receipt = success_receipt(&executed, activation.activation_receipt_bytes(), 61);
     store
         .complete_activation(executed, &activation, receipt)
@@ -736,7 +723,29 @@ async fn concurrent_write(admin: &Client, key: i64) {
         .expect("release reader");
 }
 
-async fn snapshot_and_retry(store: &Store, admin: &Client) {
+async fn read_between_attempts(store: &Store, admin: &Client, key: i64) {
+    wait_for_advisory_waiter(admin, key).await;
+    let statement = store
+        .session
+        .prepare("SELECT value FROM role_store_e2e_counter WHERE id = 1");
+    let queued_read = statement.first::<serde_json::Value>(None);
+    tokio::pin!(queued_read);
+    assert!(
+        futures::poll!(queued_read.as_mut()).is_pending(),
+        "the competing reader must queue while the first attempt owns the session"
+    );
+    concurrent_write(admin, key).await;
+    assert_eq!(
+        queued_read
+            .await
+            .expect("read during retry delay")
+            .expect("counter row")["value"],
+        1,
+        "rollback must release the session before the second attempt increments to two"
+    );
+}
+
+async fn snapshot_and_retry(store: &Store, admin: &Client, probe: &protocol_proxy::ProtocolProbe) {
     let key = 315_701_i64;
     admin
         .query_one("SELECT pg_advisory_lock($1)", &[&key])
@@ -757,8 +766,14 @@ async fn snapshot_and_retry(store: &Store, admin: &Client) {
     let read = store
         .session
         .transaction(vec![first.into(), rendezvous.into(), last.into()]);
+    probe.reset();
     let (read, ()) = tokio::join!(read, concurrent_write(admin, key));
     let read = read.expect("coherent snapshot");
+    assert_eq!(
+        probe.exchanges(),
+        1,
+        "three snapshot reads share one exchange"
+    );
     assert_eq!(
         read[0].results::<serde_json::Value>().expect("first value")[0]["value"],
         0
@@ -794,8 +809,14 @@ async fn snapshot_and_retry(store: &Store, admin: &Client) {
         rendezvous.into(),
         update.expect_changes(1),
     ]);
-    let (result, ()) = tokio::join!(transaction, concurrent_write(admin, key));
+    probe.reset();
+    let (result, ()) = tokio::join!(transaction, read_between_attempts(store, admin, key));
     let result = result.expect("serialization retries the complete transaction");
+    assert_eq!(
+        probe.exchanges(),
+        3,
+        "two transaction attempts and the competing reader use three exchanges"
+    );
     assert_eq!(
         result[0]
             .results::<serde_json::Value>()
@@ -824,12 +845,12 @@ async fn postgres_role_store_e2e() {
         .expect("B schema");
     admin_a.batch_execute("CREATE TABLE role_store_e2e_counter (id INTEGER PRIMARY KEY, value BIGINT NOT NULL); INSERT INTO role_store_e2e_counter VALUES (1, 0); GRANT USAGE ON SCHEMA public TO runtime_a; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO runtime_a;").await.expect("A runtime grants");
     admin_b.batch_execute("GRANT USAGE ON SCHEMA public TO runtime_b; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO runtime_b;").await.expect("B runtime grants");
-    let a = store(
+    let (a, probe_a) = traced_store(
         "POSTGRES_ROLE_E2E_A_URL",
         CloudflareTenantRootDeriverRoleV1::DeriverA,
     )
     .await;
-    let b = store(
+    let (b, probe_b) = traced_store(
         "POSTGRES_ROLE_E2E_B_URL",
         CloudflareTenantRootDeriverRoleV1::DeriverB,
     )
@@ -851,9 +872,50 @@ async fn postgres_role_store_e2e() {
     );
     let active_a = create_and_activate(&a, CloudflareTenantRootDeriverRoleV1::DeriverA).await;
     let active_b = create_and_activate(&b, CloudflareTenantRootDeriverRoleV1::DeriverB).await;
+    for _ in 0..2 {
+        probe_a.reset();
+        assert_eq!(
+            a.load_epoch(
+                &test_identity(),
+                active_a.record.custody_lineage(),
+                epoch(1)
+            )
+            .await
+            .expect("single-exchange read"),
+            Some(active_a.clone())
+        );
+        assert_eq!(
+            probe_a.exchanges(),
+            1,
+            "first and repeated reads use one exchange"
+        );
+    }
+    let hostile = "'; COMMIT; DROP TABLE tenant_root_role_shares; --\\\n日本語 $2";
+    let parameters = [
+        RoleSqlValue::Null,
+        RoleSqlValue::Text(hostile),
+        RoleSqlValue::Null,
+    ];
+    probe_a.reset();
+    let echoed = a
+        .session
+        .prepare(
+            "SELECT $2::TEXT AS value, $2::TEXT AS repeated, $3::TEXT AS empty, '$2' AS literal",
+        )
+        .bind_refs(parameters.iter())
+        .expect("hostile text bindings")
+        .first::<serde_json::Value>(None)
+        .await
+        .expect("bound data remains literal")
+        .expect("echoed row");
+    assert_eq!(
+        echoed,
+        json!({"value": hostile, "repeated": hostile, "empty": null, "literal": "$2"})
+    );
+    assert_eq!(probe_a.exchanges(), 1);
     checkpoint_rollback(&a, &admin_a).await;
-    root_admissions(&a).await;
-    root_admissions(&b).await;
+    root_admissions(&a, &probe_a).await;
+    root_admissions(&b, &probe_b).await;
     let current_commitments = TenantRootEpochCommitmentsV1::new(
         active_a.record.share_commitment().clone(),
         active_b.record.share_commitment().clone(),
@@ -871,8 +933,15 @@ async fn postgres_role_store_e2e() {
     let restored = lifecycle::restore_pending(&a, &admin_a, &active_a).await;
     let (active_a, _) =
         lifecycle::forward_refresh(&a, restored, &active_pair, &current_commitments).await;
-    let (retired_b, active_b, active_receipt_b) =
-        rotate(&b, &admin_b, active_b, &active_pair, &current_commitments).await;
+    let (retired_b, active_b, active_receipt_b) = rotate(
+        &b,
+        &admin_b,
+        &probe_b,
+        active_b,
+        &active_pair,
+        &current_commitments,
+    )
+    .await;
     lifecycle::cleanup_retired(&b, &retired_b, &active_b).await;
     lifecycle::restore_import_and_retention(&b, &active_b).await;
     lifecycle::source_retirement(&b, &active_b, active_receipt_b).await;
@@ -894,7 +963,7 @@ async fn postgres_role_store_e2e() {
             .expect("restart load"),
         Some(active_a.clone())
     );
-    snapshot_and_retry(&a, &admin_a).await;
+    snapshot_and_retry(&a, &admin_a, &probe_a).await;
     let version: String = admin_a
         .query_one("SELECT version()", &[])
         .await
@@ -915,6 +984,11 @@ async fn postgres_role_store_e2e() {
         "atomicEpochSwapPerRole": true, "reopenedConnectionDecryptsSameRecord": true,
         "coherentReadSnapshotAcrossConcurrentCommit": true,
         "serializationRetriesCompleteTransaction": true,
+        "sessionAvailableDuringRetryDelay": true,
+        "literalBindingsPreserveHostileTextAndNull": true,
+        "protocolExchanges": {"singleRead": 1, "repeatedRead": 1, "rootAdmission": 2,
+            "threeMutationEpochSwap": 1, "threeStatementSnapshot": 1,
+            "serializationConflictAndConcurrentRead": 3},
         "activatedEpochs": [active_a.record.epoch().get().get(), active_b.record.epoch().get().get()]
     });
     let path = std::env::var("POSTGRES_ROLE_E2E_EVIDENCE_PATH").expect("evidence path");

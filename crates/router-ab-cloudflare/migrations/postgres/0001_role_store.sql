@@ -1,4 +1,16 @@
 -- PostgreSQL role-private schema. Apply once to an empty database.
+-- Row-count failures must abort the implicit transaction before its commit.
+CREATE FUNCTION public.require_tenant_root_row_count(actual BIGINT, expected BIGINT)
+RETURNS BIGINT LANGUAGE plpgsql AS $$
+BEGIN
+    IF actual <> expected THEN
+        RAISE EXCEPTION 'tenant-root affected-row requirement failed: expected %, actual %',
+            expected, actual USING ERRCODE = '23514';
+    END IF;
+    RETURN actual;
+END;
+$$;
+
 CREATE TABLE tenant_root_command_replays (
     replay_key_digest_hex TEXT PRIMARY KEY CHECK (
         length(replay_key_digest_hex) = 64

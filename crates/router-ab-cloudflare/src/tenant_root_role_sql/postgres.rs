@@ -3,15 +3,12 @@ use super::{
     RoleSqlStatement, RoleSqlTransactionStatement, RoleStoreError, RoleStoreResult,
 };
 use crate::CloudflareTenantRootDeriverRoleV1;
-use futures::{pin_mut, TryStreamExt};
+use postgres_protocol::escape::escape_literal;
 use serde::de::DeserializeOwned;
-use serde_json::{Map, Value};
+use serde::Deserialize;
+use serde_json::Value;
 use tokio::sync::Mutex;
-use tokio_postgres::{
-    error::SqlState,
-    types::{ToSql, Type},
-    Client, IsolationLevel, Row, Transaction,
-};
+use tokio_postgres::{error::SqlState, Client, SimpleQueryMessage};
 
 const SERIALIZATION_RETRIES: usize = 3;
 const SCHEMA: &str = include_str!("../../migrations/postgres/0001_role_store.sql");
@@ -55,7 +52,7 @@ impl PostgresRoleSqlSessionV1 {
         role: CloudflareTenantRootDeriverRoleV1,
     ) -> RoleStoreResult<Self> {
         let row = client
-            .query_one("SELECT public.tenant_root_store_role()", &[])
+            .query_typed_one("SELECT public.tenant_root_store_role()", &[])
             .await
             .map_err(database_error)?;
         let stored_role: String = row.try_get(0).map_err(database_error)?;
@@ -73,19 +70,21 @@ impl PostgresRoleSqlSessionV1 {
         &self,
         statements: &[(&RoleSqlStatement<'_, Self>, Option<usize>)],
     ) -> RoleStoreResult<Vec<PostgresRoleSqlOutcomeV1>> {
-        let mut client = self.client.lock().await;
+        if statements.is_empty() {
+            return Ok(Vec::new());
+        }
+        let sql = transaction_sql(statements)?;
         for attempt in 0..=SERIALIZATION_RETRIES {
-            match execute_transaction(&mut client, statements).await {
-                Ok(outcomes) => return Ok(outcomes),
-                Err(PostgresTransactionError::Database(error))
-                    if retryable(&error) && attempt < SERIALIZATION_RETRIES =>
-                {
+            let result = {
+                let client = self.client.lock().await;
+                client.simple_query(&sql).await
+            };
+            match result {
+                Ok(messages) => return decode_outcomes(messages, statements.len()),
+                Err(error) if retryable(&error) && attempt < SERIALIZATION_RETRIES => {
                     tokio::time::sleep(std::time::Duration::from_millis(5 << attempt)).await;
                 }
-                Err(PostgresTransactionError::Database(error)) => {
-                    return Err(database_error(error))
-                }
-                Err(PostgresTransactionError::Store(error)) => return Err(error),
+                Err(error) => return Err(database_error(error)),
             }
         }
         unreachable!("every transaction attempt returns or retries")
@@ -93,6 +92,8 @@ impl PostgresRoleSqlSessionV1 {
 }
 
 /// Fully decoded outcomes return only after the transaction commits.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PostgresRoleSqlOutcomeV1 {
     changes: usize,
     rows: Vec<Value>,
@@ -167,170 +168,105 @@ impl RoleSqlSessionV1 for PostgresRoleSqlSessionV1 {
     }
 }
 
-enum PostgresTransactionError {
-    Database(tokio_postgres::Error),
-    Store(RoleStoreError),
-}
-
-impl From<tokio_postgres::Error> for PostgresTransactionError {
-    fn from(error: tokio_postgres::Error) -> Self {
-        Self::Database(error)
-    }
-}
-
-impl From<RoleStoreError> for PostgresTransactionError {
-    fn from(error: RoleStoreError) -> Self {
-        Self::Store(error)
-    }
-}
-
-async fn execute_transaction(
-    client: &mut Client,
+fn transaction_sql(
     statements: &[(
         &RoleSqlStatement<'_, PostgresRoleSqlSessionV1>,
         Option<usize>,
     )],
-) -> Result<Vec<PostgresRoleSqlOutcomeV1>, PostgresTransactionError> {
-    let transaction = client
-        .build_transaction()
-        .isolation_level(IsolationLevel::Serializable)
-        .start()
-        .await?;
-    // A caller's connection defaults must not weaken acknowledged commit durability.
-    transaction
-        .batch_execute("SET LOCAL search_path = public, pg_catalog, pg_temp; SET LOCAL synchronous_commit = on")
-        .await?;
-    let result = execute_statements(&transaction, statements).await;
-    match result {
-        Ok(outcomes) => {
-            transaction.commit().await?;
-            Ok(outcomes)
-        }
-        Err(error) => {
-            transaction.rollback().await?;
-            Err(error)
-        }
-    }
-}
-
-async fn execute_statements(
-    transaction: &Transaction<'_>,
-    statements: &[(
-        &RoleSqlStatement<'_, PostgresRoleSqlSessionV1>,
-        Option<usize>,
-    )],
-) -> Result<Vec<PostgresRoleSqlOutcomeV1>, PostgresTransactionError> {
-    let mut outcomes = Vec::with_capacity(statements.len());
+) -> RoleStoreResult<String> {
+    // PostgreSQL executes one Simple Query message as one implicit transaction.
+    // Errors roll back the entire message. ReadyForQuery acknowledges its commit.
+    let mut batch = String::from(
+        "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE; \
+         SET LOCAL search_path = public, pg_catalog, pg_temp; \
+         SET LOCAL synchronous_commit = on; ",
+    );
     for (statement, expected) in statements {
-        let outcome = execute_statement(transaction, statement).await?;
-        if expected.is_some_and(|count| count != outcome.changes) {
-            return Err(RoleStoreError::message(
-                "PostgreSQL role-store affected-row requirement failed",
-            )
-            .into());
+        let sql = bind_sql(statement)?;
+        let sql = sql.trim().trim_end_matches(';');
+        match sql.split_whitespace().next() {
+            Some("SELECT") if expected.is_none() => {
+                batch.push_str(&format!(
+                    "SELECT json_build_object('changes', 0, 'rows', \
+                     COALESCE(json_agg(row_to_json(role_store_row)), '[]'::JSON))::TEXT \
+                     FROM ({sql}) AS role_store_row; "
+                ));
+            }
+            Some("INSERT" | "UPDATE" | "DELETE") => {
+                let changes = match expected {
+                    Some(count) => {
+                        let count = i64::try_from(*count).map_err(|_| {
+                            RoleStoreError::message("role-store row count exceeds BIGINT")
+                        })?;
+                        format!("public.require_tenant_root_row_count(COUNT(*), {count})")
+                    }
+                    None => "COUNT(*)".to_owned(),
+                };
+                batch.push_str(&format!(
+                    "WITH role_store_changes AS ({sql} RETURNING 1) \
+                     SELECT json_build_object('changes', {changes}, 'rows', '[]'::JSON)::TEXT \
+                     FROM role_store_changes; "
+                ));
+            }
+            _ => {
+                return Err(RoleStoreError::message(
+                    "role store requires SELECT or a non-returning INSERT, UPDATE, or DELETE",
+                ));
+            }
         }
-        outcomes.push(outcome);
     }
-    Ok(outcomes)
+    Ok(batch)
 }
 
-async fn execute_statement(
-    transaction: &Transaction<'_>,
-    statement: &RoleSqlStatement<'_, PostgresRoleSqlSessionV1>,
-) -> Result<PostgresRoleSqlOutcomeV1, PostgresTransactionError> {
-    // SQLite permits unused numbered positions. PostgreSQL needs an explicit
-    // type for each unused position, while inferring used positions from SQL.
-    let mut types = vec![Type::TEXT; statement.params().len()];
-    for (_, position) in parameter_positions(statement.sql())? {
-        let parameter_type = types.get_mut(position - 1).ok_or_else(|| {
+fn bind_sql(statement: &RoleSqlStatement<'_, PostgresRoleSqlSessionV1>) -> RoleStoreResult<String> {
+    let mut sql = String::new();
+    let mut previous = 0;
+    for (range, position) in parameter_positions(statement.sql())? {
+        sql.push_str(&statement.sql()[previous..range.start]);
+        let value = statement.params().get(position - 1).ok_or_else(|| {
             RoleStoreError::message("role-store SQL parameter exceeds its bindings")
         })?;
-        *parameter_type = Type::UNKNOWN;
-    }
-    let prepared = transaction.prepare_typed(statement.sql(), &types).await?;
-    let values = bind_parameters(statement.params(), prepared.params())?;
-    let parameters: Vec<&(dyn ToSql + Sync)> = values.iter().map(parameter_ref).collect();
-    let stream = transaction.query_raw(&prepared, parameters).await?;
-    pin_mut!(stream);
-    let mut rows = Vec::new();
-    while let Some(row) = stream.try_next().await? {
-        rows.push(decode_row(&row)?);
-    }
-    let changes = usize::try_from(stream.rows_affected().unwrap_or_default())
-        .map_err(|_| RoleStoreError::message("PostgreSQL row count exceeds usize"))?;
-    Ok(PostgresRoleSqlOutcomeV1 { changes, rows })
-}
-
-fn bind_parameters(
-    values: &[RoleSqlOwnedValueV1],
-    types: &[Type],
-) -> RoleStoreResult<Vec<Box<dyn ToSql + Sync + Send>>> {
-    let mut parameters: Vec<Box<dyn ToSql + Sync + Send>> = Vec::with_capacity(values.len());
-    for (value, parameter_type) in values.iter().zip(types) {
-        let text = match value {
-            RoleSqlOwnedValueV1::Text(text) => Some(text.as_str()),
-            RoleSqlOwnedValueV1::Null => None,
-        };
-        let parameter: Box<dyn ToSql + Sync + Send> = match *parameter_type {
-            Type::TEXT | Type::VARCHAR | Type::BPCHAR => Box::new(text.map(str::to_owned)),
-            Type::INT8 => Box::new(parse_integer::<i64>(text)?),
-            Type::INT4 => Box::new(parse_integer::<i32>(text)?),
-            Type::INT2 => Box::new(parse_integer::<i16>(text)?),
-            _ => {
-                return Err(RoleStoreError::message(format!(
-                    "unsupported role-store parameter type: {parameter_type}"
-                )))
+        match value {
+            RoleSqlOwnedValueV1::Null => sql.push_str("NULL"),
+            RoleSqlOwnedValueV1::Text(text) => {
+                if text.contains('\0') {
+                    return Err(RoleStoreError::message("PostgreSQL text contains NUL"));
+                }
+                sql.push_str(&escape_literal(text));
             }
-        };
-        parameters.push(parameter);
+        }
+        previous = range.end;
     }
-    Ok(parameters)
+    sql.push_str(&statement.sql()[previous..]);
+    Ok(sql)
 }
 
-fn parse_integer<T: core::str::FromStr>(text: Option<&str>) -> RoleStoreResult<Option<T>> {
-    text.map(str::parse)
-        .transpose()
-        .map_err(|_| RoleStoreError::message("invalid role-store integer parameter"))
-}
-
-fn parameter_ref(value: &Box<dyn ToSql + Sync + Send>) -> &(dyn ToSql + Sync) {
-    value.as_ref()
-}
-
-fn decode_row(row: &Row) -> RoleStoreResult<Value> {
-    let mut object = Map::new();
-    for (index, column) in row.columns().iter().enumerate() {
-        let value = match *column.type_() {
-            Type::TEXT | Type::VARCHAR | Type::BPCHAR => serde_json::to_value(
-                row.try_get::<_, Option<String>>(index)
-                    .map_err(database_error)?,
-            ),
-            Type::INT8 => serde_json::to_value(
-                row.try_get::<_, Option<i64>>(index)
-                    .map_err(database_error)?,
-            ),
-            Type::INT4 => serde_json::to_value(
-                row.try_get::<_, Option<i32>>(index)
-                    .map_err(database_error)?,
-            ),
-            Type::INT2 => serde_json::to_value(
-                row.try_get::<_, Option<i16>>(index)
-                    .map_err(database_error)?,
-            ),
-            Type::BOOL => serde_json::to_value(
-                row.try_get::<_, Option<bool>>(index)
-                    .map_err(database_error)?,
-            ),
-            _ => {
+fn decode_outcomes(
+    messages: Vec<SimpleQueryMessage>,
+    expected_count: usize,
+) -> RoleStoreResult<Vec<PostgresRoleSqlOutcomeV1>> {
+    let mut outcomes = Vec::with_capacity(expected_count);
+    for message in messages {
+        if let SimpleQueryMessage::Row(row) = message {
+            let encoded = row
+                .try_get(0)
+                .map_err(database_error)?
+                .ok_or_else(|| RoleStoreError::message("PostgreSQL role-store outcome is NULL"))?;
+            if row.len() != 1 {
                 return Err(RoleStoreError::message(format!(
-                    "unsupported role-store result type: {}",
-                    column.type_()
-                )))
+                    "PostgreSQL role-store outcome has {} columns",
+                    row.len()
+                )));
             }
-        }?;
-        object.insert(column.name().to_owned(), value);
+            outcomes.push(serde_json::from_str(encoded)?);
+        }
     }
-    Ok(Value::Object(object))
+    if outcomes.len() != expected_count {
+        return Err(RoleStoreError::message(
+            "PostgreSQL role-store outcome count differs from its batch",
+        ));
+    }
+    Ok(outcomes)
 }
 
 fn retryable(error: &tokio_postgres::Error) -> bool {

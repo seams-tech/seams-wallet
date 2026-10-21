@@ -17805,7 +17805,12 @@ fn store_error(message: impl Into<String>) -> RoleStoreError {
 #[cfg(test)]
 mod tests {
     #[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
-    mod postgres_e2e;
+    mod postgres_e2e {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/postgres_role_store/mod.rs"
+        ));
+    }
     use curve25519_dalek::{
         ristretto::{CompressedRistretto, RistrettoPoint},
         scalar::Scalar,
@@ -18660,50 +18665,74 @@ mod tests {
         canary_seed: u8,
     ) -> VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
         let (target_commitments, scalar_a, scalar_b, context) = test_activation_target(record);
-        let evidence_a = test_signed_installation_evidence(
+        test_refresh_activation_bundle_for_context(
             &context,
+            &test_refresh_current_commitments(&target_commitments),
+            &target_commitments,
+            scalar_a,
+            scalar_b,
+            backup_seed,
+            canary_seed,
+        )
+    }
+
+    fn test_refresh_activation_bundle_for_context(
+        context: &TenantRootCeremonyContextV1,
+        current_commitments: &TenantRootEpochCommitmentsV1,
+        target_commitments: &TenantRootEpochCommitmentsV1,
+        scalar_a: u64,
+        scalar_b: u64,
+        backup_seed: u8,
+        canary_seed: u8,
+    ) -> VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1 {
+        let target_epoch = match context.epochs() {
+            TenantRootCeremonyEpochsV1::Refresh { next, .. } => next,
+            TenantRootCeremonyEpochsV1::Create { .. } => panic!("refresh context required"),
+        };
+        let evidence_a = test_signed_installation_evidence(
+            context,
             TwoPartyDeriverRole::DeriverA,
             scalar_a,
             scalar_b,
         );
         let evidence_b = test_signed_installation_evidence(
-            &context,
+            context,
             TwoPartyDeriverRole::DeriverB,
             scalar_a,
             scalar_b,
         );
         let backup_a = test_verified_managed_backup(
-            &context,
+            context,
             TwoPartyDeriverRole::DeriverA,
             scalar_a,
             backup_seed,
             &evidence_a,
         );
         let backup_b = test_verified_managed_backup(
-            &context,
+            context,
             TwoPartyDeriverRole::DeriverB,
             scalar_b,
             backup_seed.wrapping_add(1),
             &evidence_b,
         );
         let canary_ecdsa = test_verified_provider_canary(
-            &context,
+            context,
             TenantRootActivationReceiptTransitionV1::RefreshSwap,
-            record.epoch(),
-            &target_commitments,
+            target_epoch,
+            target_commitments,
             TenantRootCanaryCurveFamilyV1::Ecdsa,
             canary_seed,
         );
         let canary_ed25519 = test_verified_provider_canary(
-            &context,
+            context,
             TenantRootActivationReceiptTransitionV1::RefreshSwap,
-            record.epoch(),
-            &target_commitments,
+            target_epoch,
+            target_commitments,
             TenantRootCanaryCurveFamilyV1::Ed25519,
             canary_seed.wrapping_add(1),
         );
         VerifiedTenantRootRefreshSwapActivationEvidenceBundleV1::from_verified_managed_backups(
-            &test_refresh_current_commitments(&target_commitments),
+            current_commitments,
             evidence_a,
             evidence_b,
             backup_a,

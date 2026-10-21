@@ -8,35 +8,45 @@
   "coherentReadSnapshotAcrossConcurrentCommit": true,
   "encryptedCreationAndSignedReceiptReplay": true,
   "kind": "postgres_role_store_e2e_v1",
+  "literalBindingsPreserveHostileTextAndNull": true,
   "lostCommitAcknowledgementReconcilesExactReceipt": true,
   "managedRestoreRemainsPendingUntilForwardRefresh": true,
   "missedSwapCheckpointRestoresBothEpochsAndReplay": true,
+  "protocolExchanges": {
+    "repeatedRead": 1,
+    "rootAdmission": 2,
+    "serializationConflictAndConcurrentRead": 3,
+    "singleRead": 1,
+    "threeMutationEpochSwap": 1,
+    "threeStatementSnapshot": 1
+  },
   "reopenedConnectionDecryptsSameRecord": true,
   "restoreImportAndRetentionRoundTrips": true,
   "retiredEpochCleanupPreservesActiveSuccessor": true,
   "separateRoleDatabasesAndCredentials": true,
   "serializationRetriesCompleteTransaction": true,
   "server": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "sessionAvailableDuringRetryDelay": true,
   "sourceRetirementRejectsLateWrites": true,
   "unclaimedCancellationAndClaimedSettlement": true,
   "wrongRoleSessionRejected": true,
-  "recordedAt": "2026-10-20T23:52:52.526Z",
+  "recordedAt": "2026-10-21T01:16:26.619Z",
   "reproduce": "pnpm -C crates/router-ab-cloudflare test:postgres-role-store",
   "image": "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
   "imageId": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
   "cargo": "cargo test --features postgres --lib postgres_role_store_e2e -- --nocapture",
   "log": {
     "path": ".artifacts/postgres-role-store/run.log",
-    "sha256": "6672b7049e34dbdd77c61f6d684aaf8f6b634aebe76e3626523689878503d0d6"
+    "sha256": "bc453580fd67de0528e5d73af572f8bda29511f43956336831e91dfeef89ee68"
   },
   "sources": [
     {
       "path": "crates/router-ab-cloudflare/Cargo.toml",
-      "sha256": "e4126fc4363ee69bfecf04e359fee3d24f7b723290cd775b8f766ad3a31dc4de"
+      "sha256": "119185d487734a535d432e37948306e1ce9a087c4491c3adfc88e7b681a83664"
     },
     {
       "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs",
-      "sha256": "80e5ef988d728469289fb211d7111b559323a1a01a86290c34059075b065c3b6"
+      "sha256": "3b65f2367c55472d98cbcf2788c0ec0ef93888ca72dcc9f618a6d5c64aec27e7"
     },
     {
       "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql.rs",
@@ -48,18 +58,18 @@
     },
     {
       "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
-      "sha256": "bfa8a7d687e6ec819d3e27e44db2eb0632be56fcc16178f4940c09e75a3d2c30"
+      "sha256": "f45a3a235e71d98438177a7c25d230532752699daa4ab22991c306be8896bf1f"
     },
     {
-      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e.rs",
-      "sha256": "9a0800d9c442fb63281310bd867782bd6bc70afbd49d6256e8240a072328a1ab"
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/mod.rs",
+      "sha256": "0d00a662b1365052bd452b9d24eaacfc922582edfa618cebf7587f45b7e1a3c0"
     },
     {
-      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e/commit_proxy.rs",
-      "sha256": "8bb3d6128aa3f32a69fa390fd6d7c5f5d770476aa907a58e53b58f02ecf0eb15"
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/protocol_proxy.rs",
+      "sha256": "cf73710e9bb0284cb16c26418b11463ed77097e2843541e746729bf615c58521"
     },
     {
-      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/tests/postgres_e2e/lifecycle.rs",
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/lifecycle.rs",
       "sha256": "76a9ad0e4a34176a41bbbece4c84e2415176ec674b76df301d14c7cae797f5e6"
     },
     {
@@ -76,15 +86,15 @@
     },
     {
       "path": "crates/router-ab-cloudflare/scripts/test-postgres-role-store.mjs",
-      "sha256": "657e8eb2c5b5b8e99b50aad6421fe02353bcb41b9407721e0a732d3aa303a394"
+      "sha256": "5938b43bba4770a0e3f3b7442486ef22400968d118e386fa5c025247ce38c034"
     },
     {
       "path": "crates/router-ab-cloudflare/migrations/postgres/0001_role_store.sql",
-      "sha256": "53641e9877144ab26371e3b7f3c892e5ec9dc4714d1075422fccf1581be7ae37"
+      "sha256": "f0259cb7cc0088bf0ea6b5ee941591417ac27c36efc396533acb2fa05f673782"
     },
     {
       "path": "crates/router-ab-cloudflare/Cargo.lock",
-      "sha256": "c583a605fe8f67a760ad15ff6f8a3da4bcb4d3924bded3d6f63eb3adff1f5e62"
+      "sha256": "46195f043359547de25e665fad0d224805564a5a3e4fd62a7dca18117ae9b97d"
     }
   ],
   "d1CompatibilityChecks": [
@@ -308,10 +318,17 @@
       "command": "pnpm report:bloat --check",
       "exitCode": 0,
       "result": "No ratcheted measure grew."
+    },
+    "sharedRefreshFixture": {
+      "command": "cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml --features postgres --lib active_refresh_activation_retry_reconstructs_the_consumed_pending_revision",
+      "exitCode": 0,
+      "result": "The existing refresh fixture check passes after fixture consolidation."
     }
   },
   "scope": "Native PostgreSQL tenant-root role-store backend. Cloud deployment, provider poolers, Gateway/Console stores, and non-SQL host services remain separate work.",
   "concurrentChanges": "The main dev checkout includes separate registration-latency and ML-DSA work. This evidence identifies the source snapshot and does not claim a clean checkout.",
   "recordedLocalDate": "2026-10-21 Asia/Tokyo",
-  "d1CompatibilityScope": "All three D1 scenarios passed against the final production Rust changes. The later PostgreSQL test-only addition verifies failed epoch-swap rollback and does not change the Workers runtime."
+  "d1CompatibilityScope": "The recorded D1 checks cover the unchanged D1 driver and shared lifecycle SQL. This revision changes only the native PostgreSQL driver, its schema, and test-only fixtures. It preserves the D1 call pattern.",
+  "protocolMeasurement": "The TCP proxy counts ReadyForQuery responses after authentication and role-session setup. Each counted response terminates one Query message or Sync. Successful batches use one Query message. Each serialization retry is a separate batch attempt.",
+  "workerBuildInputs": "PostgreSQL E2E modules moved outside src to tests/postgres_role_store. The Worker freshness walker scans src and Cargo.toml, so edits to these E2E modules do not invalidate Worker build stamps."
 }
