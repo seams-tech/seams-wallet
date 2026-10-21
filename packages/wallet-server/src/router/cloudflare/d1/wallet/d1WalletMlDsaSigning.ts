@@ -624,18 +624,27 @@ export class D1WalletMlDsaSigning {
     if (response.status !== 200) throw new Error('Router request failed');
     if (raw.status === 'unavailable') {
       if (
+        (raw.reason !== 'service_capacity' &&
+          raw.reason !== 'wallet_cooldown' &&
+          raw.reason !== 'empty_pool') ||
         typeof raw.retry_at_ms !== 'number' ||
         !Number.isSafeInteger(raw.retry_at_ms) ||
         raw.retry_at_ms < 0
       )
         throw new Error('Invalid retry');
-      return { kind: 'retry', reason: 'unavailable', retryAtMs: raw.retry_at_ms };
+      let retryAtMs = raw.retry_at_ms;
+      if (raw.reason === 'service_capacity') {
+        // A completed operation releases capacity before its lease deadline.
+        retryAtMs = Math.min(retryAtMs, Date.now() + 500);
+      }
+      return { kind: 'retry', reason: 'unavailable', retryAtMs };
     }
     if (raw.status !== 'existing') throw new Error('Invalid Router operation');
     const operation = requireRecord(raw.operation, 'ML-DSA operation');
-    if (operation.state === 'running')
+    if (operation.state === 'preparing' || operation.state === 'running')
       return { kind: 'retry', reason: 'running', retryAtMs: Date.now() + 500 };
-    if (operation.state === 'failed') return refusal('protocol_failed', 'ML-DSA signing failed');
+    if (operation.state === 'failed' || operation.state === 'declined')
+      return refusal('protocol_failed', 'ML-DSA signing failed');
     if (operation.state !== 'succeeded') throw new Error('Invalid Router state');
     const signature = base64UrlEncode(
       Uint8Array.from(requireBytes(operation.signature, 'ML-DSA signature', 3309, 3309)),

@@ -248,10 +248,6 @@ try {
   const refillStarted = performance.now();
   observations.activationAndInstallationMs = refillStarted - initialRefillStarted;
   await waitReady(policy.refill_target_batches);
-  const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
-  assert.equal(emptyReplay.status, 'existing');
-  assert.equal(emptyReplay.operation.state, 'declined');
-  observations.emptyPoolReplayRemainsDeclinedAfterRefill = true;
   const storedPools = await passiveInventories();
   observations.maximumPreparedChunkCounts = storedPools.map(maximumChunks);
   for (const chunks of observations.maximumPreparedChunkCounts) {
@@ -270,6 +266,13 @@ try {
   }
   // Let the full-pool maintenance alarm settle before the first consumption.
   await new Promise(waitForQuietPool);
+  const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
+  assert.equal(emptyReplay.status, 'existing');
+  assert.equal(emptyReplay.operation.state, 'succeeded');
+  verifyStandardSignature(records[0].public_key, emptyMessage, [], emptyReplay.operation.signature);
+  assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth), emptyReplay);
+  observations.emptyPoolRetryPreservesOperationAndSignature = true;
+  await waitReady(policy.refill_target_batches);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(policy.refill_target_batches);
     const message = digest(Array.from(Buffer.from(`ML-DSA durable Worker transaction ${index}`)));
