@@ -119,8 +119,22 @@ See the [dated evidence](https://github.com/seams-tech/seams-wallet/blob/main/do
 
 ## Prepared changes
 
-The development checkout contains version 0.15.6. Publication and deployment
-are pending. It gives the Google sign-in waiting screen
+The development checkout contains version 0.16.0. Publication and deployment
+are pending.
+
+This release changes the React API. `useSeams()` now supplies authentication
+actions and the current bound `wallet`. The `useWallet()` hook and
+`UseWalletResult` type are removed. Replace the two hook calls with:
+
+```tsx
+const { unlock, lock, wallet } = useSeams();
+```
+
+The wallet is `null` while signed out. Its NEAR signer remains `null` until a
+NEAR account is ready. Check `wallet?.near` before signing. Use the wallet
+from the authenticated render after unlock completes.
+
+The release also gives the Google sign-in waiting screen
 the same ring, headline, and instruction layout as the passkey waiting screen.
 It also loads the NEAR signing and export WASM modules before finalization,
 with shared initialization for concurrent callers. It retains compatibility
