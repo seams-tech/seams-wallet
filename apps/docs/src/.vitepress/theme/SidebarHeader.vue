@@ -31,21 +31,23 @@ const switchTitle = computed(appearanceTitle);
       <a class="seams-sidebar-header__brand" :href="brandHref" :aria-label="site.title">
         <VPImage class="seams-sidebar-header__logo" :image="theme.logo" alt="" />
       </a>
-      <button
-        class="seams-sidebar-header__appearance"
-        type="button"
-        role="switch"
-        :title="switchTitle"
-        :aria-label="switchTitle"
-        :aria-checked="isDark"
-        @click="toggleAppearance"
-      >
-        <span class="vpi-sun sun" aria-hidden="true" />
-        <span class="vpi-moon moon" aria-hidden="true" />
-      </button>
+      <div class="seams-sidebar-header__controls">
+        <LanguageSelector align="end" />
+        <button
+          class="seams-sidebar-header__appearance"
+          type="button"
+          role="switch"
+          :title="switchTitle"
+          :aria-label="switchTitle"
+          :aria-checked="isDark"
+          @click="toggleAppearance"
+        >
+          <span class="vpi-sun sun" aria-hidden="true" />
+          <span class="vpi-moon moon" aria-hidden="true" />
+        </button>
+      </div>
     </div>
     <VPNavBarSearch class="seams-sidebar-header__search" />
-    <LanguageSelector class="seams-sidebar-header__language" />
   </div>
 </template>
 
@@ -58,12 +60,15 @@ const switchTitle = computed(appearanceTitle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 16px;
 }
 
-.seams-sidebar-header__language {
-  margin-top: 12px;
+.seams-sidebar-header__controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
 }
 
 .seams-sidebar-header__brand {
@@ -74,7 +79,7 @@ const switchTitle = computed(appearanceTitle);
 .seams-sidebar-header__brand :deep(.seams-sidebar-header__logo) {
   display: block;
   width: auto;
-  height: 30px;
+  height: 26px;
 }
 
 .seams-sidebar-header__appearance {
