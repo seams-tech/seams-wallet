@@ -6991,13 +6991,6 @@ pub struct RouterAbTenantRootCreationDurableObject {
     authority_object_id: String,
 }
 
-struct LoadedTenantRootRoleCreationRequestV1 {
-    journal: ValidatedTenantRootCreationJournalV1,
-    command: VerifiedTenantRootRoleCreationCommandV1,
-    role_keys: TenantRootCreationRoleVerifyingKeysV1,
-    now_ms: u64,
-}
-
 #[cfg(feature = "workers-rs")]
 impl worker::DurableObject for RouterAbTenantRootCreationDurableObject {
     fn new(state: worker::State, env: worker::Env) -> Self {
@@ -7850,51 +7843,6 @@ impl RouterAbTenantRootCreationDurableObject {
         result
     }
 
-    async fn load_role_creation_request(
-        &self,
-        command_b64u: &str,
-    ) -> RouterAbProtocolResult<LoadedTenantRootRoleCreationRequestV1> {
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let authority_id = TenantRootControlPlaneAuthorityIdV1::from_bytes(decode_lower_hex_32(
-            "tenant-root creation Durable Object id",
-            &self.authority_object_id,
-        )?);
-        let journal_record = storage_get_optional::<CloudflareTenantRootCreationJournalRecordV1>(
-            &self.storage,
-            TENANT_ROOT_CREATION_JOURNAL_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root role creation request has no Started journal",
-            )
-        })?;
-        let journal = validate_creation_record(journal_record, authority_id, &issuer_keys)
-            .map_err(stored_record_error)?;
-        require_tenant_root_creation_authority_object_v1(
-            &self.env,
-            &self.authority_object_id,
-            journal.identity_digest,
-            journal.custody_lineage,
-        )?;
-        let command =
-            validate_role_creation_command(command_b64u, &journal, authority_id, &issuer_keys)?;
-        let role_keys = read_tenant_root_creation_role_verifying_keys(&self.env)?;
-        let now_ms = crate::cloudflare_now_unix_ms_v1()?;
-        Ok(LoadedTenantRootRoleCreationRequestV1 {
-            journal,
-            command,
-            role_keys,
-            now_ms,
-        })
-    }
-
     async fn persist(
         &self,
         request: CloudflareTenantRootCreationJournalRequestV1,
@@ -8115,34 +8063,6 @@ impl RouterAbTenantRootCreationDurableObject {
             )
         })?;
         result
-    }
-
-    async fn load_authoritative_active_refresh_state(
-        &self,
-    ) -> RouterAbProtocolResult<ValidatedTenantRootRefreshActiveStateV1> {
-        let authority_id = TenantRootControlPlaneAuthorityIdV1::from_bytes(decode_lower_hex_32(
-            "tenant-root creation Durable Object id",
-            &self.authority_object_id,
-        )?);
-        let issuer_keys_json = read_required_worker_var(
-            &self.env,
-            crate::TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        )?;
-        let issuer_keys = crate::env::decode_issuer_verifying_keys(&issuer_keys_json)?;
-        let record = storage_get_optional::<CloudflareTenantRootRefreshActiveStateRecordV1>(
-            &self.storage,
-            TENANT_ROOT_REFRESH_ACTIVE_STATE_STORAGE_KEY_V1,
-        )
-        .await
-        .map_err(durable_storage_protocol_error)?
-        .ok_or_else(|| {
-            RouterAbProtocolError::new(
-                RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-                "tenant-root refresh has no authoritative active public state",
-            )
-        })?;
-        validate_refresh_active_state_record(record, authority_id, &issuer_keys)
-            .map_err(stored_refresh_record_error)
     }
 
     pub(crate) async fn persist_refresh_commitment_checkpoint(
