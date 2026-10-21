@@ -353,13 +353,13 @@ Unresolved dead-code diagnostics remain visible. Secret lifetimes, stored eviden
 
 ### C11 — Consolidate specific duplication, then split oversized owners
 
-- [ ] Review the exact duplicate blocks below for shared behavior.
+- [x] Review the exact duplicate blocks below for shared behavior.
       Preserve branch-specific validation and error behavior.
-- [ ] Reuse an existing owner where possible. Introduce a helper only when it
+- [x] Reuse an existing owner where possible. Introduce a helper only when it
       reduces total complexity.
-- [ ] Separate large files along real storage, transport, or lifecycle ownership.
+- [x] Separate large files along real storage, transport, or lifecycle ownership.
       Keep a structural move separate from a behavior change.
-- [ ] Preserve independent cryptographic vectors and ceremony contracts until their
+- [x] Preserve independent cryptographic vectors and ceremony contracts until their
       invariant owners establish that consolidation retains coverage.
 
 All locations are under `crates/router-ab-cloudflare/src/`:
@@ -386,6 +386,14 @@ File length and duplicate windows identify areas for review.
 Caller and behavior checks determine which code can be deleted.
 Keep SQL predicates, transaction order, replay fences, wire names, and persisted
 identifiers stable during structural work.
+
+Completed in `HEAD`.
+The three duplicate blocks remain explicit. Authorization conversion already reuses the existing claim constructor. A new cross-curve conversion layer would add another model.
+Promotion and replay-seed envelopes authenticate different data and retain different error checks. The two refresh flows retain distinct admission freshness and completion rules.
+Four cohesive owners moved into `authorized_operations.rs`, `tenant_root_role_d1/restore_refresh_record.rs`, `tenant_root_role_runtime/wire.rs`, and `durable_object/tenant_root_creation/cloudflare_actor.rs`.
+The new files contain 1,584, 624, 427, and 1,165 lines. The original four large owners lose 3,705 lines. They remain above 2,000 lines.
+Parent visibility preserves the previous access scope. Public re-exports preserve existing API paths. Transaction order, stored fields, wire names, and cryptographic checks remain intact.
+No vectors or ceremony contracts were deleted or regenerated. This commit contains structural moves only.
 
 ### C12 — Review the CLI's parsed response fields
 
@@ -463,7 +471,7 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C12. Other cleanup batches remain pending.
+Completed batches: C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12. Other cleanup batches remain pending.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -483,7 +491,7 @@ Use one ledger row per actual batch. Split rows further when necessary.
 | C08 — Unused parameters           | Complete, combined with C07         | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f`                                 | Same eight checks as C07. 1,434 insertions and 1,795 deletions include structural moves. No protocol or persistence shape changed.                                                                                                                                          | —             |
 | C09 — Client export configuration | Complete, live export retained      | `a035483a9b5fd8d18ccd720ae4ab863b1d39ba2c` | `HEAD`                                     | All four browser WASM checks and native development-host compilation passed. Custody-ceremony warnings 1 → 0. Standalone client warnings remain zero. Evidence: `.artifacts/rust-cleanup-20261021/after/c09/`.                                                              | —             |
 | C10 — Suppressions                | Complete, retained cases documented | `5b7979f771483eb41c937fe68b776c3bec00aa78` | `HEAD`                                     | Eight compilation checks and bloat passed. Worker warnings 518 → 695 when unmasked, then → 565. All production imports and variables are used. Native host and PostgreSQL each emit 19 dead-code warnings. Evidence: `.artifacts/rust-cleanup-20261021/after/c10-checked/`. | —             |
-| C11 — Duplication and large files | Pending                             | —                                          | —                                          | —                                                                                                                                                                                                                                                                           | —             |
+| C11 — Duplication and large files | Complete, distinct checks retained  | `011826b2d1648c1ecaf89d0a6963c069caaef6a8` | `HEAD`                                     | Eight compilation checks and bloat passed. Worker warnings remain 565. New owners stay below 2,000 lines. Local move inventory: `.artifacts/rust-cleanup-20261021/c11-moves.json`.                                                                                          | —             |
 | C12 — CLI response fields         | Complete, parsing retained          | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                                                                                                                                               | —             |
 
 For each completed row, record changed paths, deleted symbols, warning-count
