@@ -1,5 +1,10 @@
 # Cleanup 1: dead, duplicated and boilerplate code
 
+The [Rust warning checklist and revert log](rust-warning-cleanup.md) records the
+2026-10-21 review, current build counts, cleanup candidates, and recovery steps.
+Use that checklist for the next Rust batches. Older survey counts below are
+historical measurements.
+
 **Status:** Phases 0 to 3 are complete, apart from moving finished plans,
 which waits for a decision. Phase 2's follow-ups have consolidated the store,
 worker, route and fixture clusters outside R150's files, and split oversized
