@@ -1,0 +1,2560 @@
+{
+  "measurementDateUtc": "2026-10-21",
+  "completionDateLocal": "2026-10-22",
+  "localTimeZone": "Asia/Tokyo",
+  "reviewSourceBaseline": "37d9f383d55810fd1f8d3fd93c989255d68ba17b",
+  "implementationSourceBaseline": "d43d4e893912633ede13030f251efaa96cdb4596",
+  "rustCleanupCommit": "2f50c39c5ae46137d9d82f10f5e861c255970f18",
+  "scope": "Rust cleanup. An independent TypeScript locale change landed during implementation. Both browser measurements use the captured original frontend to isolate Rust changes. No navigation tests were added.",
+  "compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "warnings": {
+    "measurement": "cargo check for each wasm32 Worker entrypoint, default debug profile. Occurrences repeat shared diagnostics across roles. Suppression removal exposes additional code.",
+    "beforeWorkerOccurrences": 732,
+    "afterWorkerOccurrences": 565,
+    "beforeDistinctWorkerDiagnostics": 218,
+    "afterDistinctWorkerDiagnostics": 187,
+    "beforeAllFiveRoleDiagnostics": 37,
+    "afterAllFiveRoleDiagnostics": 9,
+    "afterCompilationMatrix": {
+      "router": {
+        "exitCode": 0,
+        "warnings": 109,
+        "warningCodes": {
+          "dead_code": 109
+        }
+      },
+      "deriver-a": {
+        "exitCode": 0,
+        "warnings": 82,
+        "warningCodes": {
+          "dead_code": 82
+        }
+      },
+      "deriver-b": {
+        "exitCode": 0,
+        "warnings": 94,
+        "warningCodes": {
+          "dead_code": 94
+        }
+      },
+      "signing-worker": {
+        "exitCode": 0,
+        "warnings": 146,
+        "warningCodes": {
+          "dead_code": 146
+        }
+      },
+      "tenant-root-control-plane": {
+        "exitCode": 0,
+        "warnings": 134,
+        "warningCodes": {
+          "dead_code": 134
+        }
+      },
+      "native-host": {
+        "exitCode": 0,
+        "warnings": 19,
+        "warningCodes": {
+          "dead_code": 19
+        }
+      },
+      "postgres": {
+        "exitCode": 0,
+        "warnings": 19,
+        "warningCodes": {
+          "dead_code": 19
+        }
+      },
+      "native-test-targets": {
+        "exitCode": 0,
+        "warnings": 379,
+        "warningCodes": {
+          "unused_imports": 11,
+          "unused_variables": 5,
+          "dead_code": 363
+        }
+      }
+    },
+    "browserWasmChecks": {
+      "near-signer": {
+        "exitCode": 0,
+        "warningCodes": {},
+        "warnings": 0
+      },
+      "custody-ceremony": {
+        "exitCode": 0,
+        "warningCodes": {},
+        "warnings": 0
+      },
+      "ecdsa-client": {
+        "exitCode": 0,
+        "warningCodes": {},
+        "warnings": 0
+      },
+      "ed25519-client": {
+        "exitCode": 0,
+        "warningCodes": {},
+        "warnings": 0
+      }
+    },
+    "cliWarningsBefore": 3,
+    "cliWarningsAfter": 0,
+    "nativeDevHostWarningsBefore": 17,
+    "nativeDevHostWarningsAfter": 19,
+    "remainingWorkerDiagnostics": [
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "line": 5,
+        "code": "dead_code",
+        "message": "struct `WalletCommandTiming` is never constructed",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "line": 12,
+        "code": "dead_code",
+        "message": "associated items `new` and `begin` are never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "line": 48,
+        "code": "dead_code",
+        "message": "function `log_host` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "line": 62,
+        "code": "dead_code",
+        "message": "struct `CommandObservation` is never constructed",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "line": 72,
+        "code": "dead_code",
+        "message": "method `finish` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/custody_target.rs",
+        "line": 170,
+        "code": "dead_code",
+        "message": "function `trace` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/custody_target.rs",
+        "line": 179,
+        "code": "dead_code",
+        "message": "function `trace_field` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/custody_target.rs",
+        "line": 185,
+        "code": "dead_code",
+        "message": "function `observe_location` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/custody_target.rs",
+        "line": 199,
+        "code": "dead_code",
+        "message": "function `observe_host` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/mod.rs",
+        "line": 1591,
+        "code": "dead_code",
+        "message": "function `durable_object_error_status` is never used",
+        "roles": ["deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/owner_presign_storage.rs",
+        "line": 8,
+        "code": "dead_code",
+        "message": "function `authority_key` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation.rs",
+        "line": 93,
+        "code": "dead_code",
+        "message": "function `storage_error` is never used",
+        "roles": ["router"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 20,
+        "code": "dead_code",
+        "message": "constant `SCHEMA` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 29,
+        "code": "dead_code",
+        "message": "struct `Row` is never constructed",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 34,
+        "code": "dead_code",
+        "message": "function `read` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 48,
+        "code": "dead_code",
+        "message": "function `is_admitted` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 59,
+        "code": "dead_code",
+        "message": "function `admit` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 140,
+        "code": "dead_code",
+        "message": "function `require_unfenced` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 147,
+        "code": "dead_code",
+        "message": "function `require_session_unfenced` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 168,
+        "code": "dead_code",
+        "message": "function `access_for_execution` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 210,
+        "code": "dead_code",
+        "message": "function `read_admitted_access` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 233,
+        "code": "dead_code",
+        "message": "function `load_for_execution` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 262,
+        "code": "dead_code",
+        "message": "function `expire` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 271,
+        "code": "dead_code",
+        "message": "function `release` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 300,
+        "code": "dead_code",
+        "message": "function `digest` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation.rs",
+        "line": 304,
+        "code": "dead_code",
+        "message": "function `error` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 14,
+        "code": "dead_code",
+        "message": "enum `PreparationUse` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 49,
+        "code": "dead_code",
+        "message": "enum `PreparationAccess` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 56,
+        "code": "dead_code",
+        "message": "struct `StoredUse` is never constructed",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 60,
+        "code": "dead_code",
+        "message": "function `load` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 74,
+        "code": "dead_code",
+        "message": "function `insert_once` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 86,
+        "code": "dead_code",
+        "message": "function `authenticate_execution` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 108,
+        "code": "dead_code",
+        "message": "function `access` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 149,
+        "code": "dead_code",
+        "message": "function `consume` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 192,
+        "code": "dead_code",
+        "message": "function `release_unconsumed` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/registration_preparation/bound_input.rs",
+        "line": 203,
+        "code": "dead_code",
+        "message": "function `replay` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs",
+        "line": 224,
+        "code": "dead_code",
+        "message": "function `call_router_wallet_freeze_v1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs",
+        "line": 241,
+        "code": "dead_code",
+        "message": "function `call_router_wallet_transfer_v1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 145,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_TENANT_ROOT_CUTOVER_READ_PATH` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 148,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_TENANT_ROOT_CUTOVER_WRITE_PATH` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 151,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CUTOVER_STORAGE_KEY_V1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 152,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CUTOVER_REQUEST_MAX_BYTES_V1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 156,
+        "code": "dead_code",
+        "message": "struct `CloudflareTenantRootCutoverReadRequestV1` is never constructed",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 160,
+        "code": "dead_code",
+        "message": "enum `CloudflareTenantRootCutoverWriteRequestV1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 172,
+        "code": "dead_code",
+        "message": "enum `CloudflareTenantRootCutoverWriteOutcomeV1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 180,
+        "code": "dead_code",
+        "message": "struct `CloudflareTenantRootCutoverWriteResponseV1` is never constructed",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 187,
+        "code": "dead_code",
+        "message": "enum `CloudflareTenantRootCutoverReadResponseV1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 870,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CUTOVER_OBJECT_NAME_V1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 2970,
+        "code": "dead_code",
+        "message": "function `tenant_root_cutover_stub_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 2990,
+        "code": "dead_code",
+        "message": "function `execute_cloudflare_router_tenant_root_cutover_read_call_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 3006,
+        "code": "dead_code",
+        "message": "function `execute_cloudflare_router_tenant_root_cutover_write_call_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 3602,
+        "code": "dead_code",
+        "message": "fields `job`, `last_manual_refresh_completed_at_ms`, and `last_refresh_completed_at_ms` are never read",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+        "line": 3603,
+        "code": "dead_code",
+        "message": "field `last_manual_refresh_completed_at_ms` is never read",
+        "roles": ["router"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation/grant_renewal.rs",
+        "line": 8,
+        "code": "dead_code",
+        "message": "constant `RENEWAL_PATH` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation/grant_renewal.rs",
+        "line": 20,
+        "code": "dead_code",
+        "message": "enum `RenewalOutcome` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation/grant_renewal.rs",
+        "line": 29,
+        "code": "dead_code",
+        "message": "function `fence_unused_authorization` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation/grant_renewal.rs",
+        "line": 110,
+        "code": "dead_code",
+        "message": "function `renewal_call` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 7,
+        "code": "dead_code",
+        "message": "constant `PATH` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 8,
+        "code": "dead_code",
+        "message": "constant `ALLOCATE_PATH` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 13,
+        "code": "dead_code",
+        "message": "struct `WalletStartup` is never constructed",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 19,
+        "code": "dead_code",
+        "message": "method `validate` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 36,
+        "code": "dead_code",
+        "message": "struct `HomeWalletStartup` is never constructed",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 41,
+        "code": "dead_code",
+        "message": "function `invalid_startup` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 45,
+        "code": "dead_code",
+        "message": "function `start_object` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 179,
+        "code": "dead_code",
+        "message": "constant `ADDRESS_BATCH_SIZE` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/wallet_startup.rs",
+        "line": 233,
+        "code": "dead_code",
+        "message": "function `allocate_address` is never used",
+        "roles": ["tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/worker_storage.rs",
+        "line": 21,
+        "code": "dead_code",
+        "message": "function `warm_owner_presign_host` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 655,
+        "code": "dead_code",
+        "message": "method `pair_digest` is never used",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 908,
+        "code": "dead_code",
+        "message": "struct `DeriverAPairExecutionContextV1` is never constructed",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 922,
+        "code": "dead_code",
+        "message": "struct `DeriverAPairRoleExecutionV1` is never constructed",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 928,
+        "code": "dead_code",
+        "message": "enum `DeriverAPairRoleFailureV1` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 1741,
+        "code": "dead_code",
+        "message": "function `prepare_cloudflare_ed25519_yao_deriver_a_target_v2` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 1775,
+        "code": "dead_code",
+        "message": "function `complete_cloudflare_ed25519_yao_deriver_a_target_v2` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 2006,
+        "code": "dead_code",
+        "message": "function `seal_deriver_a_target_proof_v2` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle.rs",
+        "line": 2017,
+        "code": "dead_code",
+        "message": "function `open_deriver_a_target_proof_v2` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/bound_root.rs",
+        "line": 3,
+        "code": "dead_code",
+        "message": "struct `PreparedDeriverATarget` is never constructed",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/bound_root.rs",
+        "line": 11,
+        "code": "dead_code",
+        "message": "enum `DeriverATargetSource` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/bound_root.rs",
+        "line": 78,
+        "code": "dead_code",
+        "message": "function `prepare_deriver_a_target` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_lifecycle/bound_root.rs",
+        "line": 113,
+        "code": "dead_code",
+        "message": "function `prepare_target_from_bound_share` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 26,
+        "code": "dead_code",
+        "message": "constant `DERIVER_A_WALLET_DO_SCHEMA` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 27,
+        "code": "dead_code",
+        "message": "constant `DERIVER_B_WALLET_DO_SCHEMA` is never used",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 163,
+        "code": "dead_code",
+        "message": "method `pending` is never used",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 297,
+        "code": "dead_code",
+        "message": "associated function `from_env_for_wallet_do` is never used",
+        "roles": ["deriver-b"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 297,
+        "code": "dead_code",
+        "message": "associated items `from_env_for_wallet_do`, `from_env_for_deriver_b_wallet_do`, and `relocation_context_digest` are never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 307,
+        "code": "dead_code",
+        "message": "associated function `from_env_for_deriver_b_wallet_do` is never used",
+        "roles": ["deriver-a"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 567,
+        "code": "dead_code",
+        "message": "function `settle_wallet_object_admission_v1` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 605,
+        "code": "dead_code",
+        "message": "variant `WalletDo` is never constructed",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 634,
+        "code": "dead_code",
+        "message": "associated function `from_deriver_b_wallet_do` is never used",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_role_d1.rs",
+        "line": 1176,
+        "code": "dead_code",
+        "message": "function `validate_terminal_wallet_record` is never used",
+        "roles": ["router", "deriver-a", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 54,
+        "code": "dead_code",
+        "message": "struct `CloudflareEd25519YaoOutputActivationPutV1` is never constructed",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 59,
+        "code": "dead_code",
+        "message": "associated items `new` and `validate` are never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 372,
+        "code": "dead_code",
+        "message": "enum `SigningWorkerYaoCommandV1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 383,
+        "code": "dead_code",
+        "message": "methods `stable_context_binding` and `validate` are never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 447,
+        "code": "dead_code",
+        "message": "method `stable_context_binding` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 511,
+        "code": "dead_code",
+        "message": "enum `SigningWorkerYaoCommandResponseV1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 733,
+        "code": "dead_code",
+        "message": "function `read_initial_registration_finalization_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 1937,
+        "code": "dead_code",
+        "message": "function `http_response_from_command` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2290,
+        "code": "dead_code",
+        "message": "function `execute_signing_worker_yao_command` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2321,
+        "code": "dead_code",
+        "message": "function `execute_signing_worker_yao_d1_transition_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2360,
+        "code": "dead_code",
+        "message": "function `execute_signing_worker_yao_delivery_d1_transition_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2461,
+        "code": "dead_code",
+        "message": "function `execute_signing_worker_yao_promotion_d1_transition_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2532,
+        "code": "dead_code",
+        "message": "function `persist_signing_worker_yao_state_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2551,
+        "code": "dead_code",
+        "message": "function `persist_signing_worker_yao_active_output_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "line": 2562,
+        "code": "dead_code",
+        "message": "function `persist_cloudflare_ed25519_yao_output_activation_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker/package_delivery.rs",
+        "line": 30,
+        "code": "dead_code",
+        "message": "associated function `read` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+        "line": 20,
+        "code": "dead_code",
+        "message": "constant `DERIVER_B_BINDING` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+        "line": 24,
+        "code": "dead_code",
+        "message": "constant `DERIVER_B_WEBSOCKET_URL` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+        "line": 212,
+        "code": "dead_code",
+        "message": "function `connect_cloudflare_ed25519_yao_deriver_b_v1` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_websocket.rs",
+        "line": 322,
+        "code": "dead_code",
+        "message": "method `start_prepared_registration` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/env.rs",
+        "line": 1115,
+        "code": "dead_code",
+        "message": "function `load_cloudflare_tenant_root_managed_backup_google_credentials_json_secret_v1` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 4677,
+        "code": "dead_code",
+        "message": "function `load_cloudflare_bound_tenant_root_role_share_v1` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 4945,
+        "code": "dead_code",
+        "message": "method `push` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 5021,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 8010,
+        "code": "dead_code",
+        "message": "method `into_authenticated_parts` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 9559,
+        "code": "dead_code",
+        "message": "function `cloudflare_signing_worker_lane_active_state_for_scope_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 9588,
+        "code": "dead_code",
+        "message": "function `load_cloudflare_signing_worker_normal_signing_material_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 10699,
+        "code": "dead_code",
+        "message": "function `parse_cloudflare_signing_worker_normal_signing_terminal_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 10715,
+        "code": "dead_code",
+        "message": "function `execute_claimed_cloudflare_signing_worker_normal_signing_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 10756,
+        "code": "dead_code",
+        "message": "function `cloudflare_signing_worker_normal_signing_terminal_response_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11053,
+        "code": "dead_code",
+        "message": "function `require_signing_worker_output_active_state_get_response_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11068,
+        "code": "dead_code",
+        "message": "function `require_signing_worker_output_material_get_response_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11083,
+        "code": "dead_code",
+        "message": "function `require_signing_worker_round1_put_response_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11098,
+        "code": "dead_code",
+        "message": "function `require_signing_worker_round1_take_response_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11113,
+        "code": "dead_code",
+        "message": "function `require_signing_worker_ecdsa_pool_mutate_response_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11128,
+        "code": "dead_code",
+        "message": "function `execute_cloudflare_signing_worker_ecdsa_pool_mutation_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11237,
+        "code": "dead_code",
+        "message": "function `burn_cloudflare_signing_worker_ecdsa_reservation_after_prepare_failure_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "line": 11446,
+        "code": "dead_code",
+        "message": "function `execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 306,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_DERIVER_A_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PRIVATE_REQUEST_URL` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 311,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_DERIVER_B_ROUTER_AB_ECDSA_DERIVATION_REGISTRATION_PRIVATE_REQUEST_URL` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 336,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_DERIVER_A_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 341,
+        "code": "dead_code",
+        "message": "constant `CLOUDFLARE_DERIVER_B_TENANT_ROOT_STATUS_PRIVATE_REQUEST_URL` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 429,
+        "code": "dead_code",
+        "message": "function `cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_url` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/paths.rs",
+        "line": 465,
+        "code": "dead_code",
+        "message": "function `cloudflare_deriver_tenant_root_status_service_url` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_connection.rs",
+        "line": 37,
+        "code": "dead_code",
+        "message": "struct `PreparedConnection` is never constructed",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_connection.rs",
+        "line": 42,
+        "code": "dead_code",
+        "message": "function `connect` is never used",
+        "roles": ["router", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_connection.rs",
+        "line": 85,
+        "code": "dead_code",
+        "message": "function `read_control` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_connection.rs",
+        "line": 107,
+        "code": "dead_code",
+        "message": "function `error` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 17,
+        "code": "dead_code",
+        "message": "constant `ROUTER_PATH` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 18,
+        "code": "dead_code",
+        "message": "constant `ROLE_PATH` is never used",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 19,
+        "code": "dead_code",
+        "message": "constant `SOCKET_PATH` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 20,
+        "code": "dead_code",
+        "message": "constant `PREPARATION_HEADER` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 24,
+        "code": "dead_code",
+        "message": "struct `RegistrationPreparationRequest` is never constructed",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 35,
+        "code": "dead_code",
+        "message": "struct `RegistrationPreparation` is never constructed",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 42,
+        "code": "dead_code",
+        "message": "method `validate` is never used",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 66,
+        "code": "dead_code",
+        "message": "methods `session`, `digest`, `authenticate`, and `matches_execution` are never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/registration_pair_preparation.rs",
+        "line": 199,
+        "code": "dead_code",
+        "message": "function `invalid` is never used",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/router_wallet_relocation.rs",
+        "line": 278,
+        "code": "dead_code",
+        "message": "function `handle_freeze` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/router_wallet_transfer.rs",
+        "line": 704,
+        "code": "dead_code",
+        "message": "function `handle_transfer` is never used",
+        "roles": ["deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/ed25519_snapshot.rs",
+        "line": 14,
+        "code": "dead_code",
+        "message": "associated items `validate` and `from_source` are never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/ed25519_snapshot.rs",
+        "line": 78,
+        "code": "dead_code",
+        "message": "methods `ownership_generation`, `scope`, and `validate` are never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 96,
+        "code": "dead_code",
+        "message": "struct `InitialRegistrationFinalizationRowV1` is never constructed",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 126,
+        "code": "dead_code",
+        "message": "fields `version` and `updated_at_ms` are never read",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 127,
+        "code": "dead_code",
+        "message": "field `updated_at_ms` is never read",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 141,
+        "code": "dead_code",
+        "message": "associated function `from_env_for_wallet_do` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 508,
+        "code": "dead_code",
+        "message": "function `delete_cloudflare_signing_worker_output_activation_by_active_key_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 610,
+        "code": "dead_code",
+        "message": "function `read_cloudflare_signing_worker_initial_registration_finalization_v1` is never used",
+        "roles": ["signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/private_d1.rs",
+        "line": 1223,
+        "code": "dead_code",
+        "message": "function `require_cloudflare_signing_worker_activation_not_retired_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker/wallet_ecdsa_store/import.rs",
+        "line": 55,
+        "code": "dead_code",
+        "message": "method `ownership_generation` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 70,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_CHALLENGE_REQUEST_MAX_BYTES_V1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 72,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CONTROL_PLANE_MANAGED_RESTORE_AUTHORIZE_REQUEST_MAX_BYTES_V1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 340,
+        "code": "dead_code",
+        "message": "constant `TENANT_ROOT_CONTROL_PLANE_REFRESH_ACTIVATION_REQUEST_MAX_BYTES_V1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 1130,
+        "code": "dead_code",
+        "message": "fields `identity_digest_b64u`, `custody_lineage_b64u`, `expected_lifecycle_revision`, and `destination_activation_receipt_digest_b64u` are never read",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3464,
+        "code": "dead_code",
+        "message": "function `recovery_command_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3476,
+        "code": "dead_code",
+        "message": "function `issue_source_retirement_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3547,
+        "code": "dead_code",
+        "message": "function `recovery_trust_bundle_json_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3554,
+        "code": "dead_code",
+        "message": "function `recovery_recipient_proof_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3565,
+        "code": "dead_code",
+        "message": "function `assemble_recovery_manifest_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3601,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_restore_refresh_commands_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3675,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_managed_restore_challenge_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3689,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_managed_restore_authorize_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3782,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_initial_activation_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3896,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_restore_initial_activation_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_control_plane.rs",
+        "line": 3911,
+        "code": "dead_code",
+        "message": "function `handle_cloudflare_tenant_root_control_plane_refresh_activation_v1` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+        "line": 6089,
+        "code": "dead_code",
+        "message": "field `command` is never read",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+        "line": 6093,
+        "code": "dead_code",
+        "message": "field `executed` is never read",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+        "line": 16107,
+        "code": "dead_code",
+        "message": "field `session_id_hex` is never read",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+        "line": 10,
+        "code": "dead_code",
+        "message": "variant `ReadPreparedRegistration` is never constructed",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+        "line": 36,
+        "code": "dead_code",
+        "message": "method `release_registration_preparation` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+        "line": 670,
+        "code": "dead_code",
+        "message": "field `peer_role` is never read",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+        "line": 675,
+        "code": "dead_code",
+        "message": "method `peer_role` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+        "line": 1403,
+        "code": "dead_code",
+        "message": "method `worker_env` is never used",
+        "roles": ["router", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+        "line": 7439,
+        "code": "dead_code",
+        "message": "methods `online_sealed` and `provider_canary_receipt` are never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+        "line": 7591,
+        "code": "dead_code",
+        "message": "methods `online_sealed` and `managed_backup` are never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime/wire.rs",
+        "line": 164,
+        "code": "dead_code",
+        "message": "struct `CloudflareDeriverTenantRootStatusRequestV1` is never constructed",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime/wire.rs",
+        "line": 176,
+        "code": "dead_code",
+        "message": "struct `CloudflareDeriverTenantRootStatusResponseV1` is never constructed",
+        "roles": ["signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/tenant_root_role_runtime/wire.rs",
+        "line": 421,
+        "code": "dead_code",
+        "message": "method `to_protocol` is never used",
+        "roles": ["router", "deriver-a", "deriver-b", "signing-worker", "tenant-root-control-plane"]
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/wallet_object.rs",
+        "line": 18,
+        "code": "dead_code",
+        "message": "fields `objects`, `scope`, and `ownership_generation` are never read",
+        "roles": ["router", "deriver-a", "deriver-b", "tenant-root-control-plane"]
+      }
+    ]
+  },
+  "workers": {
+    "measurement": "Release artifacts from unchanged build scripts, SIMD features, and canonical Wrangler configurations. Gzip level 9. Wasm totals exclude the separately listed JavaScript wrappers.",
+    "rawWasmBytesBefore": 51075498,
+    "rawWasmBytesAfter": 38325891,
+    "gzipWasmBytesBefore": 17828022,
+    "gzipWasmBytesAfter": 13872178,
+    "gzipWasmBytesSaved": 3955844,
+    "gzipWasmReductionPercent": 22.189,
+    "roles": {
+      "router": {
+        "before": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 8196882,
+              "gzipBytes": 2632634,
+              "sha256": "13529d85fe58b90b9d65301affb287197c75b9c1fea2851a640966e3fe22ebd3"
+            },
+            "index.js": {
+              "rawBytes": 34458,
+              "gzipBytes": 8251,
+              "sha256": "e7146b33087c44313294858ddb37e1cab8ff12e5a9318f8b7dc82ec5310c6b0e"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-router-entrypoint",
+            "started_at_ms": 1792585632526
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "883964fdb51cc6f68c7d899b3778eb85c8e9708bc729b4a986a5c10aa7124fa4",
+          "localProfileWindowMs": 18.207,
+          "durableObjectExports": [
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "after": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 7126367,
+              "gzipBytes": 2298180,
+              "sha256": "e8c8adefebf5ffe298f70c883cf247291c19241f3e946137f87a4e2965c6eebe"
+            },
+            "index.js": {
+              "rawBytes": 31941,
+              "gzipBytes": 7791,
+              "sha256": "83f8577318ad4fc0e94753c6d05265a59fb070d076e021954f8bcc3ab4a55248"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-router-entrypoint",
+            "started_at_ms": 1792593602556
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "883964fdb51cc6f68c7d899b3778eb85c8e9708bc729b4a986a5c10aa7124fa4",
+          "localProfileWindowMs": 14.762,
+          "durableObjectExports": [
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "wasmRawSavedBytes": 1070515,
+        "wasmGzipSavedBytes": 334454,
+        "wasmGzipReductionPercent": 12.704
+      },
+      "deriver-a": {
+        "before": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 14260568,
+              "gzipBytes": 5281061,
+              "sha256": "2cb0a2d13488f6edf6108bad9b37353f5c047b73af0c5494237cdeef33cee866"
+            },
+            "index.js": {
+              "rawBytes": 42081,
+              "gzipBytes": 9648,
+              "sha256": "664779414c1a791a6d20047fea9cf899c531724a7b53e82e311b5a67635ccbf3"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-deriver-a-entrypoint",
+            "started_at_ms": 1792585334319
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "50c0d8de314620e55b04dd866ec60bef6f70c23844949b1989018a1e50c24c74",
+          "localProfileWindowMs": 8.84,
+          "durableObjectExports": [
+            "__wbg_routerabderiverawalletdurableobject_free",
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabderiverawalletdurableobject_alarm",
+            "routerabderiverawalletdurableobject_fetch",
+            "routerabderiverawalletdurableobject_new",
+            "routerabderiverawalletdurableobject_webSocketClose",
+            "routerabderiverawalletdurableobject_webSocketError",
+            "routerabderiverawalletdurableobject_webSocketMessage",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "after": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 11219164,
+              "gzipBytes": 4342019,
+              "sha256": "eab656db7e230295effc6d923b2e71534c6ce84db30a8131c044cad588c4c56d"
+            },
+            "index.js": {
+              "rawBytes": 37114,
+              "gzipBytes": 9151,
+              "sha256": "40681170c371e11dccd8936db70677941832b3c42c0538c629e57afb39c259f2"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-deriver-a-entrypoint",
+            "started_at_ms": 1792593381448
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "50c0d8de314620e55b04dd866ec60bef6f70c23844949b1989018a1e50c24c74",
+          "localProfileWindowMs": 9.625,
+          "durableObjectExports": [
+            "__wbg_routerabderiverawalletdurableobject_free",
+            "routerabderiverawalletdurableobject_alarm",
+            "routerabderiverawalletdurableobject_fetch",
+            "routerabderiverawalletdurableobject_new",
+            "routerabderiverawalletdurableobject_webSocketClose",
+            "routerabderiverawalletdurableobject_webSocketError",
+            "routerabderiverawalletdurableobject_webSocketMessage"
+          ]
+        },
+        "wasmRawSavedBytes": 3041404,
+        "wasmGzipSavedBytes": 939042,
+        "wasmGzipReductionPercent": 17.781
+      },
+      "deriver-b": {
+        "before": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 14298156,
+              "gzipBytes": 5292685,
+              "sha256": "ae023003c524c6d227fe1a7c115521678b4b0adca5c72ad4c879e473d9ba248f"
+            },
+            "index.js": {
+              "rawBytes": 42279,
+              "gzipBytes": 9688,
+              "sha256": "0dbf970e7b89055bbd3f8920825d3e188181436377a7405146683d0c557c56d1"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-deriver-b-entrypoint",
+            "started_at_ms": 1792585492940
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "d9c61aa65aacf85212fe8b4c8a44a61dacd7b61ccf684379159f6c9000e36b7d",
+          "localProfileWindowMs": 8.293,
+          "durableObjectExports": [
+            "__wbg_routerabderiverbwalletdurableobject_free",
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabderiverbwalletdurableobject_alarm",
+            "routerabderiverbwalletdurableobject_fetch",
+            "routerabderiverbwalletdurableobject_new",
+            "routerabderiverbwalletdurableobject_webSocketClose",
+            "routerabderiverbwalletdurableobject_webSocketError",
+            "routerabderiverbwalletdurableobject_webSocketMessage",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "after": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 11254639,
+              "gzipBytes": 4354489,
+              "sha256": "21f4be12d093482224229c78f6d29dd5ffdd1981759278c0214549759325a19d"
+            },
+            "index.js": {
+              "rawBytes": 37312,
+              "gzipBytes": 9190,
+              "sha256": "0d36ee4374fd5879efab5b2ee05b765de1291e86e2525510f0588eaf3ad64eb0"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-deriver-b-entrypoint",
+            "started_at_ms": 1792593502477
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "d9c61aa65aacf85212fe8b4c8a44a61dacd7b61ccf684379159f6c9000e36b7d",
+          "localProfileWindowMs": 9.732,
+          "durableObjectExports": [
+            "__wbg_routerabderiverbwalletdurableobject_free",
+            "routerabderiverbwalletdurableobject_alarm",
+            "routerabderiverbwalletdurableobject_fetch",
+            "routerabderiverbwalletdurableobject_new",
+            "routerabderiverbwalletdurableobject_webSocketClose",
+            "routerabderiverbwalletdurableobject_webSocketError",
+            "routerabderiverbwalletdurableobject_webSocketMessage"
+          ]
+        },
+        "wasmRawSavedBytes": 3043517,
+        "wasmGzipSavedBytes": 938196,
+        "wasmGzipReductionPercent": 17.726
+      },
+      "signing-worker": {
+        "before": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 9050856,
+              "gzipBytes": 2875522,
+              "sha256": "e7469d356b2bba38f0332e837b60c3deb70c0e805baacc85502a7aa171c6e8d7"
+            },
+            "index.js": {
+              "rawBytes": 36830,
+              "gzipBytes": 8449,
+              "sha256": "a6825becc86517e5c222f8cca0415a7761ec901d2686a0428f8219dc2b65a951"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-signing-worker-entrypoint",
+            "started_at_ms": 1792585165497
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "0d492522c7f9bde78035cffcb65a1c90c8492fbdba795f7f74e734b0f04b7350",
+          "localProfileWindowMs": 8.635,
+          "durableObjectExports": [
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabsigningworkerwalletdurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabsigningworkerwalletdurableobject_alarm",
+            "routerabsigningworkerwalletdurableobject_fetch",
+            "routerabsigningworkerwalletdurableobject_new",
+            "routerabsigningworkerwalletdurableobject_webSocketClose",
+            "routerabsigningworkerwalletdurableobject_webSocketError",
+            "routerabsigningworkerwalletdurableobject_webSocketMessage",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "after": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 6668267,
+              "gzipBytes": 2121123,
+              "sha256": "bd2e935eb154cf119006c9d93d66381e9496f0552591daaf3fcf116b3b7e0395"
+            },
+            "index.js": {
+              "rawBytes": 34014,
+              "gzipBytes": 8283,
+              "sha256": "6f2294d0d86c93ccae97754f02b8ec65e6a51917f397a218647b1bd2ae35de27"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": true,
+            "features": "strict-worker-signing-worker-entrypoint",
+            "started_at_ms": 1792593248268
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "0d492522c7f9bde78035cffcb65a1c90c8492fbdba795f7f74e734b0f04b7350",
+          "localProfileWindowMs": 8.599,
+          "durableObjectExports": [
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabsigningworkerwalletdurableobject_free",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabsigningworkerwalletdurableobject_alarm",
+            "routerabsigningworkerwalletdurableobject_fetch",
+            "routerabsigningworkerwalletdurableobject_new",
+            "routerabsigningworkerwalletdurableobject_webSocketClose",
+            "routerabsigningworkerwalletdurableobject_webSocketError",
+            "routerabsigningworkerwalletdurableobject_webSocketMessage"
+          ]
+        },
+        "wasmRawSavedBytes": 2382589,
+        "wasmGzipSavedBytes": 754399,
+        "wasmGzipReductionPercent": 26.235
+      },
+      "tenant-root-control-plane": {
+        "before": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 5269036,
+              "gzipBytes": 1746120,
+              "sha256": "2809fec13ca1bb797e85a9ff4ce3281e9d5d1c9dc3e2ab02f4e88e204d6f43c2"
+            },
+            "index.js": {
+              "rawBytes": 33026,
+              "gzipBytes": 7922,
+              "sha256": "d46b6a2d3e00ac042c193a715d6d9c0ed1f0e129a8dc8da1bed55bf9130e5f15"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": false,
+            "features": "strict-worker-tenant-root-control-plane-entrypoint",
+            "started_at_ms": 1792585767007
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "291d50b2bb1a92c777ae5c5c5b58775dae34bce684bf0d1b192eda52d8662719",
+          "localProfileWindowMs": 7.552,
+          "durableObjectExports": [
+            "__wbg_routerabrouterwalletdurableobject_free",
+            "__wbg_routerabsigningworkerpresignsessiondurableobject_free",
+            "__wbg_routerabtenantrootcreationdurableobject_free",
+            "routerabrouterwalletdurableobject_alarm",
+            "routerabrouterwalletdurableobject_fetch",
+            "routerabrouterwalletdurableobject_new",
+            "routerabrouterwalletdurableobject_webSocketClose",
+            "routerabrouterwalletdurableobject_webSocketError",
+            "routerabrouterwalletdurableobject_webSocketMessage",
+            "routerabsigningworkerpresignsessiondurableobject_alarm",
+            "routerabsigningworkerpresignsessiondurableobject_fetch",
+            "routerabsigningworkerpresignsessiondurableobject_new",
+            "routerabtenantrootcreationdurableobject_fetch",
+            "routerabtenantrootcreationdurableobject_new"
+          ]
+        },
+        "after": {
+          "files": {
+            "index_bg.wasm": {
+              "rawBytes": 2057454,
+              "gzipBytes": 756367,
+              "sha256": "b53a0fc331edba3e4c9d0c9a74088c74d99c91bf8b91b9dd62cf6270352f35e0"
+            },
+            "index.js": {
+              "rawBytes": 24592,
+              "gzipBytes": 6377,
+              "sha256": "c632371a198a7c7cd78bd13cd4ca503d9c93795d4138a549fb6f2906b3293a16"
+            },
+            "worker/shim.mjs": {
+              "rawBytes": 164,
+              "gzipBytes": 136,
+              "sha256": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728"
+            }
+          },
+          "buildStamp": {
+            "profile": "release",
+            "wallet_objects": false,
+            "features": "strict-worker-tenant-root-control-plane-entrypoint",
+            "started_at_ms": 1792593724573
+          },
+          "startupProfileExitCode": 0,
+          "startupConfigSha256": "291d50b2bb1a92c777ae5c5c5b58775dae34bce684bf0d1b192eda52d8662719",
+          "localProfileWindowMs": 8.789,
+          "durableObjectExports": []
+        },
+        "wasmRawSavedBytes": 3211582,
+        "wasmGzipSavedBytes": 989753,
+        "wasmGzipReductionPercent": 56.683
+      }
+    },
+    "startupProfileLimit": "Each local CPU profile is one instrumented sample. Profile windows differ from deployed startup time and establish no startup improvement."
+  },
+  "browser": {
+    "uniqueRuntimeCount": 8,
+    "runtimeAssetCopiesCompared": 21,
+    "allRebuiltWasmIdentical": true,
+    "wasmComparisons": [
+      {
+        "asset": "esm/sdk/router_ab_ed25519_yao_client_bg.wasm",
+        "beforeBytes": 730795,
+        "beforeSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "rebuiltSource": "crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "afterBytes": 730795,
+        "afterSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "identical": true
+      },
+      {
+        "asset": "esm/wasm/near_signer/pkg/wasm_signer_worker_bg.wasm",
+        "beforeBytes": 411789,
+        "beforeSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "rebuiltSource": "wasm/near_signer/pkg/wasm_signer_worker_bg.wasm",
+        "afterBytes": 411789,
+        "afterSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "identical": true
+      },
+      {
+        "asset": "esm/wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm",
+        "beforeBytes": 791778,
+        "beforeSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "rebuiltSource": "wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm",
+        "afterBytes": 791778,
+        "afterSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "identical": true
+      },
+      {
+        "asset": "esm/wasm/router_ab_ed25519_yao_client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "beforeBytes": 730795,
+        "beforeSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "rebuiltSource": "crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "afterBytes": 730795,
+        "afterSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/router_ab_ed25519_yao_client_bg.wasm",
+        "beforeBytes": 730795,
+        "beforeSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "rebuiltSource": "crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "afterBytes": 730795,
+        "afterSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/email_otp_runtime_bg.wasm",
+        "beforeBytes": 23512,
+        "beforeSha256": "cf24bd336a48109184fae43059365a37726cb784049c6312b241bc54b5f51d09",
+        "rebuiltSource": "wasm/email_otp_runtime/pkg/email_otp_runtime_bg.wasm",
+        "afterBytes": 23512,
+        "afterSha256": "cf24bd336a48109184fae43059365a37726cb784049c6312b241bc54b5f51d09",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/evm_crypto_bg.wasm",
+        "beforeBytes": 161607,
+        "beforeSha256": "4c2161421a32e1da59b921d3f18397962110383f68d1c1e362308c313743e689",
+        "rebuiltSource": "wasm/evm_crypto/pkg/evm_crypto_bg.wasm",
+        "afterBytes": 161607,
+        "afterSha256": "4c2161421a32e1da59b921d3f18397962110383f68d1c1e362308c313743e689",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/router_ab_ecdsa_client_bg.wasm",
+        "beforeBytes": 791778,
+        "beforeSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "rebuiltSource": "wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm",
+        "afterBytes": 791778,
+        "afterSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/router_ab_ed25519_yao_client_bg.wasm",
+        "beforeBytes": 730795,
+        "beforeSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "rebuiltSource": "crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "afterBytes": 730795,
+        "afterSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/shamir3pass_runtime_bg.wasm",
+        "beforeBytes": 118841,
+        "beforeSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9",
+        "rebuiltSource": "wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm",
+        "afterBytes": 118841,
+        "afterSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/tempo_signer_bg.wasm",
+        "beforeBytes": 101976,
+        "beforeSha256": "17576063be3e5dadedbb64424db0aeb846f964d1b0d70bd010f044d3c8b282e6",
+        "rebuiltSource": "wasm/tempo_signer/pkg/tempo_signer_bg.wasm",
+        "afterBytes": 101976,
+        "afterSha256": "17576063be3e5dadedbb64424db0aeb846f964d1b0d70bd010f044d3c8b282e6",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/wallet_custody_ceremony_bg.wasm",
+        "beforeBytes": 542919,
+        "beforeSha256": "ea0399f595aa491b49ba66d4e1345272be234d5abc31f2ec6884b2902f9d1b6f",
+        "rebuiltSource": "wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony_bg.wasm",
+        "afterBytes": 542919,
+        "afterSha256": "ea0399f595aa491b49ba66d4e1345272be234d5abc31f2ec6884b2902f9d1b6f",
+        "identical": true
+      },
+      {
+        "asset": "public/sdk/workers/wasm_signer_worker_bg.wasm",
+        "beforeBytes": 411789,
+        "beforeSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "rebuiltSource": "wasm/near_signer/pkg/wasm_signer_worker_bg.wasm",
+        "afterBytes": 411789,
+        "afterSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "identical": true
+      },
+      {
+        "asset": "workers/email_otp_runtime_bg.wasm",
+        "beforeBytes": 23512,
+        "beforeSha256": "cf24bd336a48109184fae43059365a37726cb784049c6312b241bc54b5f51d09",
+        "rebuiltSource": "wasm/email_otp_runtime/pkg/email_otp_runtime_bg.wasm",
+        "afterBytes": 23512,
+        "afterSha256": "cf24bd336a48109184fae43059365a37726cb784049c6312b241bc54b5f51d09",
+        "identical": true
+      },
+      {
+        "asset": "workers/evm_crypto_bg.wasm",
+        "beforeBytes": 161607,
+        "beforeSha256": "4c2161421a32e1da59b921d3f18397962110383f68d1c1e362308c313743e689",
+        "rebuiltSource": "wasm/evm_crypto/pkg/evm_crypto_bg.wasm",
+        "afterBytes": 161607,
+        "afterSha256": "4c2161421a32e1da59b921d3f18397962110383f68d1c1e362308c313743e689",
+        "identical": true
+      },
+      {
+        "asset": "workers/router_ab_ecdsa_client_bg.wasm",
+        "beforeBytes": 791778,
+        "beforeSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "rebuiltSource": "wasm/router_ab_ecdsa_client/pkg/router_ab_ecdsa_client_bg.wasm",
+        "afterBytes": 791778,
+        "afterSha256": "4b841838250a8995d1c6060b5432b21b530907a8caa1d5e7a0c2a0c6396d8d81",
+        "identical": true
+      },
+      {
+        "asset": "workers/router_ab_ed25519_yao_client_bg.wasm",
+        "beforeBytes": 730795,
+        "beforeSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "rebuiltSource": "crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client_bg.wasm",
+        "afterBytes": 730795,
+        "afterSha256": "3f679630c674beb8d0805e0da6734b69a29d8c2c08656abebb3581c0eef0a9f3",
+        "identical": true
+      },
+      {
+        "asset": "workers/shamir3pass_runtime_bg.wasm",
+        "beforeBytes": 118841,
+        "beforeSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9",
+        "rebuiltSource": "wasm/shamir3pass_runtime/pkg/shamir3pass_runtime_bg.wasm",
+        "afterBytes": 118841,
+        "afterSha256": "9ece1f3daec9291d14f7cd2e64c0af0001abcb087a5bfd919803a72855c035e9",
+        "identical": true
+      },
+      {
+        "asset": "workers/tempo_signer_bg.wasm",
+        "beforeBytes": 101976,
+        "beforeSha256": "17576063be3e5dadedbb64424db0aeb846f964d1b0d70bd010f044d3c8b282e6",
+        "rebuiltSource": "wasm/tempo_signer/pkg/tempo_signer_bg.wasm",
+        "afterBytes": 101976,
+        "afterSha256": "17576063be3e5dadedbb64424db0aeb846f964d1b0d70bd010f044d3c8b282e6",
+        "identical": true
+      },
+      {
+        "asset": "workers/wallet_custody_ceremony_bg.wasm",
+        "beforeBytes": 542919,
+        "beforeSha256": "ea0399f595aa491b49ba66d4e1345272be234d5abc31f2ec6884b2902f9d1b6f",
+        "rebuiltSource": "wasm/wallet_custody_ceremony/pkg/wallet_custody_ceremony_bg.wasm",
+        "afterBytes": 542919,
+        "afterSha256": "ea0399f595aa491b49ba66d4e1345272be234d5abc31f2ec6884b2902f9d1b6f",
+        "identical": true
+      },
+      {
+        "asset": "workers/wasm_signer_worker_bg.wasm",
+        "beforeBytes": 411789,
+        "beforeSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "rebuiltSource": "wasm/near_signer/pkg/wasm_signer_worker_bg.wasm",
+        "afterBytes": 411789,
+        "afterSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+        "identical": true
+      }
+    ],
+    "controlledFrontendFiles": 891,
+    "controlledFrontendManifestSha256": "fa0cff65cc0494652688fc88a9a5f217907c6da34229ca5acb8bbe131a6e1a1c",
+    "controlledFrontendBuildInputsSha256": "34e582f27dcfc77407c0414152014e065c79977fb74a14156a02a7436cdb05ac",
+    "bundleMetricsBefore": {
+      "walletHostGzip": 212,
+      "walletHostBootPathGzip": 25428,
+      "walletHostStaticImportsGzip": 25216,
+      "workerAndWasmGzip": 1451923,
+      "nearWasmGzip": 179831,
+      "ecdsaWasmGzip": 71845,
+      "tempoWasmGzip": 44757,
+      "derivationWasmGzip": 317410,
+      "ed25519YaoClientWasmGzip": 295272,
+      "walletReachableGzip": 860919
+    },
+    "bundleMetricsAfter": {
+      "walletHostGzip": 212,
+      "walletHostBootPathGzip": 25428,
+      "walletHostStaticImportsGzip": 25216,
+      "workerAndWasmGzip": 1451923,
+      "nearWasmGzip": 179831,
+      "ecdsaWasmGzip": 71845,
+      "tempoWasmGzip": 44757,
+      "derivationWasmGzip": 317410,
+      "ed25519YaoClientWasmGzip": 295272,
+      "walletReachableGzip": 860919
+    },
+    "bundleMetricAccounting": "Static/reachable JS closures and selected worker/WASM inventory are separate. Inventory totals include aliases and are not observed downloads. Identical WASM bytes at different URLs may still be fetched separately.",
+    "bundleMetricLimit": "Both runs serve the same 891-file frontend snapshot. Rebuilt browser Wasm matches that snapshot exactly. These results isolate this Rust cleanup and exclude the independent locale change.",
+    "observedPhasesMs": {
+      "coldWarmBefore": {
+        "initialization": 43.099,
+        "cold-signed-out-mount-idle": 2747.125,
+        "cold-sign-in-intent": 136.313,
+        "cold-generic-menu": 2082.586,
+        "warm-signed-out-mount-idle": 2612.263,
+        "warm-generic-menu": 2138.123,
+        "completed": 38.653
+      },
+      "coldWarmAfter": {
+        "initialization": 42.898,
+        "cold-signed-out-mount-idle": 2758.117,
+        "cold-sign-in-intent": 110.232,
+        "cold-generic-menu": 2088.177,
+        "warm-signed-out-mount-idle": 2620.975,
+        "warm-generic-menu": 2133.791,
+        "completed": 46.406
+      },
+      "walletLifecycleBefore": {
+        "initialization": 405.45,
+        "register": 1925.017,
+        "first-near-sign": 737.326,
+        "first-evm-sign": 783.645,
+        "lock": 20.134,
+        "unlock": 657.243,
+        "repeat-near-sign": 708.402,
+        "repeat-evm-sign": 756.616,
+        "completed": 2.242
+      },
+      "walletLifecycleAfter": {
+        "initialization": 403.96,
+        "register": 1915.382,
+        "first-near-sign": 716.233,
+        "first-evm-sign": 781.909,
+        "lock": 19.774,
+        "unlock": 638.694,
+        "repeat-near-sign": 676.409,
+        "repeat-evm-sign": 750.796,
+        "completed": 2.352
+      }
+    },
+    "ecdsaTiming": {
+      "before": {
+        "registrationElapsedMs": 1218.1,
+        "verifiedSignatures": 2,
+        "failedRequestCount": 0,
+        "firstSigning": {
+          "publicSdkCallMs": 441.7,
+          "signTotalMs": 123.2,
+          "prepareMs": 53,
+          "finalizeMs": 27.6,
+          "signatureVerifyMs": 1.5
+        },
+        "subsequentSigning": {
+          "publicSdkCallMs": 437.6,
+          "signTotalMs": 104.1,
+          "prepareMs": 35.2,
+          "finalizeMs": 29.5,
+          "signatureVerifyMs": 0.9
+        }
+      },
+      "after": {
+        "registrationElapsedMs": 1236.359,
+        "verifiedSignatures": 2,
+        "failedRequestCount": 0,
+        "firstSigning": {
+          "publicSdkCallMs": 459.4,
+          "signTotalMs": 126.1,
+          "prepareMs": 51.9,
+          "finalizeMs": 28.6,
+          "signatureVerifyMs": 1.4
+        },
+        "subsequentSigning": {
+          "publicSdkCallMs": 420.3,
+          "signTotalMs": 103.4,
+          "prepareMs": 33.2,
+          "finalizeMs": 30.8,
+          "signatureVerifyMs": 0.9
+        }
+      }
+    },
+    "timingLimit": "One local sample per operation. UI confirmation, automation, background refill, and intentional waits affect the results. This evidence establishes no wallet latency improvement."
+  },
+  "sourceMetrics": {
+    "before": {
+      "rustCodeLines": 398842,
+      "rustDuplicatedMeaningfulLines": 13699,
+      "rustAllowDeadCodeMatches": 89,
+      "largeOwnerReportedLines": 69565
+    },
+    "after": {
+      "rustCodeLines": 398020,
+      "rustDuplicatedMeaningfulLines": 13748,
+      "rustAllowDeadCodeMatches": 39,
+      "largeOwnerReportedLines": 65437
+    },
+    "accounting": "The bloat report excludes comments and blanks from code-line counts. Exact-repeat counts depend on line formatting. The metric grew by 49 meaningful lines after structural formatting. All four moved bodies match after scope and formatting normalization. No bloat baseline was reset."
+  },
+  "structuralMoves": [
+    {
+      "source": "crates/router-ab-cloudflare/src/lib.rs",
+      "destination": "crates/router-ab-cloudflare/src/authorized_operations.rs",
+      "sourceLinesMoved": 1577,
+      "scopeChanges": true,
+      "originalSha256": "bc5cf6522590eca914f2928b0029f5c9ef18cd5f5c6ed94af88fec186bd0a8b0",
+      "resultLines": 1584,
+      "normalizedOriginalSha256": "b0ddfb9aa8fa07b60097382820c1efa168e6d331713fcdc8e26120d787c56383",
+      "normalizedMovedSha256": "b0ddfb9aa8fa07b60097382820c1efa168e6d331713fcdc8e26120d787c56383",
+      "sameCodeAfterScopeAndFormattingNormalization": true
+    },
+    {
+      "source": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "destination": "crates/router-ab-cloudflare/src/tenant_root_role_d1/restore_refresh_record.rs",
+      "sourceLinesMoved": 623,
+      "scopeChanges": true,
+      "originalSha256": "1c7ba182d5e5a5922600921f90dc4230e01615e07c74f29dd019b68d5c1ac9f5",
+      "resultLines": 624,
+      "normalizedOriginalSha256": "4e376be1ab34294662ebfda74a9bf7ebd1bbb0bd09dff9ef2971d51dc0d07706",
+      "normalizedMovedSha256": "4e376be1ab34294662ebfda74a9bf7ebd1bbb0bd09dff9ef2971d51dc0d07706",
+      "sameCodeAfterScopeAndFormattingNormalization": true
+    },
+    {
+      "source": "crates/router-ab-cloudflare/src/tenant_root_role_runtime.rs",
+      "destination": "crates/router-ab-cloudflare/src/tenant_root_role_runtime/wire.rs",
+      "sourceLinesMoved": 424,
+      "scopeChanges": false,
+      "originalSha256": "cd516414ec3fc10047c06f30f6b47fff3ee55403343384c92d315c0cdd9795b6",
+      "resultLines": 427,
+      "normalizedOriginalSha256": "69292452d76459c944a205976df253262b40134ab4ecdcd6e5cd891813619120",
+      "normalizedMovedSha256": "69292452d76459c944a205976df253262b40134ab4ecdcd6e5cd891813619120",
+      "sameCodeAfterScopeAndFormattingNormalization": true
+    },
+    {
+      "source": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation.rs",
+      "destination": "crates/router-ab-cloudflare/src/durable_object/tenant_root_creation/cloudflare_actor.rs",
+      "sourceLinesMoved": 1081,
+      "scopeChanges": true,
+      "originalSha256": "08be8e427a03dae1d292e923b9a02c3a3052d35a070533cff4e105d56bc3ea97",
+      "resultLines": 1165,
+      "normalizedOriginalSha256": "d8145540578091830d0fb2d4ba68546786c1eee1b49dc26dfd002508b8e1f6bb",
+      "normalizedMovedSha256": "d8145540578091830d0fb2d4ba68546786c1eee1b49dc26dfd002508b8e1f6bb",
+      "sameCodeAfterScopeAndFormattingNormalization": true
+    }
+  ],
+  "verification": {
+    "browserCases": [
+      {
+        "label": "cold-warm",
+        "title": "production signed-out mount and menu record cold and warm cache traffic",
+        "exitCode": 0,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+          "--grep",
+          "production signed-out mount and menu record cold and warm cache traffic",
+          "--reporter=line"
+        ],
+        "log": ".artifacts/rust-cleanup-20261021/after/cold-warm.log",
+        "logSha256": "82f927d29afeeeed4a8ac35bc55981094ed61a4519918dce16b91218ec98ee0e"
+      },
+      {
+        "label": "wallet-lifecycle",
+        "title": "production wallet records asset traffic across registration, signing, and unlock",
+        "exitCode": 0,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.registration.assets.contract.test.ts",
+          "--grep",
+          "production wallet records asset traffic across registration, signing, and unlock",
+          "--reporter=line"
+        ],
+        "log": ".artifacts/rust-cleanup-20261021/after/wallet-lifecycle.log",
+        "logSha256": "7c71ee5d91c9d138f79b1921a0be1b301dc72e36ab93d668ec2c2f2d2f0fa2c3"
+      },
+      {
+        "label": "ecdsa-timing",
+        "title": "unforced ECDSA registration and repeated signing capture Gateway timing",
+        "exitCode": 0,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+          "--grep",
+          "unforced ECDSA registration and repeated signing capture Gateway timing",
+          "--reporter=line"
+        ],
+        "log": ".artifacts/rust-cleanup-20261021/after/ecdsa-timing.log",
+        "logSha256": "8b8d1e6d8110211a05b218daa0ff1d991e2d0fa6593412440a94768d32b59d56"
+      },
+      {
+        "label": "recovery-exports-step-up",
+        "title": "a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it",
+        "exitCode": 1,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+          "--grep",
+          "a Passkey-founded wallet recovers with Passkey, adds Email OTP, then signs, exports, and steps up through it",
+          "--reporter=line"
+        ],
+        "classification": "environment_or_infrastructure_failure",
+        "reason": "Missing SEAMS_INTENDED_GOOGLE_ID_TOKEN at the Email OTP addition step. Separate passkey-only recovery and owner export cases passed.",
+        "log": ".artifacts/rust-cleanup-20261021/after/recovery-exports-step-up.log",
+        "logSha256": "e55798ea170266e8baaf1d93ff30420ea27c8667862054f6038f6c84973bd08f"
+      },
+      {
+        "label": "passkey-unlock-exports",
+        "title": "passkey unlock restores immediate export and shared-budget signing",
+        "exitCode": 0,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+          "--grep",
+          "passkey unlock restores immediate export and shared-budget signing",
+          "--reporter=line"
+        ],
+        "log": ".artifacts/rust-cleanup-20261021/after/passkey-unlock-exports.log",
+        "logSha256": "e3fa8122849516a6a068fbd2426c027e350d3dad6108e0e8abc73a1722085448"
+      },
+      {
+        "label": "passkey-recovery",
+        "title": "a fresh browser recovers a Passkey-founded wallet with one code, signs, and refuses reuse",
+        "exitCode": 0,
+        "command": [
+          "pnpm",
+          "-C",
+          "tests",
+          "exec",
+          "playwright",
+          "test",
+          "-c",
+          "playwright.wallet-intended.ci.config.ts",
+          "e2e/intended-behaviours/passkey.recovery.contract.test.ts",
+          "--grep",
+          "a fresh browser recovers a Passkey-founded wallet with one code, signs, and refuses reuse",
+          "--reporter=line"
+        ],
+        "log": ".artifacts/rust-cleanup-20261021/after/passkey-recovery.log",
+        "logSha256": "fd37296210cd7219ebcaa5c807d52379abd7654069b5a354cddec2fe56c4dfb9"
+      }
+    ],
+    "backendCases": [
+      {
+        "name": "grant-renewal",
+        "command": ["node", "crates/router-ab-cloudflare/scripts/test-grant-renewal.mjs"],
+        "exitCode": 0,
+        "log": ".artifacts/rust-cleanup-20261021/after/grant-renewal.log",
+        "logSha256": "0117f78c8b8cc60da3e8c5ccb935f22b7292da5be5624c2e518f2586204fc946"
+      },
+      {
+        "name": "do-pair-execution",
+        "command": [
+          "node",
+          "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+          "--do-pair-execution"
+        ],
+        "exitCode": 1,
+        "classification": "obsolete_test_or_fixture",
+        "reason": "Direct fixture requests omit wallet-object addresses that the unchanged production routing boundary requires.",
+        "log": ".artifacts/rust-cleanup-20261021/after/do-pair-execution.log",
+        "logSha256": "aac2b769cdaf73fe834d96812c6b804ed04a48df7ed67e85f1f613ac2f282e7d"
+      },
+      {
+        "name": "ecdsa-wallet-do-pool",
+        "command": [
+          "node",
+          "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+          "--ecdsa-wallet-do-pool"
+        ],
+        "exitCode": 1,
+        "classification": "obsolete_test_or_fixture",
+        "reason": "Direct fixture requests omit wallet-object addresses that the unchanged production routing boundary requires.",
+        "log": ".artifacts/rust-cleanup-20261021/after/ecdsa-wallet-do-pool.log",
+        "logSha256": "1c131bc57dafbf11da8540d7fc60a9710fd44ea96dc8ebda831062aeb7f642f8"
+      },
+      {
+        "name": "refresh-after-managed-restore",
+        "command": [
+          "node",
+          "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+          "--refresh-after-managed-restore"
+        ],
+        "exitCode": 0,
+        "log": ".artifacts/rust-cleanup-20261021/after/refresh-after-managed-restore.log",
+        "logSha256": "390d9ab759481afbc38b4606dca36df2572a2a0d2d64467c82da67bf3a3a39f7"
+      },
+      {
+        "name": "replay-after-erasure",
+        "command": [
+          "node",
+          "crates/router-ab-cloudflare/scripts/test-private-d1.mjs",
+          "--replay-after-erasure"
+        ],
+        "exitCode": 143,
+        "classification": "obsolete_test_or_fixture",
+        "reason": "Direct fixture requests omit wallet-object addresses that the unchanged production routing boundary requires. Stopped with SIGTERM after the harness waited for a Deriver request before checking the Router response.",
+        "log": ".artifacts/rust-cleanup-20261021/after/replay-after-erasure.log",
+        "logSha256": "321126affdad85d103b0a2d603f70a68fe2c98f79f5bed8f19e3b6b23e6f3542"
+      }
+    ],
+    "additionalRustChecks": [
+      {
+        "name": "native-test-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--tests"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "router-test-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--tests",
+          "--features",
+          "strict-worker-router-entrypoint"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "signing-test-targets",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--tests",
+          "--features",
+          "strict-worker-signing-worker-entrypoint"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "wire-vectors",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-cloudflare/Cargo.toml",
+          "--test",
+          "vector_adapters",
+          "--features",
+          "strict-worker-router-entrypoint"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "cli-console-contract",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--manifest-path",
+          "crates/seams-cli/Cargo.toml",
+          "--test",
+          "console"
+        ],
+        "exitCode": 0
+      },
+      {
+        "name": "native-dev-host",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--manifest-path",
+          "crates/router-ab-dev/Cargo.toml"
+        ],
+        "exitCode": 0
+      }
+    ],
+    "bloatCheckPassed": true,
+    "passedBrowserCases": 5,
+    "passedBackendCases": 2,
+    "validationLimits": {
+      "googleBackedEmailOtpFollowup": "Unavailable without a Google ID token.",
+      "relocationAndEcdsaPool": "The unchanged private harness omits required wallet-object route addresses.",
+      "erasureReplay": "The same direct-registration fixture omission prevents the awaited Deriver hop. The stalled run was stopped.",
+      "temporaryFixtureRepair": "One address-helper repair was tried, then reverted after it reached an unresolved concurrent-call failure. One Deriver A call returned 200 and another returned 503 while the interceptor expected two 200 responses. Baseline parity for that modified harness was not measured. No test or production change remains from that attempt.",
+      "temporaryRepairLog": ".artifacts/rust-cleanup-20261021/after/do-pair-execution-retry.log",
+      "temporaryRepairLogSha256": "2d7329c8f49c5126e6995f80275ae3784ac5dfb2afa101a5894cdd883f366dc1"
+    },
+    "newTestFiles": 0,
+    "walletSiteNavigationTestsAdded": 0,
+    "deploymentPerformed": false,
+    "creationGrantRenewalEvidence": {
+      "kind": "creation_grant_renewal_workers_e2e_v1",
+      "sameIdentity": true,
+      "sameLineage": true,
+      "exactJournalReplay": true,
+      "unauthorizedRequestRefused": true,
+      "prematureRenewalRefused": true,
+      "forgedAuthorizationRefused": true,
+      "privateWalletRuntimeRelayCalls": 4,
+      "startedRenewalRefused": true
+    },
+    "managedRestoreRefreshEvidence": {
+      "kind": "tenant_root_refresh_after_managed_restore_workers_e2e_v1",
+      "restoreRevision": 4,
+      "refreshStatus": 200,
+      "refreshRevision": 5,
+      "deriverA": [
+        [2, "retired"],
+        [3, "active"]
+      ],
+      "deriverB": [
+        [2, "retired"],
+        [3, "active"]
+      ],
+      "restoreRetryReturnsDurableOutcome": true
+    },
+    "ownerExportSessionStatusRequestCount": 18
+  }
+}

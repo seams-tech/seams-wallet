@@ -1,12 +1,141 @@
 # Rust warning cleanup checklist and revert log
 
-Review date: **2026-10-21**. Status: **cleanup in progress**.
+Review date: **2026-10-21**. Implementation completed locally on **2026-10-22**.
+Status: **implemented, with validation limits recorded**.
 
-The review found unused transport wrappers, broad worker imports, and repeated
-lifecycle code. Start with the internal wrappers that have no callers.
-Review role ownership and response contracts before deleting other flagged code.
-The initial review changed documentation only. The change ledger records later
-Rust changes and their recovery points.
+The cleanup reduces compressed backend Wasm by 22.19% across five services.
+Browser WASM bytes remain unchanged. Local timing samples establish no wallet speed improvement.
+The checklist records each deletion, retained item, verification result, and recovery commit.
+The source baseline preserves the original implementations in Git.
+
+## Implementation results
+
+All twelve batches now have implementation or explicit retention decisions.
+The final Rust cleanup commit is `2f50c39c5ae46137d9d82f10f5e861c255970f18`.
+The recovery ledger below records each actual cleanup commit.
+
+The five Worker compilation checks emit **565 warnings**, down from **732**.
+All remaining production warnings concern dead code. Unused imports and variables emit zero warnings.
+The distinct diagnostic count falls from 218 to 187.
+Deleting 50 suppressions exposes previously hidden code, so warning counts require that context.
+The native CLI and all four browser WASM checks emit zero warnings.
+The native development host emits 19 dead-code warnings after the suppression audit, compared with 17 at review.
+
+Release backend Wasm shrinks from **51,075,498 to 38,325,891 raw bytes**.
+At gzip level 9, it shrinks from **17,828,022 to 13,872,178 bytes**, a **22.19%** reduction.
+These totals cover Wasm across five independent services. JavaScript wrapper sizes appear separately in the evidence.
+
+| Worker                    | Before gzip bytes | After gzip bytes | Reduction |
+| ------------------------- | ----------------: | ---------------: | --------: |
+| router                    |         2,632,634 |        2,298,180 |    12.70% |
+| deriver-a                 |         5,281,061 |        4,342,019 |    17.78% |
+| deriver-b                 |         5,292,685 |        4,354,489 |    17.73% |
+| signing-worker            |         2,875,522 |        2,121,123 |    26.24% |
+| tenant-root-control-plane |         1,746,120 |          756,367 |    56.68% |
+
+Each release exports only the Durable Object classes owned by its existing bindings and migrations.
+The control plane exports no local Durable Object class.
+
+All eight rebuilt browser WASM runtimes match the baseline byte for byte.
+Both browser runs use the same captured frontend with 891 files.
+This control excludes the independent TypeScript locale change that landed during cleanup.
+Browser bundle size therefore remains unchanged for this Rust cleanup.
+
+The local timing samples establish no wallet speed improvement.
+The first ECDSA SDK call changes from 441.7 to 459.4 milliseconds.
+The repeated call changes from 437.6 to 420.3 milliseconds.
+Each arm has one sample. Confirmation, automation, and background work affect these times.
+Cold and warm asset scenarios also contain intentional two-second waits.
+Local startup profiles use one instrumented sample per Worker and do not measure deployed Cloudflare startup time.
+
+Tracked Rust code falls from 398,842 to 398,020 code lines.
+The four largest owners fall from 69,565 to 65,437 reported lines.
+The exact-repeat metric rises by 49 meaningful lines after formatting the moved code.
+All four moved bodies match after formatting and parent-scope normalization.
+The bloat check passes without resetting its baseline.
+
+Five existing browser scenarios pass. They cover cold and warm assets, registration, signing, unlock, passkey recovery, both key exports, and step-up.
+Two backend scenarios pass: expired creation-grant renewal and refresh after managed restore.
+Existing wire vectors, eight CLI response contracts, and additional native and role-specific test-target checks also pass.
+This cleanup adds no tests, including wallet-site-navigation tests.
+
+Shareable measurements, hashes, commands, and the remaining warning inventory:
+[`evidence/rust-cleanup-20261021.json`](evidence/rust-cleanup-20261021.json).
+The suppression inventory records every original metric match:
+[`evidence/rust-warning-suppressions-20261021.json`](evidence/rust-warning-suppressions-20261021.json).
+Local raw evidence remains under `.artifacts/rust-cleanup-20261021/`.
+
+Remaining work includes 187 distinct diagnostics across the selected roles, protocol-module suppressions, and further splits of the four large owners.
+The retained checks protect different envelopes, lifecycle rules, or test invariants.
+Their warning status alone gives insufficient evidence for deleting them.
+
+### Validation limits
+
+| Check                                   | Result and classification                                                                                                                                                         |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recovery followed by Email OTP addition | `environment_or_infrastructure_failure`: `SEAMS_INTENDED_GOOGLE_ID_TOKEN` is missing. Separate passkey-only recovery and owner-export cases pass.                                 |
+| Private Deriver relocation harness      | `obsolete_test_or_fixture`: its direct activation request omits required wallet-object addresses. The production parser and original fixture match the baseline.                  |
+| Private ECDSA wallet-pool harness       | `obsolete_test_or_fixture`: its activation request also omits wallet-object addresses. Public registration and repeated ECDSA signing pass through the Gateway.                   |
+| Replay after erasure                    | `obsolete_test_or_fixture`: its direct registration omits addresses, then the harness waits for a Deriver hop before inspecting the response. The stalled run ended with SIGTERM. |
+
+One temporary address-helper repair reached a second failure in the relocation harness.
+One concurrent Deriver A call returned 200. The other returned 503.
+The interceptor requires two 200 responses and converted its failed assertion into an outer 500 response.
+The final tree restores the original fixture. No production behavior changed to satisfy these checks.
+
+Facts for that diagnostic attempt:
+
+| Fact                                                                               | Instrument and scope                                                                             | Checked                             |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| The original direct fixture omits object addresses. The boundary requires them.    | Source comparison with `d43d4e893912633ede13030f251efaa96cdb4596` and the original 400 response. | Yes                                 |
+| A temporary address helper allowed the request to reach Deriver execution.         | `after/do-pair-execution-retry.log` in the local evidence directory.                             | Yes                                 |
+| Concurrent calls returned 200 and 503. The interceptor asserted two 200 responses. | Role timing events and the current interceptor source.                                           | Yes                                 |
+| The same temporary repair was not run against the baseline binaries.               | Test-run inventory.                                                                              | Baseline parity needs a control run |
+
+| Candidate cause                                                    | Evidence                                                                       | Decision                              |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------------------------------- |
+| This cleanup added the address requirement.                        | The parser and omitted header predate the cleanup.                             | Contradicted for the original failure |
+| The original fixture omits required routing data.                  | Source and the original missing-address response agree.                        | Established for the original failure  |
+| This cleanup caused the concurrent 503 response.                   | Baseline parity for the temporary repair needs a control run.                  | Unresolved                            |
+| Existing concurrent-call behavior or harness scheduling caused it. | One execution completed. Another call refused while execution was in progress. | Unresolved                            |
+
+The unresolved concurrent-call result needs its own controlled diagnosis.
+The retained raw logs preserve the failed and stopped runs. The evidence JSON records their nonzero exit codes.
+
+### Reproduce the assembled-system checks
+
+Rebuild the release Workers and browser WASM with the existing commands:
+
+```sh
+pnpm build:workers
+WASM_SDK_BUILD_MODE=prod pnpm build:wasm
+pnpm build:local-tools
+```
+
+For the controlled browser comparison, both arms serve the captured `before/wallet-dist` directory.
+Set these variables when reproducing the selected Playwright commands recorded in the evidence JSON:
+
+```sh
+export SEAMS_INTENDED_PRODUCTION=1
+export SEAMS_INTENDED_SKIP_BUILD=1
+export ROUTER_AB_WORKER_BUILD_PROFILE=release
+export SEAMS_LOCAL_PORT_OFFSET=20000
+export SEAMS_INTENDED_APP_URL=http://localhost:24201
+export SEAMS_INTENDED_WALLET_ORIGIN=http://localhost:24202
+export SEAMS_INTENDED_ROUTER_URL=http://127.0.0.1:24100
+export SEAMS_INTENDED_WALLET_DIST_ROOT="$PWD/.artifacts/rust-cleanup-20261021/before/wallet-dist"
+export SEAMS_INTENDED_ROUTER_AB_ROOT="$(mktemp -d)"
+export SEAMS_INTENDED_TEST_APP_VITE_CACHE_DIR="$SEAMS_INTENDED_ROUTER_AB_ROOT/.runtime/vite-app"
+```
+
+Use a fresh runtime directory for each browser command. The original captured frontend remains local and ignored by Git.
+Without that capture, rebuild the current SDK to check behavior. That run cannot reproduce the isolated frontend size comparison.
+The two passing backend commands are:
+
+```sh
+ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-grant-renewal.mjs
+ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-private-d1.mjs --refresh-after-managed-restore
+```
 
 ## Source baseline and measurements
 
@@ -224,7 +353,7 @@ Preserve signature verification, expected bindings, role checks, and metadata ch
 
 Completed in `1e122a0569ec3fe2f1dd48770b685f605fd4565e`.
 Six accessors now compile only for their existing test callers.
-The unused canary wrapper is deleted. The metadata verifier and serialized receipt fields remain intact.
+This batch deletes the unused canary wrapper. The metadata verifier and serialized receipt fields remain intact.
 Eight compilation checks and the bloat check passed. Worker warning occurrences fell from 567 to 552.
 
 ### C06 — Review the unread failure receipt without losing replay evidence
@@ -239,13 +368,13 @@ Location: `crates/router-ab-cloudflare/src/tenant_root_role_d1.rs:7105`, field
 Other decision types use the same field name.
 `persist_authorized_cleanup` at line 12040 returns a refusal for this branch.
 
-Classification: **retain pending semantic review**.
+Classification after review: **redundant in-memory payload, durable receipt retained**.
 Preserve durable failure receipts, replay refusal, and cleanup authorization.
 An unread field gives insufficient evidence for changing stored receipt data.
 
 Completed in `838636af256e5da515bc9fa6d4f45f246da2e3cf`.
-Five lower-level replay decisions already validate and retain their terminal receipt data.
-The single higher-level consumer uses only the failure state. Its redundant payload is deleted.
+Five lower-level replay decisions already retain their checked terminal receipt data.
+The single higher-level consumer uses only the failure state. This batch deletes its redundant payload.
 Durable receipts and replay checks remain intact. Eight compilation checks and the bloat check passed.
 Worker warning occurrences fell from 552 to 547.
 
@@ -279,7 +408,7 @@ The native host emits 17 diagnostics with its current features.
 Several concern excluded Worker or database implementations.
 Keep live feature paths. Add no new feature flags or compatibility paths.
 
-Completed in `e8c4226f`.
+Completed in `e8c4226f21d366680b6da427ed7fd7e129b1e6a9`.
 Durable Object classes now compile only for their existing owning Worker and test targets.
 Shared relocation wire types retain their names and fields. Signing Worker storage handlers live in two small owner modules.
 Role imports and host-specific SQL and KMS helpers use existing features. No binding, migration, or class name changed.
@@ -301,12 +430,12 @@ All locations are under `crates/router-ab-cloudflare/src/`:
 
 Classification: **ownership review required**.
 The unused generation alone establishes no ownership defect.
-Any change to a required owner check needs a separate behavior fix and evidence.
+Any change to a required owner check needs a separate behavior repair and evidence.
 
-Completed in `e8c4226f`.
-The HTTP ECDSA adapter has only Signing Worker callers. Its obsolete D1 fallback and private finalize module are deleted.
+Completed in `e8c4226f21d366680b6da427ed7fd7e129b1e6a9`.
+The HTTP ECDSA adapter has only Signing Worker callers. This batch deletes its obsolete D1 fallback and private finalize module.
 The active wallet Durable Object path remains intact. Linked-device material loading retains its live D1 path.
-The redundant runtime and completion-generation parameters are deleted. Physical-object selection, fencing, owner checks, and completion checks remain intact.
+This batch deletes the redundant runtime and completion-generation parameters. Physical-object selection, fencing, owner checks, and completion checks remain intact.
 This batch shares C07's commit because the caller audit determines both feature ownership and parameter use.
 
 ### C09 — Scope the Ed25519 client export helper to its existing owner
@@ -323,9 +452,9 @@ one warning for this helper. The standalone client WASM check emits no warnings.
 Classification: **retain live export behavior. Review the existing feature boundary.**
 Keep seed-manifest proof types separate from authenticated-envelope proof types.
 
-Completed in `HEAD`.
+Completed in `4c93c2636a3d8c83a2ace2b053ecafcce98d10c2`.
 The sole caller is the standalone client's WASM binding. The helper now uses the identical target and feature condition.
-Its body, wire binding, and custody proof types remain unchanged. The unused import is replaced with a qualified call.
+Its body, wire binding, and custody proof types remain unchanged. The helper uses a qualified call instead of an unused import.
 
 ### C10 — Audit the 89 dead-code suppressions
 
@@ -342,13 +471,13 @@ The operational-provider module contains live backup and online-share code.
 Preserve secret erasure, provider checks, and cryptographic domain separation.
 Delete no module solely because it contains a broad suppression.
 
-Completed in `HEAD`.
-All 89 metric matches are classified in `docs/evidence/rust-warning-suppressions-20261021.json`.
-Fifty Cloudflare attributes are deleted. The 39 retained matches include one source-guard string, 20 generated fixture attributes, and 18 protocol or test-support attributes.
-Unused creation RPC wrappers, a provider-config wrapper, a promotion adapter, and two unused size constants are deleted.
+Completed in `6adb89766b41c706d670c634ecea0519cf65a40e`.
+The audit classifies all 89 metric matches in `docs/evidence/rust-warning-suppressions-20261021.json`.
+This batch deletes 50 Cloudflare attributes. The 39 retained matches include one source-guard string, 20 generated fixture attributes, and 18 protocol or test-support attributes.
+This batch deletes unused creation RPC wrappers, a provider-config wrapper, a promotion adapter, and two unused size constants.
 Existing test helpers use test-only compilation. Fourteen live Deriver HTTP adapters use their owning entrypoint features.
-Removing the suppressions first exposed 177 Worker warnings. Narrowing and deletions then removed 130 occurrences.
-The constructor and decoder import needed by existing test targets were restored under test-only conditions after compilation caught their removal.
+Deleting the suppressions first exposed 177 Worker warnings. Narrowing and deletions then eliminated 130 occurrences.
+Compilation caught the deletion of a constructor and decoder import that existing tests need. This batch restores both under test-only conditions.
 Unresolved dead-code diagnostics remain visible. Secret lifetimes, stored evidence, validation, and generated vectors remain intact.
 
 ### C11 — Consolidate specific duplication, then split oversized owners
@@ -387,13 +516,15 @@ Caller and behavior checks determine which code can be deleted.
 Keep SQL predicates, transaction order, replay fences, wire names, and persisted
 identifiers stable during structural work.
 
-Completed in `HEAD`.
+Completed in `2f50c39c5ae46137d9d82f10f5e861c255970f18`.
 The three duplicate blocks remain explicit. Authorization conversion already reuses the existing claim constructor. A new cross-curve conversion layer would add another model.
 Promotion and replay-seed envelopes authenticate different data and retain different error checks. The two refresh flows retain distinct admission freshness and completion rules.
 Four cohesive owners moved into `authorized_operations.rs`, `tenant_root_role_d1/restore_refresh_record.rs`, `tenant_root_role_runtime/wire.rs`, and `durable_object/tenant_root_creation/cloudflare_actor.rs`.
 The new files contain 1,584, 624, 427, and 1,165 lines. The original four large owners lose 3,705 lines. They remain above 2,000 lines.
+All four moved bodies match after formatting and parent-scope normalization.
+The exact-repeat metric rises from 13,699 at review to 13,748 after formatting moved code. This batch adds no runtime path.
 Parent visibility preserves the previous access scope. Public re-exports preserve existing API paths. Transaction order, stored fields, wire names, and cryptographic checks remain intact.
-No vectors or ceremony contracts were deleted or regenerated. This commit contains structural moves only.
+This batch preserves the existing vectors and ceremony contracts. This commit contains structural moves only.
 
 ### C12 — Review the CLI's parsed response fields
 
@@ -419,7 +550,7 @@ Completed in `15155578c522e98f8f4fa98f19765d29b056680e`.
 HTTP status selects the current server's completed, refused, and throttled outcomes.
 The CLI retains each field's type, wire name, default, and strict unknown-field rule.
 Explicit Serde names permit intentionally unused Rust field names.
-No accepted response field was deleted. CLI compilation now emits zero warnings.
+The CLI continues to accept every response field. CLI compilation now emits zero warnings.
 All eight existing Console response-contract checks passed before and after this change.
 
 ## Verification and repeatable evidence
@@ -463,7 +594,7 @@ Use the existing harnesses:
 | Browser signing, recovery, and export                   | Select the relevant contract through `pnpm -C tests test:intended -- e2e/intended-behaviours/<contract>.test.ts`. Record the selected cases, source commit, Playwright report, and attached evidence. Google-token prerequisites apply to this command.                                            |
 | Cryptographic or wire changes                           | Preserve the relevant existing vectors, type fixtures, and formal checks. Run the owning checks only when their invariants change. Regenerate generated artifacts with their existing commands.                                                                                                    |
 
-The review did not rerun E2E scenarios because it changes documentation only.
+The initial documentation review did not run E2E scenarios. The implementation results record the later E2E runs.
 Add no unit tests or source-text snapshot checks for this checklist.
 If an existing check fails, classify its invariant before changing code or fixtures.
 Record whether it is a production regression, valid test needing update, obsolete
@@ -471,7 +602,8 @@ test or fixture, or environment/infrastructure failure.
 
 ## Change ledger and recovery
 
-Completed batches: C01, C02, C03, C04, C05, C06, C07, C08, C09, C10, C11, C12. Other cleanup batches remain pending.
+All twelve batches have implementation or explicit retention decisions.
+Release measurements and assembled-system results appear above, including the validation limits.
 The source baseline preserves every listed implementation in Git.
 Before each batch, record the current full commit SHA and exact symbols to delete.
 Use a dedicated code commit for that batch.
@@ -479,20 +611,19 @@ Afterward, record its full commit SHA and verification evidence here.
 Commit the ledger update before starting the next batch.
 Use one ledger row per actual batch. Split rows further when necessary.
 
-| Batch                             | Status                              | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                                                                                                                                                                     | Revert commit |
-| --------------------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| C01 — Internal wrappers           | Complete                            | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                                                                                                                                                   | —             |
-| C02 — Transport adapters          | Complete                            | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`.                                                                                                                            | —             |
-| C03 — Durable Object readers      | Complete                            | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`.                                                                                                            | —             |
-| C04 — D1 methods                  | Complete                            | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.                                                                                                                  | —             |
-| C05 — Test accessors / R2 wrapper | Complete                            | `1b3819183f3080de2ab16d3a1c493a09734336db` | `1e122a0569ec3fe2f1dd48770b685f605fd4565e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 567 → 552. Evidence: `.artifacts/rust-cleanup-20261021/after/c05/`.                                                                                                                  | —             |
-| C06 — Failure receipt             | Complete                            | `d47edf57f40ae722b0347beea7e8e0a775e8206d` | `838636af256e5da515bc9fa6d4f45f246da2e3cf` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 552 → 547. Evidence: `.artifacts/rust-cleanup-20261021/after/c06/`.                                                                                                                  | —             |
-| C07 — Role and host configuration | Complete, combined with C08         | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f`                                 | Eight compilation checks and bloat passed. Worker warnings 547 → 518. Production unused imports and variables both fell to zero. Evidence: `.artifacts/rust-cleanup-20261021/after/c07-c08-final/`.                                                                         | —             |
-| C08 — Unused parameters           | Complete, combined with C07         | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f`                                 | Same eight checks as C07. 1,434 insertions and 1,795 deletions include structural moves. No protocol or persistence shape changed.                                                                                                                                          | —             |
-| C09 — Client export configuration | Complete, live export retained      | `a035483a9b5fd8d18ccd720ae4ab863b1d39ba2c` | `HEAD`                                     | All four browser WASM checks and native development-host compilation passed. Custody-ceremony warnings 1 → 0. Standalone client warnings remain zero. Evidence: `.artifacts/rust-cleanup-20261021/after/c09/`.                                                              | —             |
-| C10 — Suppressions                | Complete, retained cases documented | `5b7979f771483eb41c937fe68b776c3bec00aa78` | `HEAD`                                     | Eight compilation checks and bloat passed. Worker warnings 518 → 695 when unmasked, then → 565. All production imports and variables are used. Native host and PostgreSQL each emit 19 dead-code warnings. Evidence: `.artifacts/rust-cleanup-20261021/after/c10-checked/`. | —             |
-| C11 — Duplication and large files | Complete, distinct checks retained  | `011826b2d1648c1ecaf89d0a6963c069caaef6a8` | `HEAD`                                     | Eight compilation checks and bloat passed. Worker warnings remain 565. New owners stay below 2,000 lines. Local move inventory: `.artifacts/rust-cleanup-20261021/c11-moves.json`.                                                                                          | —             |
-| C12 — CLI response fields         | Complete, parsing retained          | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                                                                                                                                               | —             |
+| Batch                                   | Status                              | Before commit                              | Cleanup commit                             | Verification / artifact                                                                                                                                                                                                                                                           | Revert commit |
+| --------------------------------------- | ----------------------------------- | ------------------------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| C01 — Internal wrappers                 | Complete                            | `7cb0e95865b7a8c9260304ecc13ead5b6eef3131` | `74220467a6e97d8497d9626ddd7fc754fd9fce49` | Five worker checks passed. Warnings 732 → 707. 78 lines deleted. Evidence: `.artifacts/rust-cleanup-20261021/after/c01/`.                                                                                                                                                         | —             |
+| C02 — Transport adapters                | Complete                            | `10ddd64cc4433d51c8a53e29160cef0d2eea18df` | `01239ce6b803e91c97365d89f45aeb0ba2151a43` | Seven compilation checks passed. Worker warnings 707 → 612. 1 insertion, 234 deletions. Evidence: `.artifacts/rust-cleanup-20261021/after/c02/`.                                                                                                                                  | —             |
+| C03 — Durable Object readers            | Complete                            | `659e5e6d109085555c47134ca5c1678a136e579c` | `818326a6597427878b5fdafdd5266d27a526c88a` | Five role checks, native host, PostgreSQL, and existing test targets passed. Worker warnings 612 → 602. Evidence: `.artifacts/rust-cleanup-20261021/after/c03/`.                                                                                                                  | —             |
+| C04 — D1 methods                        | Complete                            | `08b663ffd8a3aff0b099d9666610cf21ba037fc0` | `24e4becfbe4f9eb170ef697757025f2ea35b3e6e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 602 → 567. Evidence: `.artifacts/rust-cleanup-20261021/after/c04/`.                                                                                                                        | —             |
+| C05 — Test accessors / R2 wrapper       | Complete                            | `1b3819183f3080de2ab16d3a1c493a09734336db` | `1e122a0569ec3fe2f1dd48770b685f605fd4565e` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 567 → 552. Evidence: `.artifacts/rust-cleanup-20261021/after/c05/`.                                                                                                                        | —             |
+| C06 — Failure receipt                   | Complete                            | `d47edf57f40ae722b0347beea7e8e0a775e8206d` | `838636af256e5da515bc9fa6d4f45f246da2e3cf` | Five roles, native host, PostgreSQL, and existing test targets passed. Worker warnings 552 → 547. Evidence: `.artifacts/rust-cleanup-20261021/after/c06/`.                                                                                                                        | —             |
+| C07 + C08 — Role ownership / parameters | Complete                            | `ccf259ebd73fefdbb081406cd2c924b8bf500443` | `e8c4226f21d366680b6da427ed7fd7e129b1e6a9` | Eight compilation checks and bloat passed. Worker warnings 547 → 518. Production unused imports and variables both fell to zero. 1,434 insertions and 1,795 deletions include structural moves. Evidence: `.artifacts/rust-cleanup-20261021/after/c07-c08-final/`.                | —             |
+| C09 — Client export configuration       | Complete, live export retained      | `a035483a9b5fd8d18ccd720ae4ab863b1d39ba2c` | `4c93c2636a3d8c83a2ace2b053ecafcce98d10c2` | All four browser WASM checks and native development-host compilation passed. Custody-ceremony warnings 1 → 0. Standalone client warnings remain zero. Evidence: `.artifacts/rust-cleanup-20261021/after/c09/`.                                                                    | —             |
+| C10 — Suppressions                      | Complete, retained cases documented | `5b7979f771483eb41c937fe68b776c3bec00aa78` | `6adb89766b41c706d670c634ecea0519cf65a40e` | Eight compilation checks and bloat passed. Worker warnings 518 → 695 when unmasked, then → 565. Production imports and variables emit zero warnings. Native host and PostgreSQL each emit 19 dead-code warnings. Evidence: `.artifacts/rust-cleanup-20261021/after/c10-checked/`. | —             |
+| C11 — Duplication and large files       | Complete, distinct checks retained  | `011826b2d1648c1ecaf89d0a6963c069caaef6a8` | `2f50c39c5ae46137d9d82f10f5e861c255970f18` | Eight compilation checks and bloat passed. Worker warnings remain 565. New owners stay below 2,000 lines. Local move inventory: `.artifacts/rust-cleanup-20261021/c11-moves.json`.                                                                                                | —             |
+| C12 — CLI response fields               | Complete, parsing retained          | `d43d4e893912633ede13030f251efaa96cdb4596` | `15155578c522e98f8f4fa98f19765d29b056680e` | Eight existing response contracts passed. CLI warnings 3 → 0. Local evidence: `.artifacts/rust-cleanup-20261021/after/c12-*`.                                                                                                                                                     | —             |
 
 For each completed row, record changed paths, deleted symbols, warning-count
 changes, source-line changes, and any release-WASM byte measurements actually taken.
