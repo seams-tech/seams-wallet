@@ -472,7 +472,6 @@ use paths::{
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_service_url,
     cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_prepare_service_url,
     cloudflare_tenant_root_control_plane_restore_initial_activation_service_url,
-    cloudflare_tenant_root_control_plane_restore_refresh_commands_service_url,
 };
 pub use trace_context::CloudflareTraceIdV1;
 #[cfg(feature = "workers-rs")]
@@ -13476,83 +13475,6 @@ pub async fn execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_serv
 
 #[cfg(feature = "workers-rs")]
 pub(crate) const TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1: &str = "TENANT_ROOT_CONTROL_PLANE";
-
-/// Requests deterministic issuer-signed restore-refresh role commands.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_tenant_root_control_plane_restore_refresh_commands_service_call_v1(
-    env: &worker::Env,
-    request: &tenant_root_control_plane::CloudflareTenantRootControlPlaneRestoreRefreshCommandsRequestV1,
-) -> RouterAbProtocolResult<
-    tenant_root_control_plane::CloudflareTenantRootControlPlaneRestoreRefreshCommandsResponseV1,
-> {
-    post_service_json(
-        env,
-        TENANT_ROOT_CONTROL_PLANE_SERVICE_BINDING_V1,
-        cloudflare_tenant_root_control_plane_restore_refresh_commands_service_url(),
-        "tenant-root control-plane restore-refresh command request",
-        request,
-    )
-    .await
-}
-
-/// Requests one issuer-authorized cleanup command from the control plane.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_tenant_root_control_plane_cleanup_command_service_call_v1(
-    env: &worker::Env,
-    request: &CloudflareTenantRootControlPlaneCleanupCommandRequestV1,
-) -> RouterAbProtocolResult<CloudflareTenantRootControlPlaneCleanupCommandResponseV1> {
-    tenant_root_transport::tenant_root_control_plane_cleanup_command_call_v1(
-        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::new(env, None, None),
-        request,
-    )
-    .await
-}
-
-/// The Deriver role a tenant-root peer binding addresses.
-#[cfg(feature = "workers-rs")]
-fn cloudflare_tenant_root_peer_deriver_role_v1(
-    peer: &CloudflarePeerBindingV1,
-    operation: &str,
-) -> RouterAbProtocolResult<TwoPartyDeriverRole> {
-    match peer.peer_role {
-        CloudflareWorkerRoleV1::DeriverA => Ok(TwoPartyDeriverRole::DeriverA),
-        CloudflareWorkerRoleV1::DeriverB => Ok(TwoPartyDeriverRole::DeriverB),
-        _ => Err(RouterAbProtocolError::new(
-            RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
-            format!("{operation} can target only Deriver A or Deriver B"),
-        )),
-    }
-}
-
-/// Sends one authorized role-share cleanup to its owning Deriver.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_deriver_tenant_root_cleanup_service_call_v1(
-    env: &worker::Env,
-    peer: &CloudflarePeerBindingV1,
-    request: &CloudflareDeriverTenantRootCleanupRequestV1,
-) -> RouterAbProtocolResult<CloudflareDeriverTenantRootCleanupResponseV1> {
-    tenant_root_transport::tenant_root_deriver_cleanup_call_v1(
-        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(env, peer),
-        cloudflare_tenant_root_peer_deriver_role_v1(peer, "tenant-root cleanup")?,
-        request,
-    )
-    .await
-}
-
-/// Sends one exact control-plane activation receipt to its owning Deriver.
-#[cfg(feature = "workers-rs")]
-pub(crate) async fn execute_cloudflare_deriver_tenant_root_initial_activation_service_call_v1(
-    env: &worker::Env,
-    peer: &CloudflarePeerBindingV1,
-    request: &CloudflareDeriverTenantRootInitialActivationRequestV1,
-) -> RouterAbProtocolResult<CloudflareDeriverTenantRootInitialActivationResponseV1> {
-    tenant_root_deriver_initial_activation_call_v1(
-        &tenant_root_transport::CloudflareTenantRootServiceTransportV1::peer(env, peer),
-        cloudflare_tenant_root_peer_deriver_role_v1(peer, "tenant-root initial activation")?,
-        request,
-    )
-    .await
-}
 
 /// Parses role-specific Worker bindings from an Env reader.
 pub fn parse_cloudflare_worker_bindings_v1(
