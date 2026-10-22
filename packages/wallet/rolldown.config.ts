@@ -540,6 +540,8 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationModal.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/ConfirmationDrawer.tsx',
       'src/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.tsx',
+      'src/core/signingEngine/uiConfirm/ui/export-viewer-host.ts',
+      'src/core/signingEngine/uiConfirm/ui/preact/mountExportPrivateKeySurface.tsx',
       // The display tree, its ABI enrichment and the surface resize choreographer are
       // reached only through type imports and the lazy confirmation bundle; showcases
       // import them by path. As entries they keep every export.

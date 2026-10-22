@@ -1707,7 +1707,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       title: activationFailed ? 'Device linked' : "Couldn't link device",
       detail: activationFailed ? (
         <>
-          <WalletText message="Unable to open the wallet. Go back and try again." />
+          <WalletText message="Unable to open the wallet. Go back and try again." />{' '}
           <WalletText copy={linkDevice.message} />
         </>
       ) : (
