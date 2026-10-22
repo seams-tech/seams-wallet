@@ -1,4 +1,6 @@
 import { expect, type Request } from '@playwright/test';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
@@ -57,6 +59,11 @@ test('recovery administration rejects missing proof and stale acknowledgement af
   { harness, page },
   testInfo,
 ) => {
+  const artifactPath = path.resolve(
+    testInfo.config.rootDir,
+    '../.artifacts/r154/recovery-administration-proofs.json',
+  );
+  await rm(artifactPath, { force: true });
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
 
@@ -88,8 +95,37 @@ test('recovery administration rejects missing proof and stale acknowledgement af
   }
 
   await harness.signTempoTransaction('post_registration');
+  const sanitizedEvidence = {
+    kind: 'recovery_administration_proofs_evidence_v1',
+    authenticatedStatusReady: true,
+    missingStatusProofRejected:
+      isPlainObject(evidence.missingStatus) &&
+      evidence.missingStatus.status === 400 &&
+      evidence.missingStatus.code === 'invalid_owner_proof',
+    missingAcknowledgementProofRejected:
+      isPlainObject(evidence.missingAcknowledgement) &&
+      evidence.missingAcknowledgement.status === 400 &&
+      evidence.missingAcknowledgement.code === 'invalid_owner_proof',
+    staleAcknowledgementRejected:
+      isPlainObject(evidence.staleAcknowledgement) &&
+      evidence.staleAcknowledgement.status === 409 &&
+      evidence.staleAcknowledgement.code === 'recovery_set_conflict',
+    rotatedIssuanceAdvanced: rotatedIssuedAtMs > initialIssuedAtMs,
+    finalIssuanceMatchesRotation: evidence.finalIssuedAtMs === rotatedIssuedAtMs,
+    backupOutstanding: evidence.backupOutstanding === true,
+    rotationProofCount: rotationProofs.length,
+    rotationProofsRedacted: rotationProofs.every(
+      (proof) =>
+        proof.passkeyProof &&
+        proof.topLevelExtensionsRedacted &&
+        proof.responseExtensionsRedacted,
+    ),
+    postRotationTempoSigningSucceeded: true,
+  };
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  await writeFile(artifactPath, JSON.stringify(sanitizedEvidence, null, 2) + '\n', 'utf8');
   await testInfo.attach('recovery-administration-proofs', {
-    body: JSON.stringify({ ...evidence, rotationProofs }, null, 2),
+    path: artifactPath,
     contentType: 'application/json',
   });
 });
