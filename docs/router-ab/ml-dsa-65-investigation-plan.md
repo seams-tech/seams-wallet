@@ -5,10 +5,18 @@ Current priority: qualify hosted signing latency and sustained refill without in
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.
+The [circuit-depth campaign](ml-dsa-65-circuit-depth-report.md) reduces complete online exchanges from 340 to 327 per checked pair without adding AND gates.
+Four complete compiled-circuit equivalence checks pass. Canonical recovery, FIPS export, private commitments, and pool capacity remain unchanged.
+Its hosted screen verifies ten load signatures, with six below five seconds, a 3.265-second median, and a 5.823-second maximum.
+One operation exhausts fourteen pairs. One wallet misses the four-success minimum, so the functional screen remains failed.
+Prepared creation/recovery takes 6.237–7.639 seconds. Four-candidate preparation takes 10.425 seconds median.
+Both reserves restore fully, and the material ledger balances. Canceled-producer cost attribution remains incomplete.
+Next, move message-independent commitment activation into refill with exact key/epoch binding, then resolve generic registration stock and reduce preparation AND count.
+Activation currently adds 113 online layers per pair. Its removal is an implementation target with no measured latency gain yet.
 The [Worker exchange investigation](ml-dsa-65-worker-exchange-report.md) rejects bulk correlation consumption and simultaneous Worker sends because matched tests show no clear gain.
 Its final prototype verifies seventeen signatures, with fifteen below five seconds and a 3.175-second median.
 Four-candidate preparation has a 10.111-second median. The existing runtime remains selected.
-Complete role traces show 340 dependent online exchanges per checked pair. Compare lower-depth equivalent circuits next, including preparation cost.
+Its complete role traces show 340 dependent online exchanges per checked pair. Those observations motivated the circuit-depth campaign above.
 Preprocessing is permitted. Wallet-seed recovery and standard FIPS seed/key export remain required.
 The [bounded initial-stock delivery campaign](ml-dsa-65-bounded-delivery-report.md) adds a two-batch delivery window per participant.
 A registration-local mutex serializes exact installation retries. The existing claim deadline bounds authority checks, gate waiting, delivery, and completion.

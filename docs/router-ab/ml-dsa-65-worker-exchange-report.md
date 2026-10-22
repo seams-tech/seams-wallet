@@ -123,7 +123,9 @@ Raw tails and credentials are excluded. All ten temporary Workers are deleted.
 The existing bloat gate still reports 13,988 duplicated Rust lines against the 13,754 baseline.
 This investigation leaves that baseline unchanged.
 
-Next, compare equivalent circuits with fewer dependent AND layers and measure complete preparation cost.
-Then repeat the public SDK workload with production cooldown and measure material activation and client dispatch separately.
+The [circuit-depth campaign](ml-dsa-65-circuit-depth-report.md) follows these observations and reduces complete online layers from 340 to 327 per checked pair.
+It retains the same AND count, but its hosted screen still misses five seconds and the per-wallet success minimum.
+Next, move message-independent commitment activation into refill and measure complete preparation cost.
+Then repeat the public SDK workload with production cooldown and measure client dispatch separately.
 Keep wallet-seed recovery, FIPS export, Workers preparation, two-candidate consumption, and existing capacity.
 GPU work and UI changes remain deferred.

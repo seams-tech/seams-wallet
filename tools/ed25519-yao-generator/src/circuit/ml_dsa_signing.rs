@@ -367,7 +367,35 @@ fn low_bits(
     add_conditional_modulus(builder, &difference, negative)
 }
 fn less_than(builder: &mut CircuitBuilder, value: &[BuilderBit], bound: u32) -> BuilderBit {
-    subtract_bits(builder, value, &constants(bound, value.len())).1
+    assert!(!value.is_empty());
+    let mut less = ZERO;
+    let mut bit = 0;
+    while bit < value.len() {
+        let start = bit;
+        let bound_bit = bound >> bit & 1;
+        while bit < value.len() && bound >> bit & 1 == bound_bit {
+            bit += 1;
+        }
+        let mut terms = Vec::with_capacity(bit - start);
+        for value_bit in &value[start..bit] {
+            terms.push(if bound_bit == 1 {
+                *value_bit
+            } else {
+                builder.inv(*value_bit)
+            });
+        }
+        let group = and_all(builder, terms);
+        // A one bit extends less with OR(NOT(value), less). A zero uses AND.
+        // Balance each constant run before combining it with the lower bits.
+        less = if bound_bit == 1 {
+            let not_less = builder.inv(less);
+            let not_any_less = builder.and(group, not_less);
+            builder.inv(not_any_less)
+        } else {
+            builder.and(group, less)
+        };
+    }
+    less
 }
 fn norm_below(builder: &mut CircuitBuilder, value: &[BuilderBit], bound: u32) -> BuilderBit {
     let positive = less_than(builder, value, bound);
