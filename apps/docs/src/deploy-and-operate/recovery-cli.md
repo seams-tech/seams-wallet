@@ -11,15 +11,15 @@ approvals required for hosted operations. The CLI never accepts recovery or
 destination credentials through command-line arguments or environment
 variables.
 
-The launcher uses **0.18.0**. Its signed native assets are published at
-tag [`seams-cli-v0.18.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.18.0).
+The launcher uses **0.19.0**. Its signed native assets are published at
+tag [`seams-cli-v0.19.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.19.0).
 
 ## Install and retain an offline copy
 
 Use Node.js 22 or later to install the launcher, and verify that it executes:
 
 ```bash
-npm install --global @seams/wallet-cli@0.18.0
+npm install --global @seams/wallet-cli@0.19.0
 seams-wallet --help
 ```
 

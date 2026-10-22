@@ -6,7 +6,7 @@ release before running it. The CLI discovers the dashboard from the console
 and uses explicit wrapper-key filenames.
 
 ```sh
-npm install --global @seams/wallet-cli@0.18.0
+npm install --global @seams/wallet-cli@0.19.0
 ```
 
 Use the commands shown in your Seams dashboard. They include your console URL,
