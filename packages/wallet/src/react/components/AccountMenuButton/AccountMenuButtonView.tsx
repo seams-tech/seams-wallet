@@ -18,11 +18,13 @@ type AccountMenuButtonViewProps = {
   children?: React.ReactNode;
 };
 
+// The layout height, not the client rect: a host that scales the menu with a
+// transform would shrink the rect and clip the panel's bottom (its footer).
 function measurePanel(
   element: HTMLDivElement,
   setHeight: React.Dispatch<React.SetStateAction<number | null>>,
 ): void {
-  setHeight(element.getBoundingClientRect().height);
+  setHeight(element.offsetHeight);
 }
 
 function observePanel(
