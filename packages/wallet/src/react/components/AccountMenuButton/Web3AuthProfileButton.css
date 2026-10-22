@@ -16,6 +16,14 @@
 .seams-profile-button-morphable.open {
   width: 420px;
   overflow: hidden;
+  /* The panel replaces the Settings button; a short fade keeps that from
+     reading as a cut. */
+  animation: seams-account-panel-in 100ms ease-out both;
+}
+@keyframes seams-account-panel-in {
+  from {
+    opacity: 0;
+  }
 }
 .seams-account-resize {
   overflow: hidden;
