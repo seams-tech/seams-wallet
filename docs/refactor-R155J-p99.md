@@ -59,6 +59,22 @@ versions. Apply a fix only when the evidence
 supports it. Keep accepted call reductions even when a small noisy comparison does
 not establish their individual saving. No production deployment is part of this plan.
 
+## D1 latency follow-up — October 22, 2026
+
+The [private D1 investigation](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/d1-write-path-diagnosis-20261022.json)
+recorded an 888 ms B call with 0.289 ms of SQL and a 754 ms A call with 0.454 ms of SQL.
+The standalone probe used JavaScript and D1 without Wallet WASM or wallet-owned Durable Object storage.
+Independent client receipts and a fast simultaneous database control confirmed real selective waits.
+The exact queue, dispatch, durable acknowledgement, transport, or binding callback cause remains unmeasured.
+The fixed five-second B phase prediction failed its prospective test.
+The fresh-database comparison produced no measurements, so database replacement remains unvalidated.
+
+These findings identify a remaining D1 latency risk. They do not establish the cause of every historical outlier in this plan.
+The [private PostgreSQL and Hyperdrive future plan](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/future-plan-wallet-postgresql-preparation.md#potential-latency-upgrade-postgresql-through-hyperdrive)
+records a potential upgrade and its required validation. No latency fix is established.
+Preserve custody admission, cancellation, coherent reads, and durable completion during any storage trial.
+[Storage portability](storage-portability.md#cloudflare-workers-with-hyperdrive) records the public implementation status.
+
 ## Baseline and target
 
 The release table below is the historical starting population. Later bounded

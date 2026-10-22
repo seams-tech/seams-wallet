@@ -11,6 +11,19 @@ No package was released or deployed. Router removal, post-finalization concurren
 and SQLite changes remain deferred. The server traces did not establish another
 safe implementation change. The conditional work below records those boundaries.
 
+## D1 latency follow-up — October 22, 2026
+
+The later [private D1 investigation](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/d1-write-path-diagnosis-20261022.json)
+reproduced selective waits outside reported SQL execution on both Deriver databases.
+Independent client measurements confirmed real waits while the other database responded and the caller continued sending heartbeats.
+The exact internal cause remains unresolved. These probes do not explain every historical registration outlier.
+
+The [private PostgreSQL and Hyperdrive future plan](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/future-plan-wallet-postgresql-preparation.md#potential-latency-upgrade-postgresql-through-hyperdrive)
+describes a potential latency upgrade using RDS or Google Cloud SQL while retaining Cloudflare Workers.
+It requires disabled query caching, preserved transaction guarantees, remaining storage ports, and a controlled hosted comparison.
+No hosted latency improvement from that upgrade is established.
+[Storage portability](storage-portability.md#cloudflare-workers-with-hyperdrive) records the public implementation status.
+
 ## Objective and scope
 
 Improve NEAR-only registration and Ed25519 signing through changes that produce
