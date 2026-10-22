@@ -548,8 +548,10 @@
   margin-bottom: 1.5rem;
   font-size: 0.875rem;
 }
+/* The body scrolls, so the last action needs its own room above the card edge. */
 .seams-auth-methods-modal-content .seams-linked-devices-modal-body {
   gap: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 /* A method's icon sits on a tile, like the recovery-code row. */
 .seams-auth-methods-modal-content .seams-linked-devices-modal-item--row {
@@ -585,12 +587,16 @@
   font-size: 0.8125rem;
 }
 .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button {
-  background: var(--seams-colors-primary);
+  background: var(--seams-colors-textPrimary);
   border-color: transparent;
-  color: var(--seams-colors-textButton);
+  color: var(--seams-colors-colorBackground);
 }
 .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button:hover:not(:disabled) {
-  background: var(--seams-colors-buttonHoverBackground);
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary) 84%,
+    var(--seams-colors-colorBackground)
+  );
 }
 @media (max-width: 480px) {
   .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
