@@ -7,6 +7,14 @@ on:
         description: Exact @seams/wallet and @seams/wallet-server version
         required: true
         type: string
+      package:
+        description: Packages to publish; wallet retries a browser SDK release after server publication
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - wallet
 
 permissions:
   contents: read
@@ -93,7 +101,19 @@ jobs:
           retention-days: 90
       - name: Use npm trusted publishing
         run: npm install --global npm@latest
+      - name: Retain release packages
+        run: |
+          mkdir -p .artifacts/npm
+          npm pack ./packages/wallet-server --pack-destination .artifacts/npm
+          npm pack ./packages/wallet --pack-destination .artifacts/npm
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wallet-packages-${{ inputs.version }}-${{ github.sha }}
+          path: .artifacts/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 30
       - name: Publish @seams/wallet-server
+        if: inputs.package != 'wallet'
         working-directory: packages/wallet-server
         run: npm publish --access public --provenance
       - name: Publish @seams/wallet
