@@ -151,6 +151,72 @@ It establishes no percentile or sustainable user count.
 Long stock waits also need explicit Wallet RPC deadline and cancellation qualification.
 Increasing transport timeouts cannot satisfy the five-second latency requirement.
 
+## SDK cancellation and deadlines
+
+The October 22 [browser campaign](../evidence/ml-dsa-65-sdk-cancellation-20261022.json)
+passes seven controlled scenarios through the production Wallet host, commands, signing flow, and retry loop.
+Its timeout scenario also uses the production app-side Wallet RPC client, built from current source.
+The test sets a 300-millisecond request timeout. Production timeout settings remain unchanged.
+Custody authorization, signature encoding, nonce storage, and Gateway responses are test controls.
+This campaign qualifies lifecycle control flow. It does not qualify cryptography, real nonce persistence, Cloudflare execution, or latency.
+
+| Scenario | Checked behavior |
+| --- | --- |
+| Retry control | Three HTTP attempts retain the identical approved request; one signed result and one broadcast follow |
+| Stock wait cancellation | The retry response reaches the client before cancellation; no later attempt or broadcast occurs |
+| Expiry during retries | Approval expiry bounds later dispatch; an uncertain nonce stays reserved and no broadcast occurs |
+| Cancellation during execution | A delayed signed result marks the nonce signed; it emits no signing success and triggers no broadcast |
+| Cancellation during confirmation | No signing request starts; the reserved nonce is released |
+| Expiry during confirmation | No signing request starts; the reserved nonce is released |
+| Wallet RPC timeout | The real client sends cancellation; the host stops the stock-wait loop after one HTTP attempt |
+
+The core now requires a request-scoped cancellation callback.
+The host sets its existing cancellation predicate after copying request options.
+Callbacks remain inside the Wallet origin. They never cross the iframe transport.
+The loop checks cancellation during waits and checks approval expiry before every dispatch.
+An in-flight request can settle. A completed signature keeps its signed nonce state before cancellation reaches the caller.
+The command checks cancellation again before automatic or standalone submission.
+Server admission, consumed candidates, cooldown, and session debits retain their existing behavior.
+
+The October 21 hosted evidence measured a 61.863-second Wallet RPC timeout.
+It did not retain cancellation delivery or later dispatches from that operation.
+Source review identified the continuation risk. Hosted completion after cancellation remains unmeasured.
+The earlier completion-count mismatch followed a separate harness timeout that did not send Wallet RPC cancellation.
+
+| Fact | Instrument and scope | Check |
+| --- | --- | --- |
+| Core approval validity outlived the generic RPC timeout | October 21 hosted report and source review | The core used approval expiry; the iframe applied its own request timer |
+| The old retry loop never read cancellation | Source review of the pre-change signing flow | Its sleep and execution loop had no host cancellation predicate |
+| The real RPC timeout now stops later attempts | Current-source Chromium client and controlled Gateway | One request, one consumed retry response, settled host loop, no broadcast |
+| A late signed response preserves nonce state | Controlled delayed response after real host cancellation | One signed nonce, no release, no signing success event, no broadcast |
+
+| Candidate cause | Hosted RPC timeout | Missing core cancellation check | Controlled browser result | Assessment |
+| --- | --- | --- | --- | --- |
+| Refill throughput alone | Fits the long stock wait | Does not explain it | No real preparation runs | Remains a separate capacity problem |
+| Harness timeout alone | Contradicts the clean run's Wallet RPC error | Does not explain it | Real client timeout still sends cancellation | Removed for the clean run |
+| Our retry lifecycle | Fits | Fits | Cancellation now prevents another dispatch | Confirmed control-flow defect |
+| Cryptographic execution after cancellation | Not measured in hosted evidence | Possible from source | Cryptography is controlled here | Unqualified |
+
+Independent review found no blocking production issue.
+It required proof that the retry response arrived before cancellation and a separate pre-dispatch expiry case.
+The final campaign includes both. Broader browser suites still contain ten obsolete missing-signer type fixtures.
+SDK and Wallet domain-state type checks pass. The bloat check retains the existing Rust duplication failure, 13,988 lines against 13,754.
+
+Reproduce the browser receipts with:
+
+```sh
+SEAMS_TEST_FRONTEND_URL=http://localhost:4207 pnpm -C tests exec playwright test \
+  -c playwright.wallet-browser.config.ts wallet-iframe/ml-dsa.cancellation.test.ts \
+  --project chromium --workers 1
+pnpm -C packages/wallet type-check
+pnpm -C tests type-check:wallet-state
+```
+
+Each scenario writes `ml-dsa-cancellation.json` under its Playwright result directory.
+The committed evidence collects those receipts and hashes the tested source files.
+The next work must improve measured refill throughput and online latency with unchanged pool capacity.
+A matched hosted campaign must then repeat cancellation under real preparation load.
+
 ## Interrupted creation
 
 A fresh custody-owner approval can replace an expired, unpublished creation.

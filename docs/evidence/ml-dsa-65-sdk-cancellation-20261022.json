@@ -1,0 +1,735 @@
+{
+  "observedAt": "2026-10-22T04:01:20.442Z",
+  "baseCommit": "8ee5734d3b638a8ba2f3d86ed41a4a8dd8e0b755",
+  "branch": "ml-dsa",
+  "scope": "Current-source Chromium Wallet RPC and host signing lifecycle. Controlled custody authorization, codec, nonce persistence and Gateway. No cryptographic, Cloudflare capacity or latency qualification.",
+  "command": "SEAMS_TEST_FRONTEND_URL=http://localhost:4207 pnpm -C tests exec playwright test -c playwright.wallet-browser.config.ts wallet-iframe/ml-dsa.cancellation.test.ts --project chromium --workers 1",
+  "passed": true,
+  "scenariosPassed": 7,
+  "sourceSha256": {
+    "packages/wallet/src/SeamsWeb/publicApi/nearCommands.ts": "5f741767692a5202a0052357b63c7a5d237a7bf2444e329a4f312d7bc5c00a15",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createNearCommands.ts": "b7e5dec45d147aac1d43857f150923166de3606c79bd94ab8ab75e8e748568d9",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/handlers/near.ts": "b3758a1bcdb845fd32266266bb050e3c479974a3fb1daffbba95201ade91daa7",
+    "packages/wallet/src/SeamsWeb/walletIframe/client/router.ts": "fa5a982c137f586c7f549ec561bd7fbaf042c4dd67838c0e42550093e625de8b",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/index.ts": "d6d03b4e25aad2c296c44a455c767fbe8ab8f5dfd6c7314bfcb8a56bc9fbba2a",
+    "packages/wallet/src/core/signingEngine/flows/signNear/mlDsaTransaction.ts": "1713e23d307d8aea827c401e3b74ce190c4a7a622a6fb2487d4a660e89aa3ab9",
+    "packages/wallet/src/core/signingEngine/flows/signNear/mlDsaSigningExecution.ts": "f982c64449c90250bead1684dc86ddffeb637876317686a36eed0a48f9ff941a",
+    "tests/typecheck/ml-dsa-public-signing.typecheck.ts": "f5896b5a6b0a04a86a44d353b06321fab6727d526571f2dfbc129858b38c569d",
+    "tests/wallet-iframe/ml-dsa.cancellation.test.ts": "f7fc3e4fc326743a5584ef5526c8771a807f756c78d6328c8d4f5c263d8b7a7e"
+  },
+  "validation": {
+    "sdkTypeCheck": "passed",
+    "walletStateTypeCheck": "passed",
+    "browserTypeCheck": "ten existing missing-signer fixture errors in other files; no errors in this campaign",
+    "bloatCheck": "existing Rust duplication failure:13988 lines, baseline13754"
+  },
+  "unchanged": {
+    "recovery": "wallet custody seed",
+    "export": "canonical FIPS ML-DSA-65 seed/key",
+    "preparationLocation": "Cloudflare Workers",
+    "preparationGroupCandidates": 4,
+    "consumptionGroupCandidates": 2,
+    "admissionMinimumCandidates": 16,
+    "poolTargetAndCapacityCandidates": 32
+  },
+  "cases": [
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-163f2-nce-settlement-confirmation-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "4f8f6cc22b0e311ac57a925d510815a865e0b2574887a9034a6cb5f3818adec8",
+      "receipt": {
+        "mode": "confirmation",
+        "cancelledAtMs": 1792641663911,
+        "settledAtMs": 1792641663921,
+        "state": {
+          "reserved": 1,
+          "released": 1,
+          "signed": 0,
+          "responses": 0,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "confirmation"
+          ],
+          "confirming": true
+        },
+        "executions": [],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "confirmation",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "confirmation",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "ERROR",
+            "requestId": "confirmation",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "cancel-confirmation"
+          },
+          {
+            "type": "ERROR",
+            "requestId": "confirmation",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled."
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-a7147-lement-expired-confirmation-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "c403cdffa5d281590c8b05bc40e4c13d5e567527be1a5e63abd412caa1e1ec70",
+      "receipt": {
+        "mode": "expired_confirmation",
+        "cancelledAtMs": 1792641664698,
+        "settledAtMs": 1792641665159,
+        "state": {
+          "reserved": 1,
+          "released": 1,
+          "signed": 0,
+          "responses": 0,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "expired_confirmation"
+          ],
+          "confirming": true
+        },
+        "executions": [],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expired_confirmation",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expired_confirmation",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expired_confirmation",
+            "payload": {
+              "phase": "signing.commit.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.commit.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 10,
+              "message": "Signing transaction"
+            }
+          },
+          {
+            "type": "ERROR",
+            "requestId": "expired_confirmation",
+            "payload": {
+              "code": "HOST_ERROR",
+              "message": "ML-DSA signing approval expired"
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-7efe5-and-nonce-settlement-expiry-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "a44af7d826baba94d24faee66e302cef774690c81bb32a97be2960ca5dd249b2",
+      "receipt": {
+        "mode": "expiry",
+        "cancelledAtMs": 1792641661880,
+        "settledAtMs": 1792641662240,
+        "state": {
+          "reserved": 1,
+          "released": 0,
+          "signed": 0,
+          "responses": 4,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "expiry"
+          ],
+          "confirming": false
+        },
+        "executions": [
+          {
+            "operationId": "PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641662129},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641661780
+          },
+          {
+            "operationId": "PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641662129},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641661883
+          },
+          {
+            "operationId": "PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641662129},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641661985
+          },
+          {
+            "operationId": "PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"PF9ggV1kq9_WAhs2FIjYCBwNmz7D-WxJkS7w0XWxr0c\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641662129},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641662089
+          }
+        ],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expiry",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expiry",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "expiry",
+            "payload": {
+              "phase": "signing.commit.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.commit.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 10,
+              "message": "Signing transaction"
+            }
+          },
+          {
+            "type": "ERROR",
+            "requestId": "expiry",
+            "payload": {
+              "code": "HOST_ERROR",
+              "message": "ML-DSA signing approval expired"
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-b2c93--nonce-settlement-in-flight-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "41bc3e436404f166d5564fcf9646577186e37880a0b866f72ff71f44a0045158",
+      "receipt": {
+        "mode": "in_flight",
+        "cancelledAtMs": 1792641663126,
+        "settledAtMs": 1792641663138,
+        "state": {
+          "reserved": 1,
+          "released": 0,
+          "signed": 1,
+          "responses": 1,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "in_flight"
+          ],
+          "confirming": false
+        },
+        "executions": [
+          {
+            "operationId": "bn5Fx1ZLMOqA1DSIrriJJpKS25PKXUDjrDexXVY-QQM",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"bn5Fx1ZLMOqA1DSIrriJJpKS25PKXUDjrDexXVY-QQM\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641668025},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641663026
+          }
+        ],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "in_flight",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "in_flight",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "in_flight",
+            "payload": {
+              "phase": "signing.commit.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.commit.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 10,
+              "message": "Signing transaction"
+            }
+          },
+          {
+            "type": "ERROR",
+            "requestId": "in_flight",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "cancel-in_flight"
+          },
+          {
+            "type": "ERROR",
+            "requestId": "in_flight",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled."
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-40924-ce-settlement-retry-control-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "aabb0c03ee464de3f033755e6f48710b741cafa3197d34e5c8c269f922ee54a9",
+      "receipt": {
+        "mode": "retry_control",
+        "cancelledAtMs": 1792641659951,
+        "settledAtMs": 1792641660063,
+        "state": {
+          "reserved": 1,
+          "released": 0,
+          "signed": 1,
+          "responses": 3,
+          "succeeded": 1,
+          "broadcast": 1,
+          "settled": [
+            "retry_control"
+          ],
+          "confirming": false
+        },
+        "executions": [
+          {
+            "operationId": "5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641664849},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641659850
+          },
+          {
+            "operationId": "5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641664849},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641659953
+          },
+          {
+            "operationId": "5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"5gBhhuBvH81_ay1M6HtdBcKLNH0njvBChTJ468lY2rc\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641664849},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641660058
+          }
+        ],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "retry_control",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "retry_control",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "retry_control",
+            "payload": {
+              "phase": "signing.commit.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.commit.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 10,
+              "message": "Signing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "retry_control",
+            "payload": {
+              "phase": "signing.transaction.signed",
+              "status": "succeeded",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.transaction.signed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 11,
+              "message": "Transaction signed"
+            }
+          },
+          {
+            "type": "PM_RESULT",
+            "requestId": "retry_control",
+            "payload": {
+              "ok": true,
+              "result": {
+                "success": true,
+                "transactionId": "fixture"
+              }
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-88617-once-settlement-rpc-timeout-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "ef20d15a73ca8db1c2e0454b83a5189186447947af8147f85c5633e0a3198a10",
+      "receipt": {
+        "mode": "rpc_timeout",
+        "state": {
+          "reserved": 1,
+          "released": 0,
+          "signed": 0,
+          "responses": 1,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "1792641665879-4"
+          ],
+          "confirming": false
+        },
+        "executions": [
+          {
+            "operationId": "4DVQ1TcHDZtRmk4aSa4KOJ-LSxMRuScCY9CQ2U4GyVw",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"4DVQ1TcHDZtRmk4aSa4KOJ-LSxMRuScCY9CQ2U4GyVw\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641670886},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641665918
+          }
+        ],
+        "error": "Wallet request timeout for PM_SIGN_AND_SEND_TX after 310ms",
+        "scope": "Chromium production client timeout sender, host, commands, signing flow and retry loop. A 300ms test RPC timeout replaces the normal 20s setting. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    },
+    {
+      "receiptPath": "tests/test-results/wallet-iframe-ml-dsa.cance-a506e-nonce-settlement-stock-wait-chromium/ml-dsa-cancellation.json",
+      "receiptSha256": "27bbf1074d0cc49060f84656c963caa816b7b855a43f580c377da1c2bd436df7",
+      "receipt": {
+        "mode": "stock_wait",
+        "cancelledAtMs": 1792641660917,
+        "settledAtMs": 1792641661030,
+        "state": {
+          "reserved": 1,
+          "released": 0,
+          "signed": 0,
+          "responses": 1,
+          "succeeded": 0,
+          "broadcast": 0,
+          "settled": [
+            "stock_wait"
+          ],
+          "confirming": false
+        },
+        "executions": [
+          {
+            "operationId": "KlR1zP5ENPZAI_ytRJHyOu7Q0mPVoB3228I7QqSYsAQ",
+            "body": "{\"relayerUrl\":\"http://localhost:4207\",\"preparation\":{\"request\":{\"walletId\":\"wallet:cancellation\",\"signingKeyId\":\"near-ml-dsa-65:1\",\"operationIdB64u\":\"KlR1zP5ENPZAI_ytRJHyOu7Q0mPVoB3228I7QqSYsAQ\",\"unsignedTransactionBorshB64u\":\"AQ\",\"rpId\":\"example.localhost\",\"credentialIdB64u\":\"AQ\"},\"transaction\":{\"publicKeyB64u\":\"AQ\"},\"challengeB64u\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"expiresAtMs\":1792641665814},\"authorization\":{\"kind\":\"passkey\",\"credential\":{}}}",
+            "receivedAtMs": 1792641660815
+          }
+        ],
+        "messages": [
+          {
+            "type": "READY",
+            "payload": {
+              "protocolVersion": "16.0.0"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "config"
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "stock_wait",
+            "payload": {
+              "phase": "signing.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 1,
+              "message": "Preparing transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "stock_wait",
+            "payload": {
+              "phase": "signing.confirmation.displayed",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.confirmation.displayed",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 5,
+              "message": "Review transaction"
+            }
+          },
+          {
+            "type": "PROGRESS",
+            "requestId": "stock_wait",
+            "payload": {
+              "phase": "signing.commit.started",
+              "status": "running",
+              "interaction": {
+                "kind": "none",
+                "overlay": "none"
+              },
+              "flowId": "signing:near:alice.testnet:signing.commit.started",
+              "accountId": "alice.testnet",
+              "flow": "signing",
+              "version": 2,
+              "step": 10,
+              "message": "Signing transaction"
+            }
+          },
+          {
+            "type": "ERROR",
+            "requestId": "stock_wait",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled"
+            }
+          },
+          {
+            "type": "PONG",
+            "requestId": "cancel-stock_wait"
+          },
+          {
+            "type": "ERROR",
+            "requestId": "stock_wait",
+            "payload": {
+              "code": "cancelled",
+              "message": "Request cancelled."
+            }
+          }
+        ],
+        "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+      }
+    }
+  ]
+}

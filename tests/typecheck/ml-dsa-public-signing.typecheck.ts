@@ -4,6 +4,7 @@ import type {
 } from '../../packages/shared-ts/src/near/mlDsaSigning';
 import type { MlDsaSigningRecord } from '../../packages/wallet-server/src/router/cloudflare/d1/wallet/mlDsaSigningRecord';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
+import type { MlDsaNearTransactionInput } from '../../packages/wallet/src/core/signingEngine/flows/signNear/mlDsaTransaction';
 
 declare const request: MlDsaSigningRequest;
 // @ts-expect-error The caller cannot select a material epoch, including through a spread.
@@ -26,3 +27,15 @@ declare const signed: Variant<MlDsaSigningOutcome, 'kind', 'signed'>;
 // @ts-expect-error A retry cannot retain a completed transaction through a spread.
 const mixed: MlDsaSigningOutcome = { ...signed, kind: 'retry', reason: 'running', retryAtMs: 1 };
 void mixed;
+
+declare const withoutCancellation: Omit<MlDsaNearTransactionInput, 'shouldAbort'>;
+// @ts-expect-error Core signing requires the request-scoped cancellation callback.
+const missingCancellation: MlDsaNearTransactionInput = { ...withoutCancellation };
+void missingCancellation;
+
+const optionalCancellation: MlDsaNearTransactionInput = {
+  ...withoutCancellation,
+  // @ts-expect-error A spread cannot replace the required callback with undefined.
+  shouldAbort: undefined,
+};
+void optionalCancellation;
