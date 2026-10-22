@@ -100,3 +100,23 @@
   width: 100%;
   height: 100%;
 }
+
+/* A phone-width menu left the description beside the label only a few
+   characters, so it moves to a line of its own under the label. */
+@media (max-width: 480px) {
+  .seams-account-screen .seams-export-keys-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .seams-account-screen .seams-export-keys-row-spinner {
+    margin-left: auto;
+  }
+
+  .seams-account-screen .seams-export-keys-row-description {
+    flex-basis: 100%;
+    order: 1;
+    white-space: normal;
+    text-align: left;
+  }
+}

@@ -362,6 +362,9 @@
   overflow: hidden;
 }
 .seams-account-screen .qr-scanner-video {
+  /* The base video is a fixed 400px; the menu's box is narrower, which cut the
+     camera off on the right and moved it from under the scan frame. */
+  width: 100%;
   height: 208px;
   object-fit: cover;
 }
