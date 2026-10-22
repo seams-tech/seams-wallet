@@ -99,6 +99,13 @@ and standalone voice authentication remain outside this profile.
 The public browser contract is
 [`voiceid-approval.browser.test.ts`](../tests/wallet-ui/voiceid-approval.browser.test.ts).
 It uses a deterministic perception boundary and writes a JSON evidence attachment.
+The composed Wallet contract is
+[`passkey.voiceid-near.contract.test.ts`](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts).
+It uses real owner registration, passkey unlock, and Ed25519 Yao signing.
+The test verifies the signed transfer against the registered public key.
+Its NEAR RPC response is deterministic and does not confirm an on-chain transfer.
+Denied preparations retain their spent quota use. Owner unlock replenishes the
+session before the approved retry.
 The private repository owns the real extension, native models, capture, and
 composed native/browser evaluation.
 

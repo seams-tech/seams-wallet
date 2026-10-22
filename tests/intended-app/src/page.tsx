@@ -38,6 +38,7 @@ import {
   type RecoveryAdministrationProbe,
 } from './recoveryAdministrationProbe';
 import { ReviewedSigning } from './ReviewedSigning';
+import { ReviewedNearTransfer } from './ReviewedNearTransfer';
 import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
 
 type IntendedActionName =
@@ -753,6 +754,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
             request: buildIntendedArcEvmSigningRequest(),
           }}
         />
+        <ReviewedNearTransfer />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>
