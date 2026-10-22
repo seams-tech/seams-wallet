@@ -1,0 +1,219 @@
+{
+  "schema": "seams.ml-dsa-private-hash-screen.v1",
+  "observed_at": "2026-10-22T18:48:45.716Z",
+  "base_commit": "90cb95423d51564af7f8c9570efdbdb62f96db91",
+  "decision": "Keep GMW for the current streamed private-hash path; archive the rejected experimental route and comparison module. Retain the shared R2 completion cleanup fix.",
+  "scope": "Four fixed hash candidates per preparation, consumed in two independent pairs. Live role state and raw input-independent R2 tables. This is not complete signing, durable admission, authenticated storage, or sustained wallet capacity.",
+  "workload": {
+    "prepared_hashes_per_session": 4,
+    "independent_pairs": 2,
+    "candidates_per_pair": 2,
+    "sessions_per_backend": 3,
+    "and_gates_per_hash": 267584,
+    "gmw_dependent_and_layers_per_pair": 168
+  },
+  "hosted": {
+    "gmw": {
+      "preparation_four_ms": {
+        "count": 3,
+        "min": 3922.7189169999983,
+        "median": 3972.321458,
+        "max": 6099.516499999998
+      },
+      "online_pair_ms": {
+        "count": 6,
+        "min": 66.46470799999952,
+        "median": 144.88633349999873,
+        "max": 194.3500410000006
+      },
+      "cleanup_ms": {
+        "count": 3,
+        "min": 11.395250000000487,
+        "median": 11.933208000002196,
+        "max": 13.182333000000654
+      },
+      "first_pair_ms": {
+        "count": 3,
+        "min": 107.58170899999823,
+        "median": 152.8302079999994,
+        "max": 194.3500410000006
+      },
+      "second_pair_ms": {
+        "count": 3,
+        "min": 66.46470799999952,
+        "median": 136.94245899999805,
+        "max": 187.40454200000022
+      },
+      "preparation_peer_payload_bytes": 1312809,
+      "online_pair_peer_payload_bytes": 1070661,
+      "private_state_bytes_per_pair": {
+        "a": 802976,
+        "b": 802976
+      },
+      "whole_invocation_cpu_ms": {
+        "a": {
+          "count": 3,
+          "min": 1727,
+          "median": 1750,
+          "max": 2691
+        },
+        "b": {
+          "count": 3,
+          "min": 1799,
+          "median": 1821,
+          "max": 2820
+        }
+      },
+      "whole_invocation_cpu_sum_ms": 12608,
+      "r2_written_bytes_per_preparation": 0,
+      "r2_read_bytes_per_pair": 0,
+      "r2_gets_per_pair": 0,
+      "observed_wasm_memory_bytes": {
+        "a": {
+          "count": 9,
+          "min": 76087296,
+          "median": 76087296,
+          "max": 76087296
+        },
+        "b": {
+          "count": 9,
+          "min": 75497472,
+          "median": 75497472,
+          "max": 75497472
+        }
+      }
+    },
+    "half-gates": {
+      "preparation_four_ms": {
+        "count": 3,
+        "min": 6328.818375000003,
+        "median": 6714.220791,
+        "max": 8165.410625
+      },
+      "online_pair_ms": {
+        "count": 6,
+        "min": 699.4521660000028,
+        "median": 815.6489584999981,
+        "max": 1134.0171250000021
+      },
+      "cleanup_ms": {
+        "count": 3,
+        "min": 312.01220900000044,
+        "median": 320.0906249999989,
+        "max": 363.0192080000015
+      },
+      "first_pair_ms": {
+        "count": 3,
+        "min": 699.4521660000028,
+        "median": 904.6428749999995,
+        "max": 1134.0171250000021
+      },
+      "second_pair_ms": {
+        "count": 3,
+        "min": 706.5573750000003,
+        "median": 811.6422919999968,
+        "max": 819.6556249999994
+      },
+      "preparation_peer_payload_bytes": 35468705,
+      "online_pair_peer_payload_bytes": 608101,
+      "private_state_bytes_per_pair": {
+        "a": 606432,
+        "b": 198432
+      },
+      "whole_invocation_cpu_ms": {
+        "a": {
+          "count": 3,
+          "min": 1217,
+          "median": 1295,
+          "max": 2029
+        },
+        "b": {
+          "count": 3,
+          "min": 1339,
+          "median": 1438,
+          "max": 2093
+        }
+      },
+      "whole_invocation_cpu_sum_ms": 9411,
+      "r2_written_bytes_per_preparation": 34254944,
+      "r2_read_bytes_per_pair": 17127472,
+      "r2_gets_per_pair": 1,
+      "observed_wasm_memory_bytes": {
+        "a": {
+          "count": 9,
+          "min": 37093376,
+          "median": 37421056,
+          "max": 37421056
+        },
+        "b": {
+          "count": 9,
+          "min": 41025536,
+          "median": 41025536,
+          "max": 41025536
+        }
+      }
+    }
+  },
+  "controls": {
+    "native_cases_passed": 11,
+    "local_normal_sessions_passed": 6,
+    "local_controls_passed": 12,
+    "hosted_sessions_passed": 6,
+    "hosted_failed_samples": 0,
+    "hosted_hash_evaluations_verified": 24,
+    "hosted_role_result_copies_verified": 48,
+    "hosted_unauthorized_request_rejected": true,
+    "invocations_ok": 13,
+    "temporary_workers_deleted": true,
+    "temporary_bucket_deleted": true
+  },
+  "public_trace_attribution": "Kernel labels classify both roles by backend. Public cleanup events bind all six B invocations to exact client runs. A run IDs are unavailable; do not assert an exact A run join. CPU and provider wall time cover entire invocations, not stages.",
+  "incoming_colo_a": [
+    "NRT"
+  ],
+  "incoming_colo_b": null,
+  "limits": [
+    "Small sequential component screen, not a sustained service or latency guarantee.",
+    "No complete signer, registration, recovery, durable admission, or authenticated-storage timing is measured.",
+    "Input conversion, protocol execution, R2 streaming and exact EOF validation are inside online timing; explicit finish and cleanup are outside.",
+    "Peer byte counts exclude WebSocket envelopes, acknowledgements, completion JSON, TCP/TLS and R2 transport overhead; raw payload counts are not wire billing totals.",
+    "Standalone GMW uses fresh silent correlation setup; production amortizes setup with other circuits. These preparation times do not establish full-refill savings.",
+    "Raw input-independent R2 tables and live private role state do not include production persistence or restart costs.",
+    "GMW readiness clocks report 0\u20134 ms despite 3.9\u20136.1 s client preparation. These phase clocks are unqualified and cannot separate computation from waits.",
+    "B location is unavailable; A ingress is NRT. Worker and bucket colocation is not established.",
+    "Wasm page counts exclude JS heap, transient host buffers and total isolate peak.",
+    "Half-gates uses less encoded private state and less aggregate whole-session CPU here; GMW is selected for measured latency and traffic.",
+    "Multipart creation-response loss and durable private-state recovery are outside the probe. Cleanup attempts deletion despite abort failure but does not acknowledge success after an abort error."
+  ],
+  "next": [
+    "Reduce registration stock delivery and activation cost using existing stage evidence.",
+    "Profile complete multi-pair signing at storage/restore and protocol boundaries before another backend change.",
+    "Repeat full hosted registration, signing and sustained refill after a measured optimization with unchanged capacity."
+  ],
+  "artifacts": {
+    "ml-dsa-65-private-hash-20261023-failed-controls.json.gz": {
+      "bytes": 31021,
+      "sha256": "eaa817f3fa09a6344a49aee89c5879f007ac76b27b69b5beb32fa91e19bee795"
+    },
+    "ml-dsa-65-private-hash-20261023-hosted.json.gz": {
+      "bytes": 9746,
+      "sha256": "80cd0dcc79f73d5bc144c3e91e78ad5bfb0f16209c18cb6fd3d220724df88bcd"
+    },
+    "ml-dsa-65-private-hash-20261023-local.json.gz": {
+      "bytes": 16934,
+      "sha256": "e9821d39fd97af161629bfdc7953e837fb8f05e1585e2c260d2bec8a91d3aa9f"
+    },
+    "ml-dsa-65-private-hash-20261023-native.json.gz": {
+      "bytes": 3115,
+      "sha256": "19c6c1f3af3d65879dd9420638897402bb943d2ea57195fa0f0409d33bf999ba"
+    },
+    "ml-dsa-65-private-hash-20261023-prototype.patch.gz": {
+      "bytes": 18630,
+      "sha256": "f1b3ef0fc16cb8f36b35158c261c550a4f90a9416aa3c4b876df5199b2a66591"
+    },
+    "ml-dsa-65-private-hash-20261023-provenance.json.gz": {
+      "bytes": 127491,
+      "sha256": "f808c1dc141257cf5a8a4083f4f47802d7d242ac8906370c8e0b96bbbc1ae548"
+    }
+  }
+}
