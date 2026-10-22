@@ -1075,7 +1075,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
         generation: 1,
         validity: { kind: 'expires_at', atMs },
       };
-      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject);
+      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject, { kind: 'disabled' });
       const element = document.createElement('div');
       document.body.append(element);
       admission.attach(element);

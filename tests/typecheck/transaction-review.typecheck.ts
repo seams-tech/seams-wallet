@@ -105,6 +105,33 @@ void ordinaryWithReservation;
 void ordinaryWithSpread;
 void disabledReview;
 
+import type {
+  VoiceIdApproval,
+  VoiceIdPolicy,
+} from '@/core/signingEngine/uiConfirm/voiceId/approval';
+declare const voiceApproval: VoiceIdApproval;
+const requiredVoice: VoiceIdPolicy = { kind: 'required', approval: voiceApproval };
+// @ts-expect-error A required voice policy must carry its operation-bound approval.
+const missingVoiceApproval: VoiceIdPolicy = { kind: 'required' };
+// @ts-expect-error A disabled policy cannot carry an approval.
+const disabledWithVoice: VoiceIdPolicy = { kind: 'disabled', approval: voiceApproval };
+const voiceFields = { approval: voiceApproval };
+// @ts-expect-error A spread cannot carry approval into the disabled branch.
+const disabledVoiceSpread: VoiceIdPolicy = { kind: 'disabled', ...voiceFields };
+// @ts-expect-error Object literals cannot construct a voice approval's private lifecycle.
+const fabricatedVoice: VoiceIdApproval = { approve: async () => {}, consume: () => {} };
+// @ts-expect-error A spread loses the private lifecycle and cannot construct a voice approval.
+const copiedVoice: VoiceIdApproval = { ...voiceApproval };
+// @ts-expect-error An approval label cannot be asserted into the private lifecycle.
+const assertedVoice = 'approved' as VoiceIdApproval;
+void requiredVoice;
+void missingVoiceApproval;
+void disabledWithVoice;
+void disabledVoiceSpread;
+void fabricatedVoice;
+void copiedVoice;
+void assertedVoice;
+
 import type { ReviewCallState } from '@/react/transactionReview/controller';
 import type { TransactionReviewReservationState } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 const reviewing = { kind: 'reviewing', reservation } as const;

@@ -7,6 +7,7 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 import type { UiConfirmSurfaceMeasurementBinding } from './uiConfirm.types';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
+import type { VoiceIdPolicy } from './voiceId/approval';
 
 type AdmissionState =
   | { readonly kind: 'preparing' }
@@ -31,6 +32,7 @@ export class TransactionReviewAdmission {
     private readonly signatureBoundary: 'mpc' | 'credential',
     private readonly post: (state: TransactionReviewStateMessage) => void,
     private readonly reject: (error: Error) => void,
+    private readonly voiceId: VoiceIdPolicy,
   ) {
     assertTransactionReviewValid(metadata.validity);
     if (admissions.has(metadata.requestId)) {
@@ -165,11 +167,25 @@ export class TransactionReviewAdmission {
 
   beforeSigning = (): void => {
     this.assertActive();
+    if (this.state.kind !== 'signing' && this.voiceId.kind === 'required') {
+      this.voiceId.approval.consume();
+    }
     this.state = { kind: 'signing' };
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.notify('signing');
   };
+
+  async approveVoice(onListening: () => void): Promise<void> {
+    this.assertActive();
+    if (this.voiceId.kind === 'disabled') return;
+    await this.voiceId.approval.approve(this.abortController.signal, onListening);
+    this.assertActive();
+  }
+
+  get voiceIdRequired(): boolean {
+    return this.voiceId.kind === 'required';
+  }
 
   cancel(error: Error): boolean {
     if (this.state.kind === 'signing') {
@@ -202,6 +218,7 @@ export class TransactionReviewAdmission {
   finish(): void {
     // Keep the lease until the cancelled operation has unwound its request context.
     if (this.state.kind === 'cancelled') this.reject(this.state.error);
+    this.abortController.abort(new Error('The reviewed request has settled.'));
     this.observer?.disconnect();
     this.observer = null;
     if (this.timer) clearTimeout(this.timer);

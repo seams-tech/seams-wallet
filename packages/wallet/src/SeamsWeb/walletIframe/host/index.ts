@@ -1,5 +1,10 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
 import {
+  voiceIdIsRequired,
+  voiceIdPolicyForRequest,
+  VOICE_ID_POLICY_KEY,
+} from '@/core/signingEngine/uiConfirm/voiceId/approval';
+import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
   walletHostExecutionFingerprint,
@@ -48,6 +53,18 @@ import {
 } from './requestRouter';
 
 let initialized = false;
+
+function voiceIdSettingChanged(event: StorageEvent): void {
+  if (event.key !== VOICE_ID_POLICY_KEY && event.key !== null) return;
+  cancelTransactionReviews(
+    new TransactionReviewError(
+      'review_identity_changed',
+      'The VoiceID setting changed. Start a new review.',
+    ),
+  );
+}
+
+window.addEventListener('storage', voiceIdSettingChanged);
 
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
@@ -234,11 +251,20 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
+      const voiceId = await voiceIdPolicyForRequest(req, state.configuration);
+      if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
+        return;
+      if (
+        req.type.startsWith('PM_SIGN_') &&
+        voiceIdIsRequired() !== (voiceId.kind === 'required')
+      ) {
+        throw new TransactionReviewError(
+          'review_identity_changed',
+          'The VoiceID setting changed. Start a new review.',
+        );
+      }
       if ('transactionReview' in req) {
-        if (
-          req.type !== 'PM_SIGN_AND_SEND_TX' &&
-          req.type !== 'PM_SIGN_TEMPO'
-        ) {
+        if (req.type !== 'PM_SIGN_AND_SEND_TX' && req.type !== 'PM_SIGN_TEMPO') {
           throw new TransactionReviewError(
             'review_invalid_input',
             'Review is unsupported for this request',
@@ -260,7 +286,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         reviewAdmission = new TransactionReviewAdmission(
           metadata,
           req.type === 'PM_SIGN_TEMPO' &&
-            req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
+          req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
             ? 'credential'
             : 'mpc',
           (payload) => postForRequest({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
@@ -273,12 +299,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 message: error.message,
               },
             }),
+          voiceId,
         );
       }
-      if (
-        req.type === 'PM_LOCK' ||
-        req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
-      ) {
+      if (req.type === 'PM_LOCK' || req.type === 'PM_LOCK_EXACT_WALLET_SESSION') {
         cancelTransactionReviews(
           new TransactionReviewError('review_identity_changed', 'The wallet session changed'),
         );
@@ -395,8 +419,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             const view =
               payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
             if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
-              const activity =
-                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity = await import(
+                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
+              );
               activity.setTransactionActivityView(target, view);
             }
             return;
@@ -408,8 +433,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 ? Reflect.get(payload, 'signedTransaction')
                 : null;
             if (typeof signedTransaction === 'string') {
-              const activity =
-                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity = await import(
+                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
+              );
               activity.transactionBroadcastStarted(signedTransaction);
             }
             return;

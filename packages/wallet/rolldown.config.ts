@@ -12,7 +12,12 @@ const SDK_ROOT_ABS = process.cwd();
 const CLIENT_SRC_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src');
 const CLIENT_PLUGINS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/plugins');
 const WALLET_STATIC_ASSETS_ROOT_ABS = path.resolve(SDK_ROOT_ABS, 'src/static/wallet-assets');
-const WALLET_STATIC_ASSET_FILES = ['wallet-shims.js', 'wallet-service.css'] as const;
+const WALLET_STATIC_ASSET_FILES = [
+  'wallet-shims.js',
+  'wallet-service.css',
+  'voiceid.html',
+  'voiceid.css',
+] as const;
 const PREACT_CONFIRMATION_CSS_FILES = [
   'confirmation-primitives.css',
   'confirm-header.css',
@@ -744,6 +749,7 @@ const configs = [
       'wallet-iframe-host-near': 'src/SeamsWeb/walletIframe/host/entry-near.ts',
       'wallet-iframe-host-ecdsa': 'src/SeamsWeb/walletIframe/host/entry-ecdsa.ts',
       'wallet-iframe-host-full': 'src/SeamsWeb/walletIframe/host/entry-full.ts',
+      'wallet-voiceid-settings': 'src/SeamsWeb/walletIframe/host/voiceid-settings.ts',
     },
     output: {
       dir: BUILD_PATHS.BUILD.ESM,

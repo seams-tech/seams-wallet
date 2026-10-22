@@ -22,6 +22,13 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
+The optional VoiceID prototype uses a separate Chrome extension service worker.
+It forwards one bounded operation hash and voice result through native messaging.
+The wallet iframe owns the approval lifecycle and consumes it before signing.
+The extension and native host receive no wallet secrets or reusable session
+handles. The native host owns capture, models, and local biometric storage.
+Existing cryptographic workers keep their current responsibilities.
+
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
 confirmation, export, session, and device-linking workers. The Email OTP and

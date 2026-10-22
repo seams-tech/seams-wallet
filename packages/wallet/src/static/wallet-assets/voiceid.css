@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+}
+
+.seams-voiceid-settings {
+  max-width: 38rem;
+  margin: 8vh auto;
+}
+
+button {
+  font: inherit;
+  padding: 10px 16px;
+  margin: 8px 12px 8px 0;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

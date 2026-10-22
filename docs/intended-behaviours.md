@@ -72,6 +72,36 @@ An appearance change preserves that work. Invalid configuration remains rejected
 
 Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
 
+## Local VoiceID approval (prototype)
+
+The wallet origin controls VoiceID through `/sdk/voiceid.html`. Enabling it
+requires a ready local enrollment. The application cannot set this preference
+through the wallet message protocol. This prototype supports one reviewed NEAR
+testnet transfer per request. Other signing routes and reviews without an expiry
+fail when VoiceID is required.
+
+The wallet freezes and hashes the complete request and execution configuration.
+The hash includes the wallet, transaction, request, connection, surface, review
+generation, network, and expiry. Selecting Confirm starts one native voice check.
+The result must match its attempt, operation hash, and exclusive deadline.
+The existing signing boundary consumes the approval once. The existing wallet
+session, authorization, quota, and MPC checks still apply.
+
+Cancellation, lock, execution changes, settlement, expiry, and a changed VoiceID
+preference invalidate pending approval. Another request requires its own approval.
+VoiceID failure cannot choose an automatic approval path. Audio, transcripts,
+speaker embeddings, templates, and wallet secrets do not cross this bridge.
+The native result grants no server authentication or signing authority.
+
+The MVP assumes a user-controlled device and OS. Spoof detection, camera input,
+and standalone voice authentication remain outside this profile.
+
+The public browser contract is
+[`voiceid-approval.browser.test.ts`](../tests/wallet-ui/voiceid-approval.browser.test.ts).
+It uses a deterministic perception boundary and writes a JSON evidence attachment.
+The private repository owns the real extension, native models, capture, and
+composed native/browser evaluation.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work
