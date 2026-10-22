@@ -1,1 +1,1 @@
-import Ed25519YaoBoundary.Scope
+import Ed25519YaoBoundary.ExportContinuity

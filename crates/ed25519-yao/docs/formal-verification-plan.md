@@ -466,6 +466,12 @@ results, generated artifacts, and typed public boundaries.
 
 ### Aeneas/Charon Rust-to-Lean boundary
 
+The current behavioral proof covers the production Client export public-key
+gate. It checks exact acceptance and rejection for all pairs of 32-byte keys,
+including absence of panic and divergence. The extraction imports the production
+source modules directly. The theorem does not cover cryptographic derivation or
+the complete export workflow. Its scope is `YAO-EXP-003` in the proof inventory.
+
 Extraction starts from small, reviewed facades. Crypto dependency internals are
 opaque at first because Charon cannot extract the current `sha2` and curve
 stack end to end.

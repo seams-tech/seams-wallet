@@ -14,7 +14,7 @@ exact claim, composition, and required security games.
 | TCB-PASSIVE-GARBLE-001 | A supplied acceptance-count bound relates the real and simulated Half-Gates components | conditional `YAO-PRIV-001`; required to close `YAO-SEC-002` | explicit Lean transition-bound parameter; production garbling semantics and fixed-hash reduction absent | garbling algorithm, tweak/domain, hash construction, circuit identity, or reduction changes |
 | TCB-PASSIVE-OUTPUT-001 | A supplied acceptance-count bound relates the real and simulated output-label and authorized package-share components | conditional `YAO-PRIV-001`; required to close `YAO-SEC-002` | explicit Lean transition-bound parameter; production output/package semantics and reduction absent | output translation, package commitment, output-sharing, recipient binding, or reduction changes |
 | TCB-VERUS-001  | Verus `0.2026.04.03.21dfcd2` and pinned `vstd` check their stated logic faithfully          | `YAO-ID-001`, `YAO-MAN-001`, `YAO-MAN-002`, `YAO-MET-001`, `YAO-PROV-001`                  | task-runner version rejection and `verus/Cargo.lock`                                | Verus or `vstd` change                                                                           |
-| TCB-AENEAS-001 | Pinned Charon/Aeneas translate the selected Rust helper surface faithfully                  | `YAO-REF-001`, `YAO-REF-002`                                                               | exact Git pins, transient LLBC, committed Lean, regeneration comparison             | pin, flags, Rust surface, or generated output change                                             |
+| TCB-AENEAS-001 | Pinned Charon/Aeneas translate the production Client export public-key gate faithfully | `YAO-EXP-003` | exact Git pins, direct production-source imports, transient LLBC, stable generated Lean, and all-input behavioral theorem | pin, extraction inputs, Rust source, standard comparison model, or generated output change |
 | TCB-AENEAS-002 | The pinned external Aeneas Lean library contains admitted slice and string declarations     | current generated Lean build                                                               | Lake warnings name the affected external support modules                            | Aeneas pin or dependency use changes                                                             |
 | TCB-AENEAS-003 | Ambient opam resolution builds the pinned Aeneas sources consistently                       | current local extraction evidence                                                          | local green gate; empty-cache reproduction remains open                             | opam repository, OCaml, package, or build-host change                                            |
 | TCB-LEAN-001   | Lean `v4.28.0-rc1` checks the named targets faithfully                                      | current Lean theorems                                                                      | `lean-toolchain`, explicit targets, required `.olean` outputs                       | Lean or dependency change                                                                        |
@@ -41,6 +41,10 @@ exact claim, composition, and required security games.
 The current project-owned Lean and Verus files contain no axioms or admitted
 proofs. Generated Aeneas code imports the pinned external support library;
 `TCB-AENEAS-001` and `TCB-AENEAS-002` keep that dependency explicit.
+The `YAO-EXP-003` theorem audits its transitive assumptions and permits only
+`propext`, `Classical.choice`, and `Quot.sound`. Imported admitted proofs cannot
+enter that theorem. Rust-to-Lean translation and the pinned standard comparison
+models remain explicit trusted boundaries.
 
 `YAO-RUN-001` and `YAO-RUN-002` depend on `TCB-RUST-001` and
 `TCB-RUNTIME-001`. Their committed corpus exercises successful executions and

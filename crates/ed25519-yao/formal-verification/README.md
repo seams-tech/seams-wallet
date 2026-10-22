@@ -95,7 +95,8 @@ Ed25519 Yao that exist today. The checked surface is deliberately narrow:
   correctness-with-abort remain absent;
 - 128 deterministic differential cases regenerated and checked by an
   independent standard-library Python implementation;
-- the clear generator's `wrapping_add_le_256` and `clamp_rfc8032` boundaries;
+- the production Client export public-key gate, with an all-input theorem for
+  its exact success/rejection result and absence of panic or divergence;
 - executable production-to-mirror anti-drift checks.
 
 The formal track does not yet contain a garbled-circuit security theorem,
@@ -145,7 +146,7 @@ The certificate freezes this exact ordered nonclaim list:
 
 - [`verus/`](verus/README.md) contains the standalone unpublished Verus mirror.
 - [`lean-boundary/`](lean-boundary/README.md) contains the pinned Aeneas/Charon
-  extraction of two implemented pure generator helpers.
+  extraction and behavioral proof of the production Client export public-key gate.
 - [`lean-model/`](lean-model/README.md) contains model-only manifest-shape,
   output-view, accepted-evaluation input/coin custody, lifecycle, and role-
   pinned export-authorization, registration-admission, recovery-admission, and
@@ -176,9 +177,10 @@ The certificate freezes this exact ordered nonclaim list:
   compliance baseline.
 
 The tracks are complementary. Verus checks an executable Rust-shaped mirror
-whose proved constants are compared with production, Aeneas checks a narrow
-Rust-to-Lean translation boundary, and Lean checks explicit model-only
-statements. No track upgrades the others into a cryptographic security proof.
+whose proved constants are compared with production. Aeneas connects the
+production export public-key gate to its exact Lean behavioral specification.
+The separate Lean model checks explicitly scoped protocol statements. These
+claims retain their documented boundaries.
 
 ## Commands
 

@@ -1,3 +1,5 @@
+generator_crate = "tools/ed25519-yao-generator"
+
 [verus]
 release = "0.2026.04.03.21dfcd2"
 vstd = "0.0.0-2026-03-29-0113"
@@ -25,10 +27,10 @@ analyzer_sha256 = "8661888cb527ea7b998a3c4904470c429ce32945c06e8f63f059c4f402d84
 uv_lock_sha256 = "f8ad7e4cd25a44256055ab9edd3196928e372601538098aa7340f173467f023d"
 
 [extraction]
-crate = "tools/ed25519-yao-generator"
+source = "rust/export_continuity.rs"
+crate_name = "router_ab_ed25519_yao_client"
 functions = [
-  "ed25519_yao_generator::wrapping_add_le_256",
-  "ed25519_yao_generator::clamp_rfc8032",
+  "router_ab_ed25519_yao_client::export_continuity::validate_export_public_key",
 ]
 
 [evidence]
@@ -132,4 +134,3 @@ benchmark_bundle_index_digest = "aa62b83b38163bf898c90084f2eb25df1c95ba41274d0f7
 anti_drift_tests = 6
 verus_obligations = 27
 lean_model_theorems = 169
-aeneas_extracted_functions = 2

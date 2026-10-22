@@ -35,12 +35,15 @@ use subtle::ConstantTimeEq;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 mod activation_checkpoint;
+mod error;
+mod export_continuity;
 mod lane;
 mod local_material;
 mod signing;
 #[cfg(all(target_arch = "wasm32", feature = "wasm-bindings"))]
 mod wasm;
 
+pub use error::ClientActivationError;
 pub use lane::{
     complete_client_lane_v1, prepare_client_lane_dispatch_with_root_v1, prepare_client_lane_v1,
     ClientLaneError, ClientLaneExecutionEntropyV1, Ed25519YaoLaneClientCompletionV1,
@@ -69,51 +72,6 @@ pub use wasm::{
 
 type InputHpkeV1 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
 type RecipientHpkeV1 = Hpke<DhKemX25519HkdfSha256, HkdfSha256, Aes256Gcm>;
-
-/// Client activation preparation or completion failure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClientActivationError {
-    /// Entropy was zero or reused across distinct purposes.
-    InvalidEntropy,
-    /// Admission, application facts, or participants did not share one stable binding.
-    BindingMismatch,
-    /// Client contribution derivation failed.
-    DerivationFailed,
-    /// HPKE key derivation, sealing, or opening failed.
-    HpkeFailed,
-    /// A role input could not be encoded.
-    EncodingFailed,
-    /// A typed Router request or result was inconsistent.
-    InvalidProtocolShape,
-    /// Recipient package decoding or scalar combination failed.
-    InvalidRecipientPackage,
-    /// Public activation evidence did not match the opened Client share.
-    PublicRelationMismatch,
-    /// Recovery or export produced a public key different from the registered identity.
-    PublicKeyContinuityMismatch,
-    /// The completion checkpoint failed authentication or version validation.
-    InvalidCheckpoint,
-}
-
-impl fmt::Display for ClientActivationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let message = match self {
-            Self::InvalidEntropy => "Ed25519 Yao Client entropy is invalid",
-            Self::BindingMismatch => "Ed25519 Yao registration binding does not match Client facts",
-            Self::DerivationFailed => "Ed25519 Yao Client contribution derivation failed",
-            Self::HpkeFailed => "Ed25519 Yao Client HPKE operation failed",
-            Self::EncodingFailed => "Ed25519 Yao Client role input encoding failed",
-            Self::InvalidProtocolShape => "Ed25519 Yao Router protocol shape is invalid",
-            Self::InvalidRecipientPackage => "Ed25519 Yao Client package is invalid",
-            Self::PublicRelationMismatch => "Ed25519 Yao activation public relation is invalid",
-            Self::PublicKeyContinuityMismatch => "Ed25519 Yao public-key continuity check failed",
-            Self::InvalidCheckpoint => "Ed25519 Yao activation checkpoint is invalid",
-        };
-        formatter.write_str(message)
-    }
-}
-
-impl std::error::Error for ClientActivationError {}
 
 /// Three independent random seeds supplied by the Client cryptographic boundary.
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -831,13 +789,10 @@ pub fn complete_client_export_v1(
         .into_bytes(),
     );
     let expanded = expand_ed25519_seed(*seed);
-    if !bool::from(
-        expanded
-            .public_key_bytes
-            .ct_eq(&state.binding.registered_public_key()),
-    ) {
-        return Err(ClientActivationError::PublicKeyContinuityMismatch);
-    }
+    export_continuity::validate_export_public_key(
+        expanded.public_key_bytes,
+        state.binding.registered_public_key(),
+    )?;
     Ok(ExportedEd25519SeedV1(core::mem::take(&mut *seed)))
 }
 

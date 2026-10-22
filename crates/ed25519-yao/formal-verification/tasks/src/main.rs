@@ -22,6 +22,7 @@ type DynError = Box<dyn std::error::Error>;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct VerificationBaseline {
+    generator_crate: String,
     verus: VerusPin,
     aeneas: SourcePin,
     charon: SourcePin,
@@ -81,8 +82,8 @@ struct PythonPin {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ExtractionBaseline {
-    #[serde(rename = "crate")]
-    crate_path: String,
+    source: String,
+    crate_name: String,
     functions: Vec<String>,
 }
 
@@ -189,7 +190,6 @@ struct EvidenceCounts {
     anti_drift_tests: usize,
     verus_obligations: usize,
     lean_model_theorems: usize,
-    aeneas_extracted_functions: usize,
 }
 
 struct ArtifactSnapshot {
@@ -2559,7 +2559,6 @@ fn run_aeneas_check() -> Result<(), DynError> {
     )?;
     assert_artifacts_unchanged(&snapshots)?;
     reject_forbidden_lean_declarations()?;
-    verify_generated_extraction_scope(&baseline)?;
 
     let lake = resolve_program("lake", "install Lean through elan")?;
     run_command(
@@ -2578,9 +2577,12 @@ fn run_aeneas_check() -> Result<(), DynError> {
         &lean_boundary_dir().join(".lake/build/lib/lean/Ed25519YaoBoundary.olean"),
         "named Lean boundary output",
     )?;
+    require_file(
+        &lean_boundary_dir().join(".lake/build/lib/lean/Ed25519YaoBoundary/ExportContinuity.olean"),
+        "production export-continuity proof output",
+    )?;
     println!(
-        "aeneas-check ok: {} generated functions, 2 stable Lean artifacts, and 2 named Lean targets checked",
-        baseline.evidence.aeneas_extracted_functions
+        "aeneas-check ok: production export-continuity behavior proved with stable extraction"
     );
     Ok(())
 }
@@ -3478,7 +3480,10 @@ fn validate_baseline(baseline: &VerificationBaseline) -> Result<(), DynError> {
     if baseline.verus.release.is_empty()
         || baseline.verus.vstd.is_empty()
         || baseline.lean.toolchain.is_empty()
-        || baseline.extraction.crate_path.is_empty()
+        || baseline.generator_crate.is_empty()
+        || baseline.extraction.source.is_empty()
+        || baseline.extraction.crate_name.is_empty()
+        || baseline.extraction.functions.is_empty()
         || baseline.python.minimum_major == 0
         || baseline.constant_time.uv_version.is_empty()
         || !is_sha256_hex(&baseline.constant_time.analyzer_sha256)
@@ -3495,11 +3500,6 @@ fn validate_baseline(baseline: &VerificationBaseline) -> Result<(), DynError> {
             return Err("Aeneas extraction scope contains an empty or duplicate function".into());
         }
     }
-    require_exact_count(
-        "Aeneas extraction scope",
-        baseline.extraction.functions.len(),
-        baseline.evidence.aeneas_extracted_functions,
-    )?;
     let counts = [
         baseline.evidence.reference_spec_documents,
         baseline.evidence.vector_cases,
@@ -3645,9 +3645,13 @@ fn validate_baseline(baseline: &VerificationBaseline) -> Result<(), DynError> {
     }
     require_file(
         &repository_root()
-            .join(&baseline.extraction.crate_path)
+            .join(&baseline.generator_crate)
             .join("Cargo.toml"),
-        "configured Aeneas extraction crate manifest",
+        "configured reference generator crate manifest",
+    )?;
+    require_file(
+        &lean_boundary_dir().join(&baseline.extraction.source),
+        "configured Aeneas extraction source",
     )?;
     Ok(())
 }
@@ -3697,31 +3701,6 @@ fn assert_artifacts_unchanged(snapshots: &[ArtifactSnapshot]) -> Result<(), DynE
             return Err(format!(
                 "Aeneas artifact drifted after regeneration: {}",
                 snapshot.path.display()
-            )
-            .into());
-        }
-    }
-    Ok(())
-}
-
-fn verify_generated_extraction_scope(baseline: &VerificationBaseline) -> Result<(), DynError> {
-    let generated = fs::read_to_string(lean_boundary_dir().join("Ed25519Yao/Funs.lean"))?;
-    let boundary = fs::read_to_string(lean_boundary_dir().join("Ed25519YaoBoundary/Scope.lean"))?;
-    for function in &baseline.extraction.functions {
-        let function_name = function
-            .rsplit("::")
-            .next()
-            .ok_or("extraction function has no Rust item name")?;
-        let generated_declaration = format!("def {function_name}\n");
-        if !generated.contains(&generated_declaration) {
-            return Err(
-                format!("generated Lean is missing scoped function `{function_name}`").into(),
-            );
-        }
-        let lean_name = function.replace("::", ".");
-        if !boundary.contains(&lean_name) {
-            return Err(format!(
-                "Lean boundary does not reference generated function `{lean_name}`"
             )
             .into());
         }
@@ -3920,7 +3899,7 @@ fn production_manifest() -> PathBuf {
 }
 
 fn generator_dir(baseline: &VerificationBaseline) -> PathBuf {
-    repository_root().join(&baseline.extraction.crate_path)
+    repository_root().join(&baseline.generator_crate)
 }
 
 fn generator_manifest(baseline: &VerificationBaseline) -> PathBuf {
