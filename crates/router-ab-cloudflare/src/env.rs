@@ -118,8 +118,8 @@ pub const ROUTER_PROJECT_POLICY_BOOTSTRAP_JSON_ENV: &str = "ROUTER_PROJECT_POLIC
 /// Router configuration. The Router, Deriver A and Deriver B all require it:
 /// each verifies a signed creation command at its own boundary, because a
 /// `VerifiedTenantRootRoleCreationCommandV1` is a process-local proof token and
-/// cannot be serialized by one Worker and trusted by another. It stays
-/// forbidden in the Signing Worker, which has no tenant-root lifecycle role.
+/// cannot be serialized by one Worker and trusted by another. The Signing
+/// Worker uses this public anchor to verify ECDSA proof commitments.
 pub const TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV: &str =
     "TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON";
 /// Server-owned recovery-verification roots and rotation bridges.
@@ -406,8 +406,6 @@ pub(crate) const SIGNING_WORKER_FORBIDDEN_ENV_KEYS: &[&str] = &[
     ROUTER_JWT_AUDIENCE_ENV,
     ROUTER_JWT_JWKS_JSON_ENV,
     ROUTER_PROJECT_POLICY_BOOTSTRAP_JSON_ENV,
-    TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-    TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV,
     TENANT_ROOT_RECOVERY_TRUST_BUNDLE_JSON_ENV,
     TENANT_ROOT_RECOVERY_TRUST_SNAPSHOT_JSON_ENV,
     DERIVER_A_ENVELOPE_HPKE_PRIVATE_KEY_BINDING_ENV,
@@ -418,6 +416,7 @@ pub(crate) const SIGNING_WORKER_FORBIDDEN_ENV_KEYS: &[&str] = &[
     DERIVER_A_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_BINDING_ENV,
     DERIVER_B_TENANT_ROOT_CREATION_SIGNING_KEY_ID_ENV,
+    TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV,
     DERIVER_A_TENANT_ROOT_ONLINE_EPOCH_WRAPPING_KEY_REF_ENV,
     DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PUBLIC_KEY_ENV,
     DERIVER_A_TENANT_ROOT_ONLINE_HPKE_PRIVATE_KEY_BINDING_ENV,
@@ -1879,9 +1878,8 @@ const TENANT_ROOT_CONTROL_PLANE_SECRET_BINDING_PREFIX_V1: &str = "TENANT_ROOT_CO
 
 /// Bounded, validated control-plane issuer verifying key set.
 ///
-/// The published trust anchor, held by the Router, Deriver A, Deriver B, and
-/// the control plane. Parsed once at startup so a malformed set fails the
-/// Worker at boot rather than at first verification.
+/// The published trust anchor, held by the Router, Derivers, SigningWorker,
+/// and control plane. Each role validates the set before it verifies a receipt.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CloudflareTenantRootControlPlaneIssuerVerifyingKeysV1 {
     keys: BTreeMap<String, [u8; 32]>,
@@ -2821,11 +2819,8 @@ mod tests {
                 .expect("public verifying anchor must be accepted");
         }
 
-        // The Signing Worker rejects both.
-        for key in [
-            TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV,
-            TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON_ENV,
-        ] {
+        // The Signing Worker rejects the issuer Secret.
+        for key in [TENANT_ROOT_CONTROL_PLANE_ISSUER_SIGNING_KEY_BINDING_ENV] {
             let env = CloudflareEnvMapV1::new(vec![(key, "x")]);
             assert_eq!(
                 crate::reject_forbidden_env_keys(
@@ -2833,7 +2828,7 @@ mod tests {
                     &env,
                     crate::env::SIGNING_WORKER_FORBIDDEN_ENV_KEYS,
                 )
-                .expect_err("signing worker must reject tenant-root control-plane keys")
+                .expect_err("signing worker must reject the tenant-root issuer Secret")
                 .code(),
                 RouterAbProtocolErrorCode::ForbiddenLocalBinding
             );

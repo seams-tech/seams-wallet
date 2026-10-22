@@ -19,6 +19,17 @@ The application configures the absolute HTTPS wallet origin. It should not
 proxy wallet routes through the application origin or serve a second copy of
 the runtime assets.
 
+The wallet-service document must declare every approved relayer origin in a
+`seams-wallet-relayer-origin` meta element. Set
+`SEAMS_WALLET_APPROVED_RELAYER_ORIGINS` to a comma-separated list of canonical
+HTTPS origins when building static wallet assets. For example, use
+`https://router.example.com,https://router-backup.example.com`.
+The wallet host rejects parent configuration when the document has no approved
+relayer origin or the configured relayer URL has a different origin. Local
+wallet builds may declare an HTTP loopback origin. The wallet hosting service
+must control the document and its declared origins. Parent applications cannot
+supply or change the approved list.
+
 ## Prepare registration through the hosted menu
 
 Use `HostedSeamsAuthMenu` for registration when setup should start before the

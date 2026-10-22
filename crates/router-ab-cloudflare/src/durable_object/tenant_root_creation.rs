@@ -3610,10 +3610,10 @@ impl CloudflareVerifiedTenantRootActiveStateV1 {
     /// The roles still waiting for the committed receipt; empty when both have
     /// it.
     pub fn pending_delivery(&self) -> Vec<TwoPartyDeriverRole> {
-        self.delivery
-            .as_ref()
-            .map(CloudflareTenantRootDeliveryV1::pending_roles)
-            .unwrap_or_default()
+        match &self.delivery {
+            Some(delivery) => delivery.pending_roles(),
+            None => vec![TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB],
+        }
     }
 
     /// The issuer-verified active activation receipt.
@@ -7928,7 +7928,14 @@ fn refresh_active_state_record_from_verified_receipt(
         manual_refresh_pending: None,
         last_manual_refresh_completed_at_ms: None,
         last_refresh_completed_at_ms: None,
-        delivery: None,
+        delivery: match activation_receipt.transition() {
+            TenantRootActivationReceiptTransitionV1::InitialCreation => {
+                Some(CloudflareTenantRootDeliveryV1::pending(
+                    encode_base64url_bytes_v1(receipt_digest.as_bytes()),
+                ))
+            }
+            TenantRootActivationReceiptTransitionV1::RefreshSwap => None,
+        },
     })
 }
 
@@ -11386,7 +11393,17 @@ pub async fn tenant_root_creation_active_state_read_v1<Store: TenantRootCreation
             ..
         } => {
             let active_epoch = active.active_epoch;
+            let initial_creation = active.activation_receipt.transition()
+                == TenantRootActivationReceiptTransitionV1::InitialCreation;
             let mut record = active.record;
+            if initial_creation
+                && record.delivery.is_none()
+                && record.activation_receipt_digest_b64u == activation_receipt_digest_b64u
+            {
+                record.delivery = Some(CloudflareTenantRootDeliveryV1::pending(
+                    activation_receipt_digest_b64u.clone(),
+                ));
+            }
             match record.delivery.as_mut() {
                 // An acknowledgement for a receipt that is no longer the
                 // committed one changes nothing.
@@ -13105,13 +13122,8 @@ pub async fn tenant_root_creation_persist_initial_activation_v1<Store: TenantRoo
         &journal,
         &installation,
     )?;
-    let mut candidate =
+    let candidate =
         refresh_active_state_record_from_verified_receipt(activation_receipt, lifecycle_revision)?;
-    // Nothing is delivered yet: each Deriver's acknowledged activation marks
-    // its role delivered.
-    candidate.delivery = Some(CloudflareTenantRootDeliveryV1::pending(
-        candidate.activation_receipt_digest_b64u.clone(),
-    ));
     tenant_root_creation_persist_active_state_v1(store, candidate, issuer_keys).await?;
     Ok(CloudflareTenantRootCreationInitialActivationResponseV1 {
         activation_receipt_digest_b64u: encode_base64url_bytes_v1(receipt_digest.as_bytes()),

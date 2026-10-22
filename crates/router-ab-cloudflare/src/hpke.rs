@@ -295,6 +295,7 @@ fn open_cloudflare_recipient_proof_bundle_hpke_plaintext_v1(
 /// Opens and combines V2 server proof bundles for one tenant-root ECDSA activation.
 pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2(
     request: &CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
+    custody_binding: &TenantRootCustodyBindingV1,
     private_key_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareServerOutputMaterialRecordV1> {
     request.validate()?;
@@ -303,7 +304,7 @@ pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2
         &request.pending.activation_context,
         &request.pending.activation,
         &public_request,
-        request.pending.tenant_root_custody_binding_digest,
+        custody_binding,
         private_key_bytes,
     )
 }
@@ -312,6 +313,7 @@ pub fn cloudflare_server_output_material_record_from_ecdsa_activation_request_v2
 #[cfg(feature = "workers-rs")]
 pub fn cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2(
     request: &CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRefreshRequestV1,
+    custody_binding: &TenantRootCustodyBindingV1,
     private_key_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareServerOutputMaterialRecordV1> {
     request.validate()?;
@@ -320,7 +322,7 @@ pub fn cloudflare_server_output_material_record_from_ecdsa_refresh_request_v2(
         &request.activation_context,
         &request.activation,
         &public_request,
-        request.tenant_root_custody_binding_digest,
+        custody_binding,
         private_key_bytes,
     )
 }
@@ -329,7 +331,7 @@ fn cloudflare_server_output_material_record_from_stable_activation_v2(
     activation_context: &SigningWorkerActivationContextV1,
     activation: &CloudflareSigningWorkerRecipientProofBundleActivationV1,
     public_request: &EcdsaThresholdPrfRequestV1,
-    tenant_root_custody_binding_digest: TenantRootProtocolDigestV1,
+    custody_binding: &TenantRootCustodyBindingV1,
     private_key_bytes: &[u8],
 ) -> RouterAbProtocolResult<CloudflareServerOutputMaterialRecordV1> {
     let selected_server = &activation_context.signer_set().selected_server;
@@ -357,14 +359,22 @@ fn cloudflare_server_output_material_record_from_stable_activation_v2(
         private_key_bytes,
         activation_context.transcript_digest(),
     )?;
+    let commitments = custody_binding.commitments();
+    if &deriver_a_payload.proof_bundle.commitment_wire != commitments.deriver_a()
+        || &deriver_b_payload.proof_bundle.commitment_wire != commitments.deriver_b()
+    {
+        return Err(RouterAbProtocolError::new(
+            RouterAbProtocolErrorCode::ForbiddenLocalBinding,
+            "ECDSA server proof commitment does not match the active tenant-root custody binding",
+        ));
+    }
     let stable_context = public_request.stable_tenant_derivation_context()?;
-    let plan =
-        router_ab_core::plan_mpc_prf_stable_purpose_binding_from_authenticated_custody_digest_v2(
-            &stable_context,
-            tenant_root_custody_binding_digest,
-            threshold_prf::PrfPurpose::RouterAbXServerBaseV1,
-        )
-        .map_err(map_root_share_to_protocol)?;
+    let plan = router_ab_core::plan_mpc_prf_stable_purpose_binding_v2(
+        &stable_context,
+        custody_binding,
+        threshold_prf::PrfPurpose::RouterAbXServerBaseV1,
+    )
+    .map_err(map_root_share_to_protocol)?;
     let output =
         router_ab_core::combine_mpc_prf_stable_recipient_output_from_proof_bundle_payloads_v2(
             &plan,

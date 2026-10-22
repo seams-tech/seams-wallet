@@ -809,17 +809,7 @@ pub(crate) async fn tenant_root_router_deliver_pending_v1<Host: TenantRootRouter
     host: &Host,
     active: &CloudflareVerifiedTenantRootActiveStateV1,
 ) -> RouterAbProtocolResult<()> {
-    let roles = match &active.delivery {
-        Some(delivery) => delivery.pending_roles(),
-        // A refresh-swap receipt committed before delivery was recorded is
-        // delivered again; each Deriver replays a swap it already made.
-        None if active.activation_receipt.transition()
-            == TenantRootActivationReceiptTransitionV1::RefreshSwap =>
-        {
-            vec![TwoPartyDeriverRole::DeriverA, TwoPartyDeriverRole::DeriverB]
-        }
-        None => Vec::new(),
-    };
+    let roles = active.pending_delivery();
     tenant_root_router_deliver_receipt_v1(host, &active.activation_receipt, &roles).await
 }
 

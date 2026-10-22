@@ -1199,7 +1199,7 @@ pub fn decode_ecdsa_threshold_prf_proof_batch_payload_v1(
     let root_share_epoch = RootShareEpoch::new(decoder.read_string("root_share_epoch")?)
         .map_err(map_derivation_to_protocol_error)?;
     let proof_count = decoder.read_u32("proof_bundle_count")?;
-    let mut proof_bundles = Vec::with_capacity(proof_count as usize);
+    let mut proof_bundles = Vec::new();
     for _ in 0..proof_count {
         proof_bundles.push(decoder.read_mpc_prf_partial_proof_bundle()?);
     }

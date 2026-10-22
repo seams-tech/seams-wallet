@@ -24,7 +24,7 @@ pub struct CloudflareRouterAbEcdsaRegistrationForwardV1 {
     deriver_a_message: WireMessageV1,
     deriver_b_message: WireMessageV1,
     request: RouterAbEcdsaDerivationRegistrationBootstrapRequestV1,
-    custody_binding_digest: TenantRootProtocolDigestV1,
+    custody_binding: CloudflareTenantRootCustodyBindingWireV1,
     wallet_scope: CloudflareSigningWorkerWalletScopeV1,
     ownership_generation: u64,
     environment_key: String,
@@ -50,10 +50,7 @@ where
     Verifier: CloudflareRouterJwtVerifierV1,
 {
     request.validate_at(now_unix_ms)?;
-    let custody_binding_digest = tenant_root_custody_binding
-        .authenticate_for_registration(env, &request, now_unix_ms)?
-        .digest()
-        .map_err(map_root_share_to_protocol)?;
+    tenant_root_custody_binding.authenticate_for_registration(env, &request, now_unix_ms)?;
     let public_request = request.to_threshold_prf_request()?;
     let mut session = CloudflareRouterJwtSessionProviderV1::new(
         admission.jwt.clone(),
@@ -118,7 +115,7 @@ where
             deriver_a_message,
             deriver_b_message,
             request,
-            custody_binding_digest,
+            custody_binding: tenant_root_custody_binding.clone(),
             wallet_scope,
             ownership_generation,
             environment_key: verified_metadata.environment,
@@ -172,7 +169,7 @@ impl CloudflareRouterAbEcdsaRegistrationForwardV1 {
             CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
                 self.ownership_generation,
                 self.request,
-                self.custody_binding_digest,
+                self.custody_binding,
                 self.wallet_scope,
                 self.environment_key,
                 router_payload,
@@ -451,10 +448,15 @@ pub struct CloudflareSigningWorkerEcdsaActivationV1 {
 /// the SigningWorker's server-output key.
 pub fn open_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_v1(
     runtime: &CloudflareSigningWorkerRuntimeV1,
-    secrets: &impl CloudflareSecretReaderV1,
+    env: &(impl CloudflareEnvReaderV1 + CloudflareSecretReaderV1),
     activation: CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1,
+    now_unix_ms: u64,
 ) -> RouterAbProtocolResult<CloudflareSigningWorkerEcdsaActivationV1> {
     activation.validate()?;
+    let custody_binding = activation
+        .pending
+        .tenant_root_custody_binding
+        .authenticate_for_registration(env, &activation.pending.registration, now_unix_ms)?;
     let selected_server = activation
         .pending
         .activation_context
@@ -467,11 +469,12 @@ pub fn open_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_v1(
     let generic_activation = activation.to_recipient_proof_bundle_activation_request()?;
     let binding = runtime.server_output_decrypt_key();
     binding.validate_visible_to(CloudflareWorkerRoleV1::SigningWorker)?;
-    let secret = secrets.secret_text(&binding.binding_name)?;
+    let secret = env.secret_text(&binding.binding_name)?;
     let mut private_key_bytes =
         decode_cloudflare_server_output_hpke_private_key_secret_v1(&secret)?;
     let material = cloudflare_server_output_material_record_from_ecdsa_activation_request_v2(
         &activation,
+        &custody_binding,
         &private_key_bytes,
     );
     private_key_bytes.zeroize();

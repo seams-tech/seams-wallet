@@ -175,7 +175,7 @@ use router_ab_core::{
     RouterAbEd25519NormalSigningPrepareRequestV2, RouterAbEd25519SigningPayloadV2,
     RouterAbEd25519TwoPartyFrostFinalizeProtocolV2, RouterAbNearNetworkIdV2,
     RouterAbNearTransactionIntentV1, TenantRootDerivationNonceV1,
-    TenantRootDerivationOperationIdV1, TenantRootDerivationSessionIdV1, TenantRootProtocolDigestV1,
+    TenantRootDerivationOperationIdV1, TenantRootDerivationSessionIdV1,
 };
 use router_ab_ecdsa_derivation::derive_relayer_share_for_client_public;
 use router_ab_ecdsa_online::{
@@ -1294,6 +1294,19 @@ fn router_ab_ecdsa_derivation_activation_refresh_request_with_aad_bound_envelope
     request
 }
 
+fn router_ab_ecdsa_activation_custody_binding_wire() -> CloudflareTenantRootCustodyBindingWireV1 {
+    CloudflareTenantRootCustodyBindingWireV1 {
+        activation_receipt_b64u: b64u(&[0x55; 32]),
+        operation_id: TenantRootDerivationOperationIdV1::from_bytes([0x56; 16])
+            .expect("custody operation id"),
+        session_id: TenantRootDerivationSessionIdV1::from_bytes([0x57; 16])
+            .expect("custody session id"),
+        nonce: TenantRootDerivationNonceV1::from_bytes([0x58; 32]).expect("custody nonce"),
+        issued_at_ms: 1,
+        expires_at_ms: 2_000,
+    }
+}
+
 fn router_ab_ecdsa_derivation_activation_request(
 ) -> CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1 {
     router_ab_ecdsa_derivation_activation_for_registration(
@@ -1320,7 +1333,7 @@ fn router_ab_ecdsa_derivation_activation_for_registration(
     let pending = CloudflareRouterAbEcdsaDerivationPendingSigningWorkerActivationV1::new(
         1,
         registration.clone(),
-        TenantRootProtocolDigestV1::from_bytes([0x55; 32]).expect("custody binding digest"),
+        router_ab_ecdsa_activation_custody_binding_wire(),
         CloudflareSigningWorkerWalletScopeV1::new(
             "org-fixture",
             "project-fixture",
@@ -1453,7 +1466,7 @@ fn router_ab_ecdsa_derivation_activation_refresh_request(
         router_payload,
         activation,
         router_ab_ecdsa_derivation_material_activation_for_epoch("epoch-2"),
-        TenantRootProtocolDigestV1::from_bytes([0x56; 32]).expect("custody binding digest"),
+        router_ab_ecdsa_activation_custody_binding_wire(),
     )
     .expect("Router A/B ECDSA derivation SigningWorker activation-refresh request")
 }
