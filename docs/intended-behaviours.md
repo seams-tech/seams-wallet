@@ -3496,6 +3496,10 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Bound installation by its registration claim deadline, including gate waiting. Drain both deliveries on ordinary errors; late remote replies must not complete an expired registration.
 - Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
+- Prepare private nonce commitments during key-bound refill, using only the admitted public key and role-local fresh nonce shares. Keep long-term signing shares in the signing participants.
+- Bind committed preparation to the exact public key, material epoch, role, batch identity, candidate count, and circuit schedules. Publish it only after private commitment evaluation and encrypted storage finish.
+- Store only unused signing correlations with committed refill. Consume its durable record before restoring private nonce and commitment shares. Reject a different key or epoch before transport.
+- Keep pre-key registration stock generic. Its first consumption performs private commitment activation; committed refill must skip that work during signing.
 - Commit the producer's Running state before randomness generation. Retry terminal settlement without regenerating material. Abandon interrupted Running jobs.
 - Publish each role's preparation only under its exact live producer claim. Commit the producer outcome before releasing its service-wide lease.
 - Reuse the service producer while preserving separate durable job records and single-use material. A stale settlement must preserve the successor lease and alarm.

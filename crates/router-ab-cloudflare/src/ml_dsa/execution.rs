@@ -7,7 +7,7 @@ use ed25519_yao::{
         TrustedMlDsaSchedule,
     },
     ml_dsa_signing::{
-        prepared_signing::gmw::{GmwBatchResult, PreparedGmwReservation},
+        prepared_signing::gmw::{ConsumedGmwPreparation, GmwBatchResult},
         OwnSigningShare, SigningRole,
     },
 };
@@ -144,7 +144,7 @@ pub async fn run<T: Transport + BooleanTransport>(
     )?;
     agree(role, &binding, transport).await?;
     host.note_stage(ExecutionStage::Bound);
-    let epoch = digest(b"seams/ml-dsa/material-epoch/v1", key)?;
+    let epoch = material_epoch(key)?;
     let mut topologies = host.public_topologies();
     let mut evaluated_candidates = 0;
     for (index, batch) in request.permit.batches.iter().enumerate() {
@@ -167,7 +167,7 @@ pub async fn run<T: Transport + BooleanTransport>(
             return Err(invalid("ML-DSA consumed material binding changed"));
         }
         let bytes = sealing::open(sealed, &stored, &secrets.wrapping_seed)?;
-        let reservation = PreparedGmwReservation::from_consumed_storage(
+        let reservation = ConsumedGmwPreparation::from_consumed_storage(
             role,
             *batch,
             candidates,
@@ -221,6 +221,11 @@ pub async fn run<T: Transport + BooleanTransport>(
         consumed_batches: request.permit.batches.len(),
         evaluated_candidates,
     })
+}
+
+/// Binds private prepared commitments to the complete durable key scope.
+pub fn material_epoch(key: &KeyScope) -> Result<[u8; 32]> {
+    digest(b"seams/ml-dsa/material-epoch/v1", key)
 }
 
 pub fn schedule_digest(schedules: &[TrustedMlDsaSchedule<'_>]) -> [u8; 32] {

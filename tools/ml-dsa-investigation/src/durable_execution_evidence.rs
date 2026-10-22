@@ -11,7 +11,10 @@ use ed25519_yao::{
         TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::{SigningRole, prepared_signing::gmw::prepare_gmw_reservations},
+    ml_dsa_signing::{
+        OwnSigningShare, SigningRole,
+        prepared_signing::gmw::{ConsumedGmwPreparation, prepare_gmw_reservations},
+    },
 };
 use router_ab_cloudflare::ml_dsa::{
     self as m,
@@ -160,6 +163,9 @@ pub(super) fn run(
     let started = Instant::now();
     let mut topologies = Default::default();
     let mut preparation_groups = Vec::new();
+    let mut generic_ids = Vec::new();
+    let mut committed_storage_checks = Vec::new();
+    let epoch = execution::material_epoch(&key)?;
     for ordinal in 0u8..10 {
         let ids: Vec<[u8; 32]> = [ordinal * 2, ordinal * 2 + 1]
             .into_iter()
@@ -182,7 +188,22 @@ pub(super) fn run(
                 expires_at_ms: 10_000_000,
                 wrapping_key_version: version.clone(),
             };
-            let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
+            let bytes = if ordinal == 0 {
+                // Registration stock exists before a key; refill can commit earlier.
+                generic_ids.push(id);
+                prepared.into_storage()
+            } else {
+                let committed = run_ready(prepared.commit(public_key, epoch, transport))??;
+                let bytes = committed.into_storage();
+                if committed_storage_checks.is_empty() {
+                    let record = tx(&db, m::material::get(&db, &key))?;
+                    committed_storage_checks.push(check_committed_storage(
+                        &bytes, &binding, public_key, schedules, &record, &seed, transport,
+                    )?);
+                }
+                bytes
+            };
+            let sealed = sealing::seal(bytes, &binding, &seed)?;
             tx(&db, pool::put(&db, binding, sealed, 1_000))?;
         }
     }
@@ -348,7 +369,18 @@ pub(super) fn run(
             ),
             "Consumption lost refill demand",
         )?;
-        operations.push(json!({"outcome": outcome, "consumed_ids": consumed.iter().map(hex::encode).collect::<Vec<_>>(), "message_digest": hex::encode(request.message_digest), "online_ns": elapsed_ns, "replay_rejected": true, "duplicate_cached": true}));
+        let generic_groups = consumed
+            .iter()
+            .filter(|id| generic_ids.contains(id))
+            .count();
+        operations.push(json!({
+            "outcome": outcome,
+            "consumed_ids": consumed.iter().map(hex::encode).collect::<Vec<_>>(),
+            "generic_groups": generic_groups,
+            "committed_groups": consumed.len() - generic_groups,
+            "message_digest": hex::encode(request.message_digest),
+            "online_ns": elapsed_ns, "replay_rejected": true, "duplicate_cached": true,
+        }));
         sync(role, transport)?;
     }
     let db = Db::open(&pool_path)?;
@@ -359,9 +391,96 @@ pub(super) fn run(
         "Durable test did not drain the pool",
     )?;
     Ok(
-        json!({"result":{"status":"durable-execution", "operations":operations, "preparation_groups":preparation_groups}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
+        json!({"result":{"status":"durable-execution", "operations":operations, "preparation_groups":preparation_groups, "committed_storage_checks":committed_storage_checks}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
     )
 }
+
+fn check_committed_storage(
+    bytes: &Zeroizing<Vec<u8>>,
+    binding: &sealing::Binding,
+    public_key: &[u8; 1952],
+    schedules: &[TrustedMlDsaSchedule<'_>],
+    material: &m::material::Record,
+    seed: &[u8; 32],
+    transport: &mut HostTransport,
+) -> InvestigationResult<Value> {
+    let role = match binding.role {
+        Participant::A => SigningRole::A,
+        Participant::B => SigningRole::B,
+    };
+    let peer = match role {
+        SigningRole::A => SigningRole::B,
+        SigningRole::B => SigningRole::A,
+    };
+    let mut wrong_id = binding.batch;
+    wrong_id[0] ^= 1;
+    let mut truncated = bytes.clone();
+    truncated.pop();
+    let mut extended = bytes.clone();
+    extended.push(0);
+    for (expected_role, id, count, circuit_set, stored) in [
+        (peer, binding.batch, 2, schedules, bytes.clone()),
+        (role, wrong_id, 2, schedules, bytes.clone()),
+        (role, binding.batch, 3, schedules, bytes.clone()),
+        (
+            role,
+            binding.batch,
+            2,
+            &schedules[..schedules.len() - 1],
+            bytes.clone(),
+        ),
+        (role, binding.batch, 2, schedules, truncated),
+        (role, binding.batch, 2, schedules, extended),
+    ] {
+        require(
+            ConsumedGmwPreparation::from_consumed_storage(
+                expected_role,
+                id,
+                count,
+                circuit_set,
+                &mut Default::default(),
+                stored,
+            )
+            .is_err(),
+            "Committed storage accepted changed identity, circuit layout, or length",
+        )?;
+    }
+    let epoch = execution::material_epoch(&binding.key)?;
+    let mut wrong_key = *public_key;
+    wrong_key[0] ^= 1;
+    let mut wrong_epoch = epoch;
+    wrong_epoch[0] ^= 1;
+    for (expected_key, expected_epoch) in [(&wrong_key, epoch), (public_key, wrong_epoch)] {
+        let restored = ConsumedGmwPreparation::from_consumed_storage(
+            role,
+            binding.batch,
+            2,
+            schedules,
+            &mut Default::default(),
+            bytes.clone(),
+        )?;
+        let own = material.open(binding.role, &binding.wrapping_key_version, seed)?;
+        let own = OwnSigningShare::parse(&own)?;
+        let before = transport.counts[0].json();
+        require(
+            matches!(
+                run_ready(restored.activate(own, expected_key, expected_epoch, transport))?,
+                Err(ed25519_yao::ml_dsa_signing::SigningError::RequestBinding)
+            ),
+            "Committed preparation accepted another key or epoch",
+        )?;
+        let after = transport.counts[0].json();
+        require(
+            before == after,
+            "Rejected committed activation used the transport",
+        )?;
+    }
+    Ok(json!({
+        "serialized_bytes": bytes.len(), "changed_storage_bindings_rejected": 6,
+        "wrong_key_and_epoch_rejected_before_transport": 2,
+    }))
+}
+
 fn persist_material(
     db: &Db,
     activation: admission::KeyActivation,

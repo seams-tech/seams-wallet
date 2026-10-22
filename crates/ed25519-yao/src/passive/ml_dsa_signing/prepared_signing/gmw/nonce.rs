@@ -51,15 +51,16 @@ pub(super) async fn prepare_masks<'a>(
 
 pub(super) async fn activate_values(
     values: &mut [Zeroizing<Candidate>],
-    key: &SigningKeyState,
+    role: SigningRole,
+    matrix: &PublicMatrix,
+    twiddles: &Polynomial,
     binding: &[u8; 64],
     commitments: PreparedGmwBatch<'_>,
     transport: &mut impl BooleanTransport,
 ) -> Result<BatchMetrics> {
-    let role = key.role;
     let mut inputs = Vec::with_capacity(values.len() * ROWS);
     for value in values.iter_mut() {
-        value.w = matrix_product_plus_error(&key.matrix, &value.y, &key.twiddles);
+        value.w = matrix_product_plus_error(matrix, &value.y, twiddles);
         for row in 0..ROWS {
             let mut bits = Zeroizing::new(Vec::new());
             append_polynomial(&mut bits, &value.w[row]);
