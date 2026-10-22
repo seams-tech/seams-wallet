@@ -3,7 +3,7 @@
 The SDK now drives ML-DSA establishment, existing-custody joining, and recovery through
 the actual custody worker. Public Wallet lifecycle integration remains incomplete.
 
-The [MVP plan](ml-dsa-65-mvp-plan.md#current-priority--october-19-2026) prioritizes public
+The [MVP plan](ml-dsa-65-mvp-plan.md#sdk-lifecycle-implementation--october-19-2026) prioritizes public
 registration, signing, recovery/export, and device authorization before further latency work.
 
 ## Implementation

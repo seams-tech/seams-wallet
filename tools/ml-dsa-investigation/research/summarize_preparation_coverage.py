@@ -41,11 +41,13 @@ def summarize(client, records, versions):
         else:
             unknown.append(index)
     successes = {bytes(row["operation"]).hex() for row in client["requests"] if row.get("verified")}
+    terminal_operations = {bytes(row["operation"]).hex() for row in client["requests"]
+                           if row.get("verified") or row.get("state") in ("failed", "succeeded")}
     traces = collections.defaultdict(dict)
     for _, record in selected:
         for trace in record["signing_traces"]:
             operation = trace["operation"]
-            if operation not in successes:
+            if operation not in terminal_operations:
                 continue
             ids = checked_material(trace)
             if ids is not None:
@@ -67,7 +69,7 @@ def summarize(client, records, versions):
     consumption = []
     missing = []
     consumed = set()
-    for operation in sorted(successes):
+    for operation in sorted(terminal_operations):
         roles = traces[operation]
         if set(roles) != {"a", "b"}:
             missing.append(operation)
@@ -76,6 +78,7 @@ def summarize(client, records, versions):
         assert not consumed.intersection(roles["a"])
         consumed.update(roles["a"])
         consumption.append({"operation": operation, "batches": roles["a"],
+                            "signature_verified": operation in successes,
                             "evaluated_candidates": len(roles["a"]) * client["policy"]["candidate_group_size"]})
     stages = collections.defaultdict(list)
     traffic = []
@@ -100,7 +103,12 @@ def summarize(client, records, versions):
         "retained_consumption_events": retained_events,
         "unique_taken_ids_across_all_client_operations": len(taken_by_id),
         "taken_ids_for_unverified_operations": [identity for identity, operation in taken_by_id.items() if operation not in successes],
-        "consumption_limit": "Taken follows receipt of the durable reply. Missing events cannot prove that a burn did not commit. Immediate events do not prove complete evaluation when final traces are missing.",
+        "consumption_limit": (
+            "Taken follows receipt of the durable reply. Missing events cannot prove that a burn did not commit. "
+            "Immediate events do not prove complete evaluation when final traces are missing. "
+            "Complete matching role traces establish checked material for terminal operations, including failures. "
+            "Signature success and failure causes require separate evidence."
+        ),
         "verified_operations": len(successes), "matched_operation_material_bindings": consumption,
         "missing_complete_peer_traces": missing, "unique_consumed_material_ids": len(consumed),
         "attributed_producer_alarms": attributed, "unknown_work_invocations": unknown,
@@ -119,7 +127,7 @@ def main():
     args = parser.parse_args()
     result = summarize(json.loads(args.client.read_text()), json.loads(args.traces.read_text())["records"], json.loads(args.versions.read_text()))
     args.output.write_text(json.dumps(result, indent=2) + "\n")
-    print(json.dumps({"matched_signatures": len(result["matched_operation_material_bindings"]),
+    print(json.dumps({"matched_operations": len(result["matched_operation_material_bindings"]),
                       "missing_peer_traces": len(result["missing_complete_peer_traces"]),
                       "attributed_producer_alarms": len(result["attributed_producer_alarms"]),
                       "unknown_work": len(result["unknown_work_invocations"])}))

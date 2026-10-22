@@ -1,0 +1,828 @@
+{
+  "schema": "seams.ml-dsa-worker-exchange-investigation.v1",
+  "observed_at": "2026-10-22T10:18:58.596799+00:00",
+  "retained_implementation": "Existing role-ordered Worker transport and per-AND correlation consumption. Both prototype source changes were removed.",
+  "retained_change": "Failed terminal operations with complete agreeing participant traces contribute checked material without being labelled signed.",
+  "scope": "Private Worker protocol routes with synthetic Gateway admission. Real paired cryptography, sealed role storage, independent standard signature verification, and full reserve restoration. Public browser SDK, human authentication, enrollment and NEAR finality are excluded. Product timing parity is not established.",
+  "constraints": {
+    "preparation_on_workers": true,
+    "preparation_candidates": 4,
+    "consumption_candidates": 2,
+    "admission_candidates_per_wallet": 16,
+    "target_candidates_per_wallet": 32,
+    "active_operations": 1,
+    "producers": 1,
+    "production_wallet_cooldown_ms": 60000,
+    "benchmark_wallet_cooldown_ms": 1000,
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true
+  },
+  "target_qualified": false,
+  "profiles": [
+    {
+      "name": "baseline",
+      "versions": {
+        "router": "95e70d7f-dd00-494a-b4e1-95ae6e23ca7f",
+        "a": "05571870-d1ec-46fd-b669-5702f7ebe48c",
+        "b": "93330f64-c12b-40a7-9a5e-9ffc4aea31da",
+        "preparer-a": "52cc37df-13d4-4954-8273-b9d7453b2369",
+        "preparer-b": "3e6021a4-bd31-499c-b36e-1d0a8aba0525"
+      },
+      "successful_signatures": 28,
+      "online_http_ms": {
+        "count": 28,
+        "minimum": 1479.0750829999743,
+        "median": 2526.6997915000247,
+        "maximum": 11120.828542000001,
+        "sum": 101475.29683500003
+      },
+      "online_under_five_seconds": 23,
+      "failed_operations": 1,
+      "complete_demand_ms": {
+        "count": 28,
+        "minimum": 1576.6507500000298,
+        "median": 36537.67533299999,
+        "maximum": 159215.810333,
+        "sum": 1103789.3880839997
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 12,
+          "startMs": 527135.536875,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 74101.41587499995
+        },
+        {
+          "wallet": 0,
+          "number": 18,
+          "startMs": 576936.111542,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 24587.357791999937
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 83,
+      "identified_consumed_candidates": 166,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": false,
+      "common_post_initial_stock": {
+        "start_ms": 1792659530743.6787,
+        "elapsed_ms": 437358.80517578125,
+        "observed_new_paired_batches": 44,
+        "successful_signatures": 19,
+        "paired_batches_per_minute": 6.036233794216041,
+        "successful_signatures_per_minute": 2.6065555020478355
+      },
+      "full_reserve_restoration_ms": 233746.51611328125,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 81,
+        "fresh_paired_candidates": 162,
+        "completed_job_invocation_wall_ms": {
+          "count": 41,
+          "minimum": 8372,
+          "median": 17981,
+          "maximum": 23971,
+          "sum": 738756
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 81,
+          "minimum": 7636.5,
+          "median": 8990.5,
+          "maximum": 11985.5,
+          "sum": 738756.0
+        },
+        "completed_job_count": 41,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 1,
+            "minimum": 8372,
+            "median": 8372,
+            "maximum": 8372,
+            "sum": 8372
+          },
+          "4": {
+            "count": 40,
+            "minimum": 15273,
+            "median": 18004.0,
+            "maximum": 23971,
+            "sum": 730384
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 37,
+        "captured_producer_invocation_wall_ms": 756844,
+        "captured_invocation_ms_per_verified_signature": 27030.14285714286,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 121,
+            "minimum": 0,
+            "median": 3,
+            "maximum": 10861,
+            "sum": 342785
+          },
+          "preparer-b": {
+            "count": 41,
+            "minimum": 3959,
+            "median": 8550,
+            "maximum": 11404,
+            "sum": 351638
+          }
+        }
+      }
+    },
+    {
+      "name": "optimized",
+      "versions": {
+        "router": "dd6af124-5ff7-444d-bca6-52cb759d6e0f",
+        "a": "a20a11c7-11e4-4e25-8ab2-4728a53691e7",
+        "b": "05c28598-8d5a-4bab-bea3-9fad0fb90068",
+        "preparer-a": "f536c25f-4644-4ab4-8f8a-0e3270f157bb",
+        "preparer-b": "351369bb-d11c-41ae-83f4-f21542d39e7c"
+      },
+      "successful_signatures": 45,
+      "online_http_ms": {
+        "count": 45,
+        "minimum": 647.2984170000418,
+        "median": 2352.440249999985,
+        "maximum": 15975.170583,
+        "sum": 156091.87508299996
+      },
+      "online_under_five_seconds": 35,
+      "failed_operations": 1,
+      "complete_demand_ms": {
+        "count": 45,
+        "minimum": 1357.2771250000005,
+        "median": 23969.172625000007,
+        "maximum": 102467.19816599996,
+        "sum": 1182278.2032889999
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 22,
+          "startMs": 590968.760167,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 9032.026208000025
+        },
+        {
+          "wallet": 0,
+          "number": 25,
+          "startMs": 597374.899708,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 2625.894874999998
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 118,
+      "identified_consumed_candidates": 236,
+      "unknown_consumption_operations": [
+        "459441cf9f6a21982f88af2bae05ca94443db6523772dda5c4b13cf114f9aa2a"
+      ],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": false,
+      "common_post_initial_stock": {
+        "start_ms": 1792660019844.8386,
+        "elapsed_ms": 518355.9699707031,
+        "observed_new_paired_batches": 88,
+        "successful_signatures": 33,
+        "paired_batches_per_minute": 10.186050331972485,
+        "successful_signatures_per_minute": 3.819768874489682
+      },
+      "full_reserve_restoration_ms": 102123.19140625,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 119,
+        "fresh_paired_candidates": 238,
+        "completed_job_invocation_wall_ms": {
+          "count": 60,
+          "minimum": 5122,
+          "median": 9983.0,
+          "maximum": 13459,
+          "sum": 608300
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 119,
+          "minimum": 4669.5,
+          "median": 4995.5,
+          "maximum": 6729.5,
+          "sum": 608300.0
+        },
+        "completed_job_count": 60,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 1,
+            "minimum": 5122,
+            "median": 5122,
+            "maximum": 5122,
+            "sum": 5122
+          },
+          "4": {
+            "count": 59,
+            "minimum": 9339,
+            "median": 9991,
+            "maximum": 13459,
+            "sum": 603178
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 56,
+        "captured_producer_invocation_wall_ms": 610205,
+        "captured_invocation_ms_per_verified_signature": 13560.111111111111,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 176,
+            "minimum": 0,
+            "median": 2.0,
+            "maximum": 5935,
+            "sum": 267964
+          },
+          "preparer-b": {
+            "count": 60,
+            "minimum": 2303,
+            "median": 4522.0,
+            "maximum": 6181,
+            "sum": 276973
+          }
+        }
+      }
+    },
+    {
+      "name": "crossover-1-baseline",
+      "versions": {
+        "router": "dd6af124-5ff7-444d-bca6-52cb759d6e0f",
+        "a": "a20a11c7-11e4-4e25-8ab2-4728a53691e7",
+        "b": "05c28598-8d5a-4bab-bea3-9fad0fb90068",
+        "preparer-a": "f7763845-fd82-40aa-8073-f45ae6bbc5b5",
+        "preparer-b": "7689ce0a-be7c-409e-9484-9ec64dd0da26"
+      },
+      "successful_signatures": 12,
+      "online_http_ms": {
+        "count": 12,
+        "minimum": 2639.5737090000002,
+        "median": 6669.221291999995,
+        "maximum": 33504.662458,
+        "sum": 114282.299042
+      },
+      "online_under_five_seconds": 3,
+      "failed_operations": 0,
+      "complete_demand_ms": {
+        "count": 12,
+        "minimum": 2639.616666,
+        "median": 28747.0295,
+        "maximum": 55737.45825,
+        "sum": 319112.43366499996
+      },
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 6,
+          "startMs": 157392.256042,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 22607.94408300001
+        },
+        {
+          "wallet": 1,
+          "number": 8,
+          "startMs": 171421.644125,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 8578.50454200001
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 34,
+      "identified_consumed_candidates": 68,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": true,
+      "common_post_initial_stock": {
+        "start_ms": 1792660907861.5916,
+        "elapsed_ms": 8580.62646484375,
+        "observed_new_paired_batches": 0,
+        "successful_signatures": 0,
+        "paired_batches_per_minute": 0.0,
+        "successful_signatures_per_minute": 0.0
+      },
+      "full_reserve_restoration_ms": 109102.78198242188,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 34,
+        "fresh_paired_candidates": 68,
+        "completed_job_invocation_wall_ms": {
+          "count": 17,
+          "minimum": 9431,
+          "median": 10396,
+          "maximum": 14618,
+          "sum": 193166
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 34,
+          "minimum": 4715.5,
+          "median": 5198.0,
+          "maximum": 7309.0,
+          "sum": 193166.0
+        },
+        "completed_job_count": 17,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "4": {
+            "count": 17,
+            "minimum": 9431,
+            "median": 10396,
+            "maximum": 14618,
+            "sum": 193166
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 17,
+        "captured_producer_invocation_wall_ms": 193727,
+        "captured_invocation_ms_per_verified_signature": 16143.916666666666,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 51,
+            "minimum": 0,
+            "median": 2,
+            "maximum": 6582,
+            "sum": 86068
+          },
+          "preparer-b": {
+            "count": 17,
+            "minimum": 4266,
+            "median": 4657,
+            "maximum": 6684,
+            "sum": 88290
+          }
+        }
+      }
+    },
+    {
+      "name": "crossover-2-optimized",
+      "versions": {
+        "router": "dd6af124-5ff7-444d-bca6-52cb759d6e0f",
+        "a": "a20a11c7-11e4-4e25-8ab2-4728a53691e7",
+        "b": "05c28598-8d5a-4bab-bea3-9fad0fb90068",
+        "preparer-a": "3f47454a-0add-4090-93ca-30e0c5049bef",
+        "preparer-b": "6ece89d4-99b6-4bce-a282-c91136f55ac3"
+      },
+      "successful_signatures": 16,
+      "online_http_ms": {
+        "count": 16,
+        "minimum": 1919.0075829999987,
+        "median": 6207.0525414999975,
+        "maximum": 17935.115500000014,
+        "sum": 128111.87479
+      },
+      "online_under_five_seconds": 7,
+      "failed_operations": 1,
+      "complete_demand_ms": {
+        "count": 16,
+        "minimum": 1919.1497499999969,
+        "median": 16355.530292,
+        "maximum": 47165.913,
+        "sum": 280022.167959
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 8,
+          "startMs": 119249.806709,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 64374.01104099999
+        },
+        {
+          "wallet": 0,
+          "number": 10,
+          "startMs": 165002.19024999999,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 19145.095834000007
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 43,
+      "identified_consumed_candidates": 86,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": true,
+      "common_post_initial_stock": {
+        "start_ms": 1792661283780.3613,
+        "elapsed_ms": 19146.9873046875,
+        "observed_new_paired_batches": 0,
+        "successful_signatures": 0,
+        "paired_batches_per_minute": 0.0,
+        "successful_signatures_per_minute": 0.0
+      },
+      "full_reserve_restoration_ms": 125176.6513671875,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 43,
+        "fresh_paired_candidates": 86,
+        "completed_job_invocation_wall_ms": {
+          "count": 22,
+          "minimum": 5089,
+          "median": 9798.0,
+          "maximum": 12721,
+          "sum": 218115
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 43,
+          "minimum": 4554.0,
+          "median": 4932.5,
+          "maximum": 6360.5,
+          "sum": 218115.0
+        },
+        "completed_job_count": 22,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 1,
+            "minimum": 5089,
+            "median": 5089,
+            "maximum": 5089,
+            "sum": 5089
+          },
+          "4": {
+            "count": 21,
+            "minimum": 9108,
+            "median": 9865,
+            "maximum": 12721,
+            "sum": 213026
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 20,
+        "captured_producer_invocation_wall_ms": 218783,
+        "captured_invocation_ms_per_verified_signature": 13673.9375,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 64,
+            "minimum": 0,
+            "median": 2.0,
+            "maximum": 5695,
+            "sum": 95000
+          },
+          "preparer-b": {
+            "count": 22,
+            "minimum": 2140,
+            "median": 4370.5,
+            "maximum": 5855,
+            "sum": 97939
+          }
+        }
+      }
+    },
+    {
+      "name": "exchange-1-baseline",
+      "versions": {
+        "router": "dd6af124-5ff7-444d-bca6-52cb759d6e0f",
+        "a": "68459484-c85c-480a-b0d6-eea8b1d50103",
+        "b": "4e2ab26e-70e0-46e6-9ec2-208b4cfd574c",
+        "preparer-a": "45211563-1e78-4df1-953f-e57e19058bf4",
+        "preparer-b": "0f33d135-08ee-4a84-8355-93c6f6607992"
+      },
+      "successful_signatures": 14,
+      "online_http_ms": {
+        "count": 14,
+        "minimum": 1163.454916000017,
+        "median": 2799.6892295,
+        "maximum": 10212.896958,
+        "sum": 49440.391747999995
+      },
+      "online_under_five_seconds": 11,
+      "failed_operations": 0,
+      "complete_demand_ms": {
+        "count": 14,
+        "minimum": 1525.4854170000035,
+        "median": 10061.789771,
+        "maximum": 128248.849042,
+        "sum": 324184.385044
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 6,
+          "startMs": 147540.665875,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 33313.06487499998
+        }
+      ],
+      "initial_excluded_groups": 30,
+      "initial_stock_matches_controller": false,
+      "identified_consumed_groups": 39,
+      "identified_consumed_candidates": 78,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": false,
+      "common_post_initial_stock": {
+        "start_ms": null,
+        "elapsed_ms": null,
+        "observed_new_paired_batches": 0,
+        "successful_signatures": 0,
+        "paired_batches_per_minute": null,
+        "successful_signatures_per_minute": null
+      },
+      "full_reserve_restoration_ms": 106351.22436523438,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 42,
+        "fresh_paired_candidates": 84,
+        "completed_job_invocation_wall_ms": {
+          "count": 22,
+          "minimum": 4960,
+          "median": 9775.0,
+          "maximum": 13210,
+          "sum": 217312
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 42,
+          "minimum": 4544.5,
+          "median": 4942.5,
+          "maximum": 7808.0,
+          "sum": 217312.0
+        },
+        "completed_job_count": 22,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 2,
+            "minimum": 4960,
+            "median": 6384.0,
+            "maximum": 7808,
+            "sum": 12768
+          },
+          "4": {
+            "count": 20,
+            "minimum": 9089,
+            "median": 9868.0,
+            "maximum": 13210,
+            "sum": 204544
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 21,
+        "captured_producer_invocation_wall_ms": 218081,
+        "captured_invocation_ms_per_verified_signature": 15577.214285714286,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 65,
+            "minimum": 0,
+            "median": 2,
+            "maximum": 5730,
+            "sum": 95658
+          },
+          "preparer-b": {
+            "count": 22,
+            "minimum": 2183,
+            "median": 4468.0,
+            "maximum": 6007,
+            "sum": 98566
+          }
+        }
+      }
+    },
+    {
+      "name": "exchange-2-duplex",
+      "versions": {
+        "router": "dd6af124-5ff7-444d-bca6-52cb759d6e0f",
+        "a": "b79836db-564d-4e7e-ac97-911031b9e65d",
+        "b": "7b5639ef-0c42-4bfe-ba41-95cedb5b6e5f",
+        "preparer-a": "57d09993-d58a-42be-ba16-1dc11f6f80a6",
+        "preparer-b": "d6c0757e-f70a-4e40-851d-f45bacd661ec"
+      },
+      "successful_signatures": 17,
+      "online_http_ms": {
+        "count": 17,
+        "minimum": 1077.7837500000023,
+        "median": 3175.0572079999984,
+        "maximum": 8560.700333,
+        "sum": 59472.31191699999
+      },
+      "online_under_five_seconds": 15,
+      "failed_operations": 0,
+      "complete_demand_ms": {
+        "count": 17,
+        "minimum": 1561.2187080000003,
+        "median": 20733.73549999998,
+        "maximum": 46213.40537499999,
+        "sum": 333522.67570699996
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 8,
+          "startMs": 164563.21233299997,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 15438.24129200002
+        },
+        {
+          "wallet": 0,
+          "number": 11,
+          "startMs": 176972.815416,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 3028.65174999999
+        }
+      ],
+      "initial_excluded_groups": 32,
+      "initial_stock_matches_controller": true,
+      "identified_consumed_groups": 48,
+      "identified_consumed_candidates": 96,
+      "unknown_consumption_operations": [],
+      "peak_observed_candidates_per_role_wallet": 32,
+      "material_identity_balance_complete": true,
+      "common_post_initial_stock": {
+        "start_ms": 1792663499123.4658,
+        "elapsed_ms": 61655.017578125,
+        "observed_new_paired_batches": 10,
+        "successful_signatures": 4,
+        "paired_batches_per_minute": 9.731568063211096,
+        "successful_signatures_per_minute": 3.8926272252844387
+      },
+      "full_reserve_restoration_ms": 112218.5166015625,
+      "preparation_cost": {
+        "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+        "fresh_paired_groups": 48,
+        "fresh_paired_candidates": 96,
+        "completed_job_invocation_wall_ms": {
+          "count": 25,
+          "minimum": 5210,
+          "median": 10074,
+          "maximum": 13195,
+          "sum": 246468
+        },
+        "allocated_group_invocation_wall_ms": {
+          "count": 48,
+          "minimum": 4835.5,
+          "median": 5058.75,
+          "maximum": 6597.5,
+          "sum": 246468.0
+        },
+        "completed_job_count": 25,
+        "completed_job_invocation_wall_ms_by_candidates": {
+          "2": {
+            "count": 2,
+            "minimum": 5210,
+            "median": 5215.5,
+            "maximum": 5221,
+            "sum": 10431
+          },
+          "4": {
+            "count": 23,
+            "minimum": 9671,
+            "median": 10111,
+            "maximum": 13195,
+            "sum": 236037
+          }
+        },
+        "failed_producer_completions": 0,
+        "missing_group_costs": [],
+        "unknown_producer_invocations": 23,
+        "captured_producer_invocation_wall_ms": 247377,
+        "captured_invocation_ms_per_verified_signature": 14551.588235294117,
+        "accounting_complete": false,
+        "observed_mean_under_ten_seconds": null,
+        "captured_invocation_cpu_ms": {
+          "preparer-a": {
+            "count": 73,
+            "minimum": 0,
+            "median": 2,
+            "maximum": 6026,
+            "sum": 107999
+          },
+          "preparer-b": {
+            "count": 25,
+            "minimum": 2265,
+            "median": 4508,
+            "maximum": 6210,
+            "sum": 110599
+          }
+        }
+      }
+    }
+  ],
+  "independent_signatures_reverified": 132,
+  "prototype_local_checks": {
+    "mixed_instances_per_role": 105,
+    "canonical_key_cases": 6,
+    "worker_passed": true,
+    "worker_initial_full_reserve_ms": 36097.863292,
+    "worker_signing_ms": [
+      877.4867499999964,
+      538.7957500000048,
+      241.18329199998698
+    ],
+    "worker_stalled_peer_close_ms": 849.4750839999906,
+    "scope": "Correctness and local diagnostics; these are not hosted timing qualifications."
+  },
+  "measurement_corrections": [
+    "The fresh deployment preparation gap is not a source-attributed twofold speedup. Same logical deployment controls reduce that gap substantially.",
+    "Primary baseline identified consumption rises from 75 to 83 groups after matching the failed operation efb9ab9e12c92035eed5139f89d63f2ae0820de020726ea491d7899d80d3a526. Its terminal reason and complete ledger remain unknown.",
+    "Exchange baseline sampled starting IDs total 30 groups versus 32 in the authoritative paired snapshots. Its starting-identity flag is false and post-stock throughput remains withheld.",
+    "Duplex material identities balance 32 initial + 48 fresh = 48 consumed + 32 final groups across two wallets. Two successes still lack complete peer traces.",
+    "Invocation CPU/wall and service-clock spans have different boundaries. Hosted stage clocks cannot isolate CPU, storage or network time.",
+    "Node pre-send observations do not establish browser SDK behavior. Request routing and internal physical placement remain uncontrolled."
+  ],
+  "cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-chunks-1022-3c6372-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T09:15:03.686703+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-chunks-1022-3c6372-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T09:15:06.834967+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-chunks-1022-3c6372-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T09:15:09.539557+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-chunks-1022-3c6372-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T09:15:11.285116+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-chunks-1022-3c6372-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T09:15:13.198447+00:00"
+      }
+    ],
+    "optimized": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-chunks-1022-3c6372-optimized-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T10:10:59.295771+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-chunks-1022-3c6372-optimized-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T10:11:00.747019+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-chunks-1022-3c6372-optimized-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T10:11:02.210660+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-chunks-1022-3c6372-optimized-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T10:11:03.651850+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-chunks-1022-3c6372-optimized-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-22T10:11:05.298600+00:00"
+      }
+    ]
+  },
+  "validation_limit": "The existing bloat gate reports 13,988 Rust duplicated lines against the 13,754 baseline. The baseline remains unchanged.",
+  "artifacts": [
+    {
+      "path": "ml-dsa-65-worker-exchange-20261022-hosted.json.gz",
+      "sha256": "3d8282c1b1cb65cc8009b02eaacbfbad9272123f548edf8aead2f17c1eff1eec",
+      "bytes": 2538658,
+      "uncompressed_bytes": 31519039
+    },
+    {
+      "path": "ml-dsa-65-worker-exchange-20261022-local.json.gz",
+      "sha256": "8b7be61374748a406da0005e18aefa739ac91e7dd0805029079162211164cf87",
+      "bytes": 1809575,
+      "uncompressed_bytes": 13695277
+    },
+    {
+      "path": "ml-dsa-65-worker-exchange-20261022-provenance.json.gz",
+      "sha256": "b89f728cbf4490f7b75bd58d7ffa3a20259dd8ec2e130686c208fe30b77e1ab4",
+      "bytes": 63959,
+      "uncompressed_bytes": 308092
+    }
+  ]
+}
