@@ -16,7 +16,7 @@
 
 use std::time::Duration;
 
-use crate::console::CONSOLE_RESPONSE_MAX_BYTES_V1;
+use crate::console::{has_safe_https_authority, CONSOLE_RESPONSE_MAX_BYTES_V1};
 use crate::transport::{
     ConsoleRequestV1, ConsoleResponseV1, ConsoleTransportErrorV1, ConsoleTransportV1,
 };
@@ -97,9 +97,9 @@ impl ConsoleTransportV1 for HttpsConsoleTransportV1 {
         &self,
         request: ConsoleRequestV1,
     ) -> Result<ConsoleResponseV1, ConsoleTransportErrorV1> {
-        if !request.url.starts_with("https://") {
+        if !has_safe_https_authority(&request.url) {
             return Err(ConsoleTransportErrorV1::new(
-                "the recovery tool only speaks https",
+                "the recovery tool requires a safe https URL",
                 false,
             ));
         }

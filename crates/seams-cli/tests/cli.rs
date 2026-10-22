@@ -496,6 +496,27 @@ fn a_console_credential_is_never_a_command_line_value() {
     );
     assert_eq!(code(&plaintext), 2);
     assert!(stderr(&plaintext).contains("https"));
+
+    for unsafe_url in [
+        "https://console.example@attacker.invalid",
+        "https://console.example%40attacker.invalid",
+    ] {
+        let refused = seams_with_descriptor(
+            &scratch_credential,
+            "credential-fd",
+            &[
+                "derivation-root",
+                "status",
+                "--console-url",
+                unsafe_url,
+                "--environment",
+                "production",
+            ],
+        );
+        assert_eq!(code(&refused), 2, "{unsafe_url}: {}", stderr(&refused));
+        assert!(!stdout(&refused).contains("console-session-token"));
+        assert!(!stderr(&refused).contains("console-session-token"));
+    }
 }
 
 /// Runs the binary detached from any controlling terminal, if this host can.

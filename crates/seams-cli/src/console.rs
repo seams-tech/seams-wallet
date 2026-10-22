@@ -167,15 +167,36 @@ impl ConsoleCredentialV1 {
     }
 }
 
+pub(crate) fn has_safe_https_authority(url: &str) -> bool {
+    let Ok(parsed) = url.parse::<ureq::http::Uri>() else {
+        return false;
+    };
+    let Some(authority) = parsed.authority() else {
+        return false;
+    };
+    parsed.scheme_str() == Some("https")
+        && parsed.host().is_some()
+        && !authority
+            .as_str()
+            .chars()
+            .any(|character| matches!(character, '@' | '%' | '\\' | '#'))
+}
+
 fn require_https(
     base_url: impl Into<String>,
     what: &'static str,
 ) -> Result<String, ConsoleErrorV1> {
     let base_url = base_url.into();
     let trimmed = base_url.trim_end_matches('/').to_owned();
-    if !trimmed.starts_with("https://") {
+    if !has_safe_https_authority(&trimmed)
+        || trimmed
+            .parse::<ureq::http::Uri>()
+            .ok()
+            .and_then(|uri| uri.path_and_query().cloned())
+            .is_some_and(|path| path.as_str() != "/")
+    {
         return Err(ConsoleErrorV1::invalid(format!(
-            "the {what} must use https"
+            "the {what} must be an https origin without userinfo or a path"
         )));
     }
     Ok(trimmed)
