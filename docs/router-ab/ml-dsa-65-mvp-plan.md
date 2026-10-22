@@ -21,7 +21,19 @@ passes seven controlled lifecycle scenarios. Wallet RPC timeout now stops later 
 Late results preserve nonce state and cannot trigger automatic submission after cancellation.
 This closes the client retry cancellation gap. Hosted backpressure, refill capacity, and five-second performance remain open.
 
-## Current priority — October 19, 2026
+## Current priority — October 22, 2026
+
+Qualify hosted signing latency and sustained refill after the SDK lifecycle connection.
+The [Worker exchange investigation](ml-dsa-65-worker-exchange-report.md) establishes no reliable gain from either runtime prototype. Both were removed.
+Its final screen verifies seventeen signatures, with fifteen below five seconds. The target remains unmet.
+Next, compare equivalent circuits with fewer dependent AND layers. Existing traces show 340 online exchanges per candidate pair.
+Keep four-candidate preparation, two-candidate consumption, thirty-two candidates per wallet, and sixteen ready candidates for admission.
+Preserve wallet-seed recovery, canonical FIPS seed/key export, separate participants, and the sixty-second production cooldown.
+Measure complete demand, failed operations, and full reserve restoration separately from prepared signing execution.
+Then repeat the composed SDK campaign with the selected implementation and complete the release security review.
+GPU work, UI redesign, and package publication remain deferred.
+
+## SDK lifecycle implementation — October 19, 2026
 
 Complete the public SDK lifecycle before further latency optimization. Keep the current
 Workers protocol, four-candidate preparation, two-candidate consumption, thirty-two-candidate

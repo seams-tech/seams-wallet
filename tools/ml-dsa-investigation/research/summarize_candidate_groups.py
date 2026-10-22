@@ -65,12 +65,16 @@ def summarize_profile(folder):
     for index, row in enumerate(consumption):
         peer = peer_bindings.get(row["operation"])
         if row.get("count_unknown") and peer is not None:
-            # A verified client result and two complete, agreeing role traces
-            # establish consumption independently of the missing Router log.
+            # Matching completed role traces prove consumption. The client
+            # result separately determines whether the signature was verified.
             recovered_consumption.append(row["operation"])
+            outcome = dict(row["outcome"])
+            outcome["evaluated_candidates"] = peer["evaluated_candidates"]
+            if peer["signature_verified"]:
+                outcome["status"] = "signed"
             consumption[index] = {
                 "operation": row["operation"], "batches": peer["batches"],
-                "outcome": {"status": "signed", "evaluated_candidates": peer["evaluated_candidates"]},
+                "outcome": outcome,
             }
     initial = {batch for wallet in summary["wallets"] for batch in wallet["initial_ids_including_prestarted_producers"]}
     initial_observation = read(folder / "initial-stock.json")
