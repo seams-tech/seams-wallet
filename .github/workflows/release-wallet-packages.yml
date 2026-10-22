@@ -56,6 +56,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment: npm-release
+    env:
+      SEAMS_RELEASE_PACKAGE: ${{ inputs.package }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -89,8 +91,20 @@ jobs:
       - name: Build production Wallet artifacts
         env:
           WASM_SDK_BUILD_MODE: prod
-        run: pnpm build
-      - run: pnpm check:packed-wallet
+        run: |
+          case "$SEAMS_RELEASE_PACKAGE" in
+            all)
+              pnpm build
+              ;;
+            wallet)
+              pnpm -C packages/wallet build:sdk-full
+              ;;
+            *)
+              echo "Unsupported release package: $SEAMS_RELEASE_PACKAGE" >&2
+              exit 1
+              ;;
+          esac
+      - run: pnpm check:packed-wallet "$SEAMS_RELEASE_PACKAGE"
       - name: Build versioned Wallet documentation
         run: pnpm build:docs
       - uses: actions/upload-artifact@v7
@@ -104,7 +118,9 @@ jobs:
       - name: Retain release packages
         run: |
           mkdir -p .artifacts/npm
-          npm pack ./packages/wallet-server --pack-destination .artifacts/npm
+          if [ "$SEAMS_RELEASE_PACKAGE" = all ]; then
+            npm pack ./packages/wallet-server --pack-destination .artifacts/npm
+          fi
           npm pack ./packages/wallet --pack-destination .artifacts/npm
       - uses: actions/upload-artifact@v7
         with:

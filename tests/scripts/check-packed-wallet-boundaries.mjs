@@ -9,11 +9,12 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
-const walletServerPackage = packageDefinition(
-  'packages/wallet-server',
-  '@seams/wallet-server',
-);
-const packages = [walletPackage, walletServerPackage];
+const walletServerPackage = packageDefinition('packages/wallet-server', '@seams/wallet-server');
+const packageTarget = process.argv[2] ?? 'all';
+assert.ok(['all', 'wallet'].includes(packageTarget), `Unknown package target: ${packageTarget}`);
+assert.ok(process.argv.length <= 3, 'Expected one package target: all or wallet');
+const packages =
+  packageTarget === 'wallet' ? [walletPackage] : [walletPackage, walletServerPackage];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -143,6 +144,8 @@ async function smokePackedEntries() {
     )
   );
   assert.equal(typeof authMenu.HostedSeamsAuthMenu, 'function');
+
+  if (!packages.includes(walletServerPackage)) return;
 
   const walletServer = await import(
     path.join(nodeModulesDirectory, '@seams/wallet-server/dist/esm/index.js')
