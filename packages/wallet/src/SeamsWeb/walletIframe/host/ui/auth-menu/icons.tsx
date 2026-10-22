@@ -64,6 +64,24 @@ export function passkeyRingIcon(): ComponentChildren {
   );
 }
 
+/** The passkey ring as it closes and fills behind a check. */
+export function passkeySuccessIcon(): ComponentChildren {
+  return (
+    <svg
+      class="seams-success-ring"
+      viewBox="0 0 56 56"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle class="seams-passkey-ring-track" cx="28" cy="28" r="26.75" />
+      <circle class="seams-success-ring-arc" cx="28" cy="28" r="26.75" pathLength="100" />
+      <circle class="seams-success-ring-seal" cx="28" cy="28" r="28" />
+      <path class="seams-success-ring-check" d="M36.7 21.5 24.75 33.4l-5.4-5.4" pathLength="1" />
+    </svg>
+  );
+}
+
 export function accountDropdownIcon(): ComponentChildren {
   return (
     <>

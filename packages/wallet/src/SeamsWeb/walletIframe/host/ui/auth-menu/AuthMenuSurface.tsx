@@ -49,6 +49,7 @@ import {
   type AuthMenuRecoveryStage,
   type AuthMenuRecoveryViewModel,
   type AuthMenuRegisterViewModel,
+  type AuthMenuSucceededStatus,
   type AuthMenuViewModel,
 } from '../../auth-menu/domain';
 import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
@@ -70,6 +71,7 @@ import {
   linkFailedIcon,
   mailIcon,
   passkeyRingIcon,
+  passkeySuccessIcon,
   recoveryIcon,
   rerollIcon,
 } from './icons';
@@ -633,6 +635,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     if (!viewModel) return <></>;
 
     const loading = isAuthMenuLoadingStatus(viewModel.status);
+    // The success view keeps the waiting view's layout, so the ring holds still.
+    const success = viewModel.status.kind === 'succeeded' ? viewModel.status.phase : null;
     const linkDevice = viewModel.kind === 'link_device';
     const otpPrompt = viewModel.kind === 'google_otp_login';
     const registrationPrompt = viewModel.kind === 'google_registration';
@@ -643,7 +647,8 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
         <div
           class="seams-signup-menu-root auth-menu-root"
           data-mode={viewModel.mode}
-          data-waiting={loading ? 'true' : 'false'}
+          data-waiting={loading || success ? 'true' : 'false'}
+          data-success={success ?? undefined}
           data-scan-device={linkDevice ? 'true' : 'false'}
           data-otp-prompt={otpPrompt ? 'true' : 'false'}
           data-registration-prompt={registrationPrompt ? 'true' : 'false'}
@@ -660,14 +665,14 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           <div class="seams-content-switcher">
             <button
               class={`seams-back-button ${
-                loading || linkDevice || otpPrompt || registrationPrompt || recovery
+                !success && (loading || linkDevice || otpPrompt || registrationPrompt || recovery)
                   ? 'is-visible'
                   : ''
               }`}
               type="button"
               aria-label={walletDisplayText(this.context, recoveryBackLabel(viewModel))}
               data-auth-menu-close
-              disabled={recoveryNavigationLocked(viewModel)}
+              disabled={success !== null || recoveryNavigationLocked(viewModel)}
               onClick={this.onBackClick}
             >
               {backIcon()}
@@ -679,7 +684,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             ) : null}
             <div class="seams-content-area">
               <div class="seams-content-sizer">
-                {loading ? (
+                {loading || success ? (
                   this.renderWaiting(viewModel)
                 ) : (
                   <>
@@ -1307,6 +1312,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
 
   private renderWaiting(viewModel: AuthMenuViewModel): ComponentChildren {
     const status = viewModel.status;
+    if (status.kind === 'succeeded') return this.renderSuccess(status);
     if (status.kind !== 'busy') return <></>;
     // `headline` is required on the busy status, so there is no fallback to
     // inherit here — every wait names itself.
@@ -1346,6 +1352,26 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           )}
         </div>
       </>
+    );
+  }
+
+  // The ring of the wait closes into a check in the same place; new keys start
+  // its CSS timeline afresh when the view arrives.
+  private renderSuccess(status: AuthMenuSucceededStatus): ComponentChildren {
+    return (
+      <div class="seams-waiting seams-success" role="status" aria-live="polite">
+        <span key="success-prompt" class="seams-passkey-prompt seams-success-prompt">
+          {passkeySuccessIcon()}
+        </span>
+        <div key="success-message" class="seams-waiting-message seams-success-message">
+          <span class="seams-waiting-text">
+            <WalletText copy={status.headline} />
+          </span>
+          <span class="seams-passkey-instruction">
+            <WalletText copy={status.message} />
+          </span>
+        </div>
+      </div>
     );
   }
 

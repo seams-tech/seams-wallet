@@ -70,6 +70,8 @@ export function authViewKey(viewModel: AuthMenuViewModel): string {
 }
 
 export function recoveryAnnouncement(viewModel: AuthMenuRecoveryViewModel): string {
+  // The success view announces itself.
+  if (viewModel.status.kind === 'succeeded') return '';
   if (viewModel.status.kind === 'busy') return viewModel.status.headline;
   if (viewModel.status.kind === 'recoverable') return viewModel.status.message;
   if (viewModel.stage === 'passkey_ready') return 'Recovery code accepted.';

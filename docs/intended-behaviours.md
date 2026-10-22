@@ -499,6 +499,11 @@ CTA belong to the wallet origin.
   origins. The wallet iframe receives one short-lived hosted operation credential
   for the exact parent Wallet Session; the primary operation credential stays in
   the wallet origin and never reaches the outer application.
+- After a successful login, registration, or account sync, the wallet-origin
+  menu confirms the result in place: the wait's ring closes into a check, and
+  then the card fades out. The terminal outcome follows the fade, so the app's
+  session update arrives after the menu has gone. Closing or unmounting during
+  the confirmation ends it at once with the success outcome.
 - The adapter emits exactly one terminal `HostedAuthMenuOutcome` for the session.
   Unmounting or closing cancels only that session and leaves direct
   `registerWallet()`, `addSigner()`, and `unlock()` confirmation surfaces

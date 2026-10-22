@@ -19,8 +19,8 @@ import type { WalletAuthMethod } from '@shared/utils/signerDomain';
 /**
  * Discriminated by PRESENTATION, not by which internal phase produced it.
  *
- * The surface can only do three things — show the form, show the waiting view,
- * or show the form with a message — so those are the three kinds. An earlier
+ * The surface can show the form, the waiting view, the form with a message,
+ * or the success view that ends a session, so those are the kinds. An earlier
  * shape split the busy case in two ('preparing' vs 'performing'), a provenance
  * distinction the surface could not act on: it rendered the waiting view for
  * one and the form for the other, so every author who reached for the wrong
@@ -60,6 +60,16 @@ type AuthMenuSurfaceStatus =
       readonly message: string;
       /** The underlying error text. Reported to the host app, never rendered. */
       readonly detail?: string;
+    }
+  | {
+      /** Renders the success view: the wait's ring closes into a check. The
+       *  menu takes no input; the session reports its outcome when the view
+       *  has faded out. */
+      readonly kind: 'succeeded';
+      readonly headline: string;
+      readonly message: string;
+      /** `leaving` fades the whole card out before the surface goes. */
+      readonly phase: 'shown' | 'leaving';
     };
 
 /** A wait on a prompt outside the menu shares one look: the ring, then the
@@ -72,6 +82,15 @@ export const AUTH_MENU_WAITING_PROMPTS = {
 /** The waiting headline for the passkey ceremony itself. */
 export function passkeyCeremonyHeadline(mode: 'login' | 'register'): string {
   return mode === 'register' ? 'Creating passkey wallet…' : 'Unlocking wallet…';
+}
+
+/** What the success view says for each successful outcome. */
+export function authMenuSuccessCopy(
+  outcome: 'authenticated' | 'registered' | 'account_synced',
+): Pick<AuthMenuSucceededStatus, 'headline' | 'message'> {
+  return outcome === 'registered'
+    ? { headline: 'Wallet created', message: 'Your wallet is ready on this device.' }
+    : { headline: 'You’re in', message: 'Your wallet is unlocked.' };
 }
 
 const RATE_LIMITED_FAILURE = /\bHTTP 429\b|too many requests|rate limit/i;
@@ -299,6 +318,10 @@ export type AuthMenuRecoveryStage =
 type AuthMenuIdleStatus = Extract<AuthMenuSurfaceStatus, { readonly kind: 'idle' }>;
 type AuthMenuBusyStatus = Extract<AuthMenuSurfaceStatus, { readonly kind: 'busy' }>;
 type AuthMenuRecoverableStatus = Extract<AuthMenuSurfaceStatus, { readonly kind: 'recoverable' }>;
+export type AuthMenuSucceededStatus = Extract<
+  AuthMenuSurfaceStatus,
+  { readonly kind: 'succeeded' }
+>;
 
 export type AuthMenuRecoveryViewModel = AuthMenuViewModelCommon & {
   readonly kind: 'recovery';
@@ -359,7 +382,11 @@ export type AuthMenuRecoveryViewModel = AuthMenuViewModelCommon & {
         readonly stage: 'sign_in_ready';
         readonly target: WalletRecoveryTargetV1;
         readonly walletId: string;
-        readonly status: AuthMenuIdleStatus | AuthMenuBusyStatus | AuthMenuRecoverableStatus;
+        readonly status:
+          | AuthMenuIdleStatus
+          | AuthMenuBusyStatus
+          | AuthMenuRecoverableStatus
+          | AuthMenuSucceededStatus;
       }
   );
 
@@ -489,6 +516,17 @@ export type AuthMenuIntent =
 
 export function isAuthMenuLoadingStatus(status: AuthMenuSurfaceStatus): boolean {
   return status.kind === 'busy';
+}
+
+/** The view a session ends on, or null where the view cannot show success.
+ *  Recovery succeeds only from its sign-in stage. */
+export function authMenuSuccessViewModel(
+  viewModel: AuthMenuViewModel,
+  status: AuthMenuSucceededStatus,
+): AuthMenuViewModel | null {
+  if (viewModel.kind !== 'recovery') return { ...viewModel, status };
+  if (viewModel.stage !== 'sign_in_ready') return null;
+  return { ...viewModel, status };
 }
 
 export function isAuthMenuReady(viewModel: AuthMenuViewModel): boolean {

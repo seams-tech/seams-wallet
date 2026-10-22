@@ -8,10 +8,13 @@ import {
   type AuthMenuLoginViewModel,
   type AuthMenuLinkDeviceViewModel,
   type AuthMenuRecoveryViewModel,
+  type AuthMenuSucceededStatus,
   type AuthMenuViewModel,
   authMenuFailureStatus,
   authMenuLoginAllowsEmailOtp,
   authMenuLoginAllowsPasskey,
+  authMenuSuccessCopy,
+  authMenuSuccessViewModel,
   passkeyCeremonyHeadline,
   resolveAuthMenuLoginAccount,
 } from './domain';
@@ -271,6 +274,20 @@ type AuthMenuSessionState =
     };
 
 type OutcomeResolver = (outcome: HostedAuthMenuOutcome) => void;
+type AuthMenuSuccessOutcome = Extract<
+  HostedAuthMenuOutcome,
+  { readonly kind: 'authenticated' | 'registered' | 'account_synced' }
+>;
+
+function isAuthMenuSuccessOutcome(
+  outcome: HostedAuthMenuOutcome,
+): outcome is AuthMenuSuccessOutcome {
+  return (
+    outcome.kind === 'authenticated' ||
+    outcome.kind === 'registered' ||
+    outcome.kind === 'account_synced'
+  );
+}
 type PreparePasskey = (
   cancellation: Extract<WebAuthnPromptCancellation, { kind: 'abort_signal' }>,
 ) => Promise<HostedPasskeyMenuPrepared>;
@@ -319,6 +336,13 @@ const AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MS = 20_000;
    glitch rather than as progress, so hold it for a legible beat. The request
    itself still starts immediately; only the settle is deferred. */
 const AUTH_MENU_RESEND_MINIMUM_BUSY_MS = 500;
+/* A successful session ends on the success view. The ring closes into a check
+   on the CSS timeline, the view holds so the result can be read, and then the
+   card fades out. Only then does the outcome reach the app, so the app's
+   signed-in view arrives after the menu has gone. The fade matches the
+   card's opacity transition in auth-menu.css. */
+const AUTH_MENU_SUCCESS_HOLD_MS = 1300;
+const AUTH_MENU_SUCCESS_FADE_MS = 240;
 const AUTH_MENU_PASSKEY_PREPARATION_TIMEOUT_MESSAGE = 'Passkey preparation timed out';
 const GOOGLE_SIGN_IN_CANCELLED_STATUS = {
   kind: 'recoverable',
@@ -804,6 +828,7 @@ export class AuthMenuSession {
   private surface: AuthMenuSurfaceHandle | null = null;
   private outcomeResolver: OutcomeResolver | null = null;
   private outcomePromise: Promise<HostedAuthMenuOutcome> | null = null;
+  private successTimers: ReturnType<typeof setTimeout>[] = [];
   private cleanedUp = false;
   private prepared: HostedPasskeyMenuPrepared | null = null;
   private preparePasskey: PreparePasskey | null = null;
@@ -1020,6 +1045,11 @@ export class AuthMenuSession {
   }
 
   cancel(reason: 'close_button' | 'component_unmounted' | 'connection_closed'): void {
+    // The success view is still showing: the session has already succeeded.
+    if (this.stateValue.kind === 'complete') {
+      this.finish(this.stateValue.outcome);
+      return;
+    }
     if (isIrreversibleRecoveryState(this.stateValue)) {
       if (reason === 'close_button') return;
       this.complete({
@@ -1549,6 +1579,8 @@ export class AuthMenuSession {
   cleanup(): void {
     if (this.cleanedUp) return;
     this.cleanedUp = true;
+    for (const timer of this.successTimers) clearTimeout(timer);
+    this.successTimers = [];
     this.invalidatePreparation();
     this.measurementReporter?.disconnect();
     this.measurementReporter = null;
@@ -1603,6 +1635,7 @@ export class AuthMenuSession {
   }
 
   private onIntent = (intent: AuthMenuIntent): void => {
+    if (this.stateValue.kind === 'complete') return;
     switch (intent.kind) {
       case 'mode_selected':
         this.selectMode(intent.mode);
@@ -3443,7 +3476,47 @@ export class AuthMenuSession {
 
   private complete(outcome: HostedAuthMenuOutcome): void {
     if (this.stateValue.kind === 'complete') return;
+    const lastView = this.surface ? this.currentViewModel() : null;
     this.stateValue = { kind: 'complete', outcome };
+    if (
+      lastView &&
+      isAuthMenuSuccessOutcome(outcome) &&
+      this.showSuccess(lastView, outcome, 'shown')
+    ) {
+      // The session is complete from here, so no late result can change it.
+      // Only the surface and the outcome wait for the success view to end.
+      this.invalidatePreparation();
+      this.successTimers = [
+        setTimeout(
+          this.showSuccess.bind(this, lastView, outcome, 'leaving'),
+          AUTH_MENU_SUCCESS_HOLD_MS,
+        ),
+        setTimeout(
+          this.finish.bind(this, outcome),
+          AUTH_MENU_SUCCESS_HOLD_MS + AUTH_MENU_SUCCESS_FADE_MS,
+        ),
+      ];
+      return;
+    }
+    this.finish(outcome);
+  }
+
+  private showSuccess(
+    lastView: AuthMenuViewModel,
+    outcome: AuthMenuSuccessOutcome,
+    phase: AuthMenuSucceededStatus['phase'],
+  ): boolean {
+    const view = authMenuSuccessViewModel(lastView, {
+      kind: 'succeeded',
+      ...authMenuSuccessCopy(outcome.kind),
+      phase,
+    });
+    if (!view || !this.surface) return false;
+    this.surface.update(view);
+    return true;
+  }
+
+  private finish(outcome: HostedAuthMenuOutcome): void {
     this.cleanup();
     const resolver = this.outcomeResolver;
     this.outcomeResolver = null;
