@@ -410,6 +410,10 @@
 .seams-account-method-list-item {
   list-style: none;
 }
+/* Separators go between rows only; the footer rule closes the screen. */
+.seams-account-method-list-item:last-child > .seams-account-method-button {
+  border-bottom: 0;
+}
 .seams-account-screen ul {
   padding-left: 0;
 }
