@@ -10,13 +10,33 @@ import { setTimeout as delay } from 'node:timers/promises';
 const context = new AsyncLocalStorage();
 const requests = new WeakMap();
 const sockets = new WeakMap();
+const sessions = new WeakMap();
+const active = new Map();
 let socketSequence = 0;
+let sessionSequence = 0;
 channel('undici:request:create').subscribe(created);
 channel('net.client.socket').subscribe(socketCreated);
 channel('undici:client:connected').subscribe(connected);
 channel('undici:client:sendHeaders').subscribe(sent);
 channel('undici:request:headers').subscribe(headers);
 channel('undici:request:trailers').subscribe(completed);
+channel('http2.client.stream.created').subscribe(streamCreated);
+
+function streamCreated({ stream, headers }) {
+  const timing = active.get(headers['x-ml-dsa-request-id']);
+  const session = stream.session;
+  if (!timing || !session) return;
+  let identity = sessions.get(session);
+  if (identity === undefined) {
+    identity = ++sessionSequence;
+    sessions.set(session, identity);
+  }
+  const maximum = session.remoteSettings.maxConcurrentStreams;
+  timing.http2 = {
+    session: identity,
+    remoteMaxConcurrentStreams: Number.isSafeInteger(maximum) ? maximum : null,
+  };
+}
 
 function created({ request }) {
   const timing = context.getStore();
@@ -47,7 +67,8 @@ function sent({ request, socket }) {
   if (timing) {
     mark(timing, 'sent');
     timing.sentMs = performance.now() - timing.started;
-    timing.socket = connection ? { id: connection.id, priorRequests: connection.uses, connectionMs: connection.connectionMs, dnsMs: connection.dnsMs, tcpMs: connection.tcpMs, tlsMs: connection.tlsMs } : null;
+    timing.socket = connection ? { id: connection.id, priorRequests: connection.uses, connectionMs: connection.connectionMs, dnsMs: connection.dnsMs, tcpMs: connection.tcpMs, tlsMs: connection.tlsMs,
+      protocol: socket.alpnProtocol || 'http/1.1' } : null;
   }
   if (connection) connection.uses += 1;
 }
@@ -86,7 +107,8 @@ async function fetchJson(url, init) {
 export async function timedJson(url, init, requestId, timing) {
   Object.assign(timing, { requestId, started: performance.now(), createdMs: null, sentMs: null,
     responseHeadersMs: null, responseCompleteMs: null, fetchHeadersMs: null, bodyReadMs: null,
-    parsedMs: null, socket: null, status: null, echo: null, cfRay: null, events: [], eventsTruncated: false });
+    parsedMs: null, socket: null, http2: null, status: null, echo: null, cfRay: null, events: [], eventsTruncated: false });
+  active.set(requestId, timing);
   try {
     const result = await context.run(timing, fetchJson, url, init);
     if (timing.echo !== null) assert.equal(timing.echo, requestId);
@@ -94,6 +116,7 @@ export async function timedJson(url, init, requestId, timing) {
   } finally {
     timing.totalMs = performance.now() - timing.started;
     delete timing.started;
+    active.delete(requestId);
   }
 }
 

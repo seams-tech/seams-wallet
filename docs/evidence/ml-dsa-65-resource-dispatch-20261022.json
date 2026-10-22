@@ -1,0 +1,1072 @@
+{
+  "scope": "Frozen pre-rebase diagnostic Worker builds. Synthetic private Gateway requests; no browser login or NEAR finality. No matched hosted source-change control. All pool and cryptographic requirements remain unchanged.",
+  "builds": {
+    "parent_revision": "6a86b72f17ce8d13bc7f5d78a5a91be08b29bbba",
+    "production_sources": {
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "ed89fe648c551c21630eef0fff2f9a67a6f6d248de2021c290b6dc459c529f7b",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/transport.rs": "7caa06e0cdbb9970fc011b3770b7ec9990f0f4eac3ede7581aab02d7cec4718a",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs": "54418947968875a3b115bfed3c893582e0f77eee81aa661627d49a6fe8ec2af8",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/signing_trace.rs": "60213edd125236c7d9074701d9aa03127615e16b94e1db00046c735ba49935fc",
+      "crates/router-ab-cloudflare/scripts/build-strict-worker.sh": "d280d98b436ca44ccdb2628fa08cc86dc436244bf662982775402495407c6ae2",
+      "crates/router-ab-cloudflare/Cargo.lock": "fa797b5b33bce8514acb0f4fe19f06c0fad6579d5c92c26af694c30fe84d4c47"
+    },
+    "builds": {
+      "router": {
+        "index_bg.wasm": "10f44ef63e84dfcb5775d0e41cfdbf836d7c3d9069885d7a1f23f7c96745c9d6",
+        "index.js": "ef1d8daa401642bb9d17043495674b7becf24d7d67697e2491292fd8e2d0ed6b",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "e5f1bba8f7343038c4d2e977c876b911fa685aa5503e89b73f0cf1e44aaf15bd"
+      },
+      "deriver-a": {
+        "index_bg.wasm": "bbb32da957b3d0b867bba75ec981e5d81984db03f24f67f481091549192cd434",
+        "index.js": "a4fad6c34face662c8e78da96f4c099f4a061bd3b6683b1ed57ec604a13d192d",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "c47c129a4166485764c7a53869bfbeb472043e21792b0c8fa55fff42576ca593"
+      },
+      "deriver-b": {
+        "index_bg.wasm": "89b02f0b17da6683d646370526717e7d7d564b3fcfafa53e9958078b05ca2d89",
+        "index.js": "f235256668a8e181644443a6ca45bc79acf773bc1ad69218fd435b665367c3a5",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "6b112ce6bc27373166796ffb7e23eafced759090ce94537a4ec69313704b5bfe"
+      }
+    }
+  },
+  "rebase": {
+    "old_head": "6a86b72f17ce8d13bc7f5d78a5a91be08b29bbba",
+    "new_head": "3a4335bf6ccf0dfe54d27dbdc3ea6392f4a9fb43",
+    "dev": "3fd5a9f0cb62afef72921a7170138bdfd8147486",
+    "conflicts": false,
+    "uncommitted_files_restored_byte_identical": 9,
+    "hosted_campaign_uses_frozen_pre_rebase_builds": true
+  },
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 1000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "functional_passed": true,
+  "verified_load_signatures": 19,
+  "successful_http_under_five_seconds": 11,
+  "successful_http_ms": {
+    "count": 19,
+    "minimum": 1252.2018749999988,
+    "median": 3567.5552080000016,
+    "maximum": 6891.4745840000105,
+    "sum": 74223.118834
+  },
+  "complete_demand_ms": {
+    "count": 19,
+    "minimum": 1324.2733750000043,
+    "median": 6496.22825,
+    "maximum": 81560.67220799997,
+    "sum": 378617.675458
+  },
+  "complete_demands_under_five_seconds": 6,
+  "censored_demands": [
+    {
+      "wallet": 1,
+      "number": 9,
+      "startMs": 184402.397084,
+      "state": "censored_at_end_of_window",
+      "elapsedMs": 175922.17879100004
+    },
+    {
+      "wallet": 0,
+      "number": 12,
+      "startMs": 199469.218959,
+      "state": "censored_at_end_of_window",
+      "elapsedMs": 161001.47937500002
+    }
+  ],
+  "failed_signing_operations": 0,
+  "registration": [
+    {
+      "wallet": 1,
+      "epoch": 1,
+      "registration_with_verification_ms": 8379.690541000004,
+      "preparation_ms": 96767.75375,
+      "canonical_key": true
+    },
+    {
+      "wallet": 1,
+      "epoch": 2,
+      "registration_with_verification_ms": 8552.331458,
+      "preparation_ms": 85236.127916,
+      "canonical_key": true
+    },
+    {
+      "wallet": 2,
+      "epoch": 1,
+      "registration_with_verification_ms": 6412.909667,
+      "preparation_ms": 60463.91104199999,
+      "canonical_key": true
+    },
+    {
+      "wallet": 2,
+      "epoch": 2,
+      "registration_with_verification_ms": 6853.790833000006,
+      "preparation_ms": 121879.72412500001,
+      "canonical_key": true
+    }
+  ],
+  "preparation_cost": {
+    "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+    "fresh_paired_groups": 47,
+    "fresh_paired_candidates": 94,
+    "completed_job_invocation_wall_ms": {
+      "count": 24,
+      "minimum": 8874,
+      "median": 19069.5,
+      "maximum": 24561,
+      "sum": 452886
+    },
+    "allocated_group_invocation_wall_ms": {
+      "count": 47,
+      "minimum": 8064.5,
+      "median": 9573.0,
+      "maximum": 12280.5,
+      "sum": 452886.0
+    },
+    "completed_job_count": 24,
+    "completed_job_invocation_wall_ms_by_candidates": {
+      "2": {
+        "count": 1,
+        "minimum": 8874,
+        "median": 8874,
+        "maximum": 8874,
+        "sum": 8874
+      },
+      "4": {
+        "count": 23,
+        "minimum": 16129,
+        "median": 19146,
+        "maximum": 24561,
+        "sum": 444012
+      }
+    },
+    "failed_producer_completions": 0,
+    "missing_group_costs": [],
+    "unknown_producer_invocations": 22,
+    "captured_producer_invocation_wall_ms": 453620,
+    "captured_invocation_ms_per_verified_signature": 23874.736842105263,
+    "accounting_complete": false,
+    "observed_mean_under_ten_seconds": null,
+    "captured_invocation_cpu_ms": {
+      "preparer-a": {
+        "count": 70,
+        "minimum": 0,
+        "median": 4.0,
+        "maximum": 11262,
+        "sum": 205656
+      },
+      "preparer-b": {
+        "count": 24,
+        "minimum": 4214,
+        "median": 9071.0,
+        "maximum": 11709,
+        "sum": 214572
+      }
+    }
+  },
+  "common_post_initial_stock": {
+    "start_ms": 1792679372837.6865,
+    "elapsed_ms": 161004.02465820312,
+    "observed_new_paired_batches": 12,
+    "successful_signatures": 0,
+    "paired_batches_per_minute": 4.4719379004872355,
+    "successful_signatures_per_minute": 0.0
+  },
+  "material_balance_complete": true,
+  "initial_groups": 32,
+  "consumed_groups": 47,
+  "restoration_ms": 173933.28881835938,
+  "provider_outcomes": {
+    "a": {
+      "ok": 1410,
+      "canceled": 2
+    },
+    "b": {
+      "ok": 2001,
+      "canceled": 10
+    },
+    "router": {
+      "ok": 1095,
+      "exception": 1
+    },
+    "preparer-a": {
+      "ok": 86,
+      "canceled": 41
+    },
+    "preparer-b": {
+      "ok": 43
+    }
+  },
+  "observed_wasm_memory": {
+    "router": {
+      "modules": 0,
+      "samples": 0,
+      "minimum_observed_bytes": null,
+      "maximum_observed_bytes": null
+    },
+    "a": {
+      "modules": 3,
+      "samples": 272,
+      "minimum_observed_bytes": 50528256,
+      "maximum_observed_bytes": 53805056
+    },
+    "b": {
+      "modules": 0,
+      "samples": 0,
+      "minimum_observed_bytes": null,
+      "maximum_observed_bytes": null
+    },
+    "preparer-a": {
+      "modules": 3,
+      "samples": 924,
+      "minimum_observed_bytes": 40173568,
+      "maximum_observed_bytes": 93716480
+    },
+    "preparer-b": {
+      "modules": 1,
+      "samples": 666,
+      "minimum_observed_bytes": 40435712,
+      "maximum_observed_bytes": 93913088
+    }
+  },
+  "pre_load_false_completions": [
+    {
+      "job": "592e28c1a7b706c0892c9c8cccdc0f43042aa5e84b36231e7bfd7ee300f897b4",
+      "a_record": 4534,
+      "b_record": 4650,
+      "a_outcome": "ok",
+      "b_outcome": "ok",
+      "a_last_stage": "crypto_completed",
+      "b_last_stage": "crypto_completed",
+      "b_completion": [
+        {
+          "kind": "preparation",
+          "id": "592e28c1a7b706c0892c9c8cccdc0f43042aa5e84b36231e7bfd7ee300f897b4",
+          "protocol_completed": false,
+          "close_code": 1011,
+          "close_requested": true
+        }
+      ],
+      "a_publications": [],
+      "b_publications": []
+    },
+    {
+      "job": "99c6804b523364cc3c5ee48e36904b5a5d2c13d4782f25e0011ce6c0d954b348",
+      "a_record": 4559,
+      "b_record": 4659,
+      "a_outcome": "ok",
+      "b_outcome": "ok",
+      "a_last_stage": "crypto_completed",
+      "b_last_stage": "crypto_completed",
+      "b_completion": [
+        {
+          "kind": "preparation",
+          "id": "99c6804b523364cc3c5ee48e36904b5a5d2c13d4782f25e0011ce6c0d954b348",
+          "protocol_completed": false,
+          "close_code": 1011,
+          "close_requested": true
+        }
+      ],
+      "a_publications": [],
+      "b_publications": []
+    }
+  ],
+  "load_shed_reproduced": false,
+  "local_lifecycle_passed": true,
+  "local_memory": [
+    {
+      "worker": "preparer-a",
+      "status": "complete",
+      "samples": 284,
+      "separate_counter_maxima_bytes": {
+        "usedSize": 12058212,
+        "totalSize": 19922944,
+        "embedderHeapUsedSize": 1031712,
+        "backingStorageSize": 10365382
+      }
+    },
+    {
+      "worker": "preparer-b",
+      "status": "complete",
+      "samples": 285,
+      "separate_counter_maxima_bytes": {
+        "usedSize": 7781540,
+        "totalSize": 10223616,
+        "embedderHeapUsedSize": 773776,
+        "backingStorageSize": 11735193
+      }
+    }
+  ],
+  "local_memory_scope": "Separate observed maxima. Do not sum them as a simultaneous isolate peak. CDP excludes Wasm in this calibrated local runtime.",
+  "http_control": {
+    "passed": true,
+    "node": "v26.4.0",
+    "undici": "8.5.0",
+    "scope": "Local TLS HTTP/2 control. A known 300 ms response delay and server stream limit isolate shared-client queuing. Independent worker-thread realms provide separate wallet connections. No hosted latency or product-parity claim.",
+    "cases": [
+      {
+        "maxConcurrentStreams": 1,
+        "shared": [
+          {
+            "requestId": "shared-a",
+            "createdMs": 0.3424999999999727,
+            "sentMs": 0.6654169999999908,
+            "responseHeadersMs": 303.842542,
+            "responseCompleteMs": 304.36908400000004,
+            "fetchHeadersMs": 303.96966699999996,
+            "bodyReadMs": 304.4435,
+            "parsedMs": 304.44849999999997,
+            "socket": {
+              "id": 1,
+              "priorRequests": 1,
+              "connectionMs": 4.059208999999996,
+              "dnsMs": 1.504792000000002,
+              "tcpMs": 2.075792,
+              "tlsMs": 3.453333999999998,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 1
+            },
+            "status": 200,
+            "echo": "shared-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.34195899999997437
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.6651249999999891
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.8415
+              },
+              {
+                "stage": "complete",
+                "atMs": 304.36875
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.46070899999995
+          },
+          {
+            "requestId": "shared-b",
+            "createdMs": 0.2237079999999878,
+            "sentMs": 2.9824160000000006,
+            "responseHeadersMs": 303.75758299999995,
+            "responseCompleteMs": 304.168458,
+            "fetchHeadersMs": 303.823583,
+            "bodyReadMs": 304.211458,
+            "parsedMs": 304.21245799999997,
+            "socket": {
+              "id": 2,
+              "priorRequests": 0,
+              "connectionMs": 2.169125000000008,
+              "dnsMs": 0.483791999999994,
+              "tcpMs": 0.9145829999999933,
+              "tlsMs": 2.039332999999999,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 2,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "shared-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.2233749999999759
+              },
+              {
+                "stage": "sent",
+                "atMs": 2.982040999999981
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.75699999999995
+              },
+              {
+                "stage": "complete",
+                "atMs": 304.16816600000004
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.21791599999995
+          }
+        ],
+        "sharedServer": {
+          "active": 0,
+          "peak": 2,
+          "requests": [
+            {
+              "id": "shared-a",
+              "started": 357.297042,
+              "completed": 658.994792
+            },
+            {
+              "id": "shared-b",
+              "started": 359.402792,
+              "completed": 659.1545
+            }
+          ]
+        },
+        "isolated": [
+          {
+            "requestId": "isolated-a",
+            "createdMs": 0.5601249999999709,
+            "sentMs": 0.6717919999999822,
+            "responseHeadersMs": 303.803459,
+            "responseCompleteMs": 304.2418339999999,
+            "fetchHeadersMs": 304.00350000000003,
+            "bodyReadMs": 304.334292,
+            "parsedMs": 304.34066699999994,
+            "socket": {
+              "id": 1,
+              "priorRequests": 1,
+              "connectionMs": 3.5819159999999783,
+              "dnsMs": 1.3610410000000002,
+              "tcpMs": 1.9737079999999878,
+              "tlsMs": 3.024041000000011,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 1
+            },
+            "status": 200,
+            "echo": "isolated-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.5593749999999318
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.6713340000000017
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.802459
+              },
+              {
+                "stage": "complete",
+                "atMs": 304.24133400000005
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.36287500000003
+          },
+          {
+            "requestId": "isolated-b",
+            "createdMs": 0.5086669999999458,
+            "sentMs": 0.6032089999999926,
+            "responseHeadersMs": 303.52941699999985,
+            "responseCompleteMs": 303.96124999999995,
+            "fetchHeadersMs": 303.72725,
+            "bodyReadMs": 304.058042,
+            "parsedMs": 304.06458399999985,
+            "socket": {
+              "id": 1,
+              "priorRequests": 1,
+              "connectionMs": 3.4922920000000204,
+              "dnsMs": 1.4091250000000173,
+              "tcpMs": 1.9966249999999945,
+              "tlsMs": 2.9125420000000304,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 1
+            },
+            "status": 200,
+            "echo": "isolated-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.5079999999999245
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.6027090000000044
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.5285419999999
+              },
+              {
+                "stage": "complete",
+                "atMs": 303.9607500000001
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.08641699999987
+          }
+        ],
+        "isolatedServer": {
+          "active": 0,
+          "peak": 2,
+          "requests": [
+            {
+              "id": "isolated-a",
+              "started": 1010.960167,
+              "completed": 1312.878084
+            },
+            {
+              "id": "isolated-b",
+              "started": 1011.193542,
+              "completed": 1313.130542
+            }
+          ]
+        },
+        "sharedGet": [
+          {
+            "requestId": "get-a",
+            "createdMs": 0.27204100000017206,
+            "sentMs": 0.3197500000001128,
+            "responseHeadersMs": 304.858833,
+            "responseCompleteMs": 305.830291,
+            "fetchHeadersMs": 305.1289160000001,
+            "bodyReadMs": 305.96112500000004,
+            "parsedMs": 305.9692500000001,
+            "socket": {
+              "id": 1,
+              "priorRequests": 2,
+              "connectionMs": 4.059208999999996,
+              "dnsMs": 1.504792000000002,
+              "tcpMs": 2.075792,
+              "tlsMs": 3.453333999999998,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 1
+            },
+            "status": 200,
+            "echo": "get-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.27150000000006
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.3194580000001679
+              },
+              {
+                "stage": "headers",
+                "atMs": 304.8577500000001
+              },
+              {
+                "stage": "complete",
+                "atMs": 305.829375
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 305.9882500000001
+          },
+          {
+            "requestId": "get-b",
+            "createdMs": 0.1534590000001117,
+            "sentMs": 0.17741700000010496,
+            "responseHeadersMs": 304.8253750000001,
+            "responseCompleteMs": 305.58554200000003,
+            "fetchHeadersMs": 304.93287499999997,
+            "bodyReadMs": 305.66212500000006,
+            "parsedMs": 305.66499999999996,
+            "socket": {
+              "id": 2,
+              "priorRequests": 1,
+              "connectionMs": 2.169125000000008,
+              "dnsMs": 0.483791999999994,
+              "tcpMs": 0.9145829999999933,
+              "tlsMs": 2.039332999999999,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 2,
+              "remoteMaxConcurrentStreams": 1
+            },
+            "status": 200,
+            "echo": "get-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.15312500000004547
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.177208999999948
+              },
+              {
+                "stage": "headers",
+                "atMs": 304.82475
+              },
+              {
+                "stage": "complete",
+                "atMs": 305.58512500000006
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 305.68279200000006
+          }
+        ],
+        "sharedGetServer": {
+          "active": 0,
+          "peak": 2,
+          "requests": [
+            {
+              "id": "get-a",
+              "started": 1315.832625,
+              "completed": 1616.804792
+            },
+            {
+              "id": "get-b",
+              "started": 1315.915542,
+              "completed": 1617.224084
+            }
+          ]
+        }
+      },
+      {
+        "maxConcurrentStreams": 100,
+        "shared": [
+          {
+            "requestId": "shared-a",
+            "createdMs": 0.41116600000009385,
+            "sentMs": 0.8297500000001037,
+            "responseHeadersMs": 303.13312500000006,
+            "responseCompleteMs": 304.19150000000013,
+            "fetchHeadersMs": 303.520041,
+            "bodyReadMs": 304.9485000000002,
+            "parsedMs": 304.95841600000017,
+            "socket": {
+              "id": 3,
+              "priorRequests": 1,
+              "connectionMs": 1.9185419999998885,
+              "dnsMs": 0.36875000000009095,
+              "tcpMs": 0.7059169999999995,
+              "tlsMs": 1.7830830000000333,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 3,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "shared-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.4104580000000624
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.829291000000012
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.1310000000001
+              },
+              {
+                "stage": "complete",
+                "atMs": 304.1902910000001
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.97508300000004
+          },
+          {
+            "requestId": "shared-b",
+            "createdMs": 0.2796250000001237,
+            "sentMs": 303.9162920000001,
+            "responseHeadersMs": 605.9795000000001,
+            "responseCompleteMs": 606.6281670000001,
+            "fetchHeadersMs": 606.321083,
+            "bodyReadMs": 606.6857080000002,
+            "parsedMs": 606.691,
+            "socket": {
+              "id": 3,
+              "priorRequests": 2,
+              "connectionMs": 1.9185419999998885,
+              "dnsMs": 0.36875000000009095,
+              "tcpMs": 0.7059169999999995,
+              "tlsMs": 1.7830830000000333,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 3,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "shared-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.2790420000001177
+              },
+              {
+                "stage": "sent",
+                "atMs": 303.91541699999993
+              },
+              {
+                "stage": "headers",
+                "atMs": 605.9786670000001
+              },
+              {
+                "stage": "complete",
+                "atMs": 606.6274999999998
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 606.701542
+          }
+        ],
+        "sharedServer": {
+          "active": 0,
+          "peak": 1,
+          "requests": [
+            {
+              "id": "shared-a",
+              "started": 1942.1335,
+              "completed": 2243.060959
+            },
+            {
+              "id": "shared-b",
+              "started": 2245.876542,
+              "completed": 2546.735
+            }
+          ]
+        },
+        "isolated": [
+          {
+            "requestId": "isolated-a",
+            "createdMs": 0.8005829999997331,
+            "sentMs": 0.9540829999996276,
+            "responseHeadersMs": 303.48633299999983,
+            "responseCompleteMs": 303.91895799999975,
+            "fetchHeadersMs": 303.66724999999997,
+            "bodyReadMs": 304.0040829999998,
+            "parsedMs": 304.0114169999997,
+            "socket": {
+              "id": 1,
+              "priorRequests": 1,
+              "connectionMs": 3.30929100000003,
+              "dnsMs": 1.0339579999999842,
+              "tcpMs": 1.6332080000001952,
+              "tlsMs": 2.7229580000002898,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "isolated-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.7992499999995744
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.953291999999692
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.4852079999996
+              },
+              {
+                "stage": "complete",
+                "atMs": 303.91841699999986
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.032917
+          },
+          {
+            "requestId": "isolated-b",
+            "createdMs": 0.7914999999998145,
+            "sentMs": 0.9382500000001528,
+            "responseHeadersMs": 303.4977090000002,
+            "responseCompleteMs": 303.92770900000005,
+            "fetchHeadersMs": 303.6790000000001,
+            "bodyReadMs": 304.0137500000001,
+            "parsedMs": 304.02095899999995,
+            "socket": {
+              "id": 1,
+              "priorRequests": 1,
+              "connectionMs": 3.651792000000114,
+              "dnsMs": 1.1639580000000933,
+              "tcpMs": 1.8480829999998605,
+              "tlsMs": 2.9788330000001224,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 1,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "isolated-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.7901670000001104
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.9375
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.49699999999984
+              },
+              {
+                "stage": "complete",
+                "atMs": 303.92712500000016
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.0435000000002
+          }
+        ],
+        "isolatedServer": {
+          "active": 0,
+          "peak": 2,
+          "requests": [
+            {
+              "id": "isolated-b",
+              "started": 2908.434042,
+              "completed": 3209.821667
+            },
+            {
+              "id": "isolated-a",
+              "started": 2908.635334,
+              "completed": 3209.959417
+            }
+          ]
+        },
+        "sharedGet": [
+          {
+            "requestId": "get-a",
+            "createdMs": 0.2426669999999831,
+            "sentMs": 0.2850839999996424,
+            "responseHeadersMs": 303.48204199999964,
+            "responseCompleteMs": 304.03441699999985,
+            "fetchHeadersMs": 303.6591669999998,
+            "bodyReadMs": 304.0921669999998,
+            "parsedMs": 304.0990419999998,
+            "socket": {
+              "id": 3,
+              "priorRequests": 3,
+              "connectionMs": 1.9185419999998885,
+              "dnsMs": 0.36875000000009095,
+              "tcpMs": 0.7059169999999995,
+              "tlsMs": 1.7830830000000333,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 3,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "get-a",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.24183399999992616
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.2847919999999249
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.48087499999974
+              },
+              {
+                "stage": "complete",
+                "atMs": 304.0340839999999
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 304.10824999999977
+          },
+          {
+            "requestId": "get-b",
+            "createdMs": 0.17395799999985684,
+            "sentMs": 0.2051249999999527,
+            "responseHeadersMs": 303.3034170000001,
+            "responseCompleteMs": 303.7506250000001,
+            "fetchHeadersMs": 303.3826250000002,
+            "bodyReadMs": 303.7948329999999,
+            "parsedMs": 303.7969170000001,
+            "socket": {
+              "id": 3,
+              "priorRequests": 4,
+              "connectionMs": 1.9185419999998885,
+              "dnsMs": 0.36875000000009095,
+              "tcpMs": 0.7059169999999995,
+              "tlsMs": 1.7830830000000333,
+              "protocol": "h2"
+            },
+            "http2": {
+              "session": 3,
+              "remoteMaxConcurrentStreams": 100
+            },
+            "status": 200,
+            "echo": "get-b",
+            "cfRay": null,
+            "events": [
+              {
+                "stage": "created",
+                "atMs": 0.1732080000001588
+              },
+              {
+                "stage": "sent",
+                "atMs": 0.20479199999999764
+              },
+              {
+                "stage": "headers",
+                "atMs": 303.30270800000017
+              },
+              {
+                "stage": "complete",
+                "atMs": 303.75016700000015
+              }
+            ],
+            "eventsTruncated": false,
+            "totalMs": 303.8053329999998
+          }
+        ],
+        "sharedGetServer": {
+          "active": 0,
+          "peak": 2,
+          "requests": [
+            {
+              "id": "get-a",
+              "started": 3212.282292,
+              "completed": 3514.511625
+            },
+            {
+              "id": "get-b",
+              "started": 3212.335667,
+              "completed": 3514.67025
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "signature_review": {
+    "schema": "seams.ml-dsa-committed-refill-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "optimized",
+        "consumptionWidth": 2,
+        "verified": 19,
+        "alteredMessagesRejected": 19,
+        "alteredSignaturesRejected": 19,
+        "clientSha256": "333fb3047106c2826882ed87780a3195644601b36d6e87479247f9f425b2f852"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "registrationSignatures": [
+      {
+        "wallet": 1,
+        "epoch": 1,
+        "elapsedMs": 6255.355708000003,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 1,
+        "epoch": 2,
+        "elapsedMs": 6319.845499999996,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 1,
+        "elapsedMs": 3141.796583999996,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 2,
+        "elapsedMs": 4561.658790999994,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      }
+    ],
+    "scriptSha256": "81c8c3c036b51aa56fa27cbb38de6a66cab8d8d636f64434b8f1505378ef194f"
+  },
+  "post_rebase_wasm_check_passed": true,
+  "bloat_gate": {
+    "passed": false,
+    "baseline_rust_duplicated_lines": 13754,
+    "head_and_working_rust_duplicated_lines": 14030
+  },
+  "bundles": [
+    {
+      "path": "ml-dsa-65-resource-dispatch-20261022-hosted.json.gz",
+      "sha256": "8e657e1f35064fe59ee16aa6bd7289fcc5d5000ae0a0625b6e69a5b4d1fbb7b9",
+      "files": 17,
+      "bytes": 664758
+    },
+    {
+      "path": "ml-dsa-65-resource-dispatch-20261022-local.json.gz",
+      "sha256": "033d663fa26da5837d11351a5302d96905502af40f10ca5b555a67e3ce89dfc1",
+      "files": 10,
+      "bytes": 130451
+    },
+    {
+      "path": "ml-dsa-65-resource-dispatch-20261022-provenance.json.gz",
+      "sha256": "a9426239d33d6ce90e4331e452afd19b6bb605ea18967eaf32c432d0025ea312",
+      "files": 19,
+      "bytes": 45879
+    }
+  ]
+}

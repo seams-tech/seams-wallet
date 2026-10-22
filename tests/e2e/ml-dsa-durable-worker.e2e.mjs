@@ -1,4 +1,5 @@
 import { calibrateCpuProfiler } from './ml-dsa-cpu-profile.mjs';
+import { calibrateMemoryCounters, startMemorySampling } from './ml-dsa-memory-profile.mjs';
 import { installMlDsaActivation } from '../helpers/mlDsaActivation.e2e.mjs';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
@@ -22,13 +23,15 @@ const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.js
 const root = resolve(import.meta.dirname, '../..');
 const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const options = new Set(process.argv.slice(4));
-for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
+for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--profile-memory', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
 const calibrateStages = options.has('--calibrate-stage-delays');
 const stageEvents = [];
 const signingEvents = [];
 const preparationEvents = [];
 const profilePreparation = options.has('--profile-preparation');
 const profileSigning = options.has('--profile-signing');
+const profileMemory = options.has('--profile-memory');
+assert.ok(!profileMemory || (!profilePreparation && !profileSigning), 'Memory sampling needs a separate inspector run');
 const passivePreparationObserver = options.has('--passive-preparation-observer');
 const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
@@ -174,6 +177,8 @@ const observations = {
   policy,
   profilePreparation,
   profileSigning,
+  profileMemory,
+  preparationMemory: [],
   signingProfiles: [],
   passivePreparationObserver,
   initialReserveMilestones: [],
@@ -190,6 +195,8 @@ observations.provenance = {
   miniflare: JSON.parse(await readFile(join(root, 'node_modules/miniflare/package.json'), 'utf8')).version,
   sourceSha256: Object.fromEntries(await Promise.all([
     'tests/e2e/ml-dsa-durable-worker.e2e.mjs',
+    'tests/e2e/ml-dsa-memory-profile.mjs',
+    'tests/e2e/ml-dsa-cpu-profile.mjs',
     'tests/helpers/mlDsaOwnerAdmission.fixtures.ts',
     'crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs',
     'crates/router-ab-cloudflare/Cargo.lock',
@@ -221,6 +228,7 @@ class OwnerRouterProxy {
 let runtime;
 let lastSuccessful;
 let profileConnections = [];
+let memorySamplers = [];
 let initialRefillStarted;
 try {
   runtime = createRuntime();
@@ -231,6 +239,12 @@ try {
   }
   if (profilePreparation) {
     profileConnections = await startProfiles(runtime, participantTarget, 1000);
+  }
+  if (profileMemory) {
+    observations.memoryCalibration = await calibrateMemoryCounters();
+    for (const role of ['preparer-a', 'preparer-b']) {
+      memorySamplers.push(await startMemorySampling(runtime, role));
+    }
   }
   const denied = await raw('router', '/router-ab/ml-dsa/activate', records[0].activation, serviceAuth);
   assert.equal(denied.status, 403);
@@ -257,6 +271,10 @@ try {
   }
   observations.initialReserveRefillMs = performance.now() - refillStarted;
   observations.activationToFullReserveMs = performance.now() - initialRefillStarted;
+  if (profileMemory) {
+    while (memorySamplers.length > 0) observations.preparationMemory.push(await memorySamplers.shift().stop());
+    for (const record of observations.preparationMemory) assert.equal(record.status, 'complete', JSON.stringify(record));
+  }
   if (passivePreparationObserver) await verifyPassiveInventory();
   initialRefillStarted = undefined;
   if (profilePreparation) {
@@ -519,6 +537,7 @@ try {
     restart: await checkProducerHandoff(true),
   };
   observations.committedExecution = committedExecutionEvidence();
+  observations.preparationResources = preparationResourceEvidence();
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
   observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
@@ -528,6 +547,7 @@ try {
   throw error;
 } finally {
   closeProfiles(profileConnections);
+  for (const sampler of memorySamplers) observations.preparationMemory.push(await sampler.stop());
   await runtime?.dispose();
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
@@ -548,7 +568,7 @@ function createRuntime() {
     handleRuntimeStdio,
     workers: workers(),
     durableObjectsPersist: persistence,
-    inspectorPort: profilePreparation || profileSigning ? 0 : undefined,
+    inspectorPort: profilePreparation || profileSigning || profileMemory ? 0 : undefined,
   });
 }
 
@@ -847,6 +867,20 @@ function recordProducerEvent(line) {
   if (event.event === 'ml_dsa_stage_trace_v1') stageEvents.push(event);
   if (event.event === 'ml_dsa_signing_trace_v1') signingEvents.push(event);
   if (event.event === 'ml_dsa_preparation_stage_v1') preparationEvents.push(event);
+}
+
+function preparationResourceEvidence() {
+  assert.ok(preparationEvents.length > 0, 'Preparation resource observations are absent');
+  for (const event of preparationEvents) {
+    assert.match(event.module_instance, /^[0-9a-f]{32}$/);
+    assert.ok(Number.isSafeInteger(event.wasm_linear_memory_bytes) && event.wasm_linear_memory_bytes > 0);
+    assert.equal(event.wasm_linear_memory_bytes % 65536, 0);
+    assert.ok(Number.isSafeInteger(event.resource_observed_at_ms) && event.resource_observed_at_ms > 0);
+  }
+  return {
+    scope: 'Allocated Wasm linear memory at logging boundaries. This excludes JS heap and does not measure live allocations or total isolate peak memory.',
+    stages: preparationEvents,
+  };
 }
 
 function committedExecutionEvidence() {

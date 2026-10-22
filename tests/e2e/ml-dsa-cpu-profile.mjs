@@ -1,4 +1,4 @@
-//! Local sampling profiler. Profiles contain stacks and sample counts, never heap data.
+//! Local inspector access. Profiles contain stacks and counts, never heap contents.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { writeFile } from 'node:fs/promises';
@@ -18,16 +18,28 @@ class Inspector {
     const request = this.pending.get(message.id);
     if (!request) return;
     this.pending.delete(message.id);
+    clearTimeout(request.timer);
     if (message.error) request.reject(new Error(JSON.stringify(message.error)));
     else request.resolve(message.result);
   }
   closed() {
-    for (const request of this.pending.values()) request.reject(new Error('Inspector closed'));
+    for (const request of this.pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error('Inspector closed'));
+    }
     this.pending.clear();
   }
+  timeout(id) {
+    const request = this.pending.get(id);
+    if (!request) return;
+    this.pending.delete(id);
+    request.reject(new Error('Inspector command timed out'));
+  }
   send(method, params = {}) {
+    if (this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error('Inspector is closed'));
     const id = ++this.sequence;
     const request = Promise.withResolvers();
+    request.timer = globalThis.setTimeout(this.timeout.bind(this, id), 5000);
     this.pending.set(id, request);
     this.socket.send(JSON.stringify({ id, method, params }));
     return request.promise;
@@ -35,28 +47,47 @@ class Inspector {
   async stop(path) {
     const { profile } = await this.send('Profiler.stop');
     await this.send('Profiler.disable');
-    this.socket.close();
-    await once(this.socket, 'close');
+    await this.close();
     await writeFile(path, `${JSON.stringify(profile)}\n`);
     return profile;
+  }
+  async close() {
+    if (this.closePromise) return this.closePromise;
+    this.closePromise = this.closeSocket();
+    return this.closePromise;
+  }
+  async closeSocket() {
+    if (this.socket.readyState === WebSocket.CLOSED) return;
+    const closed = once(this.socket, 'close', {signal: AbortSignal.timeout(5000)});
+    this.socket.close();
+    await closed;
   }
 }
 
 export async function startCpuProfile(runtime, worker) {
-  const url = await runtime.getInspectorURL();
-  assert.equal(url.hostname, '127.0.0.1');
-  url.protocol = 'http:';
-  url.pathname = '/json/list';
-  const targets = await (await fetch(url)).json();
-  const target = targets.find(matchesWorker, worker);
-  assert.ok(target, `Inspector target absent: ${worker}`);
-  const socket = new WebSocket(target.webSocketDebuggerUrl);
-  await once(socket, 'open');
-  const inspector = new Inspector(socket);
+  const inspector = await openInspector(runtime, worker);
   await inspector.send('Profiler.enable');
   await inspector.send('Profiler.setSamplingInterval', { interval: 1000 });
   await inspector.send('Profiler.start');
   return inspector;
+}
+
+export async function openInspector(runtime, worker) {
+  const url = await runtime.getInspectorURL();
+  assert.equal(url.hostname, '127.0.0.1');
+  url.protocol = 'http:';
+  url.pathname = '/json/list';
+  const targets = await (await fetch(url, {signal: AbortSignal.timeout(5000)})).json();
+  const target = targets.find(matchesWorker, worker);
+  assert.ok(target, `Inspector target absent: ${worker}`);
+  const socket = new WebSocket(target.webSocketDebuggerUrl);
+  try {
+    await once(socket, 'open', {signal: AbortSignal.timeout(5000)});
+  } catch (error) {
+    socket.close();
+    throw error;
+  }
+  return new Inspector(socket);
 }
 function matchesWorker(target) {
   return target.id === `core:user:${this}`;
