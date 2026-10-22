@@ -1,18 +1,23 @@
 ---
-title: Release 0.19.0
-description: Current SDK, server, CLI, and hosted runtime requirements for Seams Wallet 0.19.0.
+title: Release 0.20.0
+description: Current SDK, server, CLI, and hosted runtime requirements for Seams Wallet 0.20.0.
 ---
 
-# Release 0.19.0
+# Release 0.20.0
 
-These docs target version **0.19.0** of the browser SDK, server SDK, and recovery CLI.
+These docs target version **0.20.0** of the browser SDK, server SDK, and recovery CLI.
 
 | Component                               | Version    | Requirement                                               |
 | --------------------------------------- | ---------- | --------------------------------------------------------- |
-| Browser SDK `@seams/wallet`             | **0.19.0** | Match application code and wallet-origin assets           |
-| Server SDK `@seams/wallet-server`       | **0.19.0** | Deploy the coordinated backend roles                      |
-| Native CLI launcher `@seams/wallet-cli` | **0.19.0** | Use its signed native assets and the dashboard's commands |
+| Browser SDK `@seams/wallet`             | **0.20.0** | Match application code and wallet-origin assets           |
+| Server SDK `@seams/wallet-server`       | **0.20.0** | Deploy the coordinated backend roles                      |
+| Native CLI launcher `@seams/wallet-cli` | **0.20.0** | Use its signed native assets and the dashboard's commands |
 | Wallet iframe protocol                  | **16.0.0** | Match the application and wallet host                     |
+
+## Documentation
+
+The Japanese docs now cover the complete documentation site, including deployment, recovery, examples, and API references.
+The formal verification docs distinguish proved invariants from assumptions and remaining work.
 
 ## Hosted wallet controls
 
@@ -22,7 +27,7 @@ These docs target version **0.19.0** of the browser SDK, server SDK, and recover
 
 ## English and Japanese controls
 
-This release aligns the browser SDK, server SDK, and recovery CLI at `0.19.0`.
+This release aligns the browser SDK, server SDK, and recovery CLI at `0.20.0`.
 The wallet iframe protocol remains 16.0.0.
 
 Set the SDK language when creating the provider configuration:
@@ -41,7 +46,7 @@ The provider and wallet-origin controls share this configuration.
 SDK previews also accept `locale` on `AccountMenuButtonMock` and `SeamsAuthMenuMock`.
 Applications provide translations for their own headings and custom copy overrides.
 
-Pin the exact `0.19.0` packages in Console and deploy the matching wallet-origin assets.
+Pin the exact `0.20.0` packages in Console and deploy the matching wallet-origin assets.
 An application-only update cannot translate an older hosted wallet build.
 
 ## Integration

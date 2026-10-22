@@ -13,7 +13,7 @@ Reactアプリと、ウォレットオリジン、リレーヤーURL、管理登
 ## 1. SDKをインストール {#_1-install-the-sdk}
 
 ```sh
-pnpm add @seams/wallet@0.19.0
+pnpm add @seams/wallet@0.20.0
 ```
 
 <!-- prettier-ignore -->
@@ -25,12 +25,12 @@ pnpm add @seams/wallet@0.19.0
 同じ環境変数名を使うか、独自の設定ローダーを使用してください。
 別のネットワークを設定する場合は`chains`を渡します。テストネット以外では`defineSeamsConfig`を使います。
 
-このドキュメントは`@seams/wallet` **0.19.0**を対象としています。
+このドキュメントは`@seams/wallet` **0.20.0**を対象としています。
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
-ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.19.0**です。
-導入とデプロイの要件は[リリース 0.19.0](/ja/releases)を参照してください。
+ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.20.0**です。
+導入とデプロイの要件は[リリース 0.20.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx
 

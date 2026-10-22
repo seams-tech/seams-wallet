@@ -5,13 +5,13 @@ description: 対応するWallet Serverのエントリーポイント、同梱ラ
 
 # サーバーSDKとCLI {#server-sdk-and-cli}
 
-`@seams/wallet-server@0.19.0`は、再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディングを提供します。
-現在の復元CLIランチャーは、`@seams/wallet-cli@0.19.0`です。
+`@seams/wallet-server@0.20.0`は、再利用可能なWalletサービス、ストレージアダプター、Cloudflare Workers、マイグレーション、署名用WASMバインディングを提供します。
+現在の復元CLIランチャーは、`@seams/wallet-cli@0.20.0`です。
 デプロイ用アセットを選ぶ前に、[リリース状況](/ja/releases)を確認してください。
 
 ```sh
-pnpm add @seams/wallet-server@0.19.0
-npm install --global @seams/wallet-cli@0.19.0
+pnpm add @seams/wallet-server@0.20.0
+npm install --global @seams/wallet-cli@0.20.0
 ```
 
 ## サーバーのエントリーポイント {#server-entry-points}
