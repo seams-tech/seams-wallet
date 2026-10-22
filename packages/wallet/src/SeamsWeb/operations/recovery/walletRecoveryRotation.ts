@@ -10,8 +10,13 @@ import {
   rotateWalletRecoverySetWithEmailOtpV1,
   type WalletRecoveryRotationOutcome,
   type WalletRecoveryFactorProofFactory,
+  type WalletRecoveryFactorProofRequest,
 } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
-import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
+import { requestEmailOtpChallenge } from '@/SeamsWeb/operations/authMethods/emailOtp/challenge';
+import {
+  createWalletRecoveryAdminEmailOtpProof,
+  selectedEmailOtpOwnerMethod,
+} from './walletRecoveryAdminProof';
 import { SIGNING_SESSION_SEAL_GROUP_ID } from '@shared/utils/signingSessionSeal';
 import { buildEmailOtpRoutePlan } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/authLane';
 import { WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain';
@@ -20,16 +25,19 @@ import { fetchPasskeyCustodyEnvelope } from '@/core/rpcClients/relayer/passkeyCu
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
+import { secureRandomId } from '@shared/utils/secureRandomId';
+
+type NoParentRecoveryProof = {
+  readonly providerSubjectId?: never;
+  readonly statusProof?: never;
+  readonly rotationProof?: never;
+  readonly otpCode?: never;
+  readonly otp_code?: never;
+};
 
 export type WalletRecoveryRotationAuthorization =
-  | { readonly kind: 'existing_passkey' }
-  | {
-      readonly kind: 'email_otp';
-      readonly providerSubjectId: string;
-      readonly challengeId: string;
-      readonly challenge_digest: string;
-      readonly otpCode: string;
-    };
+  | ({ readonly kind: 'existing_passkey' } & NoParentRecoveryProof)
+  | ({ readonly kind: 'email_otp' } & NoParentRecoveryProof);
 
 function authenticatorTransports(value: unknown): AuthenticatorTransport[] {
   if (!Array.isArray(value)) return [];
@@ -162,13 +170,18 @@ async function rotateWithPasskey(args: {
         rpId,
         credentialIdB64u: envelopeCredentialId,
         challenge_digest: challengeDigest,
-        webauthn_authentication: adminCredential,
+        webauthn_authentication: redactCredentialExtensionOutputs(adminCredential),
       };
     };
     return await rotateWalletRecoverySetWithActiveFactorV1({
       relayUrl: args.relayUrl,
       walletId: args.walletId,
       factorProof,
+      statusRequestId: secureRandomId(
+        'wallet-recovery-status',
+        16,
+        'wallet recovery status request IDs',
+      ),
       custodyEnvelope: envelope,
       factorSecret: factorSecret.buffer,
       worker: {
@@ -189,75 +202,92 @@ async function rotateWithPasskey(args: {
   }
 }
 
-async function rotateWithEmailOtp(args: {
-  readonly context: RegistrationWebContext;
-  readonly relayUrl: string;
-  readonly walletId: string;
-  readonly authorization: Extract<WalletRecoveryRotationAuthorization, { kind: 'email_otp' }>;
-}): Promise<WalletRecoveryRotationOutcome> {
-  const worker = args.context.signingEngine.getSignerWorkerContext();
+async function createEmailOtpRotationProof(
+  args: { readonly context: RegistrationWebContext; readonly relayUrl: string },
+  request: WalletRecoveryFactorProofRequest,
+) {
+  return await createWalletRecoveryAdminEmailOtpProof({
+    context: args.context,
+    relayUrl: args.relayUrl,
+    request,
+  });
+}
+
+async function rotateEmailOtpRecoverySetInWorker(
+  args: {
+    readonly context: RegistrationWebContext;
+    readonly relayUrl: string;
+    readonly walletId: string;
+  },
+  request: { readonly recoveryCodesJson: string },
+) {
+  const selected = await selectedEmailOtpOwnerMethod(args.walletId);
+  const challenge = await requestEmailOtpChallenge({
+    relayUrl: args.relayUrl,
+    walletId: args.walletId,
+    walletAuthMethodId: selected.walletAuthMethodId,
+    operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
+  });
+  if (challenge.walletAuthMethodId !== selected.walletAuthMethodId) {
+    throw new Error('Recovery rotation Email OTP challenge selected another owner method');
+  }
+  const confirmed = await args.context.signingEngine.requestEmailOtpOwnerConfirmation({
+    purpose: 'recovery_unlock',
+    walletId: args.walletId,
+    emailAddress: 'your email',
+    challengeId: challenge.challengeId,
+  });
+  if (confirmed.challengeId !== challenge.challengeId) {
+    throw new Error('Recovery rotation Email OTP unlock changed its challenge');
+  }
   const routePlan = buildEmailOtpRoutePlan({
     routeFamily: 'login',
     operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
   });
-  const factorProof: WalletRecoveryFactorProofFactory = async ({ operation, payload }) => {
-    const requestOrigin = typeof window === 'undefined' ? '' : window.location.origin;
-    const challenge = await requestWalletCustodyEmailOtpChallenge({
-      relayUrl: args.relayUrl,
-      walletId: args.walletId,
-      providerSubjectId: args.authorization.providerSubjectId,
-      operation,
-      payload,
-      ...(requestOrigin ? { requestOrigin } : {}),
-    });
-    if (challenge.kind !== 'ready') throw new Error(challenge.message);
-    const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
-      walletId: args.walletId,
-      operation,
-      payload,
-      requestOrigin,
-    });
-    if (
-      challenge.challengeId !== args.authorization.challengeId ||
-      challenge.challenge_digest !== args.authorization.challenge_digest ||
-      challengeDigest !== args.authorization.challenge_digest
-    ) {
-      throw new Error('Wallet recovery Email OTP challenge is bound to a different operation');
-    }
-    return {
-      kind: 'email_otp',
-      provider_subject_id: args.authorization.providerSubjectId,
-      challenge_id: args.authorization.challengeId,
-      otp_code: args.authorization.otpCode,
-      challenge_digest: challengeDigest,
-    };
-  };
+  const worker = args.context.signingEngine.getSignerWorkerContext();
+  return await worker.requestWorkerOperation({
+    kind: 'emailOtp',
+    request: {
+      type: 'rotateEmailOtpWalletRecoverySet',
+      timeoutMs: 60_000,
+      payload: {
+        relayUrl: args.relayUrl,
+        walletId: args.walletId,
+        walletAuthMethodId: selected.walletAuthMethodId,
+        userId: args.walletId,
+        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
+        routePlan,
+        verification: {
+          kind: 'otp',
+          challengeId: confirmed.challengeId,
+          otpCode: confirmed.otpCode,
+        },
+        recoveryCodesJson: request.recoveryCodesJson,
+      },
+    },
+  });
+}
+
+async function rotateWithEmailOtp(args: {
+  readonly context: RegistrationWebContext;
+  readonly relayUrl: string;
+  readonly walletId: string;
+}): Promise<WalletRecoveryRotationOutcome> {
+  const factorProof: WalletRecoveryFactorProofFactory = createEmailOtpRotationProof.bind(null, {
+    context: args.context,
+    relayUrl: args.relayUrl,
+  });
   return await rotateWalletRecoverySetWithEmailOtpV1({
     relayUrl: args.relayUrl,
     walletId: args.walletId,
     factorProof,
+    statusRequestId: secureRandomId(
+      'wallet-recovery-status',
+      16,
+      'wallet recovery status request IDs',
+    ),
     worker: {
-      rotateRecoverySet: async ({ recoveryCodesJson }) =>
-        await worker.requestWorkerOperation({
-          kind: 'emailOtp',
-          request: {
-            type: 'rotateEmailOtpWalletRecoverySet',
-            timeoutMs: 60_000,
-            payload: {
-              relayUrl: args.relayUrl,
-              walletId: args.walletId,
-              userId: args.walletId,
-              groupId: SIGNING_SESSION_SEAL_GROUP_ID,
-              routePlan,
-              verification: {
-                kind: 'otp',
-                challengeId: args.authorization.challengeId,
-                otpCode: args.authorization.otpCode,
-              },
-              recoveryCodesJson,
-            },
-          },
-        }),
+      rotateRecoverySet: rotateEmailOtpRecoverySetInWorker.bind(null, args),
     },
   });
 }
@@ -272,6 +302,6 @@ export async function rotateWalletRecoveryCodes(args: {
     case 'existing_passkey':
       return await rotateWithPasskey(args);
     case 'email_otp':
-      return await rotateWithEmailOtp({ ...args, authorization: args.authorization });
+      return await rotateWithEmailOtp(args);
   }
 }

@@ -56,7 +56,7 @@ type WalletCustodyRegistrationRecords = {
 };
 
 export type WalletCustodyRegistrationCommitOutcome =
-  | { readonly kind: 'already_exists' }
+  | { readonly kind: 'already_exists'; readonly issuedAtMs: number }
   | { readonly kind: 'custody_already_established' }
   | { readonly kind: 'rejected'; readonly reason: string };
 
@@ -248,10 +248,10 @@ function buildWalletCustodyRegistrationRecords(args: {
 }
 
 /** The write that a reservation left for after the registration's wallet commit. */
-export type WalletCustodyRegistrationReserved = {
-  readonly kind: 'reserved';
-  readonly statements: Extract<WalletCustodyRegistrationReservation, { kind: 'reserved' }>['statements'];
-};
+export type WalletCustodyRegistrationReserved = Extract<
+  WalletCustodyRegistrationReservation,
+  { kind: 'reserved' }
+>;
 
 /**
  * Builds the records and claims their recovery-code routes.

@@ -86,6 +86,7 @@ import type {
   WalletCustodyEmailOtpChallengeResult,
 } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
+import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
 import type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 import type {
   EvmAddress,
@@ -889,22 +890,30 @@ export interface EvmSignerCapability {
   readonly advanced: EvmFamilyAdvancedCapability;
 }
 
+export type WalletRecoveryOwnerFactor =
+  | { readonly kind: 'passkey' }
+  | { readonly kind: 'email_otp' };
+
 export interface RecoveryCapability {
   syncAccount(args: {
     walletId?: string;
     options?: SyncAccountHooksOptions;
   }): Promise<SyncAccountResult>;
 
-  getCodeStatus(args: { walletId: string }): Promise<WalletRecoveryCodeStatusResult>;
+  getCodeStatus(args: {
+    walletId: string;
+    authorization: WalletRecoveryOwnerFactor;
+  }): Promise<WalletRecoveryCodeStatusResult>;
 
   confirmBackup(args: {
     walletId: string;
+    authorization: WalletRecoveryOwnerFactor;
   }): Promise<WalletRecoveryBackupAcknowledgementResult>;
 
   requestWalletCustodyEmailOtpChallenge(args: {
     walletId: string;
     providerSubjectId: string;
-    operation: 'credentials_list' | 'credential_label' | 'recovery_rotate' | 'recovery_read';
+    operation: WalletCustodyAdminOperation;
     payload: Record<string, unknown>;
     requestOrigin?: string;
   }): Promise<WalletCustodyEmailOtpChallengeResult>;

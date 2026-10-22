@@ -189,7 +189,8 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
       addAuthMethodIntentDigestB64u: intentResponse.addAuthMethodIntentDigestB64u,
     });
   const sent = await sendEnrollmentCode();
-  const confirmed = await args.context.signingEngine.requestEmailOtpEnrollmentConfirmation({
+  const confirmed = await args.context.signingEngine.requestEmailOtpOwnerConfirmation({
+    purpose: 'add_email_code',
     walletId: String(args.walletId),
     emailAddress,
     challengeId: sent.challengeId,

@@ -127,8 +127,35 @@ void seams.evm.signTransaction({
 void seams.recovery.syncAccount({ walletId: 'frost-vermillion-k7p9m2' });
 // @ts-expect-error syncAccount identifies a wallet, not a NEAR account-shaped accountId.
 void seams.recovery.syncAccount({ accountId: 'alice.testnet' });
-void seams.recovery.getCodeStatus({ walletId: 'frost-vermillion-k7p9m2' });
-void seams.recovery.confirmBackup({ walletId: 'frost-vermillion-k7p9m2' });
+void seams.recovery.getCodeStatus({
+  walletId: 'frost-vermillion-k7p9m2',
+  authorization: { kind: 'passkey' },
+});
+void seams.recovery.confirmBackup({
+  walletId: 'frost-vermillion-k7p9m2',
+  authorization: { kind: 'passkey' },
+});
+void seams.recovery.rotateCodes({
+  walletId: 'frost-vermillion-k7p9m2',
+  authorization: { kind: 'email_otp' },
+});
+const formerEmailOtpRotationProof = {
+  kind: 'email_otp' as const,
+  statusProof: { otpCode: '123456' },
+};
+void seams.recovery.rotateCodes({
+  walletId: 'frost-vermillion-k7p9m2',
+  // @ts-expect-error Rotation codes must remain inside the wallet runtime.
+  authorization: formerEmailOtpRotationProof,
+});
+const formerPasskeyRotationProof = {
+  ...{ kind: 'existing_passkey' as const, otpCode: '123456' },
+};
+void seams.recovery.rotateCodes({
+  walletId: 'frost-vermillion-k7p9m2',
+  // @ts-expect-error A spread cannot add an Email OTP code to passkey rotation.
+  authorization: formerPasskeyRotationProof,
+});
 
 void seams.devices.cancelLinking();
 void seams.devices.list({

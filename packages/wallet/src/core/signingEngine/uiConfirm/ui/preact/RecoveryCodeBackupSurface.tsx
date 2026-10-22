@@ -23,7 +23,11 @@ export type RecoveryCodeBackupExperience =
 
 export type RecoveryBackupCloseDetail =
   | { readonly kind: 'dismissed' }
-  | { readonly kind: 'recovery_codes'; readonly acknowledged: boolean };
+  | {
+      readonly kind: 'recovery_codes';
+      readonly acknowledged: boolean;
+      readonly request: WalletRecoveryCodeBackupRequestV1;
+    };
 
 export type RecoveryBackupStage = 'summary' | 'opening' | 'recovery_codes';
 
@@ -118,18 +122,9 @@ function statusLabel(status: WalletRecoveryCodeStatusResult): string {
 }
 
 function canViewPendingRecoveryCodes(loadState: SummaryLoadState): boolean {
-  if (loadState.kind !== 'loaded') return true;
-  switch (loadState.status.kind) {
-    case 'ready':
-      return loadState.status.pendingLocalBackup;
-    case 'unauthorized':
-    case 'transport_failed':
-      return true;
-    case 'no_recovery_set':
-      return false;
-    default:
-      return assertNever(loadState.status);
-  }
+  return loadState.kind === 'loaded' &&
+    loadState.status.kind === 'ready' &&
+    loadState.status.pendingLocalBackup;
 }
 
 function recoveryStatusFailureMessage(loadState: SummaryLoadState): string | null {
@@ -328,6 +323,16 @@ export class RecoveryCodeBackupSurface extends Component<
     const experience = this.props.experience;
     const current = this.state.viewState;
     if (experience.kind !== 'account_menu' || current.kind !== 'summary') return;
+    if (current.loadState.kind !== 'loaded' || current.loadState.status.kind !== 'ready') {
+      this.setState({
+        viewState: {
+          ...current,
+          actionError: 'Verify recovery-code status before opening saved codes.',
+        },
+      });
+      return;
+    }
+    const issuedAtMs = current.loadState.status.issuedAtMs;
     const generation = this.loadGeneration;
     this.setState({ viewState: { ...current, kind: 'opening', actionError: null } });
     try {
@@ -338,6 +343,18 @@ export class RecoveryCodeBackupSurface extends Component<
           viewState: {
             ...current,
             actionError: 'Recovery codes are no longer available on this device.',
+          },
+        });
+        return;
+      }
+      if (
+        request.continuation !== 'pending_backup_must_finish' ||
+        request.issuedAtMs !== issuedAtMs
+      ) {
+        this.setState({
+          viewState: {
+            ...current,
+            actionError: 'These saved codes belong to a different recovery set. Check status again.',
           },
         });
         return;
@@ -359,7 +376,13 @@ export class RecoveryCodeBackupSurface extends Component<
   };
 
   private readonly closeRecoveryCodes = (): void => {
-    this.props.onClose({ kind: 'recovery_codes', acknowledged: this.state.acknowledged });
+    const viewState = this.state.viewState;
+    if (viewState.kind !== 'recovery_codes') return;
+    this.props.onClose({
+      kind: 'recovery_codes',
+      acknowledged: this.state.acknowledged,
+      request: viewState.request,
+    });
   };
 
   private readonly onAcknowledgementChange = (event: Event): void => {

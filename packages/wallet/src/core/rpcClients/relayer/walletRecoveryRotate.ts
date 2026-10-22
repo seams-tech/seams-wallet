@@ -232,20 +232,17 @@ function decodeWalletRecoveryCodeStatusResponse(
 export async function readWalletRecoveryCodeStatus(args: {
   readonly relayUrl: string;
   readonly walletId: string;
+  readonly requestId: string;
+  readonly factorProof: WalletCustodyFactorProof;
   readonly fetchImpl?: typeof fetch;
 }): Promise<WalletRecoveryCodeStatusResult> {
-  const url = `${normalizeRelayerBaseUrl(args.relayUrl)}/wallets/${encodeURIComponent(
-    args.walletId,
-  )}/recovery/status`;
-  const doFetch = args.fetchImpl || fetch;
   let response: Response;
   try {
-    response = await doFetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-      },
+    response = await postWalletRecoveryRoute({
+      relayUrl: args.relayUrl,
+      path: `/wallets/${encodeURIComponent(args.walletId)}/recovery/status`,
+      body: { requestId: args.requestId, factorProof: args.factorProof },
+      fetchImpl: args.fetchImpl,
     });
   } catch (error: unknown) {
     return {
@@ -300,6 +297,7 @@ export async function readWalletRecoveryCodeStatus(args: {
 
 export type WalletRecoveryBackupAcknowledgementResult =
   | { readonly kind: 'acknowledged'; readonly walletId: string; readonly issuedAtMs: number }
+  | { readonly kind: 'conflict'; readonly message: string }
   | { readonly kind: 'no_recovery_set'; readonly message: string }
   | { readonly kind: 'unauthorized'; readonly message: string }
   | { readonly kind: 'transport_failed'; readonly message: string };
@@ -350,6 +348,9 @@ function decodeWalletRecoveryBackupAcknowledgementResponse(
 export async function acknowledgeWalletRecoveryBackup(args: {
   readonly relayUrl: string;
   readonly walletId: string;
+  readonly requestId: string;
+  readonly expectedIssuedAtMs: number;
+  readonly factorProof: WalletCustodyFactorProof;
   readonly fetchImpl?: typeof fetch;
 }): Promise<WalletRecoveryBackupAcknowledgementResult> {
   let response: Response;
@@ -357,7 +358,12 @@ export async function acknowledgeWalletRecoveryBackup(args: {
     response = await postWalletRecoveryRoute({
       relayUrl: args.relayUrl,
       path: WALLET_RECOVERY_ACK_PATH,
-      body: { walletId: args.walletId },
+      body: {
+        walletId: args.walletId,
+        requestId: args.requestId,
+        expectedIssuedAtMs: args.expectedIssuedAtMs,
+        factorProof: args.factorProof,
+      },
       fetchImpl: args.fetchImpl,
     });
   } catch (error: unknown) {
@@ -378,6 +384,12 @@ export async function acknowledgeWalletRecoveryBackup(args: {
   }
   if (response.status === 404) {
     return { kind: 'no_recovery_set', message: message || 'this wallet has no recovery set' };
+  }
+  if (response.status === 409) {
+    return {
+      kind: 'conflict',
+      message: message || 'Recovery codes changed. Check status and review the current set.',
+    };
   }
   if (response.status !== 200) {
     return {

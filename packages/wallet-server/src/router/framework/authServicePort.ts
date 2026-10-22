@@ -879,7 +879,13 @@ type RouterApiMethodTypes = {
         }
       | RouterApiOkFailure;
   };
-  removeEmailOtpServerSeal: RouterApiMethodTypes['applyEmailOtpServerSeal'];
+  removeEmailOtpServerSeal: {
+    readonly input: {
+      readonly wrappedCiphertext?: unknown;
+      readonly enrollmentSealKeyVersion: string;
+    };
+    readonly result: RouterApiMethodTypes['applyEmailOtpServerSeal']['result'];
+  };
   respondWalletAddSignerEcdsaDerivation: {
     readonly input: WalletAddSignerEcdsaDerivationRespondRequest;
     readonly result: WalletAddSignerEcdsaDerivationRespondResponse;

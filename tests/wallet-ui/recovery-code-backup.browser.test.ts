@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import path from 'node:path';
+import { writeFile } from 'node:fs/promises';
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
@@ -7,7 +8,7 @@ import { routePreactModules } from '../setup/preact';
 
 type RecoveryTestState = {
   startDirect(): void;
-  startAccount(mode: 'ready' | 'failed', theme?: 'light' | 'dark'): void;
+  startAccount(mode: 'ready' | 'failed' | 'opening_failed' | 'stale', theme?: 'light' | 'dark'): void;
   startAccountPending(): void;
   startAccountOpeningPending(): void;
   cancelPending(): void;
@@ -57,6 +58,7 @@ async function prepare(page: Page): Promise<void> {
   );
   await page.goto('/recovery-test');
   await page.evaluate((codes) => {
+    const issuedAtMs = 1_700_000_000_000;
     const modulePath = '/_test-sdk/esm/SeamsWeb/operations/recovery/walletRecoveryCodeBackup.js';
     const state: RecoveryTestState = {
       result: null,
@@ -89,18 +91,19 @@ async function prepare(page: Page): Promise<void> {
                       walletId: 'recovery.testnet',
                       activeCodeCount: codes.length,
                       totalCodeCount: codes.length,
-                      issuedAtMs: 0,
+                      issuedAtMs,
                       storeVersion: 'synthetic-v1',
                       backupOutstanding: true,
                       pendingLocalBackup: true,
                     },
               loadPendingBackup: async () => {
-                if (mode === 'failed') throw new Error('Synthetic opening failure');
+                if (mode === 'opening_failed') throw new Error('Synthetic opening failure');
                 return {
                   kind: 'wallet_recovery_code_backup_request_v1',
                   walletId: 'recovery.testnet',
                   recoveryCodes: codes,
                   continuation: 'pending_backup_must_finish',
+                  issuedAtMs: mode === 'stale' ? issuedAtMs - 1 : issuedAtMs,
                 };
               },
             },
@@ -124,7 +127,7 @@ async function prepare(page: Page): Promise<void> {
                 walletId: 'recovery.testnet',
                 activeCodeCount: codes.length,
                 totalCodeCount: codes.length,
-                issuedAtMs: 0,
+                issuedAtMs,
                 storeVersion: 'synthetic-v1',
                 backupOutstanding: true,
                 pendingLocalBackup: true,
@@ -146,7 +149,7 @@ async function prepare(page: Page): Promise<void> {
               walletId: 'recovery.testnet',
               activeCodeCount: codes.length,
               totalCodeCount: codes.length,
-              issuedAtMs: 0,
+              issuedAtMs,
               storeVersion: 'synthetic-v1',
               backupOutstanding: true,
               pendingLocalBackup: true,
@@ -159,6 +162,7 @@ async function prepare(page: Page): Promise<void> {
                     walletId: 'recovery.testnet',
                     recoveryCodes: codes,
                     continuation: 'pending_backup_must_finish',
+                    issuedAtMs,
                   });
                 };
               }),
@@ -332,12 +336,53 @@ test('account-menu backup rejects an unacknowledged close and handles opening fa
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
 
-  await page.evaluate(() => window.__recoveryTest.startAccount('failed'));
+  await page.evaluate(() => window.__recoveryTest.startAccount('opening_failed'));
   await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
   await page.getByRole('button', { name: 'View recovery codes' }).click();
   await expect(page.getByText('Synthetic opening failure', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close recovery codes' }).click();
   await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+
+  await page.evaluate(() => window.__recoveryTest.startAccount('failed'));
+  await expect(page.getByRole('button', { name: 'View recovery codes' })).toHaveCount(0);
+  await expect(page.getByText('Synthetic status failure', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close recovery codes' }).click();
+  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+});
+
+test('account-menu backup binds acknowledgement to the displayed issuance', async ({
+  page,
+}, testInfo) => {
+  await page.evaluate(() => window.__recoveryTest.startAccount('stale'));
+  await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
+  await page.getByRole('button', { name: 'View recovery codes' }).click();
+  await expect(
+    page.getByText('These saved codes belong to a different recovery set. Check status again.'),
+  ).toBeVisible();
+  await expect(page.locator('.recovery-code-item')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close recovery codes' }).click();
+  await expect.poll(() => result(page)).toEqual('Recovery-code backup was cancelled before acknowledgement');
+
+  await page.evaluate(() => window.__recoveryTest.startAccount('ready'));
+  await expect(page.getByRole('button', { name: 'View recovery codes' })).toBeVisible();
+  await page.getByRole('button', { name: 'View recovery codes' }).click();
+  await expect(page.locator('.recovery-code-item')).toHaveCount(10);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Finish backup' }).click();
+  const acknowledged = await result(page);
+  expect(acknowledged).toEqual({
+    kind: 'wallet_recovery_codes_backed_up_v1',
+    issuedAtMs: 1_700_000_000_000,
+  });
+  const artifact = testInfo.outputPath('recovery-backup-issuance.json');
+  await writeFile(
+    artifact,
+    JSON.stringify({ staleCodeCount: 0, acknowledged }, null, 2),
+  );
+  await testInfo.attach('recovery-backup-issuance', {
+    path: artifact,
+    contentType: 'application/json',
+  });
 });
 
 test('cancellation while the lazy Preact module is pending does not mount a stale dialog', async ({

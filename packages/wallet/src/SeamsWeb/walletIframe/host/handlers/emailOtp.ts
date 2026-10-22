@@ -16,6 +16,7 @@ import type {
   PMGoogleEmailOtpWalletAuthWireResult,
 } from '../../shared/messages';
 import { redeemHostedWalletSeamsSession } from '../hostedWalletSeamsSession';
+import { parseWalletRecoveryRequest } from '../../shared/recoveryAuthorization';
 
 function parseEmailCodeRequest(value: unknown): Parameters<import('@/SeamsWeb/publicApi/types').AuthCapability['requestEmailCode']>[0] {
   const input = recordFromPayload(value);
@@ -209,11 +210,6 @@ function burnFlow(value: unknown): GoogleEmailOtpWalletAuthFlow {
   return flow;
 }
 
-function parseWalletRecoverySessionPayload(value: unknown): { walletId: string } {
-  const record = recordFromPayload(value);
-  return { walletId: readRequiredString(record, 'walletId') };
-}
-
 function parseWalletCustodyEmailOtpChallengePayload(value: unknown): {
   walletId: string;
   providerSubjectId: string;
@@ -227,7 +223,9 @@ function parseWalletCustodyEmailOtpChallengePayload(value: unknown): {
     operation !== 'credentials_list' &&
     operation !== 'credential_label' &&
     operation !== 'recovery_rotate' &&
-    operation !== 'recovery_read'
+    operation !== 'recovery_read' &&
+    operation !== 'recovery_status' &&
+    operation !== 'recovery_backup_acknowledge'
   ) {
     throw new Error('Wallet custody Email OTP challenge operation is invalid');
   }
@@ -248,18 +246,16 @@ function parseWalletCustodyEmailOtpChallengePayload(value: unknown): {
 
 function parseWalletRecoveryRotationPayload(value: unknown): {
   walletId: string;
-  authorization:
-    | { kind: 'existing_passkey' }
-    | {
-        kind: 'email_otp';
-        providerSubjectId: string;
-        challengeId: string;
-        challenge_digest: string;
-        otpCode: string;
-      };
+  authorization: { kind: 'existing_passkey' } | { kind: 'email_otp' };
 } {
   const record = recordFromPayload(value);
+  if (Object.keys(record).sort().join(',') !== 'authorization,walletId') {
+    throw new Error('Wallet recovery rotation request has unexpected fields');
+  }
   const authorization = recordFromPayload(record.authorization);
+  if (Object.keys(authorization).length !== 1) {
+    throw new Error('Wallet recovery rotation authorization has unexpected fields');
+  }
   if (authorization.kind === 'existing_passkey') {
     return {
       walletId: readRequiredString(record, 'walletId'),
@@ -269,13 +265,7 @@ function parseWalletRecoveryRotationPayload(value: unknown): {
   if (authorization.kind === 'email_otp') {
     return {
       walletId: readRequiredString(record, 'walletId'),
-      authorization: {
-        kind: 'email_otp',
-        providerSubjectId: readRequiredString(authorization, 'providerSubjectId'),
-        challengeId: readRequiredString(authorization, 'challengeId'),
-        challenge_digest: readRequiredString(authorization, 'challenge_digest'),
-        otpCode: readRequiredString(authorization, 'otpCode'),
-      },
+      authorization: { kind: 'email_otp' },
     };
   }
   throw new Error('Wallet recovery rotation authorization is invalid');
@@ -406,7 +396,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       assertNoParentPostedWalletSessionToken(req.payload);
       const pm = deps.getWalletRuntime();
       const result = await pm.recovery.getCodeStatus(
-        parseWalletRecoverySessionPayload(req.payload),
+        parseWalletRecoveryRequest(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
     },
@@ -428,7 +418,7 @@ export function createEmailOtpWalletIframeHandlers(deps: HandlerDeps): HandlerMa
       assertNoParentPostedWalletSessionToken(req.payload);
       const pm = deps.getWalletRuntime();
       const result = await pm.recovery.confirmBackup(
-        parseWalletRecoverySessionPayload(req.payload),
+        parseWalletRecoveryRequest(req.payload),
       );
       respondOkResult(deps, req.requestId, result);
     },

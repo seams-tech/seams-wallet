@@ -1,3 +1,5 @@
+import { parseUnixMs } from './primitives';
+
 export type WalletCustodyCeremonyRecoveryWrapPayload = {
   readonly recoveryKeyId: string;
   readonly nonceB64u: string;
@@ -148,20 +150,24 @@ export type WalletCustodyEvmFamilyActivationCompletion = {
  */
 export type WalletCustodyRegistrationOutcome =
   /** No custody payload rode this leg. Registration is unaffected. */
-  | { readonly status: 'not_requested' }
-  | { readonly status: 'committed' }
+  | { readonly status: 'not_requested'; readonly issuedAtMs?: never }
+  | { readonly status: 'committed'; readonly issuedAtMs: number }
   /**
    * A joining run: this key set's manifest digest, with no custody records
    * written because the wallet already has its envelope and recovery set.
    */
-  | { readonly status: 'joined'; readonly keyManifestDigestB64u: string }
+  | {
+      readonly status: 'joined';
+      readonly keyManifestDigestB64u: string;
+      readonly issuedAtMs?: never;
+    }
   /**
    * Another ceremony established this wallet's custody first. The client must
    * discard its run's seed and re-enter as a join of the existing envelope.
    */
-  | { readonly status: 'custody_already_established' }
+  | { readonly status: 'custody_already_established'; readonly issuedAtMs?: never }
   /** The payload was refused. Nothing was written. */
-  | { readonly status: 'rejected'; readonly reason: string };
+  | { readonly status: 'rejected'; readonly reason: string; readonly issuedAtMs?: never };
 
 /**
  * Reads a commit payload off the wire without judging it.
@@ -592,9 +598,13 @@ export function parseWalletCustodyRegistrationOutcome(
   const record = value as Record<string, unknown>;
   switch (record.status) {
     case 'not_requested':
-    case 'committed':
     case 'custody_already_established':
       return { status: record.status };
+    case 'committed':
+      return {
+        status: 'committed',
+        issuedAtMs: parseUnixMs(record.issuedAtMs, `${label}.issuedAtMs`),
+      };
     case 'joined': {
       const digest = record.keyManifestDigestB64u;
       if (typeof digest !== 'string' || !digest) {

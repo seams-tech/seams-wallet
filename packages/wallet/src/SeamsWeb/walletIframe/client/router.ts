@@ -365,6 +365,7 @@ function requestSurfaceKindForMessage(
       return 'registration';
     case 'PM_ADD_EMAIL_OTP':
       return 'email_otp_enrollment';
+    case 'PM_GET_WALLET_RECOVERY_CODE_STATUS':
     case 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP':
       return 'recovery_codes';
     case 'PM_SIGN_TX_WITH_ACTIONS':
@@ -3372,19 +3373,23 @@ export class WalletIframeRouter {
       : res.result;
   }
 
-  async getCodeStatus(payload: {
-    walletId: string;
-  }): Promise<WalletRecoveryCodeStatusResult> {
-    const res = await this.post<WalletRecoveryCodeStatusResult>({
-      type: 'PM_GET_WALLET_RECOVERY_CODE_STATUS',
-      payload,
-    });
+  async getCodeStatus(
+    payload: Parameters<RecoveryCapability['getCodeStatus']>[0],
+  ): Promise<WalletRecoveryCodeStatusResult> {
+    await this.ensureConfigured();
+    const res = await this.post<WalletRecoveryCodeStatusResult>(
+      {
+        type: 'PM_GET_WALLET_RECOVERY_CODE_STATUS',
+        payload,
+      },
+      { timeout: 'interactive' },
+    );
     return res.result;
   }
 
-  async confirmBackup(payload: {
-    walletId: string;
-  }): Promise<WalletRecoveryBackupAcknowledgementResult> {
+  async confirmBackup(
+    payload: Parameters<RecoveryCapability['confirmBackup']>[0],
+  ): Promise<WalletRecoveryBackupAcknowledgementResult> {
     await this.ensureConfigured();
     const res = await this.post<WalletRecoveryBackupAcknowledgementResult>(
       {
@@ -3413,10 +3418,14 @@ export class WalletIframeRouter {
   async rotateCodes(
     payload: Parameters<RecoveryCapability['rotateCodes']>[0],
   ): Promise<WalletRecoveryRotationOutcome> {
-    const res = await this.post<WalletRecoveryRotationOutcome>({
-      type: 'PM_ROTATE_WALLET_RECOVERY_CODES',
-      payload,
-    });
+    await this.ensureConfigured();
+    const res = await this.post<WalletRecoveryRotationOutcome>(
+      {
+        type: 'PM_ROTATE_WALLET_RECOVERY_CODES',
+        payload,
+      },
+      { timeoutMs: WALLET_IFRAME_REGISTRATION_TIMEOUT_MS },
+    );
     return res.result;
   }
 

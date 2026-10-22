@@ -9,6 +9,7 @@ import {
 } from '@shared/wallet-recovery/walletRecoveryRotation';
 import { deriveRecoveryCodeLocatorV1FromBytes } from '@shared/wallet-recovery/recoveryCodeLocator';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
+import type { WalletRecoverySetRotationWireV1 } from '@shared/wallet-recovery/walletRecoveryEnvelopeSet';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { joinCustodyWireFromEnvelopeRecord } from './joinCustodyWire';
 import {
@@ -26,10 +27,28 @@ type WalletRecoveryRotationWorker = {
   }): Promise<WalletRecoverySetRotationWorkerResultV1>;
 };
 
-export type WalletRecoveryFactorProofFactory = (input: {
-  readonly operation: 'recovery_rotate';
-  readonly payload: Record<string, unknown>;
-}) => Promise<WalletCustodyFactorProof>;
+export type WalletRecoveryFactorProofRequest =
+  | {
+      readonly operation: 'recovery_status';
+      readonly payload: { readonly walletId: string; readonly requestId: string };
+    }
+  | {
+      readonly operation: 'recovery_rotate';
+      readonly payload: {
+        readonly walletId: string;
+        readonly expectedStoreVersion: string;
+        readonly manifestKekWraps: WalletRecoverySetRotationWireV1['manifestKekWraps'];
+        readonly entries: readonly WalletRecoverySetRotationWireV1['entry'][];
+        readonly recoveryCodeLocators: readonly {
+          readonly locatorB64u: string;
+          readonly recoveryKeyId: string;
+        }[];
+      };
+    };
+
+export type WalletRecoveryFactorProofFactory = (
+  request: WalletRecoveryFactorProofRequest,
+) => Promise<WalletCustodyFactorProof>;
 
 type EmailOtpWalletRecoveryRotationWorker = {
   rotateRecoverySet(args: {
@@ -57,6 +76,7 @@ export async function rotateWalletRecoverySetWithActiveFactorV1(input: {
   readonly relayUrl: string;
   readonly walletId: string;
   readonly factorProof: WalletRecoveryFactorProofFactory;
+  readonly statusRequestId: string;
   readonly custodyEnvelope: PasskeyCustodyEnvelopeRecord;
   readonly factorSecret: ArrayBuffer;
   readonly worker: WalletRecoveryRotationWorker;
@@ -85,6 +105,7 @@ export async function rotateWalletRecoverySetWithEmailOtpV1(input: {
   readonly relayUrl: string;
   readonly walletId: string;
   readonly factorProof: WalletRecoveryFactorProofFactory;
+  readonly statusRequestId: string;
   readonly worker: EmailOtpWalletRecoveryRotationWorker;
   readonly fetchImpl?: typeof fetch;
 }): Promise<WalletRecoveryRotationOutcome> {
@@ -106,6 +127,7 @@ async function rotateWithIssuedCodes(
     readonly relayUrl: string;
     readonly walletId: string;
     readonly factorProof: WalletRecoveryFactorProofFactory;
+    readonly statusRequestId: string;
     readonly fetchImpl?: typeof fetch;
   },
   issued: IssuedWalletRecoveryCodes,
@@ -113,9 +135,15 @@ async function rotateWithIssuedCodes(
     codeBytes: readonly Uint8Array[],
   ) => Promise<WalletRecoverySetRotationWorkerResultV1>,
 ): Promise<WalletRecoveryRotationOutcome> {
+  const statusPayload = { walletId: input.walletId, requestId: input.statusRequestId };
   const current = await readWalletRecoveryCodeStatus({
     relayUrl: input.relayUrl,
     walletId: input.walletId,
+    requestId: input.statusRequestId,
+    factorProof: await input.factorProof({
+      operation: 'recovery_status',
+      payload: statusPayload,
+    }),
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
   });
   if (current.kind !== 'ready') {

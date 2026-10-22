@@ -723,6 +723,7 @@ export interface EmailOtpWorkerOperationMap {
     payload: {
       relayUrl: string;
       walletId: string;
+      walletAuthMethodId: string;
       userId: string;
       groupId: string;
       routePlan: EmailOtpRoutePlan;

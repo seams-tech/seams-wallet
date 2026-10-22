@@ -1,4 +1,9 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
+import {
+  buildDelegatedWalletAuthorityV1,
+  buildFullOwnerPermissionsV1,
+  sameDelegatedWalletAuthorityV1,
+} from '@shared/authorization/delegatedAuthority';
 import { json, jsonFailure, readJson } from '../../../framework/http';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import { resolveThresholdRuntimePolicyScope } from '../../../auth/commonRouterUtils';
@@ -18,6 +23,15 @@ function assertNeverAuthProviderAction(route: never): never {
 
 function assertNeverAuthIdentityMutation(route: never): never {
   throw new Error(`Unsupported auth identity mutation: ${String(route)}`);
+}
+
+function hasFullOwnerAuthority(
+  context: RouterApiWalletSessionAuthorizationV2AdmissionContext,
+): boolean {
+  return sameDelegatedWalletAuthorityV1(
+    buildDelegatedWalletAuthorityV1({ permissions: context.authority.permissions }),
+    buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
+  );
 }
 
 type RequiredExactWalletSession =
@@ -110,6 +124,9 @@ export async function handleAuth(ctx: FetchRouterApiContext): Promise<Response |
     const command = parsed.request;
     const sess = await requireExactWalletSession(ctx);
     if (!sess.ok) return sess.response;
+    if (!hasFullOwnerAuthority(sess.context)) {
+      return jsonFailure(403, 'forbidden', 'Full owner authority is required to manage identities');
+    }
     const walletId = String(sess.context.authorization.session.walletId);
 
     const stepUpRequest = command.request.stepUp;

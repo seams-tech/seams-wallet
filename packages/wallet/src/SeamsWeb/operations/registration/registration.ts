@@ -182,7 +182,10 @@ import {
   collectPasskeyRegistrationAuthorityFromCredential,
 } from '@/SeamsWeb/operations/authMethods/passkey/registrationAuthority';
 import { showWalletRecoveryCodeBackupUi } from '@/SeamsWeb/operations/recovery/walletRecoveryCodeBackup';
-import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
+import {
+  pendingWalletRecoveryCodeBackupRepository,
+  type PendingWalletRecoveryBackupRef,
+} from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { RegistrationFinalizeIdempotencyKey } from '@/SeamsWeb/publicApi/types';
 import { registrationFinalizeIdempotencyKeyFromString } from '@/SeamsWeb/publicApi/types';
 import { collectEmailOtpRegistrationAuthority } from '@/SeamsWeb/operations/authMethods/emailOtp/registrationAuthority';
@@ -307,7 +310,7 @@ async function confirmWalletRecoveryCodesBackedUp(
   walletId: string,
   backup: WalletRecoveryCodeBackupDuringRegistrationV1 | undefined,
   recoveryCodes: readonly string[],
-): Promise<void> {
+): Promise<PendingWalletRecoveryBackupRef | null> {
   if (recoveryCodes.length !== 10 || new Set(recoveryCodes).size !== 10) {
     throw new Error('Wallet custody must issue exactly ten distinct recovery codes');
   }
@@ -324,13 +327,29 @@ async function confirmWalletRecoveryCodesBackedUp(
   });
   switch (acknowledgement?.kind) {
     case 'wallet_recovery_codes_backed_up_v1':
-      return;
+      return null;
     case 'wallet_recovery_code_backup_deferred_v1':
-      await pendingWalletRecoveryCodeBackupRepository.write({ walletId, recoveryCodes });
-      return;
+      return await pendingWalletRecoveryCodeBackupRepository.write({ walletId, recoveryCodes });
     default:
       throw new Error('Wallet recovery-code backup result is invalid');
   }
+}
+
+type PendingRecoveryBackupRefHolder = { value: PendingWalletRecoveryBackupRef | null };
+
+async function confirmWalletRecoveryCodesBackedUpInto(
+  holder: PendingRecoveryBackupRefHolder,
+  context: RegistrationWebContext,
+  walletId: string,
+  backup: WalletRecoveryCodeBackupDuringRegistrationV1 | undefined,
+  recoveryCodes: readonly string[],
+): Promise<void> {
+  holder.value = await confirmWalletRecoveryCodesBackedUp(
+    context,
+    walletId,
+    backup,
+    recoveryCodes,
+  );
 }
 
 async function resolveRegistrationRecoveryCodeBackup(input: {
@@ -3998,6 +4017,7 @@ async function registerEcdsaOrMixedWallet(
           : null,
     };
     let persistedPendingCommit: PendingWalletRegistrationCommitV1 | null = null;
+    const pendingBackupRefHolder: PendingRecoveryBackupRefHolder = { value: null };
     let ceremony: Awaited<ReturnType<typeof runEcdsaEnabledThreeRouteRegistrationCeremony>>;
     try {
       ceremony = await registrationTiming.measure('ecdsaRegistrationTotalMs', () =>
@@ -4038,8 +4058,9 @@ async function registerEcdsaOrMixedWallet(
           },
           traceContext,
           registrationTiming,
-          confirmRecoveryCodesBackedUp: confirmWalletRecoveryCodesBackedUp.bind(
+          confirmRecoveryCodesBackedUp: confirmWalletRecoveryCodesBackedUpInto.bind(
             undefined,
+            pendingBackupRefHolder,
             context,
             String(walletId),
             options.recoveryCodeBackup,
@@ -4106,6 +4127,16 @@ async function registerEcdsaOrMixedWallet(
         zeroizeArrayBuffer(walletCustodyNearJoinFactorSecretOwner.value);
         walletCustodyNearJoinFactorSecretOwner.value = null;
       }
+    }
+    if (pendingBackupRefHolder.value) {
+      const committed = ceremony.activated.walletCustody;
+      if (committed?.status !== 'committed') {
+        throw new Error('Deferred recovery codes lack a committed server issuance');
+      }
+      await pendingWalletRecoveryCodeBackupRepository.bindIssuedAtMs(
+        pendingBackupRefHolder.value,
+        committed.issuedAtMs,
+      );
     }
     const ecdsaSession = ceremony.session;
     /* Activate's response is the finalize terminal wallet plus the activation
@@ -4536,7 +4567,7 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     } finally {
       zeroizeArrayBuffer(emailOtpWalletCustodyFactorSecret);
     }
-    await confirmWalletRecoveryCodesBackedUp(
+    const pendingBackupRef = await confirmWalletRecoveryCodesBackedUp(
       context,
       String(walletId),
       options.recoveryCodeBackup,
@@ -4609,6 +4640,12 @@ async function registerEmailOtpEd25519YaoWalletOnly(
     if (finalized.walletCustody?.status !== 'committed') {
       const status = finalized.walletCustody?.status ?? 'not_reported';
       throw new Error(`Wallet custody did not commit (${status})`);
+    }
+    if (pendingBackupRef) {
+      await pendingWalletRecoveryCodeBackupRepository.bindIssuedAtMs(
+        pendingBackupRef,
+        finalized.walletCustody.issuedAtMs,
+      );
     }
     if (finalized.ed25519.signerSlot !== args.ed25519Selection.signerSlot) {
       throw new Error('Ed25519 Yao finalize returned a different signer slot');
@@ -5017,7 +5054,7 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
     }
     const parsedCredentialId = { value: credentialIdOf(passkeyAuthority) };
     registrationTiming.markNearStage(setup.registrationCeremonyId, 'near_only.custody');
-    await confirmWalletRecoveryCodesBackedUp(
+    const pendingBackupRef = await confirmWalletRecoveryCodesBackedUp(
       context,
       String(intent.walletId),
       options.recoveryCodeBackup,
@@ -5111,6 +5148,15 @@ async function registerPasskeyEd25519YaoWalletOnly(args: {
         finalized.walletCustody?.status === 'rejected' ? `: ${finalized.walletCustody.reason}` : '';
       throw new Error(
         `Wallet custody did not commit (${status})${reason}. The recovery codes shown are not usable.`,
+      );
+    }
+    if (pendingBackupRef) {
+      if (finalized.walletCustody?.status !== 'committed') {
+        throw new Error('Deferred recovery codes lack a committed server issuance');
+      }
+      await pendingWalletRecoveryCodeBackupRepository.bindIssuedAtMs(
+        pendingBackupRef,
+        finalized.walletCustody.issuedAtMs,
       );
     }
     const registrationSession = requireIssuedRegistrationEstablishedSession(

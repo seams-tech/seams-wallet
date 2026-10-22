@@ -29,10 +29,7 @@ type AuthenticationMethodView = {
         readonly kind: 'passkey';
         readonly description: string;
       }
-    | {
-        readonly kind: 'email_otp';
-        readonly emailAddress: string | null;
-      };
+    | { readonly kind: 'email_otp' };
 };
 
 type CurrentAuthorityInventory =
@@ -100,10 +97,7 @@ function methodView(credential: LinkedOwnerCredentialMetadataV1): Authentication
       return {
         kind: 'email_otp',
         walletAuthMethodId: String(credential.walletAuthMethodId),
-        presentation: {
-          kind: 'email_otp',
-          emailAddress: String(credential.email),
-        },
+        presentation: { kind: 'email_otp' },
       };
   }
 }
@@ -120,7 +114,7 @@ function selectedMethodView(binding: WalletAuthMethodBinding): AuthenticationMet
       return {
         kind: 'email_otp',
         walletAuthMethodId: String(binding.walletAuthMethodId),
-        presentation: { kind: 'email_otp', emailAddress: null },
+        presentation: { kind: 'email_otp' },
       };
   }
 }
@@ -190,7 +184,7 @@ function methodDescription(method: AuthenticationMethodView): string {
     case 'passkey':
       return method.presentation.description;
     case 'email_otp':
-      return method.presentation.emailAddress ?? 'Email OTP on this device';
+      return 'Email OTP';
   }
 }
 

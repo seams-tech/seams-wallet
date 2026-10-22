@@ -972,6 +972,7 @@ export async function loginWithEmailOtpAndUnlockWallet(args: {
 export type EmailOtpWalletCustodySeedUnlock = {
   readonly relayUrl: string;
   readonly walletId: string;
+  readonly walletAuthMethodId: string;
   readonly userId: string;
   readonly groupId: string;
   readonly routePlan: EmailOtpRoutePlan;
@@ -991,7 +992,10 @@ export async function unlockEmailOtpWalletCustodySeed(
   const recovered = await loginWithEmailOtpAndUnlockWallet({
     relayUrl: args.relayUrl,
     walletId: args.walletId,
-    authoritySelector: { kind: 'wallet' },
+    authoritySelector: {
+      kind: 'wallet_auth_method',
+      walletAuthMethodId: args.walletAuthMethodId,
+    },
     userId: args.userId,
     groupId: args.groupId,
     routePlan: args.routePlan,

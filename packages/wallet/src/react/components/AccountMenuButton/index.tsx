@@ -353,14 +353,26 @@ const AccountMenuButtonInner: React.FC<
 
   const startRecoveryCodesFlow = useCallback(async () => {
     if (recoveryCodesOpen || !walletId) return;
+    if (!loginState.isLoggedIn || loginState.currentAuthMethod.kind !== 'selected') {
+      setSettingsError('Unlock this wallet to confirm its recovery-code backup.');
+      return;
+    }
+    const authorization =
+      loginState.currentAuthMethod.binding.kind === 'passkey'
+        ? { kind: 'passkey' as const }
+        : { kind: 'email_otp' as const };
     setRecoveryCodesOpen(true);
     setSettingsError(null);
     try {
-      const result = await recovery.confirmBackup({ walletId });
+      const result = await recovery.confirmBackup({
+        walletId,
+        authorization,
+      });
       switch (result.kind) {
         case 'acknowledged':
           return;
         case 'no_recovery_set':
+        case 'conflict':
         case 'unauthorized':
         case 'transport_failed':
           setSettingsError(result.message);
@@ -375,7 +387,7 @@ const AccountMenuButtonInner: React.FC<
     } finally {
       setRecoveryCodesOpen(false);
     }
-  }, [recovery, recoveryCodesOpen, walletId]);
+  }, [loginState, recovery, recoveryCodesOpen, walletId]);
 
   // Chain rows for the Accounts expander: one per configured chain with a
   // known account/address and explorer URL, linking to the account page.

@@ -5,9 +5,10 @@ import type {
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import { computeWalletAuthMethodRevokeOperationFingerprintV1 } from '@shared/utils/walletAuthMethodRecord';
-import type {
-  LinkedDeviceManagementServiceV1,
-  LinkedDeviceManagementSourceV1,
+import {
+  MAX_FRESH_REVOCATION_PROOF_AGE_MS_V1,
+  type LinkedDeviceManagementServiceV1,
+  type LinkedDeviceManagementSourceV1,
 } from '../../../../core/deviceLinking/linkedDeviceManagement';
 import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import type { DeviceLinkingAuthDeniedV1 } from '../../../transport/fetch/routes/deviceLinking';
@@ -92,6 +93,15 @@ export function createD1LinkedDeviceRevocationV1(deps: {
     };
     const committed = await answeredFromRecord();
     if (committed) return committed;
+
+    const nowMs = deps.nowV1();
+    if (requestedAtMs > nowMs || nowMs - requestedAtMs > MAX_FRESH_REVOCATION_PROOF_AGE_MS_V1) {
+      return {
+        kind: 'denied',
+        code: 'invalid',
+        message: 'Fresh revocation proof request time is invalid',
+      };
+    }
 
     const verified = await deps.verifyProofForBatch({
       walletId,

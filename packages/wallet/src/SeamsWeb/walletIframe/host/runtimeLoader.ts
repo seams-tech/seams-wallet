@@ -11,7 +11,10 @@ let recoveryCodeSurfacePromise: Promise<void> | null = null;
 export function loadWalletHostRuntime(
   route: RuntimeWalletHostRoute,
 ): Promise<WalletHostRuntimeModule> {
-  if (route.type === 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP') {
+  if (route.request.type === 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP') {
+    if (route.request.payload?.authorization?.kind === 'email_otp') {
+      return loadRuntime(route.kind);
+    }
     recoveryCodeRuntimePromise ??= import('./runtime-recovery-codes');
     return recoveryCodeRuntimePromise;
   }

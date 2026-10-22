@@ -830,6 +830,9 @@ Expected behaviour:
   The response waits for publication and the finalization receipt. It binds the seal
   to the committed wallet, session and expiry. A sealing failure does not prevent
   the registration receipt from committing. The client can recover through normal unlock.
+  The server derives each signing-session seal lock key from the committed wallet ID
+  and exact threshold session ID. The remove route checks an unexpired Wallet
+  Session for both IDs before it transforms the stored ciphertext.
   Preparation creates no signing authority. Temporary keys are consumed once for
   the matching session and factor, or discarded on failure, lock, expiry, or abandonment.
 - After NEAR authority publication, passkey session hydration and local signer
@@ -1101,6 +1104,15 @@ Expected behaviour:
   entering a code held by another active recovery, reports that it has already
   been used and directs the owner to another code. An abandoned reservation
   becomes reusable after it expires.
+- A committed custody registration response reports the server's recovery-code
+  issuance time. Locally pending codes bind to that time after the commit.
+- Recovery-code status and backup acknowledgement require fresh proof from an
+  active full-owner method, bound to the exact request. Acknowledgement names
+  the code issuance the owner saw. Rotating the set leaves newer codes awaiting
+  their own acknowledgement.
+- Email OTP recovery-code rotation collects separate codes for status, wallet
+  seed unlock, and approval of the replacement set inside the wallet. The host
+  application supplies only the selected factor kind.
 
 Failure behaviour:
 
@@ -1164,6 +1176,11 @@ retain the canonical send path's contracts.
 
 EVM and Tempo use `signTransaction` for signing without broadcast and
 `signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
+An EVM-family execution reports success only after a mined receipt names the
+broadcast transaction hash and has execution status `0x1`. Status `0x0`
+reports a revert. A missing or unrecognized status and a mismatched hash do
+not report success. An unavailable transaction lookup does not replace a valid
+receipt.
 React wallet bindings use the same names. Existing result types, payload
 verification, review reservations, cancellation, and nonce reporting retain their
 contracts. Custom broadcasters report lifecycle outcomes through `advanced`.

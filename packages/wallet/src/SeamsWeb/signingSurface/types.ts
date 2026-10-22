@@ -32,7 +32,7 @@ import type {
   WalletLockGenerationSurface,
   UnlockedEd25519ExportRootCapabilitySurface,
   WebAuthnRegistrationConfirmationSurface,
-  EmailOtpEnrollmentConfirmationSurface,
+  EmailOtpOwnerConfirmationSurface,
 } from './ports';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
@@ -125,7 +125,7 @@ export interface SeamsWebSigningSurface
     Ed25519MaterialOwnerQueueSurface,
     Pick<AccountSyncSigningSurface, 'storeNearThresholdKeyMaterial'>,
     WebAuthnRegistrationConfirmationSurface,
-    EmailOtpEnrollmentConfirmationSurface,
+    EmailOtpOwnerConfirmationSurface,
     PasskeyLoginAssertionSurface,
     KeyExportSigningSurface {
   readonly seamsWebConfigs: SeamsConfigsReadonly;

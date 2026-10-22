@@ -342,7 +342,12 @@ export interface RouterApiPasskeyCustodyService {
    */
   acknowledgeRecoveryBackup(request: {
     readonly walletId: string;
-  }): Promise<{ kind: 'acknowledged'; issuedAtMs: number } | { kind: 'no_recovery_set' }>;
+    readonly expectedIssuedAtMs: number;
+  }): Promise<
+    | { kind: 'acknowledged'; issuedAtMs: number }
+    | { kind: 'no_recovery_set' }
+    | { kind: 'conflict' }
+  >;
 
   /**
    * Replaces the wallet's recovery codes with a freshly wrapped set.
@@ -927,15 +932,32 @@ export function createD1PasskeyCustodyRouteService(assembly: {
         authenticatorStore,
         logger: assembly.logger,
       });
-      if (response.status === 200 && request.locator.factor.kind === 'passkey') {
-        await assembly.passkeyCustodyEnvelopes
-          .recordWalletCredentialUse({
-            walletId: request.locator.walletId,
-            envelopeId: locator.envelopeId,
-            usedAtMs: (assembly.nowMs ?? Date.now)(),
-          })
-          .catch(() => undefined);
+      if (response.status !== 200) return response;
+
+      const method = await assembly.walletCustodyCommits.readPasskeyWalletAuthMethod({
+        rpId: String(locator.factor.rpId),
+        credentialIdB64u: String(locator.factor.credentialIdB64u),
+      });
+      if (!method || method.walletId !== locator.walletId) {
+        return {
+          status: 404,
+          body: failure('envelope_missing', 'no custody envelope for this wallet and credential'),
+        };
       }
+      if (method.status !== 'active') {
+        return {
+          status: 403,
+          body: failure('envelope_revoked', 'this credential no longer opens the wallet'),
+        };
+      }
+
+      await assembly.passkeyCustodyEnvelopes
+        .recordWalletCredentialUse({
+          walletId: locator.walletId,
+          envelopeId: locator.envelopeId,
+          usedAtMs: (assembly.nowMs ?? Date.now)(),
+        })
+        .catch(() => undefined);
       return response;
     },
 
@@ -970,13 +992,15 @@ export function createD1PasskeyCustodyRouteService(assembly: {
       if (!stored) return { kind: 'no_recovery_set' };
 
       const issuedAtMs = Number(stored.record.issuedAtMs);
-      await assembly.walletCustodyCommits.writeBackupAcknowledgement(
+      if (issuedAtMs !== request.expectedIssuedAtMs) return { kind: 'conflict' };
+      const written = await assembly.walletCustodyCommits.writeBackupAcknowledgement(
         buildWalletRecoveryBackupAcknowledgementV1({
           walletId: request.walletId,
-          issuedAtMs,
+          issuedAtMs: request.expectedIssuedAtMs,
           acknowledgedAtMs: (assembly.nowMs ?? Date.now)(),
         }),
       );
+      if (written.kind === 'conflict') return { kind: 'conflict' };
       return { kind: 'acknowledged', issuedAtMs };
     },
 

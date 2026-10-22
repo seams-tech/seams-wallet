@@ -31,6 +31,11 @@ type RecoveryCodeBackupUiOptions = {
   readonly shouldCancel?: () => boolean;
 };
 
+type RecoveryCodeExperienceResult =
+  | { readonly kind: 'registration_backed_up' }
+  | { readonly kind: 'account_menu_backed_up'; readonly issuedAtMs: number }
+  | { readonly kind: 'deferred' };
+
 /**
  * Shows the recovery-code backup dialog and resolves with the user's
  * acknowledgement. This wrapper owns the promise contract: an acknowledged
@@ -41,7 +46,7 @@ async function showRecoveryCodeExperience(
   experience: RecoveryCodeBackupExperience,
   measurementBinding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' },
   options: RecoveryCodeBackupUiOptions = {},
-): Promise<WalletRecoveryCodeBackupAcknowledgementV1> {
+): Promise<RecoveryCodeExperienceResult> {
   if (typeof document === 'undefined') {
     throw new Error('Wallet recovery-code backup requires a browser or a backup handler');
   }
@@ -58,7 +63,7 @@ async function showRecoveryCodeExperience(
   let surface: ReturnType<typeof surfaceModule.mountRecoveryCodeBackupSurface> | null = null;
   let settled = false;
 
-  return await new Promise<WalletRecoveryCodeBackupAcknowledgementV1>((resolve, reject) => {
+  return await new Promise<RecoveryCodeExperienceResult>((resolve, reject) => {
     const cleanup = (): void => {
       measurementReporter?.disconnect();
       measurementReporter = null;
@@ -67,7 +72,7 @@ async function showRecoveryCodeExperience(
       previousFocus?.focus();
     };
 
-    const settle = (result: WalletRecoveryCodeBackupAcknowledgementV1 | Error): void => {
+    const settle = (result: RecoveryCodeExperienceResult | Error): void => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -82,14 +87,22 @@ async function showRecoveryCodeExperience(
           return;
         case 'recovery_codes':
           if (detail.acknowledged) {
-            settle({ kind: 'wallet_recovery_codes_backed_up_v1' });
+            if (experience.kind === 'account_menu') {
+              if (detail.request.continuation !== 'pending_backup_must_finish') {
+                settle(new Error('Displayed recovery codes have no committed issuance'));
+                return;
+              }
+              settle({ kind: 'account_menu_backed_up', issuedAtMs: detail.request.issuedAtMs });
+              return;
+            }
+            settle({ kind: 'registration_backed_up' });
             return;
           }
           if (
             experience.kind === 'direct_backup' &&
             experience.request.continuation === 'registration_may_defer'
           ) {
-            settle({ kind: 'wallet_recovery_code_backup_deferred_v1' });
+            settle({ kind: 'deferred' });
             return;
           }
           settle(new Error(CANCELLED_MESSAGE));
@@ -125,19 +138,34 @@ export async function showWalletRecoveryCodeBackupUi(
   request: WalletRecoveryCodeBackupRequestV1,
   measurementBinding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' },
 ): Promise<WalletRecoveryCodeBackupAcknowledgementV1> {
-  return await showRecoveryCodeExperience({ kind: 'direct_backup', request }, measurementBinding);
+  const result = await showRecoveryCodeExperience(
+    { kind: 'direct_backup', request },
+    measurementBinding,
+  );
+  switch (result.kind) {
+    case 'registration_backed_up':
+      return { kind: 'wallet_recovery_codes_backed_up_v1' };
+    case 'deferred':
+      return { kind: 'wallet_recovery_code_backup_deferred_v1' };
+    case 'account_menu_backed_up':
+      throw new Error('Registration backup returned an account-menu issuance');
+  }
 }
 
 export async function showWalletRecoveryCodesUi(
   request: WalletRecoveryCodesUiRequest,
   measurementBinding: UiConfirmSurfaceMeasurementBinding = { kind: 'disabled' },
   options: RecoveryCodeBackupUiOptions = {},
-): Promise<WalletRecoveryCodeBackupAcknowledgementV1> {
-  return await showRecoveryCodeExperience(
+): Promise<{ readonly kind: 'wallet_recovery_codes_backed_up_v1'; readonly issuedAtMs: number }> {
+  const result = await showRecoveryCodeExperience(
     { kind: 'account_menu', ...request },
     measurementBinding,
     options,
   );
+  if (result.kind !== 'account_menu_backed_up') {
+    throw new Error('Account-menu backup did not acknowledge committed recovery codes');
+  }
+  return { kind: 'wallet_recovery_codes_backed_up_v1', issuedAtMs: result.issuedAtMs };
 }
 
 function postRecoveryMeasurement(

@@ -2266,6 +2266,19 @@ export class CloudflareD1WalletAuthMethodService {
         message: 'Wallet Email OTP authority is unavailable',
       };
     }
+    const walletAuthority = await this.walletAuthorityStore.readById(record.walletAuthorityId);
+    if (
+      !walletAuthority ||
+      walletAuthority.state !== 'active' ||
+      walletAuthority.walletId !== record.walletId ||
+      !isFullOwnerAuthorityV1(walletAuthority)
+    ) {
+      return {
+        ok: false,
+        code: 'forbidden',
+        message: 'Full owner authority is required',
+      };
+    }
     const provider: EmailOtpProvider = providerUserId.startsWith('google:') ? 'google' : 'email';
     try {
       const authority = buildEmailOtpWalletAuthAuthority({

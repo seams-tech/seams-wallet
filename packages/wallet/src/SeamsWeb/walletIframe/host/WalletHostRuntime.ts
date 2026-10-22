@@ -20,11 +20,13 @@ import { IndexedDBManager, configureIndexedDB } from '@/core/indexedDB';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
 import type { TempoChainTarget } from '@/core/platform/types';
 import { MinimalNearClient, type NearClient } from '@/core/rpcClients/near/NearClient';
+import { requestWalletCustodyEmailOtpChallenge } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import {
-  acknowledgeWalletRecoveryBackup,
-  readWalletRecoveryCodeStatus,
-  requestWalletCustodyEmailOtpChallenge,
-} from '@/core/rpcClients/relayer/walletRecoveryRotate';
+  acknowledgeWalletRecoveryBackupWithEmailOtp,
+  acknowledgeWalletRecoveryBackupWithPasskey,
+  readWalletRecoveryCodeStatusWithEmailOtp,
+  readWalletRecoveryCodeStatusWithPasskey,
+} from '@/SeamsWeb/operations/recovery/walletRecoveryAdminProof';
 import type { EvmSignedResult } from '@/core/signingEngine/chains/evm/evmAdapter';
 import {
   requireTempoFeeTokenPreferenceSigningRequest,
@@ -407,12 +409,20 @@ export class WalletHostRuntime {
     return this.onSdkLifecycleEvent(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async getCodeStatusDomain(args: { walletId: string }) {
+  private async getCodeStatusDomain(args: Parameters<RecoveryCapability['getCodeStatus']>[0]) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
-    const status = await readWalletRecoveryCodeStatus({
-      relayUrl,
-      walletId: args.walletId,
-    });
+    const status =
+      args.authorization.kind === 'passkey'
+        ? await readWalletRecoveryCodeStatusWithPasskey({
+            relayUrl,
+            walletId: args.walletId,
+            rpId: this.configs.wallet.rpId,
+          })
+        : await readWalletRecoveryCodeStatusWithEmailOtp({
+            context: this.getContext(),
+            relayUrl,
+            walletId: args.walletId,
+          });
     return status.kind === 'ready'
       ? {
           ...status,
@@ -420,12 +430,24 @@ export class WalletHostRuntime {
         }
       : status;
   }
-  private async confirmBackupDomain(args: { walletId: string }) {
+  private async preloadedCodeStatusDomain(
+    status: Awaited<ReturnType<RecoveryCapability['getCodeStatus']>>,
+  ): ReturnType<RecoveryCapability['getCodeStatus']> {
+    return status;
+  }
+  private async confirmBackupDomain(args: Parameters<RecoveryCapability['confirmBackup']>[0]) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
+    let loadStatus: () => ReturnType<RecoveryCapability['getCodeStatus']> =
+      this.getCodeStatusDomain.bind(this, args);
+    if (args.authorization.kind === 'email_otp') {
+      const status = await loadStatus();
+      if (status.kind !== 'ready') throw new Error(status.message);
+      loadStatus = this.preloadedCodeStatusDomain.bind(this, status);
+    }
     const acknowledgement = await showWalletRecoveryCodesUi(
       {
         walletId: args.walletId,
-        loadStatus: this.getCodeStatusDomain.bind(this, args),
+        loadStatus,
         loadPendingBackup: this.loadPendingWalletRecoveryCodeBackupRequest.bind(
           this,
           args.walletId,
@@ -437,12 +459,25 @@ export class WalletHostRuntime {
     if (acknowledgement.kind !== 'wallet_recovery_codes_backed_up_v1') {
       throw new Error('Pending wallet recovery-code backup was not completed');
     }
-    const result = await acknowledgeWalletRecoveryBackup({
-      relayUrl,
-      walletId: args.walletId,
-    });
+    const result =
+      args.authorization.kind === 'passkey'
+        ? await acknowledgeWalletRecoveryBackupWithPasskey({
+            relayUrl,
+            walletId: args.walletId,
+            rpId: this.configs.wallet.rpId,
+            expectedIssuedAtMs: acknowledgement.issuedAtMs,
+          })
+        : await acknowledgeWalletRecoveryBackupWithEmailOtp({
+            context: this.getContext(),
+            relayUrl,
+            walletId: args.walletId,
+            expectedIssuedAtMs: acknowledgement.issuedAtMs,
+          });
     if (result.kind === 'acknowledged') {
-      await pendingWalletRecoveryCodeBackupRepository.delete(args.walletId);
+      await pendingWalletRecoveryCodeBackupRepository.deleteIssuedAtMs(
+        args.walletId,
+        acknowledgement.issuedAtMs,
+      );
     }
     return result;
   }
@@ -450,14 +485,17 @@ export class WalletHostRuntime {
     walletId: string,
   ): Promise<WalletRecoveryCodeBackupRequestV1 | null> {
     const pending = await pendingWalletRecoveryCodeBackupRepository.read(walletId);
-    return pending
-      ? {
-          kind: 'wallet_recovery_code_backup_request_v1',
-          walletId: pending.walletId,
-          recoveryCodes: pending.recoveryCodes,
-          continuation: 'pending_backup_must_finish',
-        }
-      : null;
+    if (!pending) return null;
+    if (pending.kind !== 'ready') {
+      throw new Error('Recovery codes are awaiting a verified server issuance. Retry registration.');
+    }
+    return {
+      kind: 'wallet_recovery_code_backup_request_v1',
+      walletId: pending.walletId,
+      recoveryCodes: pending.recoveryCodes,
+      continuation: 'pending_backup_must_finish',
+      issuedAtMs: pending.issuedAtMs,
+    };
   }
   private async requestWalletCustodyEmailOtpChallengeDomain(
     args: Parameters<RecoveryCapability['requestWalletCustodyEmailOtpChallenge']>[0],

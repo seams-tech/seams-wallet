@@ -7,6 +7,7 @@ type ReceiptCase =
   | 'reverted'
   | 'wrong_sender'
   | 'wrong_hash'
+  | 'missing_status'
   | 'wrong_chain'
   | 'timeout'
   | 'cancelled';
@@ -28,12 +29,15 @@ async function replyToRpc(counts: Map<string, number>, route: Route): Promise<vo
       scenario === 'cancelled' ||
       ((scenario === 'confirmed' || scenario === 'reverted') && count === 1);
     if (!pending) {
-      result = {
+      const receipt: Record<string, string> = {
         transactionHash: scenario === 'wrong_hash' ? `0x${'33'.repeat(32)}` : HASH,
         from: scenario === 'wrong_sender' ? '0x3333333333333333333333333333333333333333' : ACCOUNT,
-        status: scenario === 'reverted' ? '0x0' : '0x1',
         blockNumber: '0x10',
       };
+      if (scenario !== 'missing_status') {
+        receipt.status = scenario === 'reverted' ? '0x0' : '0x1';
+      }
+      result = receipt;
     }
   }
   await route.fulfill({
@@ -60,7 +64,7 @@ async function waitInBrowser(scenario: ReceiptCase) {
       chainId: 1,
     },
     {
-      timeoutMs: scenario === 'timeout' ? 50 : 5_000,
+      timeoutMs: scenario === 'timeout' || scenario === 'missing_status' ? 50 : 5_000,
       signal: scenario === 'cancelled' ? AbortSignal.timeout(250) : undefined,
     },
   );
@@ -82,6 +86,7 @@ test('receipt waiting follows pending inclusion and rejects mismatched, expired,
     'reverted',
     'wrong_sender',
     'wrong_hash',
+    'missing_status',
     'wrong_chain',
     'timeout',
     'cancelled',

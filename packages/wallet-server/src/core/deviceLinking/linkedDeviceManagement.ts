@@ -24,9 +24,7 @@ import type { OrdinaryInactiveSignerMaterialDeactivationPortV1 } from '../signin
 import {
   parseWalletAuthorityId,
   parseLinkedDeviceId,
-  parseVerifiedEmailAddress,
   type MpcMaterialActivationRef,
-  type VerifiedEmailAddress,
   type WalletAuthorityId,
   type WalletAuthMethodId,
   type WalletId,
@@ -169,13 +167,6 @@ type LinkedDeviceManagementCredentialMetadataPortV1 = {
     readonly walletId: WalletId;
     readonly credentialIdB64u: string;
   }): Promise<WebAuthnAuthenticatorDeviceInfo | null>;
-  /**
-   * The wallet's verified Email OTP address, from its canonical enrollment.
-   * Served only inside the owner-scoped management projection, which is why the
-   * plaintext address (not the hash) is acceptable here: the reader is the
-   * wallet owner who enrolled it.
-   */
-  readEmailOtpAddressV1(input: { readonly walletId: WalletId }): Promise<string | null>;
 };
 
 type LinkedDeviceManagementServiceOptionsV1 = {
@@ -211,7 +202,6 @@ export class LinkedDeviceManagementServiceV1 {
     });
     const devices: LinkedDeviceSummaryV1[] = [];
     const ownerDevices: OwnerDeviceSummaryV1[] = [];
-    const emailOtpAddress = emailOtpAddressOnceV1(this.options.credentials, request.walletId);
     for (const authority of page.records) {
       const methods = await this.options.authMethod.listForAuthorityV1({
         walletId: authority.walletId,
@@ -226,7 +216,7 @@ export class LinkedDeviceManagementServiceV1 {
            entry it always produced. */
         for (const activeMethod of activeMethods) {
           devices.push(
-            await this.buildLinkedDeviceSummaryV1(authority, activeMethod, emailOtpAddress),
+            await this.buildLinkedDeviceSummaryV1(authority, activeMethod),
           );
         }
       } else if (request.cursor === null) {
@@ -238,7 +228,7 @@ export class LinkedDeviceManagementServiceV1 {
            invisible and unremovable. */
         for (const activeMethod of activeMethods) {
           ownerDevices.push(
-            await this.buildOwnerDeviceSummaryV1(authority, activeMethod, emailOtpAddress),
+            await this.buildOwnerDeviceSummaryV1(authority, activeMethod),
           );
         }
       }
@@ -443,7 +433,6 @@ export class LinkedDeviceManagementServiceV1 {
   private async buildLinkedDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
     authMethod: ActiveWalletAuthMethodRecordV2,
-    emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<LinkedDeviceSummaryV1> {
     if (authority.provenance.kind !== 'device_link') {
       throw new Error('linked authority provenance is invalid');
@@ -456,7 +445,6 @@ export class LinkedDeviceManagementServiceV1 {
         this.options.credentials,
         authority.walletId,
         authMethod,
-        emailOtpAddress,
       ),
       permission: buildDelegatedWalletAuthorityV1({ permissions: authority.permissions }),
       keyManifestDigestB64u: authority.signerActivationSetDigestB64u,
@@ -471,7 +459,6 @@ export class LinkedDeviceManagementServiceV1 {
   private async buildOwnerDeviceSummaryV1(
     authority: ActiveWalletAuthorityV1,
     authMethod: ActiveWalletAuthMethodRecordV2,
-    emailOtpAddress: EmailOtpAddressLookupV1,
   ): Promise<OwnerDeviceSummaryV1> {
     return {
       walletId: authority.walletId,
@@ -480,7 +467,6 @@ export class LinkedDeviceManagementServiceV1 {
         this.options.credentials,
         authority.walletId,
         authMethod,
-        emailOtpAddress,
       ),
       createdAtMs: authority.createdAtMs,
       lastActivityAtMs: Math.max(authority.updatedAtMs, authMethod.updatedAtMs),
@@ -488,7 +474,7 @@ export class LinkedDeviceManagementServiceV1 {
   }
 }
 
-const MAX_FRESH_REVOCATION_PROOF_AGE_MS_V1 = 5 * 60 * 1000;
+export const MAX_FRESH_REVOCATION_PROOF_AGE_MS_V1 = 5 * 60 * 1000;
 
 function validateListLimit(limit: number): void {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_LINKED_DEVICE_LIST_LIMIT_V1) {
@@ -516,40 +502,15 @@ function isActiveAuthMethod(
   return record.status === 'active';
 }
 
-type EmailOtpAddressLookupV1 = () => Promise<VerifiedEmailAddress>;
-
-/**
- * One wallet has one verified Email OTP address (its canonical enrollment), so
- * the list path reads it at most once regardless of how many methods share it.
- */
-function emailOtpAddressOnceV1(
-  credentials: LinkedDeviceManagementCredentialMetadataPortV1,
-  walletId: WalletId,
-): EmailOtpAddressLookupV1 {
-  let pending: Promise<VerifiedEmailAddress> | null = null;
-  return () => {
-    pending ??= (async () => {
-      const raw = await credentials.readEmailOtpAddressV1({ walletId });
-      if (raw === null) throw new Error('active email OTP enrollment address is missing');
-      const parsed = parseVerifiedEmailAddress(raw);
-      if (!parsed.ok) throw new Error('active email OTP enrollment address is invalid');
-      return parsed.value;
-    })();
-    return pending;
-  };
-}
-
 async function credentialMetadataV1(
   credentials: LinkedDeviceManagementCredentialMetadataPortV1,
   walletId: WalletId,
   authMethod: ActiveWalletAuthMethodRecordV2,
-  emailOtpAddress: EmailOtpAddressLookupV1,
 ): Promise<LinkedDeviceSummaryV1['credential']> {
   if (authMethod.kind === 'email_otp') {
     return {
       kind: 'email_otp',
       walletAuthMethodId: authMethod.walletAuthMethodId,
-      email: await emailOtpAddress(),
     };
   }
   const device = await credentials.readPasskeyDeviceInfoV1({

@@ -203,7 +203,7 @@ function credentialDescription(credential: LinkedOwnerCredentialMetadataV1): str
     case 'passkey':
       return credential.device.label;
     case 'email_otp':
-      return 'Email code';
+      return 'Email OTP';
   }
 }
 
@@ -228,7 +228,7 @@ function deviceMetaLine(
     const provider = credential.device.providerLabel ?? credential.device.provider;
     if (provider) parts.push(provider);
   } else {
-    parts.push(String(credential.email));
+    parts.push(walletText(locale, 'Email OTP'));
   }
   if (titleCollides)
     parts.push(

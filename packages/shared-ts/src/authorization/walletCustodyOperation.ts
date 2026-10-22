@@ -5,7 +5,9 @@ export type WalletCustodyAdminOperation =
   | 'credentials_list'
   | 'credential_label'
   | 'recovery_rotate'
-  | 'recovery_read';
+  | 'recovery_read'
+  | 'recovery_status'
+  | 'recovery_backup_acknowledge';
 
 /** Public challenge digest for a single wallet-administration factor proof. */
 export async function computeWalletCustodyAdminChallengeDigest(input: {

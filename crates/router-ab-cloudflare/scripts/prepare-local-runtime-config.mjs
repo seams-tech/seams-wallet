@@ -120,8 +120,10 @@ export function prepareLocalHostedWalletGatewayConfig(input) {
     SEAMS_STAGING_ENV_ID: deployment.deployment.environmentId,
     SEAMS_STAGING_ORG_ID: deployment.deployment.orgId,
     SEAMS_STAGING_PROJECT_ID: deployment.deployment.projectId,
-    SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS: 'signing-session-seal-local-r2',
-    SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION: 'signing-session-seal-local-r2',
+    EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS:
+      'signing-session-seal-local-r2,signing-session-seal-local-r3',
+    SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS: 'signing-session-seal-local-r3',
+    SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION: 'signing-session-seal-local-r3',
     SIGNING_SESSION_SEAL_ROOT_SECRET_B64U: localSecret(internalAuthSecret, 'signing-session-seal'),
     SIGNING_WORKER_ID: requiredEnv(routerEnv, 'SIGNING_WORKER_ID'),
     WALLET_LOCAL_DEPLOYMENT_JSON: JSON.stringify(deployment),
@@ -523,6 +525,18 @@ function applyRoleVars(source, role, env) {
         'vars',
         'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY',
         requiredEnv(env.signingWorkerEnv, 'SIGNING_WORKER_SERVER_OUTPUT_HPKE_PUBLIC_KEY'),
+      );
+      config = setTomlSectionAssignment(
+        config,
+        'vars',
+        'TENANT_ROOT_CONTROL_PLANE_ISSUER_VERIFYING_KEYS_JSON',
+        env.tenantRootKeys.issuer.verifyingKeysJson,
+      );
+      config = setTomlSectionAssignment(
+        config,
+        'vars',
+        'ROUTER_TENANT_ROOT_CREATION_ROLE_VERIFYING_KEYS_JSON',
+        env.tenantRootKeys.roleVerifyingKeysJson,
       );
       return setPrivateD1Vars(config, 'SIGNING_WORKER_PRIVATE_D1', env.privateD1Keys.signingWorker);
     case 'tenant-root-control-plane':

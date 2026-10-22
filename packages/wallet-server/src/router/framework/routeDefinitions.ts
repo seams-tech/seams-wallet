@@ -585,7 +585,7 @@ export function createRouterApiRouteDefinitions(
     ),
     publicRoute(
       'wallet_recovery_status',
-      'GET',
+      'POST',
       '/wallets/:walletId/recovery/status',
       'Report how many recovery codes remain and whether the owner saved them',
       {
@@ -626,8 +626,8 @@ export function createRouterApiRouteDefinitions(
       'Record that the owner saved their recovery codes',
       {
         plane: 'public',
-        rationale:
-          'Acknowledgement only clears backup-reminder state after the client displays its locally retained codes.',
+        proof: 'webauthn',
+        rationale: 'Fresh operation-bound owner proof is required after the client displays its locally retained codes.',
       },
       ['passkeyCustody'],
     ),

@@ -1,5 +1,9 @@
 import { chainFamilyFromNetwork } from '@/core/config/chains';
-import { createEvmClient, type EvmTransactionByHash } from '@/core/rpcClients/evm/EvmClient';
+import {
+  createEvmClient,
+  parseRpcHexQuantity,
+  type EvmTransactionByHash,
+} from '@/core/rpcClients/evm/EvmClient';
 import type { SeamsChainConfig } from '@/core/types/seams';
 import {
   thresholdEcdsaChainTargetFromConfig,
@@ -696,8 +700,8 @@ export async function executeEvmFamilyTransactionLifecycle(args: {
       },
     });
 
-    const status = normalizeToken(receipt.status);
-    if (status && status !== '0x1' && status !== '0x01') {
+    const status = parseRpcHexQuantity(receipt.status, 'receipt.status');
+    if (status === 0n) {
       await args.lifecycle.reportFinalized({
         walletSession: args.input.walletSession,
         signedResult,
@@ -712,6 +716,9 @@ export async function executeEvmFamilyTransactionLifecycle(args: {
       reverted.code = 'tx_reverted';
       reverted.txHash = txHash;
       throw reverted;
+    }
+    if (status !== 1n) {
+      throw new Error(`Unexpected transaction receipt status ${receipt.status}`);
     }
 
     const payloadExpectation = ensurePayloadExpectation(args.input);

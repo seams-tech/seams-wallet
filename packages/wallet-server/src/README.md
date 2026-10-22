@@ -81,8 +81,8 @@ import { createSigningSessionSealOptions } from '@seams/wallet-server';
 
 const signingSessionSeal = createSigningSessionSealOptions({
   rootSecretB64u: process.env.SIGNING_SESSION_SEAL_ROOT_SECRET_B64U!,
-  currentKeyVersion: 'signing-session-seal-production-r2',
-  acceptedWarmKeyVersions: ['signing-session-seal-production-r2'],
+  currentKeyVersion: 'signing-session-seal-production-r3',
+  acceptedWarmKeyVersions: ['signing-session-seal-production-r3'],
 });
 
 const fetch = createCloudflareRouter(service, {
@@ -93,8 +93,15 @@ const fetch = createCloudflareRouter(service, {
 export default { fetch };
 ```
 
-Store the random 32-byte root secret in a secrets manager. Retain accepted old
-key versions only until their sealed records expire.
+Store the random 32-byte root secret in a secrets manager. Use a fresh key
+version when deploying wallet- and session-bound seals. Let sessions sealed
+under the earlier global key expire, or require normal unlock. Accept older
+key versions only when they already use wallet- and session-bound sealing.
+
+Email OTP factor enrollments read their stored seal key version when removing
+the server seal. Keep the prior Email OTP version in
+`EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS` while those enrollments remain
+active. The signing-session accepted list contains only scoped seal versions.
 
 ## Required runtime configuration
 

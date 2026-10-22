@@ -1296,6 +1296,7 @@ export async function handleWalletEmailOtpFactorRelease(
   }
   const unsealed = await ctx.service.emailOtp.removeEmailOtpServerSeal({
     wrappedCiphertext: enrollment.enrollment.serverSealedFactorCiphertextB64u,
+    enrollmentSealKeyVersion: enrollment.enrollment.enrollmentSealKeyVersion,
   });
   if (!unsealed.ok) {
     return json(unsealed, { status: emailOtpStatusCode(unsealed.code) });

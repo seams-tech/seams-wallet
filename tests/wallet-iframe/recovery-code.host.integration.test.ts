@@ -1,13 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { setupBasicPasskeyTest } from '../setup';
+import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { injectImportMap } from '../setup/bootstrap';
 import { registerWalletServiceRoute } from './harness';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 
-const HOST_HTML = buildWalletServiceHtml('/_test-sdk/esm/sdk');
+const HOST_HTML = buildWalletServiceHtml(
+  '/_test-sdk/esm/sdk',
+  undefined,
+  'runtime',
+  [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin],
+);
 const HOST_HTML_WITH_SUSPENDED_ANIMATION_FRAMES = HOST_HTML.replace(
   '<body>',
   '<body><script>window.requestAnimationFrame = () => 1;</script>',
@@ -54,7 +60,10 @@ test('reveals and cancels the recovery summary without a child animation frame o
       };
       testWindow.__recoveryCodeHostTest = { startedAt: performance.now(), router };
       void router
-        .confirmBackup({ walletId: 'recovery-delay-test-wallet' })
+        .confirmBackup({
+          walletId: 'recovery-delay-test-wallet',
+          authorization: { kind: 'passkey' },
+        })
         .catch(() => undefined);
       void initialization.catch(() => undefined);
     },

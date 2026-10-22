@@ -12,8 +12,13 @@ export type EmailOtpShamirCipherResult =
       readonly message: string;
     };
 
-export type EmailOtpServerSealRequest = {
+export type EmailOtpServerSealApplyRequest = {
   readonly wrappedCiphertext?: unknown;
+};
+
+export type EmailOtpServerSealRemoveRequest = {
+  readonly wrappedCiphertext?: unknown;
+  readonly enrollmentSealKeyVersion: string;
 };
 
 export type EmailOtpServerSealResult =

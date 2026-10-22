@@ -125,7 +125,10 @@ test('Gateway ECDSA respond retries its pinned root after Router reply loss', as
   }
 });
 
-test('mixed registration exposes gateway and finalization timings', async ({ harness, page }) => {
+test('mixed registration exposes gateway and finalization timings', async (
+  { harness, page },
+  testInfo,
+) => {
   const respond = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/respond'));
   const activate = page.waitForResponse(isRegistrationPost.bind(undefined, '/wallets/register/activate'));
   const nearProvisioning = page.waitForResponse(
@@ -180,7 +183,20 @@ test('mixed registration exposes gateway and finalization timings', async ({ har
     'near_finalize_session_seal;dur=',
   );
   expect(await respondResponse.json()).not.toHaveProperty('gatewayServerTiming');
-  expect(await activateResponse.json()).not.toHaveProperty('gatewayServerTiming');
+  const activationBody: unknown = await activateResponse.json();
+  if (!isPlainObject(activationBody) || !isPlainObject(activationBody.walletCustody)) {
+    throw new Error('Registration activation omitted the custody outcome');
+  }
+  expect(activationBody).not.toHaveProperty('gatewayServerTiming');
+  expect(activationBody.walletCustody.status).toBe('committed');
+  const issuedAtMs = activationBody.walletCustody.issuedAtMs;
+  if (typeof issuedAtMs !== 'number' || !Number.isSafeInteger(issuedAtMs) || issuedAtMs <= 0) {
+    throw new Error('Committed custody did not report its server issuance');
+  }
+  await testInfo.attach('registration-custody-issuance', {
+    body: JSON.stringify({ kind: 'registration_custody_issuance_evidence_v1', issuedAtMs }),
+    contentType: 'application/json',
+  });
 });
 
 test('NEAR registration and signing expose gateway step timings', async ({ harness, page }) => {

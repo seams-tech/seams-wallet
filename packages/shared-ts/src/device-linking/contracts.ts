@@ -559,13 +559,7 @@ export type LinkedOwnerCredentialMetadataV1 =
   | {
       readonly kind: 'email_otp';
       readonly walletAuthMethodId: WalletAuthMethodId;
-      /**
-       * The verified address behind this factor. The management projection is
-       * served only to an authenticated owner session, and the owner already
-       * knows the address they enrolled — this exists so the settings surface
-       * can name the factor. Local persistence keeps only the email hash.
-       */
-      readonly email: VerifiedEmailAddress;
+      readonly email?: never;
       readonly device?: never;
       readonly credentialIdB64u?: never;
     };

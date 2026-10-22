@@ -95,6 +95,7 @@ function parseEmailOtpWalletUnlockVerification(value: unknown): EmailOtpWalletUn
 const EMAIL_OTP_CUSTODY_SEED_UNLOCK_FIELDS = [
   'relayUrl',
   'walletId',
+  'walletAuthMethodId',
   'userId',
   'groupId',
   'routePlan',
@@ -126,6 +127,7 @@ function parseEmailOtpWalletCustodySeedUnlock(
   return {
     relayUrl: readString(payload.relayUrl, 'relayUrl'),
     walletId: readString(payload.walletId, 'walletId'),
+    walletAuthMethodId: readString(payload.walletAuthMethodId, 'walletAuthMethodId'),
     userId: readString(payload.userId, 'userId'),
     groupId: readString(payload.groupId, 'groupId'),
     routePlan: readRoutePlan(payload.routePlan, type),

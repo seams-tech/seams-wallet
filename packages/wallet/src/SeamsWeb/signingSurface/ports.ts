@@ -764,15 +764,26 @@ export type AccountSyncSigningSurface = LocalLoginStateSurface &
  * any other: the wallet asks, the user types six digits into the wallet's own
  * surface, and the code never passes through the host application.
  */
-export interface EmailOtpEnrollmentConfirmationSurface {
-  requestEmailOtpEnrollmentConfirmation(params: {
+export type EmailOtpOwnerConfirmationPurpose =
+  | 'add_email_code'
+  | 'add_passkey'
+  | 'remove_auth_method'
+  | 'move_wallet'
+  | 'recovery_status'
+  | 'recovery_unlock'
+  | 'recovery_rotate'
+  | 'recovery_backup_acknowledge';
+
+export interface EmailOtpOwnerConfirmationSurface {
+  requestEmailOtpOwnerConfirmation(params: {
+    purpose: EmailOtpOwnerConfirmationPurpose;
     walletId: string;
     emailAddress: string;
     challengeId: string;
     emailHint?: string;
     confirmerText?: { title?: string; body?: string };
     confirmationConfigOverride?: Partial<ConfirmationConfig>;
-    onResend: () => Promise<{ challengeId: string; emailHint?: string }>;
+    onResend?: () => Promise<{ challengeId: string; emailHint?: string }>;
   }): Promise<{ challengeId: string; otpCode: string }>;
 }
 
@@ -910,7 +921,7 @@ export type RegistrationSigningSurface = RpIdSurface &
     | 'storeWalletEmailOtpEcdsaRegistrationData'
   > &
   WebAuthnRegistrationConfirmationSurface &
-  EmailOtpEnrollmentConfirmationSurface &
+  EmailOtpOwnerConfirmationSurface &
   RegistrationAccountSurface &
   EcdsaRegistrationSurface;
 

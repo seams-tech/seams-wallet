@@ -23,6 +23,7 @@ const migrationSets = {
 
 const manifest = {
   schemaVersion: 'seams_wallet_server_artifact_manifest_v1',
+  walletSecurityPolicy: 'scoped_seals_and_owner_proofs_v1',
   package: {
     name: packageJson.name,
     version: packageJson.version,

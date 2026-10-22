@@ -7,6 +7,7 @@ import {
   type BrowserContext,
   type Route,
   type Browser,
+  type TestInfo,
 } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -390,10 +391,56 @@ test('a linked device links a third device, which signs NEAR and Tempo and expor
  * spent, and copies naming another time or another code are refused. Device 2
  * then cannot sign, and Device 1 still signs.
  */
-test('a linked device revoked with an email code across a refused commit is answered from what committed', async ({
+function recordLinkedDeviceInventoryResponse(responses: Response[], response: Response): void {
+  if (
+    response.request().method() === 'GET' &&
+    new URL(response.url()).pathname === '/wallet/device-linking/v1/devices' &&
+    response.status() === 200
+  ) {
+    responses.push(response);
+  }
+}
+
+async function verifyLinkedDeviceInventoryOmitsEmailAddress(
+  responses: readonly Response[],
+  testInfo: TestInfo,
+): Promise<void> {
+  let emailOtpCredentials = 0;
+  for (const response of responses) {
+    const body: unknown = await response.json();
+    if (!isPlainObject(body) || !Array.isArray(body.devices) || !Array.isArray(body.ownerDevices)) {
+      throw new Error('Linked-device inventory response is invalid');
+    }
+    for (const entries of [body.devices, body.ownerDevices]) {
+      for (const entry of entries) {
+        if (!isPlainObject(entry) || !isPlainObject(entry.credential)) {
+          throw new Error('Linked-device inventory credential is invalid');
+        }
+        if (entry.credential.kind !== 'email_otp') continue;
+        emailOtpCredentials += 1;
+        expect(Object.hasOwn(entry.credential, 'email')).toBe(false);
+      }
+    }
+  }
+  expect(emailOtpCredentials).toBeGreaterThan(0);
+  const evidence = JSON.stringify({
+    kind: 'linked_device_inventory_email_redaction_evidence_v1',
+    route: '/wallet/device-linking/v1/devices',
+    responseCount: responses.length,
+    emailOtpCredentials,
+    emailAddressFields: 0,
+  }, null, 2);
+  await testInfo.attach('linked-device-inventory-email-redaction', {
+    body: evidence,
+    contentType: 'application/json',
+  });
+}
+
+test('a linked device inventory omits Email OTP addresses and revocation retries a refused commit', async ({
   harness,
   browser,
-}) => {
+  page,
+}, testInfo) => {
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
 
@@ -404,10 +451,13 @@ test('a linked device revoked with an email code across a refused commit is answ
   /* Added after linking, which proves with the wallet's one founding passkey.
      The code proves the revocation only from a session on its own method. */
   await harness.addEmailOtpAuthMethod();
+  const inventoryResponses: Response[] = [];
+  page.on('response', recordLinkedDeviceInventoryResponse.bind(null, inventoryResponses));
   await harness.unlockWithAddedEmailOtp();
   await harness.revokeLinkedDeviceWithOwnerEmailOtp({ refuseFirstRevocationCommit: true });
   await device2.assertRevokedDeviceCannotSign();
   await harness.signTempoTransaction('post_unlock');
+  await verifyLinkedDeviceInventoryOmitsEmailAddress(inventoryResponses, testInfo);
 });
 
 const preparePath = '**/router-ab/ecdsa-derivation/sign/prepare';

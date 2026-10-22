@@ -42,12 +42,15 @@ async function main() {
 }
 
 function buildWalletRuntime() {
-  runRequired('Wallet SDK build', 'pnpm', [
-    '-C',
-    'packages/wallet',
-    'run',
-    productionApp ? 'build:prod' : 'build:sdk-full',
-  ]);
+  runRequired(
+    'Wallet SDK build',
+    'pnpm',
+    ['-C', 'packages/wallet', 'run', productionApp ? 'build:prod' : 'build:sdk-full'],
+    {
+      ...process.env,
+      SEAMS_WALLET_APPROVED_RELAYER_ORIGINS: new URL(gatewayUrl).origin,
+    },
+  );
   if (externalGateway) return;
   for (const role of [
     'signing-worker',
@@ -156,10 +159,10 @@ function trackChild(label, child) {
   child.once('error', handleChildError.bind(undefined, label));
 }
 
-function runRequired(label, command, args) {
+function runRequired(label, command, args, environment = process.env) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
-    env: process.env,
+    env: environment,
     stdio: 'inherit',
   });
   if (result.error) throw new Error(`${label} failed to start: ${result.error.message}`);

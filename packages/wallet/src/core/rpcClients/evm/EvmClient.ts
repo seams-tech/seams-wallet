@@ -312,14 +312,19 @@ export function createEvmClient(args: {
   const getTransactionReceipt = async (receiptArgs: {
     txHash: `0x${string}`;
     timeoutMs?: number;
-  }): Promise<EvmTransactionReceipt | null> =>
-    decodeEvmTransactionReceipt(
+  }): Promise<EvmTransactionReceipt | null> => {
+    const receipt = decodeEvmTransactionReceipt(
       await request({
         method: 'eth_getTransactionReceipt',
         params: [receiptArgs.txHash],
         ...(receiptArgs.timeoutMs != null ? { timeoutMs: receiptArgs.timeoutMs } : {}),
       }),
     );
+    if (receipt && receipt.transactionHash.toLowerCase() !== receiptArgs.txHash.toLowerCase()) {
+      throw new Error('Receipt transactionHash does not match the requested transaction');
+    }
+    return receipt;
+  };
 
   const getBlockByNumber = async (blockArgs: {
     blockTag: EvmBlockTag;
@@ -417,12 +422,8 @@ export function createEvmClient(args: {
         lastRpcError = error instanceof Error ? error.message : String(error);
       }
 
-      if (receipt && typeof receipt === 'object' && typeof receipt.blockNumber === 'string') {
-        const receiptBlockHex = toHexQuantityOrNull(receipt.blockNumber);
-        if (!receiptBlockHex) {
-          throw new Error('Receipt missing valid blockNumber');
-        }
-        const receiptBlockNumber = parseRpcHexQuantity(receiptBlockHex, 'receipt.blockNumber');
+      if (receipt) {
+        const receiptBlockNumber = parseRpcHexQuantity(receipt.blockNumber, 'receipt.blockNumber');
         if (confirmations <= 1) {
           return receipt;
         }

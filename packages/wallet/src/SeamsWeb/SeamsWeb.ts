@@ -249,17 +249,17 @@ export class SeamsWeb {
     return this.events.subscribe(deliverNearProvisioningStateChanged.bind(null, listener));
   }
 
-  private async getCodeStatusDomain(args: { walletId: string }) {
+  private async getCodeStatusDomain(
+    args: Parameters<RecoveryCapability['getCodeStatus']>[0],
+  ) {
     const router = await this.walletIframe.requireRouter();
-    return await router.getCodeStatus({
-      walletId: args.walletId,
-    });
+    return await router.getCodeStatus(args);
   }
-  private async confirmBackupDomain(args: { walletId: string }) {
+  private async confirmBackupDomain(
+    args: Parameters<RecoveryCapability['confirmBackup']>[0],
+  ) {
     const router = await this.walletIframe.requireRouter();
-    return await router.confirmBackup({
-      walletId: args.walletId,
-    });
+    return await router.confirmBackup(args);
   }
   private async requestWalletCustodyEmailOtpChallengeDomain(
     args: Parameters<RecoveryCapability['requestWalletCustodyEmailOtpChallenge']>[0],

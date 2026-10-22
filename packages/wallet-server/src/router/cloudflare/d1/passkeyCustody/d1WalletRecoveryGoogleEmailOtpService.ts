@@ -413,6 +413,7 @@ export class CloudflareD1WalletRecoveryGoogleEmailOtpService {
     }
     const unsealed = await this.serverSeal.removeEmailOtpServerSeal({
       wrappedCiphertext: enrollment.serverSealedFactorCiphertextB64u,
+      enrollmentSealKeyVersion: enrollment.enrollmentSealKeyVersion,
     });
     if (!unsealed.ok) return unsealed;
     if (unsealed.enrollmentSealKeyVersion !== enrollment.enrollmentSealKeyVersion) {

@@ -1,4 +1,3 @@
-import type { VersionedJsonRecordReadResult } from '../../../framework/versionedJsonRecordStore';
 import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
@@ -199,8 +198,12 @@ export type WalletRecoveryCodeLocatorRecord = {
  * writes the records, and it needs the wallet that the registration commits.
  */
 export type WalletCustodyRegistrationReservation =
-  | { readonly kind: 'reserved'; readonly statements: readonly D1PreparedStatementLike[] }
-  | { readonly kind: 'already_exists' }
+  | {
+      readonly kind: 'reserved';
+      readonly issuedAtMs: number;
+      readonly statements: readonly D1PreparedStatementLike[];
+    }
+  | { readonly kind: 'already_exists'; readonly issuedAtMs: number }
   | { readonly kind: 'custody_already_established' }
   | { readonly kind: 'inconsistent'; readonly reason: string };
 
@@ -815,14 +818,30 @@ export class CloudflareD1WalletCustodyCommitStore {
       this.records.readMany([envelopeKey, recoverySetKey, acknowledgementKey]),
     ]);
     if (!claimed) return { kind: 'inconsistent', reason: 'recovery code locator already exists' };
+    let envelopeExists = false;
+    let existingRecordExists = false;
+    let existingRecoverySet: WalletRecoveryEnvelopeSetRecord | null = null;
     for (const entry of existing) {
-      if (entry.key === envelopeKey && entry.result.kind !== 'missing') {
-        return { kind: 'already_exists' };
+      if (entry.result.kind === 'missing') continue;
+      existingRecordExists = true;
+      if (entry.key === envelopeKey) envelopeExists = true;
+      if (
+        entry.key === recoverySetKey &&
+        entry.result.value.kind === 'wallet_recovery_envelope_set_v1'
+      ) {
+        existingRecoverySet = entry.result.value;
       }
     }
-    if (existing.some(custodyRecordExists)) return { kind: 'custody_already_established' };
+    if (envelopeExists) {
+      if (!existingRecoverySet || !sameRecoveryCodeKeys(existingRecoverySet, commit.recoverySet)) {
+        return { kind: 'custody_already_established' };
+      }
+      return { kind: 'already_exists', issuedAtMs: existingRecoverySet.issuedAtMs };
+    }
+    if (existingRecordExists) return { kind: 'custody_already_established' };
     return {
       kind: 'reserved',
+      issuedAtMs: commit.recoverySet.issuedAtMs,
       statements: [
         ...this.records.prepareMutationStatements([
           { key: envelopeKey, value: commit.envelope, expectedVersion: null },
@@ -896,12 +915,9 @@ export class CloudflareD1WalletCustodyCommitStore {
   }
 
   /**
-   * Records that the owner confirmed saving their codes.
-   *
-   * Written with no expected version, unlike the recovery set: this row is
-   * cosmetic, a repeat acknowledgement is not a conflict worth surfacing to
-   * someone pressing a button, and it shares no record with the wraps a spend
-   * updates — which is exactly why it is a separate key.
+   * Records the issuance that the owner confirmed saving. The caller selects
+   * that issuance before this write, so a concurrent rotation cannot make this
+   * acknowledgement apply to newer codes the owner did not see.
    */
   async writeBackupAcknowledgement(
     record: WalletRecoveryBackupAcknowledgementV1,
@@ -1480,6 +1496,18 @@ export class CloudflareD1WalletCustodyCommitStore {
   }
 }
 
-function custodyRecordExists(entry: { readonly result: VersionedJsonRecordReadResult<WalletCustodyCommitRecord> }): boolean {
-  return entry.result.kind !== 'missing';
+function sameRecoveryCodeKeys(
+  left: WalletRecoveryEnvelopeSetRecord,
+  right: WalletRecoveryEnvelopeSetRecord,
+): boolean {
+  if (left.walletId !== right.walletId) return false;
+  if (left.manifestKekWraps.length !== right.manifestKekWraps.length) return false;
+  for (let index = 0; index < left.manifestKekWraps.length; index += 1) {
+    if (
+      left.manifestKekWraps[index]?.recoveryKeyId !== right.manifestKekWraps[index]?.recoveryKeyId
+    ) {
+      return false;
+    }
+  }
+  return true;
 }

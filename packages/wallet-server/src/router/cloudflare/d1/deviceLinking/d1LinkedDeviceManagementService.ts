@@ -15,7 +15,6 @@ import {
 } from '../wallet/d1WalletAuthorityStore';
 import { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
-import type { CloudflareD1EmailOtpEnrollmentStore } from '../emailOtp/d1EmailOtpEnrollmentStore';
 
 export function createD1LinkedDeviceManagementServiceV1(input: {
   readonly scope: D1WalletAuthorityStoreScope;
@@ -29,8 +28,6 @@ export function createD1LinkedDeviceManagementServiceV1(input: {
     | 'prepareRetireWalletSessionAuthorizationsV2ForAuthority'
   >;
   readonly webAuthnStore: CloudflareD1WebAuthnStore;
-  /** Absent when Email OTP is not deployed; an email_otp method then fails closed. */
-  readonly emailOtpEnrollments?: Pick<CloudflareD1EmailOtpEnrollmentStore, 'readEnrollment'>;
   readonly materialDeactivation?: OrdinaryInactiveSignerMaterialDeactivationPortV1;
 }): LinkedDeviceManagementServiceV1 {
   return new LinkedDeviceManagementServiceV1({
@@ -50,10 +47,6 @@ export function createD1LinkedDeviceManagementServiceV1(input: {
           credentialIdB64u,
         });
         return record?.deviceInfo ?? null;
-      },
-      readEmailOtpAddressV1: async ({ walletId }) => {
-        const enrollment = await input.emailOtpEnrollments?.readEnrollment(String(walletId));
-        return enrollment?.verifiedEmail ?? null;
       },
     },
     ...(input.materialDeactivation === undefined

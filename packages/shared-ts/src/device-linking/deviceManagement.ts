@@ -27,7 +27,6 @@ import {
   nullableToken,
   parseDelegatedWalletAuthority,
   parseNonNegativeSafeInteger,
-  parseTargetEmail,
   parseUnixTime,
   walletAuthMethodId,
   walletAuthorityId,
@@ -74,7 +73,7 @@ function linkedOwnerCredentialMetadataV1() {
       credentialIdB64u: credentialId,
       device: parseWebAuthnDeviceInfo,
     }),
-    wireObject({ kind: wireLiteral('email_otp'), walletAuthMethodId, email: parseTargetEmail }),
+    wireObject({ kind: wireLiteral('email_otp'), walletAuthMethodId }),
   ]);
 }
 

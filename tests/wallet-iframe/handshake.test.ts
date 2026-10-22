@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { buildWalletServiceHtml as buildWalletHostServiceHtml } from '@/plugins/plugin-utils';
 import { injectImportMap } from '../setup/bootstrap';
+import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { buildWalletServiceHtml, initRouter, registerWalletServiceRoute } from './harness';
 import { WALLET_PROTOCOL_VERSION } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
 
@@ -8,7 +9,12 @@ const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service';
 
 function buildHostPortCloseProbeHtml(): string {
-  return buildWalletHostServiceHtml('/_test-sdk/esm/sdk').replace(
+  return buildWalletHostServiceHtml(
+    '/_test-sdk/esm/sdk',
+    undefined,
+    'runtime',
+    [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin],
+  ).replace(
     '</body>',
     `<script>
       (() => {

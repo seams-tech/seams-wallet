@@ -27,7 +27,7 @@ type Context = WalletPlacementSession & {
   readonly managementRequest: WalletHostManagementRequestV1;
   readonly signingEngine: Pick<
     BrowserSigningSurface,
-    'getAuthenticationCredentialsSerialized' | 'requestEmailOtpEnrollmentConfirmation'
+    'getAuthenticationCredentialsSerialized' | 'requestEmailOtpOwnerConfirmation'
   >;
 };
 type Challenge = {
@@ -120,7 +120,8 @@ async function collectProof(context: MoveContext, challenge: Challenge) {
       return { kind: 'passkey' as const, credential: redactCredentialExtensionOutputs(credential) };
     }
     case 'email_otp': {
-      const confirmed = await context.host.signingEngine.requestEmailOtpEnrollmentConfirmation({
+      const confirmed = await context.host.signingEngine.requestEmailOtpOwnerConfirmation({
+        purpose: 'move_wallet',
         walletId: context.request.walletId,
         emailAddress: challenge.factor.emailHint,
         emailHint: challenge.factor.emailHint,

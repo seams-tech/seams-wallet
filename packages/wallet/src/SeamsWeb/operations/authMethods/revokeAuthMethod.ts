@@ -173,7 +173,8 @@ async function emailOtpSourceProof(args: {
       operationFingerprintDigest: parseDigestB64u(args.operationFingerprintDigest),
     });
   const challenge = await requestChallenge();
-  const confirmed = await args.context.signingEngine.requestEmailOtpEnrollmentConfirmation({
+  const confirmed = await args.context.signingEngine.requestEmailOtpOwnerConfirmation({
+    purpose: 'remove_auth_method',
     walletId: String(args.walletId),
     emailAddress: String(challenge.emailHint || ''),
     challengeId: challenge.challengeId,

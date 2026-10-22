@@ -892,12 +892,17 @@ export interface AfterCall<T> {
   (success: false, result?: undefined, error?: Error): void | Promise<void>;
 }
 
-export type WalletRecoveryCodeBackupRequestV1 = {
+type WalletRecoveryCodeBackupRequestBaseV1 = {
   readonly kind: 'wallet_recovery_code_backup_request_v1';
   readonly walletId: string;
   readonly recoveryCodes: readonly string[];
-  readonly continuation: 'registration_may_defer' | 'pending_backup_must_finish';
 };
+
+export type WalletRecoveryCodeBackupRequestV1 = WalletRecoveryCodeBackupRequestBaseV1 &
+  (
+    | { readonly continuation: 'registration_may_defer'; readonly issuedAtMs?: never }
+    | { readonly continuation: 'pending_backup_must_finish'; readonly issuedAtMs: number }
+  );
 
 export type WalletRecoveryCodeBackupAcknowledgementV1 =
   | { readonly kind: 'wallet_recovery_codes_backed_up_v1' }

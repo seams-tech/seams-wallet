@@ -1,31 +1,17 @@
 import { resolveAppearanceTheme } from '@/core/config/configHelpers';
 import { showWalletRecoveryCodesUi } from '@/SeamsWeb/operations/recovery/walletRecoveryCodeBackup';
 import { pendingWalletRecoveryCodeBackupRepository } from '@/core/indexedDB/seamsWalletDB/pendingWalletRecoveryCodeBackup';
+import type { WalletRecoveryCodeStatusResult } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import {
-  acknowledgeWalletRecoveryBackup,
-  readWalletRecoveryCodeStatus,
-  type WalletRecoveryCodeStatusResult,
-} from '@/core/rpcClients/relayer/walletRecoveryRotate';
+  acknowledgeWalletRecoveryBackupWithPasskey,
+  readWalletRecoveryCodeStatusWithPasskey,
+} from '@/SeamsWeb/operations/recovery/walletRecoveryAdminProof';
 import type { WalletRecoveryCodeBackupRequestV1 } from '@/core/types/sdkSentEvents';
 import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIdentity';
 import type { WalletIframeSurfaceMeasurement } from '../shared/messages';
 import type { WalletHostRuntimeRequest } from './runtimeContext';
 import { requireTrimmedString } from '@shared/utils/validation';
-
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${label} is required`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function requireWalletId(payload: unknown): string {
-  const record = requireRecord(payload, 'Recovery-code request payload');
-  if (Object.prototype.hasOwnProperty.call(record, 'walletSessionToken')) {
-    throw new Error('wallet iframe requests must not carry walletSessionToken');
-  }
-  return requireTrimmedString(record.walletId, 'Recovery-code walletId');
-}
+import { parseWalletRecoveryRequest } from '../shared/recoveryAuthorization';
 
 function requireRelayerUrl(input: WalletHostRuntimeRequest): string {
   return requireTrimmedString(
@@ -33,6 +19,15 @@ function requireRelayerUrl(input: WalletHostRuntimeRequest): string {
       ? input.state.configuration.config.network.relayer.url
       : undefined,
     'Recovery-code relayer URL',
+  );
+}
+
+function requireRpId(input: WalletHostRuntimeRequest): string {
+  return requireTrimmedString(
+    input.state.configuration.kind === 'configured'
+      ? input.state.configuration.config.wallet.rpId
+      : undefined,
+    'Recovery-code RP ID',
   );
 }
 
@@ -46,9 +41,10 @@ function postSurfaceMeasurement(
 async function loadRecoveryCodeStatus(
   relayUrl: string,
   walletId: string,
+  rpId: string,
 ): Promise<WalletRecoveryCodeStatusResult> {
   const [status, pendingLocalBackup] = await Promise.all([
-    readWalletRecoveryCodeStatus({ relayUrl, walletId }),
+    readWalletRecoveryCodeStatusWithPasskey({ relayUrl, walletId, rpId }),
     pendingWalletRecoveryCodeBackupRepository.has(walletId),
   ]);
   return status.kind === 'ready' ? { ...status, pendingLocalBackup } : status;
@@ -58,14 +54,17 @@ async function loadPendingRecoveryCodeBackup(
   walletId: string,
 ): Promise<WalletRecoveryCodeBackupRequestV1 | null> {
   const pending = await pendingWalletRecoveryCodeBackupRepository.read(walletId);
-  return pending
-    ? {
-        kind: 'wallet_recovery_code_backup_request_v1',
-        walletId: pending.walletId,
-        recoveryCodes: pending.recoveryCodes,
-        continuation: 'pending_backup_must_finish',
-      }
-    : null;
+  if (!pending) return null;
+  if (pending.kind !== 'ready') {
+    throw new Error('Recovery codes are awaiting a verified server issuance. Retry registration.');
+  }
+  return {
+    kind: 'wallet_recovery_code_backup_request_v1',
+    walletId: pending.walletId,
+    recoveryCodes: pending.recoveryCodes,
+    continuation: 'pending_backup_must_finish',
+    issuedAtMs: pending.issuedAtMs,
+  };
 }
 
 export async function handleWalletHostRuntimeRequest(
@@ -77,12 +76,16 @@ export async function handleWalletHostRuntimeRequest(
   const requestId = walletIframeRequestIdFromBoundary(input.req.requestId);
   if (input.respondIfCancelled(requestId)) return;
 
-  const walletId = requireWalletId(input.req.payload);
+  const { walletId, authorization } = parseWalletRecoveryRequest(input.req.payload);
+  if (authorization.kind !== 'passkey') {
+    throw new Error('Email OTP recovery backup requires the wallet authentication runtime');
+  }
   const relayUrl = requireRelayerUrl(input);
+  const rpId = requireRpId(input);
   const acknowledgement = await showWalletRecoveryCodesUi(
     {
       walletId,
-      loadStatus: loadRecoveryCodeStatus.bind(null, relayUrl, walletId),
+      loadStatus: loadRecoveryCodeStatus.bind(null, relayUrl, walletId, rpId),
       loadPendingBackup: loadPendingRecoveryCodeBackup.bind(null, walletId),
     },
     {
@@ -112,9 +115,17 @@ export async function handleWalletHostRuntimeRequest(
     throw new Error('Pending wallet recovery-code backup was not completed');
   }
 
-  const result = await acknowledgeWalletRecoveryBackup({ relayUrl, walletId });
+  const result = await acknowledgeWalletRecoveryBackupWithPasskey({
+    relayUrl,
+    walletId,
+    rpId,
+    expectedIssuedAtMs: acknowledgement.issuedAtMs,
+  });
   if (result.kind === 'acknowledged') {
-    await pendingWalletRecoveryCodeBackupRepository.delete(walletId);
+    await pendingWalletRecoveryCodeBackupRepository.deleteIssuedAtMs(
+      walletId,
+      acknowledgement.issuedAtMs,
+    );
   }
   input.post({ type: 'PM_RESULT', requestId, payload: { ok: true, result } });
 }

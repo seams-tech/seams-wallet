@@ -407,9 +407,6 @@ function createD1LinkedDeviceComposition(input: {
     authorizationService: input.authorizationService,
     walletSessionAuthorizations: input.authorizationStore,
     webAuthnStore: input.webAuthnStore,
-    ...(input.emailOtpLinkedDevice === undefined
-      ? {}
-      : { emailOtpEnrollments: input.emailOtpLinkedDevice.enrollments }),
     materialDeactivation: createCloudflareOrdinaryInactiveSignerMaterialDeactivationPortV1({
       endpoint: deactivationEndpoint,
     }),

@@ -94,6 +94,7 @@ import type {
   JoinedWalletCustodyNearEd25519KeySetV1,
   JoinedWalletCustodyEvmFamilyKeySetV1,
   RejoinedWalletCustodyEvmFamilyKeySetV1,
+  EmailOtpOwnerConfirmationPurpose,
 } from './ports';
 import { RouterAbEd25519YaoHttpActivationTransportV1 } from '@/core/signingEngine/threshold/ed25519/yaoClient';
 import {
@@ -2350,6 +2351,71 @@ const browserPasskeyCustodySessionCachePersistence: PasskeyCustodySessionCachePe
   readCacheEntry: readBrowserPasskeyCustodySessionCache,
   writeCacheEntry: writeBrowserPasskeyCustodySessionCache,
 };
+
+type EmailOtpOwnerConfirmationCopy = {
+  readonly title: string;
+  readonly body: string;
+  readonly operation: string;
+  readonly warning?: string;
+};
+
+function emailOtpOwnerConfirmationCopy(
+  purpose: EmailOtpOwnerConfirmationPurpose,
+  emailAddress: string,
+): EmailOtpOwnerConfirmationCopy {
+  switch (purpose) {
+    case 'add_email_code':
+      return {
+        title: 'Enter email code to add sign-in',
+        body: `This one-time code confirms ${emailAddress} can unlock this wallet.`,
+        operation: 'Add email code sign-in',
+        warning:
+          'Adding email code lets anyone with access to your inbox try to unlock this wallet.',
+      };
+    case 'add_passkey':
+      return {
+        title: 'Enter email code to add a passkey',
+        body: 'This code confirms you can add a new passkey to this wallet.',
+        operation: 'Add passkey',
+      };
+    case 'remove_auth_method':
+      return {
+        title: 'Enter email code to remove sign-in',
+        body: 'This code confirms removal of a wallet authentication method.',
+        operation: 'Remove authentication method',
+      };
+    case 'move_wallet':
+      return {
+        title: 'Enter email code to move wallet',
+        body: 'This code confirms a wallet region move.',
+        operation: 'Move wallet',
+      };
+    case 'recovery_status':
+      return {
+        title: 'Enter email code to check recovery codes',
+        body: 'This code confirms you can view this wallet’s recovery-code status.',
+        operation: 'Check recovery-code status',
+      };
+    case 'recovery_unlock':
+      return {
+        title: 'Enter email code to prepare new recovery codes',
+        body: 'This code unlocks your wallet seed to create a new recovery-code set.',
+        operation: 'Prepare recovery-code rotation',
+      };
+    case 'recovery_rotate':
+      return {
+        title: 'Enter email code to rotate recovery codes',
+        body: 'This code confirms the new recovery-code set replaces the old set.',
+        operation: 'Rotate recovery codes',
+      };
+    case 'recovery_backup_acknowledge':
+      return {
+        title: 'Enter email code to confirm backup',
+        body: 'This code confirms you saved the recovery codes shown by this wallet.',
+        operation: 'Confirm recovery-code backup',
+      };
+  }
+}
 
 export class BrowserSigningSurface {
   // Kept as fields for low-level tests that intentionally access internals.
@@ -6089,44 +6155,51 @@ export class BrowserSigningSurface {
    * typed into the wallet's own surface and never passes through the host
    * application — the reason `addEmail` takes an address and not a code.
    */
-  async requestEmailOtpEnrollmentConfirmation(params: {
+  async requestEmailOtpOwnerConfirmation(params: {
+    purpose: EmailOtpOwnerConfirmationPurpose;
     walletId: string;
     emailAddress: string;
     challengeId: string;
     emailHint?: string;
     confirmerText?: { title?: string; body?: string };
     confirmationConfigOverride?: Partial<ConfirmationConfig>;
-    onResend: () => Promise<{ challengeId: string; emailHint?: string }>;
+    onResend?: () => Promise<{ challengeId: string; emailHint?: string }>;
   }): Promise<{ challengeId: string; otpCode: string }> {
+    const copy = emailOtpOwnerConfirmationCopy(params.purpose, params.emailAddress);
+    const onResend = params.onResend;
     let currentChallengeId = params.challengeId;
     const emailOtpPrompt = {
       challengeId: params.challengeId,
       ...(params.emailHint ? { emailHint: params.emailHint } : {}),
-      title: params.confirmerText?.title || 'Enter email code to add sign-in',
-      body:
-        params.confirmerText?.body ||
-        `This one-time code confirms ${params.emailAddress} can unlock this wallet.`,
+      title: params.confirmerText?.title || copy.title,
+      body: params.confirmerText?.body || copy.body,
       helperText: 'Enter the 6-digit code sent to your email',
-      onResend: async () => {
-        const resent = await params.onResend();
-        currentChallengeId = resent.challengeId;
-        return {
-          challengeId: resent.challengeId,
-          ...(resent.emailHint ? { emailHint: resent.emailHint } : {}),
-          delivery: { mode: 'email_provider' as const },
-        };
-      },
+      ...(onResend
+        ? {
+            onResend: async () => {
+              const resent = await onResend();
+              currentChallengeId = resent.challengeId;
+              return {
+                challengeId: resent.challengeId,
+                ...(resent.emailHint ? { emailHint: resent.emailHint } : {}),
+                delivery: { mode: 'email_provider' as const },
+              };
+            },
+          }
+        : {}),
     };
     const decision = await this.touchConfirm.requestUserConfirmation({
-      requestId: secureRandomId('add-auth-method-email-otp', 32, 'Email OTP enrollment UI ids'),
+      requestId: secureRandomId('wallet-owner-email-otp', 32, 'Wallet owner Email OTP UI ids'),
       type: UserConfirmationType.SIGN_INTENT_DIGEST,
       summary: {
-        type: 'add_auth_method',
-        operation: 'Add email code sign-in',
+        type:
+          params.purpose === 'add_email_code' || params.purpose === 'add_passkey'
+            ? 'add_auth_method'
+            : 'wallet_owner_confirmation',
+        operation: copy.operation,
         title: emailOtpPrompt.title,
         body: emailOtpPrompt.body,
-        warning:
-          'Security note: Adding email code lowers this wallet\u2019s security because your inbox becomes another way to unlock it.',
+        ...(copy.warning ? { warning: copy.warning } : {}),
       },
       payload: {
         signingSubject: { kind: 'evm_wallet', walletId: params.walletId },
@@ -6138,19 +6211,19 @@ export class BrowserSigningSurface {
         },
         emailOtpPrompt,
       },
-      intentDigest: `add-auth-method:${params.walletId}:email-otp`,
+      intentDigest: `wallet-owner-email-otp:${params.purpose}:${params.walletId}`,
       ...(params.confirmationConfigOverride
         ? { confirmationConfigOverride: params.confirmationConfigOverride }
         : {}),
     });
     if (!decision.confirmed) {
-      throw new Error(decision.error || 'Adding an email code was cancelled');
+      throw new Error(decision.error || 'Email code confirmation was cancelled');
     }
     const otpCode = String(decision.otpCode || '')
       .replace(/\D/g, '')
       .slice(0, 6);
     if (otpCode.length !== 6) {
-      throw new Error('Adding an email code requires a 6-digit code');
+      throw new Error('Email code confirmation requires a 6-digit code');
     }
     return {
       challengeId: String(decision.emailOtpChallengeId || currentChallengeId).trim(),

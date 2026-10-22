@@ -14,6 +14,7 @@ import type {
   SigningSessionSealCipherAdapter,
   SigningSessionSealCipherOperationInput,
   SigningSessionSealCipherOperationResult,
+  SigningSessionSealOperation,
 } from '../signingSessionSeal.types';
 import {
   addSigningSessionSealLock,
@@ -186,6 +187,23 @@ function normalizeConfig(
 export function encodeSigningSessionSealServerLockContext(input: {
   readonly protocol: SigningSessionSealProtocol;
   readonly keyVersion: string;
+  readonly walletId: string;
+  readonly thresholdSessionId: string;
+}): Uint8Array {
+  return encodeSigningSessionHkdfTuple([
+    'seams/router-ab/signing-session-seal',
+    input.protocol.algorithm,
+    input.protocol.groupId,
+    input.keyVersion,
+    'server-lock/session/v1',
+    input.walletId,
+    input.thresholdSessionId,
+  ]);
+}
+
+function encodeEmailOtpEnrollmentServerLockContext(input: {
+  readonly protocol: SigningSessionSealProtocol;
+  readonly keyVersion: string;
 }): Uint8Array {
   return encodeSigningSessionHkdfTuple([
     'seams/router-ab/signing-session-seal',
@@ -205,7 +223,7 @@ function defaultRuntime(): SigningSessionSealShamir3PassRuntime {
   };
 }
 
-async function deriveAcceptedKeyHandles(input: {
+async function deriveEmailOtpEnrollmentKeyHandles(input: {
   readonly config: SigningSessionSealShamir3PassRootConfig;
   readonly runtime: SigningSessionSealShamir3PassRuntime;
 }): Promise<ReadonlyMap<string, number>> {
@@ -215,7 +233,7 @@ async function deriveAcceptedKeyHandles(input: {
       const handle = await input.runtime.deriveLockKeyHandle({
         groupId: input.config.protocol.groupId,
         rootSecret32: input.config.rootSecret32,
-        context: encodeSigningSessionSealServerLockContext({
+        context: encodeEmailOtpEnrollmentServerLockContext({
           protocol: input.config.protocol,
           keyVersion,
         }),
@@ -231,7 +249,7 @@ async function deriveAcceptedKeyHandles(input: {
   }
 }
 
-class SigningSessionSealKeyHandles {
+class EmailOtpEnrollmentKeyHandles {
   private initialization: Promise<ReadonlyMap<string, number>> | null = null;
 
   constructor(
@@ -241,7 +259,7 @@ class SigningSessionSealKeyHandles {
 
   get(): Promise<ReadonlyMap<string, number>> {
     if (!this.initialization) {
-      this.initialization = deriveAcceptedKeyHandles({
+      this.initialization = deriveEmailOtpEnrollmentKeyHandles({
         config: this.config,
         runtime: this.runtime,
       });
@@ -264,50 +282,222 @@ function mapCipherError(
   return failure('internal', message);
 }
 
-export function createSigningSessionSealShamir3PassCipherAdapter(
+type EmailOtpEnrollmentCipherState = {
+  readonly kind: 'email_otp_enrollment';
+  readonly config: SigningSessionSealShamir3PassRootConfig;
+  readonly runtime: SigningSessionSealShamir3PassRuntime;
+  readonly handles: EmailOtpEnrollmentKeyHandles;
+};
+
+type SigningSessionScopedCipherState = {
+  readonly kind: 'signing_session';
+  readonly config: SigningSessionSealShamir3PassRootConfig;
+  readonly runtime: SigningSessionSealShamir3PassRuntime;
+  readonly rootKey: Promise<CryptoKey>;
+};
+
+type Shamir3PassCipherState = EmailOtpEnrollmentCipherState | SigningSessionScopedCipherState;
+
+type LockHandleLease =
+  | { readonly kind: 'borrowed'; readonly handle: number }
+  | { readonly kind: 'owned'; readonly handle: number };
+
+function copyToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(bytes.length);
+  new Uint8Array(copy).set(bytes);
+  return copy;
+}
+
+async function importSigningSessionSealRootKey(rootSecret32: Uint8Array): Promise<CryptoKey> {
+  const rootCopy = copyToArrayBuffer(rootSecret32);
+  try {
+    return await crypto.subtle.importKey(
+      'raw',
+      rootCopy,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+  } finally {
+    rootSecret32.fill(0);
+    new Uint8Array(rootCopy).fill(0);
+  }
+}
+
+async function deriveScopedSigningSessionHandle(input: {
+  readonly state: SigningSessionScopedCipherState;
+  readonly keyVersion: SigningSessionSealKeyVersion;
+  readonly walletId: string;
+  readonly thresholdSessionId: string;
+}): Promise<number> {
+  const context = encodeSigningSessionSealServerLockContext({
+    protocol: input.state.config.protocol,
+    keyVersion: input.keyVersion,
+    walletId: input.walletId,
+    thresholdSessionId: input.thresholdSessionId,
+  });
+  let sessionRoot32: Uint8Array | null = null;
+  try {
+    const rootKey = await input.state.rootKey;
+    sessionRoot32 = new Uint8Array(
+      await crypto.subtle.sign('HMAC', rootKey, copyToArrayBuffer(context)),
+    );
+    return await input.state.runtime.deriveLockKeyHandle({
+      groupId: input.state.config.protocol.groupId,
+      rootSecret32: sessionRoot32,
+      context,
+    });
+  } finally {
+    sessionRoot32?.fill(0);
+    context.fill(0);
+  }
+}
+
+async function acquireLockHandle(
+  state: Shamir3PassCipherState,
+  input: HandlerInput,
+  keyVersion: SigningSessionSealKeyVersion,
+): Promise<LockHandleLease> {
+  switch (state.kind) {
+    case 'email_otp_enrollment': {
+      const handle = (await state.handles.get()).get(keyVersion);
+      if (handle === undefined) throw new Error('Email OTP enrollment lock key handle is unavailable');
+      return { kind: 'borrowed', handle };
+    }
+    case 'signing_session': {
+      const handle = await deriveScopedSigningSessionHandle({
+        state,
+        keyVersion,
+        walletId: input.auth.userId,
+        thresholdSessionId: input.thresholdSessionId,
+      });
+      return { kind: 'owned', handle };
+    }
+    default:
+      return assertNeverShamir3PassCipherState(state);
+  }
+}
+
+function assertNeverShamir3PassCipherState(value: never): never {
+  throw new Error(`Unsupported Shamir 3-pass cipher state: ${String(value)}`);
+}
+
+function assertNeverSigningSessionSealOperation(value: never): never {
+  throw new Error(`Unsupported signing-session seal operation: ${String(value)}`);
+}
+
+async function runShamir3PassCipher(
+  state: Shamir3PassCipherState,
+  operation: SigningSessionSealOperation,
+  input: HandlerInput,
+): Promise<HandlerResult> {
+  if (state.kind === 'signing_session') {
+    if (!toOptionalTrimmedString(input.auth.userId) || !toOptionalTrimmedString(input.thresholdSessionId)) {
+      return failure('invalid_scope', 'Authenticated wallet and threshold session are required');
+    }
+  }
+
+  let keyVersion: SigningSessionSealKeyVersion;
+  switch (operation) {
+    case 'apply-server-seal': {
+      const requestedKeyVersion = toOptionalTrimmedString(input.keyVersion);
+      if (requestedKeyVersion && requestedKeyVersion !== state.config.currentKeyVersion) {
+        return failure(
+          'invalid_key_version',
+          `Requested keyVersion "${requestedKeyVersion}" does not match active keyVersion "${state.config.currentKeyVersion}"`,
+        );
+      }
+      keyVersion = state.config.currentKeyVersion;
+      break;
+    }
+    case 'remove-server-seal': {
+      try {
+        keyVersion = normalizeKeyVersion(input.keyVersion, 'keyVersion');
+      } catch {
+        return failure('invalid_key_version', 'keyVersion is invalid');
+      }
+      if (!state.config.acceptedWarmKeyVersions.includes(keyVersion)) {
+        return failure('invalid_key_version', `Unknown keyVersion "${keyVersion}"`);
+      }
+      break;
+    }
+    default:
+      return assertNeverSigningSessionSealOperation(operation);
+  }
+
+  try {
+    const lease = await acquireLockHandle(state, input, keyVersion);
+    try {
+      let ciphertext: string;
+      switch (operation) {
+        case 'apply-server-seal':
+          ciphertext = await state.runtime.addLock({
+            handle: lease.handle,
+            ciphertextB64u: input.ciphertext,
+          });
+          break;
+        case 'remove-server-seal':
+          ciphertext = await state.runtime.removeLock({
+            handle: lease.handle,
+            ciphertextB64u: input.ciphertext,
+          });
+          break;
+        default:
+          return assertNeverSigningSessionSealOperation(operation);
+      }
+      return { ok: true, ciphertext, keyVersion };
+    } finally {
+      if (lease.kind === 'owned') state.runtime.destroyLockKeyHandle(lease.handle);
+    }
+  } catch (error: unknown) {
+    return mapCipherError(error, 'Failed to process server seal');
+  }
+}
+
+function applyShamir3PassCipher(
+  state: Shamir3PassCipherState,
+  input: HandlerInput,
+): Promise<HandlerResult> {
+  return runShamir3PassCipher(state, 'apply-server-seal', input);
+}
+
+function removeShamir3PassCipher(
+  state: Shamir3PassCipherState,
+  input: HandlerInput,
+): Promise<HandlerResult> {
+  return runShamir3PassCipher(state, 'remove-server-seal', input);
+}
+
+function createShamir3PassCipherAdapter(state: Shamir3PassCipherState): SigningSessionSealCipherAdapter {
+  return createSigningSessionSealCipherAdapter({
+    applyServerSeal: applyShamir3PassCipher.bind(null, state),
+    removeServerSeal: removeShamir3PassCipher.bind(null, state),
+  });
+}
+
+export function createEmailOtpEnrollmentShamir3PassCipherAdapter(
   options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
 ): SigningSessionSealCipherAdapter {
   const config = normalizeConfig(options.config);
   options.config.rootSecret32.fill(0);
   const runtime = options.runtime ?? defaultRuntime();
-  const handles = new SigningSessionSealKeyHandles(config, runtime);
+  return createShamir3PassCipherAdapter({
+    kind: 'email_otp_enrollment',
+    config,
+    runtime,
+    handles: new EmailOtpEnrollmentKeyHandles(config, runtime),
+  });
+}
 
-  return createSigningSessionSealCipherAdapter({
-    applyServerSeal: async (input) => {
-      const requestedKeyVersion = toOptionalTrimmedString(input.keyVersion);
-      if (requestedKeyVersion && requestedKeyVersion !== config.currentKeyVersion) {
-        return failure(
-          'invalid_key_version',
-          `Requested keyVersion "${requestedKeyVersion}" does not match active keyVersion "${config.currentKeyVersion}"`,
-        );
-      }
-      try {
-        const handle = (await handles.get()).get(config.currentKeyVersion);
-        if (handle === undefined) throw new Error('currentKeyVersion handle is unavailable');
-        return {
-          ok: true,
-          ciphertext: await runtime.addLock({ handle, ciphertextB64u: input.ciphertext }),
-          keyVersion: config.currentKeyVersion,
-        };
-      } catch (error: unknown) {
-        return mapCipherError(error, 'Failed to apply server seal');
-      }
-    },
-    removeServerSeal: async (input) => {
-      const keyVersion = normalizeKeyVersion(input.keyVersion, 'keyVersion');
-      try {
-        const handle = (await handles.get()).get(keyVersion);
-        if (handle === undefined) {
-          return failure('invalid_key_version', `Unknown keyVersion "${keyVersion}"`);
-        }
-        return {
-          ok: true,
-          ciphertext: await runtime.removeLock({ handle, ciphertextB64u: input.ciphertext }),
-          keyVersion,
-        };
-      } catch (error: unknown) {
-        return mapCipherError(error, 'Failed to remove server seal');
-      }
-    },
+export function createSigningSessionSealShamir3PassCipherAdapter(
+  options: CreateSigningSessionSealShamir3PassCipherAdapterOptions,
+): SigningSessionSealCipherAdapter {
+  const config = normalizeConfig(options.config);
+  options.config.rootSecret32.fill(0);
+  return createShamir3PassCipherAdapter({
+    kind: 'signing_session',
+    config,
+    runtime: options.runtime ?? defaultRuntime(),
+    rootKey: importSigningSessionSealRootKey(config.rootSecret32),
   });
 }

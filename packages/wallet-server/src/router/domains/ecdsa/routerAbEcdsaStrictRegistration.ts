@@ -742,7 +742,7 @@ function canonicalPendingActivationJson(value: unknown): RouterAbEcdsaPendingAct
   const record = exactObject(value, [
     'registration',
     'ownership_generation',
-    'tenant_root_custody_binding_digest',
+    'tenant_root_custody_binding',
     'wallet_scope',
     'environment_key',
     'activation_context',

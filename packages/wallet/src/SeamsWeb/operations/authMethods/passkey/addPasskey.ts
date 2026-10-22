@@ -273,7 +273,8 @@ async function addPasskeyFromEmailOtpSource(args: {
       addAuthMethodIntentDigestB64u: args.intentResponse.addAuthMethodIntentDigestB64u,
     });
   const sent = await sendSourceCode();
-  const confirmed = await args.context.signingEngine.requestEmailOtpEnrollmentConfirmation({
+  const confirmed = await args.context.signingEngine.requestEmailOtpOwnerConfirmation({
+    purpose: 'add_passkey',
     walletId: String(args.walletId),
     emailAddress: sent.emailHint || 'your email',
     challengeId: sent.challengeId,

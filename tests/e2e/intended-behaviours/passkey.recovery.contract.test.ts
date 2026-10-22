@@ -1,4 +1,98 @@
+import { expect, type Request } from '@playwright/test';
+import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+
+type RecoveryRotationProofObservation = {
+  readonly passkeyProof: boolean;
+  readonly topLevelExtensionsRedacted: boolean;
+  readonly responseExtensionsRedacted: boolean;
+};
+
+function recordRecoveryRotationProof(
+  observations: RecoveryRotationProofObservation[],
+  request: Request,
+): void {
+  if (
+    request.method() !== 'POST' ||
+    new URL(request.url()).pathname !== '/wallets/recovery/rotate'
+  ) {
+    return;
+  }
+  let body: unknown;
+  try {
+    body = request.postDataJSON();
+  } catch {
+    observations.push({
+      passkeyProof: false,
+      topLevelExtensionsRedacted: false,
+      responseExtensionsRedacted: false,
+    });
+    return;
+  }
+  const proof = isPlainObject(body) ? body.factorProof : null;
+  const credential = isPlainObject(proof) ? proof.webauthn_authentication : null;
+  const response = isPlainObject(credential) ? credential.response : null;
+  const topLevelExtensions = isPlainObject(credential)
+    ? credential.clientExtensionResults
+    : undefined;
+  const responseExtensions = isPlainObject(response)
+    ? response.clientExtensionResults
+    : undefined;
+  observations.push({
+    passkeyProof: isPlainObject(proof) && proof.kind === 'passkey',
+    topLevelExtensionsRedacted: topLevelExtensions === null || topLevelExtensions === undefined,
+    responseExtensionsRedacted: responseExtensions === null || responseExtensions === undefined,
+  });
+}
+
+async function runRecoveryAdministrationProbeFromPage(): Promise<unknown> {
+  const probe: unknown = Reflect.get(window, '__seamsIntendedE2EProbeRecoveryAdministration');
+  if (typeof probe !== 'function') {
+    throw new Error('Recovery administration intended-app probe is unavailable');
+  }
+  return await probe();
+}
+
+test('recovery administration rejects missing proof and stale acknowledgement after rotation', async (
+  { harness, page },
+  testInfo,
+) => {
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+
+  const rotationProofs: RecoveryRotationProofObservation[] = [];
+  page.on('request', recordRecoveryRotationProof.bind(null, rotationProofs));
+  const evidence: unknown = await page.evaluate(runRecoveryAdministrationProbeFromPage);
+  if (!isPlainObject(evidence)) throw new Error('Recovery administration evidence is invalid');
+  expect(evidence).toMatchObject({
+    kind: 'recovery_administration_probe_v1',
+    missingStatus: { status: 400, code: 'invalid_owner_proof' },
+    missingAcknowledgement: { status: 400, code: 'invalid_owner_proof' },
+    staleAcknowledgement: { status: 409, code: 'recovery_set_conflict' },
+    backupOutstanding: true,
+  });
+  const initialIssuedAtMs = evidence.initialIssuedAtMs;
+  const rotatedIssuedAtMs = evidence.rotatedIssuedAtMs;
+  if (typeof initialIssuedAtMs !== 'number' || typeof rotatedIssuedAtMs !== 'number') {
+    throw new Error('Recovery administration evidence omitted its issuance times');
+  }
+  expect(rotatedIssuedAtMs).toBeGreaterThan(initialIssuedAtMs);
+  expect(evidence.finalIssuedAtMs).toBe(rotatedIssuedAtMs);
+  expect(rotationProofs.length).toBeGreaterThan(0);
+  for (const proof of rotationProofs) {
+    expect(proof).toEqual({
+      passkeyProof: true,
+      topLevelExtensionsRedacted: true,
+      responseExtensionsRedacted: true,
+    });
+  }
+
+  await harness.signTempoTransaction('post_registration');
+  await testInfo.attach('recovery-administration-proofs', {
+    body: JSON.stringify({ ...evidence, rotationProofs }, null, 2),
+    contentType: 'application/json',
+  });
+});
 
 type RecoveryOrigin = {
   readonly name: string;

@@ -1315,6 +1315,11 @@ type PMEmailOtpChallengePayload =
   | Omit<Extract<RequestEmailCodeInput, { method: 'google' }>, 'onEvent'>
   | Omit<Extract<RequestEmailCodeInput, { method: 'email' }>, 'onEvent'>;
 
+interface PMWalletRecoveryOwnerPayload {
+  walletId: string;
+  authorization: import('@/SeamsWeb/publicApi/types').WalletRecoveryOwnerFactor;
+}
+
 interface PMWalletRecoverySessionPayload {
   walletId: string;
 }
@@ -1642,8 +1647,8 @@ export type ParentToChildEnvelope =
       PMGoogleEmailOtpWalletAuthHandlePayload
     >
   | RpcEnvelope<'PM_GOOGLE_EMAIL_OTP_WALLET_AUTH_CANCEL', PMGoogleEmailOtpWalletAuthHandlePayload>
-  | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoverySessionPayload>
-  | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoverySessionPayload>
+  | RpcEnvelope<'PM_GET_WALLET_RECOVERY_CODE_STATUS', PMWalletRecoveryOwnerPayload>
+  | RpcEnvelope<'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP', PMWalletRecoveryOwnerPayload>
   | RpcEnvelope<'PM_ROTATE_WALLET_RECOVERY_CODES', PMRotateWalletRecoveryCodesPayload>
   | RpcEnvelope<
       'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE',

@@ -346,6 +346,7 @@ export class D1LinkedDeviceEmailOtpTargetFactorV1 implements DeviceLinkingEmailO
     // challenge, so this ciphertext is useless outside this exact completion.
     const unsealed = await this.options.serverSeal.removeEmailOtpServerSeal({
       wrappedCiphertext: context.resolved.enrollment.serverSealedFactorCiphertextB64u,
+      enrollmentSealKeyVersion: context.resolved.enrollment.enrollmentSealKeyVersion,
     });
     if (!unsealed.ok) {
       return { kind: 'refused', code: unsealed.code, message: unsealed.message };

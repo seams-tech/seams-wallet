@@ -323,6 +323,7 @@ async function releaseEmailOtpFactorForWorker(input: {
 > {
   const unsealed = await input.emailOtp.removeEmailOtpServerSeal({
     wrappedCiphertext: input.request.enrollment.serverSealedFactorCiphertextB64u,
+    enrollmentSealKeyVersion: input.request.enrollment.enrollmentSealKeyVersion,
   });
   if (!unsealed.ok) return unsealed;
   if (unsealed.enrollmentSealKeyVersion !== input.request.enrollment.enrollmentSealKeyVersion) {

@@ -60,7 +60,7 @@ export async function reserveRegistrationCustody(input: {
     if (admitted.kind !== 'reserved') return settled(toOutcome(admitted));
     return {
       kind: 'prepared',
-      outcome: { status: 'committed' },
+      outcome: { status: 'committed', issuedAtMs: admitted.issuedAtMs },
       write: { statements: admitted.statements },
     };
   } catch (error: unknown) {
@@ -90,10 +90,7 @@ function toOutcome(
     case 'custody_already_established':
       return { status: 'custody_already_established' };
     case 'already_exists':
-      // The same ceremony's records are already stored. Treated as committed
-      // because it is exactly what a retried activation looks like, and the
-      // client's next step is identical.
-      return { status: 'committed' };
+      return { status: 'committed', issuedAtMs: admitted.issuedAtMs };
     case 'rejected':
       return { status: 'rejected', reason: admitted.reason };
   }

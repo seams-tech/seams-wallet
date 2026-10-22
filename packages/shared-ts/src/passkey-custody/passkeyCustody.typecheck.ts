@@ -20,6 +20,7 @@ import type {
   PasskeyCustodySecretBinding,
   Secp256k1CompressedPublicKeyB64u,
   WalletCustodyEnvelopeFactor,
+  WalletCustodyRegistrationOutcome,
 } from './index';
 
 declare const walletId: WalletId;
@@ -398,5 +399,28 @@ declare const rawJson: unknown;
 openCustodyEnvelope(rawServerRow);
 // @ts-expect-error A raw wire payload must be parsed at the boundary first.
 openCustodyEnvelope(rawJson);
+
+// --- Registration custody outcomes carry the server issuance only when committed ---
+
+declare const serverIssuedAtMs: number;
+declare const committedIssuance: { readonly issuedAtMs: number };
+
+const committedCustody: WalletCustodyRegistrationOutcome = {
+  status: 'committed',
+  issuedAtMs: serverIssuedAtMs,
+};
+void committedCustody;
+
+// @ts-expect-error A committed custody response must name the server issuance.
+const committedWithoutIssuance: WalletCustodyRegistrationOutcome = { status: 'committed' };
+void committedWithoutIssuance;
+
+// @ts-expect-error A joined run cannot inherit a committed issuance through a spread.
+const joinedWithCommittedIssuance: WalletCustodyRegistrationOutcome = {
+  status: 'joined',
+  keyManifestDigestB64u: 'digest',
+  ...committedIssuance,
+};
+void joinedWithCommittedIssuance;
 
 export {};

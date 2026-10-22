@@ -1,4 +1,17 @@
 import type { FetchRouterApiContext } from '../createFetchRouter';
+import {
+  parseCustodyOwnerProof,
+  parseRecoveryBackupAcknowledgementRequest,
+  parseRecoveryStatusRequest,
+  requireExactObjectFields,
+  type WalletCustodyOwnerProofWire,
+} from './walletCustodyRequestBoundary';
+import {
+  buildDelegatedWalletAuthorityV1,
+  buildFullOwnerPermissionsV1,
+  sameDelegatedWalletAuthorityV1,
+} from '@shared/authorization/delegatedAuthority';
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type {
   PasskeyCustodyEnvelopeRetrievalWireRequest,
   WalletRecoveryPasskeyRouteFinalizationRequest,
@@ -70,7 +83,6 @@ import {
   parseWalletRecoveryTargetV1,
   type WalletRecoveryTargetV1,
 } from '@shared/wallet-recovery/walletRecoveryTarget';
-import type { WebAuthnAuthenticationCredential } from '../../../../core/types';
 import { parseWebAuthnAuthenticationCredential } from '../../../auth/webAuthnCredentialCodecs';
 import {
   hashEmailOtpOperationBinding,
@@ -130,23 +142,6 @@ const RECOVERY_STATUS_ROUTE_ID = 'wallet_recovery_status';
 const EMAIL_OTP_CHALLENGE_ROUTE_ID = 'wallet_custody_email_otp_challenge';
 const ENVELOPE_OWNERSHIP_UPGRADE_ROUTE_ID = 'wallet_custody_envelope_ownership_upgrade';
 
-type WalletCustodyOwnerProofWire =
-  | {
-      readonly kind: 'passkey';
-      readonly walletId: string;
-      readonly rpId: string;
-      readonly credentialIdB64u: string;
-      readonly challenge_digest: string;
-      readonly webauthn_authentication: WebAuthnAuthenticationCredential;
-    }
-  | {
-      readonly kind: 'email_otp';
-      readonly provider_subject_id: string;
-      readonly challenge_id: string;
-      readonly otp_code: string;
-      readonly challenge_digest: string;
-    };
-
 type WalletCustodyAuthorizationResult =
   | { readonly ok: true; readonly operation: AuthorizedOperation }
   | { readonly ok: false; readonly response: Response };
@@ -154,74 +149,11 @@ type WalletCustodyAuthorizationResult =
 const CUSTODY_OPERATION_CAPABILITY_ID = 'wallet-custody-admin';
 const CUSTODY_PROOF_TTL_MS = 60_000;
 
-function requireExactObjectFields(
-  value: Record<string, unknown>,
-  fields: readonly string[],
-  label: string,
-): void {
-  const keys = Object.keys(value).sort();
-  const expected = [...fields].sort();
-  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
-    throw new Error(`${label} contains unsupported fields`);
-  }
-}
-
-function parseCustodyOwnerProof(value: unknown): WalletCustodyOwnerProofWire {
-  if (!isPlainObject(value)) throw new Error('factorProof is required');
-  const kind = toOptionalTrimmedString(value.kind);
-  if (kind === 'passkey') {
-    requireExactObjectFields(
-      value,
-      [
-        'kind',
-        'walletId',
-        'rpId',
-        'credentialIdB64u',
-        'challenge_digest',
-        'webauthn_authentication',
-      ],
-      'factorProof',
-    );
-    const webauthnAuthentication = parseWebAuthnAuthenticationCredential(
-      value.webauthn_authentication,
-    );
-    if (!webauthnAuthentication) throw new Error('factorProof.webauthn_authentication is invalid');
-    return {
-      kind,
-      walletId: requireTrimmedString(value.walletId, 'factorProof.walletId'),
-      rpId: requireTrimmedString(value.rpId, 'factorProof.rpId'),
-      credentialIdB64u: requireTrimmedString(
-        value.credentialIdB64u,
-        'factorProof.credentialIdB64u',
-      ),
-      challenge_digest: requireTrimmedString(
-        value.challenge_digest,
-        'factorProof.challenge_digest',
-      ),
-      webauthn_authentication: webauthnAuthentication,
-    };
-  }
-  if (kind === 'email_otp') {
-    requireExactObjectFields(
-      value,
-      ['kind', 'provider_subject_id', 'challenge_id', 'otp_code', 'challenge_digest'],
-      'factorProof',
-    );
-    return {
-      kind,
-      provider_subject_id: requireTrimmedString(
-        value.provider_subject_id,
-        'factorProof.provider_subject_id',
-      ),
-      challenge_id: requireTrimmedString(value.challenge_id, 'factorProof.challenge_id'),
-      otp_code: requireTrimmedString(value.otp_code, 'factorProof.otp_code'),
-      challenge_digest: requireTrimmedString(
-        value.challenge_digest,
-        'factorProof.challenge_digest',
-      ),
-    };
-  }
-  throw new Error('factorProof.kind must be passkey or email_otp');
+function hasFullOwnerAuthority(authority: ActiveWalletAuthorityV1): boolean {
+  return sameDelegatedWalletAuthorityV1(
+    buildDelegatedWalletAuthorityV1({ permissions: authority.permissions }),
+    buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
+  );
 }
 
 function parseRequiredAuthorizationValue<T>(
@@ -364,8 +296,15 @@ async function authorizeWalletCustodyOperation(input: {
       );
     }
     const active =
-      await input.ctx.service.walletAuthMethods.verifyActivePasskeyAuthority(authority);
+      await input.ctx.service.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential({
+        walletId,
+        rpId: authority.verifier.rpId,
+        credentialIdB64u: authority.factor.credentialIdB64u,
+      });
     if (!active.ok) return toCustodyAuthorizationFailure(403, active.code, active.message);
+    if (!hasFullOwnerAuthority(active.walletAuthority)) {
+      return toCustodyAuthorizationFailure(403, 'forbidden', 'Full owner authority is required');
+    }
     const credential = parseWebAuthnAuthenticationCredential(proof.webauthn_authentication);
     if (!credential) {
       return toCustodyAuthorizationFailure(
@@ -396,7 +335,7 @@ async function authorizeWalletCustodyOperation(input: {
       tenantId: operation.tenantId,
       principalId: operation.principalId,
       walletId,
-      authorityRef: await walletAuthAuthorityRef({ authority }),
+      authorityRef: await walletAuthAuthorityRef({ authority: active.authority }),
       requestOrigin: origin,
       audience: origin,
       factorId: parseRequiredAuthorizationValue(
@@ -631,7 +570,9 @@ function parseWalletCustodyEmailOtpChallengeRequest(
     operation !== 'credentials_list' &&
     operation !== 'credential_label' &&
     operation !== 'recovery_rotate' &&
-    operation !== 'recovery_read'
+    operation !== 'recovery_read' &&
+    operation !== 'recovery_status' &&
+    operation !== 'recovery_backup_acknowledge'
   ) {
     throw new Error('Email OTP custody challenge operation is invalid');
   }
@@ -1734,27 +1675,55 @@ export async function handleWalletRecoveryBackupAcknowledge(
   const route = matchRoute(ctx, RECOVERY_ACK_ROUTE_ID);
   if (!route) return null;
 
-  const body = await readJsonObject(ctx.request);
-  let walletId = '';
+  let request: ReturnType<typeof parseRecoveryBackupAcknowledgementRequest>;
   try {
-    if (!body) throw new Error('acknowledgement body is required');
-    requireExactObjectFields(body, ['walletId'], 'recovery backup acknowledgement');
-    walletId = requireTrimmedString(body.walletId, 'walletId');
+    request = parseRecoveryBackupAcknowledgementRequest(await readJsonObject(ctx.request));
   } catch {
-    return routeErrorResponse(400, 'invalid_request', 'an acknowledgement needs a wallet');
+    return routeErrorResponse(400, 'invalid_request', 'acknowledgement body is invalid');
   }
 
-  const result = await ctx.service.passkeyCustody.acknowledgeRecoveryBackup({ walletId });
-  if (result.kind === 'no_recovery_set') {
-    return routeErrorResponse(
-      404,
-      'no_recovery_set',
-      'this wallet has no issued recovery codes to acknowledge',
+  const authorized = await authorizeWalletCustodyOperation({
+    ctx,
+    walletId: request.walletId,
+    operation: 'recovery_backup_acknowledge',
+    payload: {
+      walletId: request.walletId,
+      requestId: request.requestId,
+      expectedIssuedAtMs: request.expectedIssuedAtMs,
+    },
+    factorProof: request.factorProof,
+  });
+  if (!authorized.ok) return authorized.response;
+
+  const result = await ctx.service.passkeyCustody.acknowledgeRecoveryBackup({
+    walletId: request.walletId,
+    expectedIssuedAtMs: request.expectedIssuedAtMs,
+  });
+  if (result.kind === 'conflict') {
+    return await completeWalletCustodyOperation(
+      ctx,
+      authorized.operation,
+      409,
+      { ok: false, code: 'recovery_set_conflict', message: 'the recovery set changed' },
+      'failed_before_side_effect',
     );
   }
-  return toFetchRouteResponse({
-    status: 200,
-    body: { ok: true, issuedAtMs: result.issuedAtMs },
+  if (result.kind === 'no_recovery_set') {
+    return await completeWalletCustodyOperation(
+      ctx,
+      authorized.operation,
+      404,
+      {
+        ok: false,
+        code: 'no_recovery_set',
+        message: 'this wallet has no issued recovery codes to acknowledge',
+      },
+      'failed_before_side_effect',
+    );
+  }
+  return await completeWalletCustodyOperation(ctx, authorized.operation, 200, {
+    ok: true,
+    issuedAtMs: result.issuedAtMs,
   });
 }
 
@@ -1918,16 +1887,7 @@ export async function handleWalletRecoveryRead(
   });
 }
 
-/**
- * Reporting recovery status to the wallet's owner.
- *
- * The wallet comes from the path. Origin binding keeps this count endpoint
- * scoped to browser callers without exposing recovery identifiers.
- *
- * Counts only, never identifiers. Which codes remain is not something even
- * the owner's browser needs, and a list would be one leak away from being
- * useful to someone else.
- */
+/** Reports current recovery-code counts after fresh owner proof. */
 export async function handleWalletRecoveryStatus(
   ctx: FetchRouterApiContext,
 ): Promise<Response | null> {
@@ -1938,27 +1898,39 @@ export async function handleWalletRecoveryStatus(
   if (!walletId) {
     return routeErrorResponse(400, 'invalid_request', 'status needs a wallet');
   }
-  const origin = toOptionalTrimmedString(ctx.request.headers.get('origin'));
+  let request: ReturnType<typeof parseRecoveryStatusRequest>;
   try {
-    parseSessionOrigin(origin);
+    request = parseRecoveryStatusRequest(await readJsonObject(ctx.request));
   } catch {
-    return routeErrorResponse(400, 'invalid_origin', 'request Origin is invalid');
+    return routeErrorResponse(400, 'invalid_request', 'status body is invalid');
   }
+
+  const authorized = await authorizeWalletCustodyOperation({
+    ctx,
+    walletId,
+    operation: 'recovery_status',
+    payload: { walletId, requestId: request.requestId },
+    factorProof: request.factorProof,
+  });
+  if (!authorized.ok) return authorized.response;
 
   const result = await ctx.service.passkeyCustody.readRecoveryStatus({ walletId });
   if (result.kind === 'no_recovery_set') {
-    return routeErrorResponse(404, 'no_recovery_set', 'this wallet has no recovery codes');
+    return await completeWalletCustodyOperation(
+      ctx,
+      authorized.operation,
+      404,
+      { ok: false, code: 'no_recovery_set', message: 'this wallet has no recovery codes' },
+      'failed_before_side_effect',
+    );
   }
-  return toFetchRouteResponse({
-    status: 200,
-    body: {
-      ok: true,
-      activeCodeCount: result.activeCodeCount,
-      totalCodeCount: result.totalCodeCount,
-      issuedAtMs: result.issuedAtMs,
-      storeVersion: result.storeVersion,
-      backupOutstanding: result.backupOutstanding,
-    },
+  return await completeWalletCustodyOperation(ctx, authorized.operation, 200, {
+    ok: true,
+    activeCodeCount: result.activeCodeCount,
+    totalCodeCount: result.totalCodeCount,
+    issuedAtMs: result.issuedAtMs,
+    storeVersion: result.storeVersion,
+    backupOutstanding: result.backupOutstanding,
   });
 }
 

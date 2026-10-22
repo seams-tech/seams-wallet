@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { buildPermissionsPolicy, buildWalletCsp } from './walletHeaders';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
+import { escapeHtmlAttribute } from '@/SeamsWeb/walletIframe/sanitization';
 import { printLog, printStepLine } from './logging';
 import {
   buildTestBrowserImportMapHtml,
@@ -27,6 +28,7 @@ export async function installWalletSdkCorsShim(
     logStyle?: 'intercept' | 'setup' | 'silent';
     mirror?: boolean;
     injectWalletServiceImportMap?: boolean;
+    approvedRelayerOrigins?: readonly string[];
   } = {},
 ): Promise<void> {
   const walletOrigin = options.walletOrigin ?? 'https://wallet.example.localhost';
@@ -234,8 +236,14 @@ export async function installWalletSdkCorsShim(
         status = 200;
         headers['content-type'] = 'text/html; charset=utf-8';
       }
-      if (injectWalletServiceImportMap && isHtmlResponse(headers, body)) {
-        body = injectImportMapIntoWalletServiceHtml(body);
+      if (isHtmlResponse(headers, body)) {
+        body = injectRelayerPolicyIntoWalletServiceHtml(
+          body,
+          options.approvedRelayerOrigins ?? [],
+        );
+        if (injectWalletServiceImportMap) {
+          body = injectImportMapIntoWalletServiceHtml(body);
+        }
         headers['content-type'] = headers['content-type'] || 'text/html; charset=utf-8';
         delete headers['content-length'];
         delete headers['Content-Length'];
@@ -302,6 +310,21 @@ function isHtmlResponse(headers: Record<string, string>, body: Buffer): boolean 
     prefix.includes('<html') ||
     prefix.includes('<head')
   );
+}
+
+function injectRelayerPolicyIntoWalletServiceHtml(
+  body: Buffer,
+  approvedRelayerOrigins: readonly string[],
+): Buffer {
+  if (approvedRelayerOrigins.length === 0) return body;
+  let policyHtml = '';
+  for (const origin of approvedRelayerOrigins) {
+    policyHtml += `<meta name="seams-wallet-relayer-origin" content="${escapeHtmlAttribute(origin)}" />`;
+  }
+  const html = body.toString('utf8');
+  const head = html.match(/<head[^>]*>/i)?.[0];
+  const patched = head ? html.replace(head, `${head}${policyHtml}`) : `${policyHtml}${html}`;
+  return Buffer.from(patched, 'utf8');
 }
 
 function injectImportMapIntoWalletServiceHtml(body: Buffer): Buffer {

@@ -249,6 +249,9 @@ export function validateGoogleIdTokenClaims(input: {
   const givenName = toOptionalTrimmedString(payload.given_name);
   const familyName = toOptionalTrimmedString(payload.family_name);
   const emailVerified = parseBooleanJwtClaim(payload.email_verified);
+  if (email && emailVerified !== true) {
+    return failedVerification('unverified_email', 'Google id_token email is not verified');
+  }
   const hostedDomain = toOptionalTrimmedString(payload.hd);
   return {
     ok: true,

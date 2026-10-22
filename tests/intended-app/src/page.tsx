@@ -33,6 +33,10 @@ import {
   walletSessionRefFromSession,
 } from '@seams/wallet/advanced';
 import { resolveEmailOtpRegistrationSession } from './registrationSession';
+import {
+  probeRecoveryAdministration,
+  type RecoveryAdministrationProbe,
+} from './recoveryAdministrationProbe';
 import { ReviewedSigning } from './ReviewedSigning';
 import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
 
@@ -608,6 +612,13 @@ type IntendedEmailOtpOutboxSuccess = {
   otpCode: string;
 };
 
+type IntendedEmailOtpRecoveryRotationResult = {
+  readonly kind: 'rotated';
+  readonly issuedAtMs: number;
+  readonly storeVersion: string;
+  readonly recoveryCodeCount: number;
+};
+
 declare global {
   interface Window {
     __seamsIntendedE2EReadEmailOtpCode?: (input: IntendedEmailOtpCodeRequest) => Promise<string>;
@@ -624,6 +635,8 @@ declare global {
     }>;
     /** The linked-device inventory, parsed strictly by the contract. */
     __seamsIntendedE2EReadLinkedDevices?: () => Promise<unknown>;
+    __seamsIntendedE2EProbeRecoveryAdministration?: () => Promise<RecoveryAdministrationProbe>;
+    __seamsIntendedE2ERotateEmailOtpRecoveryCodes?: () => Promise<IntendedEmailOtpRecoveryRotationResult>;
     /** The QR payload Device 1 "scans"; the contract has no camera. */
     __seamsIntendedE2EDeviceLinkQrPayloadJson?: string;
     /** The exact revocation Device 1 submits, with its fresh source proof. */
@@ -1203,6 +1216,35 @@ class IntendedPageController {
         state: device.state,
       })),
     };
+  };
+
+  rotateEmailOtpRecoveryCodesForIntendedTest =
+    async (): Promise<IntendedEmailOtpRecoveryRotationResult> => {
+      const walletId = this.walletId;
+      if (!walletId) throw new Error('Email OTP recovery rotation requires a registered wallet');
+      const outcome = await this.seams.recovery.rotateCodes({
+        walletId,
+        authorization: { kind: 'email_otp' },
+      });
+      if (outcome.kind !== 'rotated') throw new Error(outcome.message);
+      return {
+        kind: 'rotated',
+        issuedAtMs: outcome.issuedAtMs,
+        storeVersion: outcome.storeVersion,
+        recoveryCodeCount: outcome.recoveryCodes.length,
+      };
+    };
+
+  probeRecoveryAdministrationForIntendedTest = async (): Promise<RecoveryAdministrationProbe> => {
+    const walletId = this.walletId;
+    if (!walletId) throw new Error('recovery administration probe requires a registered wallet');
+    return await probeRecoveryAdministration({
+      walletId,
+      relayerUrl: requireRelayerUrl(this.seams.configs.network.relayer?.url),
+      rpId: intendedRegistrationRpId(),
+      recovery: this.seams.recovery,
+      devices: this.seams.devices,
+    });
   };
 
   readNearSigningContext(): IntendedNearSigningContext {
@@ -1969,6 +2011,7 @@ class IntendedPageController {
       await this.refreshSession(String(outcome.walletId));
       const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
+        authorization: { kind: 'passkey' },
       });
       if (recoveryStatus.kind !== 'ready') {
         throw new Error(`Recovery-code status is ${recoveryStatus.kind}`);
@@ -2032,6 +2075,7 @@ class IntendedPageController {
       await this.refreshSession(String(outcome.walletId));
       const recoveryStatus = await this.seams.recovery.getCodeStatus({
         walletId: String(outcome.walletId),
+        authorization: { kind: 'email_otp' },
       });
       if (recoveryStatus.kind !== 'ready') {
         throw new Error(`Recovery-code status is ${recoveryStatus.kind}`);
@@ -3821,6 +3865,10 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2EReadAuthenticationMethods =
     controller.readAuthenticationMethodsForIntendedTest;
   window.__seamsIntendedE2EReadLinkedDevices = controller.readLinkedDevicesForIntendedTest;
+  window.__seamsIntendedE2EProbeRecoveryAdministration =
+    controller.probeRecoveryAdministrationForIntendedTest;
+  window.__seamsIntendedE2ERotateEmailOtpRecoveryCodes =
+    controller.rotateEmailOtpRecoveryCodesForIntendedTest;
 }
 
 function requireHex(value: unknown, label: string): `0x${string}` {

@@ -138,6 +138,7 @@ export interface CloudflareD1GatewayBaseEnv
   readonly SIGNING_SESSION_SEAL_ROOT_SECRET_B64U?: string;
   readonly SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION?: string;
   readonly SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS?: string;
+  readonly EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS?: string;
   readonly EMAIL_OTP_DELIVERY_MODE?: string;
   readonly EMAIL_OTP_RUNTIME_PROFILE?: string;
   readonly EMAIL_OTP_PROVIDER?: string;
@@ -1059,12 +1060,25 @@ export function stagingSigningSessionSealOptions(
   >,
 ): SigningSessionSealRoutesOptions | undefined {
   if (cachedStagingSigningSessionSealOptions) return cachedStagingSigningSessionSealOptions;
-  const seal = stagingEmailOtpServerSealConfig(env);
-  if (!seal) return undefined;
+  const rootSecretB64u = readEnvString(env, 'SIGNING_SESSION_SEAL_ROOT_SECRET_B64U');
+  const currentKeyVersion = readEnvString(env, 'SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION');
+  const acceptedWarmKeyVersions = readEnvString(
+    env,
+    'SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS',
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!rootSecretB64u && !currentKeyVersion) return undefined;
+  if (!rootSecretB64u || !currentKeyVersion || acceptedWarmKeyVersions.length === 0) {
+    throw new Error(
+      'Signing-session seal requires the root secret, current key version, and accepted warm key versions',
+    );
+  }
   cachedStagingSigningSessionSealOptions = createSigningSessionSealOptions({
-    rootSecretB64u: seal.rootSecretB64u,
-    currentKeyVersion: seal.currentKeyVersion,
-    acceptedWarmKeyVersions: seal.acceptedWarmKeyVersions,
+    rootSecretB64u,
+    currentKeyVersion,
+    acceptedWarmKeyVersions,
   });
   return cachedStagingSigningSessionSealOptions;
 }
@@ -1131,19 +1145,19 @@ function stagingEmailOtpServerSealConfig(
     CloudflareD1GatewayBaseEnv,
     | 'SIGNING_SESSION_SEAL_ROOT_SECRET_B64U'
     | 'SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION'
-    | 'SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS'
+    | 'EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS'
   >,
 ): CloudflareD1EmailOtpServerSealConfig | undefined {
   const rootSecretB64u = readEnvString(env, 'SIGNING_SESSION_SEAL_ROOT_SECRET_B64U');
   const currentKeyVersion = readEnvString(env, 'SIGNING_SESSION_SEAL_CURRENT_KEY_VERSION');
   const acceptedWarmKeyVersions = readEnvString(
     env,
-    'SIGNING_SESSION_SEAL_ACCEPTED_WARM_KEY_VERSIONS',
+    'EMAIL_OTP_SERVER_SEAL_ACCEPTED_WARM_KEY_VERSIONS',
   )
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  if (!rootSecretB64u && !currentKeyVersion) {
+  if (!rootSecretB64u && !currentKeyVersion && acceptedWarmKeyVersions.length === 0) {
     return undefined;
   }
   if (!rootSecretB64u || !currentKeyVersion || acceptedWarmKeyVersions.length === 0) {

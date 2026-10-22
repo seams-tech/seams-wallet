@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 445 dependency records (41 npm, 404 Cargo).
+Inventory: 450 dependency records (41 npm, 409 Cargo).
 
 ## Dependency inventory
 
@@ -204,6 +204,7 @@ Inventory: 445 dependency records (41 npm, 404 Cargo).
 | cargo | memchr | 2.8.2 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com>; bluss |
 | cargo | memchr | 2.8.3 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com>; bluss |
 | cargo | minicov | 0.3.8 | Apache-2.0/MIT | Amanieu d'Antras <amanieu@gmail.com> |
+| cargo | mio | 1.2.4 | MIT | Carl Lerche <me@carllerche.com>; Thomas de Zeeuw <thomasdezeeuw@gmail.com>; Tokio Contributors <team@tokio.rs> |
 | cargo | nix | 0.31.3 | MIT |  |
 | cargo | nu-ansi-term | 0.50.3 | MIT | Josh Triplett <josh@joshtriplett.org>; Ryan Scheel (Havvy) <ryan.havvy@gmail.com>; The Nushell Project Developers; ogham@bsago.me |
 | cargo | num-bigint | 0.4.6 | MIT OR Apache-2.0 | The Rust Project Developers |
@@ -293,6 +294,7 @@ Inventory: 445 dependency records (41 npm, 404 Cargo).
 | cargo | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | Hans Kratz <hans@appfour.com> |
 | cargo | slab | 0.4.12 | MIT | Carl Lerche <me@carllerche.com> |
 | cargo | smallvec | 1.15.2 | MIT OR Apache-2.0 | The Servo Project Developers |
+| cargo | socket2 | 0.6.5 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com>; Thomas de Zeeuw <thomasdezeeuw@gmail.com> |
 | cargo | spin | 0.9.8 | MIT | John Ericson <git@JohnEricson.me>; Joshua Barretto <joshua.s.barretto@gmail.com>; Mathijs van de Nes <git@mathijs.vd-nes.nl> |
 | cargo | spin | 0.9.9 | MIT | John Ericson <git@JohnEricson.me>; Joshua Barretto <joshua.s.barretto@gmail.com>; Mathijs van de Nes <git@mathijs.vd-nes.nl> |
 | cargo | spki | 0.7.3 | Apache-2.0 OR MIT | RustCrypto Developers |
@@ -307,6 +309,7 @@ Inventory: 445 dependency records (41 npm, 404 Cargo).
 | cargo | syn | 2.0.119 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.3 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.5 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | syn | 3.0.9 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | termcolor | 1.4.1 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | thiserror-impl | 2.0.17 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror-impl | 2.0.18 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
@@ -321,6 +324,8 @@ Inventory: 445 dependency records (41 npm, 404 Cargo).
 | cargo | tinyvec | 1.12.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tinyvec | 1.13.2 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tinyvec | 1.9.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
+| cargo | tokio-macros | 2.7.2 | MIT | Tokio Contributors <team@tokio.rs> |
+| cargo | tokio | 1.52.3 | MIT | Tokio Contributors <team@tokio.rs> |
 | cargo | toml_datetime | 0.6.11 | MIT OR Apache-2.0 |  |
 | cargo | toml_datetime | 1.1.1+spec-1.1.0 | MIT OR Apache-2.0 |  |
 | cargo | toml_edit | 0.22.27 | MIT OR Apache-2.0 |  |
@@ -1279,6 +1284,35 @@ Applies to:
     limitations under the License.
 
 
+### 07919255c7e04793
+
+Packaged as: LICENSE
+
+Applies to:
+
+- cargo:mio@1.2.4
+
+    Copyright (c) 2014 Carl Lerche and other MIO contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+
 ### 0816e154b159ba25
 
 Packaged as: LICENSE-MIT
@@ -1507,6 +1541,38 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### 0b83dc40cba89b99
+
+Packaged as: LICENSE
+
+Applies to:
+
+- cargo:tokio-macros@2.7.2
+
+    MIT License
+
+    Copyright (c) 2019 Yoshua Wuyts
+    Copyright (c) Tokio Contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 
 ### 0c1240e29b4a2c52
@@ -2752,6 +2818,7 @@ Applies to:
 - cargo:syn@2.0.119
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
+- cargo:syn@3.0.9
 - cargo:thiserror-impl@2.0.17
 - cargo:thiserror-impl@2.0.18
 - cargo:thiserror-impl@2.0.19
@@ -2897,6 +2964,37 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### 253cd04c6714889d
+
+Packaged as: LICENSE
+
+Applies to:
+
+- cargo:tokio@1.52.3
+
+    MIT License
+
+    Copyright (c) Tokio Contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 
 ### 275c491d6d116055
@@ -3728,6 +3826,7 @@ Applies to:
 - cargo:js-sys@0.3.90
 - cargo:openssl-probe@0.2.1
 - cargo:pkg-config@0.3.34
+- cargo:socket2@0.6.5
 - cargo:wasm-bindgen-backend@0.2.100
 - cargo:wasm-bindgen-futures@0.4.73
 - cargo:wasm-bindgen-macro-support@0.2.100
@@ -5842,6 +5941,7 @@ Applies to:
 - cargo:syn@2.0.119
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
+- cargo:syn@3.0.9
 - cargo:thiserror-impl@2.0.17
 - cargo:thiserror-impl@2.0.18
 - cargo:thiserror-impl@2.0.19
@@ -9305,6 +9405,7 @@ Applies to:
 - cargo:security-framework@3.7.0
 - cargo:simd_cesu8@1.2.0
 - cargo:smallvec@1.15.2
+- cargo:socket2@0.6.5
 - cargo:stable_deref_trait@1.2.1
 - cargo:vcpkg@0.2.15
 - cargo:version_check@0.9.5
