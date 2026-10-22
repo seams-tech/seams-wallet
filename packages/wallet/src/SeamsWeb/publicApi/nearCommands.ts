@@ -19,7 +19,10 @@ type ResolvedNearInput<T extends { options?: unknown }> = Omit<
 > & {
   walletSession: WalletSessionRef;
   nearAccount: NearAccountRef;
-  options: NonNullable<T['options']>;
+  options: NonNullable<T['options']> & {
+    /** Wallet-origin cancellation. Functions never cross the iframe boundary. */
+    readonly shouldAbort?: () => boolean;
+  };
 };
 
 export type NearCommands = {

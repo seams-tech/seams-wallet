@@ -224,14 +224,17 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_SIGN_TX_WITH_ACTIONS: async (req: Req<'PM_SIGN_TX_WITH_ACTIONS'>) => {
       const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, transaction, options, signer } = req.payload!;
+      if (deps.respondIfCancelled(req.requestId)) return;
+      const signingOptions = {
+        ...withProgress(deps, req.requestId, options || {}),
+        shouldAbort: deps.isCancelled.bind(deps, req.requestId),
+      };
       const result = await pm.near.signTransaction({
         signer,
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         transaction,
-        options: {
-          ...withProgress(deps, req.requestId, options || {}),
-        },
+        options: signingOptions,
       });
 
       if (deps.respondIfCancelled(req.requestId)) return;
@@ -241,15 +244,18 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
     PM_SIGN_AND_SEND_TX: async (req: Req<'PM_SIGN_AND_SEND_TX'>) => {
       const pm = deps.getWalletRuntime();
       const { walletId, nearAccountId, transaction, options, signer } = req.payload!;
+      if (deps.respondIfCancelled(req.requestId)) return;
+      const signingOptions = {
+        ...withProgress(deps, req.requestId, options || {}),
+        shouldAbort: deps.isCancelled.bind(deps, req.requestId),
+      };
       const result = await pm.near.signAndSendTransaction({
         signer,
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         receiverId: transaction.receiverId,
         actions: transaction.actions,
-        options: {
-          ...withProgress(deps, req.requestId, options || {}),
-        },
+        options: signingOptions,
       });
 
       respondOkResult(deps, req.requestId, result);
@@ -257,15 +263,18 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
 
     PM_SEND_TRANSACTION: async (req: Req<'PM_SEND_TRANSACTION'>) => {
       const pm = deps.getWalletRuntime();
+      if (deps.respondIfCancelled(req.requestId)) return;
       const { walletId, nearAccountId, signedTransaction, options } =
         req.payload || ({} as Partial<PMSendTxPayload>);
+      const signingOptions = {
+        ...withProgress(deps, req.requestId, options || {}),
+        shouldAbort: deps.isCancelled.bind(deps, req.requestId),
+      };
       const result = await pm.near.sendTransaction({
         walletSession: walletSessionFromWalletId(walletId),
         nearAccount: nearAccountRefFromAccountId(nearAccountId),
         signedTransaction: normalizeSignedTransaction(signedTransaction) as SignedTransaction,
-        options: {
-          ...withProgress(deps, req.requestId, options || {}),
-        },
+        options: signingOptions,
       });
 
       respondOkResult(deps, req.requestId, result);

@@ -3600,6 +3600,8 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Preserve NEAR u64 nonce values exactly. Bound unsigned transactions to 32 KiB so completed results fit the existing durable replay limit.
 - Return an explicit retry time for pool, capacity, cooldown, and running waits. Internal candidate rejection remains within the admitted Router operation.
 - Bound service-capacity retry hints to 500 milliseconds from the Gateway response, even when the active lease expires later. Preserve the exact approved request and deadline. Keep cooldown and empty-pool retry times unchanged.
+- Check request cancellation and approval expiry before each ML-DSA signing dispatch. Recheck both after retry waits. Wallet RPC cancellation stops subsequent retries and automatic transaction submission.
+- Let an in-flight signing response settle. Record a verified late signature as signed before reporting cancellation. Keep an uncertain nonce reserved after dispatch. Release the nonce when cancellation or expiry precedes the first dispatch. Cancellation does not refund consumed server material, cooldown, or session uses.
 - An empty pool before participant reservation leaves the exact operation waiting for stock. Release its capacity claim without charging cooldown. After the retry time, obtain a fresh claim for that operation. Reject stale claims and changed inputs. A cancellation after uncertain reservation remains terminal.
 - Recheck authority digest, revocation epoch, auth method, publication version, wallet generation, origin, and expiry before releasing cached signatures.
 - Bind approval to the tenant, wallet scope and ownership generation, active key, public key, epoch, manifest, schedule, transaction hash, and empty context.

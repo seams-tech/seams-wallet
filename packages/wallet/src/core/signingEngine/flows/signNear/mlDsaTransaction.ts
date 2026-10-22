@@ -28,9 +28,12 @@ import { SigningSessionIds, SigningOperationIntent } from '../../session/operati
 import { computeSigningOperationFingerprint } from '../../session/planning/operationFingerprint';
 import {
   prepareMlDsaNearSigning,
-  executeMlDsaNearSigning,
   initializeMlDsaCodec,
 } from '@/core/rpcClients/relayer/mlDsaSigning';
+import {
+  assertMlDsaSigningNotCancelled,
+  executeMlDsaSigningUntilSettled,
+} from './mlDsaSigningExecution';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
@@ -49,6 +52,7 @@ export type MlDsaNearTransactionInput = {
   readonly signer: AddedMlDsaSignerCapability;
   readonly transaction: TransactionInput;
   readonly options: SignTransactionHooksOptions;
+  readonly shouldAbort: () => boolean;
 };
 type Dependencies = {
   readonly configs: SeamsConfigsReadonly;
@@ -57,17 +61,17 @@ type Dependencies = {
   readonly confirm: UiConfirmRequestConfirmationPort;
 };
 
-function scheduleRetry(milliseconds: number, resolve: () => void): void {
-  setTimeout(resolve, milliseconds);
-}
-function waitForRetry(milliseconds: number): Promise<void> {
-  return new Promise(scheduleRetry.bind(undefined, milliseconds));
+type SigningDispatch = { kind: 'approved' | 'dispatched' };
+
+function markDispatched(dispatch: SigningDispatch): void {
+  dispatch.kind = 'dispatched';
 }
 
 export async function signMlDsaNearTransaction(
   deps: Dependencies,
   input: MlDsaNearTransactionInput,
 ): Promise<SignTransactionResult> {
+  assertMlDsaSigningNotCancelled(input.shouldAbort);
   if (input.options.signerSlot !== undefined)
     throw new Error('An ML-DSA signer reference already selects the exact key');
   const owner = await resolveMlDsaPasskeyOwner(input.walletSession.walletId);
@@ -98,20 +102,19 @@ export async function signMlDsaNearTransaction(
       transaction: transactionInput,
     },
   });
+  assertMlDsaSigningNotCancelled(input.shouldAbort);
   await initializeMlDsaCodec();
   const identifiers = requireRecord(
     JSON.parse(ml_dsa65_near_key_identifiers(input.signer.publicKeyB64u)),
     'ML-DSA key identifiers',
   );
+  assertMlDsaSigningNotCancelled(input.shouldAbort);
   const reserved = await deps.nonceCoordinator.reserveNearContext({
     lane: buildNearNonceLane({
       chains: deps.configs.network.chains,
       walletId: String(input.walletSession.walletId),
       nearAccountId: String(input.nearAccount.accountId),
-      nearPublicKeyStr: requireCanonicalString(
-        identifiers.publicKey,
-        'ML-DSA public key',
-      ),
+      nearPublicKeyStr: requireCanonicalString(identifiers.publicKey, 'ML-DSA public key'),
     }),
     operation: {
       operationId,
@@ -126,8 +129,9 @@ export async function signMlDsaNearTransaction(
   if (!lease || extra.length !== 0 || lease.lane.family !== 'near')
     throw new Error('ML-DSA signing requires one reserved NEAR nonce');
   const nonceLease = nonceLeaseToRef(lease);
-  let dispatched = false;
+  const dispatch: SigningDispatch = { kind: 'approved' };
   try {
+    assertMlDsaSigningNotCancelled(input.shouldAbort);
     const unsignedTransactionBorshB64u = ml_dsa65_build_near_transaction(
       JSON.stringify({
         signerId: String(input.nearAccount.accountId),
@@ -151,6 +155,7 @@ export async function signMlDsaNearTransaction(
       },
     });
     if (prepared.kind !== 'prepared') throw new Error(prepared.message);
+    assertMlDsaSigningNotCancelled(input.shouldAbort);
     const preparation = prepared.preparation;
     const approval = await prepareMlDsaTransactionApproval({
       relayerUrl,
@@ -159,6 +164,7 @@ export async function signMlDsaNearTransaction(
       materialEpoch: input.signer.materialEpoch,
       policy: input.options.mlDsaSigningSession ?? null,
     });
+    assertMlDsaSigningNotCancelled(input.shouldAbort);
     emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
       phase: SigningEventPhase.STEP_05_CONFIRMATION_DISPLAYED,
       status: 'running',
@@ -169,6 +175,7 @@ export async function signMlDsaNearTransaction(
     );
     if (!decision.confirmed)
       throw new Error(decision.error || 'ML-DSA transaction approval was cancelled');
+    assertMlDsaSigningNotCancelled(input.shouldAbort);
     const credential = decision.credential
       ? redactCredentialExtensionOutputs(normalizeAuthenticationCredential(decision.credential))
       : null;
@@ -185,17 +192,15 @@ export async function signMlDsaNearTransaction(
       status: 'running',
       interaction: { kind: 'none', overlay: 'none' },
     });
-    dispatched = true;
-    let result = await executeMlDsaNearSigning(request);
-    while (result.kind === 'retry' && result.retryAtMs < signingDeadline) {
-      await waitForRetry(Math.max(100, result.retryAtMs - Date.now()));
-      result = await executeMlDsaNearSigning(request);
-    }
-    if (result.kind !== 'signed') {
-      if (result.kind === 'refused') forgetMlDsaTransactionApproval(approval);
-      throw new Error(
-        result.kind === 'refused' ? result.message : 'ML-DSA signing approval expired',
-      );
+    const result = await executeMlDsaSigningUntilSettled({
+      request,
+      deadlineAtMs: signingDeadline,
+      shouldAbort: input.shouldAbort,
+      onDispatch: markDispatched.bind(null, dispatch),
+    });
+    if (result.kind === 'refused') {
+      forgetMlDsaTransactionApproval(approval);
+      throw new Error(result.message);
     }
     const decoded = requireRecord(
       threshold_ed25519_decode_signed_near_tx_borsh({
@@ -215,6 +220,7 @@ export async function signMlDsaNearTransaction(
       operationId,
       operationFingerprint: fingerprint,
     });
+    assertMlDsaSigningNotCancelled(input.shouldAbort);
     const signedResult = {
       signedTransaction,
       nearAccountId: String(input.nearAccount.accountId),
@@ -229,7 +235,7 @@ export async function signMlDsaNearTransaction(
     return signedResult;
   } catch (error: unknown) {
     // An uncertain signature must keep its nonce reserved until reconciliation.
-    if (!dispatched)
+    if (dispatch.kind === 'approved')
       await deps.nonceCoordinator.release({
         leaseId: nonceLease.leaseId,
         operationId,

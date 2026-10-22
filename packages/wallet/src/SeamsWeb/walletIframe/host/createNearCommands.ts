@@ -11,6 +11,11 @@ import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';
 import { toError } from '@shared/utils/errors';
 import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
+import { assertMlDsaSigningNotCancelled } from '@/core/signingEngine/flows/signNear/mlDsaSigningExecution';
+
+function neverAbortSigning(): boolean {
+  return false;
+}
 export function createWalletHostNearCommands(
   getContext: () => NearSigningWebContext,
   runOwnerOperation: WalletHostRuntime['runOwnerNearOperation'],
@@ -33,11 +38,13 @@ class WalletHostNearCommands {
     try {
       if (args.signer.kind === 'near_ml_dsa_65') {
         const context = this.getContext();
+        const shouldAbort = args.options.shouldAbort ?? neverAbortSigning;
         const signed = await context.signingEngine.signMlDsaNearTransaction({
           walletSession: args.walletSession,
           nearAccount: args.nearAccount,
           signer: args.signer,
           transaction: { receiverId: args.receiverId, actions: args.actions },
+          shouldAbort,
           options: {
             mlDsaSigningSession: args.options.mlDsaSigningSession,
             onEvent: args.options.onEvent,
@@ -45,6 +52,7 @@ class WalletHostNearCommands {
             confirmerText: args.options.confirmerText,
           },
         });
+        assertMlDsaSigningNotCancelled(shouldAbort);
         return await sendTransaction({
           context,
           nearAccountId: args.nearAccount.accountId,
@@ -80,6 +88,7 @@ class WalletHostNearCommands {
           signer: args.signer,
           transaction: args.transaction,
           options: args.options,
+          shouldAbort: args.options.shouldAbort ?? neverAbortSigning,
         });
       }
       const nearAccountId = args.nearAccount.accountId;
@@ -100,6 +109,7 @@ class WalletHostNearCommands {
   async sendTransaction(
     args: Parameters<NearCommands['sendTransaction']>[0],
   ): ReturnType<NearCommands['sendTransaction']> {
+    assertMlDsaSigningNotCancelled(args.options.shouldAbort ?? neverAbortSigning);
     const nearAccountId = args.nearAccount.accountId;
     return await sendTransaction({
       context: this.getContext(),

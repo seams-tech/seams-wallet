@@ -16,6 +16,11 @@ The clean two-wallet capacity repeat records three verified signatures, then a s
 Refill throughput and SDK backpressure remain release gates.
 GPU preparation, product UI changes, and registry publication remain deferred.
 
+The October 22 [browser cancellation campaign](ml-dsa-65-sdk-release-qualification.md#sdk-cancellation-and-deadlines)
+passes seven controlled lifecycle scenarios. Wallet RPC timeout now stops later ML-DSA retries.
+Late results preserve nonce state and cannot trigger automatic submission after cancellation.
+This closes the client retry cancellation gap. Hosted backpressure, refill capacity, and five-second performance remain open.
+
 ## Current priority — October 19, 2026
 
 Complete the public SDK lifecycle before further latency optimization. Keep the current
