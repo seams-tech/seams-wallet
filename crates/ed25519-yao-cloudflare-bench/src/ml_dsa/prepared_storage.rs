@@ -282,18 +282,17 @@ impl Tables {
             upload_part(writing).await?;
             self.parts += 1;
         }
+        let upload_id = writing.upload.upload_id().await;
+        let completing = self
+            .bucket
+            .resume_multipart_upload(&writing.key, upload_id)?;
+        let parts = std::mem::take(&mut writing.parts);
+        // Cancellation must leave the original upload and key available to cleanup.
+        completing.complete(parts).await?;
         let writing = self
             .writing
             .take()
-            .ok_or_else(|| failure("Missing group writer."))?;
-        let upload_id = writing.upload.upload_id().await;
-        if let Err(error) = writing.upload.complete(writing.parts).await {
-            self.bucket
-                .resume_multipart_upload(&writing.key, upload_id)?
-                .abort()
-                .await?;
-            return Err(error);
-        }
+            .ok_or_else(|| failure("Missing completed writer."))?;
         self.groups.push(Group {
             key: writing.key,
             length: writing.length,
@@ -408,14 +407,20 @@ impl Tables {
     }
     #[cfg(feature = "ml-dsa-b")]
     pub(super) async fn cleanup(&self) -> worker::Result<()> {
+        let aborted = match &self.writing {
+            Some(writing) => writing.upload.abort().await,
+            None => Ok(()),
+        };
+        let mut keys: Vec<_> = self.groups.iter().map(|group| group.key.clone()).collect();
         if let Some(writing) = &self.writing {
-            writing.upload.abort().await?;
+            keys.push(writing.key.clone());
         }
-        let keys: Vec<_> = self.groups.iter().map(|group| group.key.clone()).collect();
         if !keys.is_empty() {
             self.bucket.delete_multiple(keys).await?;
         }
-        Ok(())
+        // Delete a possibly committed object even if the abort outcome is unknown.
+        // An abort error still prevents a successful cleanup acknowledgement.
+        aborted
     }
 }
 async fn upload_part(writing: &mut Writing) -> worker::Result<()> {
