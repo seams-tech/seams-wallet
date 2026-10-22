@@ -5,6 +5,7 @@ import type {
 } from '../../../../storage/tenantRoute';
 import type { ScopedD1Prepare } from '../../../../core/emailOtpD1Statements';
 import type { RateLimitResult } from '../../../../core/authService/rateLimits';
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { EmailOtpRateLimitPolicy } from '../auth/d1RouterApiAuthConfig';
 import {
   emailOtpRateLimitExceeded,
@@ -24,6 +25,7 @@ type EmailOtpRateLimitConsumeResult = Readonly<RateLimitResult>;
 export class CloudflareD1EmailOtpRateLimitStore {
   constructor(
     private readonly input: {
+      readonly database: D1DatabaseLike;
       readonly prepare: ScopedD1Prepare;
       readonly batch: D1DatabaseLike['batch'];
       readonly rateLimits: EmailOtpRateLimitPolicies;
@@ -49,6 +51,56 @@ export class CloudflareD1EmailOtpRateLimitStore {
       return emailOtpRateLimitExceeded(await this.readCounter(keys[index]));
     }
     return { ok: true };
+  }
+
+  async consumeVerifiedGrant(input: {
+    readonly grantDelete: D1PreparedStatementLike;
+    readonly rateLimit: EmailOtpRateLimitConsumeInput & {
+      readonly kind: 'wallet';
+      readonly scope: 'grant';
+    };
+    readonly nowMs: number;
+  }): Promise<void> {
+    const policy = this.input.rateLimits.grant;
+    const keys = emailOtpRateLimitKeys(input.rateLimit, policy);
+    const statements: D1PreparedStatementLike[] = [
+      input.grantDelete,
+      this.input.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ];
+    for (const counter of keys) {
+      statements.push(
+        this.prepareConsume(counter, policy, input.nowMs, true),
+        this.input.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+      );
+    }
+    const results = await this.input.batch<D1ResultLike>(statements);
+    if (results.length !== statements.length) {
+      throw new Error('OTP grant counter batch failed');
+    }
+    for (const result of results) {
+      if (!result.success) throw new Error('OTP grant counter batch failed');
+    }
+  }
+
+  async readExceededGrantRateLimit(
+    input: EmailOtpRateLimitConsumeInput & { readonly kind: 'wallet'; readonly scope: 'grant' },
+    nowMs: number,
+  ): Promise<ReturnType<typeof emailOtpRateLimitExceeded> | null> {
+    const policy = this.input.rateLimits.grant;
+    for (const counter of emailOtpRateLimitKeys(input, policy)) {
+      const row = await this.readCounter(counter);
+      if (
+        typeof row?.consumed_count === 'number' &&
+        Number.isSafeInteger(row.consumed_count) &&
+        row.consumed_count >= policy.limit &&
+        typeof row.reset_at_ms === 'number' &&
+        Number.isSafeInteger(row.reset_at_ms) &&
+        row.reset_at_ms > nowMs
+      ) {
+        return emailOtpRateLimitExceeded(row);
+      }
+    }
+    return null;
   }
 
   private prepareConsume(

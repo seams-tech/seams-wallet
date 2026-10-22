@@ -21,6 +21,7 @@ import {
   clampedEmailOtpUnlockTtlMs,
   decodeFixedBase64Url,
   emailOtpUnlockChallengeRecord,
+  type EmailOtpRateLimitConsumeInput,
 } from './d1EmailOtpRecords';
 
 type ReadActiveEmailOtpEnrollmentInput = Parameters<
@@ -443,23 +444,52 @@ export class CloudflareD1EmailOtpRecoveryService {
       const parsed = normalizeGrantConsumptionInput(input);
       if (!parsed.ok) return parsed.result;
 
-      const rateLimit = await this.emailOtpRateLimits.consume({
-        kind: 'wallet',
-        scope: 'grant',
-        userId: parsed.value.userId,
-        walletId: parsed.value.walletId,
-        orgId: parsed.value.orgId,
-        clientIp: parsed.value.clientIp,
-      });
-      if (!rateLimit.ok) return rateLimit;
-
-      const record = await this.emailOtpGrants.consume(parsed.value.loginGrant);
-      if (!record || Date.now() > record.expiresAtMs) return emailOtpGrantInvalidOrExpired();
-      if (record.action !== WALLET_EMAIL_OTP_ACTIONS.unseal) {
+      const nowMs = Date.now();
+      const record = await this.emailOtpGrants.read(parsed.value.loginGrant);
+      if (
+        !record ||
+        nowMs >= record.expiresAtMs ||
+        record.action !== WALLET_EMAIL_OTP_ACTIONS.unseal ||
+        emailOtpGrantBindingMismatch(record, parsed.value)
+      ) {
+        const invalidGrantRateLimit = await this.emailOtpRateLimits.consume({
+          kind: 'regional',
+          scope: 'grant',
+          action: 'invalid_grant',
+          clientIp: parsed.value.clientIp || 'unknown',
+        });
+        if (!invalidGrantRateLimit.ok) return invalidGrantRateLimit;
         return emailOtpGrantInvalidOrExpired();
       }
-      if (emailOtpGrantBindingMismatch(record, parsed.value)) {
-        return emailOtpGrantInvalidOrExpired();
+
+      const grantRateLimitInput: EmailOtpRateLimitConsumeInput & {
+        readonly kind: 'wallet';
+        readonly scope: 'grant';
+      } = {
+        kind: 'wallet',
+        scope: 'grant',
+        walletId: parsed.value.walletId,
+        userId: parsed.value.userId,
+        orgId: parsed.value.orgId,
+        clientIp: parsed.value.clientIp,
+      };
+      try {
+        await this.emailOtpRateLimits.consumeVerifiedGrant({
+          grantDelete: this.emailOtpGrants.prepareConsumeMatching(record, nowMs),
+          rateLimit: grantRateLimitInput,
+          nowMs,
+        });
+      } catch (error: unknown) {
+        const current = await this.emailOtpGrants.read(parsed.value.loginGrant);
+        if (!current || Date.now() >= current.expiresAtMs) {
+          return emailOtpGrantInvalidOrExpired();
+        }
+        const rateLimit = await this.emailOtpRateLimits.readExceededGrantRateLimit(
+          grantRateLimitInput,
+          nowMs,
+        );
+        if (rateLimit) return rateLimit;
+        throw error;
       }
 
       return {

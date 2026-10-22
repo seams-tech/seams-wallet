@@ -4,6 +4,7 @@ const policy = { limit: 2, windowMs: 600_000 };
 
 function limiter(api, database, scope) {
   return new api.CloudflareD1EmailOtpRateLimitStore({
+    database,
     batch: database.batch.bind(database),
     prepare: api.prepareD1TenantStatement.bind(null, database, scope),
     rateLimits: {
@@ -17,6 +18,126 @@ function limiter(api, database, scope) {
 
 function walletRequest(walletId) {
   return { kind: 'wallet', scope: 'challenge', action: 'relocation-counter', walletId };
+}
+
+export async function verifyAtomicEmailOtpGrant(api, database, scope) {
+  const prepare = api.prepareD1TenantStatement.bind(null, database, scope);
+  const policy = { limit: 1, windowMs: 60_000 };
+  const rateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
+    database,
+    prepare,
+    batch: database.batch.bind(database),
+    rateLimits: {
+      challenge: policy,
+      verify: policy,
+      grant: policy,
+      googleRegistrationAttempt: policy,
+    },
+  });
+  const grants = new api.CloudflareD1EmailOtpGrantStore({ prepare });
+  const challenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
+  const enrollments = new api.CloudflareD1EmailOtpEnrollmentStore({ prepare });
+  const verifier = new api.CloudflareD1EmailOtpChallengeVerifier({
+    emailOtpChallenges: challenges,
+    emailOtpEnrollments: enrollments,
+    emailOtpRateLimits: rateLimits,
+    lockoutTtlMs: 60_000,
+  });
+  const recovery = new api.CloudflareD1EmailOtpRecoveryService({
+    challengeVerifier: verifier,
+    emailOtpChallenges: challenges,
+    emailOtpEnrollments: enrollments,
+    emailOtpGrants: grants,
+    emailOtpRateLimits: rateLimits,
+    grantTtlMs: 120_000,
+  });
+  const issuedAtMs = Date.now();
+  const grant = api.emailOtpGrantRecord({
+    grantToken: 'atomic-grant-wallet-b',
+    userId: 'provider-b',
+    walletId: 'grant-wallet-b',
+    orgId: scope.orgId,
+    challengeId: 'challenge-wallet-b',
+    ownerProofBindingDigest: 'binding-wallet-b',
+    action: api.WALLET_EMAIL_OTP_ACTIONS.unseal,
+    issuedAtMs,
+    expiresAtMs: issuedAtMs + 120_000,
+  });
+  await grants.put(grant);
+  const invalidRequest = {
+    subject: {
+      kind: 'provider_identity',
+      walletId: grant.walletId,
+      orgId: scope.orgId,
+      providerSubject: grant.userId,
+    },
+    loginGrant: 'invalid-grant-for-wallet-b',
+    otpChannel: api.EMAIL_OTP_CHANNEL,
+    clientIp: '192.0.2.20',
+  };
+  assert.equal((await recovery.consumeEmailOtpGrant(invalidRequest)).code, 'grant_invalid_or_expired');
+  assert.equal((await recovery.consumeEmailOtpGrant(invalidRequest)).code, 'rate_limited');
+  assert.equal(await countGrantWalletCounters(database, grant.walletId), 0);
+  assert.equal(await countGrantRegionalCounters(database), 0);
+  assert.equal(await countGrantRegionalCounters(database, 'invalid_grant'), 1);
+
+  assert.equal(
+    (await rateLimits.consume({ kind: 'regional', scope: 'grant', orgId: scope.orgId })).ok,
+    true,
+  );
+  const validRequest = {
+    subject: {
+      kind: 'provider_identity',
+      walletId: grant.walletId,
+      orgId: scope.orgId,
+      providerSubject: grant.userId,
+    },
+    loginGrant: grant.grantToken,
+    otpChannel: api.EMAIL_OTP_CHANNEL,
+    clientIp: invalidRequest.clientIp,
+  };
+  assert.equal((await recovery.consumeEmailOtpGrant(validRequest)).code, 'rate_limited');
+  assert.deepEqual(await grants.read(grant.grantToken), grant);
+  assert.equal(await countGrantWalletCounters(database, grant.walletId), 0);
+  assert.equal(await countGrantRegionalCounters(database), 1);
+  assert.equal(await countGrantRegionalCounters(database, 'invalid_grant'), 1);
+
+  await database
+    .prepare(
+      'UPDATE email_otp_rate_limits SET updated_at_ms = 1, reset_at_ms = 2 WHERE rate_key LIKE ?',
+    )
+    .bind('%:org:' + scope.orgId)
+    .run();
+  const accepted = await recovery.consumeEmailOtpGrant(validRequest);
+  assert.equal(accepted.ok, true, JSON.stringify(accepted));
+  assert.equal(accepted.challengeId, grant.challengeId);
+  assert.equal(await grants.read(grant.grantToken), null);
+  assert.equal(await countGrantWalletCounters(database, grant.walletId), 1);
+  assert.equal(await countGrantRegionalCounters(database), 3);
+  assert.equal(await countGrantRegionalCounters(database, 'invalid_grant'), 1);
+  return {
+    invalidGrantsDidNotChargeValidWalletOrSharedQuota: true,
+    quotaRejectionPreservedGrantAndCounters: true,
+    sameGrantAcceptedAfterQuotaReset: true,
+  };
+}
+
+async function countGrantWalletCounters(database, walletId) {
+  const row = await database
+    .prepare(
+      'SELECT COUNT(*) AS count FROM wallet_email_otp_rate_limits WHERE wallet_id = ? AND rate_key LIKE ?',
+    )
+    .bind(walletId, 'scope=grant:%')
+    .first();
+  return row.count;
+}
+
+async function countGrantRegionalCounters(database, action = 'default') {
+  const row = await database
+    .prepare('SELECT COUNT(*) AS count FROM email_otp_rate_limits WHERE rate_key LIKE ?')
+    .bind('scope=grant:action=' + action + ':%')
+    .first();
+  return row.count;
 }
 
 class CountingCounterBatch {
@@ -33,6 +154,7 @@ class CountingCounterBatch {
 async function verifyCounterBatch(api, database, scope) {
   const counting = new CountingCounterBatch(database);
   const store = new api.CloudflareD1EmailOtpRateLimitStore({
+    database,
     prepare: api.prepareD1TenantStatement.bind(null, database, scope),
     batch: counting.batch.bind(counting),
     rateLimits: {

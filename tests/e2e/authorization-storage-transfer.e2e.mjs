@@ -1,4 +1,5 @@
 import {
+  verifyAtomicEmailOtpGrant,
   seedWalletOtpCounters,
   verifyInactiveWalletOtp,
   verifyActivatedWalletOtp,
@@ -133,6 +134,10 @@ const bundle = await build({
       export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
       export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
       export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+      export { CloudflareD1EmailOtpGrantStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpGrantStore';
+      export { CloudflareD1EmailOtpRecoveryService } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecoveryService';
+      export { emailOtpGrantRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+      export { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS } from './packages/shared-ts/src/utils/emailOtpDomain';
       export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
       export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
       export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
@@ -193,6 +198,7 @@ try {
   await migrate(capacityDatabase);
   const temporaryWriteBlock = await verifyTemporaryWriteBlock({ api, database: capacityDatabase, scope,
     service: service(capacityDatabase, scope), issueDeviceSession, nowMs: issuedAtMs });
+  const atomicEmailOtpGrant = await verifyAtomicEmailOtpGrant(api, capacityDatabase, scope);
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'storage-transfer-owner',
     keyFamily: 'ecdsa_secp256k1',
@@ -560,6 +566,7 @@ try {
     authorizationId: issued.session.authorizationId,
     observations: {
       walletOtpRelocation,
+      atomicEmailOtpGrant,
       relocatedEmailAuthentication,
       migrationUpgrade: { importingRejected: true, closedRejected: true, activatedPreserved: true },
       destinationPreparation,
@@ -988,6 +995,7 @@ function relocationEmailOtpServices(database) {
   const emailOtpChallenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
   const policy = { limit: 100, windowMs: 60_000 };
   const emailOtpRateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
+    database,
     prepare,
     batch: database.batch.bind(database),
     rateLimits: {

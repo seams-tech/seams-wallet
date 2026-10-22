@@ -107,6 +107,7 @@ export function createD1EmailOtpRateLimits(
   prepare: ScopedD1Prepare,
 ) {
   return new CloudflareD1EmailOtpRateLimitStore({
+    database: options.database,
     prepare,
     batch: options.database.batch.bind(options.database),
     rateLimits: options.emailOtp.rateLimits,

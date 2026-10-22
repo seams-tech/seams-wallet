@@ -114,7 +114,19 @@ export const emailOtpGrantRows = {
   insert: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord) =>
     prepare(INSERT_GRANT_SQL, grantValues(record)),
 
-  consume: (prepare: ScopedD1Prepare, grantToken: string) =>
+  read: (prepare: ScopedD1Prepare, grantToken: string) =>
+    prepare(
+      `SELECT record_json, expires_at_ms FROM email_otp_grants
+        WHERE namespace = ?
+          AND org_id = ?
+          AND project_id = ?
+          AND env_id = ?
+          AND grant_token = ?
+        LIMIT 1`,
+      [grantToken],
+    ),
+
+  consumeMatching: (prepare: ScopedD1Prepare, record: EmailOtpGrantRecord, nowMs: number) =>
     prepare(
       `DELETE FROM email_otp_grants
         WHERE namespace = ?
@@ -122,8 +134,9 @@ export const emailOtpGrantRows = {
           AND project_id = ?
           AND env_id = ?
           AND grant_token = ?
-      RETURNING record_json, expires_at_ms`,
-      [grantToken],
+          AND record_json = ?
+          AND expires_at_ms > ?`,
+      [record.grantToken, JSON.stringify(record), nowMs],
     ),
 };
 
