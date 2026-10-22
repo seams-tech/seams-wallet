@@ -1,0 +1,73 @@
+---
+title: リリース 0.19.0
+description: Seams Wallet 0.19.0のSDK、サーバー、CLI、ホスト環境のランタイム要件。
+---
+
+# リリース 0.19.0 {#release-0-19-0}
+
+このドキュメントは、ブラウザーSDK、サーバーSDK、復元CLIのバージョン**0.19.0**を対象とします。
+
+| 構成要素                                    | バージョン | 要件                                                       |
+| ------------------------------------------- | ---------- | ---------------------------------------------------------- |
+| ブラウザーSDK `@seams/wallet`               | **0.19.0** | アプリのコードとウォレットオリジンのアセットを一致させる   |
+| サーバーSDK `@seams/wallet-server`          | **0.19.0** | 連携するバックエンドの各ロールをデプロイする               |
+| ネイティブCLIランチャー `@seams/wallet-cli` | **0.19.0** | 署名済みネイティブアセットとダッシュボードのコマンドを使う |
+| ウォレットiframeプロトコル                  | **16.0.0** | アプリとウォレットホストを一致させる                       |
+
+## ホストするウォレットの操作 {#hosted-wallet-controls}
+
+- ホスト環境での認証は、成功を確認してから画面を閉じ、アプリへ結果を返します。
+- メニューが開く前にキャンセルすると、ウォレットホストはメニューを表示しません。
+- アカウントパネル、鍵のエクスポート行、QRカメラ画面は、狭い画面や拡大縮小したホストに収まります。
+
+## 英語と日本語の表示 {#english-and-japanese-controls}
+
+このリリースでは、ブラウザーSDK、サーバーSDK、復元CLIを`0.19.0`に統一します。
+ウォレットiframeプロトコルは16.0.0のままです。
+
+プロバイダーの設定を作成する際に、SDKの言語を指定してください。
+
+```tsx [部分的な実装例]
+import { normalizeWalletLocale } from '@seams/wallet';
+
+const appearance = {
+  locale: normalizeWalletLocale(new URL(location.href).searchParams.get('locale')),
+};
+```
+
+`appearance`を`defineSeamsConfig`または`SeamsWebProvider`の`config`へ渡します。
+日本語には`appearance: { locale: 'ja' }`を使います。英語にはlocaleの指定を省略します。
+プロバイダーとウォレットオリジンのUIは、この設定を共有します。
+SDKのプレビューでも、`AccountMenuButtonMock`と`SeamsAuthMenuMock`の`locale`を指定できます。
+アプリ独自の見出しやカスタム文言の翻訳は、アプリ側で用意してください。
+
+Consoleのパッケージを正確な`0.19.0`に固定し、対応するウォレットオリジンのアセットをデプロイしてください。
+アプリだけを更新しても、古いホスト環境のウォレットは翻訳されません。
+
+## 導入 {#integration}
+
+[はじめに](/ja/)に従ってブラウザーSDKをインストールしてください。
+ウォレットホストとバックエンドについては、[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration)を参照してください。
+アプリのコードとウォレットのアセットを一緒にデプロイしてください。
+
+Reactの`useSeams()`は、認証操作と現在紐づいている`wallet`を提供します。
+
+```tsx [部分的な実装例]
+const { unlock, lock, wallet } = useSeams();
+```
+
+サインアウト中のウォレットは`null`です。NEARアカウントの準備が整うまで、NEAR署名機能も`null`です。
+署名前に`wallet?.near`を確認してください。アンロック完了後の認証済みレンダーからウォレットを取得してください。
+
+登録時の既定動作では、サーバーがウォレットIDを割り当てます。
+この動作には、`registerWallet`の`wallet`を省略してください。ウォレットを明示的に選ぶこともできます。
+設定済みチェーンと既定のプロビジョニングを使うには、`signerSelection`を省略してください。
+独自の署名対象も指定できます。
+
+## デプロイ {#deployment}
+
+対応するウォレットホスト、Gateway、Wallet Runtime、Router、コントロールプレーン、両Deriver、Signing Workerをデプロイしてください。
+各Workerがトラフィックを処理する前に、同梱のD1マイグレーションを適用してください。
+
+デプロイした各サービスのリリース識別情報を確認してください。パッケージの公開とホスト環境へのデプロイは別の手順です。
+[本番環境の確認事項](/ja/deploy-and-operate/production-checklist)に従い、復元ツールに依存する前に[復元CLI](/ja/deploy-and-operate/recovery-cli)を確認してください。

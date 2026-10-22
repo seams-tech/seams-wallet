@@ -37,4 +37,4 @@ iframeを更新する際はプリセット全体を展開し、以前の形状�
 ウォレットiframeの表示設定は追加の色キーも受け付けるため、SDKをリリースせずにコンポーネント固有の値を渡せます。
 
 アクセシビリティの確認事項は[テーマ設定ガイド](/ja/guides/theming)、
-公開されているトークンの型は[Reactリファレンス](/reference/react#appearance)を参照してください。
+公開されているトークンの型は[Reactリファレンス](/ja/reference/react#appearance)を参照してください。

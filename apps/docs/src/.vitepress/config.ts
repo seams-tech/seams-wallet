@@ -1,5 +1,5 @@
-import { defineConfig, type DefaultTheme } from 'vitepress';
-import { docPagePath, hasJapaneseTranslation, japaneseSidebarItem, localizedDocLink } from './i18n';
+import { defineConfig, type DefaultTheme, type MarkdownRenderer } from 'vitepress';
+import { docPagePath, japaneseSidebarItem, localizedDocLink } from './i18n';
 
 const docsOrigin = (process.env.VITE_DOCS_ORIGIN || 'https://wallet.seams.sh/docs').replace(
   /\/$/,
@@ -18,17 +18,36 @@ function pageUrl(page: string): string {
 function sitemapPages<T extends { url: string }>(items: T[]): T[] {
   const pages: T[] = [];
   for (const item of items) {
-    if (item.url === '404' || item.url === '404.html') continue;
+    if (/(?:^|\/)404(?:\.html)?$/.test(item.url)) continue;
     pages.push({ ...item, url: `${docsOrigin}/${item.url}` });
   }
   return pages;
+}
+
+type FenceRenderer = NonNullable<MarkdownRenderer['renderer']['rules']['fence']>;
+
+function renderLocalizedFence(
+  renderFence: FenceRenderer,
+  ...args: Parameters<FenceRenderer>
+): string {
+  const [tokens, index, options, env, renderer] = args;
+  const html = renderFence(tokens, index, options, env, renderer);
+  return env.relativePath.startsWith('ja/')
+    ? html.replace('title="Copy Code"', 'title="コードをコピー"')
+    : html;
+}
+
+function configureMarkdown(markdown: MarkdownRenderer): void {
+  const renderFence = markdown.renderer.rules.fence;
+  if (!renderFence) throw new Error('The documentation code-fence renderer is missing.');
+  markdown.renderer.rules.fence = renderLocalizedFence.bind(null, renderFence);
 }
 
 const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
-    { text: 'Release 0.18.0', link: '/releases' },
+    { text: 'Release 0.19.0', link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {
@@ -232,8 +251,7 @@ export default defineConfig({
     ja: {
       label: '日本語',
       lang: 'ja',
-      description:
-        'Seamsの導入、ウォレットの作成、署名を学ぶ開発者向けドキュメント。日本語版は試験公開中です。',
+      description: 'Seamsの導入、ウォレットの作成、署名を学ぶ開発者向けドキュメント。',
       themeConfig: {
         logoLink: `${walletSiteOrigin}/ja/`,
         nav: [
@@ -274,7 +292,7 @@ export default defineConfig({
     const canonicalUrl = pageUrl(page);
     const path = docPagePath(page);
     const alternates: [string, Record<string, string>][] = [];
-    if (hasJapaneseTranslation(path)) {
+    if (!/(?:^|\/)404$/.test(path)) {
       alternates.push(
         [
           'link',
@@ -314,6 +332,7 @@ export default defineConfig({
     ];
   },
   markdown: {
+    config: configureMarkdown,
     theme: {
       light: 'github-light',
       dark: 'github-dark',

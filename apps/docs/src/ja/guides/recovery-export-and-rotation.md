@@ -5,7 +5,7 @@ description: 新たな認証を伴う復元、鍵のエクスポート、署名�
 
 # 復元・エクスポート・鍵のローテーション {#recovery-export-and-rotation}
 
-復元とエクスポートの実装は、[ウォレットの高度な操作](/examples/advanced-wallet-operations)を参照してください。
+復元とエクスポートの実装は、[ウォレットの高度な操作](/ja/examples/advanced-wallet-operations)を参照してください。
 復元は、承認済みのアクセスを回復します。エクスポートは鍵素材を表示します。
 ローテーションは、署名者、鍵管理用のシェア、またはウォレットの鍵バージョンを変更します。
 UI、ポリシー、監査、結果の扱いでは、これらを別々の操作として維持してください。
@@ -15,7 +15,7 @@ UI、ポリシー、監査、結果の扱いでは、これらを別々の操作
 A/Bの運用シェアを更新しても、実効的なテナントルートとウォレットの識別情報は維持されます。
 R120は、このサーバー側の処理を実装しています。管理者による復元には、設定済みのダッシュボード、
 復元用の保管体制、利用可能な署名済みネイティブCLIリリースが必要です。SDKの公開だけでは、これらの運用経路は整いません。
-利用状況と、その後のR122における移行の境界は、[復元と移行](/deploy-and-operate/recovery-and-portability)を参照してください。
+利用状況と、その後のR122における移行の境界は、[復元と移行](/ja/deploy-and-operate/recovery-and-portability)を参照してください。
 
 ## 安全性の確認事項 {#safety-checklist}
 
@@ -33,4 +33,4 @@ R120は、このサーバー側の処理を実装しています。管理者に�
 ウォレットアドレスを維持するローテーションでは、アドレスが変わらないことを確認する必要があります。
 鍵の再生成（rekeying）では、意図的に新しいアドレスを作成する場合があります。
 
-[復元とエクスポート](/concepts/custody/recovery-and-export)と[鍵のローテーション](/concepts/delegation/key-rotation)も参照してください。
+[復元とエクスポート](/ja/concepts/custody/recovery-and-export)と[鍵のローテーション](/ja/concepts/delegation/key-rotation)も参照してください。

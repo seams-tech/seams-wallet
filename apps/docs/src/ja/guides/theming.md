@@ -5,7 +5,7 @@ description: アプリ側のReactコンポーネントとウォレットオリ�
 
 # ウォレットUIのテーマ設定 {#theming-wallet-surfaces}
 
-[UIのカスタマイズ](/examples/ui-customization)の実装から始めてください。
+[UIのカスタマイズ](/ja/examples/ui-customization)の実装から始めてください。
 Seamsは、アプリオリジンのReactコンポーネントと、ウォレットオリジンの保護された画面の2か所にUIを表示します。
 両方で、同じ役割の色と同じ形状設定を使ってください。
 

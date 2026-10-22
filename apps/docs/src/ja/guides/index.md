@@ -10,10 +10,10 @@ description: Seamsウォレットの導入に必要な設定、処理の流れ�
 
 ## 実装例から始める {#start-with-an-example}
 
-- [ウォレットの設定と認証](/examples/wallet-setup-and-authentication)：プロバイダーの設定、ウォレットの登録、アンロック。
-- [署名](/examples/signing)：NEAR取引の送信、NEP-413メッセージへの署名、EVM系の取引の実行。
-- [ウォレットの高度な操作](/examples/advanced-wallet-operations)：デバイス連携、ウォレットの復元、鍵のエクスポート。
-- [UIのカスタマイズ](/examples/ui-customization)：アプリ側とウォレット側のUIの統一。
+- [ウォレットの設定と認証](/ja/examples/wallet-setup-and-authentication)：プロバイダーの設定、ウォレットの登録、アンロック。
+- [署名](/ja/examples/signing)：NEAR取引の送信、NEP-413メッセージへの署名、EVM系の取引の実行。
+- [ウォレットの高度な操作](/ja/examples/advanced-wallet-operations)：デバイス連携、ウォレットの復元、鍵のエクスポート。
+- [UIのカスタマイズ](/ja/examples/ui-customization)：アプリ側とウォレット側のUIの統一。
 
 ## 機能を追加する {#keep-building}
 

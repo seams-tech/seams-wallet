@@ -262,6 +262,12 @@ html:lang(ja) .seams-doc-header__title {
   font-weight: 600;
 }
 
+@media (max-width: 767px) {
+  :root:lang(ja) .vp-doc :is(th, td) {
+    min-width: 8em;
+  }
+}
+
 /* Markdown keeps its H1 so VitePress local search indexes the page title.
    The layout header renders the visible semantic title. */
 .vp-doc > div > h1:first-child {
@@ -415,4 +421,7 @@ html:lang(ja) .seams-doc-header__title {
 
 .mermaid-figure details div[class*='language-'] {
   max-height: 24rem;
+}
+:root:lang(ja) {
+  --vp-code-copy-copied-text-content: 'コピーしました';
 }

@@ -27,17 +27,17 @@ pnpm add @seams/wallet@0.19.0
 
 このドキュメントは`@seams/wallet` **0.19.0**を対象としています。
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
-既存の実装を更新する前に、[デプロイ要件](/deploy-and-operate/hosted-integration)を確認してください。
+既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
 ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.19.0**です。
-導入とデプロイの要件は[リリース 0.19.0](/releases)を参照してください。
+導入とデプロイの要件は[リリース 0.19.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx
 
 ウォレットUIは`SeamsWebProvider`の内側に配置します。
 ウォレットサービスとSDKアセットは、設定したウォレットオリジンから配信してください。
 
-登録UI全体を利用する場合は、[ホスト型メニューの実装例](/examples/wallet-setup-and-authentication#hosted-registration-and-sign-in-intent)にある
+登録UI全体を利用する場合は、[ホスト型メニューの実装例](/ja/examples/wallet-setup-and-authentication#hosted-registration-and-sign-in-intent)にある
 `HostedRegistration`を使います。メニューは登録画面を開いている間にセットアップを準備します。
 以下のカスタムボタンは、登録処理の呼び出し内でセットアップを開始します。
 

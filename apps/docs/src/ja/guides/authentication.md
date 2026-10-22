@@ -5,7 +5,7 @@ description: ウォレットとアプリの信頼境界を維持しながら、�
 
 # 認証 {#authentication}
 
-[ウォレットの設定と認証](/examples/wallet-setup-and-authentication)で、プロバイダーの設定、ウォレットの登録、アンロックを確認してください。
+[ウォレットの設定と認証](/ja/examples/wallet-setup-and-authentication)で、プロバイダーの設定、ウォレットの登録、アンロックを確認してください。
 このガイドでは、認証方法の選択と、各結果の状態の扱いを説明します。
 
 ## 認証の流れを選ぶ {#choose-a-flow}
@@ -16,7 +16,7 @@ description: ウォレットとアプリの信頼境界を維持しながら、�
   アプリはGoogleトークンを渡します。OTPと復元の状態は、ウォレットの処理が管理します。
 - **VoiceID**：リスクの高い操作に追加する証明として計画されています。
   公開済みSDKには、VoiceIDの登録・認証用の公開APIがありません。
-  想定する境界は[基本概念](/concepts/auth-methods/voiceid)を参照してください。
+  想定する境界は[基本概念](/ja/concepts/auth-methods/voiceid)を参照してください。
 
 ## 認証状態を明示する {#keep-auth-state-explicit}
 
@@ -25,5 +25,5 @@ description: ウォレットとアプリの信頼境界を維持しながら、�
 - キャンセル、期限切れ、再試行可能な配信失敗、ポリシーによる拒否を、それぞれ別の結果として表示してください。
 - パスキー、セッショントークン、認証要素の秘密情報を、アプリやエージェントのストレージに保存しないでください。
 
-各処理の境界は、[パスキー](/concepts/auth-methods/passkeys)、[メールOTP](/concepts/auth-methods/email-otp)、
-[認証の境界](/concepts/auth-planes)を参照してください。
+各処理の境界は、[パスキー](/ja/concepts/auth-methods/passkeys)、[メールOTP](/ja/concepts/auth-methods/email-otp)、
+[認証の境界](/ja/concepts/auth-planes)を参照してください。

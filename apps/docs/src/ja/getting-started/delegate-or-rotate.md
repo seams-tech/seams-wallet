@@ -44,7 +44,7 @@ ECDSAのエクスポートでは、設定済みチェーンを指定します。
 
 `syncAccount`は、既知のウォレットのアカウント状態を同期します。
 復元コードの入力と新しい認証要素の検証は、ホスト型ウォレットメニューが担当します。
-[ウォレットユーザーの復元](/concepts/custody/recovery-and-export#recovery)を参照してください。
+[ウォレットユーザーの復元](/ja/concepts/custody/recovery-and-export#recovery)を参照してください。
 
 <<< ../../examples/recovery.ts
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useData, withBase } from 'vitepress';
-import { docPagePath, docsMessages, hasJapaneseTranslation, localizedDocLink } from '../i18n';
+import { docPagePath, docsMessages, localizedDocLink } from '../i18n';
 import type { DocsLocale } from '../i18n';
 
 const { lang, page } = useData();
@@ -25,9 +25,7 @@ function currentLocale(): DocsLocale {
 
 function languagePath(nextLocale: DocsLocale): string {
   const path = docPagePath(page.value.relativePath);
-  const translated = hasJapaneseTranslation(path);
-  const nextPath = nextLocale === 'ja' && !translated ? '/ja/' : localizedDocLink(path, nextLocale);
-  return withBase(nextPath);
+  return withBase(localizedDocLink(path, nextLocale));
 }
 
 function changeLanguage(event: MouseEvent, nextLocale: DocsLocale): void {
@@ -38,10 +36,9 @@ function changeLanguage(event: MouseEvent, nextLocale: DocsLocale): void {
     closeAndFocus();
     return;
   }
-  const path = docPagePath(page.value.relativePath);
   const destination = new URL(languagePath(nextLocale), window.location.origin);
   destination.search = window.location.search;
-  if (hasJapaneseTranslation(path) || nextLocale === 'en') destination.hash = window.location.hash;
+  destination.hash = window.location.hash;
   window.location.assign(destination.href);
 }
 

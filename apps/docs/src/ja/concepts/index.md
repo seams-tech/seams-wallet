@@ -18,15 +18,15 @@ Seamsは、ユーザーやショッピングエージェントに継続利用す
 ウォレット署名は、このモデルで承認済みの操作を実行する最初の手段です。
 同じモデルを、決済経路、加盟店API、マーケットプレイスAPI、エージェント用ツール、権限を委任したデバイスの操作にも拡張します。
 
-主な活用事例は、[プラットフォームのウォレット](/use-cases/platform-wallets)、
-[ショッピング用ウォレットアプリ](/use-cases/shopping-wallet-apps)、[ショッピングエージェント](/use-cases/ecommerce-agents)です。
+主な活用事例は、[プラットフォームのウォレット](/ja/use-cases/platform-wallets)、
+[ショッピング用ウォレットアプリ](/ja/use-cases/shopping-wallet-apps)、[ショッピングエージェント](/ja/use-cases/ecommerce-agents)です。
 Seamsは、Cloudflareにデプロイできる、セルフホスト可能なしきい値ウォレット基盤を提供します。
 
 公開済みSDKは、ウォレットのライフサイクル、署名、所有者が選択するリージョン移動を提供します。
 VoiceID、エージェントへの権限発行、バーチャルカードは計画中の機能です。
 これらの基本概念のページが存在しても、公開APIがリリース済みであることは意味しません。
 
-公開済みの基準バージョンと更新時の境界は、[リリース状況](/releases)を参照してください。
+公開済みの基準バージョンと更新時の境界は、[リリース状況](/ja/releases)を参照してください。
 以下のレイヤー構成には、計画中の用途も含みます。公開済みの所有者向け認証方法は、パスキーとメールOTPです。
 
 ## システムのレイヤー {#system-layers}
@@ -41,14 +41,14 @@ VoiceID、エージェントへの権限発行、バーチャルカードは計�
 
 ## 読む順序 {#reading-order}
 
-1. [アーキテクチャ](/concepts/architecture)：主な構成要素。
-2. [ウォレット基盤の比較](/concepts/wallet-infrastructure-comparison)：デプロイと費用のトレードオフ。
-3. [ポリシー](/concepts/policy/)：委任条件、証明、操作の承認。
-4. [鍵管理](/concepts/custody/)：鍵素材を保持・開封できる主体。
-5. [しきい値署名](/concepts/threshold-signing/)：Router A/B、Streaming Yao、署名シェア。
-6. [セッション](/concepts/sessions/)：署名レーンと、範囲を限定した実行時の権限。
-7. [認証方法](/concepts/auth-methods/)：パスキー、メールOTP、VoiceID。
-8. [権限の委任](/concepts/delegation/)：リンク済みデバイス、エージェント、ローテーション。
+1. [アーキテクチャ](/ja/concepts/architecture)：主な構成要素。
+2. [ウォレット基盤の比較](/ja/concepts/wallet-infrastructure-comparison)：デプロイと費用のトレードオフ。
+3. [ポリシー](/ja/concepts/policy/)：委任条件、証明、操作の承認。
+4. [鍵管理](/ja/concepts/custody/)：鍵素材を保持・開封できる主体。
+5. [しきい値署名](/ja/concepts/threshold-signing/)：Router A/B、Streaming Yao、署名シェア。
+6. [セッション](/ja/concepts/sessions/)：署名レーンと、範囲を限定した実行時の権限。
+7. [認証方法](/ja/concepts/auth-methods/)：パスキー、メールOTP、VoiceID。
+8. [権限の委任](/ja/concepts/delegation/)：リンク済みデバイス、エージェント、ローテーション。
 
 ## ショッピングエージェントの要点 {#shopping-agent-short-version}
 

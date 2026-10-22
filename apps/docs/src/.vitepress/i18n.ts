@@ -2,30 +2,6 @@ import type { DefaultTheme } from 'vitepress';
 
 export type DocsLocale = 'en' | 'ja';
 
-const japanesePages = new Set([
-  '/',
-  '/getting-started/create-wallet',
-  '/getting-started/sign-with-policy',
-  '/getting-started/delegate-or-rotate',
-  '/getting-started/theming',
-  '/guides/',
-  '/guides/authentication',
-  '/guides/embedded-wallets',
-  '/guides/external-evm-wallets',
-  '/guides/policies-and-mandates',
-  '/guides/wallet-sessions-and-signing-lanes',
-  '/guides/delegated-agents',
-  '/guides/linked-devices',
-  '/guides/recovery-export-and-rotation',
-  '/guides/theming',
-  '/guides/transaction-review',
-  '/examples/',
-  '/use-cases/',
-  '/concepts/',
-  '/deploy-and-operate/',
-  '/reference/',
-]);
-
 export function docPagePath(relativePath: string): string {
   return `/${relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`;
 }
@@ -34,13 +10,9 @@ function englishDocPath(path: string): string {
   return path.replace(/^\/ja(?=\/)/, '');
 }
 
-export function hasJapaneseTranslation(path: string): boolean {
-  return japanesePages.has(englishDocPath(path));
-}
-
 export function localizedDocLink(path: string, locale: DocsLocale): string {
   const englishPath = englishDocPath(path);
-  if (locale === 'en' || !hasJapaneseTranslation(englishPath)) return englishPath;
+  if (locale === 'en') return englishPath;
   return `/ja${englishPath}`;
 }
 
@@ -60,9 +32,15 @@ export const docsMessages = {
     architecture: 'Architecture',
     authentication: 'Authentication',
     policies: 'Policies',
-    release: 'Release 0.18.0',
+    release: 'Release 0.19.0',
     pricing: 'Pricing',
     support: 'Support',
+    diagram: 'Architecture diagram',
+    diagramSuffix: ' diagram',
+    diagramSource: 'View diagram source',
+    diagramConnections: 'The diagram connects ',
+    diagramConnectionsEnd: '.',
+    diagramSummary: 'The diagram presents the flow described in the surrounding section.',
   },
   ja: {
     language: '言語',
@@ -79,16 +57,22 @@ export const docsMessages = {
     architecture: 'アーキテクチャ',
     authentication: '認証',
     policies: 'ポリシー',
-    release: 'リリース 0.18.0',
+    release: 'リリース 0.19.0',
     pricing: '料金',
     support: 'サポート',
+    diagram: '構成図',
+    diagramSuffix: 'の図',
+    diagramSource: '図のソースを表示',
+    diagramConnections: 'この図は、',
+    diagramConnectionsEnd: 'の関係を示します。',
+    diagramSummary: 'この図は、この節で説明する流れを示します。',
   },
 };
 
 const japaneseSidebarLabels: Record<string, string> = {
   'Get started': 'はじめに',
   Installation: 'インストール',
-  'Release 0.18.0': 'リリース 0.18.0',
+  'Release 0.19.0': 'リリース 0.19.0',
   'Create a wallet': 'ウォレットを作成',
   'Sign with policy': 'ポリシーに従って署名',
   'Devices, export, and recovery': 'デバイス連携・鍵のエクスポート・復元',

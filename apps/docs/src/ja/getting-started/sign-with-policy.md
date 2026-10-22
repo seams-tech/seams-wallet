@@ -37,7 +37,7 @@ EVM用ユーティリティで取引を作成します。`'ethereum-sepolia'`な
 
 この例はEthereum Sepoliaを対象とし、取引の値には仮の値を使っています。
 ヘルパーを呼び出す前に、対象チェーンを設定に追加してください。
-[チェーン設定の実装例](/examples/signing#execute-an-evm-family-transaction)も参照してください。
+[チェーン設定の実装例](/ja/examples/signing#execute-an-evm-family-transaction)も参照してください。
 実際に送信する前に、チェーン、送信先、手数料、データを置き換えます。
 SDKは対象チェーンから`tx.chainId`を設定し、チェーン設定のRPCエンドポイントを使います。
 呼び出し時に、これらの値を重ねて渡す必要はありません。成功すると取引ハッシュを返します。

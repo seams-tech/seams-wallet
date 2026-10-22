@@ -5,7 +5,80 @@ import { h } from 'vue';
 import SeamsFooter from './SeamsFooter.vue';
 import DocHeader from './DocHeader.vue';
 import SidebarHeader from './SidebarHeader.vue';
+import { docsMessages } from '../i18n';
 import './custom.css';
+
+function localizeThemeLabels(): void {
+  if (document.documentElement.lang !== 'ja') return;
+  const sidebarLabel = document.getElementById('sidebar-aria-label');
+  if (sidebarLabel) sidebarLabel.textContent = 'サイドバーナビゲーション';
+  for (const button of document.querySelectorAll('.VPSidebarItem button.caret')) {
+    button.setAttribute('aria-label', 'セクションを開閉');
+  }
+  for (const button of document.querySelectorAll('.VPNavBarHamburger')) {
+    button.setAttribute('aria-label', 'モバイルナビゲーション');
+  }
+}
+
+function diagramLabel(block: Element): string {
+  const messages = docsMessages[document.documentElement.lang === 'ja' ? 'ja' : 'en'];
+  let sibling = block.previousElementSibling;
+  while (sibling) {
+    if (/^H[1-6]$/.test(sibling.tagName) && sibling.textContent?.trim()) {
+      return `${sibling.textContent.trim()}${messages.diagramSuffix}`;
+    }
+    sibling = sibling.previousElementSibling;
+  }
+  const pageTitle = document.querySelector('main h1')?.textContent?.trim();
+  return pageTitle ? `${pageTitle}${messages.diagramSuffix}` : messages.diagram;
+}
+
+function diagramSummary(source: string): string {
+  const messages = docsMessages[document.documentElement.lang === 'ja' ? 'ja' : 'en'];
+  const labels = new Set<string>();
+  for (const match of source.matchAll(/(?:\[|\(|\{)["']?([^\]})"']{2,80})["']?(?:\]|\)|\})/g)) {
+    const label = match[1]?.replace(/<br\s*\/?\s*>/gi, ', ').trim();
+    if (label) labels.add(label);
+    if (labels.size === 8) break;
+  }
+  if (labels.size === 0) return messages.diagramSummary;
+  const separator = document.documentElement.lang === 'ja' ? '、' : ', ';
+  return `${messages.diagramConnections}${[...labels].join(separator)}${messages.diagramConnectionsEnd}`;
+}
+
+function createDiagramFigure(source: string, svg: string, label: string): HTMLElement {
+  const messages = docsMessages[document.documentElement.lang === 'ja' ? 'ja' : 'en'];
+  const figure = document.createElement('figure');
+  figure.className = 'mermaid-figure';
+  figure.setAttribute('data-mermaid-source', source);
+
+  const container = document.createElement('div');
+  container.className = 'mermaid';
+  container.setAttribute('role', 'img');
+  container.setAttribute('aria-label', label);
+  container.innerHTML = svg;
+
+  const caption = document.createElement('figcaption');
+  const captionTitle = document.createElement('strong');
+  captionTitle.textContent = label;
+  const captionSummary = document.createElement('span');
+  captionSummary.textContent = ` ${diagramSummary(source)}`;
+  caption.append(captionTitle, captionSummary);
+
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = messages.diagramSource;
+  const sourceBlock = document.createElement('div');
+  sourceBlock.className = 'language-mermaid';
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  code.textContent = source;
+  pre.appendChild(code);
+  sourceBlock.appendChild(pre);
+  details.append(summary, sourceBlock);
+  figure.append(container, caption, details);
+  return figure;
+}
 
 function createMermaidRenderer() {
   let mermaidRef: Mermaid | null = null;
@@ -97,61 +170,6 @@ function createMermaidRenderer() {
     });
   };
 
-  const diagramLabel = (block: Element): string => {
-    let sibling = block.previousElementSibling;
-    while (sibling) {
-      if (/^H[1-6]$/.test(sibling.tagName) && sibling.textContent?.trim()) {
-        return `${sibling.textContent.trim()} diagram`;
-      }
-      sibling = sibling.previousElementSibling;
-    }
-    const pageTitle = document.querySelector('main h1')?.textContent?.trim();
-    return pageTitle ? `${pageTitle} diagram` : 'Architecture diagram';
-  };
-
-  const diagramSummary = (source: string): string => {
-    const labels = [...source.matchAll(/(?:\[|\(|\{)["']?([^\]})"']{2,80})["']?(?:\]|\)|\})/g)]
-      .map((match) => match[1]?.replace(/<br\s*\/?\s*>/gi, ', ').trim())
-      .filter((label): label is string => Boolean(label));
-    const uniqueLabels = [...new Set(labels)].slice(0, 8);
-    return uniqueLabels.length > 0
-      ? `The diagram connects ${uniqueLabels.join(', ')}.`
-      : 'The diagram presents the flow described in the surrounding section.';
-  };
-
-  const createDiagramFigure = (source: string, svg: string, label: string): HTMLElement => {
-    const figure = document.createElement('figure');
-    figure.className = 'mermaid-figure';
-    figure.setAttribute('data-mermaid-source', source);
-
-    const container = document.createElement('div');
-    container.className = 'mermaid';
-    container.setAttribute('role', 'img');
-    container.setAttribute('aria-label', label);
-    container.innerHTML = svg;
-
-    const caption = document.createElement('figcaption');
-    const captionTitle = document.createElement('strong');
-    captionTitle.textContent = label;
-    const captionSummary = document.createElement('span');
-    captionSummary.textContent = ` ${diagramSummary(source)}`;
-    caption.append(captionTitle, captionSummary);
-
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = 'View diagram source';
-    const sourceBlock = document.createElement('div');
-    sourceBlock.className = 'language-mermaid';
-    const pre = document.createElement('pre');
-    const code = document.createElement('code');
-    code.textContent = source;
-    pre.appendChild(code);
-    sourceBlock.appendChild(pre);
-    details.append(summary, sourceBlock);
-    figure.append(container, caption, details);
-    return figure;
-  };
-
   const render = async () => {
     const configured = await configure();
     if (!configured || !mermaidRef) return;
@@ -185,11 +203,15 @@ function createMermaidRenderer() {
 const theme: Theme = {
   ...DefaultTheme,
   Layout: () =>
-    h(DefaultTheme.Layout, null, {
-      'sidebar-nav-before': () => h(SidebarHeader),
-      'doc-before': () => h(DocHeader),
-      'layout-bottom': () => h(SeamsFooter),
-    }),
+    h(
+      DefaultTheme.Layout,
+      { onVnodeMounted: localizeThemeLabels, onVnodeUpdated: localizeThemeLabels },
+      {
+        'sidebar-nav-before': () => h(SidebarHeader),
+        'doc-before': () => h(DocHeader),
+        'layout-bottom': () => h(SeamsFooter),
+      },
+    ),
   enhanceApp: async (ctx) => {
     await DefaultTheme.enhanceApp?.(ctx);
     if (import.meta.env.SSR || typeof window === 'undefined') return;

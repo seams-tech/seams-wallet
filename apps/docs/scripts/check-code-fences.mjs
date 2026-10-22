@@ -10,6 +10,11 @@ const allowedLabels = new Set([
   'Import example',
   'Partial example',
   'Protocol sketch',
+  'アプリの疑似コード',
+  '生成データ',
+  'インポート例',
+  '部分的な実装例',
+  'プロトコルの概要',
 ]);
 
 function collectMarkdownFiles(directory) {

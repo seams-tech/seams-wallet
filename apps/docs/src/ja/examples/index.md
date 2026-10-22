@@ -20,17 +20,17 @@ pnpm add @seams/wallet@0.19.0
 
 実装例の対象は、リリース**0.19.0**とiframeプロトコル**16.0.0**です。
 この設定例では、NEARとTempoのテストネットを設定します。
-Ethereum Sepoliaの実装例を使う場合は、[署名ガイド](/examples/signing#execute-an-evm-family-transaction)のとおり、そのチェーンを追加してください。
+Ethereum Sepoliaの実装例を使う場合は、[署名ガイド](/ja/examples/signing#execute-an-evm-family-transaction)のとおり、そのチェーンを追加してください。
 
 設定例は、プロバイダーをアプリの境界に配置します。ウォレットUIは`SeamsWebProvider`の内側に配置してください。
 各操作の実装例には、`seams`インスタンスとウォレットの識別情報を渡します。
 
 ## 実装例を選ぶ {#choose-an-example}
 
-- [ウォレットの設定と認証](/examples/wallet-setup-and-authentication)：パスキー、アンロック、GoogleとメールOTP。
-- [取引とメッセージへの署名](/examples/signing)：NEAR、NEP-413、EVM系チェーン。
-- [ウォレットの高度な操作](/examples/advanced-wallet-operations)：デバイス連携、復元、鍵のエクスポート。
-- [ウォレットUIのカスタマイズ](/examples/ui-customization)：ReactとウォレットiframeのUIの統一。
+- [ウォレットの設定と認証](/ja/examples/wallet-setup-and-authentication)：パスキー、アンロック、GoogleとメールOTP。
+- [取引とメッセージへの署名](/ja/examples/signing)：NEAR、NEP-413、EVM系チェーン。
+- [ウォレットの高度な操作](/ja/examples/advanced-wallet-operations)：デバイス連携、復元、鍵のエクスポート。
+- [ウォレットUIのカスタマイズ](/ja/examples/ui-customization)：ReactとウォレットiframeのUIの統一。
 
 ## コードの使い方 {#how-to-use-the-snippets}
 
@@ -44,6 +44,6 @@ Ethereum Sepoliaの実装例を使う場合は、[署名ガイド](/examples/sig
 ## 次に読む {#continue-building}
 
 - [SDKリファレンス](/ja/reference/)：公開される型とエントリーポイント。
-- [結果とエラー](/reference/results-and-errors)：失敗の分岐。
-- [イベントと進行状況](/reference/events-and-progress)：処理の進捗。
+- [結果とエラー](/ja/reference/results-and-errors)：失敗の分岐。
+- [イベントと進行状況](/ja/reference/events-and-progress)：処理の進捗。
 - [基本概念とセキュリティ](/ja/concepts/)：動作する実装の背景にあるプロトコル。

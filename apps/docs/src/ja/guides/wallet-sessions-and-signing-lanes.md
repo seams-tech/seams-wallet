@@ -36,7 +36,7 @@ description: アンロックで、利用回数の上限と有効期限を持つ�
 4. 要求するレーンの準備が完了していることを確認します。
 5. 操作の全体で、同じセッション参照を渡します。
 
-処理全体の実装は、[署名](/examples/signing)を参照してください。
+処理全体の実装は、[署名](/ja/examples/signing)を参照してください。
 
 ## 対処可能な状態を扱う {#handle-recoverable-states}
 
@@ -48,4 +48,4 @@ description: アンロックで、利用回数の上限と有効期限を持つ�
 
 進行状況イベントは、処理の状態を説明します。処理の分岐判断には、結果を表す判別可能なユニオン型を使ってください。
 
-[ウォレットセッション](/concepts/sessions/wallet-sessions)と[署名レーン](/concepts/sessions/signing-lanes)も参照してください。
+[ウォレットセッション](/ja/concepts/sessions/wallet-sessions)と[署名レーン](/ja/concepts/sessions/signing-lanes)も参照してください。

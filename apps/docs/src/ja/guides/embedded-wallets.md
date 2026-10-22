@@ -5,7 +5,7 @@ description: 認証情報、ワーカー、鍵の操作をウォレットオリ�
 
 # 組み込みウォレット {#embedded-wallets}
 
-プロバイダーの設定は、[ウォレットの設定と認証](/examples/wallet-setup-and-authentication)を参照してください。
+プロバイダーの設定は、[ウォレットの設定と認証](/ja/examples/wallet-setup-and-authentication)を参照してください。
 組み込みウォレットは製品内にUIを表示し、認証情報と署名ランタイムは専用のHTTPSオリジンに保持します。
 
 ユーザーごとに継続して使うウォレットが必要な場合に、組み込みウォレットを使用します。
@@ -13,7 +13,7 @@ description: 認証情報、ワーカー、鍵の操作をウォレットオリ�
 報酬、オンチェーン操作の自動実行に使います。既存のウォレットから一度だけ支払いを受け取る店舗では、
 通常、その購入者のために別のウォレットを作成する必要はありません。
 
-対象となる顧客と製品の責任範囲は、[プラットフォームのウォレット](/use-cases/platform-wallets)を参照してください。
+対象となる顧客と製品の責任範囲は、[プラットフォームのウォレット](/ja/use-cases/platform-wallets)を参照してください。
 
 ## 境界を設定する {#configure-the-boundary}
 
@@ -31,4 +31,4 @@ description: 認証情報、ワーカー、鍵の操作をウォレットオリ�
 - 登録時の認証が、ウォレットオリジン内で行われること。
 - 署名時に、セッションとアカウントまたはチェーンの参照を通じて、同じウォレットの識別情報を維持すること。
 - 想定外のメッセージ送信元や、古いiframeセッションを拒否すること。
-- 公開前に[ホスト環境への導入](/deploy-and-operate/hosted-integration)と[セキュリティの境界](/deploy-and-operate/security-boundaries)を確認すること。
+- 公開前に[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration)と[セキュリティの境界](/ja/deploy-and-operate/security-boundaries)を確認すること。

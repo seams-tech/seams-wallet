@@ -15,7 +15,7 @@ description: 有効期限とキャンセルを明示し、ウォレットでの�
 `SeamsWebProvider`と、確認画面が必要とするすべてのアプリ用プロバイダーの内側に、`TransactionReviewHost`を1つ配置します。
 取引を送信するコンポーネントも、このホストの内側に配置してください。
 
-```tsx [Partial example]
+```tsx [部分的な実装例]
 import { SeamsWebProvider, TransactionReviewHost } from '@seams/wallet/react';
 
 <SeamsWebProvider config={config}>
@@ -33,7 +33,7 @@ import { SeamsWebProvider, TransactionReviewHost } from '@seams/wallet/react';
 `render`コールバックは操作用のコントロールを受け取り、コンポーネントを返します。
 返すコンポーネントでは、フック、コンテキスト、ローカル状態、`React.lazy`とSuspenseを使えます。
 
-```tsx [Partial example]
+```tsx [部分的な実装例]
 review: {
   title: 'Review purchase',
   validity: { kind: 'unbounded' },

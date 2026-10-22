@@ -53,17 +53,14 @@ documentation source tree.
 
 ## Languages
 
-English lives at `/docs/`. Tentative Japanese support lives at `/docs/ja/`.
-The Japanese edition covers installation, the four getting-started guides, the
-complete guides section, and the five other section overview pages. The sidebar
-and footer link to the English edition for untranslated topics. A notice on each
-Japanese page states that translation is in progress.
+English lives at `/docs/`. Japanese lives at `/docs/ja/`.
+Every English page has a Japanese counterpart. Navigation, search, footer,
+diagram controls, and internal links follow the selected language.
 
 Use the language selector in the sidebar or footer to switch editions. It keeps
-the current page, query, and heading anchor when a Japanese translation exists.
-For untranslated pages, selecting Japanese opens the Japanese start page.
+the current page, query, and heading anchor.
 
-Keep translated Markdown in `src/ja/`. Import the same runnable examples from
-`src/examples`; do not duplicate example code. Preserve the English heading IDs
-with explicit `{#heading-id}` anchors. Add each translated route to `japanesePages`
-in `src/.vitepress/i18n.ts` so the sidebar, switcher, and alternate metadata agree.
+Keep translated Markdown in `src/ja/`. Translate the title, description, prose,
+tables, diagram labels, and code-fence titles. Import the same runnable examples
+from `src/examples`; do not duplicate example code. Preserve the English heading
+IDs with explicit `{#heading-id}` anchors. Add or update both editions together.

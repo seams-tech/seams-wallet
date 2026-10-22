@@ -9,7 +9,7 @@ description: ユーザーのウォレット認証情報や包括的な署名権�
 公開済みWallet SDKには、エージェント用レーンを発行する公開APIがありません。
 NEARのdelegate-action署名APIは、取引のエンベロープに署名するものであり、エージェントへの委任権限を作成しません。
 
-操作の形式は[ポリシーと委任条件](/ja/guides/policies-and-mandates)、製品の実例は[ショッピングエージェント](/use-cases/ecommerce-agents)を参照してください。
+操作の形式は[ポリシーと委任条件](/ja/guides/policies-and-mandates)、製品の実例は[ショッピングエージェント](/ja/use-cases/ecommerce-agents)を参照してください。
 各エージェントに、独立した主体の識別情報と署名レーンを割り当てます。
 
 ## 必要な範囲だけ権限を付与 {#grant-narrow-authority}
@@ -24,4 +24,4 @@ NEARのdelegate-action署名APIは、取引のエンベロープに署名する�
 支払い元は、引き続き所有者のウォレットです。エージェントの識別情報は、誰が操作を要求したかを証明します。
 エージェントのレーンが侵害された場合は、所有者のウォレットと独立して、そのレーンの権限を取り消してください。
 
-セキュリティモデルは、[権限を委任したエージェント](/concepts/delegation/delegated-agents)を参照してください。
+セキュリティモデルは、[権限を委任したエージェント](/ja/concepts/delegation/delegated-agents)を参照してください。
