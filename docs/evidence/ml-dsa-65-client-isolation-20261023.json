@@ -1,0 +1,437 @@
+{
+  "scope": "Twelve-minute hosted saturation with one persistent Node HTTP client per wallet. Private Router routes and synthetic Gateway authority. No browser login, SDK transport parity, or NEAR finality claim. Server Wasm bytes match the preceding resource campaign; runtime conditions and rejection outcomes remain uncontrolled.",
+  "revision": "b564785c54758406d7009898de653d75494278b8",
+  "builds": {
+    "revision": "b564785c54758406d7009898de653d75494278b8",
+    "builds": {
+      "router": {
+        "index_bg.wasm": "10f44ef63e84dfcb5775d0e41cfdbf836d7c3d9069885d7a1f23f7c96745c9d6",
+        "index.js": "ef1d8daa401642bb9d17043495674b7becf24d7d67697e2491292fd8e2d0ed6b",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "e96bc883b7be52d118adf5334def3ea8274fd631ecb6864c7cf21f07278a4e76"
+      },
+      "deriver-a": {
+        "index_bg.wasm": "bbb32da957b3d0b867bba75ec981e5d81984db03f24f67f481091549192cd434",
+        "index.js": "a4fad6c34face662c8e78da96f4c099f4a061bd3b6683b1ed57ec604a13d192d",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "ddfba5144e2d31fc0930a8f1bd8816e98541814afe6a8e239b36a89bd45e4343"
+      },
+      "deriver-b": {
+        "index_bg.wasm": "89b02f0b17da6683d646370526717e7d7d564b3fcfafa53e9958078b05ca2d89",
+        "index.js": "f235256668a8e181644443a6ca45bc79acf773bc1ad69218fd435b665367c3a5",
+        "worker/shim.mjs": "ac99177861405a6046923cbacabbd6adfa1853a56d0c679b9f5e09097c2f4728",
+        "build-stamp.json": "290362f5666505354d3240ff6c23776f246a6fab1b2a80606036e84abe7ced3a"
+      }
+    },
+    "prior_wasm_identical": {
+      "router": true,
+      "deriver-a": true,
+      "deriver-b": true
+    },
+    "sources": {
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "ed89fe648c551c21630eef0fff2f9a67a6f6d248de2021c290b6dc459c529f7b",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/transport.rs": "7caa06e0cdbb9970fc011b3770b7ec9990f0f4eac3ede7581aab02d7cec4718a",
+      "crates/router-ab-cloudflare/src/ml_dsa/execution.rs": "b04afdc8f012ba70dd234a4dc9e43fb0bf4de2dc916766c6e2bf3476f3ab5314",
+      "tests/e2e/ml-dsa-multi-wallet-worker.e2e.mjs": "715c7221bd80d0da4e40b593ba2efc3922ed9d10f12846e513ede2c20d212daf",
+      "tests/e2e/ml-dsa-http-timing.mjs": "efb33e556118c727e638d74d300855c2ab42791ce0e038d532b83f90ec994f2e",
+      "tests/e2e/ml-dsa-wallet-http-client.mjs": "6be77023600cfea577c8ca56eb9d4669ddb8f90fae3ef587ef5be3d50d166156",
+      "tests/e2e/ml-dsa-wallet-http-worker.mjs": "917e94f8cebe24bd9a047af852a1c2778fa00df866da6ceadf608028b9927759"
+    }
+  },
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 1000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "functional_passed": true,
+  "client_setup_ms_before_load": 43.33854200000019,
+  "verified_load_signatures": 45,
+  "successful_http_under_five_seconds": 39,
+  "successful_http_ms": {
+    "count": 45,
+    "minimum": 1138.8114589999896,
+    "median": 2981.9399170000106,
+    "maximum": 15504.913541999995,
+    "sum": 158576.0279200001
+  },
+  "complete_demand_ms": {
+    "count": 45,
+    "minimum": 1368.4141659999732,
+    "median": 22016.809750000015,
+    "maximum": 120883.12854199998,
+    "sum": 1345359.792039
+  },
+  "failed_signing_operations": 4,
+  "censored_demands": [
+    {
+      "wallet": 1,
+      "number": 19,
+      "startMs": 624640.2811670001,
+      "state": "censored_at_end_of_window",
+      "elapsedMs": 95360.96608299995
+    }
+  ],
+  "client_pre_send_ms": {
+    "count": 45,
+    "minimum": 0.20612500002607703,
+    "median": 0.5338750000810251,
+    "maximum": 1440.9511659999844,
+    "sum": 3513.173496999946
+  },
+  "successful_pre_send_above_100ms": [
+    {
+      "request": "441da430b596fd33c0c307baedc5f396",
+      "pre_send_ms": 540.8567500000001,
+      "client": 0,
+      "socket": {
+        "id": 1,
+        "priorRequests": 0,
+        "connectionMs": 526.107166,
+        "dnsMs": 4.096041000000014,
+        "tcpMs": 67.70725000000016,
+        "tlsMs": 524.244958,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "17354464bf96bc94fae0e94f5f3e762f",
+      "pre_send_ms": 213.538958000001,
+      "client": 1,
+      "socket": {
+        "id": 3,
+        "priorRequests": 0,
+        "connectionMs": 211.6469589999997,
+        "dnsMs": 1.755750000000262,
+        "tcpMs": 124.83741700000064,
+        "tlsMs": 211.34891699999935,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "15ae40aee53696e654d820edf3ab9ef8",
+      "pre_send_ms": 248.05199999999604,
+      "client": 0,
+      "socket": {
+        "id": 8,
+        "priorRequests": 0,
+        "connectionMs": 246.0796249999985,
+        "dnsMs": 1.2970420000056038,
+        "tcpMs": 87.4539999999979,
+        "tlsMs": 245.79729200000293,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "5b1fe1f6a908dbf71423cbb4d366de94",
+      "pre_send_ms": 223.95645899999363,
+      "client": 1,
+      "socket": {
+        "id": 10,
+        "priorRequests": 0,
+        "connectionMs": 222.87633300000743,
+        "dnsMs": 1.4349159999983385,
+        "tcpMs": 68.2098330000008,
+        "tlsMs": 222.54820800000743,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "75a5a1a7f44836d3d792254ceb27e4e5",
+      "pre_send_ms": 174.81287500000326,
+      "client": 1,
+      "socket": {
+        "id": 40,
+        "priorRequests": 0,
+        "connectionMs": 174.29520800005412,
+        "dnsMs": 1.2895420000422746,
+        "tcpMs": 83.22066700004507,
+        "tlsMs": 174.12091700005112,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "ad52bd2880c6b93657a3a24f1b2d9a5d",
+      "pre_send_ms": 228.39862499991432,
+      "client": 0,
+      "socket": {
+        "id": 53,
+        "priorRequests": 0,
+        "connectionMs": 227.26095799996983,
+        "dnsMs": 1.3142499999376014,
+        "tcpMs": 139.98608299996704,
+        "tlsMs": 227.04141700000037,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "6e9623e695767f41c4c77c5210abd164",
+      "pre_send_ms": 1440.9511659999844,
+      "client": 1,
+      "socket": {
+        "id": 57,
+        "priorRequests": 0,
+        "connectionMs": 1439.563625000068,
+        "dnsMs": 1.5979999999981374,
+        "tcpMs": 1233.8937920000171,
+        "tlsMs": 1439.357667000033,
+        "protocol": "h2"
+      }
+    },
+    {
+      "request": "8dce7460e2d15670e6e59808e493787a",
+      "pre_send_ms": 423.4956249999814,
+      "client": 0,
+      "socket": {
+        "id": 62,
+        "priorRequests": 0,
+        "connectionMs": 422.42095800000243,
+        "dnsMs": 1.198458000086248,
+        "tcpMs": 231.33495799999218,
+        "tlsMs": 422.1822500000708,
+        "protocol": "h2"
+      }
+    }
+  ],
+  "socket_queue_observations": 0,
+  "parent_client_failures_during_load": 0,
+  "first_use_groups": {
+    "first_a": {
+      "count": 16,
+      "under_five": 10,
+      "median_ms": 4055.4766464999993,
+      "max_ms": 15504.913541999995
+    },
+    "reused_a": {
+      "count": 27,
+      "under_five": 27,
+      "median_ms": 2238.7015409999876,
+      "max_ms": 4555.253792000003
+    }
+  },
+  "missing_complete_peer_traces": [
+    "238f194af4a05d47651a9b2c710a9197b80bb692fe7763b0e44c843a2425c212",
+    "6d1fdfd9c53e5f6f1e2f8e9c8b32879eba7a8230948163f6288ec6edeef67574"
+  ],
+  "registration": [
+    {
+      "wallet": 1,
+      "epoch": 1,
+      "canonical_key_verified": true,
+      "registration_with_verification_ms": 8946.707999999999,
+      "preparation_ms": 115276.799542
+    },
+    {
+      "wallet": 1,
+      "epoch": 2,
+      "canonical_key_verified": true,
+      "registration_with_verification_ms": 6315.136750000005,
+      "preparation_ms": 75509.62150000001
+    },
+    {
+      "wallet": 2,
+      "epoch": 1,
+      "canonical_key_verified": true,
+      "registration_with_verification_ms": 7994.8162500000035,
+      "preparation_ms": 90525.254833
+    },
+    {
+      "wallet": 2,
+      "epoch": 2,
+      "canonical_key_verified": true,
+      "registration_with_verification_ms": 10275.55270900001,
+      "preparation_ms": 92601.229208
+    }
+  ],
+  "preparation_cost": {
+    "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+    "fresh_paired_groups": 146,
+    "fresh_paired_candidates": 292,
+    "completed_job_invocation_wall_ms": {
+      "count": 73,
+      "minimum": 7938,
+      "median": 9323,
+      "maximum": 14028,
+      "sum": 702915
+    },
+    "allocated_group_invocation_wall_ms": {
+      "count": 146,
+      "minimum": 3969.0,
+      "median": 4661.5,
+      "maximum": 7014.0,
+      "sum": 702915.0
+    },
+    "completed_job_count": 73,
+    "completed_job_invocation_wall_ms_by_candidates": {
+      "4": {
+        "count": 73,
+        "minimum": 7938,
+        "median": 9323,
+        "maximum": 14028,
+        "sum": 702915
+      }
+    },
+    "failed_producer_completions": 0,
+    "missing_group_costs": [],
+    "unknown_producer_invocations": 69,
+    "captured_producer_invocation_wall_ms": 705240,
+    "captured_invocation_ms_per_verified_signature": 15672.0,
+    "accounting_complete": false,
+    "observed_mean_under_ten_seconds": null,
+    "captured_invocation_cpu_ms": {
+      "preparer-a": {
+        "count": 215,
+        "minimum": 0,
+        "median": 2,
+        "maximum": 6383,
+        "sum": 309263
+      },
+      "preparer-b": {
+        "count": 73,
+        "minimum": 3628,
+        "median": 4197,
+        "maximum": 6615,
+        "sum": 316945
+      }
+    }
+  },
+  "unknown_cost_invocations": {
+    "count": 69,
+    "outcomes": {
+      "canceled": 69
+    },
+    "cpu_ms_counts": {
+      "0": 65,
+      "1": 4
+    },
+    "captured_wall_ms": 2325
+  },
+  "common_post_initial_stock": {
+    "start_ms": 1792682976960.834,
+    "elapsed_ms": 593750.6279296875,
+    "observed_new_paired_batches": 108,
+    "successful_signatures": 37,
+    "paired_batches_per_minute": 10.913672668599464,
+    "successful_signatures_per_minute": 3.738943414242409
+  },
+  "material_ledger": {
+    "balanced": true,
+    "initial_groups": 32,
+    "fresh_groups": 146,
+    "consumed_groups": 146,
+    "final_groups": 32
+  },
+  "restoration_ms": 97007.5380859375,
+  "provider_outcomes": {
+    "a": {
+      "ok": 2004,
+      "canceled": 5
+    },
+    "b": {
+      "ok": 2882,
+      "canceled": 10
+    },
+    "router": {
+      "ok": 1559
+    },
+    "preparer-a": {
+      "ok": 190,
+      "canceled": 90
+    },
+    "preparer-b": {
+      "ok": 95
+    }
+  },
+  "signature_review": {
+    "schema": "seams.ml-dsa-committed-refill-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "optimized",
+        "consumptionWidth": 2,
+        "verified": 45,
+        "alteredMessagesRejected": 45,
+        "alteredSignaturesRejected": 45,
+        "clientSha256": "7062e90eb5f27bfa057e9ee54e387d3200bdeedaee2f08fbdbf3e622098e8685"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "registrationSignatures": [
+      {
+        "wallet": 1,
+        "epoch": 1,
+        "elapsedMs": 5868.962167000005,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 1,
+        "epoch": 2,
+        "elapsedMs": 5122.257417000015,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 1,
+        "elapsedMs": 10233.691334000003,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 2,
+        "elapsedMs": 3077.327707999997,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      }
+    ],
+    "scriptSha256": "81c8c3c036b51aa56fa27cbb38de6a66cab8d8d636f64434b8f1505378ef194f"
+  },
+  "bloat_gate": {
+    "passed": false,
+    "baseline_rust_duplicated_lines": 13754,
+    "current_rust_duplicated_lines": 14030,
+    "unchanged_from_parent": true
+  },
+  "bundles": [
+    {
+      "path": "ml-dsa-65-client-isolation-20261023-hosted.json.gz",
+      "sha256": "af007eb7347c65e3d3637b84fe1df8bcf5eb9855c5ed097ba1910b1fe7889f05",
+      "files": 19,
+      "bytes": 1286239
+    },
+    {
+      "path": "ml-dsa-65-client-isolation-20261023-controls.json.gz",
+      "sha256": "d2cd871f6aa602c4f2e07539889c392aba48701ea9ec144b59aaddaa0657fa1d",
+      "files": 2,
+      "bytes": 3734
+    },
+    {
+      "path": "ml-dsa-65-client-isolation-20261023-provenance.json.gz",
+      "sha256": "23f60b0cfdaddee03a56943268927b57a056a2e9d2cda16881318ccd92db3c9c",
+      "files": 20,
+      "bytes": 30168
+    }
+  ]
+}

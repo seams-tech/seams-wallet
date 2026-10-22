@@ -105,7 +105,8 @@ async function fetchJson(url, init) {
   return { status: response.status, data };
 }
 export async function timedJson(url, init, requestId, timing) {
-  Object.assign(timing, { requestId, started: performance.now(), createdMs: null, sentMs: null,
+  const started = performance.now();
+  Object.assign(timing, { requestId, started, clientStartedMs: started, createdMs: null, sentMs: null,
     responseHeadersMs: null, responseCompleteMs: null, fetchHeadersMs: null, bodyReadMs: null,
     parsedMs: null, socket: null, http2: null, status: null, echo: null, cfRay: null, events: [], eventsTruncated: false });
   active.set(requestId, timing);

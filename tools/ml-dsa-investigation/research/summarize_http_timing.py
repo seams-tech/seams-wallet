@@ -23,16 +23,17 @@ def socket_queue_observations(requests):
     intervals = []
     for request in requests:
         timing = request['http']
-        if timing['socket'] is None or not all(finite(timing.get(field)) for field in ['sentMs', 'responseCompleteMs']):
+        if timing.get('socket') is None or not all(finite(timing.get(field)) for field in ['sentMs', 'responseCompleteMs']):
             continue
         events = timing.get('events', [])
         counts = collections.Counter(event['stage'] for event in events)
         if timing.get('eventsTruncated') or any(counts[stage] != 1 for stage in ['created', 'sent', 'headers', 'complete']):
             continue
+        start = timing.get('clientStartedMs', request['startMs'])
         intervals.append({
-            'request': timing['requestId'], 'socket': timing['socket']['id'],
-            'start_ms': request['startMs'], 'send_ms': request['startMs'] + timing['sentMs'],
-            'complete_ms': request['startMs'] + timing['responseCompleteMs'],
+            'request': timing['requestId'], 'client': timing.get('clientId'), 'socket': timing['socket']['id'],
+            'start_ms': start, 'send_ms': start + timing['sentMs'],
+            'complete_ms': start + timing['responseCompleteMs'],
             'pre_send_ms': timing['sentMs'], 'protocol': timing['socket'].get('protocol'),
             'http2': timing.get('http2'),
         })
@@ -40,16 +41,17 @@ def socket_queue_observations(requests):
     previous = {}
     observations = []
     for interval in intervals:
-        earlier = previous.get(interval['socket'])
+        connection = (interval['client'], interval['socket'])
+        earlier = previous.get(connection)
         if earlier is not None and interval['pre_send_ms'] >= 100 and earlier['complete_ms'] > interval['start_ms']:
             observations.append({
                 'http_request': interval['request'], 'previous_http_request': earlier['request'],
-                'socket': interval['socket'], 'protocol': interval['protocol'], 'http2': interval['http2'],
+                'client': interval['client'], 'socket': interval['socket'], 'protocol': interval['protocol'], 'http2': interval['http2'],
                 'pre_send_ms': interval['pre_send_ms'],
                 'previous_remaining_at_start_ms': earlier['complete_ms'] - interval['start_ms'],
                 'previous_complete_to_send_ms': interval['send_ms'] - earlier['complete_ms'],
             })
-        previous[interval['socket']] = interval
+        previous[connection] = interval
     return observations
 
 
@@ -68,24 +70,27 @@ def summarize(client, records, versions):
         identity = timing['requestId']
         assert identity not in seen, 'HTTP request identity was reused'
         seen.add(identity)
-        assert timing['echo'] in (None, identity)
+        assert timing.get('echo') in (None, identity)
         operation = bytes(request['operation']).hex()
         events = timing.get('events')
         counts = None if events is None else dict(collections.Counter(event['stage'] for event in events))
         ambiguous = events is not None and (timing['eventsTruncated'] or any(counts.get(stage) != 1 for stage in ['created', 'sent', 'headers', 'complete']))
         start = request['startMs']
-        end = start + request.get('elapsedMs', timing['totalMs'])
-        loop_gaps = [gap for gap in client.get('eventLoopGaps', []) if gap['previousMs'] < end and gap['observedMs'] > start]
+        elapsed = request.get('elapsedMs', timing.get('parentElapsedMs'))
+        end = start + elapsed if finite(elapsed) else None
+        loop_gaps = None if end is None else [gap for gap in client.get('eventLoopGaps', []) if gap['previousMs'] < end and gap['observedMs'] > start]
         row = {
             'http_request': identity, 'operation': operation, 'verified': request.get('verified', False),
-            'client_total_ms': request.get('elapsedMs'), 'observer_total_ms': timing['totalMs'], 'cf_ray': timing['cfRay'], 'socket': timing['socket'],
+            'client_total_ms': elapsed, 'observer_total_ms': timing.get('totalMs'), 'cf_ray': timing.get('cfRay'), 'socket': timing.get('socket'),
             'http2': timing.get('http2'),
-            'pre_send_ms': timing['sentMs'],
+            'client': timing.get('clientId'), 'fetch_event_loop_gaps': timing.get('fetchEventLoopGaps'),
+            'worker_timing_received': timing.get('workerTimingReceived'),
+            'pre_send_ms': timing.get('sentMs'),
             'response_header_wait_ms': delta(timing, 'responseHeadersMs', 'sentMs'),
             'response_wire_body_ms': delta(timing, 'responseCompleteMs', 'responseHeadersMs'),
             'body_read_ms': delta(timing, 'bodyReadMs', 'fetchHeadersMs'),
             'json_parse_ms': delta(timing, 'parsedMs', 'bodyReadMs'),
-            'echo_matched': timing['echo'] == identity,
+            'echo_matched': timing.get('echo') == identity,
             'router': None, 'transport_event_counts': counts, 'ambiguous_transport_events': ambiguous,
             'event_loop_observed': 'eventLoopGaps' in client, 'overlapping_event_loop_gaps': loop_gaps,
         }
@@ -99,7 +104,7 @@ def summarize(client, records, versions):
         else:
             index, record, trace = matches[0]
             assert trace['operation'] == operation
-            if trace['status'] is not None and timing['status'] is not None:
+            if trace['status'] is not None and timing.get('status') is not None:
                 assert trace['status'] == timing['status']
             stages = trace['milestones']
             assert len({s['stage'] for s in stages}) == len(stages)
@@ -119,7 +124,7 @@ def summarize(client, records, versions):
     for name in ['client_total_ms', 'pre_send_ms', 'response_header_wait_ms', 'response_wire_body_ms', 'body_read_ms', 'json_parse_ms']:
         metrics[name] = distribution([r[name] for r in success if finite(r[name])])
     return {
-        'scope': 'Exact HTTP-attempt IDs, with separate operation IDs for retries. Client timers are monotonic. Socket DNS/TCP/TLS fields are cumulative from socket creation and belong to that connection, including its later reuse; do not add them to each request. Router stage clocks can omit CPU. Client minus Router invocation wall time remains a signed, unassigned difference, not a network measurement. Missing or repeated Router IDs remain unjoined. Earlier clients lack repeated-event counters and event-loop observations. Their phase fields are last retained diagnostic events; multiplicity is unobserved.',
+        'scope': 'Exact HTTP-attempt IDs, with separate operation IDs for retries. Socket and session identities are local to each recorded client. Queue joins use that client and its monotonic fetch clock. Driver durations include client dispatch and result delivery. Socket DNS/TCP/TLS fields belong to connection creation and must not be added to later requests. Fetch-loop gaps are separate from driver-loop gaps. Router clocks can omit CPU; client minus Router wall time is an unassigned difference. Missing or repeated Router IDs remain unjoined. Earlier records can lack client identity, repeated-event counters, and loop observations.',
         'coverage': dict(coverage), 'event_loop_gaps': client.get('eventLoopGaps'), 'attempts': len(rows), 'successful_attempts': len(success),
         'socket_queue_observations': socket_queue_observations(client['requests'] + client['duplicateRequests']),
         'successful_client_metrics': metrics,

@@ -1,17 +1,25 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: public SDK lifecycle integrated; production release remains gated, 2026-10-22.
+Status: public SDK lifecycle integrated; production release remains gated, 2026-10-23.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.
+The latest [independent-client screen](ml-dsa-65-client-isolation-report.md) removes shared HTTP connections between simulated wallets.
+It verifies forty-five load signatures; thirty-nine finish below five seconds. Final HTTP latency is 2.982 seconds median and 15.505 seconds maximum.
+Complete demand is 22.017 seconds median. Four admitted operations exhaust their sixteen candidates, and one demand remains unfinished at cutoff.
+After starting stock is consumed, the screen completes thirty-seven signatures in 593.751 seconds, or 3.739 per minute. Both reserves restore with no consumed-ID reuse.
+Four-candidate preparation takes 9.323 seconds median. All server binaries match the preceding screen, so no source preparation speedup is established.
+All six slow successes occur on each module's first signing call. Reused modules also produce two exhausted operations above five seconds.
+Next, compare precomputed public GMW topologies under controlled first-use workloads, then reduce per-pair hash/retry cost and registration delivery cost.
+Keep wallet-seed recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate capacity unchanged.
 The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.
 Creation/recovery takes 6.413–8.552 seconds. Four-candidate preparation takes 19.146 seconds median. Both five-second targets remain unmet.
 Both reserves restore and material identities balance. The post-initial-stock window has no completed signatures, so sustained capacity remains unqualified.
 No `loadShed` outcome recurs. Hosted observed Wasm capacity reaches 89.375/89.563 MiB, while total isolate peak memory remains unknown.
 A controlled Node HTTPS test reproduces shared-client POST queuing and removes it with separate wallet connections. Browser parity remains open.
-Next, isolate each simulated wallet's HTTP client, repeat hosted and public SDK measurements, then reduce the remaining private hash/bound work and generic registration costs.
+Those results motivated independent wallet clients above. Public SDK timing and the remaining private hash/bound work still need qualification.
 The current memory measurements do not establish the cause of the earlier provider cancellations.
 The [committed-refill campaign](ml-dsa-65-committed-refill-report.md) moves private commitment evaluation into key-bound refill.
 Committed pairs need 214 dependent online AND layers, compared with 327 for generic pre-key registration stock. Stored ciphertext uses twenty-four chunks per role/pair instead of thirty.
