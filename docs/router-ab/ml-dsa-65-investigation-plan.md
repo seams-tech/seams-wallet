@@ -11,7 +11,11 @@ Complete demand is 22.017 seconds median. Four admitted operations exhaust their
 After starting stock is consumed, the screen completes thirty-seven signatures in 593.751 seconds, or 3.739 per minute. Both reserves restore with no consumed-ID reuse.
 Four-candidate preparation takes 9.323 seconds median. All server binaries match the preceding screen, so no source preparation speedup is established.
 All six slow successes occur on each module's first signing call. Reused modules also produce two exhausted operations above five seconds.
-Next, compare precomputed public GMW topologies under controlled first-use workloads, then reduce per-pair hash/retry cost and registration delivery cost.
+The [public-topology screen](ml-dsa-65-public-topology-report.md) tests precomputed layouts and leaves the current runtime selected.
+The prototype passes structural, native, and local Worker lifecycle checks. It adds about thirty MB to each Wasm module and saves only two to three MiB of observed Wasm memory.
+It shows no demonstrated latency benefit. The prototype is archived and removed from the active runtime; no new hosted deployment follows from this screen.
+This does not settle the first-use hypothesis or prove a hosted slowdown. The previous hosted measurements remain current.
+Next, compare half-gates for the private commitment hash against GMW, including preparation, conversions, storage, and traffic; then reduce registration delivery cost.
 Keep wallet-seed recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate capacity unchanged.
 The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.

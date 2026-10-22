@@ -1,0 +1,605 @@
+{
+  "schema": "seams.ml-dsa-public-topology-screen.v1",
+  "observed_date": "2026-10-23",
+  "decision": "Keep the existing runtime. Archive and remove the pinned embedded-layout prototype because no demonstrated latency benefit justifies its added module data.",
+  "hosted_run": false,
+  "production_runtime_changed": false,
+  "base_revision": "593a3351ad9cbdb78c82664025059850ad7be735",
+  "constraints": {
+    "recovery": "wallet-seed",
+    "export": "canonical FIPS seed/key",
+    "private_commitments": true,
+    "preparation_candidates": 4,
+    "consumption_candidates": 2,
+    "capacity_candidates_per_wallet": 32,
+    "admission_minimum_candidates": 16,
+    "workers_only": true
+  },
+  "generated_topology_bytes": 29907052,
+  "module_resources": [
+    {
+      "version": "baseline",
+      "role": "router",
+      "wasm_bytes": 42365918,
+      "wasm_gzip_bytes": 21215371,
+      "sha256": "10f44ef63e84dfcb5775d0e41cfdbf836d7c3d9069885d7a1f23f7c96745c9d6",
+      "declared_memory": [
+        {
+          "minimum_pages": 527,
+          "maximum_pages": null
+        }
+      ]
+    },
+    {
+      "version": "baseline",
+      "role": "deriver-a",
+      "wasm_bytes": 46249565,
+      "wasm_gzip_bytes": 23165471,
+      "sha256": "bbb32da957b3d0b867bba75ec981e5d81984db03f24f67f481091549192cd434",
+      "declared_memory": [
+        {
+          "minimum_pages": 612,
+          "maximum_pages": null
+        }
+      ]
+    },
+    {
+      "version": "baseline",
+      "role": "deriver-b",
+      "wasm_bytes": 46286887,
+      "wasm_gzip_bytes": 23182483,
+      "sha256": "89b02f0b17da6683d646370526717e7d7d564b3fcfafa53e9958078b05ca2d89",
+      "declared_memory": [
+        {
+          "minimum_pages": 612,
+          "maximum_pages": null
+        }
+      ]
+    },
+    {
+      "version": "selected",
+      "role": "router",
+      "wasm_bytes": 72278633,
+      "wasm_gzip_bytes": 32376897,
+      "sha256": "ab995a0099ca2270eab9f0d008531e0fb7137913642757bf27fc522b2758a958",
+      "declared_memory": [
+        {
+          "minimum_pages": 984,
+          "maximum_pages": null
+        }
+      ]
+    },
+    {
+      "version": "selected",
+      "role": "deriver-a",
+      "wasm_bytes": 76162451,
+      "wasm_gzip_bytes": 34326934,
+      "sha256": "df1f5fd21ef6470cf592a1c357072131e2d24aaba1b4b9028da02d372f607c67",
+      "declared_memory": [
+        {
+          "minimum_pages": 1068,
+          "maximum_pages": null
+        }
+      ]
+    },
+    {
+      "version": "selected",
+      "role": "deriver-b",
+      "wasm_bytes": 76199627,
+      "wasm_gzip_bytes": 34332797,
+      "sha256": "80343b9705677ee5a85fead122abc2bcdfdd84965ebc392adf09131da93cde09",
+      "declared_memory": [
+        {
+          "minimum_pages": 1069,
+          "maximum_pages": null
+        }
+      ]
+    }
+  ],
+  "local": {
+    "baseline": {
+      "passed": true,
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "wasm_sha256": {
+        "router": "10f44ef63e84dfcb5775d0e41cfdbf836d7c3d9069885d7a1f23f7c96745c9d6",
+        "deriver-a": "bbb32da957b3d0b867bba75ec981e5d81984db03f24f67f481091549192cd434",
+        "deriver-b": "89b02f0b17da6683d646370526717e7d7d564b3fcfafa53e9958078b05ca2d89"
+      },
+      "activation_installation_ms": 200.9543749999998,
+      "initial_refill_ms": 36091.432541999995,
+      "timed_signatures": [
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "elapsed_ms": 282.4073749999952,
+          "pairs": 4,
+          "candidates": 8,
+          "signing_call_by_role": {
+            "b": 1,
+            "a": 1
+          }
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "elapsed_ms": 244.09195799998997,
+          "pairs": 1,
+          "candidates": 2,
+          "signing_call_by_role": {
+            "b": 0,
+            "a": 0
+          }
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "elapsed_ms": 159.74283399998967,
+          "pairs": 2,
+          "candidates": 4,
+          "signing_call_by_role": {
+            "b": 1,
+            "a": 1
+          }
+        }
+      ],
+      "completed_signing_traces": [
+        {
+          "operation": "54686fb9f10286fb98c8d9dc2f1027e56b457ae139052d63085d6293ecb27284",
+          "role": "b",
+          "module_instance": "bb365a3ef73835a636305d52c1689dd4",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 4,
+              "topology_hits": 0
+            },
+            {
+              "topology_builds": 4,
+              "topology_hits": 4
+            }
+          ]
+        },
+        {
+          "operation": "54686fb9f10286fb98c8d9dc2f1027e56b457ae139052d63085d6293ecb27284",
+          "role": "a",
+          "module_instance": "72ae180576ef995b33d779d987e49251",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 4,
+              "topology_hits": 0
+            },
+            {
+              "topology_builds": 4,
+              "topology_hits": 4
+            }
+          ]
+        },
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "role": "b",
+          "module_instance": "bb365a3ef73835a636305d52c1689dd4",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 16
+            }
+          ]
+        },
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "role": "a",
+          "module_instance": "72ae180576ef995b33d779d987e49251",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 16
+            }
+          ]
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "role": "b",
+          "module_instance": "c9c5aa6d002b9c49f024ae38d9be574e",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 4,
+              "topology_hits": 0
+            }
+          ]
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "role": "a",
+          "module_instance": "75d95d79a1ac48f1634d0d78344175db",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 4,
+              "topology_hits": 0
+            }
+          ]
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "role": "b",
+          "module_instance": "c9c5aa6d002b9c49f024ae38d9be574e",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            }
+          ]
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "role": "a",
+          "module_instance": "75d95d79a1ac48f1634d0d78344175db",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            }
+          ]
+        }
+      ],
+      "maximum_observed_wasm_bytes": {
+        "a": 94437376,
+        "b": 93913088
+      },
+      "memory_counter_calibrated": true,
+      "checks": {
+        "automaticRefillAfterSigning": true,
+        "duplicateSurvivesWorkerRestart": true,
+        "changedSigningLayoutRejectedBeforeConsumption": true,
+        "stalledOperationExpiredWithoutSignature": true,
+        "standardSignaturesVerifiedByRouter": 3,
+        "standardSignaturesVerifiedByOpenSsl": 3
+      }
+    },
+    "selected": {
+      "passed": true,
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "wasm_sha256": {
+        "router": "ab995a0099ca2270eab9f0d008531e0fb7137913642757bf27fc522b2758a958",
+        "deriver-a": "df1f5fd21ef6470cf592a1c357072131e2d24aaba1b4b9028da02d372f607c67",
+        "deriver-b": "80343b9705677ee5a85fead122abc2bcdfdd84965ebc392adf09131da93cde09"
+      },
+      "activation_installation_ms": 268.69775000000027,
+      "initial_refill_ms": 37110.906917,
+      "timed_signatures": [
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "elapsed_ms": 260.9506249999977,
+          "pairs": 3,
+          "candidates": 6,
+          "signing_call_by_role": {
+            "b": 1,
+            "a": 1
+          }
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "elapsed_ms": 464.6941659999866,
+          "pairs": 3,
+          "candidates": 6,
+          "signing_call_by_role": {
+            "b": 0,
+            "a": 0
+          }
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "elapsed_ms": 117.56862499999988,
+          "pairs": 1,
+          "candidates": 2,
+          "signing_call_by_role": {
+            "b": 1,
+            "a": 1
+          }
+        }
+      ],
+      "completed_signing_traces": [
+        {
+          "operation": "bf9cdb96326285f081b798a2a10885d3201a2652bb8a98e460e5d86fc5b3aff3",
+          "role": "b",
+          "module_instance": "323ab904d8bf0990d05b1cb737ecdf7c",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            }
+          ]
+        },
+        {
+          "operation": "bf9cdb96326285f081b798a2a10885d3201a2652bb8a98e460e5d86fc5b3aff3",
+          "role": "a",
+          "module_instance": "e5c24dcc0e839734f33717a35aff559b",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            }
+          ]
+        },
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "role": "b",
+          "module_instance": "323ab904d8bf0990d05b1cb737ecdf7c",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            }
+          ]
+        },
+        {
+          "operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+          "role": "a",
+          "module_instance": "e5c24dcc0e839734f33717a35aff559b",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            }
+          ]
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "role": "b",
+          "module_instance": "a9ef27d2cfaf28992421eae917f170aa",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            }
+          ]
+        },
+        {
+          "operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+          "role": "a",
+          "module_instance": "fd9ecf9f24d5ae684520ddb5276dd491",
+          "signing_call": 0,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 8
+            },
+            {
+              "topology_builds": 0,
+              "topology_hits": 12
+            }
+          ]
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "role": "b",
+          "module_instance": "a9ef27d2cfaf28992421eae917f170aa",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            }
+          ]
+        },
+        {
+          "operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+          "role": "a",
+          "module_instance": "fd9ecf9f24d5ae684520ddb5276dd491",
+          "signing_call": 1,
+          "restored": [
+            {
+              "topology_builds": 0,
+              "topology_hits": 4
+            }
+          ]
+        }
+      ],
+      "maximum_observed_wasm_bytes": {
+        "a": 91160576,
+        "b": 91619328
+      },
+      "memory_counter_calibrated": true,
+      "checks": {
+        "automaticRefillAfterSigning": true,
+        "duplicateSurvivesWorkerRestart": true,
+        "changedSigningLayoutRejectedBeforeConsumption": true,
+        "stalledOperationExpiredWithoutSignature": true,
+        "standardSignaturesVerifiedByRouter": 3,
+        "standardSignaturesVerifiedByOpenSsl": 3
+      }
+    },
+    "scope": "One complete local workerd lifecycle per build, run sequentially after builds. Memory sampling covers initial refill. Random rejection counts differ. The first timed signature follows an automatic empty-pool retry; the set also includes a post-restart first signing. This is not a controlled cold-start comparison. No hosted or throughput claim."
+  },
+  "registration": {
+    "functional_passed": true,
+    "canonical_recovery": true,
+    "hosted": false,
+    "cases": [
+      {
+        "epoch": 1,
+        "preparation_ms": 20836.988042,
+        "registration_with_client_verification_ms": 1421.9245410000003,
+        "canonical_key_verified": true,
+        "holder_results_authenticated": true,
+        "manifest_verified": true
+      },
+      {
+        "epoch": 2,
+        "preparation_ms": 39288.083958,
+        "registration_with_client_verification_ms": 1446.2434170000051,
+        "canonical_key_verified": true,
+        "holder_results_authenticated": true,
+        "manifest_verified": true
+      }
+    ],
+    "participant_restoration_checks": {
+      "wrongManifestRefused": true,
+      "staleExecutionRefused": true,
+      "staleSigningRefused": true,
+      "ordinaryFipsKeyReproduced": true,
+      "samePublicKey": true,
+      "sameManifest": true,
+      "publicationReplays": true,
+      "pendingInventoryPreservesRecordedKey": true,
+      "interruptedRestorationAdvancesEpoch": true,
+      "expiredRestorationCannotBecomeCreation": true
+    },
+    "lifecycle_checks": {
+      "inventoryRequiresTheExactServerIssuedChallenge": true,
+      "inventoryCannotExtendApprovalWindow": true,
+      "recoveredOwnerDiscoversOriginalPublishedKey": true,
+      "recoveredOwnerSignsWithoutRekeying": true,
+      "inventoryApprovalCannotAuthorizeSigning": true,
+      "recoveredOwnerKeepsWalletCooldown": true,
+      "linkedFullOwnerDiscoversSameServerSigner": true,
+      "signingOnlyDeviceCannotDiscoverOrSignMlDsa": true,
+      "linkedDeviceWithoutNearActivationCannotSign": true,
+      "linkedOwnerSignsAndKeepsWalletCooldown": true,
+      "revokedLinkedOwnerCannotReadCachedSignatureOrStartAgain": true,
+      "revocationPreservesRecoveredOwnerAccess": true
+    }
+  },
+  "checks": {
+    "exact_topology_comparison_count": 6,
+    "negative_controls_per_topology": 7,
+    "independent_decoder_and_pin_check": true,
+    "mixed_outputs_per_role": 105,
+    "mixed_layer_exchanges": 168,
+    "canonical_native_key_cases": 6,
+    "computed_to_encoded_persistence": true,
+    "two_local_worker_lifecycle_runs_passed": true
+  },
+  "review": {
+    "finding_fixed_before_worker_tests": "Registration preparation must fork the embedded public cache to avoid constructing an additional graph.",
+    "remaining_core_blockers": [],
+    "limitations": [
+      "Random rejection counts and runtime state differ; one local run per build does not establish a speed difference.",
+      "The second timed operation is the first signing call after restart on both roles; its pair counts differ.",
+      "Wasm memory maxima exclude JS heap and total isolate peaks.",
+      "No controlled hosted cold-start, sustained throughput, registration speedup, or five-second qualification is established.",
+      "The first-use hypothesis remains open. Warm hosted exhaustion already exceeds five seconds with zero topology builds."
+    ]
+  },
+  "next": [
+    "Compare hash-only half-gates with GMW, including private conversions, preprocessing, table traffic, storage and successful-signature cost.",
+    "Optimize the measured registration critical path.",
+    "Deploy a candidate only after local cost and correctness controls support a hosted comparison."
+  ],
+  "archives": [
+    {
+      "path": "ml-dsa-65-public-topology-20261023-native.json.gz",
+      "sha256": "07fee6a72ae9dcb03d6bd34d7ad01066cad4d4a7578ec2579986621895f70444",
+      "bytes": 178596,
+      "uncompressed_sha256": "69e030dac9367e2914d8f75bf38b58d79cd97c5ffc565d60c1bfbd928a748e38"
+    },
+    {
+      "path": "ml-dsa-65-public-topology-20261023-local.json.gz",
+      "sha256": "d13667c103d9be952eaf5fe8d1dc71fa6a56975c47be09959e4620ab776f2597",
+      "bytes": 172400,
+      "uncompressed_sha256": "ef6b7b4d367e6984d7fa73c2a9c00882958fb8c0946a4c1729faf51afd8633d7"
+    },
+    {
+      "path": "ml-dsa-65-public-topology-20261023-provenance.json.gz",
+      "sha256": "733a1b6f591b07256412961d1cd7d950192378bed62f91452d74e134cc89b3a9",
+      "bytes": 4011,
+      "uncompressed_sha256": "830199e0298e20859e903b91486162338e772951bf0087c0d8085ca599c5e2d2"
+    },
+    {
+      "path": "ml-dsa-65-public-topology-20261023-prototype.patch.gz",
+      "sha256": "4a430f9d415f2682bc724b25f47af9bd68c4620c11fa5ce707a042791a253b53",
+      "bytes": 8488,
+      "uncompressed_sha256": "7a5628e5f705c23bf97ca0f748b297e8cadb5d4591313fa60b4dec04838faa70"
+    }
+  ]
+}
