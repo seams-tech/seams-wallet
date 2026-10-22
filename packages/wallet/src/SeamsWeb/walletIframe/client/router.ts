@@ -1885,6 +1885,24 @@ export class WalletIframeRouter {
       this.surfaceRenderer.render(surface);
       return;
     }
+    // A menu whose anchor left the document has lost the component that closes
+    // it. It ends as unmounted instead of falling back to the viewport centre.
+    // The cancel waits one microtask because this render can run inside the
+    // open's own dispatch, before its request is pending.
+    const anchor =
+      surface.kind === 'modal_auth_menu'
+        ? this.hostedAuthMenuAnchors.get(surface.authMenuSessionId)
+        : undefined;
+    if (surface.kind === 'modal_auth_menu' && anchor?.isConnected === false) {
+      queueMicrotask(
+        this.cancelHostedAuthMenuWithReason.bind(
+          this,
+          surface.authMenuSessionId,
+          'component_unmounted',
+        ),
+      );
+      return;
+    }
     let measurement: WalletIframeSurfaceMeasurementState | undefined = this.activeSurfaceMeasurement
       ? {
           kind: 'measured',
@@ -1920,10 +1938,6 @@ export class WalletIframeRouter {
       measurement,
       maxModalWidthCssPx: surface.kind === 'modal_recovery_codes' ? 688 : undefined,
     });
-    const anchor =
-      surface.kind === 'modal_auth_menu'
-        ? this.hostedAuthMenuAnchors.get(surface.authMenuSessionId)
-        : undefined;
     let anchorMetrics = hostedAuthMenuAnchorMetrics(anchor);
     let geometry = resolvedGeometry;
     let authMenuVisualScale = 1;
@@ -2009,6 +2023,9 @@ export class WalletIframeRouter {
   }
 
   private startHostedAuthMenuAnchorTracking(authMenuSessionId: HostedAuthMenuSessionId): void {
+    // The observer also fires when the anchor leaves the document, so the menu ends at once.
+    const anchor = this.hostedAuthMenuAnchors.get(authMenuSessionId);
+    if (anchor) this.surfaceLayoutObserver?.observe(anchor);
     if (this.hostedAuthMenuAnchorTrackingFrame !== null) {
       cancelAnimationFrame(this.hostedAuthMenuAnchorTrackingFrame);
     }
@@ -4057,16 +4074,17 @@ export class WalletIframeRouter {
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
   ): Promise<HostedAuthMenuOutcome> {
-    await this.ensureConfigured();
     const normalized = parseHostedAuthMenuOpenRequest(request);
     if (!normalized) throw new Error('Hosted auth-menu open request is invalid');
     if (this.hostedAuthMenuRequestIds.has(normalized.authMenuSessionId)) {
       throw new Error('Hosted auth-menu session is already active');
     }
+    // Recorded before the first await: a cancel during configuration must find it.
     const requestId = this.allocateRequestId();
     this.hostedAuthMenuRequestIds.set(normalized.authMenuSessionId, requestId);
     if (anchorElement) this.hostedAuthMenuAnchors.set(normalized.authMenuSessionId, anchorElement);
     try {
+      await this.ensureConfigured();
       const responsePromise = this.post<unknown>(
         {
           type: 'PM_OPEN_AUTH_MENU',

@@ -5,12 +5,14 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AppearanceConfig, SeamsClientConfig, WalletSession } from '@/core/types/seams';
 import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { WalletIframeTransportDiagnostics } from '@/SeamsWeb/walletIframe/client/transport/IframeTransport';
-import type {
-  HostedAuthMenuExternalAuthRequest,
-  HostedAuthMenuExternalAuthResolutionInput,
-  HostedAuthMenuOpenRequest,
-  HostedAuthMenuOutcome,
-  HostedAuthMenuSessionId,
+import {
+  hostedAuthMenuSessionIdFromBoundary,
+  parseHostedAuthMenuOpenRequest,
+  type HostedAuthMenuExternalAuthRequest,
+  type HostedAuthMenuExternalAuthResolutionInput,
+  type HostedAuthMenuOpenRequest,
+  type HostedAuthMenuOutcome,
+  type HostedAuthMenuSessionId,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import { createWalletIframeRouter } from '@/SeamsWeb/assembly/createWalletIframeRouter';
 import type { WalletId } from '@shared/utils/domainIds';
@@ -30,6 +32,7 @@ type Connecting = {
   readonly abort: AbortController;
 };
 type ConnectionLifecycle = Exclude<ClientConnectionState, { kind: 'connecting' }> | Connecting;
+type HostedAuthMenuOpenBeforeRouter = 'awaiting_router' | 'cancelled';
 
 function assertNeverConnection(state: never): never {
   throw new Error(`Unsupported connection state: ${String(state)}`);
@@ -85,6 +88,12 @@ export class WalletIframeCoordinator {
   private readonly sdkLifecycleEventListeners = new Set<SdkLifecycleEventListener>();
   private readonly hostedAuthMenuExternalAuthRequestListeners = new Set<
     (request: HostedAuthMenuExternalAuthRequest) => void
+  >();
+  // An open waits for the connection before the router exists to record it. The
+  // session is recorded here first, so a cancel during that wait still stops it.
+  private readonly hostedAuthMenuOpensBeforeRouter = new Map<
+    HostedAuthMenuSessionId,
+    HostedAuthMenuOpenBeforeRouter
   >();
   private readonly forwardSdkLifecycleEventListener: SdkLifecycleEventListener;
   private readonly forwardHostedAuthMenuExternalAuthRequestListener: (
@@ -316,11 +325,33 @@ export class WalletIframeCoordinator {
     request: HostedAuthMenuOpenRequest,
     anchorElement?: HTMLElement,
   ): Promise<HostedAuthMenuOutcome> {
-    const router = await this.requireRouter();
-    return await router.openHostedAuthMenu(request, anchorElement);
+    const normalized = parseHostedAuthMenuOpenRequest(request);
+    if (!normalized) throw new Error('Hosted auth-menu open request is invalid');
+    const authMenuSessionId = normalized.authMenuSessionId;
+    if (this.hostedAuthMenuOpensBeforeRouter.has(authMenuSessionId)) {
+      throw new Error('Hosted auth-menu session is already active');
+    }
+    this.hostedAuthMenuOpensBeforeRouter.set(authMenuSessionId, 'awaiting_router');
+    let router: WalletIframeRouter;
+    try {
+      router = await this.requireRouter();
+    } catch (error) {
+      this.hostedAuthMenuOpensBeforeRouter.delete(authMenuSessionId);
+      throw error;
+    }
+    const state = this.hostedAuthMenuOpensBeforeRouter.get(authMenuSessionId);
+    this.hostedAuthMenuOpensBeforeRouter.delete(authMenuSessionId);
+    if (state === 'cancelled') throw new Error('Hosted auth-menu cancelled: component_unmounted');
+    // The router records the session before its first await, so a later cancel finds it there.
+    return await router.openHostedAuthMenu(normalized, anchorElement);
   }
 
   async cancelHostedAuthMenu(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void> {
+    const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(args.authMenuSessionId);
+    if (authMenuSessionId && this.hostedAuthMenuOpensBeforeRouter.has(authMenuSessionId)) {
+      this.hostedAuthMenuOpensBeforeRouter.set(authMenuSessionId, 'cancelled');
+      return;
+    }
     const router = await this.requireRouter();
     await router.cancelHostedAuthMenu(args);
   }

@@ -508,6 +508,10 @@ CTA belong to the wallet origin.
   Unmounting or closing cancels only that session and leaves direct
   `registerWallet()`, `addSigner()`, and `unlock()` confirmation surfaces
   unchanged.
+- A cancel that arrives while the open still waits for the wallet connection or
+  its configuration stops the open; the wallet host never shows that menu. A
+  menu whose anchor leaves the app document ends as unmounted; it does not move
+  to the viewport centre.
 
 - Hosted exchange redemption publishes the child's home locator before consuming
   the validated one-use exchange. A directory publication failure leaves the
