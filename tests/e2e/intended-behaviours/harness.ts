@@ -5690,11 +5690,19 @@ function nearRpcStubResult(request: { method: string; params: unknown }): unknow
       };
     case 'send_tx':
       return {
+        final_execution_status: 'FINAL',
         status: { SuccessValue: '' },
         transaction: { hash: 'intended-near-tx' },
         transaction_outcome: {
           id: 'intended-near-tx',
-          outcome: { status: { SuccessValue: '' } },
+          outcome: {
+            status: { SuccessValue: '' },
+            logs: [],
+            receipt_ids: [],
+            gas_burnt: 0,
+            tokens_burnt: '0',
+            executor_id: 'intended-e2e',
+          },
         },
         receipts_outcome: [],
       };
