@@ -1095,7 +1095,7 @@ async function verifyRelocationPasskey(database) {
     authorityId: fixture.authority.authorityId,
     walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
     credentialDigestHex: digest(Buffer.from(issued.operationCredential.token)),
-    credentialExpiresAtMs: nowMs + 60_000,
+    credentialExpiresAtMs: issued.session.expiresAtMs,
     origin: 'https://wallet.example.test',
   };
   const binding = api.WalletRelocationChallengeBinding.parse(bindingInput);
@@ -1390,6 +1390,12 @@ async function verifyRelocationPasskey(database) {
     1,
   );
   assert.deepEqual(await approvals.read(binding), approved.approval);
+  assert.equal(await approvals.readForAdmission(binding, nowMs + 5), null);
+  const retiredAdmission = await admissionRoutes.handle(new Request(admissionUrl, {
+    method: 'POST',
+    body: JSON.stringify(admissionBody),
+  }));
+  assert.deepEqual(await retiredAdmission.json(), { kind: 'denied' });
   const readInput = {
     database,
     scope,
@@ -1674,6 +1680,7 @@ async function verifyRelocationPasskey(database) {
       'Real initiating-session authentication, passkey approval persistence and transactional guards; excludes HTTP admission and transfer',
     expiryCheckedAtTransactionCommit: true,
     admissionRejectsExpiredOrRevokedApprovalAndPreservesHistoricalReplay: true,
+    retiredInitiatingSessionRejectsFirstAdmissionButKeepsExactMoveRead: true,
     admissionReadBindsRequestAndRequiresPrivateOrigin: true,
     exactApprovalRecordedWithProofConsumption: true,
     concurrentApprovalReturnsOriginalOutcome: true,

@@ -1,5 +1,6 @@
 import type { WalletId } from '@shared/utils/domainIds';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { base64UrlEncode } from '@shared/utils/base64';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
@@ -165,6 +166,29 @@ export class D1WalletRelocationApprovals {
       owner.authority.authorityDigestB64u !== approval.authorityDigestB64u ||
       owner.authority.revocationEpoch !== approval.authorityRevocationEpoch
     ) return null;
+    const session = await this.database
+      .prepare(
+        `SELECT 1 FROM wallet_session_authorizations_v2
+      WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
+        AND wallet_id = ?5 AND authority_id = ?6 AND wallet_auth_method_id = ?7
+        AND operation_credential_hash = ?8 AND expires_at_ms = ?9
+        AND retired_at_ms IS NULL AND expires_at_ms > ?10
+        AND expires_at_ms > CAST(unixepoch('subsec') * 1000 AS INTEGER)`,
+      )
+      .bind(
+        this.scope.namespace,
+        this.scope.orgId,
+        this.scope.projectId,
+        this.scope.envId,
+        binding.walletId,
+        binding.authorityId,
+        binding.walletAuthMethodId,
+        credentialDigestB64u(binding.credentialDigestHex),
+        binding.credentialExpiresAtMs,
+        nowMs,
+      )
+      .first();
+    if (!session) return null;
     return approval;
   }
 
@@ -223,4 +247,12 @@ export class D1WalletRelocationApprovals {
 
 function failedStatement(result: D1ResultLike): boolean {
   return result.success !== true;
+}
+
+function credentialDigestB64u(hex: string): DigestB64u {
+  const bytes = new Uint8Array(32);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+  return parseDigestB64u(base64UrlEncode(bytes));
 }

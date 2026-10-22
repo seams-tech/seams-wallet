@@ -2368,10 +2368,18 @@ read that move until its existing expiry. It cannot read general placement or an
 unapproved move. Completed responses retain the original move identity and both
 generations. A response for another move fails. Local lock prevents move reads.
 
+For fresh move admission, Console requires a Wallet approval read that observes
+the exact initiating Wallet Session active and unexpired. Retirement committed
+before that read denies the approval. Retirement after that read does not cancel
+admission already in progress. Console can return an already admitted exact move
+because its journal records that move before the retry.
+
 The same authorization E2E retires the initiating session in D1 before exercising
-this client path. It records results in `retired-move-client-evidence.json` beside
-the placement evidence. Local credential retention across reload and post-move
-client reconciliation remain outside this scenario.
+this client path. It also verifies that Wallet denies a fresh admission approval
+while the exact move read remains available. It records client results in
+`retired-move-client-evidence.json` beside the placement evidence. Local credential
+retention across reload and post-move client reconciliation remain outside this
+scenario.
 
 `wallet.placement.move(request)` requires the wallet, move identity, destination,
 and expected source generation. The host first reads that exact move. An existing

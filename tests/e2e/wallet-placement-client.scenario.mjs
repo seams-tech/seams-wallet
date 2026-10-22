@@ -361,7 +361,7 @@ class MoveApprovalPrompt {
   constructor(challenges) {
     this.challenges = challenges;
   }
-  async requestEmailOtpEnrollmentConfirmation(input) {
+  async requestEmailOtpOwnerConfirmation(input) {
     this.calls += 1;
     assert.equal(input.confirmerText.title, 'Move wallet region');
     const record = await this.challenges.read(input.challengeId);
