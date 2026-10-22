@@ -1,36 +1,8 @@
-# `router-ab-ecdsa-derivation` Proof Inventory
+# Router A/B ECDSA Proof Inventory
 
-Last updated: 2026-05-17
-
-This inventory tracks the narrow stable-slice proof targets for
-[crates/router-ab-ecdsa-derivation](../../).
-
-The current verification posture is:
-
-- Verus for implementation-facing algebraic and boundary invariants
-- Aeneas + Lean for the extracted server-visible boundary and narrow privacy
-  claims over that frozen scope
-
-## Current Status
-
-- Verus bootstrap crate exists under:
-  [verus/](../verus)
-- current scope is intentionally limited to:
-  - `encode_context_v2`
-  - role-local client and relayer derivation shape
-  - public identity composition
-  - fixed participant-ID mapping shape for the current backend seam
-  - explicit-export relayer-share release policy shape
-  - initial true-blind role-local boundary mirror
-- Lean boundary extraction now exists for the frozen server-visible staged
-  boundary
-- Lean privacy theorems now exist for the same frozen staged boundary,
-  including widened client/server view models, non-derivability theorems, and
-  the explicit-export exception
-- Verus now mirrors the settled true-blind role-local boundary contract for
-  Rust-facing anti-drift checks before the production rewrite
-- protocol, export, and security docs now define the role-local additive
-  boundary as the production target
+The Verus entries below describe model proofs and executable parity evidence.
+The Aeneas extraction uses a verification-only Rust mirror. No proof connects
+that mirror's full behavior to the production SDK.
 
 ## FV-Router A/B ECDSA derivation-001
 
@@ -182,162 +154,37 @@ Status:
 - forbidden root material is explicitly excluded after finalize:
   raw client root share, raw relayer root share, and canonical scalar
 
-## FV-Router A/B ECDSA derivation-008
+## FV-Router A/B ECDSA derivation-008 — Privacy
 
-Target:
+Pending. Circular observable-equality claims and constant secret-presence
+predicates were removed. They do not prove that a participant cannot derive a
+secret from its full protocol view.
 
-- widened privacy model over the frozen staged boundary
+## FV-Router A/B ECDSA derivation-009 — Aeneas Boundary
 
-Property:
+The generated boundary matches the handwritten field-layout model for
+non-export/export outputs, retained state, and hidden-eval boundary shapes.
+Extraction targets `lean-boundary/rust-boundary/src/lib.rs`, a verification-only
+mirror. These are mirror correspondence claims. Production refinement remains
+pending.
 
-- the server cannot derive client secrets across full states that share the
-  same frozen server-visible boundary
-- the client cannot derive server secrets across full states that share the
-  same frozen client-visible boundary
-- explicit export is the only canonical-secret disclosure exception
-- the generated Rust boundary satisfies the same widened privacy model
+## FV-Router A/B ECDSA derivation-010 — Role-local Model
 
-Planned track:
+[TrueBlind.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
+retains scalar addition modulo the secp256k1 order, typed role views, explicit
+export reconstruction, and conditional public-key agreement. Own-share and
+public-identity equality imply equal non-export role views. This structural
+claim supplies no cryptographic indistinguishability result.
 
-- Lean privacy over the handwritten boundary model
-- Aeneas + Lean bridge for the generated boundary
+[TrueBlindBoundary.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean)
+retains identity/context-bound signing and export sessions. Every bound export
+session requires `authorizedExplicitExportWireHasValidAuthorization`, which
+includes digest validity. `invalidAuthorizationDigestCannotBindExport` excludes
+invalid digests from all such sessions. Reconstruction agrees with the ideal
+export view for sessions built from the same well-formed execution state.
 
-Status:
-
-- explicit `ProtocolExecutionState`, `ClientSecretState`, and
-  `ServerSecretState` models exist
-- explicit client/server observable profiles and observable-only simulator
-  compatibility layers exist
-- server non-derivability of client secrets now exists in the Lean model
-- client non-derivability of server secrets now exists in the Lean model
-- the field-based canonical-secret disclosure exception theorem now exists in
-  the Lean model
-- widened privacy theorems are lifted onto the generated boundary
-- this track is intentionally frozen at the staged-boundary view model and does
-  not attempt hidden-eval compiler correctness, transport/runtime
-  orchestration, side-channel claims, or implementation-facing algebraic proofs
-
-## FV-Router A/B ECDSA derivation-009
-
-Target:
-
-- hidden-eval/compiler-facing boundary and transport/persisted-state seam
-
-Property:
-
-- the generated hidden-eval/compiler-facing boundary matches the handwritten
-  seam model
-- non-export transport excludes canonical-secret disclosure
-- transport never carries raw root material
-- accepted persisted state excludes forbidden root material
-- explicit export remains the only canonical-secret disclosure exception at the
-  transport/state seam
-
-Planned track:
-
-- Aeneas + Lean boundary for the generated hidden-eval seam
-- Lean privacy for transport/state exclusion and disclosure policy
-
-Status:
-
-- the previous Rust hidden-eval/reference facade has been removed from the
-  active crate during the role-local MVP rewrite
-- the `lean-boundary/` extraction path remains a post-MVP bridge task
-- handwritten hidden-eval boundary models now exist for:
-  input, transport-visible response, and persisted accepted state
-- the generated hidden-eval boundary now matches the handwritten seam model
-- transport/persisted-state exclusion theorems now exist in `lean-privacy/`
-- the removed old executable anti-drift checks are replaced by the active V2
-  crate parity test in `just router-ab-ecdsa-derivation-fv-parity`
-
-## FV-Router A/B ECDSA derivation-010
-
-Target:
-
-- true server-blindness model
-
-Property:
-
-- client derives `x_client` from client-owned material
-- server derives `x_relayer` from server-owned material
-- non-export server views exclude `y_client`, `x_client`, and canonical `x`
-- non-export client views exclude `y_relayer` and `x_relayer`
-- public identity is shared through `X = x_clientG + x_relayerG`
-- explicit export reconstructs canonical `x` in the client export view
-- explicit export wires require a digest-valid authorization envelope bound to
-  the export public transcript
-
-Planned track:
-
-- Lean privacy scaffold first
-- Rust implementation after the Lean boundary has stable definitions
-- Aeneas bridge after the Rust boundary exists
-
-Status:
-
-- initial Lean scaffold exists at
-  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlind.lean)
-- current scaffold includes role-local input/share models, non-export
-  client/server views, explicit-export views, exclusion theorems, and named
-  algebraic obligations for additive public-key agreement and export verification
-- the model now includes scalar addition modulo the secp256k1 group order,
-  abstract base multiplication/public-key addition primitives, concrete
-  public-key agreement predicates, export reconstruction predicates, and a
-  `wellFormedExecutionState` predicate that packages the true-blind algebraic
-  requirements
-- the model now defines `F_router_ab_ecdsa_derivation_true_blind`, ideal non-export/export views,
-  and observable-only simulators for those views
-- first non-export view-invariance theorems now prove that changing client-side
-  secrets cannot change the server view when the server share and public identity
-  are fixed, and changing server-side secrets cannot change the client view when
-  the client share and public identity are fixed
-- derivation assumptions now explicitly name the future Rust/Verus obligations:
-  client-share public-key agreement, server-share public-key agreement, and the
-  secp256k1 additive public-key law
-- the ideal functionality now has well-formedness theorems under those
-  assumptions, plus export reconstruction and shared-public-identity theorems
-- typed operation views now make the non-export and explicit-export disclosure
-  policy explicit, including proofs that non-export client operations expose no
-  relayer share or canonical scalar, explicit client export exposes the intended
-  relayer share and reconstructed scalar, and server operation views expose no
-  canonical scalar
-- public transcript fields are now modeled explicitly as context binding, public
-  share keys, threshold public key, address, operation kind, and transcript
-  digest, with proofs that transcripts expose no root/share/canonical-secret
-  payloads
-- the Lean role-local boundary contract now exists at
-  [lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean](../lean-privacy/RouterAbEcdsaDerivationPrivacy/TrueBlindBoundary.lean)
-- the boundary contract models client bootstrap wire, server bootstrap wire,
-  role-local retained client/server state, explicit export wire, and client
-  export reconstruction
-- boundary-contract theorems now prove that non-export wire/state shapes exclude
-  forbidden root/share/canonical-secret payloads, explicit export wire releases
-  only the relayer share needed for export, and client reconstruction from that
-  wire matches the ideal explicit-export client view
-- an authorized explicit-export envelope now binds export authorization to the
-  explicit-export public transcript
-- active wire-envelope theorems now prove that only explicit export can carry the
-  relayer export share and every active wire envelope excludes client
-  root/share material plus canonical `x`
-- bound explicit-export session theorems now tie client retained state, export
-  authorization, and export wire to the same public identity/context before
-  client-side reconstruction
-- bound-session reconstruction theorems now prove the reconstructed view
-  preserves the authorized public identity, matches the ideal explicit-export
-  client view for same-state sessions, and verifies against public key `X`
-- bound role-local signing-session theorems now tie retained client/server state
-  to the same public identity/context before non-export signing composition
-- mismatch-prevention theorems now prove that different public identities or
-  different context bindings prevent construction of a bound role-local signing
-  session
-- export authorization theorems now prove state-created explicit-export
-  envelopes carry valid authorization digests, malformed digests prevent valid
-  explicit-export envelopes, and any valid role-local envelope carrying a
-  relayer export share must be an authorized explicit-export wire
-- state-derived signing-session theorems now prove the composed role-local scalar
-  matches the ideal reconstructed scalar and verifies against public key `X`
-- the Verus mirror now exists at
-  [verus/src/shared/true_blind_boundary.rs](../verus/src/shared/true_blind_boundary.rs)
-- Verus mirror proofs cover active wire forbidden-field exclusion,
-  explicit-export authorization binding, explicit-export-only relayer-share
-  release, and role-local signing-session identity/context binding
+Eight abstract functions model encoding, curve operations, address derivation,
+role-share derivation, and digests. Public-key laws remain explicit premises.
+The digest condition proves equality to the modeled digest function; it does
+not prove cryptographic authentication. Arbitrary bytes in public fields remain
+unrestricted. Production secrecy, transport, timing, and erasure are unproved.

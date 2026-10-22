@@ -22,12 +22,12 @@ theorem client_opens_only_x_client_base
     (opened : OpenedValueKind)
     (h : roleMayOpen Role.client opened = true) :
     opened = OpenedValueKind.xClientBase := by
-  cases opened <;> simp [roleMayOpen] at h
+  cases opened <;> simp_all [roleMayOpen]
 
 theorem signing_worker_opens_only_x_server_base
     (opened : OpenedValueKind)
     (h : roleMayOpen Role.signingWorker opened = true) :
     opened = OpenedValueKind.xServerBase := by
-  cases opened <;> simp [roleMayOpen] at h
+  cases opened <;> simp_all [roleMayOpen]
 
 end RouterAbDerivation

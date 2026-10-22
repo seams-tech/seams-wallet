@@ -63,17 +63,13 @@ and the production crate tests:
 - exact Deriver A weight `1`, Deriver B weight `2`, both-source contribution
   inclusion, refreshed-share bytes, and public-root continuity
 
-## Lean Proof Surface
+## Privacy Status
 
-Implemented in
-[`lean-privacy`](../lean-privacy):
-
-- one-server mode is not a privacy boundary
-- one two-server participant does not hold enough plaintext shares to reconstruct
-  the signing root
-- combiner-visible state does not include plaintext signing-root shares
-- public output state does not include enough material to reconstruct the signing
-  root
+Cryptographic privacy is unproved. The retired Lean model assigned constant
+share counts to views and defined reconstruction ability from those counts.
+It allowed other byte fields to contain the secret. Those claims and their
+build gate have been removed. The Verus policy and anti-drift evidence above
+remain separate from privacy.
 
 ## Remaining Proof Work
 

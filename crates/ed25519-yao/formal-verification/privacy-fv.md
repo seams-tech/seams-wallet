@@ -28,7 +28,7 @@ The repository currently provides:
 - an export Deriver A simulator-input constructor with exact typed leakage;
 - a generated production bridge for public directions, message kinds, payload
   lengths, frame counts, and ordering;
-- finite all-distinguisher acceptance-count bounds;
+- fixed-distribution finite all-distinguisher acceptance-count bounds;
 - additive composition of five supplied adjacent-hybrid bounds;
 - definition-level independence of the ideal simulator from honest private
   inputs and real-execution coins; and
@@ -36,8 +36,8 @@ The repository currently provides:
   corpus.
 
 `YAO-PRIV-001` is therefore conditional composition evidence. The five
-transition bounds are premises. Production payload semantics, probabilistic
-games, primitive reductions, and a nonvacuous final advantage bound remain
+transition bounds are premises. Production payload semantics, production
+sampling distributions, primitive reductions, and a nonvacuous final advantage bound remain
 open under `YAO-SEC-002`.
 
 ## Claim Boundary
@@ -69,8 +69,8 @@ requires the corresponding extensions listed later in this document.
 
 ## Milestone 1: Probabilistic Security Games
 
-Replace the supplied finite sample multiset with games that sample the actual
-coin distributions.
+Connect the fixed finite experiment distribution to games that sample the
+actual production coin distributions.
 
 ### Tasks
 

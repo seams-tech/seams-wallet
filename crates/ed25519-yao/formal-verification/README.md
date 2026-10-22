@@ -121,8 +121,8 @@ not quantify over all inputs and do not establish noninterference, a simulator,
 or real/ideal indistinguishability.
 
 The post-attachment baseline contains 27 reference specifications, 21 committed
-corpora, 418 generator Rust tests, 186 independent Python tests, and 169 Lean
-theorems. Six attached Rust and four passing Python tests belong to
+corpora, 418 generator Rust tests, 186 independent Python tests, and the named Lean
+model claims. Six attached Rust and four passing Python tests belong to
 reconciliation; three concurrent Rust tests freeze circuit field order and LSB0
 bit layout. Twelve host-only Rust tests exercise the external-evidence readiness
 boundary and eleven more exercise fixed-subject/fresh-observation construction;
@@ -151,7 +151,7 @@ The certificate freezes this exact ordered nonclaim list:
   output-view, accepted-evaluation input/coin custody, lifecycle, and role-
   pinned export-authorization, registration-admission, recovery-admission, and
   refresh-admission, semantic-frame party-view policy, and a conditional
-  passive-security composition scaffold. Its exact FV1 count is 169. The
+  passive-security composition scaffold. Its gate audits named claims and their assumptions. The
   export-A simulator has typed leakage and a generated production public-view
   bridge; payload semantics and transition bounds remain abstract.
 - [`tasks/`](tasks/Cargo.toml) owns host-only command orchestration. Production

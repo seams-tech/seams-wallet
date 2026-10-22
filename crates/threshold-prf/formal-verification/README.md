@@ -6,8 +6,6 @@ The current strategy is:
 
 - Verus abstract models for policy, subset, wire, and reconstruction invariants
 - executable Rust anti-drift tests against the committed JSON vector corpus
-- a narrow Lean privacy model for one-server and two-server execution-state
-  visibility
 - Lean boundary extraction only after a Rust-facing boundary is stable enough to
   extract and compare
 
@@ -27,6 +25,9 @@ share-ID encoding is wire capacity, not an accepted operational policy size.
 Current subset, Shamir, share-wire, and reconstruction proofs model the
 policy-shaped boundary used by production Rust and WASM callers.
 
+Cryptographic privacy is unproved. The former Lean share-count model was removed:
+counting named fields cannot establish secrecy of arbitrary byte-valued fields.
+
 ## Current Surface
 
 The canonical inventory is
@@ -37,8 +38,6 @@ Implemented tracks:
 - [`verus/`](verus):
   abstract threshold-policy, subset, wire, proof-bundle ID-binding, and
   reconstruction claims plus production anti-drift parity tests
-- [`lean-privacy/`](lean-privacy):
-  structural visibility model for one-runtime and two-runtime execution states
 - [`lean-boundary/`](lean-boundary):
   deferred extraction track
 - [`fixtures/`](fixtures):

@@ -1,3 +1,4 @@
+import Ed25519YaoModel.EvaluationUse
 import Ed25519YaoModel.EvaluatorAbortViews
 
 /-!
@@ -8,11 +9,6 @@ later obligations.
 -/
 
 namespace Ed25519YaoModel
-
-inductive RegistrationPublicState where
-  | unregistered
-  | pendingActivation
-  deriving DecidableEq, Repr
 
 structure RegistrationAdmissionCommon where
   durableIdentityScope : Nat
@@ -38,8 +34,6 @@ structure TerminalRegistrationSelection where
 
 structure AcceptedRegistrationEvaluation where
   selection : TerminalRegistrationSelection
-  preState : RegistrationPublicState := .unregistered
-  evaluationCount : Nat := 1
   deriving Repr
 
 structure RegistrationCandidate where
@@ -50,7 +44,6 @@ structure RegistrationCandidate where
 
 structure RegistrationPendingActivation where
   candidate : RegistrationCandidate
-  state : RegistrationPublicState := .pendingActivation
   deriving Repr
 
 structure MetadataConsumedRegistration where
@@ -63,14 +56,12 @@ structure WorkerActivatedRegistration where
 
 structure AbortedRegistrationEvaluation where
   selection : TerminalRegistrationSelection
-  burnedExecution : Nat
-  before : RegistrationPublicState := .unregistered
-  after : RegistrationPublicState := .unregistered
   deriving Repr
 
 def admitRegistration
-    (selection : TerminalRegistrationSelection) : AcceptedRegistrationEvaluation :=
-  { selection }
+    (used : UsedExecutions) (selection : TerminalRegistrationSelection) :
+    Option (UsedExecutions × AcceptedRegistrationEvaluation) :=
+  recordEvaluation used selection.common.oneUseExecution { selection := selection }
 
 def commitRegistrationCandidate
     (evaluation : AcceptedRegistrationEvaluation)
@@ -91,88 +82,28 @@ def activateRegistrationWorker
 def abortRegistration
     (evaluation : AcceptedRegistrationEvaluation) : AbortedRegistrationEvaluation :=
   { selection := evaluation.selection
-    burnedExecution := evaluation.selection.common.oneUseExecution }
+  }
 
-theorem registrationAdmissionRequiresUnregisteredPreState
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).preState = .unregistered := by
-  rfl
+/-- Successful admission consumes this execution and preserves the exact input. -/
+theorem admitRegistrationConsumesExecution
+    (used next : UsedExecutions) (selection : TerminalRegistrationSelection)
+    (accepted : AcceptedRegistrationEvaluation)
+    (admitted : admitRegistration used selection = some (next, accepted)) :
+    accepted.selection = selection ∧ admitRegistration next selection = none := by
+  have preserved := admittedEvaluationRecordsUseAndPreservesPayload
+    used next selection.common.oneUseExecution ({ selection := selection } : AcceptedRegistrationEvaluation) accepted admitted
+  constructor
+  · exact congrArg AcceptedRegistrationEvaluation.selection preserved.2.2
+  · exact admittedExecutionCannotBeAdmittedAgain used next selection.common.oneUseExecution
+      ({ selection := selection } : AcceptedRegistrationEvaluation) accepted admitted _
 
-theorem registrationAdmissionBindsOneIdentityScope
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.durableIdentityScope =
-      selection.common.durableIdentityScope := by
-  rfl
-
-theorem registrationAdmissionBindsOneRequest
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.request = selection.common.request := by
-  rfl
-
-theorem registrationAdmissionBindsOneAuthorization
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.authorization =
-      selection.common.authorization := by
-  rfl
-
-theorem registrationAdmissionBindsOneTranscript
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.transcript = selection.common.transcript := by
-  rfl
-
-theorem registrationAdmissionBindsOneIntent
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.intent = selection.common.intent := by
-  rfl
-
-theorem registrationAdmissionBindsOneProvenancePair
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.provenancePair =
-      selection.common.provenancePair := by
-  rfl
-
-theorem registrationAdmissionBindsOneInputSelection
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.provenanceSelectionArtifact =
-        selection.common.provenanceSelectionArtifact ∧
-      (admitRegistration selection).selection.common.selectedMechanismAcceptanceEvidence =
-        selection.common.selectedMechanismAcceptanceEvidence := by
-  exact ⟨rfl, rfl⟩
-
-theorem registrationAdmissionBindsOneEpochExecutionAndValidTime
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).selection.common.activationEpoch =
-        selection.common.activationEpoch ∧
-      (admitRegistration selection).selection.common.oneUseExecution =
-        selection.common.oneUseExecution ∧
-      selection.common.checkedAtUnixMs ≤ selection.common.requestExpiryUnixMs := by
-  exact ⟨rfl, rfl, selection.common.acceptedBeforeExpiry⟩
-
-theorem acceptedRegistrationRunsExactlyOneEvaluation
-    (selection : TerminalRegistrationSelection) :
-    (admitRegistration selection).evaluationCount = 1 := by
-  rfl
-
-theorem registrationCommitmentEstablishesExactlyOnePendingIdentity
-    (selection : TerminalRegistrationSelection)
-    (registeredPublicKey outputCommittedReceipt : Nat) :
-    let pending := commitRegistrationCandidate
-      (admitRegistration selection) registeredPublicKey outputCommittedReceipt
-    pending.state = .pendingActivation ∧
-      pending.candidate.selection.admissionDigest = selection.admissionDigest ∧
-      pending.candidate.registeredPublicKey = registeredPublicKey ∧
-      (activateRegistrationWorker (consumeRegistrationMetadata pending)).candidate =
-        pending.candidate := by
-  simp [commitRegistrationCandidate, admitRegistration, consumeRegistrationMetadata,
-    activateRegistrationWorker]
-
-theorem registrationAbortRetainsUnregisteredStateAndTerminalSelection
-    (selection : TerminalRegistrationSelection) :
-    let aborted := abortRegistration (admitRegistration selection)
-    aborted.before = .unregistered ∧
-      aborted.after = .unregistered ∧
-      aborted.selection = selection ∧
-      aborted.burnedExecution = selection.common.oneUseExecution := by
-  simp [abortRegistration, admitRegistration]
+theorem registrationActivationAndAbortPreserveSelection
+    (evaluation : AcceptedRegistrationEvaluation) (publicKey receipt : Nat) :
+    let pending := commitRegistrationCandidate evaluation publicKey receipt
+    let activated := activateRegistrationWorker (consumeRegistrationMetadata pending)
+    activated.candidate.selection = evaluation.selection ∧
+      activated.candidate.registeredPublicKey = publicKey ∧
+      (abortRegistration evaluation).selection = evaluation.selection := by
+  exact ⟨rfl, rfl, rfl⟩
 
 end Ed25519YaoModel

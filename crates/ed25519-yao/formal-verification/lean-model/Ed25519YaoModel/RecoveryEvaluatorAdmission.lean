@@ -1,3 +1,4 @@
+import Ed25519YaoModel.EvaluationUse
 import Ed25519YaoModel.RecoveryCredentialTransition
 
 /-!
@@ -8,12 +9,6 @@ remain assumptions or later obligations.
 -/
 
 namespace Ed25519YaoModel
-
-inductive RecoveryEvaluatorPublicState where
-  | registeredActive
-  | credentialSuspended
-  | pendingActivation
-  deriving DecidableEq, Repr
 
 structure RecoveryAdmissionCommon where
   durableIdentityScope : Nat
@@ -64,9 +59,6 @@ def TerminalRecoveryEvaluatorAdmission.suspension
 
 structure AcceptedRecoveryEvaluation where
   terminal : TerminalRecoveryEvaluatorAdmission
-  before : RecoveryEvaluatorPublicState := .registeredActive
-  after : RecoveryEvaluatorPublicState := .credentialSuspended
-  evaluationCount : Nat := 1
   deriving Repr
 
 structure RecoveryEvaluationCandidate where
@@ -77,7 +69,6 @@ structure RecoveryEvaluationCandidate where
 
 structure RecoveryEvaluatorPendingActivation where
   candidate : RecoveryEvaluationCandidate
-  state : RecoveryEvaluatorPublicState := .pendingActivation
   deriving Repr
 
 structure RecoveryEvaluatorMetadataConsumed where
@@ -94,14 +85,11 @@ structure RecoveryEvaluatorPromoted where
 
 structure AbortedRecoveryEvaluation where
   terminal : TerminalRecoveryEvaluatorAdmission
-  suspension : SuspendedRecoveryCredentialState
-  burnedExecution : Nat
-  before : RecoveryEvaluatorPublicState := .credentialSuspended
-  after : RecoveryEvaluatorPublicState := .credentialSuspended
 
 def admitRecovery
-    (terminal : TerminalRecoveryEvaluatorAdmission) : AcceptedRecoveryEvaluation :=
-  { terminal }
+    (used : UsedExecutions) (terminal : TerminalRecoveryEvaluatorAdmission) :
+    Option (UsedExecutions × AcceptedRecoveryEvaluation) :=
+  recordEvaluation used terminal.common.oneUseExecution { terminal := terminal }
 
 def commitRecoveryCandidate
     (evaluation : AcceptedRecoveryEvaluation)
@@ -144,125 +132,44 @@ def abortRecoveryEvaluation
     (evaluation : AcceptedRecoveryEvaluation) : AbortedRecoveryEvaluation :=
   {
     terminal := evaluation.terminal
-    suspension := evaluation.terminal.suspension
-    burnedExecution := evaluation.terminal.common.oneUseExecution
   }
 
-theorem recoveryAdmissionIsActiveToSuspendedBoundary
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).before = .registeredActive ∧
-      (admitRecovery terminal).after = .credentialSuspended := by
-  exact ⟨rfl, rfl⟩
+/-- Successful admission consumes this execution and preserves the exact input. -/
+theorem admitRecoveryConsumesExecution
+    (used next : UsedExecutions) (terminal : TerminalRecoveryEvaluatorAdmission)
+    (accepted : AcceptedRecoveryEvaluation)
+    (admitted : admitRecovery used terminal = some (next, accepted)) :
+    accepted.terminal = terminal ∧ admitRecovery next terminal = none := by
+  have preserved := admittedEvaluationRecordsUseAndPreservesPayload
+    used next terminal.common.oneUseExecution ({ terminal := terminal } : AcceptedRecoveryEvaluation) accepted admitted
+  constructor
+  · exact congrArg AcceptedRecoveryEvaluation.terminal preserved.2.2
+  · exact admittedExecutionCannotBeAdmittedAgain used next terminal.common.oneUseExecution
+      ({ terminal := terminal } : AcceptedRecoveryEvaluation) accepted admitted _
 
-theorem recoveryAdmissionBindsOneDurableIdentityAndRequest
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.durableIdentityScope =
-        terminal.common.durableIdentityScope ∧
-      (admitRecovery terminal).terminal.common.request = terminal.common.request := by
-  exact ⟨rfl, rfl⟩
+theorem recoveryPromotionPreservesIdentityAndReplacesCredential
+    (activated : RecoveryEvaluatorWorkerActivated) (nextVersion : Nat)
+    (advances : activated.candidate.terminal.common.activeStateVersion < nextVersion) :
+    let common := activated.candidate.terminal.common
+    let promoted := (promoteRecoveryEvaluatorWorker activated nextVersion advances).credentialState
+    promoted.identity = common.registeredIdentity ∧
+      promotedCredentialAdmission promoted common.activeCredential = .tombstoned ∧
+      promotedCredentialAdmission promoted common.replacementCredential = .active ∧
+      promoted.activeStateVersion = nextVersion ∧
+      common.currentActivationEpoch < promoted.activeActivationEpoch := by
+  have oldIsNotReplacement := Ne.symm activated.candidate.terminal.common.replacementIsDistinct
+  simp [promoteRecoveryEvaluatorWorker, promoteVerifiedRecovery,
+    TerminalRecoveryEvaluatorAdmission.suspension, promotedCredentialAdmission,
+    oldIsNotReplacement, activated.candidate.terminal.common.activationEpochAdvances]
 
-theorem recoveryAdmissionBindsOneAuthorizationAndTranscript
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.authorization =
-        terminal.common.authorization ∧
-      (admitRecovery terminal).terminal.common.transcript = terminal.common.transcript := by
-  exact ⟨rfl, rfl⟩
-
-theorem recoveryAdmissionBindsOrderedProvenanceStatements
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.provenancePair =
-        terminal.common.provenancePair ∧
-      (admitRecovery terminal).terminal.common.deriverAStatement =
-        terminal.common.deriverAStatement ∧
-      (admitRecovery terminal).terminal.common.deriverBStatement =
-        terminal.common.deriverBStatement := by
+theorem recoveryActivationAndAbortPreserveTerminal
+    (evaluation : AcceptedRecoveryEvaluation) (receipt : Nat) :
+    let pending := commitRecoveryCandidate evaluation receipt
+    let activated := activateRecoveryEvaluatorWorker (consumeRecoveryEvaluatorMetadata pending)
+    activated.candidate.terminal = evaluation.terminal ∧
+      activated.candidate.registeredPublicKey =
+        evaluation.terminal.common.registeredIdentity.registeredPublicKey ∧
+      (abortRecoveryEvaluation evaluation).terminal = evaluation.terminal := by
   exact ⟨rfl, rfl, rfl⟩
-
-theorem recoveryAdmissionBindsAuthenticatedStoreAuthorityAndVersion
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.signedStoreResolution =
-        terminal.common.signedStoreResolution ∧
-      (admitRecovery terminal).terminal.common.storeAuthorityEpoch =
-        terminal.common.storeAuthorityEpoch ∧
-      (admitRecovery terminal).terminal.common.storeAuthorityDigest =
-        terminal.common.storeAuthorityDigest ∧
-      (admitRecovery terminal).terminal.common.activeStateVersion =
-        terminal.common.activeStateVersion := by
-  exact ⟨rfl, rfl, rfl, rfl⟩
-
-theorem recoveryAdmissionBindsCompleteRegisteredIdentity
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.suspension.identity =
-      terminal.common.registeredIdentity := by
-  rfl
-
-theorem recoveryAdmissionSuspendsExactDistinctCredentialTransition
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    let suspension := (admitRecovery terminal).terminal.suspension
-    suspension.oldCredential = terminal.common.activeCredential ∧
-      suspension.replacementCredential = terminal.common.replacementCredential ∧
-      suspension.replacementCredential ≠ suspension.oldCredential := by
-  exact ⟨rfl, rfl, terminal.common.replacementIsDistinct⟩
-
-theorem recoveryAdmissionBindsBothContinuityEvidenceIdentities
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.sameRootEvidenceArtifact =
-        terminal.common.sameRootEvidenceArtifact ∧
-      (admitRecovery terminal).terminal.common.selectedMechanismAcceptanceEvidence =
-        terminal.common.selectedMechanismAcceptanceEvidence ∧
-      terminal.common.selectedMechanismAcceptanceEvidence ≠ 0 := by
-  exact ⟨rfl, rfl, terminal.common.selectedMechanismAcceptanceEvidenceIsNonzero⟩
-
-theorem recoveryAdmissionBindsAdvancingEpochExecutionAndValidTime
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).terminal.common.currentActivationEpoch =
-        terminal.common.currentActivationEpoch ∧
-      (admitRecovery terminal).terminal.common.nextActivationEpoch =
-        terminal.common.nextActivationEpoch ∧
-      terminal.common.currentActivationEpoch < terminal.common.nextActivationEpoch ∧
-      (admitRecovery terminal).terminal.common.oneUseExecution =
-        terminal.common.oneUseExecution ∧
-      terminal.common.oneUseExecution ≠ 0 ∧
-      terminal.common.checkedAtUnixMs ≠ 0 ∧
-      terminal.common.checkedAtUnixMs ≤ terminal.common.requestExpiryUnixMs := by
-  exact ⟨rfl, rfl, terminal.common.activationEpochAdvances, rfl,
-    terminal.common.oneUseExecutionIsNonzero, terminal.common.checkedAtIsNonzero,
-    terminal.common.acceptedBeforeExpiry⟩
-
-theorem acceptedRecoveryRunsExactlyOneEvaluation
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    (admitRecovery terminal).evaluationCount = 1 := by
-  rfl
-
-theorem recoveryCommitmentRetainsTerminalThroughWorkerActivation
-    (terminal : TerminalRecoveryEvaluatorAdmission)
-    (outputCommittedReceipt nextStateVersion : Nat)
-    (stateVersionAdvances : terminal.common.activeStateVersion < nextStateVersion) :
-    let pending := commitRecoveryCandidate (admitRecovery terminal) outputCommittedReceipt
-    let activated := activateRecoveryEvaluatorWorker
-      (consumeRecoveryEvaluatorMetadata pending)
-    let promoted := promoteRecoveryEvaluatorWorker
-      activated nextStateVersion stateVersionAdvances
-    pending.state = .pendingActivation ∧
-      pending.candidate.terminal = terminal ∧
-      pending.candidate.registeredPublicKey =
-        terminal.common.registeredIdentity.registeredPublicKey ∧
-      pending.candidate.outputCommittedReceipt = outputCommittedReceipt ∧
-      activated.candidate = pending.candidate ∧
-      promoted.terminal = terminal ∧
-      promoted.credentialState.activeCredential = terminal.common.replacementCredential := by
-  simp [commitRecoveryCandidate, admitRecovery, consumeRecoveryEvaluatorMetadata,
-    activateRecoveryEvaluatorWorker, promoteRecoveryEvaluatorWorker,
-    promoteVerifiedRecovery, TerminalRecoveryEvaluatorAdmission.suspension]
-
-theorem recoveryAbortRetainsSuspensionTerminalAndBurnedExecution
-    (terminal : TerminalRecoveryEvaluatorAdmission) :
-    let aborted := abortRecoveryEvaluation (admitRecovery terminal)
-    aborted.before = .credentialSuspended ∧
-      aborted.after = .credentialSuspended ∧
-      aborted.terminal = terminal ∧
-      aborted.suspension = terminal.suspension ∧
-      aborted.burnedExecution = terminal.common.oneUseExecution := by
-  simp [abortRecoveryEvaluation, admitRecovery]
 
 end Ed25519YaoModel

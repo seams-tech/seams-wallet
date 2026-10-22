@@ -152,11 +152,6 @@ threshold-prf-fv:
   cargo test -q --manifest-path crates/threshold-prf/Cargo.toml --tests
   just threshold-prf-fv-parity
   just threshold-prf-fv-verus
-  just threshold-prf-fv-privacy
-
-# Run the Lean privacy execution-state model for `threshold-prf`.
-threshold-prf-fv-privacy:
-  cd crates/threshold-prf/formal-verification/lean-privacy && $HOME/.elan/bin/lake build
 
 # Run the Router A/B committed Rust boundary checks and formal-verification tracks.
 router-ab-core-fv-parity:
@@ -170,11 +165,11 @@ router-ab-core-fv-verus:
 
 # Run the Router A/B Lean boundary workspace.
 router-ab-core-fv-boundary:
-  cd crates/router-ab-core/formal-verification/lean-boundary && $HOME/.elan/bin/lake build
+  cd crates/router-ab-core/formal-verification/lean-boundary && $HOME/.elan/bin/lake build RouterAbDerivation
 
 # Run the Router A/B Lean privacy workspace.
 router-ab-core-fv-privacy:
-  cd crates/router-ab-core/formal-verification/lean-privacy && $HOME/.elan/bin/lake build
+  cd crates/router-ab-core/formal-verification/lean-privacy && $HOME/.elan/bin/lake build RouterAbDerivationPrivacy
 
 # Run the current full formal-verification path for `router-ab-core`.
 router-ab-core-fv:

@@ -1,3 +1,4 @@
+import Ed25519YaoModel.EvaluationUse
 import Ed25519YaoModel.RecoveryEvaluatorAdmission
 
 /-!
@@ -9,13 +10,6 @@ assumptions or later obligations.
 -/
 
 namespace Ed25519YaoModel
-
-inductive RefreshEvaluatorPublicState where
-  | registeredActive
-  | preparedNextState
-  | pendingActivation
-  | promotedActive
-  deriving DecidableEq, Repr
 
 structure RefreshRoleStateBinding where
   roleRootRecord : Nat
@@ -75,9 +69,6 @@ structure TerminalRefreshEvaluatorAdmission where
 
 structure AcceptedRefreshEvaluation where
   terminal : TerminalRefreshEvaluatorAdmission
-  before : RefreshEvaluatorPublicState := .registeredActive
-  after : RefreshEvaluatorPublicState := .preparedNextState
-  evaluationCount : Nat := 1
   deriving Repr
 
 structure RefreshEvaluationCandidate where
@@ -88,7 +79,6 @@ structure RefreshEvaluationCandidate where
 
 structure RefreshEvaluatorPendingActivation where
   candidate : RefreshEvaluationCandidate
-  state : RefreshEvaluatorPublicState := .pendingActivation
   deriving Repr
 
 structure RefreshEvaluatorMetadataConsumed where
@@ -113,20 +103,16 @@ structure RefreshEvaluatorPromoted where
   identity : RefreshPromotedIdentity
   activeStateVersion : Nat
   stateVersionAdvances : terminal.common.activeStateVersion < activeStateVersion
-  state : RefreshEvaluatorPublicState := .promotedActive
   deriving Repr
 
 structure AbortedRefreshEvaluation where
   terminal : TerminalRefreshEvaluatorAdmission
-  currentIdentity : RefreshRegisteredIdentity
-  burnedExecution : Nat
-  before : RefreshEvaluatorPublicState := .registeredActive
-  after : RefreshEvaluatorPublicState := .registeredActive
   deriving Repr
 
 def admitRefresh
-    (terminal : TerminalRefreshEvaluatorAdmission) : AcceptedRefreshEvaluation :=
-  { terminal }
+    (used : UsedExecutions) (terminal : TerminalRefreshEvaluatorAdmission) :
+    Option (UsedExecutions × AcceptedRefreshEvaluation) :=
+  recordEvaluation used terminal.common.oneUseExecution { terminal := terminal }
 
 def commitRefreshCandidate
     (evaluation : AcceptedRefreshEvaluation)
@@ -169,136 +155,45 @@ def abortRefreshEvaluation
     (evaluation : AcceptedRefreshEvaluation) : AbortedRefreshEvaluation :=
   {
     terminal := evaluation.terminal
-    currentIdentity := evaluation.terminal.common.currentIdentity
-    burnedExecution := evaluation.terminal.common.oneUseExecution
   }
 
-theorem refreshAdmissionIsActiveToPreparedBoundary
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).before = .registeredActive ∧
-      (admitRefresh terminal).after = .preparedNextState := by
-  exact ⟨rfl, rfl⟩
+/-- Successful admission consumes this execution and preserves the exact input. -/
+theorem admitRefreshConsumesExecution
+    (used next : UsedExecutions) (terminal : TerminalRefreshEvaluatorAdmission)
+    (accepted : AcceptedRefreshEvaluation)
+    (admitted : admitRefresh used terminal = some (next, accepted)) :
+    accepted.terminal = terminal ∧ admitRefresh next terminal = none := by
+  have preserved := admittedEvaluationRecordsUseAndPreservesPayload
+    used next terminal.common.oneUseExecution ({ terminal := terminal } : AcceptedRefreshEvaluation) accepted admitted
+  constructor
+  · exact congrArg AcceptedRefreshEvaluation.terminal preserved.2.2
+  · exact admittedExecutionCannotBeAdmittedAgain used next terminal.common.oneUseExecution
+      ({ terminal := terminal } : AcceptedRefreshEvaluation) accepted admitted _
 
-theorem refreshAdmissionBindsOneDurableIdentityAndRequest
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.durableIdentityScope =
-        terminal.common.durableIdentityScope ∧
-      (admitRefresh terminal).terminal.common.request = terminal.common.request := by
-  exact ⟨rfl, rfl⟩
+theorem refreshPromotionPreservesIdentityAndAdvancesEpochs
+    (activated : RefreshEvaluatorWorkerActivated) (nextVersion : Nat)
+    (advances : activated.candidate.terminal.common.activeStateVersion < nextVersion) :
+    let common := activated.candidate.terminal.common
+    let promoted := promoteRefreshEvaluatorWorker activated nextVersion advances
+    promoted.identity.registeredPublicKey = common.currentIdentity.registeredPublicKey ∧
+      promoted.identity.stableScope = common.currentIdentity.stableScope ∧
+      promoted.identity.activeCredential = common.currentIdentity.activeCredential ∧
+      common.currentIdentity.activeActivationEpoch < promoted.identity.activeActivationEpoch ∧
+      common.currentIdentity.deriverA.inputStateEpoch < promoted.identity.deriverA.inputStateEpoch ∧
+      common.currentIdentity.deriverB.inputStateEpoch < promoted.identity.deriverB.inputStateEpoch ∧
+      common.activeStateVersion < promoted.activeStateVersion := by
+  exact ⟨rfl, rfl, rfl, activated.candidate.terminal.common.activationEpochAdvances,
+    activated.candidate.terminal.common.deriverAEpochAdvances,
+    activated.candidate.terminal.common.deriverBEpochAdvances, advances⟩
 
-theorem refreshAdmissionBindsOneAuthorizationAndTranscript
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.authorization =
-        terminal.common.authorization ∧
-      (admitRefresh terminal).terminal.common.transcript = terminal.common.transcript := by
-  exact ⟨rfl, rfl⟩
-
-theorem refreshAdmissionBindsOrderedProvenanceStatements
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.provenancePair =
-        terminal.common.provenancePair ∧
-      (admitRefresh terminal).terminal.common.deriverAStatement =
-        terminal.common.deriverAStatement ∧
-      (admitRefresh terminal).terminal.common.deriverBStatement =
-        terminal.common.deriverBStatement := by
+theorem refreshActivationAndAbortPreserveTerminal
+    (evaluation : AcceptedRefreshEvaluation) (receipt : Nat) :
+    let pending := commitRefreshCandidate evaluation receipt
+    let activated := activateRefreshEvaluatorWorker (consumeRefreshEvaluatorMetadata pending)
+    activated.candidate.terminal = evaluation.terminal ∧
+      activated.candidate.registeredPublicKey =
+        evaluation.terminal.common.currentIdentity.registeredPublicKey ∧
+      (abortRefreshEvaluation evaluation).terminal = evaluation.terminal := by
   exact ⟨rfl, rfl, rfl⟩
-
-theorem refreshAdmissionBindsAuthenticatedStoreAuthorityAndVersion
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.signedStoreResolution =
-        terminal.common.signedStoreResolution ∧
-      (admitRefresh terminal).terminal.common.storeAuthorityEpoch =
-        terminal.common.storeAuthorityEpoch ∧
-      (admitRefresh terminal).terminal.common.storeAuthorityDigest =
-        terminal.common.storeAuthorityDigest ∧
-      (admitRefresh terminal).terminal.common.activeStateVersion =
-        terminal.common.activeStateVersion := by
-  exact ⟨rfl, rfl, rfl, rfl⟩
-
-theorem refreshAdmissionBindsCompleteCurrentIdentity
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.currentIdentity =
-      terminal.common.currentIdentity := by
-  rfl
-
-theorem refreshAdmissionBindsCompleteNextRoleStates
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.nextDeriverA =
-        terminal.common.nextDeriverA ∧
-      (admitRefresh terminal).terminal.common.nextDeriverB =
-        terminal.common.nextDeriverB := by
-  exact ⟨rfl, rfl⟩
-
-theorem refreshAdmissionBindsBothContinuityEvidenceIdentities
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).terminal.common.continuityEvidenceArtifact =
-        terminal.common.continuityEvidenceArtifact ∧
-      (admitRefresh terminal).terminal.common.selectedMechanismAcceptanceEvidence =
-        terminal.common.selectedMechanismAcceptanceEvidence ∧
-      terminal.common.selectedMechanismAcceptanceEvidence ≠ 0 := by
-  exact ⟨rfl, rfl, terminal.common.selectedMechanismAcceptanceEvidenceIsNonzero⟩
-
-theorem refreshAdmissionBindsStrictEpochAdvancesExecutionAndValidTime
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    terminal.common.currentIdentity.activeActivationEpoch <
-        terminal.common.nextActivationEpoch ∧
-      terminal.common.currentIdentity.deriverA.inputStateEpoch <
-        terminal.common.nextDeriverA.inputStateEpoch ∧
-      terminal.common.currentIdentity.deriverB.inputStateEpoch <
-        terminal.common.nextDeriverB.inputStateEpoch ∧
-      (admitRefresh terminal).terminal.common.oneUseExecution =
-        terminal.common.oneUseExecution ∧
-      terminal.common.oneUseExecution ≠ 0 ∧
-      terminal.common.checkedAtUnixMs ≠ 0 ∧
-      terminal.common.checkedAtUnixMs ≤ terminal.common.requestExpiryUnixMs := by
-  exact ⟨terminal.common.activationEpochAdvances,
-    terminal.common.deriverAEpochAdvances,
-    terminal.common.deriverBEpochAdvances,
-    rfl,
-    terminal.common.oneUseExecutionIsNonzero,
-    terminal.common.checkedAtIsNonzero,
-    terminal.common.acceptedBeforeExpiry⟩
-
-theorem acceptedRefreshRunsExactlyOneEvaluation
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    (admitRefresh terminal).evaluationCount = 1 := by
-  rfl
-
-theorem refreshCommitmentRetainsTerminalThroughWorkerActivationAndPromotion
-    (terminal : TerminalRefreshEvaluatorAdmission)
-    (outputCommittedReceipt nextStateVersion : Nat)
-    (stateVersionAdvances : terminal.common.activeStateVersion < nextStateVersion) :
-    let pending := commitRefreshCandidate (admitRefresh terminal) outputCommittedReceipt
-    let activated := activateRefreshEvaluatorWorker
-      (consumeRefreshEvaluatorMetadata pending)
-    let promoted := promoteRefreshEvaluatorWorker
-      activated nextStateVersion stateVersionAdvances
-    pending.state = .pendingActivation ∧
-      pending.candidate.terminal = terminal ∧
-      pending.candidate.registeredPublicKey =
-        terminal.common.currentIdentity.registeredPublicKey ∧
-      pending.candidate.outputCommittedReceipt = outputCommittedReceipt ∧
-      activated.candidate = pending.candidate ∧
-      promoted.terminal = terminal ∧
-      promoted.state = .promotedActive ∧
-      promoted.identity.registeredPublicKey =
-        terminal.common.currentIdentity.registeredPublicKey ∧
-      promoted.identity.stableScope = terminal.common.currentIdentity.stableScope ∧
-      promoted.identity.activeCredential = terminal.common.currentIdentity.activeCredential ∧
-      promoted.identity.activeActivationEpoch = terminal.common.nextActivationEpoch ∧
-      promoted.identity.deriverA = terminal.common.nextDeriverA ∧
-      promoted.identity.deriverB = terminal.common.nextDeriverB := by
-  simp [commitRefreshCandidate, admitRefresh, consumeRefreshEvaluatorMetadata,
-    activateRefreshEvaluatorWorker, promoteRefreshEvaluatorWorker]
-
-theorem refreshAbortKeepsCurrentActiveRetainsTerminalAndBurnsExecution
-    (terminal : TerminalRefreshEvaluatorAdmission) :
-    let aborted := abortRefreshEvaluation (admitRefresh terminal)
-    aborted.before = .registeredActive ∧
-      aborted.after = .registeredActive ∧
-      aborted.terminal = terminal ∧
-      aborted.currentIdentity = terminal.common.currentIdentity ∧
-      aborted.burnedExecution = terminal.common.oneUseExecution := by
-  simp [abortRefreshEvaluation, admitRefresh]
 
 end Ed25519YaoModel

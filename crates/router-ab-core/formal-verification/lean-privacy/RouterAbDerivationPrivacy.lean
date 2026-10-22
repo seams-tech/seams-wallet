@@ -146,13 +146,13 @@ theorem client_observes_only_x_client_base_partials
     (opened : OpenedValueKind)
     (hVisible : roleMayObserveMpcPrfPartial Role.client owner opened = true) :
     opened = OpenedValueKind.xClientBase := by
-  cases owner <;> cases opened <;> simp [roleMayObserveMpcPrfPartial] at hVisible
+  cases owner <;> cases opened <;> simp_all [roleMayObserveMpcPrfPartial]
 
 theorem signing_worker_observes_only_x_server_base_partials
     (owner : MpcPrfPartialOwner)
     (opened : OpenedValueKind)
     (hVisible : roleMayObserveMpcPrfPartial Role.signingWorker owner opened = true) :
     opened = OpenedValueKind.xServerBase := by
-  cases owner <;> cases opened <;> simp [roleMayObserveMpcPrfPartial] at hVisible
+  cases owner <;> cases opened <;> simp_all [roleMayObserveMpcPrfPartial]
 
 end RouterAbDerivationPrivacy

@@ -6,4 +6,5 @@ package «router-ab-ecdsa-derivation-boundary»
 require «aeneas» from "tools/aeneas/backends/lean"
 
 lean_lib RouterAbEcdsaDerivation
+@[default_target]
 lean_lib RouterAbEcdsaDerivationBoundary

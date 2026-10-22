@@ -3,4 +3,4 @@ open Lake DSL
 
 package «router-ab-core-privacy»
 
-lean_lib RouterAbDerivationPrivacy
+@[default_target] lean_lib RouterAbDerivationPrivacy

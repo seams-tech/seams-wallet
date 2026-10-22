@@ -281,7 +281,19 @@ def passiveIdealSimulator
 
 abbrev PassiveSecurityGame := PassiveExperimentInput → PassiveObservedView
 abbrev PassiveDistinguisher := PassiveObservedView → Bool
-abbrev PassiveAdvantageBound := Nat → Nat
+
+/-- Uniform sampling over list positions. Repeated outcomes carry repeated
+    probability mass. The experiment is fixed before choosing a distinguisher. -/
+structure PassiveExperimentDistribution where
+  outcomes : List PassiveExperimentInput
+  nonempty : outcomes ≠ []
+
+abbrev PassiveExperiments :=
+  RuntimeProtocolFamily → RuntimeDeriverRole → PassiveExperimentDistribution
+
+/-- Acceptance-count numerators. Divide by the selected experiment's number of
+    outcomes to obtain probability bounds. -/
+abbrev PassiveAdvantageBound := RuntimeProtocolFamily → RuntimeDeriverRole → Nat
 
 def passiveSecurityGame
     (semantics : PassiveProtocolSemantics)
@@ -300,46 +312,39 @@ def passiveSecurityGame
 
 def passiveAcceptanceCount
     (game : PassiveSecurityGame)
-    (samples : List PassiveExperimentInput)
+    (experiment : PassiveExperimentDistribution)
     (distinguisher : PassiveDistinguisher) :
     Nat :=
-  samples.countP (fun sample => distinguisher (game sample))
+  experiment.outcomes.countP (fun sample => distinguisher (game sample))
 
-def ConcreteStatisticallyClose
-    (bound : PassiveAdvantageBound)
+def StatisticalDistanceBound
+    (experiment : PassiveExperimentDistribution)
+    (bound : Nat)
     (left right : PassiveSecurityGame) :
     Prop :=
-  ∀ samples distinguisher,
-    passiveAcceptanceCount left samples distinguisher ≤
-        passiveAcceptanceCount right samples distinguisher +
-          bound samples.length ∧
-      passiveAcceptanceCount right samples distinguisher ≤
-        passiveAcceptanceCount left samples distinguisher +
-          bound samples.length
+  ∀ distinguisher,
+    passiveAcceptanceCount left experiment distinguisher ≤
+        passiveAcceptanceCount right experiment distinguisher + bound ∧
+      passiveAcceptanceCount right experiment distinguisher ≤
+        passiveAcceptanceCount left experiment distinguisher + bound
 
-def concreteClosenessTrans
+theorem statisticalDistanceBoundTrans
+    (experiment : PassiveExperimentDistribution)
     (left middle right : PassiveSecurityGame)
-    (leftBound rightBound : PassiveAdvantageBound)
-    (leftMiddle : ConcreteStatisticallyClose leftBound left middle)
-    (middleRight : ConcreteStatisticallyClose rightBound middle right) :
-    ConcreteStatisticallyClose
-      (fun sampleCount => leftBound sampleCount + rightBound sampleCount)
-      left right := by
-  intro samples distinguisher
-  have first := leftMiddle samples distinguisher
-  have second := middleRight samples distinguisher
+    (leftBound rightBound : Nat)
+    (leftMiddle : StatisticalDistanceBound experiment leftBound left middle)
+    (middleRight : StatisticalDistanceBound experiment rightBound middle right) :
+    StatisticalDistanceBound experiment (leftBound + rightBound) left right := by
+  intro distinguisher
+  have first := leftMiddle distinguisher
+  have second := middleRight distinguisher
   constructor
-  · change passiveAcceptanceCount left samples distinguisher ≤
-      passiveAcceptanceCount right samples distinguisher +
-        (leftBound samples.length + rightBound samples.length)
-    omega
-  · change passiveAcceptanceCount right samples distinguisher ≤
-      passiveAcceptanceCount left samples distinguisher +
-        (leftBound samples.length + rightBound samples.length)
-    omega
+  · omega
+  · omega
 
 structure PassiveHybridTransitionAssumptions
-    (semantics : PassiveProtocolSemantics) where
+    (semantics : PassiveProtocolSemantics)
+    (experiments : PassiveExperiments) where
   baseOtBound : PassiveAdvantageBound
   otExtensionBound : PassiveAdvantageBound
   inputLabelsBound : PassiveAdvantageBound
@@ -347,40 +352,41 @@ structure PassiveHybridTransitionAssumptions
   outputBound : PassiveAdvantageBound
   baseOt :
     ∀ family role,
-      ConcreteStatisticallyClose baseOtBound
+      StatisticalDistanceBound (experiments family role) (baseOtBound family role)
         (passiveSecurityGame semantics family role .real)
         (passiveSecurityGame semantics family role .idealBaseOt)
   otExtension :
     ∀ family role,
-      ConcreteStatisticallyClose otExtensionBound
+      StatisticalDistanceBound (experiments family role) (otExtensionBound family role)
         (passiveSecurityGame semantics family role .idealBaseOt)
         (passiveSecurityGame semantics family role .idealOtExtension)
   inputLabels :
     ∀ family role,
-      ConcreteStatisticallyClose inputLabelsBound
+      StatisticalDistanceBound (experiments family role) (inputLabelsBound family role)
         (passiveSecurityGame semantics family role .idealOtExtension)
         (passiveSecurityGame semantics family role .simulatedInputLabels)
   garbling :
     ∀ family role,
-      ConcreteStatisticallyClose garblingBound
+      StatisticalDistanceBound (experiments family role) (garblingBound family role)
         (passiveSecurityGame semantics family role .simulatedInputLabels)
         (passiveSecurityGame semantics family role .simulatedGarbling)
   output :
     ∀ family role,
-      ConcreteStatisticallyClose outputBound
+      StatisticalDistanceBound (experiments family role) (outputBound family role)
         (passiveSecurityGame semantics family role .simulatedGarbling)
         (passiveSecurityGame semantics family role .ideal)
 
 def passiveCompositionBound
     {semantics : PassiveProtocolSemantics}
-    (assumptions : PassiveHybridTransitionAssumptions semantics) :
+    {experiments : PassiveExperiments}
+    (assumptions : PassiveHybridTransitionAssumptions semantics experiments) :
     PassiveAdvantageBound :=
-  fun sampleCount =>
-    assumptions.baseOtBound sampleCount +
-      (assumptions.otExtensionBound sampleCount +
-        (assumptions.inputLabelsBound sampleCount +
-          (assumptions.garblingBound sampleCount +
-            assumptions.outputBound sampleCount)))
+  fun family role =>
+    assumptions.baseOtBound family role +
+      (assumptions.otExtensionBound family role +
+        (assumptions.inputLabelsBound family role +
+          (assumptions.garblingBound family role +
+            assumptions.outputBound family role)))
 
 structure ExportDeriverALeakage where
   yClient : PrivateInputValue
@@ -484,73 +490,36 @@ theorem idealSimulatorIsIndependentOfHonestPrivateInputsAndRealCoins
 
 theorem passiveConditionalCompositionBound
     (semantics : PassiveProtocolSemantics)
-    (assumptions : PassiveHybridTransitionAssumptions semantics)
+    (experiments : PassiveExperiments)
+    (assumptions : PassiveHybridTransitionAssumptions semantics experiments)
     (family : RuntimeProtocolFamily)
     (role : RuntimeDeriverRole) :
-    ConcreteStatisticallyClose (passiveCompositionBound assumptions)
+    StatisticalDistanceBound (experiments family role)
+      (passiveCompositionBound assumptions family role)
       (passiveSecurityGame semantics family role .real)
       (passiveSecurityGame semantics family role .ideal) := by
-  exact concreteClosenessTrans _ _ _
-    assumptions.baseOtBound
-    (fun sampleCount =>
-      assumptions.otExtensionBound sampleCount +
-        (assumptions.inputLabelsBound sampleCount +
-          (assumptions.garblingBound sampleCount +
-            assumptions.outputBound sampleCount)))
-    (assumptions.baseOt family role)
-    (concreteClosenessTrans _ _ _
-      assumptions.otExtensionBound
-      (fun sampleCount =>
-        assumptions.inputLabelsBound sampleCount +
-          (assumptions.garblingBound sampleCount +
-            assumptions.outputBound sampleCount))
-      (assumptions.otExtension family role)
-      (concreteClosenessTrans _ _ _
-        assumptions.inputLabelsBound
-        (fun sampleCount =>
-          assumptions.garblingBound sampleCount +
-            assumptions.outputBound sampleCount)
-        (assumptions.inputLabels family role)
-        (concreteClosenessTrans _ _ _
-          assumptions.garblingBound
-          assumptions.outputBound
-          (assumptions.garbling family role)
-          (assumptions.output family role))))
+  have garblingAndOutput := statisticalDistanceBoundTrans (experiments family role)
+    _ _ _ _ _ (assumptions.garbling family role) (assumptions.output family role)
+  have labelsThroughOutput := statisticalDistanceBoundTrans (experiments family role)
+    _ _ _ _ _ (assumptions.inputLabels family role) garblingAndOutput
+  have extensionThroughOutput := statisticalDistanceBoundTrans (experiments family role)
+    _ _ _ _ _ (assumptions.otExtension family role) labelsThroughOutput
+  exact statisticalDistanceBoundTrans (experiments family role)
+    _ _ _ _ _ (assumptions.baseOt family role) extensionThroughOutput
 
-theorem exportPassiveDeriverAConditionalComposition
-    (semantics : PassiveProtocolSemantics)
-    (assumptions : PassiveHybridTransitionAssumptions semantics) :
-    ConcreteStatisticallyClose (passiveCompositionBound assumptions)
-      (passiveSecurityGame semantics .export .deriverA .real)
-      (passiveSecurityGame semantics .export .deriverA .ideal) := by
-  exact passiveConditionalCompositionBound
-    semantics assumptions .export .deriverA
-
-theorem exportPassiveDeriverBConditionalComposition
-    (semantics : PassiveProtocolSemantics)
-    (assumptions : PassiveHybridTransitionAssumptions semantics) :
-    ConcreteStatisticallyClose (passiveCompositionBound assumptions)
-      (passiveSecurityGame semantics .export .deriverB .real)
-      (passiveSecurityGame semantics .export .deriverB .ideal) := by
-  exact passiveConditionalCompositionBound
-    semantics assumptions .export .deriverB
-
-theorem activationPassiveDeriverAConditionalComposition
-    (semantics : PassiveProtocolSemantics)
-    (assumptions : PassiveHybridTransitionAssumptions semantics) :
-    ConcreteStatisticallyClose (passiveCompositionBound assumptions)
-      (passiveSecurityGame semantics .activation .deriverA .real)
-      (passiveSecurityGame semantics .activation .deriverA .ideal) := by
-  exact passiveConditionalCompositionBound
-    semantics assumptions .activation .deriverA
-
-theorem activationPassiveDeriverBConditionalComposition
-    (semantics : PassiveProtocolSemantics)
-    (assumptions : PassiveHybridTransitionAssumptions semantics) :
-    ConcreteStatisticallyClose (passiveCompositionBound assumptions)
-      (passiveSecurityGame semantics .activation .deriverB .real)
-      (passiveSecurityGame semantics .activation .deriverB .ideal) := by
-  exact passiveConditionalCompositionBound
-    semantics assumptions .activation .deriverB
+/-- Equal sampled output distributions have zero distinguishing advantage even
+    when executions with the same random tape produce different outputs. -/
+theorem permutedObservationsHaveZeroDistance
+    (experiment : PassiveExperimentDistribution)
+    (left right : PassiveSecurityGame)
+    (sameDistribution :
+      (experiment.outcomes.map left).Perm (experiment.outcomes.map right)) :
+    StatisticalDistanceBound experiment 0 left right := by
+  intro distinguisher
+  have countsEqual : passiveAcceptanceCount left experiment distinguisher =
+      passiveAcceptanceCount right experiment distinguisher := by
+    simpa only [passiveAcceptanceCount, List.countP_map] using
+      (List.Perm.countP_eq distinguisher sameDistribution)
+  constructor <;> omega
 
 end Ed25519YaoModel

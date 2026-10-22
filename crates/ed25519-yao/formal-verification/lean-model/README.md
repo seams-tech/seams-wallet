@@ -1,159 +1,66 @@
 # Ed25519 Yao Lean Model
 
-The current FV1 model contains exactly 169 theorems.
+This workspace checks handwritten policy models and conditional composition.
+Production cryptographic privacy remains unproved.
 
-The FV1 Lean model contains three manifest rehearsal theorems for distinct
-activation/export family bytes, seven digest slots, and thirteen metrics. Nine
-additional structural party-view theorems model profile-neutral output custody:
-role separation, public-only infrastructure views, export-client-only seed
-visibility, a public-only SigningWorker across all five frozen stages, metadata-
-only activation, and static single-Deriver observation.
+The retained models cover manifest shape, role-local inputs and outputs,
+uniform abort views, delivery, credential replacement, semantic frame views,
+export authorization, and evaluator admission. These claims describe the
+modeled fields and transitions. They do not establish production custody,
+authenticated storage, transport security, timing, or erasure.
 
-Twenty-two evaluation-input policy theorems model the same five frozen lifecycle
-stages with family-specific value classes. They establish the exact four
-role-local activation inputs for registration, recovery, and refresh; the exact
-two role-local seed-domain inputs for export; the absence of activation inputs
-and coins; private-input-free client and infrastructure views; peer-input
-exclusion; family-correct use of functionality-owned output-sharing coins; the
-exact stage/request/plan/count and pre-state-class tables; the seven-role
-universe; and exact static A/B observation.
+## Evaluator admission
 
-Across the five frozen host output stages, the SigningWorker has common public
-metadata only. Actual package opening and an activated/delivered SigningWorker
-state remain outside this model and require a later normative stage.
+`EvaluationUse.lean` records each admitted execution in a used-execution ledger.
+Admission succeeds exactly when that execution is absent. A successful step
+preserves its input and all previous ledger entries. The same execution cannot
+be admitted again using the returned ledger, even with another payload.
 
-These party-view theorems are policy-shape evidence. They do not establish
-noninterference, real/ideal security, protocol privacy, delivery, or production
-custody.
+Export, registration, recovery, and refresh admission all use this transition.
+Their proofs connect admission to exact input retention and replay rejection.
+State is represented by the lifecycle type; overrideable count and state-label
+fields have been removed. Abort results retain the original admission, so
+execution and identity bindings have one source.
 
-The evaluation-input model is also policy-shape evidence. Its pre-state theorem
-classifies stages and does not authenticate a store or companion artifact. It
-has no executable runtime bridge and makes no noninterference, protocol-
-security, coin-sampling, or production-custody claim.
+Export requires distinct A/B authorities with equal common bindings. Recovery
+promotion preserves the complete registered identity, tombstones the old
+credential, and activates its distinct replacement. Refresh promotion preserves
+the public key, scope, and credential while advancing activation and role epochs.
 
-Four uniform-abort theorems freeze the exact four public fields, exclude
-request-context, authorization, Deriver-blame, and private-payload fields, and
-assign the same redacted code and terminal state to all five request kinds.
-They do not prove when an implementation aborts, timing equivalence, selective-
-failure resistance, or correctness with abort.
+These guarantees apply to transitions that thread the returned ledger. Durable
+atomic storage and the production use of that ledger remain unproved. Reusing
+an old ledger snapshot is outside this guarantee. Typed stage wrappers can be
+constructed directly in Lean; they are specification values, not runtime
+capabilities or evidence that an external ceremony occurred.
 
-Seven evaluator-abort theorems freeze the four evaluator request kinds,
-activation exclusion, the unregistered/credential-suspended/registered state table, self-loop
-transition, exact seven-role set, and common-only uniform-abort field view.
-They do not prove durable state, ticket destruction, delivery, or timing.
+## Passive composition
 
-Seven export-delivery theorems freeze authorization as unconsumed at output
-commitment and uncertainty, consumed at release, exact identity preservation
-through uncertainty and redelivery, Client-only seed visibility, and zero
-private-evaluation work. They do not prove ciphertext opening, authenticated
-transport, durable replay, acknowledgement, or selected-profile security.
+`PassiveSecurity.lean` uses an explicit nonempty finite distribution for each
+protocol family and corrupted role. It samples uniformly over list positions;
+repeated outcomes represent repeated probability mass. The same distribution
+is used for every hybrid and every distinguisher.
 
-Ten activation-delivery theorems freeze the not-issued, unconsumed, and
-consumed authorization timeline; exact custody through uncertainty and
-redelivery; atomic distinct Client and SigningWorker capabilities; released
-Client scalar reconstruction; typed worker-authority identity; and zero private
-work for uncertainty, release, and redelivery. They are host-only structural
-evidence and do not prove ciphertext opening, authenticated transport, durable
-replay, complete runtime views, or selected-profile security.
+`StatisticalDistanceBound` bounds the acceptance-count difference for all
+Boolean distinguishers. Dividing its numerator by the fixed outcome count gives
+the probability bound. Five supplied adjacent bounds compose additively.
+`permutedObservationsHaveZeroDistance` checks distributional equality even when
+paired samples produce different observations.
 
-Twelve activation-recipient party-view theorems freeze the two post-release
-stages and seven roles; empty pre-release extensions; exact Client scalar and
-opaque SigningWorker authority custody at release; sealed SigningWorker custody
-after activation; identity continuity; redelivery stability; and exclusion of
-retained Deriver shares from every recipient extension. They are host-only
-policy-shape evidence and do not prove frames, durable delivery, erasure,
-noninterference, or selected-profile security.
+No production transition bound is discharged. Production randomness, payload
+semantics, primitive reductions, and computational security remain open. The
+export-A simulator input and generated public shape provide only the narrower
+link documented in [passive security](../docs/passive-security-real-ideal-v1.md).
 
-Twelve recovery-credential transition theorems freeze active-to-suspended
-cutover; evaluator-abort self-loop behavior; exact suspension retention through
-output commitment, metadata consumption, recipient release, and worker
-activation; verified-authority-only promotion; distinct replacement activation;
-old-credential tombstoning; public-key, stable-scope, and A/B binding continuity;
-strict state-version and activation-epoch advancement; and exclusion of dual
-active credentials. They are construction-independent policy-shape evidence and
-do not prove durable transactions, recovery proof verification, authenticated
-transport, crash recovery, or selected-profile security.
-
-Twelve export evaluator-authorization theorems require separate Deriver A and B
-verified capabilities, distinct role authorities, and equality of their request,
-authorization, transcript, provenance pair, authenticated store state/identity,
-and one-use execution bindings. They also freeze exactly one accepted export
-evaluation, preserve the acceptance-pair digest through output commitment and
-release, and move authorization from unconsumed to consumed. These are host-only
-capability and equality theorems. Signature unforgeability, trusted A/B key
-distribution, admission-clock integrity, authorization-record policy validity,
-durable replay, transport, constant-time execution, and P0-P3 protocol security
-remain assumptions or later obligations.
-
-Twelve registration evaluator-admission theorems freeze the public
-unregistered pre-state classification, durable identity scope,
-request/authorization/transcript/intent/provenance binding, both opaque
-input-selection evidence identities, checked-at expiry, activation epoch and
-execution identity, exactly one evaluation, candidate/receipt identity,
-candidate retention through metadata and worker activation, and terminal
-selection retention on abort. They do not prove authenticated absence, durable
-uniqueness, input-opening consistency, selected-profile security, or production
-constant-time behavior.
-
-Twelve recovery evaluator-admission theorems freeze the active-to-suspended
-boundary; durable identity, request, authorization, transcript, ordered
-provenance, authenticated store authority, complete registered identity,
-credential transition, both continuity-evidence identities, checked-at expiry,
-strict activation-epoch advancement, and execution identity; exactly one
-evaluation; terminal retention through output commitment and worker activation;
-and exact suspension, terminal, and burned-execution retention on abort. They do
-not prove same-root evidence validity, selected-mechanism acceptance,
-authenticated store verification, durable replay, selected-profile security, or
-production constant-time behavior.
-
-Twelve refresh evaluator-admission theorems freeze the active-to-prepared
-boundary; durable identity, request, authorization, transcript, ordered
-provenance, authenticated store authority, complete current identity, complete
-next Deriver role states, both continuity-evidence identities, checked-at
-expiry, strict activation and role-state epoch advancement, and execution
-identity; exactly one evaluation; terminal retention through output commitment,
-metadata consumption, worker activation, and promotion; current identity
-continuity into the promoted state; and exact current-active state, terminal,
-and burned-execution retention on abort. They do not prove opposite-delta proof
-validity, refresh-delta entropy or anti-bias, selected-mechanism acceptance,
-authenticated store cryptography, durable replay, selected-profile security,
-or production constant-time behavior.
-
-Twenty-four semantic-frame party-view theorems freeze exactly eleven directed
-frame classes, eleven delivery states, seven roles, the activation-family,
-activation-control, export/redelivery, and evaluator-abort trace shapes,
-activation's zero evaluator frames, export's exclusion of worker states and
-frames, terminal abort, and exact recipient-redelivery identity. They also
-freeze cumulative role-local value-learning labels: Client role-scoped input,
-own Deriver inputs, protocol randomness and output packages, Router-only staged
-control/input-envelope/output-package/delivery-receipt labels, release-scoped Client
-and SigningWorker outputs, Diagnostics observation of every frame direction,
-Observer observation of none, private-value exclusions, and monotonic retention
-across every success and abort transition. The closed corruption surface has
-exactly ten markers, excludes A+B and Client/SigningWorker corruption, and
-exposes only four typed interface shapes. These are structural policy claims.
-They do not provide runtime frame bytes, durable state or transactions,
-transport/authentication/timing behavior, a simulator, indistinguishability,
-selected-profile satisfaction, or a protocol-security theorem.
-
-Eleven passive-security theorems define a conditional hybrid-composition
-scaffold for activation/export and passive Deriver A/B. The observed view
-contains typed corrupted inputs and random tape, authorized package shares,
-message payload bytes, local state, ordered messages, and transcript bytes.
-The ideal simulator is definitionally independent of honest private inputs and
-real coins. Lean defines finite all-distinguisher acceptance-count bounds and
-proves that five supplied adjacent-transition bounds add to the four
-role/family bounds. Export Deriver A has a concrete typed simulator input tied
-to the generated production public view. Production payload semantics,
-nonvacuous transition bounds, and primitive reductions remain uninstantiated.
+## Gate
 
 ```sh
 cargo yao-fv lean-check
+cargo yao-fv passive-security-check
 ```
 
-The task builds the explicit `Ed25519YaoModel` target, checks an exact nonzero
-theorem count, and requires its `.olean` output. This handwritten model has no
-general generated production or Verus bridge. `RuntimePublicShape.lean` is
-regenerated from production executions and checked byte for byte. Production
-payload extraction, a discharged primitive-security bound, active-security
-results, and a complete protocol-security theorem remain open.
+The gate builds `Ed25519YaoModel`, requires its `.olean` output, and checks the
+transitive assumptions of the main named claims. Only Lean's standard logical
+axioms are permitted for those claims. It enforces no theorem-count quota.
+`RuntimePublicShape.lean` is regenerated from production executions in memory
+and compared byte for byte. The separate Aeneas export-continuity proof covers
+an actual production guard's output, error, and panic behavior.

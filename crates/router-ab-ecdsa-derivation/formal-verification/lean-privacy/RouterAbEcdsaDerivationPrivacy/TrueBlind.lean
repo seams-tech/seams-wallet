@@ -15,7 +15,7 @@ def secp256k1Order : Nat :=
   115792089237316195423570985008687907852837564279074904382605163141518161494337
 
 theorem secp256k1Order_pos : 0 < secp256k1Order := by
-  native_decide
+  decide
 
 abbrev Scalar := Fin secp256k1Order
 
@@ -314,24 +314,6 @@ def simulateExplicitExportServerView
     publicIdentity := input.publicIdentity
   }
 
-def serverViewClientRoot? (_view : NonExportServerView) : Option Bytes32 :=
-  none
-
-def serverViewClientShare? (_view : NonExportServerView) : Option Bytes32 :=
-  none
-
-def serverViewCanonicalX? (_view : NonExportServerView) : Option Bytes32 :=
-  none
-
-def clientViewRelayerRoot? (_view : NonExportClientView) : Option Bytes32 :=
-  none
-
-def clientViewRelayerShare? (_view : NonExportClientView) : Option Bytes32 :=
-  none
-
-def exportServerViewCanonicalX? (_view : ExplicitExportServerView) : Option Bytes32 :=
-  none
-
 inductive ClientOperationView where
   | nonExport : NonExportClientView → ClientOperationView
   | explicitExport : ExplicitExportClientView → ClientOperationView
@@ -359,29 +341,13 @@ structure PublicTranscript where
 
 axiom publicTranscriptDigest : PublicIdentity → OperationKind → Bytes32
 
-def clientOperationViewRelayerRoot? : ClientOperationView → Option Bytes32
-  | .nonExport view => clientViewRelayerRoot? view
-  | .explicitExport _view => none
-
 def clientOperationViewRelayerShare? : ClientOperationView → Option Bytes32
-  | .nonExport view => clientViewRelayerShare? view
+  | .nonExport _ => none
   | .explicitExport view => some view.exportRelayerShare32
 
 def clientOperationViewCanonicalX? : ClientOperationView → Option Bytes32
   | .nonExport _view => none
   | .explicitExport view => some view.reconstructedCanonicalX32
-
-def serverOperationViewClientRoot? : ServerOperationView → Option Bytes32
-  | .nonExport view => serverViewClientRoot? view
-  | .explicitExport _view => none
-
-def serverOperationViewClientShare? : ServerOperationView → Option Bytes32
-  | .nonExport view => serverViewClientShare? view
-  | .explicitExport _view => none
-
-def serverOperationViewCanonicalX? : ServerOperationView → Option Bytes32
-  | .nonExport view => serverViewCanonicalX? view
-  | .explicitExport view => exportServerViewCanonicalX? view
 
 def clientOperationViewPublicIdentity : ClientOperationView → PublicIdentity
   | .nonExport view => view.publicIdentity
@@ -424,21 +390,6 @@ def publicTranscriptOfServerOperationView
     (serverOperationViewPublicIdentity view)
     (serverOperationViewKind view)
 
-def publicTranscriptClientRoot? (_transcript : PublicTranscript) : Option Bytes32 :=
-  none
-
-def publicTranscriptClientShare? (_transcript : PublicTranscript) : Option Bytes32 :=
-  none
-
-def publicTranscriptRelayerRoot? (_transcript : PublicTranscript) : Option Bytes32 :=
-  none
-
-def publicTranscriptRelayerShare? (_transcript : PublicTranscript) : Option Bytes32 :=
-  none
-
-def publicTranscriptCanonicalX? (_transcript : PublicTranscript) : Option Bytes32 :=
-  none
-
 def idealNonExportClientOperationView
     (output : IdealFunctionalityOutput) : ClientOperationView :=
   .nonExport output.nonExportClient
@@ -455,69 +406,6 @@ def idealExplicitExportServerOperationView
     (output : IdealFunctionalityOutput) : ServerOperationView :=
   .explicitExport output.explicitExportServer
 
-def statesShareServerObservable
-    (left right : ExecutionState) : Prop :=
-  nonExportServerView left = nonExportServerView right
-
-def statesShareClientObservable
-    (left right : ExecutionState) : Prop :=
-  nonExportClientView left = nonExportClientView right
-
-def statesVaryOnlyInClientSecrets
-    (left right : ExecutionState) : Prop :=
-  left.serverShare = right.serverShare ∧
-  left.publicIdentity = right.publicIdentity
-
-def statesVaryOnlyInServerSecrets
-    (left right : ExecutionState) : Prop :=
-  left.clientShare = right.clientShare ∧
-  left.publicIdentity = right.publicIdentity
-
-def ServerViewIndistinguishableUnderClientSecretVariation : Prop :=
-  ∀ (left right : ExecutionState),
-    statesVaryOnlyInClientSecrets left right →
-    nonExportServerView left = nonExportServerView right
-
-def ClientViewIndistinguishableUnderServerSecretVariation : Prop :=
-  ∀ (left right : ExecutionState),
-    statesVaryOnlyInServerSecrets left right →
-    nonExportClientView left = nonExportClientView right
-
-theorem nonExportServerView_excludes_client_root
-    (state : ExecutionState) :
-    serverViewClientRoot? (nonExportServerView state) = none := by
-  rfl
-
-theorem nonExportServerView_excludes_client_share
-    (state : ExecutionState) :
-    serverViewClientShare? (nonExportServerView state) = none := by
-  rfl
-
-theorem nonExportServerView_excludes_canonical_x
-    (state : ExecutionState) :
-    serverViewCanonicalX? (nonExportServerView state) = none := by
-  rfl
-
-theorem nonExportClientView_excludes_relayer_root
-    (state : ExecutionState) :
-    clientViewRelayerRoot? (nonExportClientView state) = none := by
-  rfl
-
-theorem nonExportClientView_excludes_relayer_share
-    (state : ExecutionState) :
-    clientViewRelayerShare? (nonExportClientView state) = none := by
-  rfl
-
-theorem explicitExportServerView_excludes_canonical_x
-    (state : ExecutionState) :
-    exportServerViewCanonicalX? (explicitExportServerView state) = none := by
-  rfl
-
-theorem clientOperationView_non_export_excludes_relayer_root
-    (view : NonExportClientView) :
-    clientOperationViewRelayerRoot? (.nonExport view) = none := by
-  rfl
-
 theorem clientOperationView_non_export_excludes_relayer_share
     (view : NonExportClientView) :
     clientOperationViewRelayerShare? (.nonExport view) = none := by
@@ -526,11 +414,6 @@ theorem clientOperationView_non_export_excludes_relayer_share
 theorem clientOperationView_non_export_excludes_canonical_x
     (view : NonExportClientView) :
     clientOperationViewCanonicalX? (.nonExport view) = none := by
-  rfl
-
-theorem clientOperationView_explicit_export_excludes_relayer_root
-    (view : ExplicitExportClientView) :
-    clientOperationViewRelayerRoot? (.explicitExport view) = none := by
   rfl
 
 theorem clientOperationView_explicit_export_releases_relayer_share
@@ -543,36 +426,6 @@ theorem clientOperationView_explicit_export_releases_canonical_x
     (view : ExplicitExportClientView) :
     clientOperationViewCanonicalX? (.explicitExport view) =
       some view.reconstructedCanonicalX32 := by
-  rfl
-
-theorem serverOperationView_non_export_excludes_client_root
-    (view : NonExportServerView) :
-    serverOperationViewClientRoot? (.nonExport view) = none := by
-  rfl
-
-theorem serverOperationView_non_export_excludes_client_share
-    (view : NonExportServerView) :
-    serverOperationViewClientShare? (.nonExport view) = none := by
-  rfl
-
-theorem serverOperationView_non_export_excludes_canonical_x
-    (view : NonExportServerView) :
-    serverOperationViewCanonicalX? (.nonExport view) = none := by
-  rfl
-
-theorem serverOperationView_explicit_export_excludes_client_root
-    (view : ExplicitExportServerView) :
-    serverOperationViewClientRoot? (.explicitExport view) = none := by
-  rfl
-
-theorem serverOperationView_explicit_export_excludes_client_share
-    (view : ExplicitExportServerView) :
-    serverOperationViewClientShare? (.explicitExport view) = none := by
-  rfl
-
-theorem serverOperationView_explicit_export_excludes_canonical_x
-    (view : ExplicitExportServerView) :
-    serverOperationViewCanonicalX? (.explicitExport view) = none := by
   rfl
 
 theorem idealNonExportClientOperationView_excludes_relayer_share
@@ -594,13 +447,6 @@ theorem idealExplicitExportClientOperationView_releases_canonical_x
     clientOperationViewCanonicalX?
         (idealExplicitExportClientOperationView output) =
       some output.explicitExportClient.reconstructedCanonicalX32 := by
-  rfl
-
-theorem idealExplicitExportServerOperationView_excludes_canonical_x
-    (output : IdealFunctionalityOutput) :
-    serverOperationViewCanonicalX?
-        (idealExplicitExportServerOperationView output) =
-      none := by
   rfl
 
 theorem publicTranscriptOfIdentity_preserves_context
@@ -636,31 +482,6 @@ theorem publicTranscriptOfIdentity_preserves_threshold_address
     (operation : OperationKind) :
     (publicTranscriptOfIdentity publicIdentity operation).thresholdEthereumAddress20 =
       publicIdentity.thresholdEthereumAddress20 := by
-  rfl
-
-theorem publicTranscript_excludes_client_root
-    (transcript : PublicTranscript) :
-    publicTranscriptClientRoot? transcript = none := by
-  rfl
-
-theorem publicTranscript_excludes_client_share
-    (transcript : PublicTranscript) :
-    publicTranscriptClientShare? transcript = none := by
-  rfl
-
-theorem publicTranscript_excludes_relayer_root
-    (transcript : PublicTranscript) :
-    publicTranscriptRelayerRoot? transcript = none := by
-  rfl
-
-theorem publicTranscript_excludes_relayer_share
-    (transcript : PublicTranscript) :
-    publicTranscriptRelayerShare? transcript = none := by
-  rfl
-
-theorem publicTranscript_excludes_canonical_x
-    (transcript : PublicTranscript) :
-    publicTranscriptCanonicalX? transcript = none := by
   rfl
 
 theorem publicTranscriptOfClientOperationView_preserves_public_identity
@@ -701,20 +522,6 @@ theorem publicTranscriptOfServerOperationView_preserves_public_identity
     serverOperationViewKind,
   ]
 
-theorem publicTranscriptOfClientOperationView_excludes_canonical_x
-    (view : ClientOperationView) :
-    publicTranscriptCanonicalX?
-        (publicTranscriptOfClientOperationView view) =
-      none := by
-  rfl
-
-theorem publicTranscriptOfServerOperationView_excludes_canonical_x
-    (view : ServerOperationView) :
-    publicTranscriptCanonicalX?
-        (publicTranscriptOfServerOperationView view) =
-      none := by
-  rfl
-
 theorem nonExportServerView_depends_only_on_server_share_and_public_identity
     (left right : ExecutionState)
     (hShare : left.serverShare = right.serverShare)
@@ -738,20 +545,6 @@ theorem nonExportClientView_depends_only_on_client_share_and_public_identity
   constructor
   · exact hShare
   · exact hPublic
-
-theorem serverViewIndistinguishableUnderClientSecretVariation_proved :
-    ServerViewIndistinguishableUnderClientSecretVariation := by
-  intro left right hVariation
-  rcases hVariation with ⟨hShare, hPublic⟩
-  exact nonExportServerView_depends_only_on_server_share_and_public_identity
-    left right hShare hPublic
-
-theorem clientViewIndistinguishableUnderServerSecretVariation_proved :
-    ClientViewIndistinguishableUnderServerSecretVariation := by
-  intro left right hVariation
-  rcases hVariation with ⟨hShare, hPublic⟩
-  exact nonExportClientView_depends_only_on_client_share_and_public_identity
-    left right hShare hPublic
 
 theorem explicitExportClientView_reconstructs_additive_scalar
     (state : ExecutionState) :
@@ -1023,33 +816,6 @@ theorem idealFunctionality_export_public_key_verification
   exact idealExecutionState_export_public_key_verification
     assumptions context clientInput serverInput
 
-theorem F_router_ab_ecdsa_derivation_true_blind_non_export_server_excludes_client_root
-    (context : PublicContext)
-    (clientInput : ClientPrivateInput)
-    (serverInput : ServerPrivateInput) :
-    serverViewClientRoot?
-        (F_router_ab_ecdsa_derivation_true_blind context clientInput serverInput).nonExportServer =
-      none := by
-  rfl
-
-theorem F_router_ab_ecdsa_derivation_true_blind_non_export_server_excludes_canonical_x
-    (context : PublicContext)
-    (clientInput : ClientPrivateInput)
-    (serverInput : ServerPrivateInput) :
-    serverViewCanonicalX?
-        (F_router_ab_ecdsa_derivation_true_blind context clientInput serverInput).nonExportServer =
-      none := by
-  rfl
-
-theorem F_router_ab_ecdsa_derivation_true_blind_non_export_client_excludes_relayer_share
-    (context : PublicContext)
-    (clientInput : ClientPrivateInput)
-    (serverInput : ServerPrivateInput) :
-    clientViewRelayerShare?
-        (F_router_ab_ecdsa_derivation_true_blind context clientInput serverInput).nonExportClient =
-      none := by
-  rfl
-
 theorem F_router_ab_ecdsa_derivation_true_blind_non_export_client_operation_excludes_relayer_share
     (context : PublicContext)
     (clientInput : ClientPrivateInput)
@@ -1092,16 +858,6 @@ theorem F_router_ab_ecdsa_derivation_true_blind_explicit_export_client_operation
       some
         (F_router_ab_ecdsa_derivation_true_blind
           context clientInput serverInput).explicitExportClient.reconstructedCanonicalX32 := by
-  rfl
-
-theorem F_router_ab_ecdsa_derivation_true_blind_explicit_export_server_operation_excludes_canonical_x
-    (context : PublicContext)
-    (clientInput : ClientPrivateInput)
-    (serverInput : ServerPrivateInput) :
-    serverOperationViewCanonicalX?
-        (idealExplicitExportServerOperationView
-          (F_router_ab_ecdsa_derivation_true_blind context clientInput serverInput)) =
-      none := by
   rfl
 
 theorem wellFormedExecutionState_implies_additive_public_key_agreement

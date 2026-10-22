@@ -3,4 +3,4 @@ open Lake DSL
 
 package «router-ab-core-boundary»
 
-lean_lib RouterAbDerivation
+@[default_target] lean_lib RouterAbDerivation

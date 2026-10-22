@@ -189,7 +189,6 @@ struct EvidenceCounts {
     benchmark_bundle_index_digest: String,
     anti_drift_tests: usize,
     verus_obligations: usize,
-    lean_model_theorems: usize,
 }
 
 struct ArtifactSnapshot {
@@ -2455,72 +2454,6 @@ fn run_lean_check() -> Result<(), DynError> {
     verify_lean_toolchain(&baseline, &lean_model_dir())?;
     verify_runtime_public_shape_lean()?;
 
-    let manifest_model = lean_model_dir().join("Ed25519YaoModel/Manifest.lean");
-    let party_views_model = lean_model_dir().join("Ed25519YaoModel/PartyViews.lean");
-    let evaluation_inputs_model = lean_model_dir().join("Ed25519YaoModel/EvaluationInputs.lean");
-    let evaluation_input_theorem_count = count_lean_theorems(&evaluation_inputs_model)?;
-    let uniform_abort_model = lean_model_dir().join("Ed25519YaoModel/UniformAbort.lean");
-    let uniform_abort_theorem_count = count_lean_theorems(&uniform_abort_model)?;
-    let evaluator_abort_views_model =
-        lean_model_dir().join("Ed25519YaoModel/EvaluatorAbortViews.lean");
-    let evaluator_abort_views_theorem_count = count_lean_theorems(&evaluator_abort_views_model)?;
-    let export_delivery_model = lean_model_dir().join("Ed25519YaoModel/ExportDelivery.lean");
-    let export_delivery_theorem_count = count_lean_theorems(&export_delivery_model)?;
-    let activation_delivery_model =
-        lean_model_dir().join("Ed25519YaoModel/ActivationDelivery.lean");
-    let activation_delivery_theorem_count = count_lean_theorems(&activation_delivery_model)?;
-    let activation_recipient_party_views_model =
-        lean_model_dir().join("Ed25519YaoModel/ActivationRecipientPartyViews.lean");
-    let activation_recipient_party_views_theorem_count =
-        count_lean_theorems(&activation_recipient_party_views_model)?;
-    let recovery_credential_transition_model =
-        lean_model_dir().join("Ed25519YaoModel/RecoveryCredentialTransition.lean");
-    let recovery_credential_transition_theorem_count =
-        count_lean_theorems(&recovery_credential_transition_model)?;
-    let export_evaluator_authorization_model =
-        lean_model_dir().join("Ed25519YaoModel/ExportEvaluatorAuthorization.lean");
-    let export_evaluator_authorization_theorem_count =
-        count_lean_theorems(&export_evaluator_authorization_model)?;
-    let registration_evaluator_admission_model =
-        lean_model_dir().join("Ed25519YaoModel/RegistrationEvaluatorAdmission.lean");
-    let registration_evaluator_admission_theorem_count =
-        count_lean_theorems(&registration_evaluator_admission_model)?;
-    let recovery_evaluator_admission_model =
-        lean_model_dir().join("Ed25519YaoModel/RecoveryEvaluatorAdmission.lean");
-    let recovery_evaluator_admission_theorem_count =
-        count_lean_theorems(&recovery_evaluator_admission_model)?;
-    let refresh_evaluator_admission_model =
-        lean_model_dir().join("Ed25519YaoModel/RefreshEvaluatorAdmission.lean");
-    let refresh_evaluator_admission_theorem_count =
-        count_lean_theorems(&refresh_evaluator_admission_model)?;
-    let semantic_frame_party_views_model =
-        lean_model_dir().join("Ed25519YaoModel/SemanticFramePartyViews.lean");
-    let semantic_frame_party_views_theorem_count =
-        count_lean_theorems(&semantic_frame_party_views_model)?;
-    let passive_security_model = lean_model_dir().join("Ed25519YaoModel/PassiveSecurity.lean");
-    let passive_security_theorem_count = count_lean_theorems(&passive_security_model)?;
-    let theorem_count = count_lean_theorems(&manifest_model)?
-        .checked_add(count_lean_theorems(&party_views_model)?)
-        .and_then(|count| count.checked_add(evaluation_input_theorem_count))
-        .and_then(|count| count.checked_add(uniform_abort_theorem_count))
-        .and_then(|count| count.checked_add(evaluator_abort_views_theorem_count))
-        .and_then(|count| count.checked_add(export_delivery_theorem_count))
-        .and_then(|count| count.checked_add(activation_delivery_theorem_count))
-        .and_then(|count| count.checked_add(activation_recipient_party_views_theorem_count))
-        .and_then(|count| count.checked_add(recovery_credential_transition_theorem_count))
-        .and_then(|count| count.checked_add(export_evaluator_authorization_theorem_count))
-        .and_then(|count| count.checked_add(registration_evaluator_admission_theorem_count))
-        .and_then(|count| count.checked_add(recovery_evaluator_admission_theorem_count))
-        .and_then(|count| count.checked_add(refresh_evaluator_admission_theorem_count))
-        .and_then(|count| count.checked_add(semantic_frame_party_views_theorem_count))
-        .and_then(|count| count.checked_add(passive_security_theorem_count))
-        .ok_or("Lean model theorem count overflow")?;
-    require_exact_count(
-        "Lean model theorem",
-        theorem_count,
-        baseline.evidence.lean_model_theorems,
-    )?;
-
     let lake = resolve_program("lake", "install Lean through elan")?;
     run_command(
         Command::new(lake)
@@ -2533,7 +2466,7 @@ fn run_lean_check() -> Result<(), DynError> {
         &lean_model_dir().join(".lake/build/lib/lean/Ed25519YaoModel.olean"),
         "named Lean model output",
     )?;
-    println!("lean-check ok: {theorem_count} theorems and Ed25519YaoModel.olean produced");
+    println!("lean-check ok: named claims audited and Ed25519YaoModel.olean produced");
     Ok(())
 }
 
@@ -3638,7 +3571,6 @@ fn validate_baseline(baseline: &VerificationBaseline) -> Result<(), DynError> {
         baseline.evidence.benchmark_bundle_index_bytes,
         baseline.evidence.anti_drift_tests,
         baseline.evidence.verus_obligations,
-        baseline.evidence.lean_model_theorems,
     ];
     if counts.contains(&0) {
         return Err("verification baseline contains a zero evidence count".into());
@@ -3706,14 +3638,6 @@ fn assert_artifacts_unchanged(snapshots: &[ArtifactSnapshot]) -> Result<(), DynE
         }
     }
     Ok(())
-}
-
-fn count_lean_theorems(path: &Path) -> Result<usize, DynError> {
-    let source = fs::read_to_string(path)?;
-    Ok(source
-        .lines()
-        .filter(|line| line.trim_start().starts_with("theorem "))
-        .count())
 }
 
 fn parse_verus_verified_count(output: &str) -> Result<usize, DynError> {

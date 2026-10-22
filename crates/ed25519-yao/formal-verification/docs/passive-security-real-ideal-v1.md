@@ -10,8 +10,16 @@ The checked Lean result says that five supplied adjacent-hybrid bounds add to
 an end-to-end bound. Each bound is stated against an explicit finite
 distinguishing experiment: a distinguisher maps a complete typed observed view
 to a Boolean, and its advantage numerator is the difference between acceptance
-counts over the same finite sample multiset. The definition quantifies over all
-distinguishers, which is a concrete statistical condition.
+counts under one fixed `PassiveExperimentDistribution`. This distribution is
+nonempty and samples uniformly over list positions; duplicate outcomes carry
+additional probability mass. It is fixed per family and corrupted role before
+choosing the distinguisher and is shared by every hybrid. The definition
+quantifies over distinguishers, with no universal quantifier over sample lists.
+
+For `N` outcomes and numerator bound `b`, the probability bound is `b / N`.
+`permutedObservationsHaveZeroDistance` proves that equal observation multisets
+have zero distance even when observations differ at individual sample positions.
+This finite statistical model has no computational-adversary restriction.
 
 No bound is discharged for a production primitive. A large or vacuous supplied
 bound makes the conditional conclusion correspondingly weak.
@@ -69,7 +77,8 @@ The composition scaffold uses:
 6. ideal simulated output.
 
 `PassiveHybridTransitionAssumptions` supplies an explicit acceptance-count
-bound for each adjacent transition. Lean proves the final bound is their sum
+bound for each adjacent transition under the fixed sampling distribution.
+Lean proves the final numerator bound is their sum
 for activation/export and Deriver A/B.
 
 These are whole-transition premises. The model does not present them as
@@ -94,6 +103,7 @@ deterministic generated input cases.
 
 Production payload bytes, random-tape semantics, and internal-state
 transitions have no extraction bridge into `PassiveProtocolSemantics`.
+The finite sampling distribution has no link to production randomness yet.
 
 ## Remaining Critical Proof
 

@@ -1,3 +1,4 @@
+import Ed25519YaoModel.EvaluationUse
 import Ed25519YaoModel.ExportDelivery
 
 /-!
@@ -40,21 +41,17 @@ structure VerifiedExportAcceptancePair where
 
 structure AcceptedExportEvaluation where
   acceptance : VerifiedExportAcceptancePair
-  evaluationCount : Nat := 1
 
 structure ExportOutputCommitted where
   evaluation : AcceptedExportEvaluation
-  authorizationState : ExportAuthorizationState := .unconsumed
-  acceptancePairDigest : Nat := evaluation.acceptance.digest
 
 structure ExportReleased where
   committed : ExportOutputCommitted
-  authorizationState : ExportAuthorizationState := .consumed
-  acceptancePairDigest : Nat := committed.acceptancePairDigest
 
 def acceptExportEvaluation
-    (pair : VerifiedExportAcceptancePair) : AcceptedExportEvaluation :=
-  { acceptance := pair }
+    (used : UsedExecutions) (pair : VerifiedExportAcceptancePair) :
+    Option (UsedExecutions × AcceptedExportEvaluation) :=
+  recordEvaluation used pair.deriverA.common.oneUseExecution { acceptance := pair }
 
 def commitAcceptedExport
     (evaluation : AcceptedExportEvaluation) : ExportOutputCommitted :=
@@ -63,79 +60,25 @@ def commitAcceptedExport
 def releaseAcceptedExport (committed : ExportOutputCommitted) : ExportReleased :=
   { committed }
 
-theorem acceptedExportRequiresDeriverA
-    (evaluation : AcceptedExportEvaluation) :
-    ∃ acceptance : VerifiedExportAcceptance .deriverA,
-      acceptance = evaluation.acceptance.deriverA := by
-  exact ⟨evaluation.acceptance.deriverA, rfl⟩
-
-theorem acceptedExportRequiresDeriverB
-    (evaluation : AcceptedExportEvaluation) :
-    ∃ acceptance : VerifiedExportAcceptance .deriverB,
-      acceptance = evaluation.acceptance.deriverB := by
-  exact ⟨evaluation.acceptance.deriverB, rfl⟩
-
-theorem exportAcceptanceRolesAreDistinct :
-    ExportAcceptanceRole.deriverA ≠ ExportAcceptanceRole.deriverB := by
-  decide
-
-theorem acceptedPairUsesDistinctAuthorities
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.authority ≠ pair.deriverB.authority := by
-  exact pair.authoritiesDistinct
-
-theorem acceptedPairBindsOneRequest
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.request = pair.deriverB.common.request := by
-  exact congrArg ExportAcceptanceCommon.request pair.sameCommon
-
-theorem acceptedPairBindsOneAuthorization
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.authorization = pair.deriverB.common.authorization := by
-  exact congrArg ExportAcceptanceCommon.authorization pair.sameCommon
-
-theorem acceptedPairBindsOneTranscript
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.transcript = pair.deriverB.common.transcript := by
-  exact congrArg ExportAcceptanceCommon.transcript pair.sameCommon
-
-theorem acceptedPairBindsOneProvenancePair
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.provenancePair = pair.deriverB.common.provenancePair := by
-  exact congrArg ExportAcceptanceCommon.provenancePair pair.sameCommon
-
-theorem acceptedPairBindsOneStoreStateAndIdentity
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.storeResolution = pair.deriverB.common.storeResolution ∧
-      pair.deriverA.common.activeStateVersion =
-        pair.deriverB.common.activeStateVersion ∧
-      pair.deriverA.common.registeredIdentity =
-        pair.deriverB.common.registeredIdentity := by
+/-- Successful admission consumes this execution and preserves the exact input. -/
+theorem acceptExportEvaluationConsumesExecution
+    (used next : UsedExecutions) (pair : VerifiedExportAcceptancePair)
+    (accepted : AcceptedExportEvaluation)
+    (admitted : acceptExportEvaluation used pair = some (next, accepted)) :
+    accepted.acceptance = pair ∧ acceptExportEvaluation next pair = none := by
+  have preserved := admittedEvaluationRecordsUseAndPreservesPayload
+    used next pair.deriverA.common.oneUseExecution ({ acceptance := pair } : AcceptedExportEvaluation) accepted admitted
   constructor
-  · exact congrArg ExportAcceptanceCommon.storeResolution pair.sameCommon
-  · constructor
-    · exact congrArg ExportAcceptanceCommon.activeStateVersion pair.sameCommon
-    · exact congrArg ExportAcceptanceCommon.registeredIdentity pair.sameCommon
+  · exact congrArg AcceptedExportEvaluation.acceptance preserved.2.2
+  · exact admittedExecutionCannotBeAdmittedAgain used next pair.deriverA.common.oneUseExecution
+      ({ acceptance := pair } : AcceptedExportEvaluation) accepted admitted _
 
-theorem acceptedPairBindsOneUseExecution
-    (pair : VerifiedExportAcceptancePair) :
-    pair.deriverA.common.oneUseExecution =
-      pair.deriverB.common.oneUseExecution := by
-  exact congrArg ExportAcceptanceCommon.oneUseExecution pair.sameCommon
-
-theorem acceptedExportRunsExactlyOneEvaluation
-    (pair : VerifiedExportAcceptancePair) :
-    (acceptExportEvaluation pair).evaluationCount = 1 := by
-  rfl
-
-theorem commitmentAndReleasePreserveAcceptanceAndConsumeAuthorization
+theorem exportReleaseRetainsBoundAuthorization
     (evaluation : AcceptedExportEvaluation) :
-    let committed := commitAcceptedExport evaluation
-    let released := releaseAcceptedExport committed
-    committed.authorizationState = .unconsumed ∧
-      released.authorizationState = .consumed ∧
-      committed.acceptancePairDigest = evaluation.acceptance.digest ∧
-      released.acceptancePairDigest = evaluation.acceptance.digest := by
-  simp [commitAcceptedExport, releaseAcceptedExport]
+    let released := releaseAcceptedExport (commitAcceptedExport evaluation)
+    released.committed.evaluation.acceptance = evaluation.acceptance ∧
+      evaluation.acceptance.deriverA.common = evaluation.acceptance.deriverB.common ∧
+      evaluation.acceptance.deriverA.authority ≠ evaluation.acceptance.deriverB.authority := by
+  exact ⟨rfl, evaluation.acceptance.sameCommon, evaluation.acceptance.authoritiesDistinct⟩
 
 end Ed25519YaoModel

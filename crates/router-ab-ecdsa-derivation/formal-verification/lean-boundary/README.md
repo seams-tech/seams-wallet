@@ -9,9 +9,9 @@ Its job is intentionally smaller than the Verus track:
   lemmas
 - provide a reproducible local extraction path for the staged boundary slice
 
-This track is not the full privacy stack.
-It is also not the main implementation gate.
-The implementation-facing guarantees stay in Verus.
+This track proves correspondence to a verification-only Rust mirror.
+No behavioral refinement proof connects that mirror to the production SDK.
+Cryptographic privacy remains unproved.
 
 Current status:
 
@@ -88,5 +88,5 @@ The reproducible extraction script is:
 
 See:
 
-- [`docs/implementation-plan.md`](docs/implementation-plan.md)
+- [shared implementation plan](../docs/implementation-plan.md)
 

@@ -162,78 +162,12 @@ def clientExportReconstructionToView
     publicIdentity := reconstruction.publicIdentity
   }
 
-def clientBootstrapWireClientRoot? (_wire : ClientBootstrapWire) : Option Bytes32 :=
-  none
-
-def clientBootstrapWireClientShare? (_wire : ClientBootstrapWire) : Option Bytes32 :=
-  none
-
-def clientBootstrapWireRelayerRoot? (_wire : ClientBootstrapWire) : Option Bytes32 :=
-  none
-
-def clientBootstrapWireRelayerShare? (_wire : ClientBootstrapWire) : Option Bytes32 :=
-  none
-
-def clientBootstrapWireCanonicalX? (_wire : ClientBootstrapWire) : Option Bytes32 :=
-  none
-
-def serverBootstrapWireClientRoot? (_wire : ServerBootstrapWire) : Option Bytes32 :=
-  none
-
-def serverBootstrapWireClientShare? (_wire : ServerBootstrapWire) : Option Bytes32 :=
-  none
-
-def serverBootstrapWireRelayerRoot? (_wire : ServerBootstrapWire) : Option Bytes32 :=
-  none
-
-def serverBootstrapWireRelayerShare? (_wire : ServerBootstrapWire) : Option Bytes32 :=
-  none
-
-def serverBootstrapWireCanonicalX? (_wire : ServerBootstrapWire) : Option Bytes32 :=
-  none
-
-def clientRetainedStateRelayerRoot?
-    (_state : RoleLocalClientRetainedState) : Option Bytes32 :=
-  none
-
-def clientRetainedStateRelayerShare?
-    (_state : RoleLocalClientRetainedState) : Option Bytes32 :=
-  none
-
-def clientRetainedStateCanonicalX?
-    (_state : RoleLocalClientRetainedState) : Option Bytes32 :=
-  none
-
-def serverRetainedStateClientRoot?
-    (_state : RoleLocalServerRetainedState) : Option Bytes32 :=
-  none
-
-def serverRetainedStateClientShare?
-    (_state : RoleLocalServerRetainedState) : Option Bytes32 :=
-  none
-
-def serverRetainedStateCanonicalX?
-    (_state : RoleLocalServerRetainedState) : Option Bytes32 :=
-  none
-
 def serverRetainedStateRelayerShare?
     (state : RoleLocalServerRetainedState) : Option Bytes32 :=
   some state.serverShare.xRelayer32
 
-def explicitExportWireClientRoot? (_wire : ExplicitExportWire) : Option Bytes32 :=
-  none
-
-def explicitExportWireClientShare? (_wire : ExplicitExportWire) : Option Bytes32 :=
-  none
-
-def explicitExportWireRelayerRoot? (_wire : ExplicitExportWire) : Option Bytes32 :=
-  none
-
 def explicitExportWireRelayerShare? (wire : ExplicitExportWire) : Option Bytes32 :=
   some wire.exportRelayerShare32
-
-def explicitExportWireCanonicalX? (_wire : ExplicitExportWire) : Option Bytes32 :=
-  none
 
 def exportAuthorizationBindsPublicIdentity
     (authorization : ExplicitExportAuthorization) : Prop :=
@@ -298,7 +232,7 @@ structure BoundRoleLocalSigningSession where
 structure BoundExplicitExportSession where
   clientState : RoleLocalClientRetainedState
   exportWire : AuthorizedExplicitExportWire
-  validExportWire : authorizedExplicitExportWireIsValid exportWire
+  validExportWire : authorizedExplicitExportWireHasValidAuthorization exportWire
   clientMatchesAuthorization :
     clientStateMatchesExportAuthorization clientState exportWire.authorization
 
@@ -308,19 +242,11 @@ def boundExplicitExportSessionOfState
     clientState := roleLocalClientRetainedStateOfState state
     exportWire := authorizedExplicitExportWireOfState state
     validExportWire := by
-      constructor
-      · rfl
-      · constructor
-        · constructor
-          · rfl
-          constructor
-          · rfl
-          constructor
-          · rfl
-          constructor
-          · rfl
-          · rfl
-        · rfl
+      simp [authorizedExplicitExportWireHasValidAuthorization,
+        exportAuthorizationMatchesWire, exportAuthorizationBindsPublicIdentity,
+        publicIdentityMatchesTranscript, exportAuthorizationDigestMatches,
+        authorizedExplicitExportWireOfState, explicitExportAuthorizationOfState,
+        explicitExportWireOfState, publicTranscriptOfIdentity]
     clientMatchesAuthorization := by
       constructor
       · rfl
@@ -357,75 +283,10 @@ def roleLocalWireRelayerShare? : RoleLocalWireEnvelope → Option Bytes32
   | .serverBootstrap _wire => none
   | .explicitExport wire => explicitExportWireRelayerShare? wire.wire
 
-def roleLocalWireCanonicalX? : RoleLocalWireEnvelope → Option Bytes32
-  | .clientBootstrap wire => clientBootstrapWireCanonicalX? wire
-  | .serverBootstrap wire => serverBootstrapWireCanonicalX? wire
-  | .explicitExport wire => explicitExportWireCanonicalX? wire.wire
-
-def roleLocalWireClientRoot? : RoleLocalWireEnvelope → Option Bytes32
-  | .clientBootstrap wire => clientBootstrapWireClientRoot? wire
-  | .serverBootstrap wire => serverBootstrapWireClientRoot? wire
-  | .explicitExport wire => explicitExportWireClientRoot? wire.wire
-
-def roleLocalWireClientShare? : RoleLocalWireEnvelope → Option Bytes32
-  | .clientBootstrap wire => clientBootstrapWireClientShare? wire
-  | .serverBootstrap wire => serverBootstrapWireClientShare? wire
-  | .explicitExport wire => explicitExportWireClientShare? wire.wire
-
-theorem clientBootstrapWire_excludes_client_root
-    (wire : ClientBootstrapWire) :
-    clientBootstrapWireClientRoot? wire = none := by
-  rfl
-
-theorem clientBootstrapWire_excludes_client_share
-    (wire : ClientBootstrapWire) :
-    clientBootstrapWireClientShare? wire = none := by
-  rfl
-
-theorem clientBootstrapWire_excludes_relayer_root
-    (wire : ClientBootstrapWire) :
-    clientBootstrapWireRelayerRoot? wire = none := by
-  rfl
-
-theorem clientBootstrapWire_excludes_relayer_share
-    (wire : ClientBootstrapWire) :
-    clientBootstrapWireRelayerShare? wire = none := by
-  rfl
-
-theorem clientBootstrapWire_excludes_canonical_x
-    (wire : ClientBootstrapWire) :
-    clientBootstrapWireCanonicalX? wire = none := by
-  rfl
-
 theorem clientBootstrapWireOfState_preserves_public_client_key
     (state : ExecutionState) :
     (clientBootstrapWireOfState state).clientPublicKey33 =
       state.clientShare.clientPublicKey33 := by
-  rfl
-
-theorem serverBootstrapWire_excludes_client_root
-    (wire : ServerBootstrapWire) :
-    serverBootstrapWireClientRoot? wire = none := by
-  rfl
-
-theorem serverBootstrapWire_excludes_client_share
-    (wire : ServerBootstrapWire) :
-    serverBootstrapWireClientShare? wire = none := by
-  rfl
-
-theorem serverBootstrapWire_excludes_relayer_root
-    (wire : ServerBootstrapWire) :
-    serverBootstrapWireRelayerRoot? wire = none := by
-  rfl
-
-theorem serverBootstrapWire_excludes_relayer_share
-    (wire : ServerBootstrapWire) :
-    serverBootstrapWireRelayerShare? wire = none := by
-  rfl
-
-theorem serverBootstrapWire_excludes_canonical_x
-    (wire : ServerBootstrapWire) :
-    serverBootstrapWireCanonicalX? wire = none := by
   rfl
 
 theorem serverBootstrapWireOfState_preserves_public_transcript
@@ -434,40 +295,10 @@ theorem serverBootstrapWireOfState_preserves_public_transcript
       publicTranscriptOfIdentity state.publicIdentity OperationKind.nonExport := by
   rfl
 
-theorem clientRetainedState_excludes_relayer_root
-    (state : RoleLocalClientRetainedState) :
-    clientRetainedStateRelayerRoot? state = none := by
-  rfl
-
-theorem clientRetainedState_excludes_relayer_share
-    (state : RoleLocalClientRetainedState) :
-    clientRetainedStateRelayerShare? state = none := by
-  rfl
-
-theorem clientRetainedState_excludes_canonical_x
-    (state : RoleLocalClientRetainedState) :
-    clientRetainedStateCanonicalX? state = none := by
-  rfl
-
 theorem roleLocalClientRetainedStateOfState_preserves_client_share
     (state : ExecutionState) :
     (roleLocalClientRetainedStateOfState state).clientShare =
       state.clientShare := by
-  rfl
-
-theorem serverRetainedState_excludes_client_root
-    (state : RoleLocalServerRetainedState) :
-    serverRetainedStateClientRoot? state = none := by
-  rfl
-
-theorem serverRetainedState_excludes_client_share
-    (state : RoleLocalServerRetainedState) :
-    serverRetainedStateClientShare? state = none := by
-  rfl
-
-theorem serverRetainedState_excludes_canonical_x
-    (state : RoleLocalServerRetainedState) :
-    serverRetainedStateCanonicalX? state = none := by
   rfl
 
 theorem serverRetainedState_reveals_own_relayer_share
@@ -482,30 +313,10 @@ theorem roleLocalServerRetainedStateOfState_preserves_server_share
       state.serverShare := by
   rfl
 
-theorem explicitExportWire_excludes_client_root
-    (wire : ExplicitExportWire) :
-    explicitExportWireClientRoot? wire = none := by
-  rfl
-
-theorem explicitExportWire_excludes_client_share
-    (wire : ExplicitExportWire) :
-    explicitExportWireClientShare? wire = none := by
-  rfl
-
-theorem explicitExportWire_excludes_relayer_root
-    (wire : ExplicitExportWire) :
-    explicitExportWireRelayerRoot? wire = none := by
-  rfl
-
 theorem explicitExportWire_releases_relayer_share
     (wire : ExplicitExportWire) :
     explicitExportWireRelayerShare? wire =
       some wire.exportRelayerShare32 := by
-  rfl
-
-theorem explicitExportWire_excludes_canonical_x
-    (wire : ExplicitExportWire) :
-    explicitExportWireCanonicalX? wire = none := by
   rfl
 
 theorem explicitExportWireOfState_releases_server_share
@@ -657,21 +468,6 @@ theorem roleLocalWireEnvelope_explicit_export_operation
     (wire : AuthorizedExplicitExportWire) :
     roleLocalWireOperation (.explicitExport wire) = OperationKind.explicitExport := by
   rfl
-
-theorem roleLocalWireEnvelope_excludes_client_root
-    (wire : RoleLocalWireEnvelope) :
-    roleLocalWireClientRoot? wire = none := by
-  cases wire <;> rfl
-
-theorem roleLocalWireEnvelope_excludes_client_share
-    (wire : RoleLocalWireEnvelope) :
-    roleLocalWireClientShare? wire = none := by
-  cases wire <;> rfl
-
-theorem roleLocalWireEnvelope_excludes_canonical_x
-    (wire : RoleLocalWireEnvelope) :
-    roleLocalWireCanonicalX? wire = none := by
-  cases wire <;> rfl
 
 theorem roleLocalWireEnvelope_non_export_excludes_relayer_share
     (wire : RoleLocalWireEnvelope)
@@ -836,8 +632,15 @@ theorem boundRoleLocalSigningSessionOfState_verifies_public_key
 
 theorem boundExplicitExportSession_export_wire_is_valid
     (session : BoundExplicitExportSession) :
-    authorizedExplicitExportWireIsValid session.exportWire := by
+    authorizedExplicitExportWireHasValidAuthorization session.exportWire := by
   exact session.validExportWire
+
+theorem invalidAuthorizationDigestCannotBindExport
+    (wire : AuthorizedExplicitExportWire)
+    (invalid : ¬ exportAuthorizationDigestMatches wire.authorization) :
+    ¬ ∃ session : BoundExplicitExportSession, session.exportWire = wire := by
+  rintro ⟨session, sameWire⟩
+  exact invalid (sameWire ▸ session.validExportWire.right)
 
 theorem boundExplicitExportSession_client_public_identity_matches_authorization
     (session : BoundExplicitExportSession) :
@@ -855,15 +658,15 @@ theorem boundExplicitExportSession_wire_operation_explicit_export
     (session : BoundExplicitExportSession) :
     session.exportWire.authorization.exportTranscript.operation =
       OperationKind.explicitExport := by
-  exact session.validExportWire.right.right
+  exact session.validExportWire.left.right.right
 
 theorem boundExplicitExportSession_wire_transcript_matches_authorized_identity
     (session : BoundExplicitExportSession) :
     publicIdentityMatchesTranscript
       session.exportWire.authorization.publicIdentity
       session.exportWire.wire.publicTranscript := by
-  have hTranscript := session.validExportWire.left
-  have hPublic := session.validExportWire.right.left
+  have hTranscript := session.validExportWire.left.left
+  have hPublic := session.validExportWire.left.right.left
   simpa [hTranscript] using hPublic
 
 theorem boundExplicitExportSession_reconstruction_public_identity_matches_authorization
