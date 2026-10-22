@@ -131,10 +131,9 @@ Sample counts are not elapsed or billed CPU, and hosted attribution remains unpr
 
 ## Next implementation tasks
 
-1. Move key-specific commitment activation into refill. Its matrix comes from the public key; its private inputs are prepared nonce shares.
-   Keep commitments private. Bind the stored result to the exact key, epoch, schedules, role, and one-use material identity.
-   Make interruption and retry consume the old material safely. Measure the complete refill cost after this move.
-   This could remove 113 dependent online layers per pair; no resulting speedup has been measured.
+1. The [committed-refill campaign](ml-dsa-65-committed-refill-report.md) implements key-specific commitment activation during refill.
+   It removes 113 dependent online AND layers per committed pair and preserves private commitments and single-use storage.
+   Its hosted screen still misses five seconds and records B-side `loadShed` outcomes. No causal wall-time gain is established.
 2. Resolve initial registration stock separately. It is prepared before the public key exists, so it cannot receive key-specific commitments at that point.
    Measure key generation, stock installation, and first-sign activation separately before choosing where conversion belongs.
 3. Reduce preparation AND count with an equivalent bound-check circuit. Compare total correlation cost and depth together.

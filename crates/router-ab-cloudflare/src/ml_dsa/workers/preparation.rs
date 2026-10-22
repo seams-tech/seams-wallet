@@ -244,6 +244,7 @@ fn log_stage_at(
 async fn prepare(
     env: &Env,
     job: &refill::Job,
+    public_key: &[u8; 1952],
     transport: &mut transport::Duplex<'_>,
 ) -> Result<Vec<(Binding, Sealed)>> {
     let participant = configured_role(env).map_err(storage_error)?;
@@ -268,6 +269,19 @@ async fn prepare(
     )
     .await
     .map_err(|_| invalid("ML-DSA preprocessing protocol failed"))?;
+    log_stage(job, participant, job.batch, "correlations_completed");
+    let epoch = execution::material_epoch(&job.key)?;
+    let mut committed = Vec::with_capacity(prepared.len());
+    for (batch, prepared) in job.batch_ids().into_iter().zip(prepared) {
+        log_stage(job, participant, batch, "commitment_started");
+        committed.push(
+            prepared
+                .commit(public_key, epoch, transport)
+                .await
+                .map_err(|_| invalid("ML-DSA private commitment preparation failed"))?,
+        );
+        log_stage(job, participant, batch, "commitment_completed");
+    }
     log_stage(job, participant, job.batch, "crypto_completed");
     let metrics = transport.metrics();
     worker::console_log!(
@@ -281,8 +295,8 @@ async fn prepare(
     schedules::retain_public_topologies(&topologies);
     check_job(env, job).await?;
     let (version, seed) = executor::wrapping_key(env)?;
-    let mut output = Vec::with_capacity(prepared.len());
-    for (batch, prepared) in job.batch_ids().into_iter().zip(prepared) {
+    let mut output = Vec::with_capacity(committed.len());
+    for (batch, prepared) in job.batch_ids().into_iter().zip(committed) {
         let binding = Binding {
             key: job.key.clone(),
             role: participant,
@@ -298,6 +312,22 @@ async fn prepare(
     }
     Ok(output)
 }
+
+async fn claim_role(env: &Env, job: &refill::Job) -> Result<[u8; 1952]> {
+    let mut response = local_call(env, &RoleCommand::StartRefill { job: job.clone() }).await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA preparation was already claimed"));
+    }
+    let bytes: Vec<u8> = response.json().await.map_err(storage_error)?;
+    let public_key: [u8; 1952] = bytes
+        .try_into()
+        .map_err(|_| invalid("Invalid ML-DSA preparation public key"))?;
+    if <[u8; 32]>::from(Sha256::digest(public_key)) != job.key.public_key_digest {
+        return Err(invalid("ML-DSA preparation public key changed"));
+    }
+    Ok(public_key)
+}
+
 async fn publish(
     env: &Env,
     job: &refill::Job,
@@ -328,10 +358,7 @@ async fn publish(
 
 async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
     check_job(env, job).await?;
-    let response = local_call(env, &RoleCommand::StartRefill { job: job.clone() }).await?;
-    if response.status_code() != 200 {
-        return Err(invalid("ML-DSA preparation was already claimed"));
-    }
+    let public_key = claim_role(env, job).await?;
     log_stage(job, Participant::A, job.batch, "role_claimed");
     let request = socket_request(env, PREPARE_PATH, job)?;
     let response = env
@@ -347,17 +374,22 @@ async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
         .websocket()
         .ok_or_else(|| invalid("ML-DSA preparation socket is absent"))?;
     log_stage(job, Participant::A, job.batch, "peer_connected");
-    let result = produce_a_connected(env, job, &socket).await;
+    let result = produce_a_connected(env, job, &public_key, &socket).await;
     let _ = socket.close(
         Some(if result.is_ok() { 1000 } else { 1011 }),
         Some("ML-DSA preparation ended"),
     );
     result
 }
-async fn produce_a_connected(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<()> {
+async fn produce_a_connected(
+    env: &Env,
+    job: &refill::Job,
+    public_key: &[u8; 1952],
+    socket: &WebSocket,
+) -> Result<()> {
     let mut transport =
         transport::Duplex::for_preparation(socket, job.expires_at_ms).map_err(storage_error)?;
-    let prepared = prepare(env, job, &mut transport).await?;
+    let prepared = prepare(env, job, public_key, &mut transport).await?;
     if transport
         .receive(1)
         .await
@@ -396,16 +428,15 @@ pub(crate) async fn handle_prepare(
     let job: refill::Job = socket_input(&request).map_err(protocol_error)?;
     log_stage(&job, Participant::B, job.batch, "peer_received");
     check_job(&env, &job).await.map_err(protocol_error)?;
-    let response = local_call(&env, &RoleCommand::StartRefill { job: job.clone() })
-        .await
-        .map_err(protocol_error)?;
-    if response.status_code() != 200 {
-        return Response::error("ML-DSA preparation was already claimed", 409);
-    }
+    let public_key = claim_role(&env, &job).await.map_err(protocol_error)?;
     log_stage(&job, Participant::B, job.batch, "role_claimed");
     let pair = WebSocketPair::new()?;
     context.wait_until(async move {
-        let result = before_deadline(job.expires_at_ms, produce_b(&env, &job, &pair.server)).await;
+        let result = before_deadline(
+            job.expires_at_ms,
+            produce_b(&env, &job, &public_key, &pair.server),
+        )
+        .await;
         let code = if result.is_ok() { 1000 } else { 1011 };
         let closed = pair
             .server
@@ -424,10 +455,15 @@ pub(crate) async fn handle_prepare(
     });
     Response::from_websocket(pair.client)
 }
-async fn produce_b(env: &Env, job: &refill::Job, socket: &WebSocket) -> Result<()> {
+async fn produce_b(
+    env: &Env,
+    job: &refill::Job,
+    public_key: &[u8; 1952],
+    socket: &WebSocket,
+) -> Result<()> {
     let mut transport =
         transport::Duplex::for_preparation(socket, job.expires_at_ms).map_err(storage_error)?;
-    let prepared = prepare(env, job, &mut transport).await?;
+    let prepared = prepare(env, job, public_key, &mut transport).await?;
     publish(env, job, Participant::B, prepared).await?;
     transport
         .send(&[1])

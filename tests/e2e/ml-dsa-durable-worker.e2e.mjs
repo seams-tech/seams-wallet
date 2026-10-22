@@ -25,6 +25,8 @@ const options = new Set(process.argv.slice(4));
 for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
 const calibrateStages = options.has('--calibrate-stage-delays');
 const stageEvents = [];
+const signingEvents = [];
+const preparationEvents = [];
 const profilePreparation = options.has('--profile-preparation');
 const profileSigning = options.has('--profile-signing');
 const passivePreparationObserver = options.has('--passive-preparation-observer');
@@ -330,6 +332,7 @@ try {
     const refusal = await raw('router', '/router-ab/ml-dsa/sign', changed, gatewayAuth);
     assert.notEqual(refusal.status, 200);
     observations.signatures.push({
+      operationHex: Buffer.from(input.request.operation).toString('hex'),
       elapsedMs,
       underFiveSeconds: elapsedMs < 5000,
       duplicateReturnedSameSignature: true,
@@ -515,6 +518,7 @@ try {
     liveTimeout: await checkProducerHandoff(false),
     restart: await checkProducerHandoff(true),
   };
+  observations.committedExecution = committedExecutionEvidence();
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
   observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
@@ -841,7 +845,64 @@ function recordProducerEvent(line) {
   try { event = JSON.parse(line); } catch { return; }
   if (event.event === 'ml_dsa_producer_job_v1') producerEvents.push(event);
   if (event.event === 'ml_dsa_stage_trace_v1') stageEvents.push(event);
+  if (event.event === 'ml_dsa_signing_trace_v1') signingEvents.push(event);
+  if (event.event === 'ml_dsa_preparation_stage_v1') preparationEvents.push(event);
 }
+
+function committedExecutionEvidence() {
+  const rows = [];
+  for (const signature of observations.signatures) {
+    const roles = new Set();
+    for (const trace of signingEvents) {
+      if (trace.operation !== signature.operationHex || !trace.completed) continue;
+      assert.equal(roles.has(trace.role), false, 'A signature repeated participant execution');
+      roles.add(trace.role);
+      let onlineStart = null;
+      const layers = [];
+      for (const phase of trace.transport.phases) {
+        if (phase.phase === 4) {
+          assert.equal(onlineStart, null);
+          onlineStart = phase.sent_frames;
+        } else if (phase.phase === 5) {
+          assert.notEqual(onlineStart, null);
+          layers.push(phase.sent_frames - onlineStart);
+          onlineStart = null;
+        }
+      }
+      assert.equal(onlineStart, null);
+      let pairs = 0;
+      for (const batch of trace.batches) {
+        if (batch.value.stage !== 'checked') continue;
+        pairs += 1;
+        const material = Buffer.from(batch.value.material_id).toString('hex');
+        let commitment = -1;
+        let publication = -1;
+        for (let index = 0; index < preparationEvents.length; index += 1) {
+          const event = preparationEvents[index];
+          if (event.role !== trace.role || event.batch !== material) continue;
+          if (event.stage === 'commitment_completed') commitment = index;
+          if (event.stage === 'published') publication = index;
+        }
+        assert.ok(commitment >= 0, 'Consumed refill lacks completed private commitments');
+        assert.ok(publication > commitment, 'Refill became ready before private commitments finished');
+      }
+      assert.ok(pairs > 0);
+      let andLayerDataFrames = 0;
+      for (const depth of layers) andLayerDataFrames += depth;
+      assert.ok(andLayerDataFrames > 0 && andLayerDataFrames <= pairs * 214,
+        'Committed refill exceeded its reviewed online AND-layer budget');
+      rows.push({ operation: trace.operation, role: trace.role, pairs, layers,
+        andLayerDataFrames, commitmentsFinishedBeforePublication: true });
+    }
+    assert.deepEqual(roles, new Set(['a', 'b']));
+  }
+  return {
+    scope: 'GMW Online-to-Output data-frame deltas. Binding, inputs, outputs, acknowledgments, and control messages are excluded.',
+    andLayerDataFramesBudgetPerPair: 214,
+    roleTraces: rows,
+  };
+}
+
 async function checkProducerHandoff(restart) {
   await runtime.dispose();
   await rm(persistence, { recursive: true, force: true });

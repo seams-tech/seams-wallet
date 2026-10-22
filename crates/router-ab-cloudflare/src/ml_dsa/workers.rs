@@ -484,7 +484,8 @@ async fn execute_admission(
             json(true)
         }
         AdmissionCommand::AwaitStock { claim, retry_at_ms } => {
-            admission::await_stock(store, &claim, retry_at_ms.max(now.saturating_add(1_000))).await?;
+            admission::await_stock(store, &claim, retry_at_ms.max(now.saturating_add(1_000)))
+                .await?;
             json(true)
         }
         AdmissionCommand::Finish { permit, completion } => {
@@ -807,7 +808,8 @@ async fn execute_role(
         }
         RoleCommand::StartRefill { job } => {
             refill::start_role(store, &job, now).await?;
-            json(true)
+            // The isolated producer receives public key bytes only, never role material.
+            json(material::get(store, &job.key).await?.public_key)
         }
         RoleCommand::InstallMaterial { record } => {
             material::put(store, record).await?;

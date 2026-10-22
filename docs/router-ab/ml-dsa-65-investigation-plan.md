@@ -5,14 +5,21 @@ Current priority: qualify hosted signing latency and sustained refill without in
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.
-The [circuit-depth campaign](ml-dsa-65-circuit-depth-report.md) reduces complete online exchanges from 340 to 327 per checked pair without adding AND gates.
+The [committed-refill campaign](ml-dsa-65-committed-refill-report.md) moves private commitment evaluation into key-bound refill.
+Committed pairs need 214 dependent online AND layers, compared with 327 for generic pre-key registration stock. Stored ciphertext uses twenty-four chunks per role/pair instead of thirty.
+Recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate cap remain unchanged.
+The hosted screen verifies seventeen load signatures, with four below five seconds, a 6.039-second median, and a 20.835-second maximum.
+Every complete demand exceeds five seconds. Prepared registration/recovery takes 8.932–13.766 seconds. Both performance targets remain unqualified.
+All thirty-two false producer completions match B-side `loadShed` outcomes. Four jobs still complete paired publication; the underlying shedding cause remains unmeasured.
+Completed four-candidate preparation has a 14.363-second median. Both reserves restore and the material identity ledger balances, while cost attribution remains incomplete.
+Next, measure preparation memory and cancellation stages, reproduce client dispatch through the SDK, then address generic registration stock and preparation AND count.
+The earlier [circuit-depth campaign](ml-dsa-65-circuit-depth-report.md) reduces complete online exchanges from 340 to 327 per checked pair without adding AND gates.
 Four complete compiled-circuit equivalence checks pass. Canonical recovery, FIPS export, private commitments, and pool capacity remain unchanged.
 Its hosted screen verifies ten load signatures, with six below five seconds, a 3.265-second median, and a 5.823-second maximum.
 One operation exhausts fourteen pairs. One wallet misses the four-success minimum, so the functional screen remains failed.
 Prepared creation/recovery takes 6.237–7.639 seconds. Four-candidate preparation takes 10.425 seconds median.
 Both reserves restore fully, and the material ledger balances. Canceled-producer cost attribution remains incomplete.
-Next, move message-independent commitment activation into refill with exact key/epoch binding, then resolve generic registration stock and reduce preparation AND count.
-Activation currently adds 113 online layers per pair. Its removal is an implementation target with no measured latency gain yet.
+Those observations motivated the committed-refill implementation above. Generic registration stock still adds 113 online layers per pair.
 The [Worker exchange investigation](ml-dsa-65-worker-exchange-report.md) rejects bulk correlation consumption and simultaneous Worker sends because matched tests show no clear gain.
 Its final prototype verifies seventeen signatures, with fifteen below five seconds and a 3.175-second median.
 Four-candidate preparation has a 10.111-second median. The existing runtime remains selected.

@@ -434,7 +434,9 @@ def records(path, role):
                                                      "claim_acquired", "dispatch_started", "dispatch_acknowledged", "producer_received",
                                                      "producer_authorized", "queue_checked", "receipt_ready", "producer_running",
                                                      "recovery_armed", "role_claimed", "peer_received", "peer_connected",
-                                                     "load_started", "crypto_started", "crypto_completed", "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
+                                                     "load_started", "crypto_started", "correlations_completed",
+                                                     "commitment_started", "commitment_completed", "crypto_completed",
+                                                     "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
                         preparation_stages.append({**{key: value[key] for key in ["job", "batch", "role", "stage", "at_ms"]}, "log_timestamp_ms": log.get("timestamp")})
                 if value.get("event") == "ml_dsa_preparation_transport_v1":
                     if (public_id(value.get("job")) and value.get("role") in ("a", "b")

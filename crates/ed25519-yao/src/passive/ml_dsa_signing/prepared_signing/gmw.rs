@@ -1,5 +1,6 @@
 //! Key-independent preparation and one-use signing with private commitments.
 
+mod commitment;
 mod nonce;
 /// Bounded ready reservations with automatic rollover and consuming lifecycle.
 pub mod pool;
@@ -13,10 +14,19 @@ use crate::passive::ml_dsa_runtime::boolean_comparison::{
     silent::CorrelationStream,
     Transport as BooleanTransport,
 };
+use commitment::commitment_binding;
 
 /// One-use candidate batch bound to a key and epoch.
 pub struct PreparedGmwSigner<'a> {
     key: Rc<Box<SigningKeyState>>,
+    preparation: CommittedGmwReservation<'a>,
+}
+
+/// Private commitments and unused signing correlations for one key and epoch.
+/// This state contains no long-term signing share, seed, message, or operation.
+pub struct CommittedGmwReservation<'a> {
+    role: SigningRole,
+    id: [u8; 32],
     binding: [u8; 64],
     values: Vec<Zeroizing<Candidate>>,
     hashes: PreparedGmwBatch<'a>,
@@ -36,6 +46,15 @@ pub struct PreparedGmwReservation<'a> {
     bounds: PreparedGmwBatch<'a>,
     decisions: PreparedGmwBatch<'a>,
     masks: BatchMetrics,
+}
+
+/// The two stored lifecycle states: generic registration stock or keyed refill.
+/// Both variants must leave durable storage exactly once before use.
+pub enum ConsumedGmwPreparation<'a> {
+    /// Stock created before the public key exists; commitment work remains.
+    Generic(PreparedGmwReservation<'a>),
+    /// Refill whose private commitment work finished before publication.
+    Committed(CommittedGmwReservation<'a>),
 }
 
 /// A standard signature with every evaluated candidate included in its metrics.
@@ -242,36 +261,14 @@ impl<'a> PreparedGmwReservation<'a> {
         key: Rc<Box<SigningKeyState>>,
         transport: &mut T,
     ) -> Result<PreparedGmwSigner<'a>> {
-        let Self {
-            role,
-            id,
-            mut values,
-            commitments,
-            hashes,
-            bounds,
-            decisions,
-            masks,
-        } = self;
-        if role != key.role {
+        if self.role != key.role {
             return Err(SigningError::RequestBinding);
         }
-        let binding = shake256(&[
-            b"seams/ml-dsa/gmw-activated-reservation/v1",
-            &key.binding,
-            &id,
-            &(values.len() as u16).to_le_bytes(),
-        ]);
-        let commitments =
-            nonce::activate_values(&mut values, &key, &binding, commitments, transport).await?;
-        Ok(PreparedGmwSigner {
-            key,
-            binding,
-            values,
-            hashes,
-            bounds,
-            decisions,
-            nonce_batches: [masks, commitments],
-        })
+        let binding = commitment_binding(&key.binding, &self.id, self.values.len());
+        let preparation = self
+            .commit_values(&key.matrix, &key.twiddles, binding, transport)
+            .await?;
+        Ok(PreparedGmwSigner { key, preparation })
     }
 }
 
@@ -285,15 +282,16 @@ impl PreparedGmwSigner<'_> {
         operation_id: &[u8; 32],
         transport: &mut T,
     ) -> Result<GmwBatchResult> {
-        let Self {
-            key,
+        let Self { key, preparation } = self;
+        let CommittedGmwReservation {
             binding,
             mut values,
             hashes,
             bounds,
             decisions,
             nonce_batches,
-        } = self;
+            ..
+        } = preparation;
         let count = values.len();
         let context_length =
             u8::try_from(context.len()).map_err(|_| SigningError::ContextLength)?;

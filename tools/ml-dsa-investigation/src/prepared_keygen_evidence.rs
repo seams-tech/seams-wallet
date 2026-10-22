@@ -354,6 +354,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     let mut sources = Vec::new();
     for path in [
         "crates/router-ab-cloudflare/src/ml_dsa/mod.rs",
+        "crates/router-ab-cloudflare/src/ml_dsa/execution.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/registration_preparation.rs",
         "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",
@@ -367,6 +368,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
+        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/commitment.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
         "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
@@ -378,6 +380,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
         "tools/ml-dsa-investigation/src/pool_evidence.rs",
         "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
+        "tools/ml-dsa-investigation/src/durable_execution_evidence.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/storage.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
         "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/pool.rs",

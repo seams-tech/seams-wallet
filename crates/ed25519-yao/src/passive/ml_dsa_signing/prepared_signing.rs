@@ -139,17 +139,7 @@ async fn prepare_key_state(
     if reservation.candidates == 0 || reservation.candidates > MAX_ATTEMPTS {
         return Err(SigningError::AttemptLimit);
     }
-    let binding = shake256(&[
-        b"seams/ml-dsa-65/prepared-signing/reservation/v1",
-        public_key,
-        &reservation.id,
-        &reservation.epoch,
-        &reservation.candidates.to_le_bytes(),
-        &[match engine {
-            SigningEngine::HalfGates => 0,
-            SigningEngine::Gmw => 1,
-        }],
-    ]);
+    let binding = reservation_binding(public_key, reservation, engine);
     agree(role, &binding, transport).await?;
     let twiddles = ntt_twiddles();
     let (matrix, _) = expand_a(&public_key[..32]);
@@ -165,6 +155,24 @@ async fn prepare_key_state(
         twiddles,
         binding,
     }))
+}
+
+fn reservation_binding(
+    public_key: &[u8; PUBLIC_KEY_BYTES],
+    reservation: &Reservation,
+    engine: SigningEngine,
+) -> [u8; 64] {
+    shake256(&[
+        b"seams/ml-dsa-65/prepared-signing/reservation/v1",
+        public_key,
+        &reservation.id,
+        &reservation.epoch,
+        &reservation.candidates.to_le_bytes(),
+        &[match engine {
+            SigningEngine::HalfGates => 0,
+            SigningEngine::Gmw => 1,
+        }],
+    ])
 }
 
 impl PreparedSigner<'_> {
