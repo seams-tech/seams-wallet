@@ -63,13 +63,13 @@ fn validate() -> Result<Vec<TrustedMlDsaSchedule<'static>>> {
                 "../../../../ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/response-check.bin"
             ),
             [
-                39, 133, 213, 242, 98, 147, 226, 38, 199, 65, 69, 230, 19, 39, 68, 198, 128, 151,
-                98, 95, 196, 149, 236, 227, 69, 189, 105, 67, 56, 240, 53, 6,
+                34, 216, 242, 37, 85, 236, 1, 73, 206, 21, 137, 19, 68, 54, 114, 21, 10, 80, 145,
+                174, 140, 61, 146, 16, 241, 39, 247, 183, 208, 158, 4, 182,
             ],
         )
         .map_err(|_| invalid("Invalid pinned ML-DSA schedule"))?,
     );
-    schedules.push(TrustedMlDsaSchedule::parse(include_bytes!("../../../../ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/low-response-check.bin"), [194, 92, 145, 212, 134, 214, 252, 28, 82, 223, 212, 173, 60, 129, 83, 104, 20, 246, 8, 11, 148, 153, 5, 103, 207, 46, 217, 7, 215, 160, 86, 149]).map_err(|_| invalid("Invalid pinned ML-DSA schedule"))?);
+    schedules.push(TrustedMlDsaSchedule::parse(include_bytes!("../../../../ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/low-response-check.bin"), [173, 99, 238, 145, 102, 21, 50, 176, 168, 76, 136, 63, 143, 40, 154, 138, 41, 15, 246, 246, 130, 232, 14, 146, 211, 190, 213, 51, 236, 76, 166, 135]).map_err(|_| invalid("Invalid pinned ML-DSA schedule"))?);
     schedules.push(
         TrustedMlDsaSchedule::parse(
             include_bytes!(

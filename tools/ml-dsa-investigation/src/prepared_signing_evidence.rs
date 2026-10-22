@@ -385,8 +385,8 @@ pub(super) fn run_operation(
                 }
             }
             require(
-                layers == 227,
-                "GMW signing has an unexpected dependent layer count",
+                layers <= 214,
+                "GMW signing exceeds the reviewed online layer budget",
             )?;
         }
         for phase in ["offline", "online"] {

@@ -1,0 +1,793 @@
+{
+  "schema": "seams.ml-dsa-circuit-depth-investigation.v1",
+  "packaged_at": "2026-10-22T12:40:14.838099+00:00",
+  "parent_source_revision": "5a44377c",
+  "retained_change": "Balance constant-bit runs in the secret-value less-than comparator. Keep the existing arithmetic and transport.",
+  "scope": "Private Worker protocol routes with synthetic Gateway authority. Real paired cryptography and sealed role storage. Public browser SDK, human authentication, enrollment, NEAR submission and finality are excluded. Product timing parity is not established.",
+  "constraints": {
+    "preparation_on_workers": true,
+    "preparation_candidates": 4,
+    "consumption_candidates": 2,
+    "admission_candidates_per_wallet": 16,
+    "target_candidates_per_wallet": 32,
+    "active_operations": 1,
+    "producers": 1,
+    "production_wallet_cooldown_ms": 60000,
+    "benchmark_wallet_cooldown_ms": 1000,
+    "wallet_seed_recovery": true,
+    "canonical_fips_seed_and_key_export": true,
+    "private_commitments_until_both_bounds_pass": true
+  },
+  "five_second_target_qualified": false,
+  "circuit_comparison": {
+    "baseline_source_revision": "5a44377c",
+    "variants": [
+      {
+        "name": "baseline",
+        "selected": false,
+        "online_layers_per_pair": 340,
+        "activation_and_signing_and_gates_per_candidate": 884287,
+        "scope": "Static exact compiled circuit counts. Variants share the same disclosure and computation boundaries. No hosted causal latency claim."
+      },
+      {
+        "name": "comparator",
+        "selected": false,
+        "online_layers_per_pair": 324,
+        "activation_and_signing_and_gates_per_candidate": 949055,
+        "scope": "Static exact compiled circuit counts. Variants share the same disclosure and computation boundaries. No hosted causal latency claim."
+      },
+      {
+        "name": "prefix",
+        "selected": false,
+        "online_layers_per_pair": 259,
+        "activation_and_signing_and_gates_per_candidate": 1489471,
+        "scope": "Static exact compiled circuit counts. Variants share the same disclosure and computation boundaries. No hosted causal latency claim."
+      },
+      {
+        "name": "constant-prefix",
+        "selected": false,
+        "online_layers_per_pair": 322,
+        "activation_and_signing_and_gates_per_candidate": 1022015,
+        "scope": "Static exact compiled circuit counts. Variants share the same disclosure and computation boundaries. No hosted causal latency claim."
+      },
+      {
+        "name": "run-comparator",
+        "selected": true,
+        "online_layers_per_pair": 327,
+        "activation_and_signing_and_gates_per_candidate": 884287,
+        "scope": "Static exact compiled circuit counts. Variants share the same disclosure and computation boundaries. No hosted causal latency claim."
+      }
+    ],
+    "changed_components": [
+      {
+        "name": "aggregate-check.bin",
+        "baseline": {
+          "name": "aggregate-check.bin",
+          "component": 144,
+          "sha256": "5fd20d36235c275fe644e4708d800e694b276749fb1fd12eaa9b33f69c56a96b",
+          "bytes": 96695,
+          "inputs": 3328,
+          "gates": 13805,
+          "and_gates": 3077,
+          "and_depth": 14,
+          "slots": 3328
+        },
+        "selected": {
+          "name": "aggregate-check.bin",
+          "component": 144,
+          "sha256": "db3ac25091ed81d1b015c4472e4a4f48caf1804e9db534dbd60d9c6b3f1339fd",
+          "bytes": 96625,
+          "inputs": 3328,
+          "gates": 13795,
+          "and_gates": 3077,
+          "and_depth": 16,
+          "slots": 3328
+        }
+      },
+      {
+        "name": "low-response-check.bin",
+        "baseline": {
+          "name": "low-response-check.bin",
+          "component": 151,
+          "sha256": "c25c91d486d6fc1c52dfd4ad3c81536814f6080b94990567cf2ed907d7a05695",
+          "bytes": 802876,
+          "inputs": 11777,
+          "gates": 114688,
+          "and_gates": 28415,
+          "and_depth": 55,
+          "slots": 11778
+        },
+        "selected": {
+          "name": "low-response-check.bin",
+          "component": 151,
+          "sha256": "ad63ee91661532b0a84c883f8f289a8a290ff6f682e80e92d3bed533ec4ca687",
+          "bytes": 630844,
+          "inputs": 11777,
+          "gates": 90112,
+          "and_gates": 28415,
+          "and_depth": 42,
+          "slots": 11778
+        }
+      },
+      {
+        "name": "response-check.bin",
+        "baseline": {
+          "name": "response-check.bin",
+          "component": 142,
+          "sha256": "2785d5f26293e226c74145e6132744c68097625fc495ece345bd694338f03506",
+          "bytes": 808252,
+          "inputs": 11777,
+          "gates": 115456,
+          "and_gates": 28415,
+          "and_depth": 55,
+          "slots": 11778
+        },
+        "selected": {
+          "name": "response-check.bin",
+          "component": 142,
+          "sha256": "22d8f22555ec0149ce158913443672150a5091ae8c3d9210f127f7b7d09e04b6",
+          "bytes": 629052,
+          "inputs": 11777,
+          "gates": 89856,
+          "and_gates": 28415,
+          "and_depth": 42,
+          "slots": 11778
+        }
+      },
+      {
+        "name": "row-check.bin",
+        "baseline": {
+          "name": "row-check.bin",
+          "component": 143,
+          "sha256": "80e981203ed15cd55653736f60a0a49e24dd158287612c2e5de72a5157e49dd7",
+          "bytes": 2973500,
+          "inputs": 23809,
+          "gates": 424704,
+          "and_gates": 106239,
+          "and_depth": 101,
+          "slots": 23812
+        },
+        "selected": {
+          "name": "row-check.bin",
+          "component": 143,
+          "sha256": "ebdde57997d98804fd2a0c5f263cf6284fea3f6ac3845838a7bd5116b6fb556f",
+          "bytes": 2668860,
+          "inputs": 23809,
+          "gates": 381184,
+          "and_gates": 106239,
+          "and_depth": 103,
+          "slots": 23812
+        }
+      }
+    ],
+    "unchanged_components": [
+      "bounds-decision.bin",
+      "commitment-hash.bin",
+      "commitment-high.bin",
+      "fresh-mask.bin",
+      "mask-0.bin",
+      "prepared-commitment.bin",
+      "rounding.bin",
+      "sampling-0.bin",
+      "sampling-final-bound.bin",
+      "sampling-three-blocks.bin",
+      "sampling-two-blocks.bin",
+      "sampling.bin",
+      "seed.bin",
+      "signing-mask.bin",
+      "signing-seed.bin",
+      "wallet-seed.bin"
+    ],
+    "keygen_circuits_byte_identical": true
+  },
+  "formal": {
+    "universally_equivalent_components": 4,
+    "altered_output_control_detects_difference": true,
+    "receipt_and_query_hashes_verified": true,
+    "scope": "Preserves the complete compiled reference functions for all input bits. This is not a complete protocol composition proof."
+  },
+  "hosted": {
+    "group_size": 2,
+    "preparation_group_size": 4,
+    "policy": {
+      "wallet_cooldown": {
+        "mode": "enabled",
+        "interval_ms": 1000
+      },
+      "max_active_operations": 1,
+      "operation_timeout_ms": 30000,
+      "candidate_group_size": 2,
+      "preparation_group_size": 4,
+      "minimum_ready_batches": 8,
+      "refill_target_batches": 16
+    },
+    "wallets": 2,
+    "client_sha256": "3d8380a26ce171c0136e48f92c2d4033de004bb00a1a052721889e2d58552b5d",
+    "traces_sha256": "0d22afc99d96582e9aab66f4666c07b521380e21421c6c7ca71def05906b7b6d",
+    "versions": {
+      "router": "0f13c321-6c20-4c66-8943-9cd91c02d58c",
+      "a": "b4c40611-6c9a-467d-990e-e6f366867c99",
+      "b": "b720aa2e-a8b6-49ea-b074-b076abf3e056",
+      "preparer-a": "81cbcd62-d090-4d73-bbf8-c3d3b541f9fe",
+      "preparer-b": "85adae30-27a4-4e09-a7ba-e3f39ed58e0f"
+    },
+    "successful_signatures": 10,
+    "online_http_ms": {
+      "count": 10,
+      "minimum": 1410.3744159999915,
+      "median": 3264.549416999997,
+      "maximum": 5823.24162500001,
+      "sum": 37343.258875
+    },
+    "online_http_by_consumed_groups": {
+      "1": {
+        "count": 2,
+        "minimum": 1410.3744159999915,
+        "median": 2442.9034789999955,
+        "maximum": 3475.4325419999996,
+        "sum": 4885.806957999991
+      },
+      "2": {
+        "count": 3,
+        "minimum": 2343.2187919999997,
+        "median": 2452.319291,
+        "maximum": 5180.831375,
+        "sum": 9976.369458
+      },
+      "3": {
+        "count": 3,
+        "minimum": 2974.4665000000005,
+        "median": 3053.6662919999944,
+        "maximum": 5372.2136249999985,
+        "sum": 11400.346416999993
+      },
+      "5": {
+        "count": 1,
+        "minimum": 5257.494417000009,
+        "median": 5257.494417000009,
+        "maximum": 5257.494417000009,
+        "sum": 5257.494417000009
+      },
+      "6": {
+        "count": 1,
+        "minimum": 5823.24162500001,
+        "median": 5823.24162500001,
+        "maximum": 5823.24162500001,
+        "sum": 5823.24162500001
+      }
+    },
+    "online_under_five_seconds": 6,
+    "pending_operation_responses": 0,
+    "complete_demand_ms": {
+      "count": 10,
+      "minimum": 2453.572792,
+      "median": 16251.164437500003,
+      "maximum": 115801.14545799998,
+      "sum": 247439.046499
+    },
+    "failed_operations": 1,
+    "duplicate_requests": [
+      {
+        "wallet": 0,
+        "operation": [
+          143,
+          205,
+          183,
+          111,
+          61,
+          204,
+          84,
+          236,
+          190,
+          76,
+          166,
+          16,
+          233,
+          117,
+          41,
+          196,
+          134,
+          166,
+          242,
+          203,
+          183,
+          158,
+          137,
+          249,
+          9,
+          219,
+          172,
+          11,
+          129,
+          28,
+          58,
+          97
+        ],
+        "startMs": 3481.2768749999996,
+        "http": {
+          "requestId": "afe376d2c17f278a229827d3f184afac",
+          "createdMs": 0.7802089999995587,
+          "sentMs": 0.938083999999435,
+          "responseHeadersMs": 84.32520899999963,
+          "responseCompleteMs": 86.94087499999932,
+          "fetchHeadersMs": 85.99916699999994,
+          "bodyReadMs": 88.74412500000017,
+          "parsedMs": 88.847084,
+          "socket": {
+            "id": 3,
+            "priorRequests": 1,
+            "connectionMs": 43.05320800000004,
+            "dnsMs": 3.7460419999999885,
+            "tcpMs": 21.316375000000107,
+            "tlsMs": 42.20450000000005
+          },
+          "status": 200,
+          "echo": "afe376d2c17f278a229827d3f184afac",
+          "cfRay": "a4e876019dd98685-NRT",
+          "events": [
+            {
+              "stage": "created",
+              "atMs": 0.779791999999361
+            },
+            {
+              "stage": "sent",
+              "atMs": 0.9378339999993841
+            },
+            {
+              "stage": "headers",
+              "atMs": 84.32237499999974
+            },
+            {
+              "stage": "complete",
+              "atMs": 86.9399999999996
+            }
+          ],
+          "eventsTruncated": false,
+          "totalMs": 88.88908399999946
+        },
+        "httpStatus": 200,
+        "elapsedMs": 89.08008400000017,
+        "status": "existing",
+        "state": "succeeded",
+        "sameSignature": true
+      },
+      {
+        "wallet": 1,
+        "operation": [
+          234,
+          222,
+          45,
+          153,
+          250,
+          150,
+          44,
+          47,
+          65,
+          110,
+          89,
+          241,
+          155,
+          29,
+          168,
+          35,
+          75,
+          187,
+          225,
+          89,
+          57,
+          148,
+          56,
+          46,
+          0,
+          249,
+          216,
+          234,
+          72,
+          17,
+          117,
+          215
+        ],
+        "startMs": 11306.449375,
+        "http": {
+          "requestId": "375ac18bf869421156d813bb685b7537",
+          "createdMs": 0.5873339999998279,
+          "sentMs": 3070.652291999999,
+          "responseHeadersMs": 3117.145333999999,
+          "responseCompleteMs": 3118.135291999999,
+          "fetchHeadersMs": 3117.7491249999985,
+          "bodyReadMs": 3120.3992089999992,
+          "parsedMs": 3120.5499999999993,
+          "socket": {
+            "id": 3,
+            "priorRequests": 6,
+            "connectionMs": 43.05320800000004,
+            "dnsMs": 3.7460419999999885,
+            "tcpMs": 21.316375000000107,
+            "tlsMs": 42.20450000000005
+          },
+          "status": 200,
+          "echo": "375ac18bf869421156d813bb685b7537",
+          "cfRay": "a4e87645afde8685-NRT",
+          "events": [
+            {
+              "stage": "created",
+              "atMs": 0.5867919999982405
+            },
+            {
+              "stage": "sent",
+              "atMs": 3070.651958999999
+            },
+            {
+              "stage": "headers",
+              "atMs": 3117.143209
+            },
+            {
+              "stage": "complete",
+              "atMs": 3118.1348339999986
+            }
+          ],
+          "eventsTruncated": false,
+          "totalMs": 3120.576874999999
+        },
+        "httpStatus": 200,
+        "elapsedMs": 3120.742624999999,
+        "status": "existing",
+        "state": "succeeded",
+        "sameSignature": true
+      }
+    ],
+    "censored_demands": [
+      {
+        "wallet": 0,
+        "number": 9,
+        "startMs": 120458.141167,
+        "state": "censored_at_end_of_window",
+        "elapsedMs": 59544.18641600001
+      },
+      {
+        "wallet": 1,
+        "number": 3,
+        "startMs": 130230.422042,
+        "state": "censored_at_end_of_window",
+        "elapsedMs": 49820.065749999994
+      }
+    ],
+    "initial_excluded_groups": 32,
+    "initial_excluded_candidates": 64,
+    "initial_stock_matches_controller": true,
+    "identified_consumed_groups": 42,
+    "identified_consumed_candidates": 84,
+    "unknown_consumption_operations": [],
+    "consumption_recovered_from_complete_peer_traces": [],
+    "peak_observed_candidates_per_role_wallet": 32,
+    "common_post_initial_stock": {
+      "start_ms": 1792671794657.201,
+      "elapsed_ms": 59594.37548828125,
+      "observed_new_paired_batches": 10,
+      "successful_signatures": 1,
+      "paired_batches_per_minute": 10.068064227268984,
+      "successful_signatures_per_minute": 1.0068064227268982
+    },
+    "material_identity_balance_complete": true,
+    "full_reserve_restoration_ms": 117565.42358398438,
+    "balanced_cycle_ms_per_verified_signature": 29761.6,
+    "preparation_cost": {
+      "scope": "Captured preparer-A producer-alarm invocation wall time during load and full reserve restoration, including failed and recovery invocations. One producer invocation can deliver two independent groups. Invocation time is charged once; peer time is not added. Per-group allocation divides job time equally and is an accounting model. Starting material cancels only when the same candidate reserve is restored and the identity ledger is complete. Missing publication, invocation, and canceled-producer costs remain unknown. These invocation durations include setup and settlement. Queue waits are in the cycle and demand metrics. Worker elapsed_ms is only clock advancement and cannot qualify elapsed preparation time.",
+      "fresh_paired_groups": 42,
+      "fresh_paired_candidates": 84,
+      "completed_job_invocation_wall_ms": {
+        "count": 22,
+        "minimum": 5083,
+        "median": 10331.0,
+        "maximum": 12655,
+        "sum": 224537
+      },
+      "allocated_group_invocation_wall_ms": {
+        "count": 42,
+        "minimum": 4807.0,
+        "median": 5212.5,
+        "maximum": 6327.5,
+        "sum": 224537.0
+      },
+      "completed_job_count": 22,
+      "completed_job_invocation_wall_ms_by_candidates": {
+        "2": {
+          "count": 2,
+          "minimum": 5083,
+          "median": 5697.5,
+          "maximum": 6312,
+          "sum": 11395
+        },
+        "4": {
+          "count": 20,
+          "minimum": 9614,
+          "median": 10425.0,
+          "maximum": 12655,
+          "sum": 213142
+        }
+      },
+      "failed_producer_completions": 0,
+      "missing_group_costs": [],
+      "unknown_producer_invocations": 19,
+      "captured_producer_invocation_wall_ms": 225223,
+      "captured_invocation_ms_per_verified_signature": 22522.3,
+      "accounting_complete": false,
+      "observed_mean_under_ten_seconds": null,
+      "captured_invocation_cpu_ms": {
+        "preparer-a": {
+          "count": 63,
+          "minimum": 0,
+          "median": 3,
+          "maximum": 4969,
+          "sum": 95275
+        },
+        "preparer-b": {
+          "count": 22,
+          "minimum": 2262,
+          "median": 4738.5,
+          "maximum": 5254,
+          "sum": 100693
+        }
+      }
+    },
+    "fully_measured_fresh_demands": {
+      "scope": "Only successful logical demands whose consumed groups all have matched producer-invocation wall measurements and none came from starting stock. Includes earlier exhausted operations within each demand. This subset excludes unassigned preparation failures and is not the total service cost.",
+      "producer_invocation_wall_ms": null,
+      "demands": []
+    },
+    "online_target_met_in_screen": false
+  },
+  "hosted_functional_passed": false,
+  "hosted_successes_per_wallet": [
+    {
+      "wallet": 0,
+      "successfulSignatures": 8
+    },
+    {
+      "wallet": 1,
+      "successfulSignatures": 2
+    }
+  ],
+  "hosted_minimum_successes_per_wallet": 4,
+  "hosted_exhaustion": {
+    "operations": 1,
+    "pairs": 14,
+    "candidates": 28
+  },
+  "hosted_registration": [
+    {
+      "wallet": 1,
+      "epoch": 1,
+      "canonical_key_verified": true,
+      "prepared_registration_with_verification_ms": 7116.887791999994,
+      "initial_preparation_ms": 76585.09208300001,
+      "initial_stock_sign": {
+        "verified": true,
+        "elapsed_ms": 7672.873082999999
+      }
+    },
+    {
+      "wallet": 1,
+      "epoch": 2,
+      "canonical_key_verified": true,
+      "prepared_registration_with_verification_ms": 7638.929084000003,
+      "initial_preparation_ms": 84059.148875,
+      "initial_stock_sign": {
+        "verified": true,
+        "elapsed_ms": 4006.883458999975
+      }
+    },
+    {
+      "wallet": 2,
+      "epoch": 1,
+      "canonical_key_verified": true,
+      "prepared_registration_with_verification_ms": 6237.102041999999,
+      "initial_preparation_ms": 85989.777292,
+      "initial_stock_sign": {
+        "verified": true,
+        "elapsed_ms": 3280.052333000014
+      }
+    },
+    {
+      "wallet": 2,
+      "epoch": 2,
+      "canonical_key_verified": true,
+      "prepared_registration_with_verification_ms": 6817.981291000004,
+      "initial_preparation_ms": 71443.237541,
+      "initial_stock_sign": {
+        "verified": true,
+        "elapsed_ms": 4909.660334000015
+      }
+    }
+  ],
+  "independent_signature_review": {
+    "schema": "seams.ml-dsa-depth-signature-review.v1",
+    "profiles": [
+      {
+        "profile": "optimized",
+        "consumptionWidth": 2,
+        "verified": 10,
+        "alteredMessagesRejected": 10,
+        "alteredSignaturesRejected": 10,
+        "clientSha256": "3d8380a26ce171c0136e48f92c2d4033de004bb00a1a052721889e2d58552b5d"
+      }
+    ],
+    "canonicalKeysMatch": [
+      {
+        "wallet": 1,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "11c97edda38e395a8fa2649e7f08d0b1e1660a72e4d147ea270ea5ad51ce3e41"
+      },
+      {
+        "wallet": 2,
+        "acrossCreationAndRecovery": true,
+        "publicKeySha256": "143614c7067fa2148b19393383e1631034f4ca2f28afc215c9013e2c80a4a9ad"
+      }
+    ],
+    "registrationSignatures": [
+      {
+        "wallet": 1,
+        "epoch": 1,
+        "elapsedMs": 7672.873082999999,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 1,
+        "epoch": 2,
+        "elapsedMs": 4006.883458999975,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 1,
+        "elapsedMs": 3280.052333000014,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      },
+      {
+        "wallet": 2,
+        "epoch": 2,
+        "elapsedMs": 4909.660334000015,
+        "verified": true,
+        "alteredMessageRejected": true,
+        "alteredSignatureRejected": true
+      }
+    ],
+    "scriptSha256": "125ef300f2ab2fb09c555c6ac5f1b171a19fb0c4019580b9eec7f7d9187cfa2d"
+  },
+  "local_checks": {
+    "canonical_cases": 6,
+    "mixed_instances_per_role": 105,
+    "worker_passed": true,
+    "worker_signing_ms": [
+      266.7610000000059,
+      344.81674999999814,
+      113.46566700001131
+    ],
+    "stalled_peer_closed_ms": 853.9099579999893,
+    "scope": "Correctness and local diagnostics. Native timings overlapped builds and proof work and cannot support performance comparisons."
+  },
+  "coverage_limits": {
+    "missing_complete_peer_traces": [],
+    "unknown_work_invocations": [],
+    "unattributed_canceled_zero_cpu_alarms": [
+      2664,
+      2666,
+      2668,
+      2670,
+      2672,
+      2681,
+      2682,
+      2684,
+      2686,
+      2688,
+      2690,
+      2695,
+      2697,
+      2699,
+      2705,
+      2708,
+      2710,
+      2712,
+      2714,
+      2720,
+      2723,
+      2726,
+      2728,
+      2734,
+      2738,
+      2740,
+      2742,
+      2749,
+      2751,
+      2754,
+      2756,
+      2758,
+      2766,
+      2768,
+      2770,
+      2772,
+      2775
+    ],
+    "unattributed_canceled_wall_ms": {
+      "count": 37,
+      "minimum": 28,
+      "median": 34,
+      "maximum": 53,
+      "sum": 1329
+    }
+  },
+  "measurement_limits": [
+    "No new matched hosted control. Prior controls have different deployments and rejection outcomes; no causal hosted speedup is established.",
+    "The hosted run failed its four-success minimum for one wallet and the five-second target. Preserve both negative results.",
+    "All material identities balance and complete participant traces cover consumed operations. Unattributed canceled producer costs still prevent complete cost attribution.",
+    "Node pre-send waits of seconds occur in two slow successes. They do not establish browser SDK behavior.",
+    "Hosted service-clock spans cannot partition CPU, storage, serialization and network time.",
+    "Retained GMW allocation counters are not peak Worker memory measurements.",
+    "The old native exact-227-layer check was a valid test update for an intentional circuit reduction. Its replacement checks a 214-layer message-bound budget; activation adds 113."
+  ],
+  "cleanup": [
+    {
+      "role": "preparer-a",
+      "worker": "ml-dsa-depth-1022-fcded9-optimized-preparer-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-22T12:35:25.226589+00:00"
+    },
+    {
+      "role": "preparer-b",
+      "worker": "ml-dsa-depth-1022-fcded9-optimized-preparer-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-22T12:35:26.737635+00:00"
+    },
+    {
+      "role": "a",
+      "worker": "ml-dsa-depth-1022-fcded9-optimized-a",
+      "exit_code": 0,
+      "finished_at": "2026-10-22T12:35:28.654861+00:00"
+    },
+    {
+      "role": "b",
+      "worker": "ml-dsa-depth-1022-fcded9-optimized-b",
+      "exit_code": 0,
+      "finished_at": "2026-10-22T12:35:30.225762+00:00"
+    },
+    {
+      "role": "router",
+      "worker": "ml-dsa-depth-1022-fcded9-optimized-router",
+      "exit_code": 0,
+      "finished_at": "2026-10-22T12:35:31.777625+00:00"
+    }
+  ],
+  "validation_limit": "The inherited bloat gate reports 13,988 duplicated Rust lines against the 13,754 baseline. The baseline remains unchanged.",
+  "artifacts": [
+    {
+      "path": "ml-dsa-65-circuit-depth-20261022-hosted.json.gz",
+      "sha256": "199ed9eef89e71bf78ddbf18038e0838b0f22940ddd6bd44c57fc1942f512173",
+      "bytes": 322048,
+      "uncompressed_bytes": 4530414
+    },
+    {
+      "path": "ml-dsa-65-circuit-depth-20261022-local.json.gz",
+      "sha256": "9113ebc5671797a2d620bc86c7e10fb45686b87e18d0241b85b54e203ab882c1",
+      "bytes": 839668,
+      "uncompressed_bytes": 6028347
+    },
+    {
+      "path": "ml-dsa-65-circuit-depth-20261022-formal.json.gz",
+      "sha256": "dac2d4d3a89018ad539e028bf058c007c4654c975d3af0dbb0d5bc79655f05f7",
+      "bytes": 3317967,
+      "uncompressed_bytes": 11637870
+    },
+    {
+      "path": "ml-dsa-65-circuit-depth-20261022-provenance.json.gz",
+      "sha256": "6105e32c2d51fa0f67dcee53a46d647302b6134d3179e9d9a2c3b55316b238bd",
+      "bytes": 50703,
+      "uncompressed_bytes": 274201
+    }
+  ]
+}
