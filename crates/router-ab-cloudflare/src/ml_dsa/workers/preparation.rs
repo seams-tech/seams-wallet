@@ -231,12 +231,21 @@ fn log_stage_at(
     stage: &'static str,
     at_ms: Option<u64>,
 ) {
+    #[cfg(target_arch = "wasm32")]
+    let memory_bytes = Some(core::arch::wasm32::memory_size::<0>() as u64 * 65_536);
+    #[cfg(not(target_arch = "wasm32"))]
+    let memory_bytes: Option<u64> = None;
     worker::console_log!(
         "{}",
         serde_json::json!({
             "event": "ml_dsa_preparation_stage_v1", "job": hex(&job.batch),
             "batch": hex(&batch), "role": role, "stage": stage,
             "at_ms": at_ms,
+            // Some stage times were captured earlier. Resource samples describe
+            // this logging boundary, and exclude JS heap and other isolates.
+            "resource_observed_at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+            "wasm_linear_memory_bytes": memory_bytes,
+            "module_instance": signing_trace::module_identity(),
         })
     );
 }

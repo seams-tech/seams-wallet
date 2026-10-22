@@ -19,6 +19,8 @@ def exception_category(error):
         return "runtime_hung_response"
     if message == "Durable Object reset because its code was updated.":
         return "runtime_code_update_reset"
+    if isinstance(message, str) and re.fullmatch(r"internal error; reference = [a-z0-9]+", message):
+        return "runtime_internal_error"
     return "unclassified"
 
 
@@ -437,7 +439,17 @@ def records(path, role):
                                                      "load_started", "crypto_started", "correlations_completed",
                                                      "commitment_started", "commitment_completed", "crypto_completed",
                                                      "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
-                        preparation_stages.append({**{key: value[key] for key in ["job", "batch", "role", "stage", "at_ms"]}, "log_timestamp_ms": log.get("timestamp")})
+                        stage = {key: value[key] for key in ["job", "batch", "role", "stage", "at_ms"]}
+                        identity = value.get("module_instance")
+                        memory = value.get("wasm_linear_memory_bytes")
+                        observed_at = value.get("resource_observed_at_ms")
+                        if (isinstance(identity, str) and re.fullmatch("[0-9a-f]{32}", identity)
+                                and public_counter(memory) and memory > 0 and memory % 65536 == 0
+                                and public_counter(observed_at)):
+                            stage.update(module_instance=identity, wasm_linear_memory_bytes=memory,
+                                         resource_observed_at_ms=observed_at)
+                        stage["log_timestamp_ms"] = log.get("timestamp")
+                        preparation_stages.append(stage)
                 if value.get("event") == "ml_dsa_preparation_transport_v1":
                     if (public_id(value.get("job")) and value.get("role") in ("a", "b")
                             and all(public_counter(value.get(key)) for key in ["sent_bytes", "received_bytes", "pending_events"])):

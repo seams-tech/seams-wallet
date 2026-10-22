@@ -30,6 +30,7 @@ const report = {
   intervalMs,
   minimumSuccessesPerWallet: 4,
   scriptSha256: hash(await readFile(import.meta.filename)),
+  httpTimingSourceSha256: hash(await readFile(new URL('./ml-dsa-http-timing.mjs', import.meta.url))),
   wallets: wallets.map(publicWallet),
   requests: [],
   demands: [],

@@ -19,6 +19,40 @@ def delta(timing, end, start):
     return b - a if finite(a) and finite(b) and b >= a else None
 
 
+def socket_queue_observations(requests):
+    intervals = []
+    for request in requests:
+        timing = request['http']
+        if timing['socket'] is None or not all(finite(timing.get(field)) for field in ['sentMs', 'responseCompleteMs']):
+            continue
+        events = timing.get('events', [])
+        counts = collections.Counter(event['stage'] for event in events)
+        if timing.get('eventsTruncated') or any(counts[stage] != 1 for stage in ['created', 'sent', 'headers', 'complete']):
+            continue
+        intervals.append({
+            'request': timing['requestId'], 'socket': timing['socket']['id'],
+            'start_ms': request['startMs'], 'send_ms': request['startMs'] + timing['sentMs'],
+            'complete_ms': request['startMs'] + timing['responseCompleteMs'],
+            'pre_send_ms': timing['sentMs'], 'protocol': timing['socket'].get('protocol'),
+            'http2': timing.get('http2'),
+        })
+    intervals.sort(key=lambda row: row['send_ms'])
+    previous = {}
+    observations = []
+    for interval in intervals:
+        earlier = previous.get(interval['socket'])
+        if earlier is not None and interval['pre_send_ms'] >= 100 and earlier['complete_ms'] > interval['start_ms']:
+            observations.append({
+                'http_request': interval['request'], 'previous_http_request': earlier['request'],
+                'socket': interval['socket'], 'protocol': interval['protocol'], 'http2': interval['http2'],
+                'pre_send_ms': interval['pre_send_ms'],
+                'previous_remaining_at_start_ms': earlier['complete_ms'] - interval['start_ms'],
+                'previous_complete_to_send_ms': interval['send_ms'] - earlier['complete_ms'],
+            })
+        previous[interval['socket']] = interval
+    return observations
+
+
 def summarize(client, records, versions):
     routers = collections.defaultdict(list)
     for index, record in enumerate(records):
@@ -45,6 +79,7 @@ def summarize(client, records, versions):
         row = {
             'http_request': identity, 'operation': operation, 'verified': request.get('verified', False),
             'client_total_ms': request.get('elapsedMs'), 'observer_total_ms': timing['totalMs'], 'cf_ray': timing['cfRay'], 'socket': timing['socket'],
+            'http2': timing.get('http2'),
             'pre_send_ms': timing['sentMs'],
             'response_header_wait_ms': delta(timing, 'responseHeadersMs', 'sentMs'),
             'response_wire_body_ms': delta(timing, 'responseCompleteMs', 'responseHeadersMs'),
@@ -86,6 +121,7 @@ def summarize(client, records, versions):
     return {
         'scope': 'Exact HTTP-attempt IDs, with separate operation IDs for retries. Client timers are monotonic. Socket DNS/TCP/TLS fields are cumulative from socket creation and belong to that connection, including its later reuse; do not add them to each request. Router stage clocks can omit CPU. Client minus Router invocation wall time remains a signed, unassigned difference, not a network measurement. Missing or repeated Router IDs remain unjoined. Earlier clients lack repeated-event counters and event-loop observations. Their phase fields are last retained diagnostic events; multiplicity is unobserved.',
         'coverage': dict(coverage), 'event_loop_gaps': client.get('eventLoopGaps'), 'attempts': len(rows), 'successful_attempts': len(success),
+        'socket_queue_observations': socket_queue_observations(client['requests'] + client['duplicateRequests']),
         'successful_client_metrics': metrics,
         'successful_router_wall_ms': distribution([r['router']['wall_ms'] for r in success if r['router'] and finite(r['router']['wall_ms'])]),
         'successful_unassigned_difference_ms': distribution([r['router']['client_minus_router_wall_ms'] for r in success if r['router'] and finite(r['router']['client_minus_router_wall_ms'])]),

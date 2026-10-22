@@ -5,6 +5,14 @@ Current priority: qualify hosted signing latency and sustained refill without in
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.
+The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
+Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.
+Creation/recovery takes 6.413–8.552 seconds. Four-candidate preparation takes 19.146 seconds median. Both five-second targets remain unmet.
+Both reserves restore and material identities balance. The post-initial-stock window has no completed signatures, so sustained capacity remains unqualified.
+No `loadShed` outcome recurs. Hosted observed Wasm capacity reaches 89.375/89.563 MiB, while total isolate peak memory remains unknown.
+A controlled Node HTTPS test reproduces shared-client POST queuing and removes it with separate wallet connections. Browser parity remains open.
+Next, isolate each simulated wallet's HTTP client, repeat hosted and public SDK measurements, then reduce the remaining private hash/bound work and generic registration costs.
+The current memory measurements do not establish the cause of the earlier provider cancellations.
 The [committed-refill campaign](ml-dsa-65-committed-refill-report.md) moves private commitment evaluation into key-bound refill.
 Committed pairs need 214 dependent online AND layers, compared with 327 for generic pre-key registration stock. Stored ciphertext uses twenty-four chunks per role/pair instead of thirty.
 Recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate cap remain unchanged.
@@ -12,7 +20,7 @@ The hosted screen verifies seventeen load signatures, with four below five secon
 Every complete demand exceeds five seconds. Prepared registration/recovery takes 8.932–13.766 seconds. Both performance targets remain unqualified.
 All thirty-two false producer completions match B-side `loadShed` outcomes. Four jobs still complete paired publication; the underlying shedding cause remains unmeasured.
 Completed four-candidate preparation has a 14.363-second median. Both reserves restore and the material identity ledger balances, while cost attribution remains incomplete.
-Next, measure preparation memory and cancellation stages, reproduce client dispatch through the SDK, then address generic registration stock and preparation AND count.
+Those results motivated the resource and dispatch measurements above. Public SDK timing and generic registration optimization remain open.
 The earlier [circuit-depth campaign](ml-dsa-65-circuit-depth-report.md) reduces complete online exchanges from 340 to 327 per checked pair without adding AND gates.
 Four complete compiled-circuit equivalence checks pass. Canonical recovery, FIPS export, private commitments, and pool capacity remain unchanged.
 Its hosted screen verifies ten load signatures, with six below five seconds, a 3.265-second median, and a 5.823-second maximum.
