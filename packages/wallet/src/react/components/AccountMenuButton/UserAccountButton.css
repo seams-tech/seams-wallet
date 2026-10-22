@@ -15,6 +15,7 @@
   padding: 4px 12px 4px 4px;
   border-radius: 6px;
   width: fit-content;
+  cursor: pointer;
 }
 
 .seams-user-account-button-trigger .hide-username {
