@@ -18,15 +18,9 @@ import {
   buildMethodBoundEnvelopeOwnership,
   buildPasskeyCustodyEnvelopeRecord,
   custodyEnvelopeBindingJsonV1,
-  parseDigestField,
-  parseEnvelopeCiphertextB64u,
-  parseEnvelopeNonceB64u,
   parseEnvelopeRevision,
   parsePasskeyCustodyEnvelopeRecord,
-  type EnvelopeCiphertextB64u,
-  type EnvelopeNonceB64u,
 } from '@shared/passkey-custody';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parsePasskeyEnvelopeId, type WalletAuthMethodId } from '@shared/utils/domainIds';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import {
@@ -36,6 +30,7 @@ import {
   type WalletAddAuthMethodAuthority,
 } from '@/core/rpcClients/relayer/walletRegistration';
 import type { WalletCustodyCeremonyTransportPort } from './ceremonyStepRunner';
+import { parseResealedEnvelopeResult, type ResealedEnvelopeResult } from './resealedEnvelopeResult';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
   PrepareEmailOtpRegistrationEnrollmentMaterialInternalArgs,
@@ -48,29 +43,6 @@ type EmailOtpCustodyEnrollmentPreparationPort = {
   ): Promise<PrepareEmailOtpRegistrationEnrollmentMaterialInternalResult>;
 };
 
-function requireResealedEnvelope(value: unknown): {
-  readonly nonceB64u: EnvelopeNonceB64u;
-  readonly sealedCustodySecretB64u: EnvelopeCiphertextB64u;
-  readonly aadHashB64u: DigestB64u;
-  readonly ciphertextDigestB64u: DigestB64u;
-} {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Email OTP custody worker returned no resealed envelope');
-  }
-  const record = value as Record<string, unknown>;
-  return {
-    nonceB64u: parseEnvelopeNonceB64u(record.nonceB64u, 'resealed envelope nonceB64u'),
-    sealedCustodySecretB64u: parseEnvelopeCiphertextB64u(
-      record.sealedCustodySecretB64u,
-      'resealed envelope sealedCustodySecretB64u',
-    ),
-    aadHashB64u: parseDigestField(record.aadHashB64u, 'resealed envelope aadHashB64u'),
-    ciphertextDigestB64u: parseDigestField(
-      record.ciphertextDigestB64u,
-      'resealed envelope ciphertextDigestB64u',
-    ),
-  };
-}
 
 /** Complete add-email-code custody linking from the browser boundary. */
 export async function linkWalletEmailOtpCustody(input: {
@@ -153,9 +125,9 @@ export async function linkWalletEmailOtpCustody(input: {
      with another — so this is the same worker operation the Passkey branch
      uses. Both buffers are transferred and zeroed by the worker. */
   const existingFactorSecret = input.existingFactorSecret.slice();
-  let resealed: ReturnType<typeof requireResealedEnvelope>;
+  let resealed: ResealedEnvelopeResult;
   try {
-    resealed = requireResealedEnvelope(
+    resealed = parseResealedEnvelopeResult(
       await input.worker.requestOperation({
         kind: 'walletCustodyCeremony',
         request: {

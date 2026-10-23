@@ -3,17 +3,11 @@ import {
   buildPasskeyCustodyEnvelopeRecord,
   custodyEnvelopeBindingJsonV1,
   buildPasskeyEnvelopeFactor,
-  parseDigestField,
-  parseEnvelopeCiphertextB64u,
-  parseEnvelopeNonceB64u,
   parseEnvelopeRevision,
   parsePasskeyCustodyEnvelopeRecord,
   type PasskeyCustodyEnvelopeRecord,
-  type EnvelopeCiphertextB64u,
-  type EnvelopeNonceB64u,
 } from '@shared/passkey-custody';
 import { base64UrlDecode } from '@shared/utils/base64';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   parsePasskeyEnvelopeId,
   parseWebAuthnCredentialIdB64u,
@@ -31,6 +25,7 @@ import { serializeRegistrationCredentialWithPRF } from '../webauthnAuth/credenti
 import type { WebAuthnRegistrationCredential } from '@/core/types/webauthn';
 import { getPrfFirstB64uFromCredential } from '../webauthnAuth/credentials/credentialExtensions';
 import type { WalletCustodyCeremonyTransportPort } from './ceremonyStepRunner';
+import { parseResealedEnvelopeResult, type ResealedEnvelopeResult } from './resealedEnvelopeResult';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '../workerManager/workerTypes';
 
 type PasskeyRegistrationCredential = ReturnType<typeof serializeRegistrationCredentialWithPRF>;
@@ -75,29 +70,6 @@ function publicKeyCreationOptions(
   };
 }
 
-function requireResealedEnvelope(value: unknown): {
-  readonly nonceB64u: EnvelopeNonceB64u;
-  readonly sealedCustodySecretB64u: EnvelopeCiphertextB64u;
-  readonly aadHashB64u: DigestB64u;
-  readonly ciphertextDigestB64u: DigestB64u;
-} {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Passkey custody worker returned no resealed envelope');
-  }
-  const record = value as Record<string, unknown>;
-  return {
-    nonceB64u: parseEnvelopeNonceB64u(record.nonceB64u, 'resealed envelope nonceB64u'),
-    sealedCustodySecretB64u: parseEnvelopeCiphertextB64u(
-      record.sealedCustodySecretB64u,
-      'resealed envelope sealedCustodySecretB64u',
-    ),
-    aadHashB64u: parseDigestField(record.aadHashB64u, 'resealed envelope aadHashB64u'),
-    ciphertextDigestB64u: parseDigestField(
-      record.ciphertextDigestB64u,
-      'resealed envelope ciphertextDigestB64u',
-    ),
-  };
-}
 
 function requireUnlockedCapabilitySource(
   source: WalletCustodySealSourceV1,
@@ -186,7 +158,7 @@ async function createPasskeyCustodyLinkEnvelope(input: {
     input.sealSource.kind === 'factor_secret'
       ? input.sealSource.existingFactorSecret.slice()
       : null;
-  let resealed: ReturnType<typeof requireResealedEnvelope>;
+  let resealed: ResealedEnvelopeResult;
   try {
     const result =
       existingFactorSecret === null
@@ -215,7 +187,7 @@ async function createPasskeyCustodyLinkEnvelope(input: {
               transfer: [existingFactorSecret.buffer, replacementFactorSecret.buffer],
             },
           });
-    resealed = requireResealedEnvelope(result);
+    resealed = parseResealedEnvelopeResult(result);
   } finally {
     /* Transferred buffers are detached; zeroing one throws. */
     if (existingFactorSecret && existingFactorSecret.byteLength > 0) existingFactorSecret.fill(0);

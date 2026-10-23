@@ -154,12 +154,13 @@ again before it consumes the signed proof. Session issuance rechecks the
 method and authority in its D1 transaction. A replay cannot mint a second
 session.
 
-The browser has typed native capture and HTTP clients for activation and
-challenge signing. They check the device public-key digest, Wallet origin,
-capture expiry, response identity, and cancellation. The current SDK plugin
+The browser has typed native capture and HTTP clients. An activation
+operation uses the worker-held seed to seal a VoiceID envelope. It saves only
+public pending data before the server request. A lost response can retry the
+same method and ciphertext without another reseal. The current SDK plugin
 still selects the local approval prototype above. The Wallet host must call
-these clients during activation and unlock, then open the seed envelope and
-activate signing lanes before it can offer voice-only signing.
+the activation operation during a visible user action. It must also open the
+seed envelope and activate signing lanes after voice-only unlock.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
@@ -167,8 +168,10 @@ It sends typed browser-client HTTP requests to a real local D1 database
 and opens the stored envelope in browser WASM. It also verifies rollback for
 a duplicate device key and a retired owner session. After that session is
 retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
-A changed origin and replayed assertion fail. The test writes a JSON report
-with public identities and no private key or factor secret.
+A changed origin and replayed assertion fail. The same journey loses an
+activation response, reads its pending record, and retries the exact ciphertext.
+The stored result opens in WASM. The test writes a JSON report with public
+identities and no private key or factor secret.
 
 The browser bridge contract is
 [`voiceid-device-bridge.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-device-bridge.contract.test.ts).

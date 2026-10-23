@@ -115,22 +115,30 @@ export type PasskeyCustodyEnvelopeRecord = {
   updatedAtMs: number;
 };
 
-export type VoiceIdSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
+export type ActiveMethodBoundWalletSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
   readonly ownership: Extract<WalletCustodyEnvelopeOwnership, { readonly kind: 'method_bound' }>;
   readonly binding: Extract<PasskeyCustodySecretBinding, { readonly kind: 'wallet_custody_seed_v1' }>;
-  readonly factor: Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }>;
   readonly lifecycle: Extract<PasskeyCustodyEnvelopeLifecycle, { readonly state: 'active' }>;
 };
+
+export type VoiceIdSeedEnvelope = ActiveMethodBoundWalletSeedEnvelope & {
+  readonly factor: Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }>;
+};
+
+export function isActiveMethodBoundWalletSeedEnvelope(
+  envelope: PasskeyCustodyEnvelopeRecord,
+): envelope is ActiveMethodBoundWalletSeedEnvelope {
+  return (
+    envelope.ownership.kind === 'method_bound' &&
+    envelope.binding.kind === 'wallet_custody_seed_v1' &&
+    envelope.lifecycle.state === 'active'
+  );
+}
 
 export function isVoiceIdSeedEnvelope(
   envelope: PasskeyCustodyEnvelopeRecord,
 ): envelope is VoiceIdSeedEnvelope {
-  return (
-    envelope.ownership.kind === 'method_bound' &&
-    envelope.binding.kind === 'wallet_custody_seed_v1' &&
-    envelope.factor.kind === 'voiceid' &&
-    envelope.lifecycle.state === 'active'
-  );
+  return isActiveMethodBoundWalletSeedEnvelope(envelope) && envelope.factor.kind === 'voiceid';
 }
 
 
@@ -260,7 +268,7 @@ export function buildEmailOtpEnvelopeFactor(args: {
   };
 }
 
-function buildVoiceIdEnvelopeFactor(args: {
+export function buildVoiceIdEnvelopeFactor(args: {
   deviceKeyId: DigestB64u;
 }): Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }> {
   return {

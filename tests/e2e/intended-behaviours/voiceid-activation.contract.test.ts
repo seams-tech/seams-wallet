@@ -14,9 +14,20 @@ import {
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { allocateWalletAuthMethodId, parsePasskeyEnvelopeId } from '@shared/utils/domainIds';
-import { custodyEnvelopeBindingJsonV1 } from '@shared/passkey-custody/custodyEnvelope';
+import {
+  custodyEnvelopeBindingJsonV1,
+  type VoiceIdSeedEnvelope,
+} from '@shared/passkey-custody/custodyEnvelope';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
 import { VoiceIdHttpClient } from '@/core/authMethods/voiceId/httpClient';
+import {
+  activateVoiceIdForUnlockedWallet,
+  type VoiceIdSeedResealPort,
+} from '@/core/authMethods/voiceId/activation';
+import { captureVoiceIdActivation } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
+import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@/core/authMethods/voiceId/activationStore';
+import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
+import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import { AuthorizationService } from '@server/authorization/service';
 import { capabilityPolicyPort } from '@server/authorization/capabilityPolicy';
 import { CloudflareD1AuthorizationStore } from '@server/router/cloudflare/d1/authorization/d1AuthorizationStore';
@@ -162,6 +173,106 @@ class VoiceIdRouteTransport {
     }
   }
 }
+
+class TestVoiceIdCapture {
+  calls = 0;
+
+  constructor(private readonly device: TestDeviceKey) {}
+
+  async capture(
+    _input: Parameters<typeof captureVoiceIdActivation>[0],
+  ): ReturnType<typeof captureVoiceIdActivation> {
+    this.calls += 1;
+    return {
+      kind: 'activated',
+      publicKeyB64u: this.device.publicKeyB64u,
+      deviceKeyId: this.device.deviceKeyId,
+      factorSecret32: new Uint8Array(32).fill(11),
+    };
+  }
+}
+
+class RustSealedVoiceIdReseal {
+  calls = 0;
+
+  constructor(private readonly envelope: VoiceIdSeedEnvelope) {}
+
+  async reseal(input: Parameters<VoiceIdSeedResealPort>[0]): Promise<unknown> {
+    this.calls += 1;
+    expect(input.bindingJson).toBe(custodyEnvelopeBindingJsonV1(this.envelope));
+    expect([...new Uint8Array(input.factorSecret)]).toEqual([...new Uint8Array(32).fill(11)]);
+    new Uint8Array(input.factorSecret).fill(0);
+    return {
+      nonceB64u: this.envelope.nonceB64u,
+      sealedCustodySecretB64u: this.envelope.sealedCustodySecretB64u,
+      aadHashB64u: this.envelope.aadHashB64u,
+      ciphertextDigestB64u: this.envelope.ciphertextDigestB64u,
+    };
+  }
+}
+
+class MemoryActivationStorage implements VoiceIdActivationStoragePort {
+  private readonly entries = new Map<string, unknown>();
+  private readonly methods = new Map<string, ActiveVoiceIdWalletAuthMethodRecordV2>();
+
+  async getAppState(key: string): Promise<unknown | undefined> {
+    return this.entries.get(key);
+  }
+
+  async setAppState(key: string, value: unknown): Promise<void> {
+    this.entries.set(key, JSON.parse(JSON.stringify(value)));
+  }
+
+  async listAppStateEntriesByPrefix(
+    prefix: string,
+  ): Promise<ReadonlyArray<{ key: string; value: unknown }>> {
+    const matching: Array<{ key: string; value: unknown }> = [];
+    for (const [key, value] of this.entries) {
+      if (key.startsWith(prefix)) matching.push({ key, value });
+    }
+    return matching;
+  }
+
+  async upsertWalletAuthMethodV2(method: ActiveVoiceIdWalletAuthMethodRecordV2): Promise<void> {
+    this.methods.set(method.walletAuthMethodId, method);
+  }
+
+  readMethod(walletAuthMethodId: string): ActiveVoiceIdWalletAuthMethodRecordV2 | null {
+    return this.methods.get(walletAuthMethodId) ?? null;
+  }
+}
+
+class LostFirstVoiceIdActivationReply {
+  private first = true;
+
+  constructor(private readonly client: VoiceIdHttpClient) {}
+
+  async activate(input: Parameters<VoiceIdHttpClient['activate']>[0]): ReturnType<VoiceIdHttpClient['activate']> {
+    const method = await this.client.activate(input);
+    if (this.first) {
+      this.first = false;
+      throw new Error('VoiceID test reply was lost after server commit');
+    }
+    return method;
+  }
+}
+
+function unlockedSeedCapabilityForTest(input: {
+  readonly walletId: string;
+  readonly sourceMethodId: string;
+  readonly walletSessionId: string;
+}): UnlockedWalletEd25519ExportRootCapabilityV1 {
+  return {
+    kind: 'unlocked_wallet_ed25519_export_root_capability_v1',
+    capabilityHandleId: 'voiceid-test-unlocked-seed',
+    walletId: input.walletId,
+    walletAuthMethodId: input.sourceMethodId,
+    walletSessionId: input.walletSessionId,
+    expiresAtMs: Date.now() + 60_000,
+  };
+}
+
+function onVoiceListening(): void {}
 
 test('owner session activates one VoiceID key and envelope in the same D1 transaction', runJourney);
 
@@ -327,6 +438,84 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       factorSecret.fill(0);
     }
 
+    const retriedDevice = await generateTestDeviceKey();
+    const retriedMethodId = allocateWalletAuthMethodId(randomUUID());
+    const retriedEnvelopeId = requireEnvelopeId(`wallet-custody-envelope:${randomUUID()}`);
+    const retriedRustEnvelope = await sealForTest({
+      testInfo,
+      label: 'interrupted-activation-seal',
+      walletId: String(fixture.authority.walletId),
+      methodId: String(retriedMethodId),
+      envelopeId: String(retriedEnvelopeId),
+      deviceKeyId: String(retriedDevice.deviceKeyId),
+    });
+    const retriedCapture = new TestVoiceIdCapture(retriedDevice);
+    const retriedReseal = new RustSealedVoiceIdReseal(retriedRustEnvelope);
+    const localStorage = new MemoryActivationStorage();
+    const pendingStore = new VoiceIdActivationStore(localStorage);
+    const lostReply = new LostFirstVoiceIdActivationReply(client);
+    const sharedActivation = {
+      ownerCredential: issued.operationCredential,
+      http: lostReply,
+      signal,
+      onListening: onVoiceListening,
+      capture: retriedCapture.capture.bind(retriedCapture),
+      persistPending: pendingStore.persistPending.bind(pendingStore),
+      persistActive: pendingStore.persistActive.bind(pendingStore),
+    };
+    await expect(activateVoiceIdForUnlockedWallet({
+      ...sharedActivation,
+      plan: {
+        kind: 'new',
+        walletId: fixture.authority.walletId,
+        walletAuthMethodId: retriedMethodId,
+        envelopeId: retriedEnvelopeId,
+        capability: unlockedSeedCapabilityForTest({
+          walletId: String(fixture.authority.walletId),
+          sourceMethodId: String(fixture.authMethod.walletAuthMethodId),
+          walletSessionId: String(issued.session.walletSessionId),
+        }),
+        reseal: retriedReseal.reseal.bind(retriedReseal),
+      },
+    })).rejects.toThrow('reply was lost');
+    const pending = await pendingStore.readPending(
+      fixture.authority.walletId,
+      retriedMethodId,
+    );
+    if (!pending) throw new Error('VoiceID pending activation was not retained');
+    expect((await pendingStore.listPending(fixture.authority.walletId)).length).toBe(1);
+    const resumed = await activateVoiceIdForUnlockedWallet({
+      ...sharedActivation,
+      plan: { kind: 'resume', pending },
+    });
+    expect(resumed.authMethod.walletAuthMethodId).toBe(retriedMethodId);
+    expect(localStorage.readMethod(retriedMethodId)?.walletAuthMethodId).toBe(retriedMethodId);
+    expect((await pendingStore.listPending(fixture.authority.walletId)).length).toBe(0);
+    expect(retriedCapture.calls).toBe(2);
+    expect(retriedReseal.calls).toBe(1);
+    const retriedStored = await envelopes.lookupEnvelopeForWalletAuthMethod({
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: retriedMethodId,
+      factor: { kind: 'voiceid', deviceKeyId: retriedDevice.deviceKeyId },
+    });
+    if (retriedStored.kind !== 'active') {
+      throw new Error('Retried VoiceID envelope did not commit');
+    }
+    const retriedFactorSecret = new Uint8Array(32).fill(11);
+    try {
+      const handle = passkey_custody_open_wallet_seed_v1(
+        retriedFactorSecret,
+        custodyEnvelopeBindingJsonV1(retriedStored.envelope),
+        base64UrlDecode(retriedStored.envelope.nonceB64u),
+        retriedStored.envelope.sealedCustodySecretB64u,
+        retriedStored.envelope.aadHashB64u,
+        retriedStored.envelope.ciphertextDigestB64u,
+      );
+      handle.destroy();
+    } finally {
+      retriedFactorSecret.fill(0);
+    }
+
     const duplicateMethodId = allocateWalletAuthMethodId(randomUUID());
     const duplicateEnvelopeId = requireEnvelopeId(`wallet-custody-envelope:${randomUUID()}`);
     const duplicateEnvelope = await sealForTest({
@@ -452,6 +641,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
         'untrusted_origin_and_mismatched_device_key_rejected',
         'exact_activation_retry_returns_committed_method',
         'stored_envelope_opens_in_browser_wasm',
+        'interrupted_activation_retries_exact_pending_envelope_without_reseal',
         'duplicate_device_key_rolls_back_envelope',
         'retired_owner_session_rolls_back_method_and_envelope',
         'typed_client_reads_fresh_voiceid_session_after_source_retirement',

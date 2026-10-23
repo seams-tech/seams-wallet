@@ -21,6 +21,7 @@ import type {
   Secp256k1CompressedPublicKeyB64u,
   WalletCustodyEnvelopeFactor,
   VoiceIdSeedEnvelope,
+  ActiveMethodBoundWalletSeedEnvelope,
   WalletCustodyRegistrationOutcome,
 } from './index';
 
@@ -324,6 +325,17 @@ const voiceIdSeedEnvelope: VoiceIdSeedEnvelope = {
   updatedAtMs: 1,
 };
 void voiceIdSeedEnvelope;
+
+const activeOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = voiceIdSeedEnvelope;
+void activeOwnerSeed;
+
+// @ts-expect-error An active owner seed envelope cannot be unbound.
+const unboundOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = { ...voiceIdSeedEnvelope, ownership: { kind: 'unbound' } };
+void unboundOwnerSeed;
+
+// @ts-expect-error An active owner seed envelope cannot hold a lane share.
+const laneOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = { ...voiceIdSeedEnvelope, binding: ed25519LaneHolderShare };
+void laneOwnerSeed;
 
 // @ts-expect-error A VoiceID seed envelope cannot carry a passkey factor through a spread.
 const voiceIdSeedWithPasskeyFactor: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, factor: passkeyFactor };
