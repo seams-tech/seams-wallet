@@ -7,7 +7,11 @@ import {
 } from '@shared/utils/domainIds';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import { requireRecord } from '@shared/utils/validation';
-import { parseSessionOrigin, type SessionOrigin } from '../../../../authorization/domain';
+import {
+  parseSessionOrigin,
+  projectActiveWalletSession,
+  type SessionOrigin,
+} from '../../../../authorization/domain';
 import type { RouterApiWalletUnlockService } from '../../../framework/authServicePort';
 import { json, readJson } from '../../../framework/http';
 import type { FetchRouterApiContext } from '../createFetchRouter';
@@ -130,7 +134,7 @@ export async function handleVoiceIdVerifyRequest(
     }
     return json({
       ok: true,
-      authorization: result.authorization,
+      walletSession: projectActiveWalletSession(result.authorization),
       operationCredential: result.operationCredential,
       custodyEnvelope: result.custodyEnvelope,
     }, { status: 200 });

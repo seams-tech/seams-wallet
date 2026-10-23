@@ -21,7 +21,7 @@ import type {
   VoiceIdVerifyResult,
 } from '../../../domains/voiceId/voiceIdSessions';
 import { D1VoiceIdWalletSessionChallenges } from './d1VoiceIdWalletSessionChallenges';
-import { isVoiceIdSeedEnvelope, type VoiceIdSeedEnvelope } from '../../../domains/voiceId/voiceIdActivation';
+import { isVoiceIdSeedEnvelope, type VoiceIdSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
 
 type ActiveVoiceIdMethod = Readonly<{
   authMethod: ActiveVoiceIdWalletAuthMethodRecordV2;

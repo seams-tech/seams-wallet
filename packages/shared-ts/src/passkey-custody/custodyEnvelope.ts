@@ -115,6 +115,25 @@ export type PasskeyCustodyEnvelopeRecord = {
   updatedAtMs: number;
 };
 
+export type VoiceIdSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
+  readonly ownership: Extract<WalletCustodyEnvelopeOwnership, { readonly kind: 'method_bound' }>;
+  readonly binding: Extract<PasskeyCustodySecretBinding, { readonly kind: 'wallet_custody_seed_v1' }>;
+  readonly factor: Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }>;
+  readonly lifecycle: Extract<PasskeyCustodyEnvelopeLifecycle, { readonly state: 'active' }>;
+};
+
+export function isVoiceIdSeedEnvelope(
+  envelope: PasskeyCustodyEnvelopeRecord,
+): envelope is VoiceIdSeedEnvelope {
+  return (
+    envelope.ownership.kind === 'method_bound' &&
+    envelope.binding.kind === 'wallet_custody_seed_v1' &&
+    envelope.factor.kind === 'voiceid' &&
+    envelope.lifecycle.state === 'active'
+  );
+}
+
+
 const ENVELOPE_OWNERSHIP_FIELDS = ['kind', 'walletAuthMethodId'] as const;
 
 function parseWalletCustodyEnvelopeOwnership(

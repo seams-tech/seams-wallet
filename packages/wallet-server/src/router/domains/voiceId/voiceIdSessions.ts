@@ -1,6 +1,6 @@
 import type { VoiceIdDeviceAssertion, VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
-import type { VoiceIdSeedEnvelope } from './voiceIdActivation';
+import type { VoiceIdSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
 import type { DirectV2IssueResult, IssuedWalletSessionAuthorizationV2 } from '../../../authorization/domain';
 import type { SessionOrigin } from '../../../authorization/domain';
 

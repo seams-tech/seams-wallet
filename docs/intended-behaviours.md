@@ -154,17 +154,17 @@ again before it consumes the signed proof. Session issuance rechecks the
 method and authority in its D1 transaction. A replay cannot mint a second
 session.
 
-The browser has a typed native bridge for activation and challenge signing.
-It checks the device public-key digest, the Wallet origin, capture expiry, and
-cancellation. The current SDK plugin still selects the local approval prototype
-above. The Wallet host must call the bridge during activation and unlock, then
-open the seed envelope and activate signing lanes before it can offer voice-only
-signing.
+The browser has typed native capture and HTTP clients for activation and
+challenge signing. They check the device public-key digest, Wallet origin,
+capture expiry, response identity, and cancellation. The current SDK plugin
+still selects the local approval prototype above. The Wallet host must call
+these clients during activation and unlock, then open the seed envelope and
+activate signing lanes before it can offer voice-only signing.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
-It sends an owner-session HTTP request to a real local D1 database and opens
-the stored envelope in browser WASM. It also verifies transaction rollback for
+It sends typed browser-client HTTP requests to a real local D1 database
+and opens the stored envelope in browser WASM. It also verifies rollback for
 a duplicate device key and a retired owner session. After that session is
 retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
 A changed origin and replayed assertion fail. The test writes a JSON report

@@ -7,17 +7,16 @@ import { expect, test, type TestInfo } from '@playwright/test';
 import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import {
+  parseVoiceIdDeviceAssertion,
   parseVoiceIdDevicePublicKeyB64u,
-  parseVoiceIdWalletSessionChallenge,
   voiceIdWalletSessionChallengeBytes,
 } from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { allocateWalletAuthMethodId, parsePasskeyEnvelopeId } from '@shared/utils/domainIds';
 import { custodyEnvelopeBindingJsonV1 } from '@shared/passkey-custody/custodyEnvelope';
-import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
-import { requireRecord } from '@shared/utils/validation';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
+import { VoiceIdHttpClient } from '@/core/authMethods/voiceId/httpClient';
 import { AuthorizationService } from '@server/authorization/service';
 import { capabilityPolicyPort } from '@server/authorization/capabilityPolicy';
 import { CloudflareD1AuthorizationStore } from '@server/router/cloudflare/d1/authorization/d1AuthorizationStore';
@@ -139,6 +138,31 @@ function voiceIdHttpRequest(pathname: string, origin: string, body: unknown): Re
   });
 }
 
+class VoiceIdRouteTransport {
+  constructor(
+    private readonly activation: Parameters<typeof handleVoiceIdActivationRequest>[1],
+    private readonly sessions: Parameters<typeof handleVoiceIdChallengeRequest>[1] &
+      Parameters<typeof handleVoiceIdVerifyRequest>[1],
+    private readonly walletOrigin: string,
+  ) {}
+
+  async send(request: Request): Promise<Response> {
+    const headers = new Headers(request.headers);
+    headers.set('Origin', this.walletOrigin);
+    const forwarded = new Request(request, { headers });
+    switch (new URL(request.url).pathname) {
+      case '/wallet/voiceid/activate':
+        return await handleVoiceIdActivationRequest(forwarded, this.activation);
+      case '/wallet/voiceid/challenge':
+        return await handleVoiceIdChallengeRequest(forwarded, this.sessions);
+      case '/wallet/voiceid/verify':
+        return await handleVoiceIdVerifyRequest(forwarded, this.sessions);
+      default:
+        throw new Error('VoiceID test sent an unknown HTTP route');
+    }
+  }
+}
+
 test('owner session activates one VoiceID key and envelope in the same D1 transaction', runJourney);
 
 async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Promise<void> {
@@ -198,6 +222,19 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     const authMethods = new D1WalletAuthMethodStore({ database, ...SCOPE });
     const envelopes = new CloudflareD1PasskeyCustodyEnvelopeStore({ database, scope: SCOPE });
     const activation = new D1VoiceIdActivation(database, SCOPE, authMethods, envelopes);
+    const voiceIdSessions = new D1VoiceIdSessions(
+      authMethods,
+      new D1WalletAuthorityStore({ database, scope: SCOPE }),
+      envelopes,
+      new D1VoiceIdWalletSessionChallenges(database, SCOPE),
+      authorization,
+      SCOPE.orgId,
+    );
+    const voiceRoutes = {
+      issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
+      verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
+      hostedWalletOrigins: ['https://wallet.example.test'],
+    };
     const device = await generateTestDeviceKey();
     const methodId = allocateWalletAuthMethodId(randomUUID());
     const envelopeId = requireEnvelopeId(`wallet-custody-envelope:${randomUUID()}`);
@@ -216,6 +253,13 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       activateVoiceId: activation.activate.bind(activation),
       hostedWalletOrigins: ['https://wallet.example.test'],
     };
+    const transport = new VoiceIdRouteTransport(route, voiceRoutes, 'https://wallet.example.test');
+    const client = new VoiceIdHttpClient(
+      'https://router.example.test',
+      'https://wallet.example.test',
+      transport.send.bind(transport),
+    );
+    const signal = new AbortController().signal;
     const token = issued.operationCredential.token;
     const wrongOrigin = await handleVoiceIdActivationRequest(activationHttpRequest({
       token,
@@ -234,23 +278,26 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       envelope,
     }), route);
     expect(mismatchedKey.status).toBe(400);
-    const activated = await handleVoiceIdActivationRequest(activationHttpRequest({
-      token,
-      origin: 'https://wallet.example.test',
-      methodId: String(methodId),
-      devicePublicKeyB64u: String(device.publicKeyB64u),
-      envelope,
-    }), route);
-    expect(activated.status).toBe(200);
-    expect((await activated.json()).ok).toBe(true);
-    const exactRetry = await handleVoiceIdActivationRequest(activationHttpRequest({
-      token,
-      origin: 'https://wallet.example.test',
-      methodId: String(methodId),
-      devicePublicKeyB64u: String(device.publicKeyB64u),
-      envelope,
-    }), route);
-    expect(exactRetry.status).toBe(200);
+    const activated = await client.activate({
+      ownerCredential: issued.operationCredential,
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      devicePublicKeyB64u: device.publicKeyB64u,
+      deviceKeyId: device.deviceKeyId,
+      custodyEnvelope: envelope,
+      signal,
+    });
+    expect(activated.deviceKeyId).toBe(device.deviceKeyId);
+    const exactRetry = await client.activate({
+      ownerCredential: issued.operationCredential,
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      devicePublicKeyB64u: device.publicKeyB64u,
+      deviceKeyId: device.deviceKeyId,
+      custodyEnvelope: envelope,
+      signal,
+    });
+    expect(exactRetry.walletAuthMethodId).toBe(methodId);
     const active = await authMethods.getActiveVoiceIdV2({
       walletId: fixture.authority.walletId,
       walletAuthMethodId: methodId,
@@ -344,27 +391,11 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     });
     expect(retiredCustody.kind).toBe('missing');
 
-    const voiceIdSessions = new D1VoiceIdSessions(
-      authMethods,
-      new D1WalletAuthorityStore({ database, scope: SCOPE }),
-      envelopes,
-      new D1VoiceIdWalletSessionChallenges(database, SCOPE),
-      authorization,
-      SCOPE.orgId,
-    );
-    const voiceRoutes = {
-      issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
-      verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
-      hostedWalletOrigins: ['https://wallet.example.test'],
-    };
-    const challengeResponse = await handleVoiceIdChallengeRequest(voiceIdHttpRequest(
-      '/wallet/voiceid/challenge',
-      'https://wallet.example.test',
-      { walletId: fixture.authority.walletId, walletAuthMethodId: methodId },
-    ), voiceRoutes);
-    expect(challengeResponse.status).toBe(200);
-    const challengeBody = requireRecord(await challengeResponse.json(), 'VoiceID challenge response');
-    const challenge = parseVoiceIdWalletSessionChallenge(challengeBody.challenge);
+    const challenge = await client.challenge({
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      signal,
+    });
     const signature = await crypto.subtle.sign(
       'Ed25519',
       device.privateKey,
@@ -381,16 +412,13 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       { assertion },
     ), voiceRoutes);
     expect(wrongVerifyOrigin.status).toBe(403);
-    const verifiedResponse = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
-      '/wallet/voiceid/verify',
-      'https://wallet.example.test',
-      { assertion },
-    ), voiceRoutes);
-    expect(verifiedResponse.status).toBe(200);
-    const verifiedBody = requireRecord(await verifiedResponse.json(), 'VoiceID verification response');
-    const voiceCredential = parseWalletSessionOperationCredentialV1(
-      verifiedBody.operationCredential,
-    );
+    const verified = await client.verify({
+      assertion: parseVoiceIdDeviceAssertion(assertion),
+      signal,
+    });
+    const voiceCredential = verified.operationCredential;
+    expect(verified.walletSession.authMethodId).toBe(methodId);
+    expect(verified.custodyEnvelope.envelopeId).toBe(envelopeId);
     const freshSession = await readActiveWalletSessionCredential(authorization, {
       tenantId: issued.session.tenantId,
       token: voiceCredential.token,
@@ -420,13 +448,13 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       freshVoiceIdSessionId: String(freshSession.authorization.session.walletSessionId),
       signedChallengeId: String(challenge.challengeId),
       cases: [
-        'owner_session_http_activation_stores_method_and_envelope',
+        'typed_client_activates_method_and_envelope_over_http',
         'untrusted_origin_and_mismatched_device_key_rejected',
         'exact_activation_retry_returns_committed_method',
         'stored_envelope_opens_in_browser_wasm',
         'duplicate_device_key_rolls_back_envelope',
         'retired_owner_session_rolls_back_method_and_envelope',
-        'voiceid_issues_fresh_session_after_source_retirement',
+        'typed_client_reads_fresh_voiceid_session_after_source_retirement',
         'changed_origin_and_challenge_replay_rejected',
       ],
     }, null, 2)}\n`);

@@ -7,30 +7,13 @@ import type {
   ActiveVoiceIdWalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import {
+  isVoiceIdSeedEnvelope,
   parsePasskeyCustodyEnvelopeRecord,
-  type PasskeyCustodyEnvelopeRecord,
+  type VoiceIdSeedEnvelope,
 } from '@shared/passkey-custody/custodyEnvelope';
 import type { IssuedWalletSessionAuthorizationV2 } from '../../../authorization/domain';
 
-export type VoiceIdSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
-  readonly ownership: Extract<PasskeyCustodyEnvelopeRecord['ownership'], { readonly kind: 'method_bound' }>;
-  readonly binding: Extract<PasskeyCustodyEnvelopeRecord['binding'], { readonly kind: 'wallet_custody_seed_v1' }>;
-  readonly factor: Extract<PasskeyCustodyEnvelopeRecord['factor'], { readonly kind: 'voiceid' }>;
-  readonly lifecycle: Extract<PasskeyCustodyEnvelopeRecord['lifecycle'], { readonly state: 'active' }>;
-};
-
 export type VoiceIdActivationEnvelope = VoiceIdSeedEnvelope;
-
-export function isVoiceIdSeedEnvelope(
-  envelope: PasskeyCustodyEnvelopeRecord,
-): envelope is VoiceIdSeedEnvelope {
-  return (
-    envelope.ownership.kind === 'method_bound' &&
-    envelope.binding.kind === 'wallet_custody_seed_v1' &&
-    envelope.factor.kind === 'voiceid' &&
-    envelope.lifecycle.state === 'active'
-  );
-}
 
 export type VoiceIdActivationOwnerSession = Readonly<{
   authorization: IssuedWalletSessionAuthorizationV2;

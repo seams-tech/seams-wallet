@@ -20,6 +20,7 @@ import type {
   PasskeyCustodySecretBinding,
   Secp256k1CompressedPublicKeyB64u,
   WalletCustodyEnvelopeFactor,
+  VoiceIdSeedEnvelope,
   WalletCustodyRegistrationOutcome,
 } from './index';
 
@@ -304,6 +305,37 @@ const emailOtpEnvelope: PasskeyCustodyEnvelopeRecord = {
   factor: emailOtpFactor,
 };
 void emailOtpEnvelope;
+
+const voiceIdSeedEnvelope: VoiceIdSeedEnvelope = {
+  kind: 'wallet_custody_envelope_v2',
+  envelopeId,
+  walletId,
+  ownership: { kind: 'method_bound', walletAuthMethodId: envelopeOwnerMethodId },
+  binding: { kind: 'wallet_custody_seed_v1', derivationScheme: 'wallet_seed_parallel_hkdf_sha256_v1' },
+  factor: { kind: 'voiceid', deviceKeyId: digest, kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1' },
+  envelopeVersion: 'wallet_custody_envelope_v2',
+  envelopeRevision,
+  nonceB64u,
+  sealedCustodySecretB64u: ciphertextB64u,
+  ciphertextDigestB64u: digest,
+  aadHashB64u: digest,
+  lifecycle: { state: 'active', activatedAtMs: 1 },
+  createdAtMs: 1,
+  updatedAtMs: 1,
+};
+void voiceIdSeedEnvelope;
+
+// @ts-expect-error A VoiceID seed envelope cannot carry a passkey factor through a spread.
+const voiceIdSeedWithPasskeyFactor: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, factor: passkeyFactor };
+void voiceIdSeedWithPasskeyFactor;
+
+// @ts-expect-error A VoiceID seed envelope must name its owning method.
+const voiceIdSeedWithoutOwner: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, ownership: { kind: 'unbound' } };
+void voiceIdSeedWithoutOwner;
+
+// @ts-expect-error A revoked envelope cannot be used for VoiceID session unlock.
+const revokedVoiceIdSeed: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, lifecycle: { state: 'revoked', activatedAtMs: 1, revokedAtMs: 2 } };
+void revokedVoiceIdSeed;
 
 // @ts-expect-error An envelope requires its factor identity.
 const envelopeWithoutFactor: PasskeyCustodyEnvelopeRecord = {
