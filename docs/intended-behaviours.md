@@ -154,9 +154,12 @@ again before it consumes the signed proof. Session issuance rechecks the
 method and authority in its D1 transaction. A replay cannot mint a second
 session.
 
-The current SDK plugin still selects the local approval prototype above.
-The SDK needs an activation caller, native challenge signing, custody
-activation, and signing-lane scope before it can offer voice-only unlock.
+The browser has a typed native bridge for activation and challenge signing.
+It checks the device public-key digest, the Wallet origin, capture expiry, and
+cancellation. The current SDK plugin still selects the local approval prototype
+above. The Wallet host must call the bridge during activation and unlock, then
+open the seed envelope and activate signing lanes before it can offer voice-only
+signing.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
@@ -166,6 +169,12 @@ a duplicate device key and a retired owner session. After that session is
 retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
 A changed origin and replayed assertion fail. The test writes a JSON report
 with public identities and no private key or factor secret.
+
+The browser bridge contract is
+[`voiceid-device-bridge.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-device-bridge.contract.test.ts).
+It exercises the browser with a fake local host. It verifies activation,
+challenge signing, transfer approval, origin rejection, and cancellation. It
+writes a JSON report and accesses no microphone or Keychain.
 
 The custody boundary contract is
 [`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).

@@ -1,7 +1,7 @@
 import { isPlainObject } from '@shared/utils/validation';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
+import { streamVoiceIdNative } from './nativeTransport';
 
-const LOCAL_BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 
 export type VoiceBinding = Readonly<{
   attemptId: string;
@@ -83,41 +83,11 @@ class NativeExchange {
 
   private async exchange(binding: VoiceBinding): Promise<void> {
     try {
-      const response = await fetch(LOCAL_BRIDGE_URL, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-voiceid-protocol': 'v1',
-        },
-        body: JSON.stringify({ kind: 'listen', binding }),
-        cache: 'no-store',
-        credentials: 'omit',
-        signal: this.controller.signal,
-      });
-      if (!response.ok || !response.body) {
-        throw new Error('VoiceID local service rejected the Wallet request.');
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let pending = '';
-      while (!this.isSettled()) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        pending += decoder.decode(chunk.value, { stream: true });
-        if (pending.length > 2 * 4096 + 16) {
-          throw new Error('VoiceID returned an invalid message.');
-        }
-        let newline = pending.indexOf('\n');
-        while (newline >= 0) {
-          this.receive(pending.slice(0, newline));
-          pending = pending.slice(newline + 1);
-          if (this.isSettled()) return;
-          newline = pending.indexOf('\n');
-        }
-      }
-      if (!this.isSettled()) {
-        throw new Error('VoiceID local service closed before a result.');
-      }
+      await streamVoiceIdNative(
+        { kind: 'listen', binding },
+        this.controller.signal,
+        this.receive.bind(this),
+      );
     } catch (error) {
       if (this.state.kind === 'settled') return;
       const message = error instanceof Error && error.message.startsWith('VoiceID ')
@@ -127,10 +97,10 @@ class NativeExchange {
     }
   }
 
-  private receive(line: string): void {
-    if (this.state.kind === 'settled') return;
+  private receive(value: unknown): boolean {
+    if (this.state.kind === 'settled') return true;
     try {
-      const reply = parseNativeReply(JSON.parse(line));
+      const reply = parseNativeReply(value);
       const state = this.state;
       if (reply.kind === 'listening') {
         if (state.kind !== 'starting' || !sameVoiceBinding(state.binding, reply.binding)) {
@@ -138,7 +108,7 @@ class NativeExchange {
         }
         this.state = { kind: 'listening', binding: state.binding };
         state.onListening();
-        return;
+        return false;
       }
       if (
         state.kind !== 'listening' &&
@@ -146,17 +116,16 @@ class NativeExchange {
       ) {
         throw new Error('VoiceID returned a result before capture.');
       }
-      if (!sameVoiceBinding(state.binding, reply.binding))
+      if (!sameVoiceBinding(state.binding, reply.binding)) {
         throw new Error('VoiceID returned a different operation.');
+      }
       this.close();
       this.completion.resolve(reply);
+      return true;
     } catch {
       this.fail(new Error('VoiceID returned an invalid message.'));
+      return true;
     }
-  }
-
-  private isSettled(): boolean {
-    return this.state.kind === 'settled';
   }
 
   private readonly aborted = (): void => {
