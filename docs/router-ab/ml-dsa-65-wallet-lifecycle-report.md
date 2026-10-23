@@ -213,6 +213,7 @@ on free ports and a fresh private runtime directory:
 
 ```sh
 SEAMS_INTENDED_SKIP_BUILD=1 \
+SEAMS_INTENDED_ML_DSA=1 \
 SEAMS_LOCAL_PORT_OFFSET=1000 \
 SEAMS_INTENDED_APP_URL=http://localhost:6201 \
 SEAMS_INTENDED_ROUTER_URL=http://127.0.0.1:5100 \

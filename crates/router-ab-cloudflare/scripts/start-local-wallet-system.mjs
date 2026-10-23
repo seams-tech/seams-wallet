@@ -109,6 +109,14 @@ function printServiceTable(ready) {
   for (const role of roleServices) {
     services.push({ name: role.name, url: `http://127.0.0.1:${role.port + localPortOffset}` });
   }
+  if (options.mlDsa) {
+    for (const [index, role] of ['router', 'a', 'b', 'preparer-a', 'preparer-b'].entries()) {
+      services.push({
+        name: `ml-dsa-${role}`,
+        url: `http://127.0.0.1:${4107 + localPortOffset + index}`,
+      });
+    }
+  }
   services.push({ name: 'wallet-gateway', url: ready.gatewayUrl });
   printLocalServiceTable('Local Wallet services ready', services);
   console.log(`Site: ${ready.appOrigin} (start pnpm site in another terminal)`);
@@ -118,6 +126,7 @@ function printServiceTable(ready) {
 function parseArguments(args) {
   const parsed = {
     help: false,
+    mlDsa: false,
     root: '',
     appOrigin: 'http://localhost:4001',
     walletOrigin: 'http://localhost:4002',
@@ -132,6 +141,10 @@ function parseArguments(args) {
     if (argument === '--') continue;
     if (argument === '--help' || argument === '-h') {
       parsed.help = true;
+      continue;
+    }
+    if (argument === '--ml-dsa') {
+      parsed.mlDsa = true;
       continue;
     }
     if (argument === '--root') {
@@ -196,7 +209,7 @@ function requiredOrigin(args, index, name) {
 
 function printUsage() {
   console.log(
-    'Usage: start-local-wallet-system.mjs [--root <runtime-directory>] [--app-origin <origin>] [--wallet-origin <origin>] [--org-id <id>] [--project-id <id>] [--environment-id <id>] [--signing-root-id <id>] [--publishable-key <key>]',
+    'Usage: start-local-wallet-system.mjs [--root <runtime-directory>] [--app-origin <origin>] [--wallet-origin <origin>] [--org-id <id>] [--project-id <id>] [--environment-id <id>] [--signing-root-id <id>] [--publishable-key <key>] [--ml-dsa]',
   );
 }
 
@@ -207,6 +220,7 @@ function startRoleWorkers() {
       fileURLToPath(new URL('./start-local-role-workers.mjs', import.meta.url)),
       '--root',
       localRoot,
+      ...(options.mlDsa ? ['--ml-dsa'] : []),
     ],
     childOptions(),
   );

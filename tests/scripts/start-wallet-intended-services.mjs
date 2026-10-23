@@ -71,6 +71,19 @@ function buildWalletRuntime() {
       `build:${role}`,
     ]);
   }
+  if (process.env.SEAMS_INTENDED_ML_DSA === '1') {
+    for (const role of ['router', 'deriver-a', 'deriver-b']) {
+      runRequired(`ML-DSA ${role} Worker build`, 'pnpm', [
+        '-C',
+        'crates/router-ab-cloudflare',
+        'exec',
+        'bash',
+        'scripts/build-strict-worker.sh',
+        role,
+        'ml-dsa',
+      ]);
+    }
+  }
   runRequired('Wallet server build', 'pnpm', ['-C', 'packages/wallet-server', 'run', 'build']);
   runRequired('Wallet local initializer build', 'pnpm', ['run', 'build:local-tools']);
 }
@@ -86,6 +99,7 @@ function startWalletSystem() {
       appOrigin,
       '--wallet-origin',
       walletOrigin,
+      ...(process.env.SEAMS_INTENDED_ML_DSA === '1' ? ['--ml-dsa'] : []),
     ],
     {
       ...childOptions(process.env),

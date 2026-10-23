@@ -1,0 +1,104 @@
+{
+  "schema": "seams.ml-dsa-local-isolation.v1",
+  "observedAt": "2026-10-23T10:37:36.052Z",
+  "scope": "Chromium, real recovery-code ceremony, separate QR target browser and authenticators, public SDK and Gateway, local Cloudflare workerd with separate ML-DSA Router, participants, and preparers. Live testnet RPC qualifies Wallet-approved key enrollment and a finalized ML-DSA threshold transaction.",
+  "branch": "ml-dsa",
+  "base_commit": "953e9117",
+  "source_hashes": {
+    "crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs": "fd907283bca2dd8e00586cfa9f7b58a6e9f89ac793f1b54467d1c180bac4ca1a",
+    "crates/router-ab-cloudflare/scripts/start-local-role-workers.mjs": "a93174e62d4360dd81bbd7f23e59b55b97e42479c895f749139b4158396da1cf",
+    "crates/router-ab-cloudflare/scripts/start-local-wallet-system.mjs": "6dbc803bb73ee7e9b5e8a88ed30e07ba7393d96b218599d17af77af3d7576394",
+    "tests/scripts/start-wallet-intended-services.mjs": "ab2a5fa7ae3d5937e9847173137882d412cf56eb4f741cbd882f1c35cd196bf8",
+    "tests/scripts/run-wallet-intended-isolated.mjs": "43556c30322816f1cec720d1f15ddf05e0c8f6a51c4ada54094481fbc0329c56",
+    "tests/e2e/intended-behaviours/ml-dsa-lifecycle-scenario.ts": "c94baa09825447971678b47720e25b71c8bd101d63a3b325b4f5a34ca1373961"
+  },
+  "checks": {
+    "samePublicKeyAfterRecovery": true,
+    "samePublicKeyAfterQrLink": true,
+    "sourceAuthorityRetained": true,
+    "recoveryCodeReuseRefused": true,
+    "linkedAuthorityRevoked": true,
+    "recoveredAuthorityRetained": true,
+    "independentSignaturesVerified": true,
+    "normalWalletTransactionApi": true,
+    "verifiedPublicationResumesAfterBrowserReload": true,
+    "reusableSessionRequiresNoPasskeyPrompt": true,
+    "exhaustedSessionRequiresFreshApproval": true,
+    "thresholdTransactionBroadcast": true,
+    "independentCanonicalSeedImport": true,
+    "publicRestorationFromRecoveredFactor": true,
+    "distinctOwnerCredentials": true,
+    "restorationOwnerMatchesRecoveredMethod": true
+  },
+  "policy": {
+    "candidateGroupSize": 2,
+    "preparationGroupSize": 4,
+    "minimumReadyCandidates": 16,
+    "poolCapacityCandidates": 32,
+    "walletCooldownMs": 60000
+  },
+  "ordinary": {
+    "mode": "ordinary",
+    "optionalMlDsaEnabled": false,
+    "passed": true,
+    "disabledMlDsaStatus": 503,
+    "disabledMlDsaMessage": "ML-DSA service is not configured",
+    "gatewayReadyStatus": 200,
+    "workerConfigs": [
+      "wrangler.deriver-a.toml",
+      "wrangler.deriver-b.toml",
+      "wrangler.router.toml",
+      "wrangler.signing-worker.toml",
+      "wrangler.tenant-root-control-plane.toml"
+    ],
+    "shutdownExitCode": 143
+  },
+  "testnet_transaction": {
+    "hash": "7rhBj4eke7QDSnhuwH4WqTrqouKHVx1j37v3T7UE4LdX",
+    "signer_id": "0af2f0047f817e037e44d289f50bb6a25d209d782efad07d3cf8005a2453cb09",
+    "final_status": {
+      "SuccessValue": ""
+    }
+  },
+  "validation": {
+    "existing_browser_lifecycle": "passed",
+    "intended_typecheck": "passed",
+    "script_syntax": "passed",
+    "packaged_source_parity": "passed",
+    "bloat": "inherited unchanged Rust duplication excess: 13972 versus 13754"
+  },
+  "failures": [
+    {
+      "classification": "production_regression",
+      "observation": "Local A/B configs bound ML-DSA objects absent from ordinary builds.",
+      "resolution": "Remove obsolete bindings. Use separate optional Workers from canonical templates."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "observation": "Existing SDK assets omitted the selected local Gateway origin policy.",
+      "resolution": "Rebuild SDK assets with the explicit allowed local Gateway origin. Keep the policy enforced."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "observation": "The ordinary control ports overlapped active ML-DSA inspector ports.",
+      "resolution": "Verify free ports and rerun in a fresh runtime. Do not stop the active test."
+    }
+  ],
+  "limits": [
+    "Local functional qualification only; no hosted latency claim.",
+    "No live namespace transfer was tested.",
+    "The unchanged eleven-Worker hosted credential upload still requires explicit approval."
+  ],
+  "reproduce": [
+    "Build SDK assets with SEAMS_WALLET_APPROVED_RELAYER_ORIGINS=http://127.0.0.1:21100.",
+    "Build the five ordinary Worker roles and three ML-DSA Worker artifacts, Wallet server, and local initializer.",
+    "Run the existing ML-DSA lifecycle contract with SEAMS_INTENDED_ML_DSA=1, a fresh runtime, and free ports.",
+    "Use the documented command in docs/router-ab/ml-dsa-65-wallet-lifecycle-report.md with matching approved origins.",
+    "Run the archived ordinary probe on free ports from the repository root."
+  ],
+  "archive": {
+    "path": "ml-dsa-65-local-isolation-20261023-data.json.gz",
+    "bytes": 30327,
+    "sha256": "021100711accda9795347213c4409b9b833ada1911dfd8bb305febaf9d7cd1be"
+  }
+}

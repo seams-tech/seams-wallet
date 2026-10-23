@@ -375,7 +375,9 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
       privateD1Keys,
       tenantRootKeys,
     });
-    config = addLocalMlDsaRegistration(config, role);
+    if (input.mlDsa === true && role === 'router') {
+      config += '\n[[services]]\nbinding = "ML_DSA_ROUTER"\nservice = "router-ab-ml-dsa-router"\n';
+    }
     if (privateD1) {
       config = setPrivateD1MigrationsDirectory(config, privateD1.migrationsDirectory);
       config = setPrivateD1LocalDatabaseId(config, privateD1.localDatabaseId);
@@ -410,6 +412,15 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
     );
   }
 
+  if (input.mlDsa === true) {
+    configs.push(...prepareLocalMlDsaConfigs(
+      outputRoot,
+      routerEnv,
+      gatewayToRouterAuthSecret,
+      privateD1Keys,
+    ));
+  }
+
   return Object.freeze({
     outputRoot,
     mpcRouterUrl,
@@ -423,27 +434,51 @@ export function prepareRouterAbStrictLocalRuntimeConfigs(input) {
   });
 }
 
-function addLocalMlDsaRegistration(config, role) {
-  if (role !== 'deriver-a' && role !== 'deriver-b') return config;
-  let configured = config + `
-[[durable_objects.bindings]]
-name = "ML_DSA_REGISTRATION_DO"
-class_name = "RouterAbMlDsaRegistrationDurableObject"
-
-[[migrations]]
-tag = "ml-dsa-local-registration-v1"
-new_sqlite_classes = ["RouterAbMlDsaRegistrationDurableObject"]
-`;
-  if (role === 'deriver-a') configured += `
-[[durable_objects.bindings]]
-name = "ML_DSA_PRODUCER_DO"
-class_name = "RouterAbMlDsaProducerDurableObject"
-
-[[migrations]]
-tag = "ml-dsa-local-producer-v1"
-new_sqlite_classes = ["RouterAbMlDsaProducerDurableObject"]
-`;
-  return configured;
+function prepareLocalMlDsaConfigs(outputRoot, routerEnv, gatewayToRouterAuthSecret, privateD1Keys) {
+  const configs = [];
+  const roles = ['router', 'a', 'b', 'preparer-a', 'preparer-b'];
+  for (const [index, role] of roles.entries()) {
+    const localRole = `ml-dsa-${role}`;
+    const sourcePath = path.join(runtimeRoot, `wrangler.${localRole}.toml`);
+    const configPath = path.join(outputRoot, `wrangler.${localRole}.toml`);
+    let buildRole = 'router';
+    if (role.endsWith('a')) buildRole = 'deriver-a';
+    if (role.endsWith('b')) buildRole = 'deriver-b';
+    const mainPath = path.join(
+      runtimeRoot, workerBuildDirectory, 'ml-dsa', buildRole, 'worker', 'shim.mjs',
+    );
+    const config = replaceTomlAssignment(
+      stripBuildSection(readFileSync(sourcePath, 'utf8')),
+      'main',
+      relativePosixPath(outputRoot, mainPath),
+    );
+    writeFileSync(configPath, config);
+    const values = {
+      ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET: requiredEnv(
+        routerEnv,
+        'ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET',
+      ),
+    };
+    if (role === 'router') {
+      values.ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET = gatewayToRouterAuthSecret;
+    } else {
+      const keys = role.endsWith('a') ? privateD1Keys.deriverA : privateD1Keys.deriverB;
+      values.ML_DSA_ROLE_KEK = `hpke-x25519-role-private-d1-private-v1:${keys.privateKeyHex}`;
+    }
+    const secretPath = path.join(outputRoot, `.dev.vars.${localRole}`);
+    writeFileSync(secretPath, renderDevVars(values), { mode: 0o600 });
+    chmodSync(secretPath, 0o600);
+    const port = 4107 + localPortOffset + index;
+    configs.push(Object.freeze({
+      role: localRole,
+      port,
+      url: `http://127.0.0.1:${port}`,
+      configPath,
+      secretPath,
+      privateD1: null,
+    }));
+  }
+  return configs;
 }
 
 function setPrivateD1MigrationsDirectory(source, migrationsDirectory) {
