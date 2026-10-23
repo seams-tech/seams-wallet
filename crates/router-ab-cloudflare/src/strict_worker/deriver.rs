@@ -43,6 +43,7 @@ pub(super) async fn handle_strict_deriver_a_fetch_v1(
     if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
         return cloudflare_private_service_auth_error_response_v1(err);
     }
+    #[cfg(feature = "ml-dsa")]
     if crate::ml_dsa::workers::is_role_path(&request.path()) {
         return crate::ml_dsa::workers::handle_role_request(request, env, context).await;
     }
@@ -1072,6 +1073,7 @@ pub(super) async fn handle_strict_deriver_b_fetch_v1(
     if let Err(err) = require_cloudflare_internal_service_auth_request_v1(&request, &env) {
         return cloudflare_private_service_auth_error_response_v1(err);
     }
+    #[cfg(feature = "ml-dsa")]
     if crate::ml_dsa::workers::is_role_path(&request.path()) {
         return crate::ml_dsa::workers::handle_role_request(request, env, context).await;
     }

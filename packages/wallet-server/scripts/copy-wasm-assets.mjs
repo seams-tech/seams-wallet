@@ -7,6 +7,10 @@ const repoRoot = path.resolve(serverRoot, '../..');
 
 const assets = [
   {
+    source: 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm',
+    target: 'dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm',
+  },
+  {
     source: 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm',
     target: 'dist/esm/wasm/near_signer/pkg/wasm_signer_worker_bg.wasm',
   },
@@ -46,14 +50,14 @@ function rewriteBuiltWasmImports(esmRoot) {
 
 function rewriteWasmImportsInFile(source, filePath, esmRoot) {
   const pattern =
-    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|shamir3pass_runtime)\/pkg\/([A-Za-z0-9_]+\.wasm)/gu;
+    /(?:\.\.\/)+wasm\/(near_signer|evm_crypto|shamir3pass_runtime)\/(pkg(?:-ml-dsa)?)\/([A-Za-z0-9_]+\.wasm)/gu;
   let rewritten = '';
   let cursor = 0;
   for (const match of source.matchAll(pattern)) {
     rewritten += source.slice(cursor, match.index);
     rewritten += relativeModulePath(
       path.dirname(filePath),
-      path.join(esmRoot, 'wasm', match[1], 'pkg', match[2]),
+      path.join(esmRoot, 'wasm', match[1], match[2], match[3]),
     );
     cursor = match.index + match[0].length;
   }

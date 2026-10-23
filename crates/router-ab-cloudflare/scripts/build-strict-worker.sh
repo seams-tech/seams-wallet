@@ -3,10 +3,19 @@
 set -euo pipefail
 
 role="${1:-}"
+protocol="${2:-standard}"
+case "$protocol" in
+  standard|ml-dsa) ;;
+  *) echo "invalid Worker protocol: $protocol" >&2; exit 2 ;;
+esac
+if [[ "$protocol" == "ml-dsa" && "$role" != "router" && "$role" != "deriver-a" && "$role" != "deriver-b" ]]; then
+  echo "ML-DSA builds require router, deriver-a, or deriver-b" >&2
+  exit 2
+fi
 case "$role" in
   router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane) ;;
   *)
-    echo "usage: build-strict-worker.sh <router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane>" >&2
+    echo "usage: build-strict-worker.sh <router|deriver-a|deriver-b|signing-worker|tenant-root-control-plane> [standard|ml-dsa]" >&2
     exit 2
     ;;
 esac
@@ -44,6 +53,10 @@ run_worker_build() {
 }
 
 worker_features="strict-worker-$role-entrypoint"
+if [[ "$protocol" == "ml-dsa" ]]; then
+  worker_features+=",ml-dsa"
+  worker_output="${worker_output%/$role}/ml-dsa/$role"
+fi
 # Local only: a dev Router can end a registration burned when the local
 # Gateway's terminal-failure fault asks, and records it like any answer.
 if [[ "$worker_build_profile" == "dev" && "$role" == "router" ]]; then

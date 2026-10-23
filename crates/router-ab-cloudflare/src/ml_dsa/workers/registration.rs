@@ -130,7 +130,7 @@ pub(crate) async fn handle_prepare(
         CallAuthority::Gateway(request.headers()),
         &AdmissionCommand::PrepareRegistration {
             scope: core::scope(&input.wallet).map_err(protocol_error)?,
-            schedule: execution::schedule_digest(&schedules::load().map_err(protocol_error)?),
+            schedule: schedules::DIGEST,
             signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
             // Registration needs admissible stock. The durable refill loop builds
             // the remaining reserve after activation. The generic format requires two.
@@ -176,7 +176,7 @@ async fn register_request(
         CallAuthority::Gateway(request.headers()),
         &AdmissionCommand::ClaimRegistration {
             request: input,
-            schedule: execution::schedule_digest(&schedules::load().map_err(protocol_error)?),
+            schedule: schedules::DIGEST,
         },
     )
     .await
@@ -241,7 +241,7 @@ async fn register_request(
     Response::from_json(&core::Decision::Existing { operation })
 }
 
-#[durable_object]
+#[cfg_attr(not(feature = "strict-worker-router-entrypoint"), durable_object)]
 pub struct RouterAbMlDsaRegistrationDurableObject {
     state: Rc<State>,
     env: Env,
@@ -305,6 +305,7 @@ impl RouterAbMlDsaRegistrationDurableObject {
         Response::from_json(&true)
     }
 }
+#[cfg(not(feature = "strict-worker-router-entrypoint"))]
 impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {

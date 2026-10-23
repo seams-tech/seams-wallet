@@ -31,12 +31,12 @@ import { resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
 import initSigner, {
   ml_dsa65_inspect_near_transaction,
   ml_dsa65_finalize_near_transaction,
-} from '../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+} from '../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
 
 export async function initializeMlDsaCodec(): Promise<void> {
   await initSigner({
-    module_or_path: resolveWasmUrl('wasm_signer_worker_bg.wasm', 'ML-DSA transaction verifier'),
+    module_or_path: resolveWasmUrl('ml_dsa_signer_bg.wasm', 'ML-DSA transaction verifier'),
   });
 }
 /** Serialize an ordinary assertion without requiring or releasing PRF outputs. */

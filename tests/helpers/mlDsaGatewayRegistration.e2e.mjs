@@ -182,7 +182,7 @@ class Gateway {
       database,
       ...scope,
       mlDsaRegistrationProxy: proxy,
-      signerWasmModuleOrPath: api.signingWasmModule(),
+      mlDsaSignerWasmModuleOrPath: api.signingWasmModule(),
     });
     this.fetch = api.createFetchRouter(
       this.service,
@@ -304,7 +304,7 @@ export async function verifyMlDsaGatewayRegistration({
   });
   const api = await import(pathToFileURL(bundlePath).href);
   await api.initializeSigningCodec(
-    await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+    await readFile(join(root, 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm')),
   );
   const scope = {
     namespace: 'ml-dsa-gateway',
@@ -692,7 +692,7 @@ export async function verifyMlDsaGatewayRegistration({
       sources,
       gatewayBundleSha256: hash(await readFile(bundlePath)).toString('hex'),
       signingWasmSha256: hash(
-        await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+        await readFile(join(root, 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm')),
       ).toString('hex'),
       nativeBinarySha256: hash(
         await readFile(

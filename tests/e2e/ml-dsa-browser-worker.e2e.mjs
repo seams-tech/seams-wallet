@@ -350,7 +350,7 @@ async function complete(input) {
   ])
     report.sources[file] = hash(await readFile(join(root, file)));
   report.binaries = {
-    signerWasm: hash(await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm'))),
+    signerWasm: hash(await readFile(join(root, 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm'))),
     native: hash(await readFile(binary)),
     browserBundle: hash(await readFile(join(directory, 'browser-signing.mjs'))),
   };
@@ -392,11 +392,11 @@ async function handleRequest(request, response) {
         await readFile(join(directory, 'browser-signing.mjs')),
         'text/javascript',
       );
-    if (path === '/wasm/wasm_signer_worker_bg.wasm')
+    if (path === '/wasm/ml_dsa_signer_bg.wasm')
       return respond(
         response,
         200,
-        await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+        await readFile(join(root, 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm')),
         'application/wasm',
       );
     if (path === '/driver/passkey')

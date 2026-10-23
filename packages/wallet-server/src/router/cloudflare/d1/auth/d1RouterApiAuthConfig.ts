@@ -183,6 +183,7 @@ export interface CloudflareD1RouterApiAuthServiceOptions {
   readonly relayerPrivateKey?: string;
   readonly nearRpcUrl?: string;
   readonly signerWasmModuleOrPath?: SignerWasmModuleSupplier;
+  readonly mlDsaSignerWasmModuleOrPath?: SignerWasmModuleSupplier;
   readonly accountInitialBalance?: string;
   readonly implicitNearAccountTestFundingEnabled?: boolean | string;
   readonly googleOidcClientId?: string;
@@ -394,6 +395,10 @@ export function normalizeD1RouterApiAuthOptions(
       typeof input.signerWasmModuleOrPath === 'string'
         ? toOptionalTrimmedString(input.signerWasmModuleOrPath)
         : input.signerWasmModuleOrPath,
+    mlDsaSignerWasmModuleOrPath:
+      typeof input.mlDsaSignerWasmModuleOrPath === 'string'
+        ? toOptionalTrimmedString(input.mlDsaSignerWasmModuleOrPath)
+        : input.mlDsaSignerWasmModuleOrPath,
     accountInitialBalance: toOptionalTrimmedString(input.accountInitialBalance),
     implicitNearAccountTestFundingEnabled: parseBooleanFlag(
       input.implicitNearAccountTestFundingEnabled,

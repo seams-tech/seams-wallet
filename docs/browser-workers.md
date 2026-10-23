@@ -8,7 +8,7 @@ Read this document before you merge two workers, split a worker, or move an
 operation from one worker to another. A change to the worker layout must update
 this document in the same change.
 
-Checked against the source on October 21, 2026.
+Checked against the source on October 21, 2026. ML-DSA loading boundaries updated on October 23, 2026.
 
 ## Where the workers run
 
@@ -107,7 +107,7 @@ Workers that other managers create:
 | --- | --- | --- | --- |
 | [`passkey-mpc-session`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-session.worker.ts) | `PasskeyMpcSessionManager` | None directly. Nested Shamir worker. | Warm-session PRF material and its sealed copies, until expiry, use, or clear. |
 | [`passkey-confirm`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-confirm.worker.ts) | `UiConfirmManager` | None | None. It runs the confirmation exchange off the main thread. |
-| [`passkey-mpc-export`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-export.worker.ts) | `PasskeyMpcExportManager` | Yao client for Ed25519 export. `near_signer` for authorized ML-DSA seed export. | Per request only: PRF output, an opaque custody-seed handle in Wasm, and the authorized key or seed shown to the user. The application receives no export secret. |
+| [`passkey-mpc-export`](../packages/wallet/src/core/signingEngine/workerManager/workers/passkey-mpc-export.worker.ts) | `PasskeyMpcExportManager` | Yao client for Ed25519 export. The separate `ml_dsa_signer` module, on demand, for authorized ML-DSA seed export. | Per request only: PRF output, an opaque custody-seed handle in Wasm, and the authorized key or seed shown to the user. The application receives no export secret. |
 | [`device-linking-key`](../packages/wallet/src/core/signingEngine/workerManager/workers/device-linking-key.worker.ts) | `deviceLinkingWorkerChannels` | Yao client, for Ed25519 sealing only | Non-extractable link keys, recipient private keys, and a factor secret, until the attempt is discarded or closed. |
 | [`shamir3pass`](../packages/wallet/src/core/signingEngine/workerManager/workers/shamir3pass.worker.ts) | Nested in `emailOtp` and `passkey-mpc-session` | `shamir3pass_runtime` on first message | Lock key pairs inside WASM memory. JavaScript holds only numeric handles. |
 
@@ -115,7 +115,8 @@ Workers that other managers create:
 
 | Module | Source | Size | Loaded by |
 | --- | --- | ---: | --- |
-| `near_signer` (`wasm_signer_worker_bg.wasm`) | `wasm/near_signer` | Build-dependent | `nearSigner`, `walletCustodyCeremony`, `passkey-mpc-export`. The Wallet iframe uses its public ML-DSA transaction codecs. |
+| `near_signer` (`wasm_signer_worker_bg.wasm`) | `wasm/near_signer`, default features | 477 KB | `nearSigner` and `walletCustodyCeremony`. Contains shared NEAR wire encodings, but no ML-DSA verifier or seed-export method. |
+| `ml_dsa_signer` (`ml_dsa_signer_bg.wasm`) | `wasm/near_signer`, `ml-dsa` feature | 635 KB | The Wallet iframe for ML-DSA public transaction verification. `passkey-mpc-export` for explicitly authorized ML-DSA seed export. Both initialize it on demand. |
 | `wallet_custody_ceremony` | `wasm/wallet_custody_ceremony` | 543 KB | `walletCustodyCeremony`, `emailOtp` |
 | `router_ab_ed25519_yao_client` | `crates/router-ab-ed25519-yao-client` | 731 KB | Iframe main thread, `walletCustodyCeremony`, `emailOtp`, `device-linking-key`, `passkey-mpc-export` |
 | `router_ab_ecdsa_client` | `wasm/router_ab_ecdsa_client` | 792 KB | `ecdsaDerivationClient` |
@@ -166,9 +167,14 @@ thread carries only public protocol messages and the final ciphertext.
 
 ML-DSA export is an explicit exception to secret-free return values. The export
 worker opens an already authenticated seed envelope after fresh owner approval.
-Its Wasm handle derives the ordinary FIPS seed and checks the public key.
+Its optional ML-DSA Wasm handle derives the ordinary FIPS seed and checks the public key.
+The export worker opens the envelope in that module. No seed or opaque handle moves between Wasm modules.
 The worker sends the seed only to the existing Wallet-origin export viewer.
 The application-facing response contains completion status only.
+The shared custody-ceremony module still contains ML-DSA envelope and ceremony support.
+The ordinary NEAR module still understands ML-DSA wire encodings and access-key hashes.
+These shared costs remain. The optional module separates the heavier verification and seed-export cryptography.
+Both modules ship in the SDK package, so smaller ordinary downloads do not imply a smaller complete package.
 Ordinary ML-DSA signing uses public transaction codecs and server-held shares.
 It never opens a seed envelope or starts a custody ceremony.
 

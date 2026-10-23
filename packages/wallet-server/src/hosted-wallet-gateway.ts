@@ -40,7 +40,7 @@ import {
   readD1LinkedDeviceEd25519SourceV1,
   type CloudflareD1RouterApiAuthServiceOptions,
 } from './cloud-host';
-import { loadCloudflareSignerWasmModule } from './cloud-host';
+import { loadCloudflareSignerWasmModule, loadCloudflareMlDsaSignerWasmModule } from './cloud-host';
 import { createSigningSessionSealOptions } from './cloud-host';
 import { RouterAbEcdsaPresignRuntime } from './cloud-host';
 import type { SigningSessionSealRoutesOptions } from './cloud-host';
@@ -209,6 +209,7 @@ export interface HostedWalletGatewayDependenciesV1 {
   readonly emailOtpDeliveryProvider?: CloudflareD1RouterApiAuthServiceOptions['emailOtpDeliveryProvider'];
   /** Host loader for the signer WASM; defaults to the Workers module import. */
   readonly signerWasm?: CloudflareD1RouterApiAuthServiceOptions['signerWasmModuleOrPath'];
+  readonly mlDsaSignerWasm?: CloudflareD1RouterApiAuthServiceOptions['mlDsaSignerWasmModuleOrPath'];
 }
 
 type RouterApiReadyRow = {
@@ -557,6 +558,7 @@ async function createStagingRouterApiAuthComposition(
     relayerPrivateKey: readEnvString(env, 'RELAYER_PRIVATE_KEY'),
     nearRpcUrl: readEnvString(env, 'NEAR_RPC_URL'),
     signerWasmModuleOrPath: dependencies.signerWasm ?? loadCloudflareSignerWasmModule,
+    mlDsaSignerWasmModuleOrPath: dependencies.mlDsaSignerWasm ?? loadCloudflareMlDsaSignerWasmModule,
     accountInitialBalance: readEnvString(env, 'ACCOUNT_INITIAL_BALANCE'),
     implicitNearAccountTestFundingEnabled: readEnvString(
       env,

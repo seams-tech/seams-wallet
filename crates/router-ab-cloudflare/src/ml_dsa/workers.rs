@@ -218,8 +218,8 @@ pub fn policy(env: &Env) -> Result<Policy> {
     }
 }
 fn signing_schedule_digest(env: &Env) -> Result<[u8; 32]> {
-    Ok(execution::signing_schedule_digest(
-        &schedules::load()?,
+    Ok(execution::signing_layout_digest(
+        schedules::DIGEST,
         policy(env)?.candidate_group_size(),
     ))
 }
@@ -331,11 +331,12 @@ where
         .ok_or_else(|| invalid("Registration transaction returned no result"));
     result
 }
-#[durable_object]
+#[cfg_attr(feature = "strict-worker-router-entrypoint", durable_object)]
 pub struct RouterAbMlDsaAdmissionDurableObject {
     state: State,
     env: Env,
 }
+#[cfg(feature = "strict-worker-router-entrypoint")]
 impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self { state, env }
@@ -437,8 +438,8 @@ async fn execute_admission(
                 store,
                 request,
                 schedule,
-                execution::signing_schedule_digest(
-                    &schedules::load()?,
+                execution::signing_layout_digest(
+                    schedules::DIGEST,
                     policy.candidate_group_size(),
                 ),
                 policy.minimum_ready_batches().max(2),
@@ -501,11 +502,12 @@ async fn execute_admission(
     }
 }
 
-#[durable_object]
+#[cfg_attr(not(feature = "strict-worker-router-entrypoint"), durable_object)]
 pub struct RouterAbMlDsaPoolDurableObject {
     state: State,
     env: Env,
 }
+#[cfg(not(feature = "strict-worker-router-entrypoint"))]
 impl DurableObject for RouterAbMlDsaPoolDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self { state, env }

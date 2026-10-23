@@ -466,29 +466,43 @@ pub(super) async fn handle_strict_router_fetch_v1(
     env: Env,
 ) -> worker::Result<Response> {
     let path = request.path();
-    if path == crate::ml_dsa::workers::recipient_keys::PATH {
-        return crate::ml_dsa::workers::recipient_keys::handle(request, &env).await;
+    #[cfg(not(feature = "ml-dsa"))]
+    if path.starts_with("/router-ab/ml-dsa/") {
+        if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {
+            return crate::cloudflare_private_service_auth_error_response_v1(error);
+        }
+        let service = match env.service("ML_DSA_ROUTER") {
+            Ok(service) => service,
+            Err(_) => return Response::error("ML-DSA service is not configured", 503),
+        };
+        return service.fetch_request(request).await;
     }
-    if path == crate::ml_dsa::workers::SIGN_PATH {
-        return crate::ml_dsa::workers::handle_sign(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::registration::PREPARE_PATH {
-        return crate::ml_dsa::workers::registration::handle_prepare(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::registration::REGISTER_PATH {
-        return crate::ml_dsa::workers::registration::handle_register(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::ACTIVATE_PATH {
-        return crate::ml_dsa::workers::handle_activate(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::COMPLETE_PATH {
-        return crate::ml_dsa::workers::handle_complete(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::STATUS_PATH {
-        return crate::ml_dsa::workers::handle_status(request, &env).await;
-    }
-    if path == crate::ml_dsa::workers::ADMIT_PATH {
-        return crate::ml_dsa::workers::handle_admit(request, &env).await;
+    #[cfg(feature = "ml-dsa")]
+    {
+        if path == crate::ml_dsa::workers::recipient_keys::PATH {
+            return crate::ml_dsa::workers::recipient_keys::handle(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::SIGN_PATH {
+            return crate::ml_dsa::workers::handle_sign(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::registration::PREPARE_PATH {
+            return crate::ml_dsa::workers::registration::handle_prepare(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::registration::REGISTER_PATH {
+            return crate::ml_dsa::workers::registration::handle_register(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::ACTIVATE_PATH {
+            return crate::ml_dsa::workers::handle_activate(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::COMPLETE_PATH {
+            return crate::ml_dsa::workers::handle_complete(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::STATUS_PATH {
+            return crate::ml_dsa::workers::handle_status(request, &env).await;
+        }
+        if path == crate::ml_dsa::workers::ADMIT_PATH {
+            return crate::ml_dsa::workers::handle_admit(request, &env).await;
+        }
     }
     if path == "/router-ab/router/wallet/allocate" {
         if let Err(error) = require_cloudflare_gateway_to_router_auth_request_v1(&request, &env) {

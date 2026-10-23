@@ -15,7 +15,7 @@ import { parseWalletId } from '../../packages/shared-ts/src/utils/domainIds';
 import { requireParsed } from '../../packages/shared-ts/src/passkey-custody/primitives';
 import { ROUTER_AB_INTERNAL_SERVICE_AUTH_HEADER_V1 } from '../../packages/wallet-server/src/core/ThresholdService/routerAb/internalServiceHttp';
 import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
-import signerModule from '../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm';
+import signerModule from '../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm';
 
 type Environment = {
   readonly SIGNER_DB: D1DatabaseLike;
@@ -52,7 +52,7 @@ function service(env: Environment) {
       resolveActiveLineage: noTenantRootLineage,
       resolveActiveLineageForRuntimeScope: noTenantRootLineage,
     },
-    signerWasmModuleOrPath: signerModule,
+    mlDsaSignerWasmModuleOrPath: signerModule,
     mlDsaRegistrationProxy: {
       internalServiceAuthSecret: env.GATEWAY_TOKEN,
       fetch: env.MPC_ROUTER.fetch.bind(env.MPC_ROUTER),

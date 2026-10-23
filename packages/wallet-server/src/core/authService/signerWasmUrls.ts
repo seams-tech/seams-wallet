@@ -5,8 +5,13 @@ const SIGNER_WASM_PACKAGE_DIST_PATH = '../../wasm/near_signer/pkg/wasm_signer_wo
 // Source-tree location when executed directly from packages/wallet-server/src/core/authService.
 const SIGNER_WASM_SOURCE_PATH = '../../../../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm';
 
-export function getSignerWasmUrls(logger: NormalizedLogger): URL[] {
-  const paths = [SIGNER_WASM_PACKAGE_DIST_PATH, SIGNER_WASM_SOURCE_PATH];
+export function getSignerWasmUrls(logger: NormalizedLogger, kind: 'near' | 'ml-dsa'): URL[] {
+  const paths = kind === 'near'
+    ? [SIGNER_WASM_PACKAGE_DIST_PATH, SIGNER_WASM_SOURCE_PATH]
+    : [
+        '../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm',
+        '../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm',
+      ];
   const resolved: URL[] = [];
   const baseUrl = import.meta.url;
 

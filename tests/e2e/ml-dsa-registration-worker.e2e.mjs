@@ -49,7 +49,8 @@ export default { fetch };
 `;
 
 const root = resolve(import.meta.dirname, '../..');
-const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
+const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build/ml-dsa');
+const standardBuildRoot = process.env.ML_DSA_TEST_STANDARD_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
@@ -119,6 +120,13 @@ const observations = {
 observations.builds = Object.fromEntries(
   await Promise.all(['router', 'deriver-a', 'deriver-b'].map(buildHash)),
 );
+if (!hostedUrl) {
+  observations.standardRouterForwarding = {
+    wasmSha256: createHash('sha256')
+      .update(await readFile(join(standardBuildRoot, 'router/index_bg.wasm'))).digest('hex'),
+    path: 'Gateway -> standard Router -> ML-DSA Router -> A/B',
+  };
+}
 observations.deliveryFixtureSha256 = createHash('sha256').update(registrationDeliveryScript).digest('hex');
 observations.scriptSha256 = createHash('sha256')
   .update(await readFile(import.meta.filename))
@@ -142,7 +150,7 @@ class RegistrationRouterProxy {
       const url = new URL(new URL(request.url).pathname, hostedUrl);
       return fetch(new Request(url, request));
     }
-    return (await runtime.getWorker('router')).fetch(request.url, {
+    return (await runtime.getWorker('gateway-router')).fetch(request.url, {
       method: request.method,
       headers: Object.fromEntries(request.headers),
       body: await request.arrayBuffer(),
@@ -489,6 +497,12 @@ function base(name, build, extra) {
 function workers() {
   return [
     {
+      ...base('gateway-router', 'router', {}),
+      scriptPath: join(standardBuildRoot, 'router/worker/shim.mjs'),
+      modulesRoot: standardBuildRoot,
+      serviceBindings: { ML_DSA_ROUTER: 'router' },
+    },
+    {
       ...base('router', 'router', {}),
       durableObjects: {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
@@ -683,7 +697,7 @@ async function raw(path, input, credential, requestId = randomBytes(16).toString
     signal: AbortSignal.timeout(360000),
   };
   if (hostedUrl) return fetch(new URL(path, hostedUrl), init);
-  return (await runtime.getWorker('router')).fetch(`https://ml-dsa.internal${path}`, init);
+  return (await runtime.getWorker('gateway-router')).fetch(`https://ml-dsa.internal${path}`, init);
 }
 async function post(path, input) {
   const requestId = randomBytes(16).toString('hex');

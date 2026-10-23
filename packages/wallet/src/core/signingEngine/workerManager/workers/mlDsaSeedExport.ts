@@ -2,16 +2,12 @@ import type {
   MlDsaSeedExportWorkerPayload,
   ExportPrivateKeysWithUiWorkerResult,
 } from '@/core/types/secure-confirm-worker';
-import { parseNearTransactionSigner } from '../../chains/near/transactionSigner';
-import { parsePasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
-import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
+import { requireCanonicalString } from '@shared/utils/validation';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { base58Encode } from '@shared/utils/base58';
 import {
   parseWalletId,
-  parseWebAuthnRpId,
-  parseWebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { requireParsed } from '@shared/passkey-custody/primitives';
 import {
@@ -27,41 +23,7 @@ import {
 } from '../../stepUpConfirmation/channel/confirmTypes';
 import { normalizeAuthenticationCredential } from '../../webauthnAuth/credentials/helpers';
 import { redactCredentialExtensionOutputs } from '../../webauthnAuth/credentials/credentialExtensions';
-import { passkey_custody_open_wallet_seed_v1 } from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
-
-export function parseMlDsaSeedExportPayload(raw: unknown): MlDsaSeedExportWorkerPayload {
-  const r = requireRecord(raw, 'ML-DSA export');
-  const signer = parseNearTransactionSigner(r.signer);
-  if (signer.kind !== 'near_ml_dsa_65') throw new Error('ML-DSA export requires an ML-DSA key');
-  const walletId = requireParsed(parseWalletId(r.walletId), 'walletId');
-  const credentialIdB64u = requireParsed(
-    parseWebAuthnCredentialIdB64u(r.credentialIdB64u),
-    'credentialIdB64u',
-  );
-  const envelope = parsePasskeyCustodyEnvelopeRecord(r.envelope, 'ML-DSA custody envelope');
-  if (
-    r.artifactKind !== 'ml-dsa-65-fips-seed-export-v1' ||
-    envelope.walletId !== walletId ||
-    envelope.factor.kind !== 'passkey' ||
-    envelope.factor.credentialIdB64u !== credentialIdB64u ||
-    envelope.binding.kind !== 'wallet_custody_seed_v1' ||
-    envelope.lifecycle.state !== 'active'
-  )
-    throw new Error('ML-DSA export requires this owner’s active wallet seed envelope');
-  return {
-    artifactKind: 'ml-dsa-65-fips-seed-export-v1',
-    viewerSessionId: requireCanonicalString(r.viewerSessionId, 'viewerSessionId'),
-    walletId,
-    nearAccountId: requireCanonicalString(r.nearAccountId, 'nearAccountId'),
-    relayerUrl: requireCanonicalString(r.relayerUrl, 'relayerUrl'),
-    rpId: requireParsed(parseWebAuthnRpId(r.rpId), 'rpId'),
-    credentialIdB64u,
-    signer,
-    envelope,
-    variant: r.variant === 'modal' || r.variant === 'drawer' ? r.variant : undefined,
-    theme: r.theme === 'dark' || r.theme === 'light' ? r.theme : undefined,
-  };
-}
+import { passkey_custody_open_wallet_seed_v1 } from '../../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 
 export async function exportMlDsaSeedWithUi(
   payload: MlDsaSeedExportWorkerPayload,

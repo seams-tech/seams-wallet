@@ -59,7 +59,7 @@ pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     Ok(())
 }
 
-#[durable_object]
+#[cfg_attr(not(feature = "strict-worker-router-entrypoint"), durable_object)]
 pub struct RouterAbMlDsaProducerDurableObject {
     state: State,
     env: Env,
@@ -68,6 +68,7 @@ pub struct RouterAbMlDsaProducerDurableObject {
     created_at_ms: Option<u64>,
     storage_gate: futures::lock::Mutex<()>,
 }
+#[cfg(not(feature = "strict-worker-router-entrypoint"))]
 impl DurableObject for RouterAbMlDsaProducerDurableObject {
     fn new(state: State, env: Env) -> Self {
         Self {

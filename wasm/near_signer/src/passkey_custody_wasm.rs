@@ -92,6 +92,7 @@ impl WasmPasskeyCustodyHandleV1 {
     }
 
     /// Explicit export only. Normal signing never constructs this full seed.
+    #[cfg(feature = "ml-dsa")]
     pub fn export_ml_dsa65_seed(
         self,
         wallet_id: &str,

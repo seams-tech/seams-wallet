@@ -98,7 +98,10 @@ else
 fi
 
 print_step "Copying worker WASM binaries next to worker JS..."
+cp "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker_bg.wasm" "$BUILD_ESM/sdk/"
+cp "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa/ml_dsa_signer_bg.wasm" "$BUILD_ESM/sdk/"
 if cp "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker_bg.wasm" "$BUILD_WORKERS/" 2>/dev/null; then print_success "Signer WASM copied"; else print_warning "Signer WASM not found"; fi
+cp "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa/ml_dsa_signer_bg.wasm" "$BUILD_WORKERS/"
 if cp "$SDK_ROOT/$SOURCE_ED25519_YAO_CLIENT/pkg/router_ab_ed25519_yao_client_bg.wasm" "$BUILD_WORKERS/$ED25519_YAO_CLIENT_WASM" 2>/dev/null; then print_success "Ed25519 Yao Client WASM copied"; else print_warning "Ed25519 Yao Client WASM not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_ECDSA_CLIENT/pkg/router_ab_ecdsa_client_bg.wasm" "$BUILD_WORKERS/" 2>/dev/null; then print_success "ECDSA client signer WASM copied"; else print_warning "ECDSA client signer WASM not found"; fi
 if cp "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto_bg.wasm" "$BUILD_WORKERS/evm_crypto_bg.wasm" 2>/dev/null; then print_success "evm_crypto_bg.wasm copied"; else print_warning "evm_crypto_bg.wasm not found"; fi
