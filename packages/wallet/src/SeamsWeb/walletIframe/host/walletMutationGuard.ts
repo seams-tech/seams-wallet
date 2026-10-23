@@ -37,6 +37,7 @@ function mutationWallet(
   switch (request.type) {
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
+    case 'PM_ADD_VOICEID':
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
     case 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP':

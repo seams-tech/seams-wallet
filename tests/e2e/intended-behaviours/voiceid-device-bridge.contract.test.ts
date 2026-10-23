@@ -50,6 +50,14 @@ function abortCapture(): void {
   window.voiceIdDeviceCaptureProbe.abort();
 }
 
+function startWalletActivation(): void {
+  window.voiceIdDeviceCaptureProbe.startWalletActivation();
+}
+
+function setApproved(): void {
+  window.voiceIdDeviceCaptureProbe.setMode('approved');
+}
+
 test('VoiceID browser bridge checks device identity, origin, signature, and cancellation', runJourney);
 
 async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
@@ -114,6 +122,19 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
   await expect(page.evaluate(captureResult)).rejects.toThrow('cancelled');
   expect(await page.evaluate(requestCount)).toBe(5);
 
+  await page.evaluate(setApproved);
+  await page.evaluate(startWalletActivation);
+  expect(await page.evaluate(requestCount)).toBe(5);
+  await page.getByRole('button', { name: 'Activate VoiceID' }).click();
+  const walletActivation = requireRecord(await page.evaluate(captureResult), 'Wallet VoiceID activation');
+  expect(walletActivation.walletId).toBe('wallet:voiceid-browser');
+  expect(await page.evaluate(requestCount)).toBe(6);
+
+  await page.evaluate(startWalletActivation);
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.evaluate(captureResult)).rejects.toThrow('cancelled');
+  expect(await page.evaluate(requestCount)).toBe(6);
+
   const reportPath = testInfo.outputPath('voiceid-device-bridge.json');
   await writeFile(reportPath, `${JSON.stringify({
     schemaVersion: 'voiceid_device_bridge_journey_v1',
@@ -126,6 +147,8 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
       'changed_wallet_origin_rejected_before_native_request',
       'mismatched_device_key_rejected',
       'cancelled_capture_aborts_local_request',
+      'wallet_origin_button_starts_capture_only_after_click',
+      'wallet_activation_cancel_does_not_start_capture',
     ],
   }, null, 2)}\n`);
   await testInfo.attach('voiceid-device-bridge.json', {

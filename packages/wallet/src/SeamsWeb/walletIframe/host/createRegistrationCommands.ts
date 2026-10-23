@@ -17,6 +17,7 @@ import { addEmailOtpWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/e
 import { readNearProvisioningState } from '@/core/signingEngine/flows/registration/nearProvisioningRegistry';
 import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
+import { walletAuthMethodPluginEnabled } from '@/core/authMethods/plugins';
 
 export function createWalletHostRegistrationCommands(
   getContext: () => RegistrationWebContext,
@@ -26,6 +27,7 @@ export function createWalletHostRegistrationCommands(
     getNearAccountState: getNearAccountState.bind(null, getContext),
     addSigner: addSigner.bind(null, getContext),
     addPasskey: addPasskey.bind(null, getContext),
+    addVoiceId: addVoiceId.bind(null, getContext),
     removeAuthMethod: removeAuthMethod.bind(null, getContext),
     addEmail: addEmail.bind(null, getContext),
   };
@@ -80,6 +82,20 @@ async function addPasskey(
     rpId: args.rpId,
     options: args.options,
   });
+}
+
+async function addVoiceId(
+  getContext: () => RegistrationWebContext,
+  args: Parameters<RegistrationCapability['addVoiceId']>[0],
+): ReturnType<RegistrationCapability['addVoiceId']> {
+  const context = getContext();
+  if (!walletAuthMethodPluginEnabled(context.configs.authMethods, 'voiceid')) {
+    throw new Error('Enable the VoiceID auth method plugin before activation.');
+  }
+  const { addVoiceIdWalletAuthMethod } = await import(
+    '@/SeamsWeb/operations/authMethods/voiceId/addVoiceId'
+  );
+  return await addVoiceIdWalletAuthMethod({ context, walletId: args.walletId });
 }
 
 async function removeAuthMethod(

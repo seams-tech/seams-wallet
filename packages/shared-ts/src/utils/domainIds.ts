@@ -300,11 +300,10 @@ export function parsePasskeyEnvelopeId(raw: unknown): DomainIdParseResult<Passke
 /**
  * Mints a wallet auth-method id.
  *
- * Server-side only, and there is exactly one of these because an auth method's
- * identity is now authenticated data: it goes into the custody envelope's AAD,
- * so an id minted to a second shape would seal envelopes the parsers reject.
- * A client never chooses one — registration and every addition receive theirs
- * from the intent that allocated it.
+ * Registration allocates this identity on the server. Device-bound VoiceID
+ * activation allocates it in the Wallet before sealing its custody envelope.
+ * Both paths use this builder because the identity is authenticated data in
+ * the custody envelope's AAD.
  */
 export function allocateWalletAuthMethodId(randomSuffix: string): WalletAuthMethodId {
   const parsed = parseWalletAuthMethodId(`wallet-auth-method:${randomSuffix}`);

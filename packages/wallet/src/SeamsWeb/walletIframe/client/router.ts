@@ -292,6 +292,7 @@ type WalletIframeRequestSurfaceKind =
   | 'auth_menu'
   | 'registration'
   | 'email_otp_enrollment'
+  | 'voiceid_activation'
   | 'transaction'
   | 'key_export_near'
   | 'key_export_threshold'
@@ -367,6 +368,8 @@ function requestSurfaceKindForMessage(
     case 'PM_ADD_PASSKEY':
     case 'PM_ROTATE_WALLET_RECOVERY_CODES':
       return 'registration';
+    case 'PM_ADD_VOICEID':
+      return 'voiceid_activation';
     case 'PM_ADD_EMAIL_OTP':
       return 'email_otp_enrollment';
     case 'PM_GET_WALLET_RECOVERY_CODE_STATUS':
@@ -476,6 +479,8 @@ function requestSurfacePresentationFor(
       return confirmationUiModeForRequest('PM_ADD_EMAIL_OTP', payload, fallbackUiMode) === 'drawer'
         ? drawerWalletIframeSurfacePresentation('Enter email code')
         : modalWalletIframeSurfacePresentation('Enter email code');
+    case 'voiceid_activation':
+      return modalWalletIframeSurfacePresentation('Activate VoiceID');
     case 'transaction':
       return effectiveTransactionSurfaceUiMode(payload, fallbackUiMode) === 'drawer'
         ? drawerWalletIframeSurfacePresentation('Confirm transaction')
@@ -1072,6 +1077,7 @@ function createTerminalProgressForRequest(args: {
   const registrationRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_REGISTER_WALLET',
     'PM_ADD_PASSKEY',
+    'PM_ADD_VOICEID',
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
@@ -2119,12 +2125,13 @@ export class WalletIframeRouter {
         break;
       }
       case 'email_otp_enrollment':
+      case 'voiceid_activation':
         result = this.transitionWalletIframeSurface({
           kind: 'transaction_modal_request_started',
           connectionId,
           identity,
           presentation: requestSurfacePresentationFor(
-            'email_otp_enrollment',
+            args.kind,
             args.payload,
             this.mirroredConfirmationUiMode ?? undefined,
           ),
@@ -3047,6 +3054,17 @@ export class WalletIframeRouter {
       },
     });
     return res.result;
+  }
+
+  async addVoiceId(
+    payload: Parameters<RegistrationCapability['addVoiceId']>[0],
+  ): ReturnType<RegistrationCapability['addVoiceId']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<Awaited<ReturnType<RegistrationCapability['addVoiceId']>>>(
+      { type: 'PM_ADD_VOICEID', payload: { walletId } },
+      { timeout: 'interactive' },
+    );
+    return response.result;
   }
 
   async addEmail(
@@ -4413,7 +4431,12 @@ export class WalletIframeRouter {
     const deadlineAtMs = timeoutPolicy.kind === 'deadline' ? timeoutPolicy.deadlineAtMs : null;
     const surfaceKind = requestSurfaceKindForMessage(envelope.type, full.payload);
     let transactionSurfaceLease: WalletIframeTransactionSurfaceLease | null = null;
-    if (!reservation && (surfaceKind === 'transaction' || surfaceKind === 'email_otp_enrollment')) {
+    if (
+      !reservation &&
+      (surfaceKind === 'transaction' ||
+        surfaceKind === 'email_otp_enrollment' ||
+        surfaceKind === 'voiceid_activation')
+    ) {
       const queueDeadline: WalletIframeTransactionSurfaceDeadline =
         timeoutPolicy.kind === 'deadline'
           ? { kind: 'deadline', atMs: timeoutPolicy.deadlineAtMs }

@@ -72,6 +72,7 @@ async function voiceIdPolicyForConfiguredRequest(
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-confirmation-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-voiceid-activation-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-export-surface', cancellationKind: 'wallet_iframe_cancel' },
   {
     selector: '[data-seams-wallet-recovery-backup-dialog]',

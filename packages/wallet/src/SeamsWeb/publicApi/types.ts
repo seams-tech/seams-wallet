@@ -116,6 +116,7 @@ import type {
   WalletEmailOtpChannel,
 } from '@shared/utils/emailOtpDomain';
 import type { WalletId } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type {
   AddSignerSelection,
   RegistrationSignerSetSelection,
@@ -701,6 +702,11 @@ export interface AuthCapability {
 }
 
 export interface RegistrationCapability {
+  /** Activate this device as a VoiceID unlock method after an owner unlock. */
+  addVoiceId(args: { walletId: WalletId | string }): Promise<{
+    walletId: WalletId;
+    walletAuthMethodId: WalletAuthMethodId;
+  }>;
   getNearAccountState(args: {
     walletId: WalletId | string;
   }): Promise<NearProvisioningState | null>;

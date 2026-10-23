@@ -823,6 +823,7 @@ export type ParentToChildType =
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
+  | 'PM_ADD_VOICEID'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_UNLOCK'
@@ -1058,6 +1059,10 @@ interface PMAddPasskeyPayload {
   rpId: string;
   confirmationConfig?: Partial<ConfirmationConfig>;
   options?: Record<string, unknown>;
+}
+
+interface PMAddVoiceIdPayload {
+  walletId: WalletId | string;
 }
 
 interface PMAddEmailOtpPayload {
@@ -1614,6 +1619,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_REGISTER_WALLET', PMRegisterWalletPayload>
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
+  | RpcEnvelope<'PM_ADD_VOICEID', PMAddVoiceIdPayload>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>

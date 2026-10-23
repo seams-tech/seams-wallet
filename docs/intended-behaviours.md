@@ -154,13 +154,16 @@ again before it consumes the signed proof. Session issuance rechecks the
 method and authority in its D1 transaction. A replay cannot mint a second
 session.
 
-The browser has typed native capture and HTTP clients. An activation
-operation uses the worker-held seed to seal a VoiceID envelope. It saves only
-public pending data before the server request. A lost response can retry the
-same method and ciphertext without another reseal. The current SDK plugin
-still selects the local approval prototype above. The Wallet host must call
-the activation operation during a visible user action. It must also open the
-seed envelope and activate signing lanes after voice-only unlock.
+The browser has typed native capture and HTTP clients. Applications call
+`registration.addVoiceId({ walletId })` after an owner unlock while the
+`voiceIdAuthMethod()` plugin is enabled. The Wallet host loads the activation
+code on demand. It checks the exact owner session and shows a Wallet-origin
+Activate button. Selecting that button starts native capture while browser
+user activation is present. The operation uses the worker-held seed to seal a
+VoiceID envelope. It saves only public pending data before the server request.
+A lost response can retry the same method and ciphertext without another
+reseal. Voice-only unlock still needs a Wallet host action that opens the seed
+envelope and activates signing lanes.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
@@ -193,8 +196,8 @@ A subsequent review requires fresh voice approval. Cancelling that voice check
 prevents another signature and broadcast. The unavailable replies establish no
 on-chain outcome.
 
-The private repository owns the real extension, native models, capture, and
-composed native/browser evaluation.
+The private repository owns the native models, capture, and composed
+native/browser evaluation.
 
 ## Worker preparation
 

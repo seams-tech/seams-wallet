@@ -12,6 +12,7 @@ import {
   captureVoiceIdUnlock,
 } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
 import { listenForVoiceApproval } from '@/core/signingEngine/uiConfirm/voiceId/bridge';
+import { showVoiceIdActivationSurface } from '@/SeamsWeb/operations/authMethods/voiceId/activationSurface';
 
 const BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 const originalFetch = window.fetch.bind(window);
@@ -214,6 +215,37 @@ function startHeld(): void {
   pending = activate();
 }
 
+async function activateThroughWalletButton(
+  signal: AbortSignal,
+  onListening: () => void,
+): Promise<{
+  walletId: ReturnType<typeof requireWalletId>;
+  walletAuthMethodId: ReturnType<typeof requireWalletAuthMethodId>;
+}> {
+  const walletId = requireWalletId();
+  const walletAuthMethodId = requireWalletAuthMethodId();
+  const capture = await captureVoiceIdActivation({
+    walletId,
+    walletAuthMethodId,
+    signal,
+    onListening,
+  });
+  capture.factorSecret32.fill(0);
+  return { walletId, walletAuthMethodId };
+}
+
+function requireWalletId() {
+  return requireValue(parseWalletId('wallet:voiceid-browser'));
+}
+
+function requireWalletAuthMethodId() {
+  return requireValue(parseWalletAuthMethodId('wallet-auth-method:voiceid-browser'));
+}
+
+function startWalletActivation(): void {
+  pending = showVoiceIdActivationSurface(activateThroughWalletButton);
+}
+
 function abort(): void {
   controller?.abort();
 }
@@ -247,10 +279,18 @@ declare global {
       requestCount: typeof requestCount;
       setMode: typeof setMode;
       prepareUnlock: typeof prepareUnlock;
+      startWalletActivation: typeof startWalletActivation;
     };
   }
 }
 
 window.fetch = bridgeFetch;
-window.voiceIdDeviceCaptureProbe = { abort, result, requestCount, setMode, prepareUnlock };
+window.voiceIdDeviceCaptureProbe = {
+  abort,
+  result,
+  requestCount,
+  setMode,
+  prepareUnlock,
+  startWalletActivation,
+};
 window.addEventListener('DOMContentLoaded', mount, { once: true });

@@ -20,6 +20,7 @@ type NearWalletRequestType =
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
+  | 'PM_ADD_VOICEID'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
@@ -157,6 +158,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_REGISTER_WALLET':
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
+    case 'PM_ADD_VOICEID':
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
     case 'PM_GET_NEAR_PROVISIONING_STATE':
