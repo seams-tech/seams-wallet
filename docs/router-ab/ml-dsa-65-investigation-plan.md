@@ -2,6 +2,9 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-23.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [metadata-batching experiment](ml-dsa-65-metadata-batch-report.md), after rebasing onto `dev` at `4c13b3f3`, remains unselected.
+Native and workerd correctness pass, but hosted creation takes 15.418 seconds, signing exhausts sixteen candidates, and recovery preparation fails with storage errors.
+The selected source and evaluator are restored. Next, correlate failed storage/participant operations and distinguish storage waits from protocol waits before selecting another optimization.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.

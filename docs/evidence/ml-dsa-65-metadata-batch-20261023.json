@@ -1,0 +1,92 @@
+{
+  "source_parent": "f6003ac2",
+  "dev_base": "4c13b3f3",
+  "patch_sha256": "bcf1ca4e4bfdb71d2a1099767c226d38c0083f614647f7f795505ec6627763db",
+  "native_cases": 6,
+  "local_functional_passed": true,
+  "hosted_creation_ms": 15417.932749999993,
+  "hosted_preparation_ms": 107610.082417,
+  "initial_signature": {
+    "failed": true,
+    "verified": null,
+    "elapsedMs": 19937.41225000001
+  },
+  "registration_execution": [
+    {
+      "role": "a",
+      "cpu_ms": 337,
+      "wall_ms": 13312
+    },
+    {
+      "role": "b",
+      "cpu_ms": 2931,
+      "wall_ms": 13230
+    }
+  ],
+  "failed_recovery_request": {
+    "path": "/router-ab/ml-dsa/registration/prepare",
+    "status": 500,
+    "elapsedMs": 129103.98999999999,
+    "httpRequest": "f0b632bf68c953b1e6ba5644f8e364fd"
+  },
+  "selection": "Do not select without a demonstrated hosted gain. Preserve experiment; restore the production source.",
+  "limits": [
+    "One creation sample; no paired same-window control.",
+    "The new path removes metadata API calls but does not qualify lower latency.",
+    "Storage resets also occurred before this candidate; cause remains unresolved.",
+    "No cross-Worker clock subtraction or cold-start attribution.",
+    "The Router exactly joins the failed HTTP request. Participant failure associations remain timing/path inferences because their IDs are missing."
+  ],
+  "changed_binary_roles": [
+    "b",
+    "preparer-b"
+  ],
+  "redeployed_roles": [
+    "router",
+    "a",
+    "b",
+    "preparer-a",
+    "preparer-b",
+    "front"
+  ],
+  "schema": "seams.ml-dsa-metadata-batch-screen.v1",
+  "selected": false,
+  "selected_evaluator_restored_sha256": "ea854b2156fbe61edd0d7a4a6fe92d608945720795fc5677c1c4a5f34e941b26",
+  "native_validation": {
+    "canonical_cases": 6,
+    "missing_metadata_rejected": true,
+    "later_tombstone_writes_rolled_back": true,
+    "cache_limit_frames": 32
+  },
+  "local_validation": {
+    "workerd_functional_passed": true,
+    "canonical_recovery": true,
+    "restart": true,
+    "scope": "Worker/Gateway lifecycle fixtures; no full recovery-code or QR ceremony in this screen."
+  },
+  "metadata_read_shape": {
+    "frames": 643,
+    "batches": 24,
+    "old_metadata_reads": 643,
+    "candidate_metadata_reads": 24,
+    "qualification": "API-call count follows the implementation and observed frame/batch counts; it is not a latency speedup."
+  },
+  "validation": {
+    "worker_compile": "passed",
+    "server_typecheck": "passed",
+    "intended_typecheck": "passed",
+    "independent_review": "No production defect found; conservative non-selection supported.",
+    "bloat": "Inherited Rust duplication excess unchanged: 13972 versus 13754"
+  },
+  "cleanup": {
+    "temporary_workers_deleted": 6,
+    "candidate_source_restored": true,
+    "selected_evaluator_rebuilt": true,
+    "native_tool_rebuilt": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-metadata-batch-20261023-data.json.gz",
+    "bytes": 232431,
+    "sha256": "177b4c30b51eba05ff2a4c52d5d72cc7457a406d60d3ed9e6aae3075830d5fd1"
+  }
+}
