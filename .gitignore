@@ -44,6 +44,7 @@ crates/router-ab-cloudflare/reports/startup-latencies/*.json
 wasm/*/pkg
 wasm/*/target
 wasm/near_signer/pkg
+wasm/near_signer/pkg-ml-dsa
 wasm/near_signer/target
 wasm/tempo_signer/pkg
 wasm/tempo_signer/target

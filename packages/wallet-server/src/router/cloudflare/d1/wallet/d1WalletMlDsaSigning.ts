@@ -48,7 +48,7 @@ import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { verifyWebAuthnAuthenticationLiteWithStore } from '../../../../core/authService/webauthn';
 import {
-  ensureSignerWasmRuntime,
+  ensureMlDsaSignerWasmRuntime,
   type SignerWasmRuntimeState,
 } from '../../../../core/authService/wasm';
 import { normalizeLogger } from '../../../../core/logger';
@@ -95,7 +95,7 @@ import type {
 import {
   ml_dsa65_inspect_near_transaction,
   ml_dsa65_finalize_near_transaction,
-} from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+} from '../../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 
 export type MlDsaSigningExecuteRequest = {
   readonly walletId: WalletId;
@@ -165,7 +165,7 @@ export class D1WalletMlDsaSigning {
       >;
       readonly webAuthnStore: CloudflareD1WebAuthnStore;
       readonly authorizations: AuthorizationService;
-      readonly signerWasmModuleOrPath?: SignerWasmModuleSupplier;
+      readonly mlDsaSignerWasmModuleOrPath?: SignerWasmModuleSupplier;
     },
   ) {
     this.records = new CloudflareD1VersionedJsonRecordStore({
@@ -191,9 +191,9 @@ export class D1WalletMlDsaSigning {
     });
   }
   private async initializeCodec(): Promise<void> {
-    this.wasmState = await ensureSignerWasmRuntime({
+    this.wasmState = await ensureMlDsaSignerWasmRuntime({
       state: this.wasmState,
-      override: this.options.signerWasmModuleOrPath,
+      override: this.options.mlDsaSignerWasmModuleOrPath,
       logger: normalizeLogger(),
     });
   }

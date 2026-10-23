@@ -137,7 +137,7 @@ try {
   });
   const api = await import(pathToFileURL(bundle).href);
   await api.initializeSigningCodec(
-    await readFile(join(root, 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm')),
+    await readFile(join(root, 'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm')),
   );
   const baseline = JSON.parse(
     await readFile(join(root, 'docs/evidence/ml-dsa-65-browser-hosted-20261021.json')),

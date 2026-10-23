@@ -240,9 +240,13 @@ pub fn signing_schedule_digest(
     schedules: &[TrustedMlDsaSchedule<'_>],
     candidates: u16,
 ) -> [u8; 32] {
+    signing_layout_digest(schedule_digest(schedules), candidates)
+}
+/// Public admission binding without loading the participant circuit payloads.
+pub fn signing_layout_digest(schedule: [u8; 32], candidates: u16) -> [u8; 32] {
     let mut hash = Sha256::new();
     hash.update(b"seams/ml-dsa/signing-layout/v1");
-    hash.update(schedule_digest(schedules));
+    hash.update(schedule);
     hash.update(candidates.to_le_bytes());
     hash.finalize().into()
 }

@@ -1,0 +1,28 @@
+name = "router-ab-ml-dsa-preparer-b"
+main = "build/ml-dsa/deriver-b/worker/shim.mjs"
+compatibility_date = "2026-06-12"
+workers_dev = false
+preview_urls = false
+
+[vars]
+ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET_BINDING = "ROUTER_AB_INTERNAL_SERVICE_AUTH_SECRET"
+DERIVER_ROLE_PRIVATE_D1_ROLE = "deriver_b"
+DERIVER_ROLE_PRIVATE_D1_KEK_BINDING = "ML_DSA_ROLE_KEK"
+DERIVER_ROLE_PRIVATE_D1_KEK_VERSION = "ml-dsa-v1"
+
+[[services]]
+binding = "DERIVER_B"
+service = "router-ab-ml-dsa-preparer-b"
+
+[[durable_objects.bindings]]
+name = "ML_DSA_ADMISSION_DO"
+class_name = "RouterAbMlDsaAdmissionDurableObject"
+script_name = "router-ab-ml-dsa-router"
+
+[[durable_objects.bindings]]
+name = "ML_DSA_POOL_DO"
+class_name = "RouterAbMlDsaPoolDurableObject"
+script_name = "router-ab-ml-dsa-b"
+
+[build]
+command = "bash scripts/build-strict-worker.sh deriver-b ml-dsa"

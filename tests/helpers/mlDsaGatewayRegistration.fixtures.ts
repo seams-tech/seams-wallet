@@ -179,7 +179,7 @@ export {
   prepareMlDsaSigningSession,
   revokeMlDsaSigningSession,
 } from '../../packages/wallet/src/core/rpcClients/relayer/mlDsaSigning';
-import initSigner from '../../wasm/near_signer/pkg/wasm_signer_worker.js';
+import initSigner from '../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 let signingModule: WebAssembly.Module | null = null;
 export async function initializeSigningCodec(bytes: Uint8Array): Promise<void> {
   const copied = new Uint8Array(bytes.length);

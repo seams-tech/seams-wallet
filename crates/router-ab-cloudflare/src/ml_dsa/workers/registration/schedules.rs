@@ -1,6 +1,9 @@
 use super::*;
 use std::sync::OnceLock;
 
+// Hash of the ordered, pinned circuit digests. Participants validate the full circuits.
+pub(super) const DIGEST: [u8; 32] = [77, 25, 103, 214, 28, 164, 35, 162, 140, 109, 92, 105, 13, 171, 69, 26, 219, 224, 35, 38, 215, 68, 56, 144, 15, 119, 227, 130, 252, 5, 222, 144];
+
 static SCHEDULES: OnceLock<Result<Vec<TrustedMlDsaSchedule<'static>>>> = OnceLock::new();
 
 pub(super) fn load() -> Result<&'static [TrustedMlDsaSchedule<'static>]> {

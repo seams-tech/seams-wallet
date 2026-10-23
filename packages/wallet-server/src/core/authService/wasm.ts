@@ -1,6 +1,7 @@
 import initSignerWasm, {
   type InitInput,
 } from '../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+import initMlDsaSignerWasm from '../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 import type { NormalizedLogger } from '../logger';
 import type { SignerWasmModuleSupplier } from '../types';
 import { getSignerWasmUrls } from './signerWasmUrls';
@@ -34,7 +35,12 @@ async function resolveSignerWasmOverride(override: SignerWasmModuleSupplier): Pr
   return candidate;
 }
 
-async function initSignerWasmForNode(candidates: readonly URL[]): Promise<void> {
+type SignerWasmInitializer = (input: { module_or_path: InitInput }) => Promise<unknown>;
+
+async function initSignerWasmForNode(
+  candidates: readonly URL[],
+  initialize: SignerWasmInitializer,
+): Promise<void> {
   const { fileURLToPath } = await import('node:url');
   const { readFile } = await import('node:fs/promises');
 
@@ -45,7 +51,7 @@ async function initSignerWasmForNode(candidates: readonly URL[]): Promise<void> 
       const buffer = new ArrayBuffer(bytes.byteLength);
       new Uint8Array(buffer).set(bytes);
       const module = await WebAssembly.compile(buffer);
-      await initSignerWasm({ module_or_path: module });
+      await initialize({ module_or_path: module });
       return;
     } catch {
       // try the next filesystem candidate
@@ -55,7 +61,7 @@ async function initSignerWasmForNode(candidates: readonly URL[]): Promise<void> 
   for (const url of candidates) {
     try {
       const filePath = fileURLToPath(url);
-      await initSignerWasm({ module_or_path: filePath });
+      await initialize({ module_or_path: filePath });
       return;
     } catch {
       // try the next path candidate
@@ -67,17 +73,18 @@ async function initSignerWasmForNode(candidates: readonly URL[]): Promise<void> 
 
 async function initSignerWasmFromCandidates(input: {
   readonly candidates: readonly URL[];
+  readonly initialize: SignerWasmInitializer;
   readonly logger: NormalizedLogger;
 }): Promise<void> {
   if (isNodeEnvironment()) {
-    await initSignerWasmForNode(input.candidates);
+    await initSignerWasmForNode(input.candidates, input.initialize);
     return;
   }
 
   let lastError: unknown = null;
   for (const candidate of input.candidates) {
     try {
-      await initSignerWasm({ module_or_path: candidate });
+      await input.initialize({ module_or_path: candidate });
       return;
     } catch (error: unknown) {
       lastError = error;
@@ -90,17 +97,31 @@ async function initSignerWasmFromCandidates(input: {
   throw lastError ?? new Error('Unable to initialize signer WASM from any candidate URL');
 }
 
-export async function ensureSignerWasmRuntime(input: {
+type SignerWasmRuntimeInput = {
   readonly state: SignerWasmRuntimeState;
   readonly override?: SignerWasmModuleSupplier;
   readonly logger: NormalizedLogger;
-}): Promise<SignerWasmRuntimeState> {
+};
+
+export function ensureSignerWasmRuntime(input: SignerWasmRuntimeInput): Promise<SignerWasmRuntimeState> {
+  return ensureWasmRuntime(input, 'near');
+}
+
+export function ensureMlDsaSignerWasmRuntime(input: SignerWasmRuntimeInput): Promise<SignerWasmRuntimeState> {
+  return ensureWasmRuntime(input, 'ml-dsa');
+}
+
+async function ensureWasmRuntime(
+  input: SignerWasmRuntimeInput,
+  kind: 'near' | 'ml-dsa',
+): Promise<SignerWasmRuntimeState> {
+  const initialize = kind === 'near' ? initSignerWasm : initMlDsaSignerWasm;
   if (input.state.signerWasmReady) return input.state;
 
   if (input.override) {
     try {
       const moduleOrPath = await resolveSignerWasmOverride(input.override);
-      await initSignerWasm({ module_or_path: moduleOrPath });
+      await initialize({ module_or_path: moduleOrPath });
       return { signerWasmReady: true };
     } catch (error: unknown) {
       input.logger.error('Failed to initialize signer WASM via provided override:', error);
@@ -110,7 +131,7 @@ export async function ensureSignerWasmRuntime(input: {
 
   let candidates: URL[];
   try {
-    candidates = getSignerWasmUrls(input.logger);
+    candidates = getSignerWasmUrls(input.logger, kind);
   } catch (error: unknown) {
     input.logger.error('Failed to resolve signer WASM URLs:', error);
     throw error;
@@ -119,6 +140,7 @@ export async function ensureSignerWasmRuntime(input: {
   try {
     await initSignerWasmFromCandidates({
       candidates,
+      initialize,
       logger: input.logger,
     });
     return { signerWasmReady: true };

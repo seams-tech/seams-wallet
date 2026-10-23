@@ -1,5 +1,6 @@
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type {
+  MlDsaSeedExportWorkerPayload,
   ExportPrivateKeysWithUiWorkerPayload,
   ExportPrivateKeysWithUiWorkerResult,
   RouterAbEd25519YaoExportWorkerPayloadV1,
@@ -15,6 +16,8 @@ import {
   mpcMaterialActivationRefsEqual,
   parseMpcMaterialActivationRef,
   parseWalletId,
+  parseWebAuthnRpId,
+  parseWebAuthnCredentialIdB64u,
 } from '@shared/utils/domainIds';
 import { routerAbMpcMaterialActivationRefFromWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
@@ -53,7 +56,9 @@ import {
   parsePasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { walletCustodyCacheEnvelopeFromRecordV1 } from '../../walletCustody/openCustodyCache';
-import { parseMlDsaSeedExportPayload, exportMlDsaSeedWithUi } from './mlDsaSeedExport';
+import { parseNearTransactionSigner } from '../../chains/near/transactionSigner';
+import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
+import { requireParsed } from '@shared/passkey-custody/primitives';
 
 type ExportWorkerTarget = {
   kind: 'ecdsa';
@@ -355,6 +360,40 @@ function parseEd25519YaoExportWorkerPayload(
     },
     variant: coerceVariant(Reflect.get(payload, 'variant')),
     theme: coerceTheme(Reflect.get(payload, 'theme')),
+  };
+}
+
+function parseMlDsaSeedExportPayload(raw: unknown): MlDsaSeedExportWorkerPayload {
+  const r = requireRecord(raw, 'ML-DSA export');
+  const signer = parseNearTransactionSigner(r.signer);
+  if (signer.kind !== 'near_ml_dsa_65') throw new Error('ML-DSA export requires an ML-DSA key');
+  const walletId = requireParsed(parseWalletId(r.walletId), 'walletId');
+  const credentialIdB64u = requireParsed(
+    parseWebAuthnCredentialIdB64u(r.credentialIdB64u),
+    'credentialIdB64u',
+  );
+  const envelope = parsePasskeyCustodyEnvelopeRecord(r.envelope, 'ML-DSA custody envelope');
+  if (
+    r.artifactKind !== 'ml-dsa-65-fips-seed-export-v1' ||
+    envelope.walletId !== walletId ||
+    envelope.factor.kind !== 'passkey' ||
+    envelope.factor.credentialIdB64u !== credentialIdB64u ||
+    envelope.binding.kind !== 'wallet_custody_seed_v1' ||
+    envelope.lifecycle.state !== 'active'
+  )
+    throw new Error('ML-DSA export requires this owner’s active wallet seed envelope');
+  return {
+    artifactKind: 'ml-dsa-65-fips-seed-export-v1',
+    viewerSessionId: requireCanonicalString(r.viewerSessionId, 'viewerSessionId'),
+    walletId,
+    nearAccountId: requireCanonicalString(r.nearAccountId, 'nearAccountId'),
+    relayerUrl: requireCanonicalString(r.relayerUrl, 'relayerUrl'),
+    rpId: requireParsed(parseWebAuthnRpId(r.rpId), 'rpId'),
+    credentialIdB64u,
+    signer,
+    envelope,
+    variant: r.variant === 'modal' || r.variant === 'drawer' ? r.variant : undefined,
+    theme: r.theme === 'dark' || r.theme === 'light' ? r.theme : undefined,
   };
 }
 
@@ -798,6 +837,7 @@ export async function runPasskeyMpcExportWithUi(
   payload: ExportPrivateKeysWithUiWorkerPayload,
 ): Promise<ExportPrivateKeysWithUiWorkerResult> {
   if (payload.artifactKind === 'ml-dsa-65-fips-seed-export-v1') {
+    const { exportMlDsaSeedWithUi } = await import('./mlDsaSeedExport');
     return await exportMlDsaSeedWithUi(payload);
   }
   if (isRouterAbEd25519YaoExportWorkerPayload(payload)) {

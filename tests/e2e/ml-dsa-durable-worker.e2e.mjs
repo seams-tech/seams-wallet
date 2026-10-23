@@ -21,7 +21,7 @@ import { startProfiles, stopProfiles, closeProfiles } from '../../crates/ed25519
 const fixtures = resolve(process.argv[2] ?? '/private/tmp/ml-dsa-worker-fixtures');
 const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.json');
 const root = resolve(import.meta.dirname, '../..');
-const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build');
+const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build/ml-dsa');
 const options = new Set(process.argv.slice(4));
 for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--profile-memory', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
 const calibrateStages = options.has('--calibrate-stage-delays');

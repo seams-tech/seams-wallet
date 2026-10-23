@@ -44,7 +44,7 @@ import {
   ml_dsa65_build_near_transaction,
   ml_dsa65_near_key_identifiers,
   threshold_ed25519_decode_signed_near_tx_borsh,
-} from '../../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+} from '../../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 
 export type MlDsaNearTransactionInput = {
   readonly walletSession: WalletSessionRef;

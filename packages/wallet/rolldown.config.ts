@@ -33,12 +33,7 @@ const NEAR_SIGNER_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../wasm/near_signer/pkg/wasm_signer_worker.js',
 );
-const NEAR_SIGNER_WASM_DTS_ABS = path.resolve(
-  SDK_ROOT_ABS,
-  '../../wasm/near_signer/pkg/wasm_signer_worker.d.ts',
-);
 const NEAR_SIGNER_WASM_JS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.js';
-const NEAR_SIGNER_WASM_DTS_OUT = 'wasm/near_signer/pkg/wasm_signer_worker.d.ts';
 const ED25519_YAO_CLIENT_WASM_JS_ABS = path.resolve(
   SDK_ROOT_ABS,
   '../../crates/router-ab-ed25519-yao-client/pkg/router_ab_ed25519_yao_client.js',
@@ -604,37 +599,33 @@ const configs = [
       alias: aliasConfig,
     },
   },
-  // WASM Signer Worker build for server usage - includes WASM binary
+  // Separate public/ordinary signing from the optional ML-DSA verifier and export runtime.
   {
-    input: '../../wasm/near_signer/pkg/wasm_signer_worker.js',
+    input: {
+      'wasm/near_signer/pkg/wasm_signer_worker': NEAR_SIGNER_WASM_JS_ABS,
+      'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer': path.resolve(
+        SDK_ROOT_ABS, '../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js',
+      ),
+    },
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
       format: 'esm',
-      entryFileNames: 'wasm/near_signer/pkg/wasm_signer_worker.js',
+      entryFileNames: '[name].js',
     },
     plugins: [
       {
         name: 'emit-near-signer-wasm',
         generateBundle() {
-          try {
-            const source = fs.readFileSync(
-              path.join(SDK_ROOT_ABS, '../../wasm/near_signer/pkg/wasm_signer_worker_bg.wasm'),
-            );
-            (this as any).emitFile({
-              type: 'asset',
-              fileName: 'wasm/near_signer/pkg/wasm_signer_worker_bg.wasm',
-              source,
-            });
-            console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker_bg.wasm');
-            (this as any).emitFile({
-              type: 'asset',
-              fileName: NEAR_SIGNER_WASM_DTS_OUT,
-              source: fs.readFileSync(NEAR_SIGNER_WASM_DTS_ABS),
-            });
-            console.log('✅ Emitted dist/esm/wasm/near_signer/pkg/wasm_signer_worker.d.ts');
-          } catch (error) {
-            console.error('❌ Failed to copy signer WASM asset:', error);
-            throw error;
+          for (const moduleName of ['wasm_signer_worker', 'ml_dsa_signer']) {
+            const folder = moduleName === 'ml_dsa_signer' ? 'pkg-ml-dsa' : 'pkg';
+            for (const suffix of ['_bg.wasm', '.d.ts']) {
+              const relative = `wasm/near_signer/${folder}/${moduleName}${suffix}`;
+              this.emitFile({
+                type: 'asset',
+                fileName: relative,
+                source: fs.readFileSync(path.resolve(SDK_ROOT_ABS, '../..', relative)),
+              });
+            }
           }
         },
       },

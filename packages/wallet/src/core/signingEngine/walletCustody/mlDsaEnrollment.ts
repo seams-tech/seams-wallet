@@ -19,7 +19,7 @@ import {
 } from '../interfaces/ecdsaChainTarget';
 import type { WalletId } from '@shared/utils/domainIds';
 import { initializeMlDsaCodec } from '@/core/rpcClients/relayer/mlDsaSigning';
-import { ml_dsa65_near_key_identifiers } from '../../../../../../wasm/near_signer/pkg/wasm_signer_worker.js';
+import { ml_dsa65_near_key_identifiers } from '../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 
 type EnrollmentTarget = {
   readonly walletSession: WalletSessionRef;

@@ -62,6 +62,7 @@ for required in \
     "$BUILD_WORKERS/$WORKER_EMAIL_OTP_RUNTIME_JS" \
     "$BUILD_WORKERS/$WORKER_EMAIL_OTP_RUNTIME_WASM" \
     "$BUILD_WORKERS/wasm_signer_worker_bg.wasm" \
+    "$BUILD_WORKERS/ml_dsa_signer_bg.wasm" \
     "$BUILD_ESM/index.js" \
     "$BUILD_ESM/SeamsWeb/index.js" \
     "$BUILD_ESM/react/index.js" \

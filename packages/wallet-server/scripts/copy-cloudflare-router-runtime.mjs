@@ -28,6 +28,22 @@ for (const role of roles) {
   fs.writeFileSync(path.join(outputRoot, configName), removeSourceBuildCommand(config));
 }
 
+// ML-DSA has separate deployable binaries. Ordinary roles contain no ML-DSA engine.
+for (const role of ['router', 'deriver-a', 'deriver-b']) {
+  const relative = path.join('build', 'ml-dsa', role);
+  const sourceBuild = path.join(sourceRoot, relative);
+  if (!fs.existsSync(path.join(sourceBuild, 'worker', 'shim.mjs'))) {
+    throw new Error(`Missing ML-DSA runtime; run build-strict-worker.sh ${role} ml-dsa before packing`);
+  }
+  fs.cpSync(sourceBuild, path.join(outputRoot, relative), { recursive: true });
+  fs.rmSync(path.join(outputRoot, relative, '.gitignore'), { force: true });
+}
+for (const role of ['router', 'a', 'b', 'preparer-a', 'preparer-b']) {
+  const configName = `wrangler.ml-dsa-${role}.toml`;
+  const config = fs.readFileSync(path.join(sourceRoot, configName), 'utf8');
+  fs.writeFileSync(path.join(outputRoot, configName), removeSourceBuildCommand(config));
+}
+
 fs.cpSync(path.join(sourceRoot, 'migrations'), path.join(outputRoot, 'migrations'), {
   recursive: true,
 });

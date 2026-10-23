@@ -29,6 +29,9 @@ const manifest = {
     version: packageJson.version,
   },
   workers: Object.fromEntries(workerRoles.map((role) => [role, readWorkerArtifact(role)])),
+  mlDsaWorkers: Object.fromEntries(
+    ['router', 'deriver-a', 'deriver-b'].map((role) => [role, readWorkerArtifact(`ml-dsa/${role}`)]),
+  ),
   migrations: Object.fromEntries(
     Object.entries(migrationSets).map(([name, directory]) => [name, readMigrationSet(directory)]),
   ),

@@ -177,7 +177,7 @@ function resolveControl(args: { path: string; importer: string }) {
   if (/\/mlDsaTransaction\.ts$/.test(importer)) {
     if (args.path.endsWith('/mlDsaOwner') || args.path.endsWith('/mlDsaSigningSessions'))
       return { path: 'custody', namespace: 'ml-dsa-control' };
-    if (args.path.endsWith('/wasm_signer_worker.js'))
+    if (args.path.endsWith('/ml_dsa_signer.js'))
       return { path: 'codec', namespace: 'ml-dsa-control' };
   }
   if (

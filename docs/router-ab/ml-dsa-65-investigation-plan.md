@@ -2,6 +2,12 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-23.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [build-isolation screen](ml-dsa-65-modularity-report.md) separates ML-DSA server artifacts and optional browser verification/export Wasm.
+The ordinary Router is 7.132 MB raw, versus 42.375 MB before isolation and 7.130 MB on local dev.
+The dedicated ML-DSA Router is 8.044 MB. Both Routers and all ordinary roles exclude the 32.896 MB of circuit payloads.
+Ordinary browser Wasm falls from 635,247 to 476,947 bytes. It remains 65,134 bytes larger than local dev, and both browser profiles ship in the package.
+Local recovery, FIPS export, registration, signing, restoration, interruption, and browser cancellation checks pass at unchanged pool capacity and consumption policy.
+The default ML-DSA path adds one forwarding hop. Hosted latency, complete JS/package budgets, and state migration remain release gates.
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.

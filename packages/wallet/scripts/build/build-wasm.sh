@@ -90,6 +90,9 @@ build_near_signer() {
   run_in_dir "$SOURCE_WASM_SIGNER" \
     with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_SIGNER/Cargo.lock" \
       wasm-pack build --target web --out-dir pkg --out-name wasm_signer_worker --release --locked
+  run_in_dir "$SOURCE_WASM_SIGNER" \
+    with_wasm_bindgen_cli_for_lockfile "$SDK_ROOT/$SOURCE_WASM_SIGNER/Cargo.lock" \
+      wasm-pack build --target web --out-dir pkg-ml-dsa --out-name ml_dsa_signer --release --locked --features ml-dsa
 }
 
 build_shamir3pass_runtime() {
@@ -250,6 +253,7 @@ else
       rm -rf "$SDK_ROOT/$source_dir/pkg"
     done
   fi
+  rm -rf "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa"
   print_success "WASM package outputs cleaned"
 
   print_step "Building WASM packages in parallel..."
@@ -275,6 +279,7 @@ else
       node "$SDK_ROOT/scripts/build/fix-wasm-pack-sideeffects.mjs" "$SDK_ROOT/$source_dir/pkg"
     done
   fi
+  node "$SDK_ROOT/scripts/build/fix-wasm-pack-sideeffects.mjs" "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa"
   print_success "WASM package metadata optimized"
 fi
 
@@ -282,6 +287,9 @@ print_step "Checking expected WASM package outputs..."
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker.js"
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker.d.ts"
 require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg/wasm_signer_worker_bg.wasm"
+require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa/ml_dsa_signer.js"
+require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa/ml_dsa_signer.d.ts"
+require_file "$SDK_ROOT/$SOURCE_WASM_SIGNER/pkg-ml-dsa/ml_dsa_signer_bg.wasm"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto.js"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto.d.ts"
 require_file "$SDK_ROOT/$SOURCE_WASM_EVM_CRYPTO/pkg/evm_crypto_bg.wasm"

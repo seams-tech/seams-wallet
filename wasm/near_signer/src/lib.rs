@@ -2,6 +2,7 @@ mod actions;
 mod config;
 mod encoders;
 mod logger;
+#[cfg(feature = "ml-dsa")]
 mod ml_dsa_transaction;
 mod passkey_custody_wasm;
 #[cfg(test)]
@@ -11,6 +12,7 @@ mod transaction;
 mod types;
 
 pub use actions::ActionParams;
+#[cfg(feature = "ml-dsa")]
 pub use ml_dsa_transaction::{finalize_ml_dsa65_transaction, inspect_ml_dsa65_transaction};
 use wasm_bindgen::prelude::*;
 

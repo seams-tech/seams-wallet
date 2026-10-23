@@ -1440,7 +1440,7 @@ function createCloudflareD1RouterApiAuthAssembly(
     scope:{namespace:options.namespace,orgId:options.orgId,projectId:options.projectId,envId:options.envId},
     proxy:options.mlDsaRegistrationProxy ?? null, registration:mlDsaRegistration,
     walletAuthMethods,webAuthnStore,authorizations:authorizationService,
-    signerWasmModuleOrPath:options.signerWasmModuleOrPath });
+    mlDsaSignerWasmModuleOrPath:options.mlDsaSignerWasmModuleOrPath });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     mlDsaRegistration:mlDsaRegistration ?? undefined,
     executionAuthority: options.walletExecution,
