@@ -113,9 +113,9 @@ function mergeConfirmationPresentation(
     preparing: Object.hasOwn(update, 'preparing') ? update.preparing : current.preparing,
     title: Object.hasOwn(update, 'title') ? update.title : current.title,
     body: Object.hasOwn(update, 'body') ? update.body : current.body,
-    voiceApprovalMessage: Object.hasOwn(update, 'voiceApprovalMessage')
-      ? update.voiceApprovalMessage
-      : current.voiceApprovalMessage,
+    authMethodApprovalMessage: Object.hasOwn(update, 'authMethodApprovalMessage')
+      ? update.authMethodApprovalMessage
+      : current.authMethodApprovalMessage,
     errorMessage: Object.hasOwn(update, 'errorMessage')
       ? update.errorMessage
       : current.errorMessage,

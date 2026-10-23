@@ -108,7 +108,7 @@ void disabledReview;
 import type {
   VoiceIdApproval,
   VoiceIdPolicy,
-} from '@/core/signingEngine/uiConfirm/voiceId/approval';
+} from '@/plugins/voiceid/capture/approval';
 declare const voiceApproval: VoiceIdApproval;
 const requiredVoice: VoiceIdPolicy = { kind: 'required', approval: voiceApproval };
 // @ts-expect-error A required voice policy must carry its operation-bound approval.

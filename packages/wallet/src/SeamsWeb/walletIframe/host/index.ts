@@ -1,6 +1,6 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
-import { walletAuthMethodPluginEnabled } from '@/core/authMethods/plugins';
-import type { VoiceIdPolicy } from '@/core/signingEngine/uiConfirm/voiceId/approval';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
@@ -52,27 +52,30 @@ import {
 
 let initialized = false;
 
-async function voiceIdPolicyForConfiguredRequest(
+async function authMethodPolicyForConfiguredRequest(
   request: ParentToChildEnvelope,
   configuration: WalletHostConfigurationState,
-): Promise<VoiceIdPolicy> {
-  if (
-    configuration.kind !== 'configured' ||
-    !walletAuthMethodPluginEnabled(configuration.config.authMethods, 'voiceid')
-  ) {
+): Promise<AuthMethodReviewPolicy> {
+  if (configuration.kind !== 'configured' || !request.type.startsWith('PM_SIGN_')) {
     return { kind: 'disabled' };
   }
-  if (!request.type.startsWith('PM_SIGN_')) return { kind: 'disabled' };
-  const { voiceIdPolicyForRequest } = await import(
-    '@/core/signingEngine/uiConfirm/voiceId/approval'
-  );
-  return voiceIdPolicyForRequest(request, configuration);
+  let selected: AuthMethodReviewPolicy = { kind: 'disabled' };
+  for (const descriptor of configuration.config.authMethods) {
+    const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, descriptor.kind);
+    const policy = await plugin.review(request, configuration);
+    if (policy.kind === 'disabled') continue;
+    if (selected.kind === 'required') {
+      throw new Error('Multiple authentication plugins require this transaction review.');
+    }
+    selected = policy;
+  }
+  return selected;
 }
 
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-confirmation-surface', cancellationKind: 'native_cancel' },
-  { selector: '.seams-voiceid-activation-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-auth-method-activation-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-export-surface', cancellationKind: 'wallet_iframe_cancel' },
   {
     selector: '[data-seams-wallet-recovery-backup-dialog]',
@@ -255,7 +258,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
-      const voiceId = await voiceIdPolicyForConfiguredRequest(req, state.configuration);
+      const authMethodPolicy = await authMethodPolicyForConfiguredRequest(req, state.configuration);
       if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
         return;
       if ('transactionReview' in req) {
@@ -294,7 +297,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 message: error.message,
               },
             }),
-          voiceId,
+          authMethodPolicy,
         );
       }
       if (req.type === 'PM_LOCK' || req.type === 'PM_LOCK_EXACT_WALLET_SESSION') {

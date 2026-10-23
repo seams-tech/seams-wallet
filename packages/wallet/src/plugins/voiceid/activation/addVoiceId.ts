@@ -2,13 +2,13 @@ import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdActivationPlan,
   type VoiceIdSeedResealPort,
-} from '@/core/authMethods/voiceId/activation';
-import { VoiceIdActivationStore } from '@/core/authMethods/voiceId/activationStore';
-import { VoiceIdHttpClient } from '@/core/authMethods/voiceId/httpClient';
+} from '../session/activation';
+import { VoiceIdActivationStore } from '../session/activationStore';
+import { VoiceIdHttpClient } from '../session/httpClient';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
-import { captureVoiceIdActivation } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
+import { captureVoiceIdActivation } from '../capture/deviceBridge';
 import { showVoiceIdActivationSurface } from './activationSurface';
 import {
   readUnlockedWalletEd25519ExportRootCapabilityV1,
@@ -25,7 +25,7 @@ import {
 } from '@shared/utils/domainIds';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
-type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['addVoiceId']>>;
+type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
 
 type PreparedVoiceIdActivation = Readonly<{
   ownerCredential: WalletSessionOperationCredentialV1;

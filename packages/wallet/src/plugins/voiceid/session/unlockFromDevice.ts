@@ -1,6 +1,6 @@
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import { captureVoiceIdUnlock } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
+import { captureVoiceIdUnlock } from '../capture/deviceBridge';
 import type { VoiceIdHttpClient, VoiceIdVerifiedSession } from './httpClient';
 
 /** The installer must finish custody activation before the caller reports unlock. */

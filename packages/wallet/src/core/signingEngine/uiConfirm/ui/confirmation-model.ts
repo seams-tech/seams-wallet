@@ -16,7 +16,7 @@ export type ConfirmationPresentationInput = Pick<
   | 'preparing'
   | 'title'
   | 'body'
-  | 'voiceApprovalMessage'
+  | 'authMethodApprovalMessage'
   | 'errorMessage'
   | 'confirmText'
   | 'cancelText'
@@ -144,7 +144,7 @@ export function normalizeConfirmationModel(input: {
           errorMessage,
           onCancel: input.callbacks.cancel,
           onBack: source.onBack,
-          voiceApprovalMessage: source.voiceApprovalMessage,
+          authMethodApprovalMessage: source.authMethodApprovalMessage,
         },
       },
     },

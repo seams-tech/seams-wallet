@@ -32,7 +32,7 @@ export type ConfirmContentProps = {
   cancelInHeader?: boolean;
   confirmIcon?: ComponentChildren;
   errorMessage?: string;
-  voiceApprovalMessage?: string;
+  authMethodApprovalMessage?: string;
   onCancel: () => void;
   onBack?: () => void;
   onTreeToggle?: (nodeId: string, open: boolean) => void;
@@ -158,9 +158,9 @@ export class ConfirmContent extends Component<ConfirmContentProps, { armed: bool
               />
             </div>
           )}
-          {this.props.voiceApprovalMessage && (
+          {this.props.authMethodApprovalMessage && (
             <p class="seams-voiceid-instructions" data-seams-voice-id="required" role="status">
-              {this.props.voiceApprovalMessage}
+              {this.props.authMethodApprovalMessage}
             </p>
           )}
           <div class="actions">

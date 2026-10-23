@@ -107,6 +107,12 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 }
 
 export class VoiceIdApproval {
+  readonly messages = {
+    prompt: 'Select Confirm, then say “I approve this operation” or “I cancel this operation”.',
+    starting: 'Starting VoiceID. Wait for the microphone to be ready.',
+    listening: 'Microphone is ready. Say “I approve this operation” or “I cancel this operation”.',
+    approved: 'Voice approved this operation.',
+  };
   private state: ApprovalState = { kind: 'pending' };
 
   private constructor(

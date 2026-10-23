@@ -35,7 +35,7 @@ const SURFACE_CSS = `
 }
 `;
 
-type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['addVoiceId']>>;
+type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
 type ActivationAction = (signal: AbortSignal, onListening: () => void) => Promise<AddVoiceIdResult>;
 const documentStyles = new WeakMap<Document, ReturnType<typeof createCspStylesheetManager>>();
 
@@ -67,7 +67,7 @@ class VoiceIdActivationSurface {
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
     ensureVoiceIdStyles(document);
     this.element = document.createElement('section');
-    this.element.className = 'seams-wallet-ui seams-voiceid-activation-surface';
+    this.element.className = 'seams-wallet-ui seams-auth-method-activation-surface seams-voiceid-activation-surface';
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-modal', 'true');
     this.element.setAttribute('aria-label', 'Activate VoiceID');

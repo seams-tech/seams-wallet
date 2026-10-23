@@ -28,7 +28,7 @@ import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import { requireRecord } from '@shared/utils/validation';
 import { parseResealedEnvelopeResult } from '@/core/signingEngine/walletCustody/resealedEnvelopeResult';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
-import { captureVoiceIdActivation } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
+import { captureVoiceIdActivation } from '../capture/deviceBridge';
 import type { VoiceIdHttpClient } from './httpClient';
 
 export type PendingVoiceIdActivation = Readonly<{

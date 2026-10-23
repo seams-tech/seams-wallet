@@ -2,7 +2,7 @@ import { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/trans
 import {
   voiceIdPolicyForRequest,
   type VoiceIdPolicy,
-} from '@/core/signingEngine/uiConfirm/voiceId/approval';
+} from '@/plugins/voiceid/capture/approval';
 import {
   mountConfirmUI,
   type MountedConfirmUIHandle,
@@ -16,7 +16,7 @@ import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIden
 import { ActionType, toActionArgsWasm } from '@shared/near/actions';
 import type { Variant } from '@shared/utils/variant';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
-import { voiceIdAuthMethod } from '@/core/authMethods/plugins';
+import { voiceIdAuthMethod } from '@/plugins/voiceid/descriptor';
 import {
   applyWalletConfigurationUpdate,
   createWalletHostConfig,

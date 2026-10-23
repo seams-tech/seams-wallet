@@ -3,11 +3,6 @@ import { isPlainObject } from '@shared/utils/validation';
 export type VoiceIdAuthMethodPlugin = Readonly<{ kind: 'voiceid' }>;
 export type WalletAuthMethodPlugin = VoiceIdAuthMethodPlugin;
 
-/** A small SDK descriptor. The wallet loads the implementation on first use. */
-export function voiceIdAuthMethod(): VoiceIdAuthMethodPlugin {
-  return { kind: 'voiceid' };
-}
-
 export function parseWalletAuthMethodPlugins(value: unknown): readonly WalletAuthMethodPlugin[] {
   if (!Array.isArray(value)) {
     throw new Error('authMethods must be an array of wallet auth method plugins.');
@@ -24,7 +19,7 @@ export function parseWalletAuthMethodPlugins(value: unknown): readonly WalletAut
       throw new Error('Unsupported or duplicate wallet auth method plugin.');
     }
     seen.add(candidate.kind);
-    plugins.push(voiceIdAuthMethod());
+    plugins.push({ kind: 'voiceid' });
   }
   return plugins;
 }

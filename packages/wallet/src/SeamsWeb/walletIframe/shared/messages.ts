@@ -4,6 +4,7 @@ import type {
   SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
 } from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
+import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { TransactionInput } from '@/core/types';
@@ -823,7 +824,7 @@ export type ParentToChildType =
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
-  | 'PM_ADD_VOICEID'
+  | 'PM_ACTIVATE_AUTH_METHOD'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_UNLOCK'
@@ -1061,8 +1062,9 @@ interface PMAddPasskeyPayload {
   options?: Record<string, unknown>;
 }
 
-interface PMAddVoiceIdPayload {
+interface PMActivateAuthMethodPayload {
   walletId: WalletId | string;
+  method: WalletAuthMethodPlugin['kind'];
 }
 
 interface PMAddEmailOtpPayload {
@@ -1619,7 +1621,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_REGISTER_WALLET', PMRegisterWalletPayload>
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
-  | RpcEnvelope<'PM_ADD_VOICEID', PMAddVoiceIdPayload>
+  | RpcEnvelope<'PM_ACTIVATE_AUTH_METHOD', PMActivateAuthMethodPayload>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>

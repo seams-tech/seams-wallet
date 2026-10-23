@@ -10,9 +10,9 @@ import { requireRecord } from '@shared/utils/validation';
 import {
   captureVoiceIdActivation,
   captureVoiceIdUnlock,
-} from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
-import { listenForVoiceApproval } from '@/core/signingEngine/uiConfirm/voiceId/bridge';
-import { showVoiceIdActivationSurface } from '@/SeamsWeb/operations/authMethods/voiceId/activationSurface';
+} from '@/plugins/voiceid/capture/deviceBridge';
+import { listenForVoiceApproval } from '@/plugins/voiceid/capture/bridge';
+import { showVoiceIdActivationSurface } from '@/plugins/voiceid/activation/activationSurface';
 
 const BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 const originalFetch = window.fetch.bind(window);

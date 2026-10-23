@@ -155,7 +155,7 @@ method and authority in its D1 transaction. A replay cannot mint a second
 session.
 
 The browser has typed native capture and HTTP clients. Applications call
-`registration.addVoiceId({ walletId })` after an owner unlock while the
+`registration.activateAuthMethod({ walletId, method: 'voiceid' })` after an owner unlock while the
 `voiceIdAuthMethod()` plugin is enabled. The Wallet host loads the activation
 code on demand. It checks the exact owner session and shows a Wallet-origin
 Activate button. Selecting that button starts native capture while browser
@@ -207,6 +207,20 @@ on-chain outcome.
 
 The private repository owns the native models, capture, and composed
 native/browser evaluation.
+
+## Optional authentication plugins
+
+The Wallet host owns a typed registry of trusted plugin loaders. Applications
+send declarative descriptors only. Activation and transaction review dispatch
+through the registry. VoiceID's browser implementation lives under
+`packages/wallet/src/plugins/voiceid`; its descriptor imports no implementation.
+The core review UI receives copy from the plugin and knows no voice commands.
+
+Enabling a plugin does not fetch its implementation. First use loads it after
+the host checks configuration. Disabling it blocks later use even if its module
+was already cached. The browser contract
+[`auth-method-plugin.contract.test.ts`](../tests/e2e/intended-behaviours/auth-method-plugin.contract.test.ts)
+verifies these transitions and writes the fetched chunk list as a JSON artifact.
 
 ## Worker preparation
 

@@ -22,7 +22,7 @@ export function createApplicationRegistrationCommands(
     getNearAccountState: getNearAccountState.bind(null, walletIframe),
     addSigner: addSigner.bind(null, walletIframe),
     addPasskey: addPasskey.bind(null, walletIframe),
-    addVoiceId: addVoiceId.bind(null, walletIframe),
+    activateAuthMethod: activateAuthMethod.bind(null, walletIframe),
     removeAuthMethod: removeAuthMethod.bind(null, walletIframe),
     addEmail: addEmail.bind(null, walletIframe),
   };
@@ -95,12 +95,12 @@ async function addPasskey(
   }
 }
 
-async function addVoiceId(
+async function activateAuthMethod(
   walletIframe: RegistrationIframe,
-  args: Parameters<RegistrationCapability['addVoiceId']>[0],
-): ReturnType<RegistrationCapability['addVoiceId']> {
+  args: Parameters<RegistrationCapability['activateAuthMethod']>[0],
+): ReturnType<RegistrationCapability['activateAuthMethod']> {
   const router = await walletIframe.requireRouter();
-  return await router.addVoiceId(args);
+  return await router.activateAuthMethod(args);
 }
 
 async function removeAuthMethod(

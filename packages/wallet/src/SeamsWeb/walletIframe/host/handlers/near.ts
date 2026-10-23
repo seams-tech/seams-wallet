@@ -155,12 +155,15 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
 
-    PM_ADD_VOICEID: async (req: Req<'PM_ADD_VOICEID'>) => {
+    PM_ACTIVATE_AUTH_METHOD: async (req: Req<'PM_ACTIVATE_AUTH_METHOD'>) => {
       const pm = deps.getWalletRuntime();
       if (deps.respondIfCancelled(req.requestId)) return;
       const payload = req.payload;
-      if (!payload) throw new Error('VoiceID activation requires a wallet ID.');
-      const result = await pm.registration.addVoiceId({ walletId: payload.walletId });
+      if (!payload) throw new Error('Authentication method activation requires a wallet ID.');
+      const result = await pm.registration.activateAuthMethod({
+        walletId: payload.walletId,
+        method: payload.method,
+      });
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },

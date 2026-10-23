@@ -19,17 +19,17 @@ import {
   type VoiceIdSeedEnvelope,
 } from '@shared/passkey-custody/custodyEnvelope';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
-import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from '@/core/authMethods/voiceId/httpClient';
-import { verifyVoiceIdChallengeWithDevice } from '@/core/authMethods/voiceId/unlockFromDevice';
+import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from '@/plugins/voiceid/session/httpClient';
+import { verifyVoiceIdChallengeWithDevice } from '@/plugins/voiceid/session/unlockFromDevice';
 import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdSeedResealPort,
-} from '@/core/authMethods/voiceId/activation';
+} from '@/plugins/voiceid/session/activation';
 import {
   captureVoiceIdActivation,
   captureVoiceIdUnlock,
-} from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
-import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@/core/authMethods/voiceId/activationStore';
+} from '@/plugins/voiceid/capture/deviceBridge';
+import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@/plugins/voiceid/session/activationStore';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
 import { AuthorizationService } from '@server/authorization/service';

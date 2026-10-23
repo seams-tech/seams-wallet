@@ -17,7 +17,7 @@ import { addEmailOtpWalletAuthMethod } from '@/SeamsWeb/operations/authMethods/e
 import { readNearProvisioningState } from '@/core/signingEngine/flows/registration/nearProvisioningRegistry';
 import { cloneAuthenticatorOptions } from '@/core/types/authenticatorOptions';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import { walletAuthMethodPluginEnabled } from '@/core/authMethods/plugins';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
 
 export function createWalletHostRegistrationCommands(
   getContext: () => RegistrationWebContext,
@@ -27,7 +27,7 @@ export function createWalletHostRegistrationCommands(
     getNearAccountState: getNearAccountState.bind(null, getContext),
     addSigner: addSigner.bind(null, getContext),
     addPasskey: addPasskey.bind(null, getContext),
-    addVoiceId: addVoiceId.bind(null, getContext),
+    activateAuthMethod: activateAuthMethod.bind(null, getContext),
     removeAuthMethod: removeAuthMethod.bind(null, getContext),
     addEmail: addEmail.bind(null, getContext),
   };
@@ -84,18 +84,13 @@ async function addPasskey(
   });
 }
 
-async function addVoiceId(
+async function activateAuthMethod(
   getContext: () => RegistrationWebContext,
-  args: Parameters<RegistrationCapability['addVoiceId']>[0],
-): ReturnType<RegistrationCapability['addVoiceId']> {
+  args: Parameters<RegistrationCapability['activateAuthMethod']>[0],
+): ReturnType<RegistrationCapability['activateAuthMethod']> {
   const context = getContext();
-  if (!walletAuthMethodPluginEnabled(context.configs.authMethods, 'voiceid')) {
-    throw new Error('Enable the VoiceID auth method plugin before activation.');
-  }
-  const { addVoiceIdWalletAuthMethod } = await import(
-    '@/SeamsWeb/operations/authMethods/voiceId/addVoiceId'
-  );
-  return await addVoiceIdWalletAuthMethod({ context, walletId: args.walletId });
+  const plugin = await loadWalletAuthMethodHostPlugin(context.configs.authMethods, args.method);
+  return await plugin.activate({ context, walletId: toWalletId(args.walletId) });
 }
 
 async function removeAuthMethod(

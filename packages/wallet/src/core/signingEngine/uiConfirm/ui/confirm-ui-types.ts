@@ -28,7 +28,7 @@ export type ConfirmUIUpdate = {
   onBack?: () => void;
   title?: string;
   body?: string;
-  voiceApprovalMessage?: string;
+  authMethodApprovalMessage?: string;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 };

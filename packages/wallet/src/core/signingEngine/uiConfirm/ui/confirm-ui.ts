@@ -404,28 +404,27 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
     if (this.phase !== 'pending' || (this.admission && !this.admission.allowInteraction())) return;
     this.phase = 'checking';
     try {
-      if (this.admission?.voiceIdRequired) {
+      if (this.admission?.authMethodApprovalMessages) {
         this.view?.update({
           preparing: true,
-          voiceApprovalMessage: 'Starting VoiceID. Wait for the microphone to be ready.',
+          authMethodApprovalMessage: this.admission.authMethodApprovalMessages.starting,
         });
       }
-      await this.admission?.approveVoice(this.voiceListening);
-      if (this.admission?.voiceIdRequired)
+      await this.admission?.approveAuthMethod(this.authMethodListening);
+      if (this.admission?.authMethodApprovalMessages)
         this.view?.update({
           preparing: false,
-          voiceApprovalMessage: 'Voice approved this operation.',
+          authMethodApprovalMessage: this.admission.authMethodApprovalMessages.approved,
         });
       this.publishDecision(decision);
     } catch (error) {
-      this.cancel(error instanceof Error ? error.message : 'Voice approval failed.');
+      this.cancel(error instanceof Error ? error.message : 'Authentication method approval failed.');
     }
   }
 
-  private readonly voiceListening = (): void => {
+  private readonly authMethodListening = (): void => {
     this.view?.update({
-      voiceApprovalMessage:
-        'Microphone is ready. Say “I approve this operation” or “I cancel this operation”.',
+      authMethodApprovalMessage: this.admission?.authMethodApprovalMessages?.listening,
     });
   };
 
@@ -829,10 +828,8 @@ function mountHostElement({
       loading,
       title: summary?.title ?? (summary?.delegate ? 'Sign Delegate Action' : undefined),
       body: summary?.body,
-      voiceApprovalMessage: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
-        ?.voiceIdRequired
-        ? 'Select Confirm, then say “I approve this operation” or “I cancel this operation”.'
-        : undefined,
+      authMethodApprovalMessage: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
+        ?.authMethodApprovalMessages?.prompt,
       signingAuthMode,
       emailOtpPrompt,
       nearExplorerUrl: ctx.nearExplorerUrl ?? explorerOverrides.nearExplorerUrl,
