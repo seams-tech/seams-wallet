@@ -279,7 +279,12 @@ function unlockedSeedCapabilityForTest(input: {
 function onVoiceListening(): void {}
 
 class GeneratedVoiceIdCapture {
-  constructor(private readonly privateKey: CryptoKey) {}
+  factorSecret32: Uint8Array | null = null;
+
+  constructor(
+    private readonly privateKey: CryptoKey,
+    private readonly abortAfterCapture: AbortController | null,
+  ) {}
 
   async capture(
     input: Parameters<typeof captureVoiceIdUnlock>[0],
@@ -290,6 +295,8 @@ class GeneratedVoiceIdCapture {
       this.privateKey,
       voiceIdWalletSessionChallengeBytes(input.challenge),
     );
+    this.factorSecret32 = new Uint8Array(32).fill(11);
+    this.abortAfterCapture?.abort();
     return {
       kind: 'unlocked',
       assertion: parseVoiceIdDeviceAssertion({
@@ -297,7 +304,7 @@ class GeneratedVoiceIdCapture {
         challenge: input.challenge,
         signatureB64u: base64UrlEncode(new Uint8Array(signature)),
       }),
-      factorSecret32: new Uint8Array(32).fill(11),
+      factorSecret32: this.factorSecret32,
     };
   }
 }
@@ -661,7 +668,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     expect(freshSession.authorization.session.walletSessionId).not.toBe(
       issued.session.walletSessionId,
     );
-    const deviceCapture = new GeneratedVoiceIdCapture(device.privateKey);
+    const deviceCapture = new GeneratedVoiceIdCapture(device.privateKey, null);
     const installer = new VerifiedVoiceIdSessionInstaller();
     const verifiedFromDevice = await verifyVoiceIdChallengeWithDevice({
       authMethod: activated,
@@ -679,6 +686,37 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     expect(verifiedFromDevice.walletSession.authMethodId).toBe(methodId);
     expect(verifiedFromDevice.custodyEnvelope.envelopeId).toBe(envelopeId);
     expect(installer.factorSecret32?.every((value) => value === 0)).toBe(true);
+    const cancelledController = new AbortController();
+    const cancelledCapture = new GeneratedVoiceIdCapture(device.privateKey, cancelledController);
+    const cancelledChallenge = await client.challenge({
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      signal,
+    });
+    await expect(verifyVoiceIdChallengeWithDevice({
+      authMethod: activated,
+      challenge: cancelledChallenge,
+      http: client,
+      capture: cancelledCapture.capture.bind(cancelledCapture),
+      install: installer.install.bind(installer),
+      signal: cancelledController.signal,
+      onListening: onVoiceListening,
+    })).rejects.toThrow('cancelled');
+    expect(cancelledCapture.factorSecret32?.every((value) => value === 0)).toBe(true);
+    const afterCancelSignature = await crypto.subtle.sign(
+      'Ed25519',
+      device.privateKey,
+      voiceIdWalletSessionChallengeBytes(cancelledChallenge),
+    );
+    const afterCancelVerification = await client.verify({
+      assertion: parseVoiceIdDeviceAssertion({
+        kind: 'voiceid_device_assertion_v1',
+        challenge: cancelledChallenge,
+        signatureB64u: base64UrlEncode(new Uint8Array(afterCancelSignature)),
+      }),
+      signal,
+    });
+    expect(afterCancelVerification.walletSession.authMethodId).toBe(methodId);
     const replayResponse = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
       '/wallet/voiceid/verify',
       'https://wallet.example.test',
@@ -743,6 +781,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
         'retired_owner_session_rolls_back_method_and_envelope',
         'typed_client_reads_fresh_voiceid_session_after_source_retirement',
         'device_capture_and_server_verification_handoff_erases_factor_secret',
+        'cancel_after_capture_erases_factor_without_consuming_server_challenge',
         'changed_origin_and_challenge_replay_rejected',
         'revoked_voiceid_method_blocks_pending_and_new_challenges_while_owner_authority_survives',
       ],

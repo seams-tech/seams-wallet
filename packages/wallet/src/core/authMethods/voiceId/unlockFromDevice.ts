@@ -28,7 +28,9 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
     onListening: input.onListening,
   });
   try {
+    if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
     const verified = await input.http.verify({ assertion: captured.assertion, signal: input.signal });
+    if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
     if (
       verified.walletSession.walletId !== authMethod.walletId ||
       verified.walletSession.authMethodId !== authMethod.walletAuthMethodId ||

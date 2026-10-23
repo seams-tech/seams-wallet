@@ -165,8 +165,10 @@ A lost response can retry the same method and ciphertext without another
 reseal. A browser operation now checks the selected device method, captures
 its signed server challenge, verifies the fresh session, and passes the factor
 secret to a custody installer. It erases that secret when the installer ends or
-fails. Voice-only unlock still needs a Wallet host action that opens the seed
-envelope and activates signing lanes before it reports an unlocked session.
+fails. Cancellation before server verification leaves the challenge unused
+and erases the secret. Voice-only unlock still needs a Wallet host action that
+opens the seed envelope and activates signing lanes before it reports an
+unlocked session.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
