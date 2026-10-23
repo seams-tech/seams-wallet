@@ -1,0 +1,390 @@
+{
+  "schema": "seams.ml-dsa-modularity-hosted.v1",
+  "date": "2026-10-23",
+  "result": "The separated Worker topology completed creation, canonical recovery, and a policy-paced signing run. Consistent five-second performance is not achieved. Both combined-control attempts failed during preparation.",
+  "frozen_binary_commits": {
+    "combined": "fe267afa",
+    "separated": "7a6e7fe5"
+  },
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "separated": {
+    "registration_ms": {
+      "count": 4,
+      "min": 5544.825041000004,
+      "median": 7868.078354000005,
+      "max": 8372.071375,
+      "under_5000": 0
+    },
+    "preparation_request_ms": {
+      "count": 4,
+      "min": 72601.860875,
+      "median": 84785.37737449998,
+      "max": 92093.084208,
+      "under_5000": 0
+    },
+    "initial_stock_signing_ms": {
+      "count": 3,
+      "min": 1407.0919580000045,
+      "median": 6735.018500000006,
+      "max": 13938.273416000011,
+      "under_5000": 1
+    },
+    "initial_signing_failures": 1,
+    "successful_signing_http_ms": {
+      "count": 10,
+      "min": 1299.313374999998,
+      "median": 3316.725667,
+      "max": 7907.356875,
+      "under_5000": 8
+    },
+    "successful_demand_ms": {
+      "count": 10,
+      "min": 2649.448541000005,
+      "median": 7536.624749999995,
+      "max": 15320.677375,
+      "under_5000": 3
+    },
+    "request_statuses": {
+      "succeeded": 10,
+      "service_capacity": 1,
+      "wallet_cooldown": 12
+    },
+    "trace_gaps": [],
+    "cohorts": [
+      {
+        "cache": "first_signing_call",
+        "pairs": 1,
+        "generic_pairs": 0,
+        "http_ms": {
+          "count": 2,
+          "min": 2668.0445000000036,
+          "median": 2830.9455210000087,
+          "max": 2993.846542000014,
+          "under_5000": 2
+        },
+        "a_cpu_ms": {
+          "count": 2,
+          "min": 452,
+          "median": 510.0,
+          "max": 568,
+          "under_5000": 2
+        },
+        "b_cpu_ms": {
+          "count": 2,
+          "min": 426,
+          "median": 455.5,
+          "max": 485,
+          "under_5000": 2
+        }
+      },
+      {
+        "cache": "first_signing_call",
+        "pairs": 2,
+        "generic_pairs": 0,
+        "http_ms": {
+          "count": 1,
+          "min": 3117.8824590000004,
+          "median": 3117.8824590000004,
+          "max": 3117.8824590000004,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 567,
+          "median": 567,
+          "max": 567,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 668,
+          "median": 668,
+          "max": 668,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "first_signing_call",
+        "pairs": 2,
+        "generic_pairs": 2,
+        "http_ms": {
+          "count": 1,
+          "min": 3515.568875,
+          "median": 3515.568875,
+          "max": 3515.568875,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 627,
+          "median": 627,
+          "max": 627,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 947,
+          "median": 947,
+          "max": 947,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "first_signing_call",
+        "pairs": 3,
+        "generic_pairs": 2,
+        "http_ms": {
+          "count": 1,
+          "min": 3844.461916,
+          "median": 3844.461916,
+          "max": 3844.461916,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 810,
+          "median": 810,
+          "max": 810,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 1059,
+          "median": 1059,
+          "max": 1059,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "first_signing_call",
+        "pairs": 4,
+        "generic_pairs": 0,
+        "http_ms": {
+          "count": 1,
+          "min": 6831.908250000008,
+          "median": 6831.908250000008,
+          "max": 6831.908250000008,
+          "under_5000": 0
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 1411,
+          "median": 1411,
+          "max": 1411,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 2108,
+          "median": 2108,
+          "max": 2108,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "first_signing_call",
+        "pairs": 7,
+        "generic_pairs": 5,
+        "http_ms": {
+          "count": 1,
+          "min": 7907.356875,
+          "median": 7907.356875,
+          "max": 7907.356875,
+          "under_5000": 0
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 1269,
+          "median": 1269,
+          "max": 1269,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 2333,
+          "median": 2333,
+          "max": 2333,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "reused_signing_module",
+        "pairs": 1,
+        "generic_pairs": 1,
+        "http_ms": {
+          "count": 1,
+          "min": 1299.313374999998,
+          "median": 1299.313374999998,
+          "max": 1299.313374999998,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 169,
+          "median": 169,
+          "max": 169,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 175,
+          "median": 175,
+          "max": 175,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "reused_signing_module",
+        "pairs": 2,
+        "generic_pairs": 0,
+        "http_ms": {
+          "count": 1,
+          "min": 1915.104875000019,
+          "median": 1915.104875000019,
+          "max": 1915.104875000019,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 237,
+          "median": 237,
+          "max": 237,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 229,
+          "median": 229,
+          "max": 229,
+          "under_5000": 1
+        }
+      },
+      {
+        "cache": "reused_signing_module",
+        "pairs": 2,
+        "generic_pairs": 2,
+        "http_ms": {
+          "count": 1,
+          "min": 4368.849125000001,
+          "median": 4368.849125000001,
+          "max": 4368.849125000001,
+          "under_5000": 1
+        },
+        "a_cpu_ms": {
+          "count": 1,
+          "min": 459,
+          "median": 459,
+          "max": 459,
+          "under_5000": 1
+        },
+        "b_cpu_ms": {
+          "count": 1,
+          "min": 548,
+          "median": 548,
+          "max": 548,
+          "under_5000": 1
+        }
+      }
+    ],
+    "distinct_materials_in_joined_successes": 25,
+    "provider_deploy_startup_ms": {
+      "front": 2,
+      "router": 2,
+      "a": 39,
+      "preparer-b": 28,
+      "preparer-a": 24,
+      "b": 33
+    },
+    "preparer_b_cpu_ms": {
+      "count": 42,
+      "min": 2064,
+      "median": 4287.5,
+      "max": 7275,
+      "under_5000": 36
+    },
+    "preparer_b_wall_ms": {
+      "count": 42,
+      "min": 4424,
+      "median": 9309.5,
+      "max": 25336,
+      "under_5000": 5
+    }
+  },
+  "load_functional_passed": true,
+  "all_lifecycle_signing_checks_passed": false,
+  "stock": {
+    "stock_ledger_complete": false,
+    "initial_excluded_batches": 32,
+    "distinct_consumed_batches": 25,
+    "configured_pool_target_respected": true,
+    "peak_observed_batches_per_role_and_wallet": 16,
+    "common_post_initial_stock": {
+      "start_ms": null,
+      "elapsed_ms": null,
+      "observed_new_paired_batches": 0,
+      "successful_signatures": 0,
+      "paired_batches_per_minute": null,
+      "successful_signatures_per_minute": null
+    }
+  },
+  "control_failures": [
+    {
+      "attempt": "initial",
+      "successful_creation_ms": 8140.999250000008,
+      "verified_signing_ms": 4054.519499999995,
+      "failed_stage": "recovery preparation",
+      "failed_http_ms": 115574.085959,
+      "http_status": 500,
+      "observed_boundary": "Durable Object storage timeout/reset"
+    },
+    {
+      "attempt": "repeat-2",
+      "successful_creations": 0,
+      "failed_stage": "initial preparation",
+      "failed_http_ms": 132024.55625000002,
+      "http_status": 500,
+      "observed_boundary": "Durable Object internal storage errors and resets"
+    }
+  ],
+  "independent_review": "Counts, headline distributions, failure categories, and limitations were independently checked. Participant-to-request joins for the failures remain incomplete. No platform-only cause or causal speedup is established.",
+  "limits": [
+    "Provider deployment startup is not request cold-start latency.",
+    "A first signing call is not proof of a cold isolate.",
+    "No cross-Worker clock subtraction estimates preparation duration.",
+    "Preparer B request wall time covers only that request, not full refill settlement.",
+    "No live namespace transfer or hosted browser UI lifecycle is tested here.",
+    "The 1.30\u20137.91 second signing range covers the load phase only.",
+    "Initial-stock signing also includes successful 6.74 and 13.94 second operations and one exhausted operation.",
+    "Two wallets and five minutes do not qualify p99 or production capacity.",
+    "Starting stock was not exhausted in a common interval and the material ledger is incomplete.",
+    "Browser/login/approval/NEAR submission are excluded from hosted measurements."
+  ],
+  "changes": "Trace diagnostics retain validated public request IDs and exact allowlisted storage/reset error categories. No production cryptography, timeout, policy, or pool-capacity change.",
+  "cleanup": {
+    "temporary_workers_deleted": 11,
+    "all_deletions_succeeded": true
+  },
+  "validation": {
+    "trace_collection": "Passed on real hosted data",
+    "analysis": "Passed; exact offline reproduction from the public archive",
+    "exact_versions": "All eleven remained unchanged before cleanup",
+    "preserved_failed_control": true,
+    "bloat": "Inherited unchanged Rust duplication excess: 13972 versus 13754"
+  },
+  "archive": {
+    "path": "ml-dsa-65-modularity-hosted-20261023-data.json.gz",
+    "bytes": 377260,
+    "sha256": "9dd8f7115de90e35f5fdfdace498eccf4c186be3c242191b96b6704d29f00555"
+  }
+}

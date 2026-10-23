@@ -4,7 +4,8 @@ ML-DSA now has separate server build outputs and a separate browser verification
 Ordinary Worker binaries and the dedicated ML-DSA Router contain none of the eleven ML-DSA circuit payloads.
 The participant binaries retain the circuits they execute.
 Wallet-seed recovery, FIPS export, two-at-once consumption, and the thirty-two-candidate capacity remain unchanged.
-This screen qualifies build boundaries and local behavior. It does not qualify hosted latency or production rollout.
+This original screen qualifies build boundaries and local behavior.
+The [hosted follow-up](ml-dsa-65-modularity-hosted-report.md) now records separated-Worker timings and retained control failures. Consistent five-second performance remains unmet.
 
 ## Measured sizes
 
@@ -149,8 +150,8 @@ This change performs no deployment, namespace deletion, branch merge, or key mig
 
 ## Remaining merge/release qualification
 
-1. Deploy the separated topology and measure the new forwarding hop, cold starts, and ordinary Ed25519/ECDSA latency.
-2. Repeat ML-DSA registration, signing, and sustained refill with the existing capacity and consumption policy.
+1. Qualify request cold starts and ordinary Ed25519/ECDSA latency. Hosted forwarding-Worker CPU is now measured in the follow-up report.
+2. Reduce registration and initial-stock signing costs. Resolve storage-reset failures and complete longer refill qualification with unchanged capacity.
 3. Run the full hosted SDK recovery and QR-link flow against that topology.
 4. Set complete JavaScript/package-size budgets separately from the Wasm measurements in this report.
 
@@ -163,9 +164,9 @@ The hosted comparison uses eleven fresh temporary Workers: five combined roles a
 The separated path includes the ordinary Router before the ML-DSA Router.
 Both use a sixty-second cooldown, four-candidate preparation, two-candidate consumption, and thirty-two-candidate capacity.
 All names were absent before creation. Namespace bootstrap completed without production bindings or wallet state.
-Credential upload requires approval for these exact new destinations and payloads.
-No hosted registration or signing measurement exists from this follow-up yet.
-The bootstrap Workers remain allocated while approval is pending. Cleanup follows the test campaign.
+Explicit approval was received for these exact destinations and payloads.
+The hosted comparison and cleanup are complete. All eleven temporary Workers were deleted.
+The [follow-up report](ml-dsa-65-modularity-hosted-report.md) records the results, including both failed controls.
 
 The prepared campaign checks two synthetic wallets per topology, including canonical-key recovery and independently verified signatures.
 It then submits one demand per wallet per minute for five minutes.

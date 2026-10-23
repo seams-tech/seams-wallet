@@ -2,6 +2,12 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-23.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
+Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
+Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.
+Capacity remains thirty-two candidates per wallet with two-at-once consumption. The material ledger is incomplete and no common post-starting-stock interval is established.
+Next, reduce registration execution/installation costs and initial-stock signing costs, then isolate storage resets and complete longer capacity qualification.
+All eleven temporary Workers from this screen were deleted. The earlier local browser recovery, QR linking, FIPS export, restoration, and testnet transaction checks pass.
 The [build-isolation screen](ml-dsa-65-modularity-report.md) separates ML-DSA server artifacts and optional browser verification/export Wasm.
 The ordinary Router is 7.132 MB raw, versus 42.375 MB before isolation and 7.130 MB on local dev.
 The dedicated ML-DSA Router is 8.044 MB. Both Routers and all ordinary roles exclude the 32.896 MB of circuit payloads.
@@ -11,7 +17,7 @@ The default ML-DSA path adds one forwarding hop. Hosted latency, complete JS/pac
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records public registration, signing, recovery, full-owner device linking, and participant restoration.
 Its browser campaign preserves canonical export and finalizes a threshold-signed NEAR transaction.
 The October 22 cancellation campaign closes the SDK retry cancellation gap. Consistent five-second performance, refill capacity, and final security review remain open.
-The latest [independent-client screen](ml-dsa-65-client-isolation-report.md) removes shared HTTP connections between simulated wallets.
+The earlier [independent-client screen](ml-dsa-65-client-isolation-report.md) removes shared HTTP connections between simulated wallets.
 It verifies forty-five load signatures; thirty-nine finish below five seconds. Final HTTP latency is 2.982 seconds median and 15.505 seconds maximum.
 Complete demand is 22.017 seconds median. Four admitted operations exhaust their sixteen candidates, and one demand remains unfinished at cutoff.
 After starting stock is consumed, the screen completes thirty-seven signatures in 593.751 seconds, or 3.739 per minute. Both reserves restore with no consumed-ID reuse.
@@ -50,7 +56,7 @@ Hosted results remain variable. The candidate's initial slowdown also occurs aft
 No causal hosted gain or consistent five-second qualification is established. Complete-demand capacity waits remain part of the evidence.
 All measured material ledgers balance at unchanged capacity. The report records the control reversal, candidate repeat, and narrow interruption-evidence correction.
 Next, isolate complete first-use validation and compilation, then repeated key-state construction and committed-pair restoration.
-The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
+The earlier [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.
 Creation/recovery takes 6.413–8.552 seconds. Four-candidate preparation takes 19.146 seconds median. Both five-second targets remain unmet.
 Both reserves restore and material identities balance. The post-initial-stock window has no completed signatures, so sustained capacity remains unqualified.

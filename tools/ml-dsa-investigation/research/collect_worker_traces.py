@@ -17,6 +17,22 @@ def exception_category(error):
         "The Workers runtime canceled this request because it detected that your Worker's code had hung"
     ):
         return "runtime_hung_response"
+    if message == "Durable Object storage operation exceeded timeout which caused object to be reset.":
+        return "durable_storage_timeout_reset"
+    if message == "InvalidGateDecision: ML-DSA operation deadline expired":
+        return "ml_dsa_operation_deadline_expired"
+    if message == "InvalidGateDecision: ML-DSA registration execution failed":
+        return "ml_dsa_registration_execution_failed"
+    if isinstance(message, str) and re.fullmatch(
+        r"Internal error in Durable Object storage caused object to be reset; reference = [a-z0-9]+", message
+    ):
+        return "durable_storage_internal_reset"
+    if message == "Durable Object connection closed because the object was reset.":
+        return "durable_object_reset_connection_closed"
+    if message == "Connection closed: this Durable Object instance is no longer active. Reconnect or retry the request.":
+        return "durable_object_inactive_connection_closed"
+    if message == "InvalidGateDecision: ML-DSA storage operation failed":
+        return "ml_dsa_storage_operation_failed"
     if message == "Durable Object reset because its code was updated.":
         return "runtime_code_update_reset"
     if isinstance(message, str) and re.fullmatch(r"internal error; reference = [a-z0-9]+", message):
@@ -348,6 +364,9 @@ def records(path, role):
             break
         item, position = decoder.raw_decode(source, position)
         request = item.get("event", {}).get("request", {})
+        request_id = request.get("headers", {}).get("x-ml-dsa-request-id")
+        if not isinstance(request_id, str) or re.fullmatch("[0-9a-f]{32}", request_id) is None:
+            request_id = None
         url = urllib.parse.urlsplit(request.get("url", ""))
         query = urllib.parse.parse_qs(url.query)
         run_id = query.get("run_id", [None])[0]
@@ -509,6 +528,7 @@ def records(path, role):
                 ] if key in value})
         result.append({
             "role": role,
+            "http_request": request_id,
             "worker": item.get("scriptName"),
             "version": item.get("scriptVersion", {}).get("id"),
             "run_id": run_id,
