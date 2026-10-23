@@ -19,12 +19,16 @@ import {
   type VoiceIdSeedEnvelope,
 } from '@shared/passkey-custody/custodyEnvelope';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
-import { VoiceIdHttpClient } from '@/core/authMethods/voiceId/httpClient';
+import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from '@/core/authMethods/voiceId/httpClient';
+import { verifyVoiceIdChallengeWithDevice } from '@/core/authMethods/voiceId/unlockFromDevice';
 import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdSeedResealPort,
 } from '@/core/authMethods/voiceId/activation';
-import { captureVoiceIdActivation } from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
+import {
+  captureVoiceIdActivation,
+  captureVoiceIdUnlock,
+} from '@/core/signingEngine/uiConfirm/voiceId/deviceBridge';
 import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@/core/authMethods/voiceId/activationStore';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
@@ -273,6 +277,43 @@ function unlockedSeedCapabilityForTest(input: {
 }
 
 function onVoiceListening(): void {}
+
+class GeneratedVoiceIdCapture {
+  constructor(private readonly privateKey: CryptoKey) {}
+
+  async capture(
+    input: Parameters<typeof captureVoiceIdUnlock>[0],
+  ): ReturnType<typeof captureVoiceIdUnlock> {
+    input.onListening();
+    const signature = await crypto.subtle.sign(
+      'Ed25519',
+      this.privateKey,
+      voiceIdWalletSessionChallengeBytes(input.challenge),
+    );
+    return {
+      kind: 'unlocked',
+      assertion: parseVoiceIdDeviceAssertion({
+        kind: 'voiceid_device_assertion_v1',
+        challenge: input.challenge,
+        signatureB64u: base64UrlEncode(new Uint8Array(signature)),
+      }),
+      factorSecret32: new Uint8Array(32).fill(11),
+    };
+  }
+}
+
+class VerifiedVoiceIdSessionInstaller {
+  factorSecret32: Uint8Array | null = null;
+
+  async install(
+    verified: VoiceIdVerifiedSession,
+    factorSecret32: Uint8Array,
+  ): Promise<VoiceIdVerifiedSession> {
+    this.factorSecret32 = factorSecret32;
+    expect([...factorSecret32]).toEqual([...new Uint8Array(32).fill(11)]);
+    return verified;
+  }
+}
 
 test('owner session activates one VoiceID key and envelope in the same D1 transaction', runJourney);
 
@@ -620,6 +661,24 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     expect(freshSession.authorization.session.walletSessionId).not.toBe(
       issued.session.walletSessionId,
     );
+    const deviceCapture = new GeneratedVoiceIdCapture(device.privateKey);
+    const installer = new VerifiedVoiceIdSessionInstaller();
+    const verifiedFromDevice = await verifyVoiceIdChallengeWithDevice({
+      authMethod: activated,
+      challenge: await client.challenge({
+        walletId: fixture.authority.walletId,
+        walletAuthMethodId: methodId,
+        signal,
+      }),
+      http: client,
+      capture: deviceCapture.capture.bind(deviceCapture),
+      install: installer.install.bind(installer),
+      signal,
+      onListening: onVoiceListening,
+    });
+    expect(verifiedFromDevice.walletSession.authMethodId).toBe(methodId);
+    expect(verifiedFromDevice.custodyEnvelope.envelopeId).toBe(envelopeId);
+    expect(installer.factorSecret32?.every((value) => value === 0)).toBe(true);
     const replayResponse = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
       '/wallet/voiceid/verify',
       'https://wallet.example.test',
@@ -683,6 +742,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
         'duplicate_device_key_rolls_back_envelope',
         'retired_owner_session_rolls_back_method_and_envelope',
         'typed_client_reads_fresh_voiceid_session_after_source_retirement',
+        'device_capture_and_server_verification_handoff_erases_factor_secret',
         'changed_origin_and_challenge_replay_rejected',
         'revoked_voiceid_method_blocks_pending_and_new_challenges_while_owner_authority_survives',
       ],

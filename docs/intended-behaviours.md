@@ -162,8 +162,11 @@ Activate button. Selecting that button starts native capture while browser
 user activation is present. The operation uses the worker-held seed to seal a
 VoiceID envelope. It saves only public pending data before the server request.
 A lost response can retry the same method and ciphertext without another
-reseal. Voice-only unlock still needs a Wallet host action that opens the seed
-envelope and activates signing lanes.
+reseal. A browser operation now checks the selected device method, captures
+its signed server challenge, verifies the fresh session, and passes the factor
+secret to a custody installer. It erases that secret when the installer ends or
+fails. Voice-only unlock still needs a Wallet host action that opens the seed
+envelope and activates signing lanes before it reports an unlocked session.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
