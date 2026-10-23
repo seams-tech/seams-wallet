@@ -2,7 +2,7 @@
 use crate::{
     InvestigationResult,
     boolean_engine_evidence::run_ready,
-    durable_preparation_evidence::{Db, identifier, tx},
+    durable_preparation_evidence::{Db, error as storage_error, identifier, tx},
     prepared_keygen_evidence::HostTransport,
     require,
 };
@@ -17,10 +17,42 @@ use router_ab_cloudflare::ml_dsa::{
     self as m, Participant, Store, registration_preparation as preparation,
     registration_tables as tables,
 };
+use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::path::{Path, PathBuf};
+use std::{
+    cell::Cell,
+    path::{Path, PathBuf},
+};
 use zeroize::Zeroizing;
+
+/// Fails the second tombstone after production code has mutated the real database.
+struct FailingConsume<'a> {
+    db: &'a Db,
+    fail_at: &'a str,
+    deleted_chunks: Cell<usize>,
+    consumed_frames: Cell<usize>,
+    injected: Cell<bool>,
+}
+impl Store for FailingConsume<'_> {
+    async fn get<T: DeserializeOwned>(&self, key: &str) -> m::Result<Option<T>> {
+        self.db.get(key).await
+    }
+    async fn put<T: Serialize>(&self, key: &str, value: &T) -> m::Result<()> {
+        if key == self.fail_at {
+            self.injected.set(true);
+            return Err(storage_error("Injected later tombstone failure"));
+        }
+        self.db.put(key, value).await?;
+        self.consumed_frames.set(self.consumed_frames.get() + 1);
+        Ok(())
+    }
+    async fn delete(&self, key: &str) -> m::Result<()> {
+        self.db.delete(key).await?;
+        self.deleted_chunks.set(self.deleted_chunks.get() + 1);
+        Ok(())
+    }
+}
 
 pub(super) struct RegistrationTransport {
     pub(super) inner: HostTransport,
@@ -71,23 +103,32 @@ impl RegistrationTransport {
             peak_cached_frames: 0,
         })
     }
+    fn take_first_frames(
+        &self,
+        store: &impl Store,
+        circuit: [u8; 32],
+        length: usize,
+    ) -> InvestigationResult<tables::ConsumedFrames> {
+        tx(
+            &self.db,
+            tables::take(
+                store,
+                &self.binding,
+                [52; 32],
+                circuit,
+                0,
+                length,
+                &self.seed,
+                3,
+            ),
+        )
+    }
+
     pub(super) fn check_before_consume(&self) -> InvestigationResult<()> {
         if let Some((circuit, bytes)) = &self.first {
             require(
-                tx(
-                    &self.db,
-                    tables::take(
-                        &self.db,
-                        &self.binding,
-                        [52; 32],
-                        *circuit,
-                        0,
-                        bytes.len(),
-                        &self.seed,
-                        3,
-                    ),
-                )
-                .is_err(),
+                self.take_first_frames(&self.db, *circuit, bytes.len())
+                    .is_err(),
                 "Read table before registration consume",
             )?;
         }
@@ -142,20 +183,8 @@ impl RegistrationTransport {
         oversized["chunks"] = json!(100);
         tx(&self.db, self.db.put(&record_name, &oversized))?;
         require(
-            tx(
-                &self.db,
-                tables::take(
-                    &self.db,
-                    &self.binding,
-                    [52; 32],
-                    *circuit,
-                    0,
-                    bytes.len(),
-                    &self.seed,
-                    3,
-                ),
-            )
-            .is_err(),
+            self.take_first_frames(&self.db, *circuit, bytes.len())
+                .is_err(),
             "Accepted an oversized table chunk count",
         )?;
         tx(&self.db, self.db.put(&record_name, &record))?;
@@ -165,25 +194,50 @@ impl RegistrationTransport {
             hex::encode(circuit)
         );
         let encoded: Vec<u8> = run_ready(self.db.get(&name))??.ok_or("Missing table ciphertext")?;
+        tx(&self.db, self.db.delete(&name))?;
+        require(
+            self.take_first_frames(&self.db, *circuit, bytes.len())
+                .is_err(),
+            "Accepted a missing later-frame chunk",
+        )?;
+        tx(&self.db, self.db.put(&name, &encoded))?;
+        let second_frame = format!(
+            "registration-tables/{}/{}/1",
+            hex::encode(self.binding.reservation),
+            hex::encode(circuit),
+        );
+        let before_chunks = self.db.remaining_registration_table_chunks()?;
+        let failure = FailingConsume {
+            db: &self.db,
+            fail_at: &second_frame,
+            deleted_chunks: Cell::new(0),
+            consumed_frames: Cell::new(0),
+            injected: Cell::new(false),
+        };
+        require(
+            self.take_first_frames(&failure, *circuit, bytes.len())
+                .is_err(),
+            "Accepted an interrupted table consume",
+        )?;
+        require(
+            failure.injected.get()
+                && failure.deleted_chunks.get() > 0
+                && failure.consumed_frames.get() == 1,
+            "Consume fault did not follow chunk deletion and the first tombstone",
+        )?;
+        let reopened = Db::open(&self.database)?;
+        require(
+            reopened.remaining_registration_table_chunks()? == before_chunks
+                && run_ready(reopened.get::<Value>(&record_name))?? == Some(record),
+            "Interrupted table consume survived transaction rollback",
+        )?;
         let mut changed = encoded.clone();
         changed[8] ^= 1;
         tx(&self.db, self.db.put(&name, &changed))?;
         require(
-            tx(
-                &self.db,
-                tables::take(
-                    &self.db,
-                    &self.binding,
-                    [52; 32],
-                    *circuit,
-                    0,
-                    bytes.len(),
-                    &self.seed,
-                    3,
-                ),
-            )
-            .is_err(),
-            "Opened modified second frame or failed to roll back first frame",
+            self.take_first_frames(&self.db, *circuit, bytes.len())
+                .is_err(),
+            "Opened modified second frame",
         )?;
         tx(&self.db, self.db.put(&name, &encoded))?;
         Ok(())
@@ -209,20 +263,8 @@ impl RegistrationTransport {
         )?;
         if let Some((circuit, bytes)) = &self.first {
             require(
-                tx(
-                    &self.db,
-                    tables::take(
-                        &self.db,
-                        &self.binding,
-                        [52; 32],
-                        *circuit,
-                        0,
-                        bytes.len(),
-                        &self.seed,
-                        3,
-                    ),
-                )
-                .is_err(),
+                self.take_first_frames(&self.db, *circuit, bytes.len())
+                    .is_err(),
                 "Read retired table",
             )?;
             let mut cancelled = self.binding.clone();
@@ -262,7 +304,7 @@ impl RegistrationTransport {
             json!({"role":self.binding.role,"frames_written":self.frames_written,"frames_read":self.frames_read,
             "read_transactions":self.read_transactions,"peak_cached_frames":self.peak_cached_frames,
             "cleanup_steps":steps+1,"cleanup_complete":true,"remaining_ciphertext_chunks":self.db.remaining_registration_table_chunks()?,"replay_checked":self.replay_checked,
-            "evaluator_negative_cases": if self.first.is_some() { vec!["invalid_later_write_rolls_back_batch", "before_consume", "wrong_ceremony", "wrong_key", "bounded_frame_chunks", "modified_later_frame_rolls_back_batch", "cached_order", "unserved_prefetch_replay_after_restart", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
+            "evaluator_negative_cases": if self.first.is_some() { vec!["invalid_later_write_rolls_back_batch", "before_consume", "wrong_ceremony", "wrong_key", "bounded_frame_chunks", "missing_later_frame_chunk", "consume_write_failure_rollback", "modified_later_frame", "cached_order", "unserved_prefetch_replay_after_restart", "repeated_read", "retired_read", "retired_republish", "cancel_before_first_frame"] } else { vec![] }}),
         )
     }
 }
@@ -284,12 +326,40 @@ impl Transport for RegistrationTransport {
     ) -> Result<(), RuntimeError> {
         if self.first.is_none() {
             let failed_batch = tx(&self.db, async {
-                tables::put(&self.db, &self.binding, circuit, ordinal, bytes, &self.seed, 1).await?;
-                tables::put(&self.db, &self.binding, circuit, ordinal + 2, bytes, &self.seed, 1).await
+                tables::put(
+                    &self.db,
+                    &self.binding,
+                    circuit,
+                    ordinal,
+                    bytes,
+                    &self.seed,
+                    1,
+                )
+                .await?;
+                tables::put(
+                    &self.db,
+                    &self.binding,
+                    circuit,
+                    ordinal + 2,
+                    bytes,
+                    &self.seed,
+                    1,
+                )
+                .await
             });
-            require(failed_batch.is_err(), "Out-of-order later write was accepted").map_err(failure)?;
-            require(self.db.remaining_registration_table_chunks().map_err(failure)? == 0,
-                "Failed write batch retained its earlier frame").map_err(failure)?;
+            require(
+                failed_batch.is_err(),
+                "Out-of-order later write was accepted",
+            )
+            .map_err(failure)?;
+            require(
+                self.db
+                    .remaining_registration_table_chunks()
+                    .map_err(failure)?
+                    == 0,
+                "Failed write batch retained its earlier frame",
+            )
+            .map_err(failure)?;
         }
         tx(
             &self.db,

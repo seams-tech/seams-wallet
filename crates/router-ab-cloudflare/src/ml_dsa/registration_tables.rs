@@ -68,6 +68,14 @@ enum FrameRecord {
     },
     Consumed,
 }
+struct StoredFrame {
+    key: String,
+    ordinal: usize,
+    length: usize,
+    authentication: [u8; 32],
+    chunks: usize,
+}
+
 #[derive(Serialize)]
 struct FrameBinding<'a> {
     preparation: &'a preparation::Binding,
@@ -230,15 +238,16 @@ pub async fn take(
         return Err(invalid("Invalid ML-DSA table position"));
     }
     let end = frame_count.min(ordinal + READ_BATCH_FRAMES);
-    let mut frames = VecDeque::with_capacity(end - ordinal);
+    let mut stored_frames = Vec::with_capacity(end - ordinal);
+    let mut chunk_keys = Vec::new();
     for position in ordinal..end {
-        let name = frame_name(binding, &circuit, position);
+        let key = frame_name(binding, &circuit, position);
         let Some(FrameRecord::Ready {
             length: stored_length,
             authentication,
             chunks,
             ..
-        }) = store.get::<FrameRecord>(&name).await?
+        }) = store.get::<FrameRecord>(&key).await?
         else {
             return Err(invalid("ML-DSA table frame is missing or consumed"));
         };
@@ -249,23 +258,54 @@ pub async fn take(
         if chunks != stored_length.div_ceil(sealing::CHUNK_BYTES) {
             return Err(invalid("Invalid ML-DSA table chunk count"));
         }
-        let prefix = format!("{name}/data");
-        let bytes = Zeroizing::new(sealing::read_chunks(store, &prefix, chunks).await?);
-        if bytes.len() != stored_length {
+        for chunk in 0..chunks {
+            chunk_keys.push(format!("{key}/data/{chunk}"));
+        }
+        stored_frames.push(StoredFrame {
+            key,
+            ordinal: position,
+            length: stored_length,
+            authentication,
+            chunks,
+        });
+    }
+    // The existing 32-frame cache requires at most 64 stored chunks.
+    let chunks = store.get_chunks(&chunk_keys, sealing::CHUNK_BYTES).await?;
+    if chunks.len() != chunk_keys.len() {
+        return Err(invalid("Invalid ML-DSA table chunk response length"));
+    }
+    let mut chunks = chunks.into_iter();
+    let mut frames = VecDeque::with_capacity(stored_frames.len());
+    for frame in &stored_frames {
+        let mut bytes = Zeroizing::new(Vec::with_capacity(frame.length));
+        for _ in 0..frame.chunks {
+            let chunk = chunks
+                .next()
+                .flatten()
+                .ok_or_else(|| invalid("Missing ML-DSA table chunk"))?;
+            if chunk.len() > sealing::CHUNK_BYTES || bytes.len() + chunk.len() > frame.length {
+                return Err(invalid("Oversized ML-DSA table chunk"));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        if bytes.len() != frame.length {
             return Err(invalid("Invalid ML-DSA table frame length"));
         }
         let aad = FrameBinding {
             preparation: binding,
             circuit,
-            ordinal: position,
-            length: stored_length,
+            ordinal: frame.ordinal,
+            length: frame.length,
         };
         authenticator(seed, &aad, &bytes)?
-            .verify_slice(&authentication)
+            .verify_slice(&frame.authentication)
             .map_err(|_| invalid("ML-DSA table authentication failed"))?;
-        sealing::erase_chunks(store, &prefix, chunks).await?;
-        store.put(&name, &FrameRecord::Consumed).await?;
         frames.push_back(bytes);
+    }
+    // Every authentication and consume must succeed in the caller's transaction.
+    store.delete_many(&chunk_keys).await?;
+    for frame in stored_frames {
+        store.put(&frame.key, &FrameRecord::Consumed).await?;
     }
     Ok(ConsumedFrames {
         circuit,

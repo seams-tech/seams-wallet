@@ -112,6 +112,7 @@ const observations = {
   cases: [],
   httpAttempts: [],
   stageTraces: [],
+  registrationExecutions: [],
   functionalPassed: false,
   latencyTargetMet: false,
 };
@@ -667,6 +668,7 @@ function recordStageTrace(line) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
   if (event.event === 'ml_dsa_stage_trace_v1') observations.stageTraces.push(event);
+  if (event.event === 'ml_dsa_registration_execution_v1') observations.registrationExecutions.push(event);
 }
 
 async function raw(path, input, credential, requestId = randomBytes(16).toString('hex')) {

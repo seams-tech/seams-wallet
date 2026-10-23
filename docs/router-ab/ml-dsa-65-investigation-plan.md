@@ -20,7 +20,14 @@ On Cloudflare, two private hashes take 0.145 seconds median with GMW and 0.816 s
 Four-hash preparation takes 3.972 and 6.714 seconds median. Half-gates writes 34.255 MB of tables per preparation and reads 17.127 MB per online pair.
 All six hosted sessions pass. The shared R2 completion cleanup fix remains; the experimental comparison is removed from the active runtime.
 These component measurements do not establish full signing, registration, or refill performance. The previous complete hosted results remain current.
-Next, reduce registration delivery and activation cost, then profile complete multi-pair signing at storage/restore and protocol boundaries.
+The [registration table I/O screen](ml-dsa-65-registration-table-batch-report.md) retains grouped chunk reads and deletions within the existing transactions.
+Source-derived successful online chunk-read and deletion calls each fall from 643 to 24 per ceremony. Metadata reads and consumed-record writes remain 643 each.
+All eight hosted ceremonies and initial signatures verify. Candidate registration/recovery takes 3.935–5.992 seconds; three of four cases finish below five seconds.
+Candidate initial signing takes 2.577–6.421 seconds; two of four cases finish below five seconds. Rejection counts and cache histories differ between profiles.
+Preceding preparation takes 51.973–80.627 seconds for key-generation material plus sixteen signing candidates. These are not four-candidate preparation timings.
+B execution CPU is 1.428 seconds median, versus 1.708 seconds in the control. This small sequential screen establishes no causal end-to-end gain.
+Repeated-module memory behavior remains unqualified. Both consistent five-second targets remain open, and all ten temporary Workers are deleted.
+Next, isolate remaining registration metadata/consumed-record CPU and activation delays, then profile complete multi-pair signing at storage/restore and protocol boundaries.
 Keep wallet-seed recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate capacity unchanged.
 The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.

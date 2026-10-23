@@ -230,10 +230,16 @@ pub(super) async fn connected(
     if let Some(trace) = &trace {
         trace.mark("keygen_completed");
     }
+    #[cfg(target_arch = "wasm32")]
+    let wasm_linear_memory_bytes = Some(::core::arch::wasm32::memory_size::<0>() as u64 * 65_536);
+    #[cfg(not(target_arch = "wasm32"))]
+    let wasm_linear_memory_bytes: Option<u64> = None;
     worker::console_log!(
         "{}",
         serde_json::json!({
             "event": "ml_dsa_registration_execution_v1",
+            "operation": hex(&claim.request.operation),
+            "wasm_linear_memory_bytes": wasm_linear_memory_bytes,
             "role": role,
             "loaded_frames": adapter.loaded_frames,
             "loaded_bytes": adapter.loaded_bytes,
