@@ -328,6 +328,7 @@ try {
     if (profileSigning) {
       observations.signingProfiles.push({
         index,
+        operationHex: Buffer.from(input.request.operation).toString('hex'),
         elapsedMs,
         scope: 'Local workerd online A/B sampling for one HTTP signing request. Includes storage, protocol waits and idle samples. Sampling can perturb latency. This is not billed CPU.',
         profiles: await stopProfiles(profileConnections),
@@ -336,7 +337,7 @@ try {
     }
     assert.equal(result.status, 'existing');
     if (result.operation.state === 'failed') {
-      observations.failedOperations.push({ elapsedMs });
+      observations.failedOperations.push({ operationHex: Buffer.from(input.request.operation).toString('hex'), elapsedMs });
       assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
       continue;
     }
@@ -550,6 +551,8 @@ try {
   for (const sampler of memorySamplers) observations.preparationMemory.push(await sampler.stop());
   await runtime?.dispose();
   await mkdir(resolve(artifact, '..'), { recursive: true });
+  observations.signingTraces = signingEvents;
+  observations.stageTraces = stageEvents;
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
   console.log(JSON.stringify({ artifact, passed: observations.passed, signingMs: observations.signatures.map(signingTime), stalledPeerClosedMs: observations.stalledPeerClosedMs }));
