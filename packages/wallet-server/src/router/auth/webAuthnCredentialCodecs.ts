@@ -1,6 +1,6 @@
 import { errorMessage } from '@shared/utils/errors';
 import { base64Decode, base64UrlDecode, base64UrlEncode } from '@shared/utils/encoders';
-import { toOptionalTrimmedString } from '@shared/utils/validation';
+import { isPlainObject, toOptionalTrimmedString } from '@shared/utils/validation';
 import { failure } from '@shared/utils/failure';
 import type { WebAuthnAuthenticationCredential } from '../../core/types';
 
@@ -13,6 +13,30 @@ type WebAuthnClientDataJson = {
   readonly origin: string;
   readonly type: string;
 };
+
+function containsWebAuthnExtensionOutput(value: unknown): boolean {
+  if (value == null) return false;
+  if (!isPlainObject(value)) return true;
+  for (const nested of Object.values(value)) {
+    if (containsWebAuthnExtensionOutput(nested)) return true;
+  }
+  return false;
+}
+
+export function unredactedWebAuthnExtensionField(input: unknown): string | null {
+  if (!isPlainObject(input)) return null;
+
+  if (containsWebAuthnExtensionOutput(input.clientExtensionResults)) {
+    return 'clientExtensionResults';
+  }
+
+  const response = input.response;
+  if (!isPlainObject(response)) return null;
+  if (containsWebAuthnExtensionOutput(response.clientExtensionResults)) {
+    return 'response.clientExtensionResults';
+  }
+  return null;
+}
 
 export function decodeWebAuthnBase64UrlOrBase64(
   input: string,

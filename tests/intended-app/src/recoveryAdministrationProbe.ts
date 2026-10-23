@@ -12,12 +12,16 @@ export type RecoveryAdministrationProbe = {
   readonly kind: 'recovery_administration_probe_v1';
   readonly missingStatus: RecoveryProbeResponse;
   readonly missingAcknowledgement: RecoveryProbeResponse;
+  readonly unredactedProof: RecoveryProbeResponse;
+  readonly nestedUnredactedProof: RecoveryProbeResponse;
   readonly staleAcknowledgement: RecoveryProbeResponse;
   readonly initialIssuedAtMs: number;
   readonly rotatedIssuedAtMs: number;
   readonly finalIssuedAtMs: number;
   readonly backupOutstanding: boolean;
 };
+
+export const TEST_PRF_OUTPUT = 'dummy-recovery-prf-output';
 
 async function postRecoveryProbe(
   url: URL,
@@ -146,17 +150,53 @@ export async function probeRecoveryAdministration(input: {
   if (rotated.kind !== 'rotated') throw new Error(`Recovery rotation is ${rotated.kind}`);
 
   const requestId = crypto.randomUUID();
+  const proof = await createStaleAcknowledgementPasskeyProof({
+    walletId,
+    rpId: input.rpId,
+    requestId,
+    expectedIssuedAtMs: initial.issuedAtMs,
+    devices: input.devices,
+  });
+  const credential = proof.webauthn_authentication;
+  if (credential === null || typeof credential !== 'object' || Array.isArray(credential)) {
+    throw new Error('Recovery probe passkey assertion is invalid');
+  }
+  const response = Reflect.get(credential, 'response');
+  if (response === null || typeof response !== 'object' || Array.isArray(response)) {
+    throw new Error('Recovery probe passkey response is invalid');
+  }
+  const unredactedProof = await postRecoveryProbe(acknowledgementUrl, {
+    walletId,
+    requestId,
+    expectedIssuedAtMs: initial.issuedAtMs,
+    factorProof: {
+      ...proof,
+      webauthn_authentication: {
+        ...credential,
+        clientExtensionResults: { prf: { results: { first: TEST_PRF_OUTPUT } } },
+      },
+    },
+  });
+  const nestedUnredactedProof = await postRecoveryProbe(acknowledgementUrl, {
+    walletId,
+    requestId,
+    expectedIssuedAtMs: initial.issuedAtMs,
+    factorProof: {
+      ...proof,
+      webauthn_authentication: {
+        ...credential,
+        response: {
+          ...response,
+          clientExtensionResults: { prf: { results: { first: TEST_PRF_OUTPUT } } },
+        },
+      },
+    },
+  });
   const staleAcknowledgement = await postRecoveryProbe(acknowledgementUrl, {
     walletId,
     requestId,
     expectedIssuedAtMs: initial.issuedAtMs,
-    factorProof: await createStaleAcknowledgementPasskeyProof({
-      walletId,
-      rpId: input.rpId,
-      requestId,
-      expectedIssuedAtMs: initial.issuedAtMs,
-      devices: input.devices,
-    }),
+    factorProof: proof,
   });
   const final = await input.recovery.getCodeStatus({
     walletId,
@@ -168,6 +208,8 @@ export async function probeRecoveryAdministration(input: {
     kind: 'recovery_administration_probe_v1',
     missingStatus,
     missingAcknowledgement,
+    unredactedProof,
+    nestedUnredactedProof,
     staleAcknowledgement,
     initialIssuedAtMs: initial.issuedAtMs,
     rotatedIssuedAtMs: rotated.issuedAtMs,

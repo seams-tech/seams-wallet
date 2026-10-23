@@ -1110,6 +1110,8 @@ Expected behaviour:
   active full-owner method, bound to the exact request. Acknowledgement names
   the code issuance the owner saw. Rotating the set leaves newer codes awaiting
   their own acknowledgement.
+- The browser keeps passkey PRF output local during recovery. Requests carry
+  passkey assertions and registrations without defined WebAuthn extension output values.
 - Email OTP recovery-code rotation collects separate codes for status, wallet
   seed unlock, and approval of the replacement set inside the wallet. The host
   application supplies only the selected factor kind.
@@ -1127,6 +1129,8 @@ Failure behaviour:
   finalization.
 - Recovery material, server diagnostics, and code values never enter hosted
   outcomes, parent-window messages, or logs.
+- Recovery endpoints refuse passkey proofs and registrations that contain
+  defined WebAuthn extension output values before they change wallet state.
 
 ## Transaction Signing
 

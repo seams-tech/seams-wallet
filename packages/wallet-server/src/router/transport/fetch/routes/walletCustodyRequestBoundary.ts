@@ -1,5 +1,8 @@
 import type { WebAuthnAuthenticationCredential } from '../../../../core/types';
-import { parseWebAuthnAuthenticationCredential } from '../../../auth/webAuthnCredentialCodecs';
+import {
+  parseWebAuthnAuthenticationCredential,
+  unredactedWebAuthnExtensionField,
+} from '../../../auth/webAuthnCredentialCodecs';
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import { isPlainObject, requireTrimmedString, toOptionalTrimmedString } from '@shared/utils/validation';
 
@@ -48,6 +51,10 @@ export function parseCustodyOwnerProof(value: unknown): WalletCustodyOwnerProofW
       ],
       'factorProof',
     );
+    const extensionField = unredactedWebAuthnExtensionField(value.webauthn_authentication);
+    if (extensionField) {
+      throw new Error(`factorProof.webauthn_authentication.${extensionField} must be redacted`);
+    }
     const webauthnAuthentication = parseWebAuthnAuthenticationCredential(
       value.webauthn_authentication,
     );

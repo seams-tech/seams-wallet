@@ -1,5 +1,5 @@
 import { base64UrlEncode } from '@shared/utils/base64';
-import { isPlainObject } from '@shared/utils/validation';
+import { unredactedWebAuthnExtensionField } from '../../auth/webAuthnCredentialCodecs';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import type { WebAuthnCredentialIdB64u, WebAuthnRpId } from '@shared/utils/domainIds';
 import { verifyWebAuthnAuthenticationLiteWithStore } from '../../../core/authService/webauthn';
@@ -67,29 +67,6 @@ export type PasskeyCustodyEnvelopeRetrievalResult =
   | { readonly kind: 'missing' }
   | { readonly kind: 'digest_mismatch' };
 
-/**
- * Detects any surviving WebAuthn extension output on an assertion.
- *
- * This checks for extension results generally rather than a `prf` key alone: a
- * caller that forwards raw extension outputs is not honouring the redaction
- * contract, and the next extension to carry secret material would otherwise
- * pass unnoticed.
- */
-function disclosedExtensionOutputs(credential: WebAuthnAuthenticationCredential): string | null {
-  const top = credential.clientExtensionResults;
-  if (isPlainObject(top) && Object.keys(top).length > 0) {
-    return 'webauthn_authentication.clientExtensionResults must be redacted before retrieval';
-  }
-  const response = credential.response;
-  if (isPlainObject(response)) {
-    const nested = (response as { clientExtensionResults?: unknown }).clientExtensionResults;
-    if (isPlainObject(nested) && Object.keys(nested).length > 0) {
-      return 'webauthn_authentication.response.clientExtensionResults must be redacted before retrieval';
-    }
-  }
-  return null;
-}
-
 function assertionCredentialIdB64u(
   credential: WebAuthnAuthenticationCredential,
 ): WebAuthnCredentialIdB64u | null {
@@ -130,13 +107,16 @@ export async function retrievePasskeyCustodyEnvelope(input: {
   const { request } = input;
   const verifyAssertion = input.verifyAssertion || verifyWebAuthnAuthenticationLiteWithStore;
 
-  const disclosed = disclosedExtensionOutputs(request.webauthnAuthentication);
-  if (disclosed !== null) {
+  const extensionField = unredactedWebAuthnExtensionField(request.webauthnAuthentication);
+  if (extensionField) {
     input.logger.error('[passkey-custody] assertion carried unredacted extension output', {
       walletId: String(request.locator.walletId),
       rpId: String(request.rpId),
     });
-    return { kind: 'prf_disclosed', message: disclosed };
+    return {
+      kind: 'prf_disclosed',
+      message: `webauthn_authentication.${extensionField} must be redacted before retrieval`,
+    };
   }
 
   // The type already makes Email OTP unrepresentable here; this guard covers

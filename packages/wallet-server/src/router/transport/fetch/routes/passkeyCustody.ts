@@ -83,7 +83,10 @@ import {
   parseWalletRecoveryTargetV1,
   type WalletRecoveryTargetV1,
 } from '@shared/wallet-recovery/walletRecoveryTarget';
-import { parseWebAuthnAuthenticationCredential } from '../../../auth/webAuthnCredentialCodecs';
+import {
+  parseWebAuthnAuthenticationCredential,
+  unredactedWebAuthnExtensionField,
+} from '../../../auth/webAuthnCredentialCodecs';
 import {
   hashEmailOtpOperationBinding,
   emailOtpStatusCode,
@@ -526,6 +529,14 @@ export async function handlePasskeyCustody(ctx: FetchRouterApiContext): Promise<
   if (!route) return null;
 
   const body = await readJsonObject(ctx.request);
+  const extensionField = unredactedWebAuthnExtensionField(body?.webauthnAuthentication);
+  if (extensionField) {
+    return routeErrorResponse(
+      400,
+      'prf_disclosed',
+      `webauthnAuthentication.${extensionField} must be redacted before retrieval`,
+    );
+  }
   const request = parseWireRequest(body, ctx.request.headers.get('origin'));
   if (!request) {
     return routeErrorResponse(
@@ -1620,6 +1631,10 @@ function parseWalletRecoveryFinalizeBody(value: unknown): WalletRecoveryFinalize
   );
   if (!isPlainObject(value.webauthnRegistration)) {
     throw new Error('wallet recovery finalization registration is invalid');
+  }
+  const extensionField = unredactedWebAuthnExtensionField(value.webauthnRegistration);
+  if (extensionField) {
+    throw new Error(`wallet recovery finalization registration ${extensionField} must be redacted`);
   }
   return {
     kind: 'finalize',

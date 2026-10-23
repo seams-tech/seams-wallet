@@ -2,6 +2,7 @@ import { expect, type Request } from '@playwright/test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
+import { TEST_PRF_OUTPUT } from '../../intended-app/src/recoveryAdministrationProbe';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 
 type RecoveryRotationProofObservation = {
@@ -9,6 +10,63 @@ type RecoveryRotationProofObservation = {
   readonly topLevelExtensionsRedacted: boolean;
   readonly responseExtensionsRedacted: boolean;
 };
+
+type PrfWireObservation = {
+  readonly dummyCount: number;
+  readonly unexpectedCount: number;
+};
+
+function observePrfResult(value: unknown): PrfWireObservation {
+  if (Array.isArray(value)) {
+    let dummyCount = 0;
+    let unexpectedCount = 0;
+    for (const item of value) {
+      const observed = observePrfResult(item);
+      dummyCount += observed.dummyCount;
+      unexpectedCount += observed.unexpectedCount;
+    }
+    return { dummyCount, unexpectedCount };
+  }
+  if (!isPlainObject(value)) return { dummyCount: 0, unexpectedCount: 0 };
+
+  let dummyCount = 0;
+  let unexpectedCount = 0;
+  const extensions = value.clientExtensionResults;
+  const prf = isPlainObject(extensions) ? extensions.prf : null;
+  const results = isPlainObject(prf) ? prf.results : null;
+  if (isPlainObject(results)) {
+    for (const result of [results.first, results.second]) {
+      if (result === null || result === undefined) continue;
+      if (result === TEST_PRF_OUTPUT) dummyCount += 1;
+      else unexpectedCount += 1;
+    }
+  }
+  for (const child of Object.values(value)) {
+    const observed = observePrfResult(child);
+    dummyCount += observed.dummyCount;
+    unexpectedCount += observed.unexpectedCount;
+  }
+  return { dummyCount, unexpectedCount };
+}
+
+function sumPrfWireObservations(observations: readonly PrfWireObservation[]): PrfWireObservation {
+  let dummyCount = 0;
+  let unexpectedCount = 0;
+  for (const observation of observations) {
+    dummyCount += observation.dummyCount;
+    unexpectedCount += observation.unexpectedCount;
+  }
+  return { dummyCount, unexpectedCount };
+}
+
+function recordPrfWireObservation(observations: PrfWireObservation[], request: Request): void {
+  if (!request.postData()) return;
+  try {
+    observations.push(observePrfResult(request.postDataJSON()));
+  } catch {
+    return;
+  }
+}
 
 function recordRecoveryRotationProof(
   observations: RecoveryRotationProofObservation[],
@@ -68,13 +126,18 @@ test('recovery administration rejects missing proof and stale acknowledgement af
   await harness.awaitNearReady();
 
   const rotationProofs: RecoveryRotationProofObservation[] = [];
+  const prfWireObservations: PrfWireObservation[] = [];
   page.on('request', recordRecoveryRotationProof.bind(null, rotationProofs));
+  page.on('request', recordPrfWireObservation.bind(null, prfWireObservations));
   const evidence: unknown = await page.evaluate(runRecoveryAdministrationProbeFromPage);
+  const prfWireSummary = sumPrfWireObservations(prfWireObservations);
   if (!isPlainObject(evidence)) throw new Error('Recovery administration evidence is invalid');
   expect(evidence).toMatchObject({
     kind: 'recovery_administration_probe_v1',
     missingStatus: { status: 400, code: 'invalid_owner_proof' },
     missingAcknowledgement: { status: 400, code: 'invalid_owner_proof' },
+    unredactedProof: { status: 400, code: 'invalid_owner_proof' },
+    nestedUnredactedProof: { status: 400, code: 'invalid_owner_proof' },
     staleAcknowledgement: { status: 409, code: 'recovery_set_conflict' },
     backupOutstanding: true,
   });
@@ -86,6 +149,8 @@ test('recovery administration rejects missing proof and stale acknowledgement af
   expect(rotatedIssuedAtMs).toBeGreaterThan(initialIssuedAtMs);
   expect(evidence.finalIssuedAtMs).toBe(rotatedIssuedAtMs);
   expect(rotationProofs.length).toBeGreaterThan(0);
+  expect(prfWireSummary.dummyCount).toBe(2);
+  expect(prfWireSummary.unexpectedCount).toBe(0);
   for (const proof of rotationProofs) {
     expect(proof).toEqual({
       passkeyProof: true,
@@ -106,6 +171,14 @@ test('recovery administration rejects missing proof and stale acknowledgement af
       isPlainObject(evidence.missingAcknowledgement) &&
       evidence.missingAcknowledgement.status === 400 &&
       evidence.missingAcknowledgement.code === 'invalid_owner_proof',
+    unredactedProofRejected:
+      isPlainObject(evidence.unredactedProof) &&
+      evidence.unredactedProof.status === 400 &&
+      evidence.unredactedProof.code === 'invalid_owner_proof',
+    nestedUnredactedProofRejected:
+      isPlainObject(evidence.nestedUnredactedProof) &&
+      evidence.nestedUnredactedProof.status === 400 &&
+      evidence.nestedUnredactedProof.code === 'invalid_owner_proof',
     staleAcknowledgementRejected:
       isPlainObject(evidence.staleAcknowledgement) &&
       evidence.staleAcknowledgement.status === 409 &&
@@ -120,6 +193,8 @@ test('recovery administration rejects missing proof and stale acknowledgement af
         proof.topLevelExtensionsRedacted &&
         proof.responseExtensionsRedacted,
     ),
+    dummyPrfWireCount: prfWireSummary.dummyCount,
+    unexpectedPrfWireCount: prfWireSummary.unexpectedCount,
     postRotationTempoSigningSucceeded: true,
   };
   await mkdir(path.dirname(artifactPath), { recursive: true });
