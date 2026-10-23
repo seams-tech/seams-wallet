@@ -12,7 +12,7 @@ import {
   captureVoiceIdUnlock,
 } from '@/plugins/voiceid/capture/deviceBridge';
 import { listenForVoiceApproval } from '@/plugins/voiceid/capture/bridge';
-import { showVoiceIdActivationSurface } from '@/plugins/voiceid/activation/activationSurface';
+import { showVoiceIdCaptureSurface } from '@/plugins/voiceid/capture/surface';
 
 const BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 const originalFetch = window.fetch.bind(window);
@@ -243,7 +243,34 @@ function requireWalletAuthMethodId() {
 }
 
 function startWalletActivation(): void {
-  pending = showVoiceIdActivationSurface(activateThroughWalletButton);
+  pending = showVoiceIdCaptureSurface({ action: activateThroughWalletButton, purpose: 'activation', expiresAtMs: null });
+}
+
+async function unlockThroughWalletButton(signal: AbortSignal, onListening: () => void): Promise<unknown> {
+  if (!preparedChallenge) throw new Error('VoiceID test challenge is missing');
+  const capture = await captureVoiceIdUnlock({ challenge: preparedChallenge, signal, onListening });
+  try {
+    return { kind: capture.kind, assertion: capture.assertion };
+  } finally {
+    capture.factorSecret32.fill(0);
+  }
+}
+
+function startWalletUnlock(): void {
+  if (!preparedChallenge) throw new Error('VoiceID test challenge is missing');
+  pending = showVoiceIdCaptureSurface({
+    action: unlockThroughWalletButton,
+    purpose: 'unlock',
+    expiresAtMs: preparedChallenge.expiresAtMs,
+  });
+}
+
+function startExpiringWalletUnlock(): void {
+  pending = showVoiceIdCaptureSurface({
+    action: unlockThroughWalletButton,
+    purpose: 'unlock',
+    expiresAtMs: Date.now() + 100,
+  });
 }
 
 function abort(): void {
@@ -280,6 +307,8 @@ declare global {
       setMode: typeof setMode;
       prepareUnlock: typeof prepareUnlock;
       startWalletActivation: typeof startWalletActivation;
+      startWalletUnlock: typeof startWalletUnlock;
+      startExpiringWalletUnlock: typeof startExpiringWalletUnlock;
     };
   }
 }
@@ -292,5 +321,7 @@ window.voiceIdDeviceCaptureProbe = {
   setMode,
   prepareUnlock,
   startWalletActivation,
+  startWalletUnlock,
+  startExpiringWalletUnlock,
 };
 window.addEventListener('DOMContentLoaded', mount, { once: true });

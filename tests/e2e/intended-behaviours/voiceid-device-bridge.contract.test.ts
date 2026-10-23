@@ -63,6 +63,14 @@ function startWalletActivation(): void {
   window.voiceIdDeviceCaptureProbe.startWalletActivation();
 }
 
+function startWalletUnlock(): void {
+  window.voiceIdDeviceCaptureProbe.startWalletUnlock();
+}
+
+function startExpiringWalletUnlock(): void {
+  window.voiceIdDeviceCaptureProbe.startExpiringWalletUnlock();
+}
+
 function setApproved(): void {
   window.voiceIdDeviceCaptureProbe.setMode('approved');
 }
@@ -157,6 +165,17 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
   );
   expect(embeddedActivation.walletId).toBe('wallet:voiceid-browser');
   expect(await walletFrame.evaluate(requestCount)).toBe(1);
+  await walletFrame.evaluate(prepareUnlock);
+  await walletFrame.evaluate(startWalletUnlock);
+  expect(await walletFrame.evaluate(requestCount)).toBe(1);
+  await walletFrame.getByRole('button', { name: 'Unlock with VoiceID' }).click();
+  const embeddedUnlock = requireRecord(await walletFrame.evaluate(captureResult), 'embedded unlock');
+  expect(embeddedUnlock.kind).toBe('unlocked');
+  expect(parseVoiceIdDeviceAssertion(embeddedUnlock.assertion).challenge.requestOrigin).toBe(WALLET_ORIGIN);
+  expect(await walletFrame.evaluate(requestCount)).toBe(2);
+  await walletFrame.evaluate(startExpiringWalletUnlock);
+  await expect(walletFrame.evaluate(captureResult)).rejects.toThrow('challenge expired');
+  expect(await walletFrame.evaluate(requestCount)).toBe(2);
 
   const reportPath = testInfo.outputPath('voiceid-device-bridge.json');
   await writeFile(reportPath, `${JSON.stringify({
@@ -173,6 +192,8 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
       'wallet_origin_button_starts_capture_only_after_click',
       'wallet_activation_cancel_does_not_start_capture',
       'embedded_wallet_button_preserves_user_activation',
+      'embedded_unlock_button_captures_exact_server_challenge',
+      'expired_unlock_surface_starts_no_native_capture',
     ],
   }, null, 2)}\n`);
   await testInfo.attach('voiceid-device-bridge.json', {

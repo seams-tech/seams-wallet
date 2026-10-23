@@ -168,7 +168,11 @@ secret to a custody installer. It erases that secret when the installer ends or
 fails. Cancellation before server verification leaves the challenge unused
 and erases the secret. Voice-only unlock still needs a Wallet host action that
 opens the seed envelope and activates signing lanes before it reports an
-unlocked session.
+unlocked session. The trusted plugin contract has an unlock hook with a required
+core session installer. VoiceID resolves the active local method and fetches a
+challenge before it shows the Wallet-origin Unlock button. An expired challenge
+closes that surface and cannot start capture. App-facing unlock dispatch and
+the core NEAR installer remain pending.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).

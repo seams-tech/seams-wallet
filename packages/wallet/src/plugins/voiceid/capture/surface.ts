@@ -3,7 +3,6 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
-import type { RegistrationCapability } from '@/SeamsWeb/signingSurface/types';
 import { toError } from '@shared/utils/errors';
 
 const SURFACE_CSS = `
@@ -35,8 +34,7 @@ const SURFACE_CSS = `
 }
 `;
 
-type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
-type ActivationAction = (signal: AbortSignal, onListening: () => void) => Promise<AddVoiceIdResult>;
+type CaptureAction<T> = (signal: AbortSignal, onListening: () => void) => Promise<T>;
 const documentStyles = new WeakMap<Document, ReturnType<typeof createCspStylesheetManager>>();
 
 function ensureVoiceIdStyles(document: Document): void {
@@ -52,17 +50,26 @@ function ensureVoiceIdStyles(document: Document): void {
   styles.ensureBase();
 }
 
-class VoiceIdActivationSurface {
-  readonly result: Promise<AddVoiceIdResult>;
-  private readonly completion = new WorkerDeferred<AddVoiceIdResult>();
+class VoiceIdCaptureSurface<T> {
+  readonly result: Promise<T>;
+  private readonly completion = new WorkerDeferred<T>();
   private readonly controller = new AbortController();
   private readonly element: HTMLElement;
   private readonly activateButton: HTMLButtonElement;
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
   private closed = false;
+  private readonly expiryTimer: ReturnType<typeof setTimeout> | null;
 
-  constructor(private readonly activate: ActivationAction) {
+  constructor(
+    private readonly activate: CaptureAction<T>,
+    purpose: 'activation' | 'unlock',
+    expiresAtMs: number | null,
+  ) {
+    if (expiresAtMs !== null && expiresAtMs <= Date.now()) {
+      throw new Error('VoiceID challenge expired. Start unlock again.');
+    }
+    const actionLabel = purpose === 'activation' ? 'Activate VoiceID' : 'Unlock with VoiceID';
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
     ensureVoiceIdStyles(document);
@@ -70,13 +77,13 @@ class VoiceIdActivationSurface {
     this.element.className = 'seams-wallet-ui seams-auth-method-activation-surface seams-voiceid-activation-surface';
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-modal', 'true');
-    this.element.setAttribute('aria-label', 'Activate VoiceID');
+    this.element.setAttribute('aria-label', actionLabel);
     const title = document.createElement('h2');
-    title.textContent = 'Activate VoiceID';
+    title.textContent = actionLabel;
     this.element.appendChild(title);
     const description = document.createElement('p');
     description.textContent =
-      'Keep this device open and nearby. Select Activate to record your voice on this device.';
+      'Keep this device open and nearby. Select the button to record your voice on this device.';
     this.element.appendChild(description);
     this.status = document.createElement('p');
     this.status.setAttribute('role', 'status');
@@ -87,7 +94,7 @@ class VoiceIdActivationSurface {
     this.activateButton = document.createElement('button');
     this.activateButton.type = 'button';
     this.activateButton.className = 'seams-voiceid-primary';
-    this.activateButton.textContent = 'Activate VoiceID';
+    this.activateButton.textContent = actionLabel;
     this.activateButton.addEventListener('click', this.begin);
     actions.appendChild(this.activateButton);
     this.cancelButton = document.createElement('button');
@@ -100,9 +107,11 @@ class VoiceIdActivationSurface {
     parent.appendChild(this.element);
     this.activateButton.focus();
     this.result = this.completion.promise;
+    this.expiryTimer = expiresAtMs === null ? null : setTimeout(this.expire, expiresAtMs - Date.now());
   }
 
   dispose(): void {
+    if (this.expiryTimer !== null) clearTimeout(this.expiryTimer);
     this.element.removeEventListener('cancel', this.cancel);
     this.activateButton.removeEventListener('click', this.begin);
     this.cancelButton.removeEventListener('click', this.cancel);
@@ -138,14 +147,23 @@ class VoiceIdActivationSurface {
     if (this.closed) return;
     this.closed = true;
     this.controller.abort();
-    this.completion.reject(new Error('VoiceID activation was cancelled.'));
+    this.completion.reject(new Error('VoiceID capture was cancelled.'));
+  };
+
+  private readonly expire = (): void => {
+    if (this.closed) return;
+    this.closed = true;
+    this.controller.abort();
+    this.completion.reject(new Error('VoiceID challenge expired. Start unlock again.'));
   };
 }
 
-export async function showVoiceIdActivationSurface(
-  activate: ActivationAction,
-): Promise<AddVoiceIdResult> {
-  const surface = new VoiceIdActivationSurface(activate);
+export async function showVoiceIdCaptureSurface<T>(input: {
+  readonly action: CaptureAction<T>;
+  readonly purpose: 'activation' | 'unlock';
+  readonly expiresAtMs: number | null;
+}): Promise<T> {
+  const surface = new VoiceIdCaptureSurface(input.action, input.purpose, input.expiresAtMs);
   try {
     return await surface.result;
   } finally {

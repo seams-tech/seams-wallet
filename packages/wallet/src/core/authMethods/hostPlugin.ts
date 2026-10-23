@@ -2,6 +2,20 @@ import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { ConfiguredWalletHost } from '@/SeamsWeb/walletIframe/shared/configuration';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
+import type { ActiveWalletSessionV1, WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
+import type { ActiveMethodBoundWalletSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
+import type { LoginAndCreateSessionResult } from '@/core/types/seams';
+
+export type AuthMethodUnlockSuccess = Extract<LoginAndCreateSessionResult, { success: true }>;
+
+/** Core owns installation and returns only after the signer is ready. The plugin owns and wipes the factor buffer. */
+export type AuthMethodSessionInstaller = (input: {
+  readonly walletSession: ActiveWalletSessionV1;
+  readonly operationCredential: WalletSessionOperationCredentialV1;
+  readonly custodyEnvelope: ActiveMethodBoundWalletSeedEnvelope;
+  readonly factorSecret32: Uint8Array;
+  readonly signal: AbortSignal;
+}) => Promise<AuthMethodUnlockSuccess>;
 
 export type AuthMethodActivationResult = Readonly<{
   walletId: WalletId;
@@ -25,6 +39,12 @@ export type AuthMethodReviewPolicy =
 
 /** Implementations run in the trusted Wallet host, never in the embedding app. */
 export interface WalletAuthMethodHostPlugin {
+  unlock(input: {
+    readonly relayerUrl: string;
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly install: AuthMethodSessionInstaller;
+  }): Promise<AuthMethodUnlockSuccess>;
   activate(input: {
     readonly context: RegistrationWebContext;
     readonly walletId: WalletId;

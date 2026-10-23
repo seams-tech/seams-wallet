@@ -9,7 +9,7 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
-import { showVoiceIdActivationSurface } from './activationSurface';
+import { showVoiceIdCaptureSurface } from '../capture/surface';
 import {
   readUnlockedWalletEd25519ExportRootCapabilityV1,
   walletCustodyCeremonyTransportFromWorkerContextV1,
@@ -132,7 +132,11 @@ export async function addVoiceIdWalletAuthMethod(input: {
   const parsedWalletId = parseWalletId(input.walletId);
   if (!parsedWalletId.ok) throw new Error('VoiceID activation wallet ID is invalid.');
   const prepared = await prepareActivation(input.context, parsedWalletId.value);
-  return await showVoiceIdActivationSurface(activatePreparedVoiceId.bind(null, prepared));
+  return await showVoiceIdCaptureSurface({
+    action: activatePreparedVoiceId.bind(null, prepared),
+    purpose: 'activation',
+    expiresAtMs: null,
+  });
 }
 
 async function activatePreparedVoiceId(

@@ -5,6 +5,8 @@ import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/des
 import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
 import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
 import type { AuthMethodReviewPolicy, AuthMethodReviewApproval } from '../../packages/wallet/src/core/authMethods/hostPlugin';
+import type { WalletAuthMethodHostPlugin, AuthMethodSessionInstaller } from '../../packages/wallet/src/core/authMethods/hostPlugin';
+import type { WalletId, WalletAuthMethodId } from '../../packages/shared-ts/src/utils/domainIds';
 
 const enabled: SeamsConfigsInput = { authMethods: [voiceIdAuthMethod()] };
 void enabled;
@@ -27,6 +29,15 @@ const disabledWithApproval: AuthMethodReviewPolicy = { kind: 'disabled', ...appr
 void requiredPolicy;
 void missingApproval;
 void disabledWithApproval;
+
+declare const hostPlugin: WalletAuthMethodHostPlugin;
+declare const walletId: WalletId;
+declare const walletAuthMethodId: WalletAuthMethodId;
+// @ts-expect-error A plugin unlock cannot omit the core signing installer.
+hostPlugin.unlock({ relayerUrl: 'https://router.example.test', walletId, walletAuthMethodId });
+// @ts-expect-error An installer can return only a successful installed unlock.
+const failedInstaller: AuthMethodSessionInstaller = async () => ({ success: false, error: 'not installed' });
+void failedInstaller;
 
 declare const verifiedProofFields: Pick<
   VerifiedVoiceIdSessionProof,
