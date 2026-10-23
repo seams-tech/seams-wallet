@@ -188,6 +188,32 @@ The server package includes the three optional Worker builds.
 These totals exclude ML-DSA code inside shared files. They are not a measured delta against dev.
 Separating optional server artifacts into another package could reduce installation size. That packaging change remains separate from runtime isolation.
 
+## Local launcher integration
+
+The local launcher now starts the five ordinary role Workers by default.
+Use `--ml-dsa` with `start-local-wallet-system.mjs` or `start-local-role-workers.mjs` to add the five dedicated ML-DSA services.
+The optional services use the canonical `wrangler.ml-dsa-*.toml` templates and separate persistence directories.
+The ordinary Router receives its forwarding binding only in this mode.
+A and B receive separate role keys. Each preparer receives only its corresponding participant key.
+
+The intended-test runner selects this mode for the ML-DSA lifecycle contract.
+For a direct Playwright invocation, set `SEAMS_INTENDED_ML_DSA=1`.
+A normal build of that test also builds the three ML-DSA artifacts.
+With `SEAMS_INTENDED_SKIP_BUILD=1`, all selected artifacts and approved-origin browser assets must already exist.
+
+The previous launcher added ML-DSA Durable Object bindings to ordinary participant builds.
+A real local browser run failed before registration because those builds no longer export the bound objects.
+This was a production integration regression in the local launcher. The obsolete binding injection is removed.
+The corrected launcher starts the separated services without those export errors.
+The [local isolation evidence](../evidence/ml-dsa-65-local-isolation-20261023.json) records both passing paths.
+The ordinary path starts five roles, returns Gateway readiness, and refuses ML-DSA with an explicit unavailable response.
+The separate ML-DSA path passes full browser recovery, QR linking, canonical FIPS export/import, and participant restoration.
+It also finalizes an independently verified threshold-signed transaction on NEAR testnet.
+The browser test keeps the sixty-second cooldown, two-at-once consumption, and thirty-two-candidate capacity.
+The run took about six minutes, including required cooldowns. This is test duration, not per-operation latency.
+Type checks, script syntax checks, and packaged-source parity pass. The inherited bloat failure remains unchanged.
+No hosted latency or live namespace transfer is qualified by these local checks.
+
 ## State-preserving cutover requirements
 
 The current templates create fresh namespaces. Do not use their create migrations to replace existing ML-DSA state.

@@ -125,7 +125,7 @@ export async function runMlDsaBrowserLifecycle(
     observedAt: new Date().toISOString(),
     scope: process.env.ML_DSA_HOSTED_DEPLOYMENT
       ? 'Chromium, real recovery-code ceremony, separate QR target browser and authenticators, normal SDK, real Cloudflare Gateway/D1/Router/A/B Workers. Console admission uses a disposable static authority. Browser assets use local test origins. Live testnet RPC qualifies Wallet-approved key enrollment and a finalized ML-DSA threshold transaction.'
-      : 'Chromium, real recovery-code ceremony, separate QR target browser and authenticators, public SDK and Gateway, local Cloudflare workerd. Live testnet RPC qualifies Wallet-approved key enrollment and a finalized ML-DSA threshold transaction.',
+      : 'Chromium, real recovery-code ceremony, separate QR target browser and authenticators, public SDK and Gateway, local Cloudflare workerd with separate ML-DSA Router, participants, and preparers. Live testnet RPC qualifies Wallet-approved key enrollment and a finalized ML-DSA threshold transaction.',
     walletId: context.walletId,
     signer,
     testnet: {
@@ -342,6 +342,14 @@ async function saveEvidence(testInfo: TestInfo, evidence: Record<string, unknown
     'crates/router-ab-cloudflare/build/router/index_bg.wasm',
     'crates/router-ab-cloudflare/build/deriver-a/index_bg.wasm',
     'crates/router-ab-cloudflare/build/deriver-b/index_bg.wasm',
+    'crates/router-ab-cloudflare/build/ml-dsa/router/index_bg.wasm',
+    'crates/router-ab-cloudflare/build/ml-dsa/deriver-a/index_bg.wasm',
+    'crates/router-ab-cloudflare/build/ml-dsa/deriver-b/index_bg.wasm',
+    'wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm',
+    'crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs',
+    'crates/router-ab-cloudflare/scripts/start-local-role-workers.mjs',
+    'crates/router-ab-cloudflare/scripts/start-local-wallet-system.mjs',
+    'tests/scripts/start-wallet-intended-services.mjs',
   ]) {
     sources[file] = createHash('sha256')
       .update(await readFile(new URL('../../../' + file, import.meta.url)))

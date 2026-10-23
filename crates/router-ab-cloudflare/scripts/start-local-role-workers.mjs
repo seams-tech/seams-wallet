@@ -51,6 +51,7 @@ async function main() {
     repoRoot,
     localEnvRoot: localRoot,
     ceremonyJwksJson: resolveCeremonyPublicJwksJson(),
+    mlDsa: options.mlDsa,
   });
   applyPrivateD1Migrations(runtime);
   startWorkers(runtime);
@@ -73,12 +74,16 @@ async function main() {
 }
 
 function parseArguments(args) {
-  const parsed = { help: false, root: '' };
+  const parsed = { help: false, root: '', mlDsa: false };
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === '--') continue;
     if (argument === '--help') {
       parsed.help = true;
+      continue;
+    }
+    if (argument === '--ml-dsa') {
+      parsed.mlDsa = true;
       continue;
     }
     if (argument === '--root') {
@@ -92,7 +97,7 @@ function parseArguments(args) {
 }
 
 function printUsage() {
-  console.log('Usage: start-local-role-workers.mjs [--root <runtime-directory>]');
+  console.log('Usage: start-local-role-workers.mjs [--root <runtime-directory>] [--ml-dsa]');
 }
 
 function initializeLocalIdentity() {
@@ -116,6 +121,12 @@ function assertWorkerArtifacts() {
   ]
     .map(workerArtifactPath)
     .filter(isMissingPath);
+  if (options.mlDsa) {
+    for (const role of ['router', 'deriver-a', 'deriver-b']) {
+      const artifact = workerArtifactPath(path.join('ml-dsa', role));
+      if (isMissingPath(artifact)) missing.push(artifact);
+    }
+  }
   if (missing.length === 0) return;
   throw new Error(
     `Wallet role Worker artifacts are missing: ${missing.map(repoRelativePath).join(', ')}. Install a complete @seams/wallet-server release.`,
