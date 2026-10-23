@@ -2,6 +2,7 @@ import type { ThresholdEcdsaSessionId } from './domainIds';
 import type {
   RouterAbEcdsaDerivationActivationCommitQueryResultV1,
   RouterAbEcdsaDerivationActivationPrepareResultV1,
+  RouterAbEcdsaOperationStepUpAuthorizationRequestV1Wire,
   RouterAbEcdsaPostRegistrationSessionActivationResponseV1,
   RouterAbEcdsaPostRegistrationSessionPolicyV1,
   RouterAbEcdsaRegistrationActivationReceiptV1,
@@ -19,6 +20,20 @@ declare const activationResponse: RouterAbEcdsaPostRegistrationSessionActivation
 declare const activationCorrelationId: CorrelationId;
 declare const clientActivationFacts: RouterAbEcdsaVerifiedClientActivationFactsV1;
 declare const activationReceipt: RouterAbEcdsaRegistrationActivationReceiptV1;
+declare const passkeyStepUpProof: Extract<
+  RouterAbEcdsaOperationStepUpAuthorizationRequestV1Wire['proof'],
+  { readonly kind: 'passkey' }
+>;
+
+const invalidPasskeyStepUpProof = {
+  ...passkeyStepUpProof,
+  webauthn_authentication: {
+    ...passkeyStepUpProof.webauthn_authentication,
+    // @ts-expect-error A passkey step-up assertion cannot carry PRF output on the wire.
+    clientExtensionResults: { prf: { results: { first: 'secret' } } },
+  },
+} satisfies typeof passkeyStepUpProof;
+void invalidPasskeyStepUpProof;
 
 const sessionPolicy = {
   threshold_session_id: thresholdSessionId,

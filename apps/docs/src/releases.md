@@ -18,6 +18,7 @@ These docs target version **0.21.0** of the browser and server SDKs. The recover
 
 The browser SDK removes passkey PRF outputs before it sends recovery assertions to the server.
 The server rejects recovery assertions and registrations that still contain extension output values.
+ECDSA signing step-up and key-export proofs also omit PRF output, and the server requires redacted assertions.
 Recovery administration requires a fresh, operation-bound full-owner proof.
 
 ## Documentation

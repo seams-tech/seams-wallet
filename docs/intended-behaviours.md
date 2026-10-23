@@ -1278,6 +1278,10 @@ operation after its shared signing budget is exhausted. Fresh factor verificatio
 is required. Exhaustion does not invalidate the identity used for step-up, and
 step-up does not renew that session or replenish its reusable budget.
 
+ECDSA step-up requests for signing and key export carry passkey assertions with
+`clientExtensionResults: null`. The Gateway rejects any other extension-output
+value before it admits the operation.
+
 NEAR signing uses its exact local material to reach prepare after exhaustion.
 Prepare and finalize enforce the budget or require fresh step-up authorization.
 There is no separate NEAR owner-lane metadata request.

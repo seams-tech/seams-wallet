@@ -637,7 +637,7 @@ type RouterAbEcdsaOperationStepUpWebAuthnCredentialV1Wire = {
     readonly signature: string;
     readonly userHandle: string | null;
   };
-  readonly clientExtensionResults: unknown | null;
+  readonly clientExtensionResults: null;
 };
 
 export type RouterAbEcdsaOperationStepUpPreparationV1Wire = {
@@ -3334,6 +3334,9 @@ function parseRouterAbEcdsaOperationStepUpWebAuthnCredentialV1(
     'signature',
     'userHandle',
   ]);
+  if (credential.clientExtensionResults !== null) {
+    throw new Error('webauthn_authentication.clientExtensionResults must be redacted');
+  }
   const authenticatorAttachment =
     credential.authenticatorAttachment === null
       ? null
@@ -3368,7 +3371,7 @@ function parseRouterAbEcdsaOperationStepUpWebAuthnCredentialV1(
       ),
       userHandle,
     },
-    clientExtensionResults: credential.clientExtensionResults,
+    clientExtensionResults: null,
   };
 }
 

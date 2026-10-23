@@ -123,7 +123,7 @@ function operationStepUpProof(args: {
             signature: credential.response.signature,
             userHandle: credential.response.userHandle ?? null,
           },
-          clientExtensionResults: credential.clientExtensionResults ?? null,
+          clientExtensionResults: null,
         },
       };
     }

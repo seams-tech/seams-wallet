@@ -2,11 +2,14 @@ import {
   expect,
   type BrowserContext,
   type Page,
+  type Request,
   type Route,
   type TestInfo,
 } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH } from '../../../packages/shared-ts/src/utils/routerAbEcdsaDerivation';
+import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { WalletSessionStatusEvidence } from './walletSessionStatusEvidence';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { verifyFreshUnlockWins, verifyLockWins } from './session-restore-lock';
@@ -20,6 +23,64 @@ test('lock retains durable presignatures across a fresh unlock', verifyLockPrese
 test('locking a wallet updates an idle tab without a session query', verifyPassiveWalletLock);
 test('a cross-tab lock prevents delayed restoration from recreating its credential', verifyLockWins);
 test('a fresh unlock survives a delayed restoration response from another tab', verifyFreshUnlockWins);
+
+type EcdsaStepUpWireObservation = {
+  readonly operationKind: string;
+  readonly extensionsRedacted: boolean;
+};
+
+function recordEcdsaStepUpWireObservation(
+  observations: EcdsaStepUpWireObservation[],
+  request: Request,
+): void {
+  if (
+    request.method() !== 'POST' ||
+    new URL(request.url()).pathname !== ROUTER_AB_ECDSA_DERIVATION_OPERATION_STEP_UP_PATH
+  ) {
+    return;
+  }
+  let body: unknown;
+  try {
+    body = request.postDataJSON();
+  } catch {
+    observations.push({ operationKind: 'invalid', extensionsRedacted: false });
+    return;
+  }
+  if (!isPlainObject(body) || !isPlainObject(body.proof)) {
+    observations.push({ operationKind: 'invalid', extensionsRedacted: false });
+    return;
+  }
+  if (body.proof.kind !== 'passkey') return;
+  const credential = body.proof.webauthn_authentication;
+  const response = isPlainObject(credential) ? credential.response : null;
+  const operationKind = isPlainObject(body.operation)
+    ? String(body.operation.operation_kind)
+    : 'invalid';
+  observations.push({
+    operationKind,
+    extensionsRedacted:
+      isPlainObject(credential) &&
+      credential.clientExtensionResults === null &&
+      isPlainObject(response) &&
+      response.clientExtensionResults === undefined,
+  });
+}
+
+function summarizeEcdsaStepUpWire(observations: readonly EcdsaStepUpWireObservation[]): {
+  readonly exportProofs: number;
+  readonly signingProofs: number;
+  readonly unredactedProofs: number;
+} {
+  let exportProofs = 0;
+  let signingProofs = 0;
+  let unredactedProofs = 0;
+  for (const observation of observations) {
+    if (observation.operationKind === 'evm.export_key') exportProofs += 1;
+    if (observation.operationKind === 'evm.sign_transaction') signingProofs += 1;
+    if (!observation.extensionsRedacted) unredactedProofs += 1;
+  }
+  return { exportProofs, signingProofs, unredactedProofs };
+}
 
 async function observePasskeyUnlock(
   harness: IntendedBehaviourHarness,
@@ -70,6 +131,8 @@ async function verifyPasskeyPageRefreshHydration(
   },
   testInfo: TestInfo,
 ): Promise<void> {
+  const stepUpWireObservations: EcdsaStepUpWireObservation[] = [];
+  page.on('request', recordEcdsaStepUpWireObservation.bind(null, stepUpWireObservations));
   const evidence = await observePasskeyUnlock(harness, page);
   evidence.setStage('refresh-and-export');
   await harness.refreshPagePreservingWalletStorage();
@@ -85,6 +148,16 @@ async function verifyPasskeyPageRefreshHydration(
   await harness.signNearTransaction('step_up_required');
   await harness.signTempoTransaction('step_up_required');
   await harness.signArcEvmTransaction('step_up_required');
+  const stepUpWireSummary = summarizeEcdsaStepUpWire(stepUpWireObservations);
+  expect(stepUpWireSummary.exportProofs).toBeGreaterThan(0);
+  expect(stepUpWireSummary.signingProofs).toBeGreaterThan(0);
+  expect(stepUpWireSummary.unredactedProofs).toBe(0);
+  const artifactPath = testInfo.outputPath('ecdsa-step-up-prf-boundary.json');
+  await writeFile(artifactPath, JSON.stringify(stepUpWireSummary, null, 2) + '\n', 'utf8');
+  await testInfo.attach('ecdsa-step-up-prf-boundary', {
+    path: artifactPath,
+    contentType: 'application/json',
+  });
   await evidence.finish(testInfo);
 }
 
