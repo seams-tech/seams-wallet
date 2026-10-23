@@ -11,7 +11,12 @@ The [commit and retirement screen](ml-dsa-65-commit-retirement-report.md) adds G
 Its real-Worker test proves a durable tombstone, late-readiness rejection, and replacement before the old five-minute deadline; existing claims remain protected.
 The hosted test-only sync probe records execution barrier medians of 29 ms on A and 54 ms on B. These boundary intervals can include CPU work, scheduling, and earlier writes.
 Probe registration takes 8.512 and 6.000 seconds; verified signing takes 9.729 and 3.869 seconds. Two B preparation traces are truncated.
-Next, obtain complete low-volume diagnostics and a matched unwrapped control, then test hosted retirement races. Production adds no sync barrier; detailed tracing remains disabled by default.
+The [complete-trace and retirement-ordering screen](ml-dsa-65-matched-commit-report.md) removes repeated peer log records and captures both preparation traces without reported truncation.
+Both unwrapped control attempts fail. The explicit-sync arm creates a canonical key in 23.855 seconds and verifies a signature in 13.092 seconds, then fails recovery readiness publication.
+There is no successful paired control or demonstrated sync benefit. Production adds no sync barrier; detailed tracing remains disabled by default.
+Hosted checks prove durable unclaimed retirement before lease expiry and preservation of an admitted claim at retirement. Both full hosted fault campaigns later fail registration.
+The claimed decision survives a supplemental restart check, but successful hosted completion and replay remain unproved in that scenario.
+Next, correlate Admission commands and role-storage installation with exact operations, isolate their durable completion waits, and obtain a successful unwrapped lifecycle before selecting an optimization.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.

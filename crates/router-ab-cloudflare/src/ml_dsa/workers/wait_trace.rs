@@ -37,7 +37,7 @@ pub(super) struct WaitTrace {
     call: Option<crate::CloudflareTraceIdV1>,
     events: Cell<u32>,
     sequence: Cell<u32>,
-    peer_segment: Cell<bool>,
+    peer_begin_logged: Cell<bool>,
     peer_ready: Cell<u32>,
     peer_pending: Cell<u32>,
     peer_boundary_ms: Cell<u64>,
@@ -64,7 +64,7 @@ impl WaitTrace {
             call,
             events: Cell::new(0),
             sequence: Cell::new(0),
-            peer_segment: Cell::new(false),
+            peer_begin_logged: Cell::new(false),
             peer_ready: Cell::new(0),
             peer_pending: Cell::new(0),
             peer_boundary_ms: Cell::new(0),
@@ -126,9 +126,9 @@ pub(super) async fn observe<T, E>(
     };
     let sequence = trace.sequence.get();
     trace.sequence.set(sequence.saturating_add(1));
+    // Count peer suspension throughout the call; log only its first occurrence.
     let peer = kind == Kind::PeerEvent;
     if !peer {
-        trace.peer_segment.set(false);
         trace.emit(sequence, kind, "begin", false, false);
     }
     let started = crate::cloudflare_now_unix_ms_v1().ok();
@@ -147,7 +147,7 @@ pub(super) async fn observe<T, E>(
                 trace
                     .peer_pending
                     .set(trace.peer_pending.get().saturating_add(1));
-                if !trace.peer_segment.replace(true) {
+                if !trace.peer_begin_logged.replace(true) {
                     trace.emit(sequence, kind, "begin", true, false);
                 }
             }
