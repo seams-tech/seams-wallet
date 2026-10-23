@@ -36,7 +36,10 @@ import type {
   StartDevice2LinkingFlowArgs,
   StartDevice2LinkingFlowResults,
 } from '@/core/types/linkDevice';
-import { listLocalLoginAuthMethods } from '@/SeamsWeb/operations/auth/login';
+import {
+  listLocalLoginAuthMethods,
+  type LocalLoginAuthMethod,
+} from '@/SeamsWeb/operations/auth/login';
 import type {
   HostedRecoveryEmailOtpVerified,
   HostedRecoveryCredentialCreated,
@@ -161,6 +164,33 @@ function yieldAfterAuthMenuMount(): Promise<void> {
   return new Promise(resolveOnNextTask);
 }
 
+/* A menu painted before the saved wallets are read drops the wallet selector in
+   later, and every control under it moves down. The first paint waits this long
+   for them; the reads are local, so they usually take a few milliseconds. */
+const LOGIN_ACCOUNTS_FIRST_PAINT_WAIT_MS = 150;
+
+type LocalLoginAccounts = {
+  readonly recentUnlocks: GetRecentUnlocksResult | null;
+  readonly localAuthMethods: readonly LocalLoginAuthMethod[];
+};
+
+/** The value, if the promise fulfils within `ms`; null if it rejects or is late. */
+function fulfilledWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        window.clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
 export class AuthMenuController {
   private readonly sessions = new Map<
     HostedAuthMenuOpenRequest['authMenuSessionId'],
@@ -197,8 +227,23 @@ export class AuthMenuController {
     });
     const outcomePromise = session.waitForOutcome();
     const requestedWalletId = requestedWalletIdForLoginTarget(args.request.loginTarget);
+    const loginAccounts = this.readLoginAccounts();
     this.sessions.set(args.request.authMenuSessionId, session);
     try {
+      const loginAccountsBeforePaint = await fulfilledWithin(
+        loginAccounts,
+        LOGIN_ACCOUNTS_FIRST_PAINT_WAIT_MS,
+      );
+      // A cancel during the wait settles the session; it never shows.
+      if (session.state.kind === 'complete') return await outcomePromise;
+      if (loginAccountsBeforePaint) {
+        this.applyLoginAccounts(
+          session,
+          requestId,
+          args.request.loginTarget,
+          loginAccountsBeforePaint,
+        );
+      }
       session.mount();
       await yieldAfterAuthMenuMount();
       session.setRegistrationPreparation((registrationValue, cancellation, onEvent) =>
@@ -211,9 +256,15 @@ export class AuthMenuController {
           onEvent,
         ),
       );
-      if (requestedWalletId) {
-        await this.bootstrapLoginAccounts(session, requestId, args.request.loginTarget);
-      } else {
+      // Saved wallets read before the mount are already applied.
+      if (!loginAccountsBeforePaint && requestedWalletId) {
+        await this.bootstrapLoginAccounts(
+          session,
+          requestId,
+          args.request.loginTarget,
+          loginAccounts,
+        );
+      } else if (!loginAccountsBeforePaint) {
         session.setLoginPreparation({
           accountOptions: [],
           selectedAccount: null,
@@ -227,7 +278,12 @@ export class AuthMenuController {
               args.request.loginTarget,
             ),
         });
-        void this.bootstrapLoginAccounts(session, requestId, args.request.loginTarget);
+        void this.bootstrapLoginAccounts(
+          session,
+          requestId,
+          args.request.loginTarget,
+          loginAccounts,
+        );
       }
       return await outcomePromise;
     } finally {
@@ -236,11 +292,7 @@ export class AuthMenuController {
     }
   }
 
-  private async bootstrapLoginAccounts(
-    session: AuthMenuSession,
-    requestId: WalletIframeRequestId,
-    loginTarget: HostedAuthMenuLoginTarget,
-  ): Promise<void> {
+  private async readLoginAccounts(): Promise<LocalLoginAccounts> {
     const [recentUnlocks, localAuthMethods] = await Promise.all([
       this.deps
         .getWalletRuntime()
@@ -248,6 +300,24 @@ export class AuthMenuController {
         .catch(() => null),
       listLocalLoginAuthMethods().catch(() => []),
     ]);
+    return { recentUnlocks, localAuthMethods };
+  }
+
+  private async bootstrapLoginAccounts(
+    session: AuthMenuSession,
+    requestId: WalletIframeRequestId,
+    loginTarget: HostedAuthMenuLoginTarget,
+    loginAccounts: Promise<LocalLoginAccounts>,
+  ): Promise<void> {
+    this.applyLoginAccounts(session, requestId, loginTarget, await loginAccounts);
+  }
+
+  private applyLoginAccounts(
+    session: AuthMenuSession,
+    requestId: WalletIframeRequestId,
+    loginTarget: HostedAuthMenuLoginTarget,
+    { recentUnlocks, localAuthMethods }: LocalLoginAccounts,
+  ): void {
     if (session.state.kind === 'complete') return;
     const requestedWalletId = requestedWalletIdForLoginTarget(loginTarget);
     const discoveredOptions = loginAccountOptions(recentUnlocks, localAuthMethods);
