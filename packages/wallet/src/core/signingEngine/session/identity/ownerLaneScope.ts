@@ -169,6 +169,9 @@ export async function resolveExactWalletAuthAuthority(args: {
       authority: passkeyWalletAuthAuthorityFromV2Record(args.authMethod),
     });
   }
+  if (args.authMethod.kind === 'voiceid') {
+    throw new OwnerLaneScopeIntegrityError('VoiceID owner lane requires its own custody factor');
+  }
   return assertExactFactorAuthorityBinding({
     authMethod: args.authMethod,
     authority: await resolveEmailOtpWalletAuthAuthority({
@@ -259,6 +262,9 @@ export async function resolveExactOwnerLaneScope(args: {
 }): Promise<OwnerLaneScope> {
   if (args.authMethod.kind === 'passkey') {
     return await passkeyOwnerLaneScope({ authMethod: args.authMethod, stores: args.stores });
+  }
+  if (args.authMethod.kind === 'voiceid') {
+    throw new OwnerLaneScopeIntegrityError('VoiceID owner lane requires its own custody factor');
   }
   const authority = await resolveEmailOtpWalletAuthAuthority({
     authMethod: args.authMethod,

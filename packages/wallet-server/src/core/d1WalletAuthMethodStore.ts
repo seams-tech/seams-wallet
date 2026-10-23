@@ -9,6 +9,7 @@ import {
   parseWalletAuthMethodRecordV2,
   walletAuthMethodRecordId,
   type ActiveWalletAuthMethodRecordV2,
+  type ActiveVoiceIdWalletAuthMethodRecordV2,
   type WalletAuthMethodRecord as SharedWalletAuthMethodRecord,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
@@ -57,6 +58,11 @@ export type WalletAuthMethodV2Store = {
   readByIdV2(input: {
     readonly walletAuthMethodId: WalletAuthMethodId;
   }): Promise<WalletAuthMethodRecordV2 | null>;
+  getActiveVoiceIdV2(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly walletAuthorityId: WalletAuthorityId;
+  }): Promise<ActiveVoiceIdWalletAuthMethodRecordV2 | null>;
   getPasskeyV2(input: {
     readonly rpId: string;
     readonly credentialIdB64u: string;
@@ -234,6 +240,8 @@ export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
       updated_at_ms INTEGER NOT NULL,
       activated_at_ms INTEGER,
       revoked_at_ms INTEGER,
+      provider TEXT,
+      provider_user_id TEXT,
       PRIMARY KEY (namespace, org_id, project_id, env_id, wallet_auth_method_id),
       FOREIGN KEY (
         namespace,
@@ -250,7 +258,7 @@ export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
       ),
       CHECK (length(wallet_id) > 0),
       CHECK (length(wallet_authority_id) > 0),
-      CHECK (kind IN ('passkey', 'email_otp')),
+      CHECK (kind IN ('passkey', 'email_otp', 'voiceid')),
       CHECK (status IN ('pending_local_install', 'active', 'revoked')),
       CHECK (length(wallet_auth_method_id) > 0),
       CHECK (length(auth_identifier_key) > 0),
@@ -284,6 +292,18 @@ export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
           AND registration_authority_id IS NOT NULL
           AND length(registration_authority_id) > 0
           AND auth_identifier_key = email_hash_hex)
+        OR
+        (kind = 'voiceid'
+          AND rp_id = ''
+          AND credential_id_b64u IS NULL
+          AND credential_public_key_b64u IS NOT NULL
+          AND length(credential_public_key_b64u) = 43
+          AND email_hash_hex IS NULL
+          AND registration_authority_id IS NULL
+          AND provider IS NULL
+          AND provider_user_id IS NULL
+          AND length(auth_identifier_key) = 43
+          AND COALESCE(auth_identifier_key = json_extract(record_json, '$.deviceKeyId'), 0))
       ),
       CHECK (json_extract(record_json, '$.version') = 'wallet_auth_method_v2'),
       CHECK (json_extract(record_json, '$.walletAuthMethodId') = wallet_auth_method_id),
@@ -303,6 +323,10 @@ export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
         (kind = 'email_otp'
           AND json_extract(record_json, '$.emailHashHex') = email_hash_hex
           AND json_extract(record_json, '$.registrationAuthorityId') = registration_authority_id)
+        OR
+        (kind = 'voiceid'
+          AND COALESCE(json_extract(record_json, '$.deviceKeyId') = auth_identifier_key, 0)
+          AND COALESCE(json_extract(record_json, '$.devicePublicKeyB64u') = credential_public_key_b64u, 0))
       )
     )
   `,
@@ -317,6 +341,13 @@ export const WALLET_AUTH_METHOD_STORE_D1_SCHEMA_V2_SQL = Object.freeze([
         wallet_authority_id,
         status
       )
+  `,
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_v2_voiceid_key_uidx
+      ON wallet_auth_methods (
+        namespace, org_id, project_id, env_id, auth_identifier_key
+      )
+      WHERE kind = 'voiceid'
   `,
   `
     CREATE UNIQUE INDEX IF NOT EXISTS wallet_auth_methods_v2_passkey_uidx
@@ -441,6 +472,17 @@ export function bindWalletAuthMethodIdentityV2(record: WalletAuthMethodRecordV2)
         credentialPublicKeyB64u: null,
         emailHashHex: record.emailHashHex,
         registrationAuthorityId: record.registrationAuthorityId,
+        activatedAtMs: record.status === 'pending_local_install' ? null : record.activatedAtMs,
+        revokedAtMs: record.status === 'revoked' ? record.revokedAtMs : null,
+      };
+    case 'voiceid':
+      return {
+        rpId: '',
+        authIdentifierKey: record.deviceKeyId,
+        credentialIdB64u: null,
+        credentialPublicKeyB64u: record.devicePublicKeyB64u,
+        emailHashHex: null,
+        registrationAuthorityId: null,
         activatedAtMs: record.status === 'pending_local_install' ? null : record.activatedAtMs,
         revokedAtMs: record.status === 'revoked' ? record.revokedAtMs : null,
       };
@@ -990,6 +1032,25 @@ export class D1WalletAuthMethodStore implements WalletAuthMethodStore, WalletAut
         String(input.walletAuthMethodId),
       ),
     );
+  }
+
+  /** Checks the method record. Session issuance must also check its parent authority. */
+  async getActiveVoiceIdV2(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly walletAuthorityId: WalletAuthorityId;
+  }): Promise<ActiveVoiceIdWalletAuthMethodRecordV2 | null> {
+    const record = await this.readByIdV2({ walletAuthMethodId: input.walletAuthMethodId });
+    if (
+      !record ||
+      record.kind !== 'voiceid' ||
+      record.status !== 'active' ||
+      record.walletId !== input.walletId ||
+      record.walletAuthorityId !== input.walletAuthorityId
+    ) {
+      return null;
+    }
+    return record;
   }
 
   async getPasskeyV2(input: {

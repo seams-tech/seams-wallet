@@ -383,6 +383,12 @@ function walletAuthMethodRevokedResponse(
         walletId,
         authMethod: { kind: 'email_otp', status: 'revoked' },
       };
+    case 'voiceid':
+      return {
+        ok: true,
+        walletId,
+        authMethod: { kind: 'voiceid', status: 'revoked' },
+      };
     default:
       return unreachableRevokedMethodKind(record);
   }
@@ -924,7 +930,7 @@ export class CloudflareD1WalletAuthMethodService {
         walletId,
         auth: storedAuth.auth,
       });
-      if (!sourceMethod) {
+      if (!sourceMethod || sourceMethod.kind === 'voiceid') {
         return {
           ok: false,
           code: 'unauthorized',

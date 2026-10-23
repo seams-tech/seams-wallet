@@ -706,6 +706,9 @@ async function buildBrowserEcdsaPreprocessingCapability(args: {
   }
   const [manifest] = matchingManifests;
   if (!manifest) return { kind: 'inactive', reason: 'Exact ECDSA capability manifest is missing' };
+  if (args.selected.authMethod.kind === 'voiceid') {
+    return { kind: 'inactive', reason: 'VoiceID ECDSA lane is unavailable' };
+  }
   const capability = await browserCanonicalEcdsaCapabilityFromManifest(manifest);
   const sealedRecords =
     await args.context.sealedSigningSessionStore.listExactSealedSessionsForWallet({

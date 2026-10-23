@@ -618,6 +618,8 @@ function walletAuthMethodBindingFromRecord(
         emailHashHex: record.emailHashHex,
         registrationAuthorityId: record.registrationAuthorityId,
       });
+    case 'voiceid':
+      return null;
     default:
       record satisfies never;
       return null;
@@ -679,6 +681,9 @@ async function walletAuthAuthorityForLinkedDeviceMethod(args: {
 }): Promise<WalletAuthAuthority> {
   if (args.selection.authMethod.kind === 'passkey') {
     return walletAuthAuthorityForSelectedPasskeyMethod(args.selection.authMethod);
+  }
+  if (args.selection.authMethod.kind === 'voiceid') {
+    throw new Error('[login] VoiceID linked-device authority requires its own unlock path');
   }
   const providerIdentity = args.providerIdentity;
   if (!providerIdentity) {
@@ -1169,6 +1174,8 @@ async function recentUnlockAccountFromLinkedDeviceSelection(
     case SIGNER_AUTH_METHODS.emailOtp:
       authMethod = SIGNER_AUTH_METHODS.emailOtp;
       break;
+    case 'voiceid':
+      return null;
     default:
       return assertNeverLoginState(resolved.authMethod);
   }
@@ -2343,6 +2350,8 @@ async function resolveLinkedDeviceNearUnlockSubject(args: {
       case SIGNER_AUTH_METHODS.emailOtp:
         factorMatches = reference.auth.kind === SIGNER_AUTH_METHODS.emailOtp;
         break;
+      case 'voiceid':
+        return { kind: 'invalid' };
       default:
         return assertNeverLoginState(args.authMethod);
     }
@@ -7875,6 +7884,8 @@ function localLoginAuthMethod(
         emailAddress,
       };
     }
+    case 'voiceid':
+      return null;
     default:
       return assertNeverLoginState(projection);
   }

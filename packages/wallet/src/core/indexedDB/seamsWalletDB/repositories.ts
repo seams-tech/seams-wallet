@@ -33,6 +33,7 @@ import {
   type EmailOtpWalletAuthMethodRecordV2,
   type PasskeyWalletAuthMethodRecordV2,
   type PendingWalletAuthMethodRecordV2,
+  type VoiceIdWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { walletIdFromString } from '@shared/utils/registrationIds';
@@ -204,6 +205,8 @@ function exportRootEnvelopeMatchesAuthMethod(
       return (
         envelope.factor.kind === 'email_otp' && envelope.binding.targetFactor.kind === 'email_otp'
       );
+    case 'voiceid':
+      return false;
     default:
       return assertNever(authMethod);
   }
@@ -313,6 +316,11 @@ type WalletAuthMethodV2Row =
       kind: 'email_otp';
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
       record: EmailOtpWalletAuthMethodRecordV2;
+    })
+  | (WalletAuthMethodV2RowBase & {
+      kind: 'voiceid';
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'voiceid' }>;
+      record: VoiceIdWalletAuthMethodRecordV2;
     });
 
 type WalletAuthoritySignerMaterialRow = {
@@ -2159,6 +2167,11 @@ function unavailableWalletAuthMethodPresentation(
         kind: 'email_otp',
         email: { kind: 'unavailable' },
       };
+    case 'voiceid':
+      return {
+        version: 'wallet_auth_method_local_presentation_v1',
+        kind: 'voiceid',
+      };
     default:
       record satisfies never;
       throw new Error('Wallet auth-method presentation kind is invalid');
@@ -2210,6 +2223,12 @@ function parseWalletAuthMethodLocalPresentationV1(
           return null;
       }
     }
+    case 'voiceid':
+      if (!hasExactKeys(value, ['version', 'kind'])) return null;
+      return {
+        version: 'wallet_auth_method_local_presentation_v1',
+        kind: 'voiceid',
+      };
     default:
       record satisfies never;
       return null;
@@ -2264,6 +2283,17 @@ function walletAuthMethodV2StorageRow(
         presentation: projection.presentation,
         record: projection.record,
       };
+    case 'voiceid':
+      return {
+        wallet_auth_method_id: projection.record.walletAuthMethodId,
+        wallet_id: projection.record.walletId,
+        wallet_authority_id: projection.record.walletAuthorityId,
+        kind: 'voiceid',
+        status: projection.record.status,
+        updated_at: projection.record.updatedAtMs,
+        presentation: projection.presentation,
+        record: projection.record,
+      };
     default:
       projection satisfies never;
       throw new Error('Wallet auth-method projection kind is invalid');
@@ -2313,6 +2343,8 @@ function walletAuthMethodLocalPresentation(
           ? current
           : unavailableWalletAuthMethodPresentation(record))
       );
+    case 'voiceid':
+      return unavailableWalletAuthMethodPresentation(record);
     default:
       record satisfies never;
       throw new Error('Wallet auth-method presentation kind is invalid');
@@ -2325,6 +2357,7 @@ function walletAuthMethodLocalPresentationsMatch(
 ): boolean {
   if (left.kind !== right.kind) return false;
   if (left.kind === 'passkey' && right.kind === 'passkey') return true;
+  if (left.kind === 'voiceid' && right.kind === 'voiceid') return true;
   if (left.kind !== 'email_otp' || right.kind !== 'email_otp') return false;
   if (left.email.kind !== right.email.kind) return false;
   if (left.email.kind === 'unavailable' && right.email.kind === 'unavailable') return true;
@@ -2359,6 +2392,11 @@ function localWalletAuthMethodProjectionV2(
         throw new Error('Email OTP auth method has non-email local presentation');
       }
       return { kind: 'email_otp', record, presentation };
+    case 'voiceid':
+      if (presentation.kind !== 'voiceid') {
+        throw new Error('VoiceID auth method has non-VoiceID local presentation');
+      }
+      return { kind: 'voiceid', record, presentation };
     default:
       record satisfies never;
       throw new Error('Wallet auth-method projection kind is invalid');
@@ -3044,6 +3082,14 @@ function walletAuthMethodRecordsMatch(
         (left.status === 'pending_local_install' || left.activatedAtMs === right.activatedAtMs) &&
         (left.status !== 'revoked' || left.revokedAtMs === right.revokedAtMs)
       );
+    case 'voiceid':
+      return (
+        right.kind === 'voiceid' &&
+        left.deviceKeyId === right.deviceKeyId &&
+        left.devicePublicKeyB64u === right.devicePublicKeyB64u &&
+        (left.status === 'pending_local_install' || left.activatedAtMs === right.activatedAtMs) &&
+        (left.status !== 'revoked' || left.revokedAtMs === right.revokedAtMs)
+      );
   }
   return assertNever(left);
 }
@@ -3076,6 +3122,12 @@ function walletAuthMethodPendingMatchesActive(
         active.kind === 'email_otp' &&
         pending.emailHashHex === active.emailHashHex &&
         pending.registrationAuthorityId === active.registrationAuthorityId
+      );
+    case 'voiceid':
+      return (
+        active.kind === 'voiceid' &&
+        pending.deviceKeyId === active.deviceKeyId &&
+        pending.devicePublicKeyB64u === active.devicePublicKeyB64u
       );
   }
   return assertNever(pending);
@@ -3257,6 +3309,9 @@ function parseLocalAuthorityInstallationInput(
     const authenticator =
       input.authenticator === null ? null : normalizeAuthenticatorRecord(input.authenticator);
     let localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null = null;
+    if (authMethod.kind === 'voiceid') {
+      throw new Error('Linked-device VoiceID installation requires its own custody flow');
+    }
     if (authMethod.kind === 'passkey') {
       if (input.localAuthMethod !== null) {
         throw new Error('Passkey installation cannot include a local Email OTP auth method');

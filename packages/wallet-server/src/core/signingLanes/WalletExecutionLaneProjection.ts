@@ -401,6 +401,8 @@ async function buildOwnerLane(input: {
       return buildOwnerPasskeySigningLaneRecord(base);
     case 'email_otp':
       return buildOwnerEmailOtpSigningLaneRecord(base);
+    case 'voiceid':
+      throw new SignerProjectionConflictError();
   }
 }
 
@@ -563,6 +565,7 @@ function walletAuthorityForAuthMethod(
       bindingId: authMethod.walletAuthMethodId,
     };
   }
+  if (authMethod.kind === 'voiceid') return null;
   if (authSource.kind !== 'oidc_provider') return null;
   const providerUserId = parseEmailOtpProviderUserId(authSource.providerSubject);
   if (!providerUserId.ok) return null;

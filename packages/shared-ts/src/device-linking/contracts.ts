@@ -562,6 +562,15 @@ export type LinkedOwnerCredentialMetadataV1 =
       readonly email?: never;
       readonly device?: never;
       readonly credentialIdB64u?: never;
+      readonly deviceKeyId?: never;
+    }
+  | {
+      readonly kind: 'voiceid';
+      readonly walletAuthMethodId: WalletAuthMethodId;
+      readonly deviceKeyId: DigestB64u;
+      readonly email?: never;
+      readonly device?: never;
+      readonly credentialIdB64u?: never;
     };
 
 /** Public wallet-scoped projection for linked-device management. */

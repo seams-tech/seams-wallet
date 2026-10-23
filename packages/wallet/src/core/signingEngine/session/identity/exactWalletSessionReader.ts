@@ -63,6 +63,7 @@ export async function readExactWalletSessionAuthentication(args: {
     authMethod.walletId !== walletId ||
     authMethod.walletAuthorityId !== authority.authorityId ||
     authMethod.status !== 'active' ||
+    authMethod.kind === 'voiceid' ||
     authority.walletId !== walletId ||
     authority.state !== 'active'
   ) {

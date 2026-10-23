@@ -74,6 +74,7 @@ function linkedOwnerCredentialMetadataV1() {
       device: parseWebAuthnDeviceInfo,
     }),
     wireObject({ kind: wireLiteral('email_otp'), walletAuthMethodId }),
+    wireObject({ kind: wireLiteral('voiceid'), walletAuthMethodId, deviceKeyId: digest }),
   ]);
 }
 

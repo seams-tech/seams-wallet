@@ -170,6 +170,9 @@ async function addPasskeyWalletAuthMethodInternal(args: {
       ...(args.options ? { options: args.options } : {}),
     });
   }
+  if (sourceClaim.sourceAuthMethod.kind === 'voiceid') {
+    throw new Error('Wallet add-passkey requires an existing passkey or Email OTP owner method');
+  }
   const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(sourceClaim.sourceAuthMethod);
   const credential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({
     subjectId: String(args.walletId),

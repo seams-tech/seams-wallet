@@ -9,6 +9,7 @@ import type { SignerAuthMethod, SignerKind, SignerSource } from '@shared/utils';
 import type {
   EmailOtpWalletAuthMethodRecordV2,
   PasskeyWalletAuthMethodRecordV2,
+  VoiceIdWalletAuthMethodRecordV2,
   WalletAuthMethodRecord,
   WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
@@ -196,6 +197,11 @@ export type WalletAuthMethodLocalPresentationV1 =
             readonly kind: 'unavailable';
             readonly address?: never;
           };
+    }
+  | {
+      readonly version: 'wallet_auth_method_local_presentation_v1';
+      readonly kind: 'voiceid';
+      readonly email?: never;
     };
 
 export type LocalWalletAuthMethodProjectionV2 =
@@ -208,6 +214,11 @@ export type LocalWalletAuthMethodProjectionV2 =
       kind: 'email_otp';
       record: EmailOtpWalletAuthMethodRecordV2;
       presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'email_otp' }>;
+    }>
+  | Readonly<{
+      kind: 'voiceid';
+      record: VoiceIdWalletAuthMethodRecordV2;
+      presentation: Extract<WalletAuthMethodLocalPresentationV1, { readonly kind: 'voiceid' }>;
     }>;
 
 export type RetainVerifiedEmailOtpLocalPresentationInputV1 = Readonly<{

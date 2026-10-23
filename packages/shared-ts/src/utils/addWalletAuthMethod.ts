@@ -14,6 +14,8 @@
  */
 
 import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
   ActiveWalletAuthMethodRecordV2,
   WalletAuthMethodRecordV2,
 } from './walletAuthMethodRecord';
@@ -31,8 +33,9 @@ import type { WalletAuthMethod } from './signerDomain';
  */
 export type WalletAuthMethodFamilyV1 = WalletAuthMethod;
 
-type FamilyMatchesRecordKind = WalletAuthMethodRecordV2['kind'] extends WalletAuthMethodFamilyV1
-  ? WalletAuthMethodFamilyV1 extends WalletAuthMethodRecordV2['kind']
+type AddableRecordKind = Exclude<WalletAuthMethodRecordV2['kind'], 'voiceid'>;
+type FamilyMatchesRecordKind = AddableRecordKind extends WalletAuthMethodFamilyV1
+  ? WalletAuthMethodFamilyV1 extends AddableRecordKind
     ? true
     : never
   : never;
@@ -74,7 +77,9 @@ function unreachableAuthMethodFamily(value: never): never {
  * which is why the operation needs no same-family rejection of its own.
  */
 export function admitAddWalletAuthMethod(input: {
-  readonly sourceMethod: ActiveWalletAuthMethodRecordV2;
+  readonly sourceMethod:
+    | ActivePasskeyWalletAuthMethodRecordV2
+    | ActiveEmailOtpWalletAuthMethodRecordV2;
   readonly targetFamily: WalletAuthMethodFamilyV1;
   readonly activeMethodsOnAuthority: readonly ActiveWalletAuthMethodRecordV2[];
 }): AddWalletAuthMethodAdmissionV1 {

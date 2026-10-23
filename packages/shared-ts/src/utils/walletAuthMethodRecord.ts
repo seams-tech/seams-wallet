@@ -1,6 +1,10 @@
-// A wallet's auth-method records: the stored passkey and Email OTP methods, their lifecycle,
+// A wallet's auth-method records: the stored passkey, Email OTP, and VoiceID methods, their lifecycle,
 // and the fingerprint of a request to revoke one.
-import { sha256Utf8DigestB64u, type DigestB64u } from './canonicalPrimitives';
+import {
+  parseVoiceIdDevicePublicKeyB64u,
+  type VoiceIdDevicePublicKeyB64u,
+} from '../authorization/voiceIdDeviceAssertion';
+import { parseDigestB64u, sha256Utf8DigestB64u, type DigestB64u } from './canonicalPrimitives';
 import { alphabetizeStringify } from './digests';
 import {
   parseWalletAuthMethodId,
@@ -108,6 +112,18 @@ export type EmailOtpWalletAuthMethodDraftV1 = WalletAuthMethodDraftCommonV1 & {
   readonly counter?: never;
 };
 
+export type VoiceIdWalletAuthMethodDraftV1 = WalletAuthMethodDraftCommonV1 & {
+  readonly kind: 'voiceid';
+  readonly deviceKeyId: DigestB64u;
+  readonly devicePublicKeyB64u: VoiceIdDevicePublicKeyB64u;
+  readonly rpId?: never;
+  readonly credentialIdB64u?: never;
+  readonly credentialPublicKeyB64u?: never;
+  readonly counter?: never;
+  readonly emailHashHex?: never;
+  readonly registrationAuthorityId?: never;
+};
+
 type WalletAuthMethodCommonV1 = {
   readonly version: 'wallet_auth_method_v2';
   readonly walletAuthMethodId: WalletAuthMethodId;
@@ -121,6 +137,7 @@ export type WalletAuthMethodRecordV2 = WalletAuthMethodCommonV1 &
   (
     | (PasskeyWalletAuthMethodDraftV1 & WalletAuthMethodLifecycleV1)
     | (EmailOtpWalletAuthMethodDraftV1 & WalletAuthMethodLifecycleV1)
+    | (VoiceIdWalletAuthMethodDraftV1 & WalletAuthMethodLifecycleV1)
   );
 
 export type PasskeyWalletAuthMethodRecordV2 = Variant<WalletAuthMethodRecordV2, 'kind', 'passkey'>;
@@ -129,6 +146,7 @@ export type EmailOtpWalletAuthMethodRecordV2 = Variant<
   'kind',
   'email_otp'
 >;
+export type VoiceIdWalletAuthMethodRecordV2 = Variant<WalletAuthMethodRecordV2, 'kind', 'voiceid'>;
 export type PendingWalletAuthMethodRecordV2 = Variant<
   WalletAuthMethodRecordV2,
   'status',
@@ -149,6 +167,11 @@ export type ActiveEmailOtpWalletAuthMethodRecordV2 = Variant<
   ActiveWalletAuthMethodRecordV2,
   'kind',
   'email_otp'
+>;
+export type ActiveVoiceIdWalletAuthMethodRecordV2 = Variant<
+  ActiveWalletAuthMethodRecordV2,
+  'kind',
+  'voiceid'
 >;
 
 export function sameWalletAuthMethodRecordV2(
@@ -183,6 +206,15 @@ export function sameWalletAuthMethodRecordV2(
       if (
         left.emailHashHex === right.emailHashHex &&
         left.registrationAuthorityId === right.registrationAuthorityId
+      ) {
+        break;
+      }
+      return false;
+    case 'voiceid':
+      if (right.kind !== 'voiceid') return false;
+      if (
+        left.deviceKeyId === right.deviceKeyId &&
+        left.devicePublicKeyB64u === right.devicePublicKeyB64u
       ) {
         break;
       }
@@ -267,6 +299,52 @@ export function buildWalletAuthMethodRecordV2(
         };
     }
   }
+  if (input.kind === 'voiceid') {
+    switch (input.status) {
+      case 'pending_local_install':
+        return {
+          version: 'wallet_auth_method_v2',
+          walletAuthMethodId: input.walletAuthMethodId,
+          walletId: input.walletId,
+          walletAuthorityId: input.walletAuthorityId,
+          kind: 'voiceid',
+          status: 'pending_local_install',
+          deviceKeyId: input.deviceKeyId,
+          devicePublicKeyB64u: input.devicePublicKeyB64u,
+          createdAtMs: input.createdAtMs,
+          updatedAtMs: input.updatedAtMs,
+        };
+      case 'active':
+        return {
+          version: 'wallet_auth_method_v2',
+          walletAuthMethodId: input.walletAuthMethodId,
+          walletId: input.walletId,
+          walletAuthorityId: input.walletAuthorityId,
+          kind: 'voiceid',
+          status: 'active',
+          deviceKeyId: input.deviceKeyId,
+          devicePublicKeyB64u: input.devicePublicKeyB64u,
+          createdAtMs: input.createdAtMs,
+          updatedAtMs: input.updatedAtMs,
+          activatedAtMs: input.activatedAtMs,
+        };
+      case 'revoked':
+        return {
+          version: 'wallet_auth_method_v2',
+          walletAuthMethodId: input.walletAuthMethodId,
+          walletId: input.walletId,
+          walletAuthorityId: input.walletAuthorityId,
+          kind: 'voiceid',
+          status: 'revoked',
+          deviceKeyId: input.deviceKeyId,
+          devicePublicKeyB64u: input.devicePublicKeyB64u,
+          createdAtMs: input.createdAtMs,
+          updatedAtMs: input.updatedAtMs,
+          activatedAtMs: input.activatedAtMs,
+          revokedAtMs: input.revokedAtMs,
+        };
+    }
+  }
   switch (input.status) {
     case 'pending_local_install':
       return {
@@ -321,7 +399,10 @@ export function parseWalletAuthMethodRecordV2(raw: unknown): WalletAuthMethodRec
   const version = trimString(record.version);
   const kind = trimString(record.kind);
   const status = trimString(record.status);
-  if (version !== 'wallet_auth_method_v2' || (kind !== 'passkey' && kind !== 'email_otp')) {
+  if (
+    version !== 'wallet_auth_method_v2' ||
+    (kind !== 'passkey' && kind !== 'email_otp' && kind !== 'voiceid')
+  ) {
     return null;
   }
   try {
@@ -355,6 +436,16 @@ export function parseWalletAuthMethodRecordV2(raw: unknown): WalletAuthMethodRec
         credentialIdB64u: credentialIdB64u.value,
         credentialPublicKeyB64u: record.credentialPublicKeyB64u,
         counter: parseNonNegativeInteger(record.counter),
+      });
+    }
+    if (kind === 'voiceid') {
+      if (!('deviceKeyId' in record) || !('devicePublicKeyB64u' in record)) return null;
+      exactWalletAuthMethodV2Fields(record, 'voiceid', status);
+      return buildParsedVoiceIdWalletAuthMethodRecordV2({
+        common,
+        lifecycle: parseWalletAuthMethodLifecycle(record),
+        deviceKeyId: parseDigestB64u(record.deviceKeyId),
+        devicePublicKeyB64u: parseVoiceIdDevicePublicKeyB64u(record.devicePublicKeyB64u),
       });
     }
     if (!('emailHashHex' in record) || !('registrationAuthorityId' in record)) return null;
@@ -420,15 +511,24 @@ function validateWalletAuthMethodRecordV2(value: WalletAuthMethodRecordV2): void
   if (!Number.isSafeInteger(value.updatedAtMs) || value.updatedAtMs < value.createdAtMs) {
     throw new Error('wallet auth method updatedAtMs must follow createdAtMs');
   }
-  if (value.kind === 'passkey') {
-    if (!value.rpId || !value.credentialIdB64u || !value.credentialPublicKeyB64u.trim()) {
-      throw new Error('passkey wallet auth method fields are required');
-    }
-    if (!Number.isSafeInteger(value.counter) || value.counter < 0) {
-      throw new Error('passkey authenticator counter must be non-negative');
-    }
-  } else if (!value.emailHashHex.trim() || !value.registrationAuthorityId.trim()) {
-    throw new Error('email OTP wallet auth method fields are required');
+  switch (value.kind) {
+    case 'passkey':
+      if (!value.rpId || !value.credentialIdB64u || !value.credentialPublicKeyB64u.trim()) {
+        throw new Error('passkey wallet auth method fields are required');
+      }
+      if (!Number.isSafeInteger(value.counter) || value.counter < 0) {
+        throw new Error('passkey authenticator counter must be non-negative');
+      }
+      break;
+    case 'email_otp':
+      if (!value.emailHashHex.trim() || !value.registrationAuthorityId.trim()) {
+        throw new Error('email OTP wallet auth method fields are required');
+      }
+      break;
+    case 'voiceid':
+      parseDigestB64u(value.deviceKeyId);
+      parseVoiceIdDevicePublicKeyB64u(value.devicePublicKeyB64u);
+      break;
   }
   switch (value.status) {
     case 'pending_local_install':
@@ -490,8 +590,10 @@ function exactWalletAuthMethodV2Fields(
   ];
   if (kind === 'passkey') {
     fields.push('rpId', 'credentialIdB64u', 'credentialPublicKeyB64u', 'counter');
-  } else {
+  } else if (kind === 'email_otp') {
     fields.push('emailHashHex', 'registrationAuthorityId');
+  } else {
+    fields.push('deviceKeyId', 'devicePublicKeyB64u');
   }
   if (status === 'active') fields.push('activatedAtMs');
   if (status === 'revoked') fields.push('activatedAtMs', 'revokedAtMs');
@@ -613,6 +715,58 @@ function buildParsedEmailOtpWalletAuthMethodRecordV2(input: {
         updatedAtMs: input.common.updatedAtMs,
         emailHashHex: input.emailHashHex,
         registrationAuthorityId: input.registrationAuthorityId,
+        activatedAtMs: input.lifecycle.activatedAtMs,
+        revokedAtMs: input.lifecycle.revokedAtMs,
+      };
+  }
+}
+
+function buildParsedVoiceIdWalletAuthMethodRecordV2(input: {
+  readonly common: WalletAuthMethodCommonV1;
+  readonly lifecycle: WalletAuthMethodLifecycleV1;
+  readonly deviceKeyId: DigestB64u;
+  readonly devicePublicKeyB64u: VoiceIdDevicePublicKeyB64u;
+}): WalletAuthMethodRecordV2 {
+  switch (input.lifecycle.status) {
+    case 'pending_local_install':
+      return {
+        version: 'wallet_auth_method_v2',
+        walletAuthMethodId: input.common.walletAuthMethodId,
+        walletId: input.common.walletId,
+        walletAuthorityId: input.common.walletAuthorityId,
+        kind: 'voiceid',
+        status: 'pending_local_install',
+        createdAtMs: input.common.createdAtMs,
+        updatedAtMs: input.common.updatedAtMs,
+        deviceKeyId: input.deviceKeyId,
+        devicePublicKeyB64u: input.devicePublicKeyB64u,
+      };
+    case 'active':
+      return {
+        version: 'wallet_auth_method_v2',
+        walletAuthMethodId: input.common.walletAuthMethodId,
+        walletId: input.common.walletId,
+        walletAuthorityId: input.common.walletAuthorityId,
+        kind: 'voiceid',
+        status: 'active',
+        createdAtMs: input.common.createdAtMs,
+        updatedAtMs: input.common.updatedAtMs,
+        deviceKeyId: input.deviceKeyId,
+        devicePublicKeyB64u: input.devicePublicKeyB64u,
+        activatedAtMs: input.lifecycle.activatedAtMs,
+      };
+    case 'revoked':
+      return {
+        version: 'wallet_auth_method_v2',
+        walletAuthMethodId: input.common.walletAuthMethodId,
+        walletId: input.common.walletId,
+        walletAuthorityId: input.common.walletAuthorityId,
+        kind: 'voiceid',
+        status: 'revoked',
+        createdAtMs: input.common.createdAtMs,
+        updatedAtMs: input.common.updatedAtMs,
+        deviceKeyId: input.deviceKeyId,
+        devicePublicKeyB64u: input.devicePublicKeyB64u,
         activatedAtMs: input.lifecycle.activatedAtMs,
         revokedAtMs: input.lifecycle.revokedAtMs,
       };

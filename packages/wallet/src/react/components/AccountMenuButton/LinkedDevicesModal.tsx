@@ -204,6 +204,8 @@ function credentialDescription(credential: LinkedOwnerCredentialMetadataV1): str
       return credential.device.label;
     case 'email_otp':
       return 'Email OTP';
+    case 'voiceid':
+      return 'VoiceID';
   }
 }
 
@@ -227,8 +229,10 @@ function deviceMetaLine(
     parts.push(walletText(locale, credential.device.synced ? 'Synced passkey' : 'Passkey'));
     const provider = credential.device.providerLabel ?? credential.device.provider;
     if (provider) parts.push(provider);
-  } else {
+  } else if (credential.kind === 'email_otp') {
     parts.push(walletText(locale, 'Email OTP'));
+  } else {
+    parts.push(walletDisplayText(locale, 'VoiceID'));
   }
   if (titleCollides)
     parts.push(
@@ -247,6 +251,7 @@ function deviceMetaLine(
 /** Icon for the row: what kind of thing holds this credential. */
 function credentialIcon(credential: LinkedOwnerCredentialMetadataV1): React.ReactElement {
   if (credential.kind === 'email_otp') return <MailIcon size={20} strokeWidth={1.75} />;
+  if (credential.kind === 'voiceid') return <LaptopIcon size={20} strokeWidth={1.75} />;
   return credential.device.os === 'ios' || credential.device.os === 'android' ? (
     <SmartphoneIcon size={20} strokeWidth={1.75} />
   ) : (
@@ -258,9 +263,9 @@ function credentialIcon(credential: LinkedOwnerCredentialMetadataV1): React.Reac
 function siblingMethodName(siblings: readonly WalletDeviceView[], locale: WalletLocale): string {
   if (siblings.length === 1) {
     const credential = viewCredential(siblings[0]);
-    return credential.kind === 'email_otp'
-      ? walletText(locale, 'your email code')
-      : walletText(locale, 'your "{value0}" passkey', { value0: credential.device.label });
+    if (credential.kind === 'email_otp') return walletText(locale, 'your email code');
+    if (credential.kind === 'voiceid') return walletDisplayText(locale, 'your VoiceID method');
+    return walletText(locale, 'your "{value0}" passkey', { value0: credential.device.label });
   }
   if (siblings.every((view) => viewCredential(view).kind === 'email_otp')) {
     return walletText(locale, 'your email code');

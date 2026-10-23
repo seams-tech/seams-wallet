@@ -209,6 +209,9 @@ async function readWalletIframeSessionObservation(
   if (authMethod.status !== 'active' || authority.state !== 'active') {
     return unavailableSession(input.walletId, 'invalid');
   }
+  if (authMethod.kind === 'voiceid') {
+    return unavailableSession(input.walletId, 'invalid');
+  }
 
   const authorizationRead = await readExactActiveForWalletOrUnavailable(dependencies, {
     walletId: input.walletId,

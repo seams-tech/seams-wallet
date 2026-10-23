@@ -29,7 +29,8 @@ type AuthenticationMethodView = {
         readonly kind: 'passkey';
         readonly description: string;
       }
-    | { readonly kind: 'email_otp' };
+    | { readonly kind: 'email_otp' }
+    | { readonly kind: 'voiceid' };
 };
 
 type CurrentAuthorityInventory =
@@ -98,6 +99,12 @@ function methodView(credential: LinkedOwnerCredentialMetadataV1): Authentication
         kind: 'email_otp',
         walletAuthMethodId: String(credential.walletAuthMethodId),
         presentation: { kind: 'email_otp' },
+      };
+    case 'voiceid':
+      return {
+        kind: 'voiceid',
+        walletAuthMethodId: String(credential.walletAuthMethodId),
+        presentation: { kind: 'voiceid' },
       };
   }
 }
@@ -176,7 +183,14 @@ function currentAuthorityInventory(input: {
 }
 
 function methodTitle(method: AuthenticationMethodView): string {
-  return method.kind === 'passkey' ? 'Passkey' : 'Email OTP';
+  switch (method.kind) {
+    case 'passkey':
+      return 'Passkey';
+    case 'email_otp':
+      return 'Email OTP';
+    case 'voiceid':
+      return 'VoiceID';
+  }
 }
 
 function methodDescription(method: AuthenticationMethodView): string {
@@ -185,6 +199,8 @@ function methodDescription(method: AuthenticationMethodView): string {
       return method.presentation.description;
     case 'email_otp':
       return 'Email OTP';
+    case 'voiceid':
+      return 'Voice unlock on this device';
   }
 }
 

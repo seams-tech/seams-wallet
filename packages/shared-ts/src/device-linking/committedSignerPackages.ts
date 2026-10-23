@@ -91,7 +91,7 @@ export type CommittedSignerPackageSetV1 = ReadonlyExclusiveUnion<
 export type CommittedAuthorityPackagesV1 = {
   readonly kind: 'committed_authority_packages_v1';
   readonly authority: PendingWalletAuthorityV1;
-  readonly authMethod: PendingWalletAuthMethodRecordV2;
+  readonly authMethod: Exclude<PendingWalletAuthMethodRecordV2, { readonly kind: 'voiceid' }>;
   readonly signerPackages: CommittedSignerPackageSetV1;
   readonly ed25519ExportRootPackage: LinkedDeviceEd25519ExportRootPackageV1 | null;
   readonly packageSetDigestB64u: DigestB64u;
@@ -146,7 +146,11 @@ export function parseCommittedAuthorityPackagesV1(raw: unknown): CommittedAuthor
     throw new Error('CommittedAuthorityPackagesV1.authority is not pending');
   }
   const authMethod = parseWalletAuthMethodRecordV2(record.authMethod);
-  if (!authMethod || authMethod.status !== 'pending_local_install') {
+  if (
+    !authMethod ||
+    authMethod.status !== 'pending_local_install' ||
+    authMethod.kind === 'voiceid'
+  ) {
     throw new Error('CommittedAuthorityPackagesV1.authMethod is not pending');
   }
   if (
