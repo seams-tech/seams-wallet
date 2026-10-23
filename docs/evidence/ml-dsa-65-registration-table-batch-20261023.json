@@ -1,0 +1,5525 @@
+{
+  "schema": "seams.ml-dsa-registration-table-batch.v1",
+  "scope": "Matched-input sequential Cloudflare screen, four ceremonies and four initial-stock signatures per profile. Preparation is reported separately. No browser, sustained-load, or tail-latency qualification.",
+  "base_commit": "373f29de7692309e97f046eb24852e0a9e3d13c0",
+  "profiles": {
+    "baseline": {
+      "cases": [
+        {
+          "wallet": 1,
+          "epoch": 1,
+          "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-1"
+            },
+            "key_id": "near",
+            "epoch": 1,
+            "public_key_digest": [
+              132,
+              228,
+              252,
+              101,
+              178,
+              254,
+              148,
+              168,
+              93,
+              219,
+              205,
+              153,
+              239,
+              214,
+              22,
+              200,
+              239,
+              207,
+              31,
+              19,
+              181,
+              97,
+              180,
+              168,
+              41,
+              242,
+              59,
+              27,
+              173,
+              188,
+              178,
+              192
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 52925.803291000004,
+          "registration_ms": 3889.149250000002,
+          "server_response_ms": 3887.7502500000046,
+          "client_verification_ms": 1.3989999999976135,
+          "initial_signing_ms": 3192.4909999999945,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-baseline-router",
+            "version": "3d7004b0-88eb-4a55-ba23-4082ec2979d8",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792716708343,
+            "cpu_ms": 58,
+            "wall_ms": 3817,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "01ad53afbd2f5127e5725cf5f25fb5d0",
+              "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+              "module_instance": "caacfda9d90eabd2bf14092b5d64741f",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792716708343
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792716708343
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792716708371
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792716710397
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792716710509
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792716711750
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792716711911
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792716712137
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792716712137
+                }
+              ],
+              "log_timestamp_ms": 1792716712137
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716707531,
+                "cpu_ms": 197,
+                "wall_ms": 1989,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "0b1e278ce2b770636cfdad69f1c2c1b1ba4a2ee79eceb9a84fc395b3da75e50a"
+                  },
+                  "module_instance": "93d75a9125999ace4a9d0c530ec9d336",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716707627
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716707659
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716710116
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716710132
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716710132
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716710159
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716710159
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716710159
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716710352,
+                "cpu_ms": 300,
+                "wall_ms": 1210,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "0b1e278ce2b770636cfdad69f1c2c1b1ba4a2ee79eceb9a84fc395b3da75e50a"
+                  },
+                  "module_instance": "93d75a9125999ace4a9d0c530ec9d336",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716710370
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716710389
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716710389
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716710446
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716711470
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716711470
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716711470
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716707597,
+                "cpu_ms": 1553,
+                "wall_ms": 1947,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "0b1e278ce2b770636cfdad69f1c2c1b1ba4a2ee79eceb9a84fc395b3da75e50a"
+                  },
+                  "module_instance": "910e931f7d0e1ee42efba8fca6fd3951",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716707625
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716707650
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716709584
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716709608
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716709608
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716709669
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716709669
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716709669
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716709948,
+                "cpu_ms": 372,
+                "wall_ms": 1178,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "8a31836574f572695c03ac4a2dcf2cf091b15b1d07ee0d663198b0f29e80c057",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "0b1e278ce2b770636cfdad69f1c2c1b1ba4a2ee79eceb9a84fc395b3da75e50a"
+                  },
+                  "module_instance": "910e931f7d0e1ee42efba8fca6fd3951",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716709973
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716709996
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716709996
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716710074
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716711075
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716711075
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716711075
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+              "version": "13290463-679f-4a72-8633-56f302ddf953",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792716712704,
+              "cpu_ms": 985,
+              "wall_ms": 2598,
+              "outcome": "ok",
+              "module_instance": "67fba6c68a3f92ad05682dea05726f7d",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 2,
+              "burned_candidates": 4,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716712873
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716712897
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716713004
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716713004
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716713004
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716714860
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716714865
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+              "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792716712845,
+              "cpu_ms": 510,
+              "wall_ms": 2460,
+              "outcome": "ok",
+              "module_instance": "ffa720c9cb72a16d1a305ab18fcf2f66",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 2,
+              "burned_candidates": 4,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716712861
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716712881
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716712958
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716712958
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716712958
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716715118
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716715123
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 1,
+          "epoch": 2,
+          "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-1"
+            },
+            "key_id": "near",
+            "epoch": 2,
+            "public_key_digest": [
+              132,
+              228,
+              252,
+              101,
+              178,
+              254,
+              148,
+              168,
+              93,
+              219,
+              205,
+              153,
+              239,
+              214,
+              22,
+              200,
+              239,
+              207,
+              31,
+              19,
+              181,
+              97,
+              180,
+              168,
+              41,
+              242,
+              59,
+              27,
+              173,
+              188,
+              178,
+              192
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 51076.065292,
+          "registration_ms": 3772.150999999998,
+          "server_response_ms": 3771.1315419999883,
+          "client_verification_ms": 1.019458000009763,
+          "initial_signing_ms": 3915.478375000006,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-baseline-router",
+            "version": "3d7004b0-88eb-4a55-ba23-4082ec2979d8",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792716766730,
+            "cpu_ms": 47,
+            "wall_ms": 3687,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "c51aaebc3956f99e5ba7a307a4802bb1",
+              "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+              "module_instance": "caacfda9d90eabd2bf14092b5d64741f",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792716766730
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792716766730
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792716766758
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792716768813
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792716769115
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792716770228
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792716770363
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792716770393
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792716770393
+                }
+              ],
+              "log_timestamp_ms": 1792716770393
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716765957,
+                "cpu_ms": 198,
+                "wall_ms": 2029,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "35d4c0dd15992a8833ffe6b3a760c544053a67e91d62331fc4bcf2614e7b0e91"
+                  },
+                  "module_instance": "afc3ad699442d037f7b8b01f38c0fb50",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716766042
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716766067
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716768564
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716768580
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716768580
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716768595
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716768595
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716768595
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716768995,
+                "cpu_ms": 258,
+                "wall_ms": 739,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "35d4c0dd15992a8833ffe6b3a760c544053a67e91d62331fc4bcf2614e7b0e91"
+                  },
+                  "module_instance": "afc3ad699442d037f7b8b01f38c0fb50",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716769011
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716769025
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716769025
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716769075
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716769579
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716769579
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716769579
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716765619,
+                "cpu_ms": 1585,
+                "wall_ms": 1995,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "35d4c0dd15992a8833ffe6b3a760c544053a67e91d62331fc4bcf2614e7b0e91"
+                  },
+                  "module_instance": "a16615850fdcac6f903130073229d4ec",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716765654
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716765688
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716767919
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716767948
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716767948
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716768001
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716768001
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716768001
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716768580,
+                "cpu_ms": 249,
+                "wall_ms": 1091,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "dfa2fdd2b3f5fd6ca8847c28ab62d7257d9fcff42cc080e1b8b6cf6835a56f5d",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "35d4c0dd15992a8833ffe6b3a760c544053a67e91d62331fc4bcf2614e7b0e91"
+                  },
+                  "module_instance": "a16615850fdcac6f903130073229d4ec",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716768601
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716768621
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716768621
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716768688
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716769822
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716769822
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716769822
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+              "version": "13290463-679f-4a72-8633-56f302ddf953",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792716771884,
+              "cpu_ms": 652,
+              "wall_ms": 2419,
+              "outcome": "ok",
+              "module_instance": "f02bfd2a0644010490cac21394d61ce0",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 3,
+              "burned_candidates": 6,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716772090
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716772107
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716772202
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716772202
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716772202
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716774022
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716774025
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+              "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792716771999,
+              "cpu_ms": 768,
+              "wall_ms": 2304,
+              "outcome": "ok",
+              "module_instance": "0e22e7f99f21ef00fcdee20e978c0335",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 3,
+              "burned_candidates": 6,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716772018
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716772036
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716772124
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716772124
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716772124
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716773987
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716773989
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 1,
+          "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-2"
+            },
+            "key_id": "near",
+            "epoch": 1,
+            "public_key_digest": [
+              85,
+              22,
+              16,
+              61,
+              179,
+              216,
+              252,
+              132,
+              190,
+              55,
+              74,
+              114,
+              173,
+              75,
+              225,
+              109,
+              55,
+              177,
+              16,
+              96,
+              235,
+              92,
+              183,
+              237,
+              235,
+              40,
+              139,
+              92,
+              94,
+              118,
+              114,
+              211
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 60782.312083,
+          "registration_ms": 4959.797125000005,
+          "server_response_ms": 4958.916541999999,
+          "client_verification_ms": 0.8805830000055721,
+          "initial_signing_ms": 1635.2753749999974,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-baseline-router",
+            "version": "3d7004b0-88eb-4a55-ba23-4082ec2979d8",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792716839354,
+            "cpu_ms": 55,
+            "wall_ms": 4908,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "dd00c7f70906203aeb45e897a1b8b49b",
+              "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+              "module_instance": "d7d45ac2866af00fda5e530fd3876790",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792716839354
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792716839354
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792716839376
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792716842454
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792716842557
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792716844080
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792716844216
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792716844242
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792716844242
+                }
+              ],
+              "log_timestamp_ms": 1792716844242
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716838814,
+                "cpu_ms": 169,
+                "wall_ms": 3022,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "c79c4899c622d961a69d99cc77faaf0be26fb72ab3d9cc7fb3aa7114b52f8565"
+                  },
+                  "module_instance": "c11977801686a1d2e679f903cd3b87fc",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716838887
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716838895
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716842329
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716842336
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716842336
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716842359
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716842359
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716842359
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716842519,
+                "cpu_ms": 267,
+                "wall_ms": 1233,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "c79c4899c622d961a69d99cc77faaf0be26fb72ab3d9cc7fb3aa7114b52f8565"
+                  },
+                  "module_instance": "c11977801686a1d2e679f903cd3b87fc",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716842525
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716842531
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716842531
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716842875
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716843591
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716843591
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716843591
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716838707,
+                "cpu_ms": 1830,
+                "wall_ms": 2987,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "c79c4899c622d961a69d99cc77faaf0be26fb72ab3d9cc7fb3aa7114b52f8565"
+                  },
+                  "module_instance": "05fe2955fc4c80d39b68d527686b4638",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716838731
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716838758
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716840909
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716840940
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716840940
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716840974
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716840974
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716840974
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716842076,
+                "cpu_ms": 463,
+                "wall_ms": 1141,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "a53835404ae7c3e51ad92f0d178ef332cec9934773be61ba82610618ee2384ce",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "c79c4899c622d961a69d99cc77faaf0be26fb72ab3d9cc7fb3aa7114b52f8565"
+                  },
+                  "module_instance": "05fe2955fc4c80d39b68d527686b4638",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716842103
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716842128
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716842128
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716842214
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716843313
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716843313
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716843313
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+              "version": "13290463-679f-4a72-8633-56f302ddf953",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792716844681,
+              "cpu_ms": 323,
+              "wall_ms": 1244,
+              "outcome": "ok",
+              "module_instance": "f02bfd2a0644010490cac21394d61ce0",
+              "signing_call": 1,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 2,
+              "burned_candidates": 4,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716844718
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716844732
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716844838
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716844838
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716844838
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716845699
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716845701
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+              "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792716844702,
+              "cpu_ms": 246,
+              "wall_ms": 1225,
+              "outcome": "ok",
+              "module_instance": "0e22e7f99f21ef00fcdee20e978c0335",
+              "signing_call": 1,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 2,
+              "burned_candidates": 4,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716844717
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716844731
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716844805
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716844805
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716844805
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716845761
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716845764
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 2,
+          "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-2"
+            },
+            "key_id": "near",
+            "epoch": 2,
+            "public_key_digest": [
+              85,
+              22,
+              16,
+              61,
+              179,
+              216,
+              252,
+              132,
+              190,
+              55,
+              74,
+              114,
+              173,
+              75,
+              225,
+              109,
+              55,
+              177,
+              16,
+              96,
+              235,
+              92,
+              183,
+              237,
+              235,
+              40,
+              139,
+              92,
+              94,
+              118,
+              114,
+              211
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 84717.169,
+          "registration_ms": 4841.361917000002,
+          "server_response_ms": 4840.499791999988,
+          "client_verification_ms": 0.8621250000142027,
+          "initial_signing_ms": 2904.2409580000094,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-baseline-router",
+            "version": "3d7004b0-88eb-4a55-ba23-4082ec2979d8",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792716930874,
+            "cpu_ms": 32,
+            "wall_ms": 4810,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "4157caba7ebcd134f36f4889cf5999c1",
+              "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+              "module_instance": "d7d45ac2866af00fda5e530fd3876790",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792716930875
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792716930875
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792716930899
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792716933727
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792716933963
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792716935518
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792716935643
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792716935670
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792716935670
+                }
+              ],
+              "log_timestamp_ms": 1792716935670
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716930433,
+                "cpu_ms": 232,
+                "wall_ms": 2812,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "7357fbfcc1bd642c462c7bd925046de842bc6a9b2234ffd3f3599e84b8ba5109"
+                  },
+                  "module_instance": "d8f0254b6a86cc673e1769c93af489dd",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716930507
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716930526
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716933580
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716933596
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716933596
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716933619
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716933619
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716933619
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+                "version": "13290463-679f-4a72-8633-56f302ddf953",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716933918,
+                "cpu_ms": 260,
+                "wall_ms": 864,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "7357fbfcc1bd642c462c7bd925046de842bc6a9b2234ffd3f3599e84b8ba5109"
+                  },
+                  "module_instance": "d8f0254b6a86cc673e1769c93af489dd",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716933933
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716933948
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716933948
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716934016
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716934619
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716934619
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716934619
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716929629,
+                "cpu_ms": 2114,
+                "wall_ms": 2767,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "7357fbfcc1bd642c462c7bd925046de842bc6a9b2234ffd3f3599e84b8ba5109"
+                  },
+                  "module_instance": "6f4a6a921eb22e071740111bca8ca4d9",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716929648
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792716929666
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792716932089
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792716932110
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792716932110
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792716932195
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716932195
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716932195
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+                "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792716932874,
+                "cpu_ms": 565,
+                "wall_ms": 1523,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6fbbffbdaabb66a4a56af50aca71a5e5e18bac14b6e530c0c14c147731343671",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "7357fbfcc1bd642c462c7bd925046de842bc6a9b2234ffd3f3599e84b8ba5109"
+                  },
+                  "module_instance": "6f4a6a921eb22e071740111bca8ca4d9",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792716932892
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792716932915
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792716932915
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792716933022
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792716934779
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792716934779
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792716934779
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+              "version": "13290463-679f-4a72-8633-56f302ddf953",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792716937153,
+              "cpu_ms": 436,
+              "wall_ms": 1296,
+              "outcome": "ok",
+              "module_instance": "547c99e559fc17ee476b4f374ae5d3d7",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 1,
+              "burned_candidates": 2,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716937298
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716937312
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716937569
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716937569
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716937569
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716938157
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716938161
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+              "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792716937273,
+              "cpu_ms": 361,
+              "wall_ms": 1177,
+              "outcome": "ok",
+              "module_instance": "f3001390b1269babe8923e3c28e5d8c5",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 1,
+              "burned_candidates": 2,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792716937288
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792716937303
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792716937370
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792716937370
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792716937370
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792716938220
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792716938224
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "registration_ms": {
+        "count": 4,
+        "minimum": 3772.150999999998,
+        "median": 4365.255583500002,
+        "maximum": 4959.797125000005,
+        "under_5000": 4
+      },
+      "preparation_ms": {
+        "count": 4,
+        "minimum": 51076.065292,
+        "median": 56854.057687,
+        "maximum": 84717.169,
+        "under_5000": 0
+      },
+      "initial_signing_ms": {
+        "count": 4,
+        "minimum": 1635.2753749999974,
+        "median": 3048.365979000002,
+        "maximum": 3915.478375000006,
+        "under_5000": 4
+      },
+      "provider_outcomes": {
+        "router": {
+          "ok": 212
+        },
+        "a": {
+          "ok": 228,
+          "canceled": 1
+        },
+        "b": {
+          "ok": 399,
+          "canceled": 7
+        },
+        "preparer-a": {
+          "ok": 35,
+          "canceled": 17
+        },
+        "preparer-b": {
+          "ok": 17
+        }
+      },
+      "non_ok_invocations": [
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+          "version": "13290463-679f-4a72-8633-56f302ddf953",
+          "path": "",
+          "event_timestamp_ms": 1792716796996,
+          "cpu_ms": 0,
+          "wall_ms": 11,
+          "outcome": "canceled",
+          "role": "a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716656220,
+          "cpu_ms": 9,
+          "wall_ms": 764,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716707579,
+          "cpu_ms": 4,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716716277,
+          "cpu_ms": 11,
+          "wall_ms": 788,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716779402,
+          "cpu_ms": 11,
+          "wall_ms": 1003,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716838836,
+          "cpu_ms": 2,
+          "wall_ms": 35,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716846897,
+          "cpu_ms": 11,
+          "wall_ms": 995,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+          "version": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792716930464,
+          "cpu_ms": 2,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716725892,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716736561,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716744732,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716752781,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716759625,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716779574,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716786671,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716794472,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716803201,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716810521,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716816343,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716854940,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716862945,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716869891,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716878519,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716887189,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+          "version": "88fc8689-14a6-4951-8e85-4091e05936f8",
+          "path": "",
+          "event_timestamp_ms": 1792716943316,
+          "cpu_ms": 0,
+          "wall_ms": 94,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        }
+      ],
+      "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "versions": {
+        "router": "3d7004b0-88eb-4a55-ba23-4082ec2979d8",
+        "a": "13290463-679f-4a72-8633-56f302ddf953",
+        "b": "b3dd005e-dfe8-410f-a129-3197c9ccf48b",
+        "preparer-a": "88fc8689-14a6-4951-8e85-4091e05936f8",
+        "preparer-b": "90cab92b-ab51-4858-b5dd-7d06f54a70a3"
+      },
+      "builds": {
+        "router": "3324c86960c48df360a32a4911d9756dd8c7a5a94284d48ddd0c589954493677",
+        "deriver-a": "96f3aa3a7ec7e7ef12d35944c5901ecc0b38897644c6fa6af84bb2e4902c061e",
+        "deriver-b": "c3895a4e6ddc6c2bb062c79bf7182b15a9313c5ac53fc1a901b82af48cc24cfc"
+      },
+      "a_execution_cpu_ms": {
+        "count": 4,
+        "minimum": 169,
+        "median": 197.5,
+        "maximum": 232,
+        "under_5000": 4
+      },
+      "a_installation_wall_ms": {
+        "count": 4,
+        "minimum": 739,
+        "median": 1037.0,
+        "maximum": 1233,
+        "under_5000": 4
+      },
+      "b_execution_cpu_ms": {
+        "count": 4,
+        "minimum": 1553,
+        "median": 1707.5,
+        "maximum": 2114,
+        "under_5000": 4
+      },
+      "b_installation_wall_ms": {
+        "count": 4,
+        "minimum": 1091,
+        "median": 1159.5,
+        "maximum": 1523,
+        "under_5000": 4
+      }
+    },
+    "candidate": {
+      "cases": [
+        {
+          "wallet": 1,
+          "epoch": 1,
+          "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-1"
+            },
+            "key_id": "near",
+            "epoch": 1,
+            "public_key_digest": [
+              132,
+              228,
+              252,
+              101,
+              178,
+              254,
+              148,
+              168,
+              93,
+              219,
+              205,
+              153,
+              239,
+              214,
+              22,
+              200,
+              239,
+              207,
+              31,
+              19,
+              181,
+              97,
+              180,
+              168,
+              41,
+              242,
+              59,
+              27,
+              173,
+              188,
+              178,
+              192
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 51972.71125,
+          "registration_ms": 4039.2505829999936,
+          "server_response_ms": 4036.864791,
+          "client_verification_ms": 2.385791999993671,
+          "initial_signing_ms": 6391.369916999996,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+            "version": "307cb716-6d57-40aa-ba37-aa409278a13f",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792717318007,
+            "cpu_ms": 35,
+            "wall_ms": 3983,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "704e1e3a780d31e2a27e2369e7b42efd",
+              "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+              "module_instance": "f6d14163c22aa07ed72f869322fcd649",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792717318007
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792717318007
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792717318032
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792717319812
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792717319953
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792717321798
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792717321940
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792717321975
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792717321975
+                }
+              ],
+              "log_timestamp_ms": 1792717321975
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717317255,
+                "cpu_ms": 187,
+                "wall_ms": 1742,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "f060114471337f1b864544c0d89503ea74bf54a0a4b798b6797d2e303e63d62d"
+                  },
+                  "module_instance": "7f57d01cda0160fde0022995d7cbabbe",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717317348
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717317380
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717319515
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717319535
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717319535
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717319551
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717319551
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717319551
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0,
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "wasm_linear_memory_bytes": 117243904
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717319772,
+                "cpu_ms": 297,
+                "wall_ms": 1728,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "f060114471337f1b864544c0d89503ea74bf54a0a4b798b6797d2e303e63d62d"
+                  },
+                  "module_instance": "7f57d01cda0160fde0022995d7cbabbe",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717319789
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717319810
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717319810
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717320167
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717321487
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717321487
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717321487
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717317093,
+                "cpu_ms": 1345,
+                "wall_ms": 1700,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "f060114471337f1b864544c0d89503ea74bf54a0a4b798b6797d2e303e63d62d"
+                  },
+                  "module_instance": "342a2d49065f2c93b90d85c8a6c21906",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717317124
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717317153
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717318746
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717318781
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717318781
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717318824
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717318824
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717318824
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32,
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "wasm_linear_memory_bytes": 93913088
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717319748,
+                "cpu_ms": 321,
+                "wall_ms": 1475,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "502c799c616ceee2bb915f5527afc2df93feb3b467067a3a1eb25cd349c284e3",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "f060114471337f1b864544c0d89503ea74bf54a0a4b798b6797d2e303e63d62d"
+                  },
+                  "module_instance": "342a2d49065f2c93b90d85c8a6c21906",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717319772
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717319800
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717319800
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717320334
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717321391
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717321391
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717321391
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+              "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792717324207,
+              "cpu_ms": 1321,
+              "wall_ms": 4079,
+              "outcome": "ok",
+              "module_instance": "e2d33b5cc4e774d0706021f5bebdcc8c",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 3,
+              "burned_candidates": 6,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717324526
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717324541
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717324660
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717324660
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717324660
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717327855
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717327861
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+              "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792717324383,
+              "cpu_ms": 1366,
+              "wall_ms": 3908,
+              "outcome": "ok",
+              "module_instance": "3d1a1420d16394711638a6ca4057d6f0",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 3,
+              "burned_candidates": 6,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717324406
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717324417
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717324554
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717324554
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717324554
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717327937
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717327943
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 1,
+          "epoch": 2,
+          "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-1"
+            },
+            "key_id": "near",
+            "epoch": 2,
+            "public_key_digest": [
+              132,
+              228,
+              252,
+              101,
+              178,
+              254,
+              148,
+              168,
+              93,
+              219,
+              205,
+              153,
+              239,
+              214,
+              22,
+              200,
+              239,
+              207,
+              31,
+              19,
+              181,
+              97,
+              180,
+              168,
+              41,
+              242,
+              59,
+              27,
+              173,
+              188,
+              178,
+              192
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 78882.06391700002,
+          "registration_ms": 4133.171583000018,
+          "server_response_ms": 4132.366957999999,
+          "client_verification_ms": 0.8046250000188593,
+          "initial_signing_ms": 6421.442833000008,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+            "version": "307cb716-6d57-40aa-ba37-aa409278a13f",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792717408810,
+            "cpu_ms": 39,
+            "wall_ms": 4096,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "5df6b8376f13dae4a7fe19c8ff3aba8f",
+              "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+              "module_instance": "4cc4e9b70e05ed0d925c4dc3f7166468",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792717408810
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792717408810
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792717408830
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792717411075
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792717411350
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792717412733
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792717412868
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792717412890
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792717412890
+                }
+              ],
+              "log_timestamp_ms": 1792717412890
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717407965,
+                "cpu_ms": 373,
+                "wall_ms": 2202,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "482b64f58c8a435bb2b6690d82e9e36a933f6a8d18b698cccee5dad505d04b25"
+                  },
+                  "module_instance": "1e6791a9850eb90332e0daba361ff4e0",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717408035
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717408050
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717410764
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717410774
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717410774
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717410793
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717410793
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717410793
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0,
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "wasm_linear_memory_bytes": 117243904
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717411181,
+                "cpu_ms": 452,
+                "wall_ms": 1354,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "482b64f58c8a435bb2b6690d82e9e36a933f6a8d18b698cccee5dad505d04b25"
+                  },
+                  "module_instance": "1e6791a9850eb90332e0daba361ff4e0",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717411197
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717411207
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717411207
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717411267
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717412376
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717412376
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717412376
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717408400,
+                "cpu_ms": 1464,
+                "wall_ms": 2163,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "482b64f58c8a435bb2b6690d82e9e36a933f6a8d18b698cccee5dad505d04b25"
+                  },
+                  "module_instance": "f999c7659dd6f1ab8d1078969d054e53",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717408411
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717408421
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717409457
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717409483
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717409483
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717409567
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717409567
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717409567
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32,
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "wasm_linear_memory_bytes": 93913088
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717410314,
+                "cpu_ms": 262,
+                "wall_ms": 983,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "e51e29e64a88becf5cf727700f9a4a133c7a88d457d5200b685f114cd6d1d6bd",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "482b64f58c8a435bb2b6690d82e9e36a933f6a8d18b698cccee5dad505d04b25"
+                  },
+                  "module_instance": "f999c7659dd6f1ab8d1078969d054e53",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717410328
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717410343
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717410343
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717410443
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717411649
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717411649
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717411649
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+              "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792717413493,
+              "cpu_ms": 1703,
+              "wall_ms": 5887,
+              "outcome": "ok",
+              "module_instance": "e2d33b5cc4e774d0706021f5bebdcc8c",
+              "signing_call": 1,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 5,
+              "burned_candidates": 10,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717413521
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717413531
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717413631
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717413631
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717413631
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717419001
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717419009
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+              "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792717413510,
+              "cpu_ms": 1350,
+              "wall_ms": 5875,
+              "outcome": "ok",
+              "module_instance": "3d1a1420d16394711638a6ca4057d6f0",
+              "signing_call": 1,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 5,
+              "burned_candidates": 10,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717413521
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717413533
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717413618
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717413618
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717413618
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717419107
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717419112
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 1,
+          "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-2"
+            },
+            "key_id": "near",
+            "epoch": 1,
+            "public_key_digest": [
+              85,
+              22,
+              16,
+              61,
+              179,
+              216,
+              252,
+              132,
+              190,
+              55,
+              74,
+              114,
+              173,
+              75,
+              225,
+              109,
+              55,
+              177,
+              16,
+              96,
+              235,
+              92,
+              183,
+              237,
+              235,
+              40,
+              139,
+              92,
+              94,
+              118,
+              114,
+              211
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 52327.68945799999,
+          "registration_ms": 5992.435208000003,
+          "server_response_ms": 5990.234875000002,
+          "client_verification_ms": 2.2003330000006827,
+          "initial_signing_ms": 4061.3788330000025,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+            "version": "307cb716-6d57-40aa-ba37-aa409278a13f",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792717474329,
+            "cpu_ms": 34,
+            "wall_ms": 5930,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "aee3addf20dfdcf4e72f4fd283f3f671",
+              "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+              "module_instance": "5856a5a961a5d71a31ce5d09c7f5e654",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792717474329
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792717474329
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792717474345
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792717478070
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792717478185
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792717479934
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792717480222
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792717480244
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792717480244
+                }
+              ],
+              "log_timestamp_ms": 1792717480244
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717473611,
+                "cpu_ms": 195,
+                "wall_ms": 3699,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "b59bd197d955585d1b02e9dfd8cf25c7c9f4b9e5731e3bf97b4ddfb5425f0004"
+                  },
+                  "module_instance": "e02260dbaabf3603d0c1a22574e4e4eb",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717473673
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717473686
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717477964
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717477972
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717477972
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717477986
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717477986
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717477986
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0,
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "wasm_linear_memory_bytes": 117243904
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717478141,
+                "cpu_ms": 325,
+                "wall_ms": 1663,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "b59bd197d955585d1b02e9dfd8cf25c7c9f4b9e5731e3bf97b4ddfb5425f0004"
+                  },
+                  "module_instance": "e02260dbaabf3603d0c1a22574e4e4eb",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717478149
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717478159
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717478159
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717478235
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717479669
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717479669
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717479669
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717473245,
+                "cpu_ms": 2023,
+                "wall_ms": 3667,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "b59bd197d955585d1b02e9dfd8cf25c7c9f4b9e5731e3bf97b4ddfb5425f0004"
+                  },
+                  "module_instance": "b3ea04a2f3c3ce1f85a84f68947a66d9",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717473264
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717473280
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717476758
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717476773
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717476773
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717476853
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717476853
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717476853
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32,
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "wasm_linear_memory_bytes": 93913088
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717477188,
+                "cpu_ms": 308,
+                "wall_ms": 1723,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "adbf02a4d225f566cfb2d4718a1c0b89e2302e0e787358cde16e0e11de368a07",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "b59bd197d955585d1b02e9dfd8cf25c7c9f4b9e5731e3bf97b4ddfb5425f0004"
+                  },
+                  "module_instance": "b3ea04a2f3c3ce1f85a84f68947a66d9",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717477201
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717477218
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717477218
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717477355
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717479442
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717479442
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717479442
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+              "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792717480635,
+              "cpu_ms": 908,
+              "wall_ms": 3525,
+              "outcome": "ok",
+              "module_instance": "6073abb4d0c165981aaee1fe5a5508e1",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 4,
+              "burned_candidates": 8,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717480782
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717480790
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717481089
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717481089
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717481089
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717483858
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717483864
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+              "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792717480761,
+              "cpu_ms": 964,
+              "wall_ms": 3400,
+              "outcome": "ok",
+              "module_instance": "79310cd6029bb6a25f7ef1dc0e35a203",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 4,
+              "burned_candidates": 8,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717480771
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717480780
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717480919
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717480919
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717480919
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717483858
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717483864
+                }
+              ]
+            }
+          }
+        },
+        {
+          "wallet": 2,
+          "epoch": 2,
+          "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+          "key": {
+            "wallet": {
+              "org": "registration-e2e",
+              "project": "wallet",
+              "environment": "temporary",
+              "wallet": "registration-table-wallet-2"
+            },
+            "key_id": "near",
+            "epoch": 2,
+            "public_key_digest": [
+              85,
+              22,
+              16,
+              61,
+              179,
+              216,
+              252,
+              132,
+              190,
+              55,
+              74,
+              114,
+              173,
+              75,
+              225,
+              109,
+              55,
+              177,
+              16,
+              96,
+              235,
+              92,
+              183,
+              237,
+              235,
+              40,
+              139,
+              92,
+              94,
+              118,
+              114,
+              211
+            ],
+            "schedule_digest": [
+              157,
+              240,
+              163,
+              14,
+              138,
+              49,
+              125,
+              1,
+              231,
+              44,
+              216,
+              210,
+              206,
+              77,
+              242,
+              59,
+              39,
+              180,
+              220,
+              221,
+              105,
+              136,
+              235,
+              241,
+              107,
+              113,
+              254,
+              192,
+              193,
+              115,
+              108,
+              66
+            ]
+          },
+          "preparation_ms": 80627.07616600001,
+          "registration_ms": 3935.410499999998,
+          "server_response_ms": 3933.686625000002,
+          "client_verification_ms": 1.7238749999960419,
+          "initial_signing_ms": 2577.289833000017,
+          "canonical_key_verified": true,
+          "holder_results_authenticated": true,
+          "manifest_verified": true,
+          "exact_replay": true,
+          "changed_replay_rejected": true,
+          "initial_signature_verified": true,
+          "router": {
+            "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+            "version": "307cb716-6d57-40aa-ba37-aa409278a13f",
+            "path": "/router-ab/ml-dsa/register",
+            "event_timestamp_ms": 1792717565218,
+            "cpu_ms": 24,
+            "wall_ms": 3877,
+            "outcome": "ok",
+            "trace": {
+              "http_request": "8f86918ad3d048a337fd9e42e9bf901f",
+              "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+              "module_instance": "f6d14163c22aa07ed72f869322fcd649",
+              "status": 200,
+              "milestones": [
+                {
+                  "stage": "entered",
+                  "at_ms": 1792717565218
+                },
+                {
+                  "stage": "decoded",
+                  "at_ms": 1792717565218
+                },
+                {
+                  "stage": "admission_done",
+                  "at_ms": 1792717565240
+                },
+                {
+                  "stage": "execution_done",
+                  "at_ms": 1792717567343
+                },
+                {
+                  "stage": "activation_started",
+                  "at_ms": 1792717567625
+                },
+                {
+                  "stage": "installation_done",
+                  "at_ms": 1792717568909
+                },
+                {
+                  "stage": "activation_done",
+                  "at_ms": 1792717569057
+                },
+                {
+                  "stage": "completion_recorded",
+                  "at_ms": 1792717569082
+                },
+                {
+                  "stage": "response_ready",
+                  "at_ms": 1792717569082
+                }
+              ],
+              "log_timestamp_ms": 1792717569082
+            }
+          },
+          "roles": {
+            "a": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717563962,
+                "cpu_ms": 360,
+                "wall_ms": 2092,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "b2c7bfda0bfbe9378c8002896fe78556293588f1ea760fc590775777dd4ab4c1"
+                  },
+                  "module_instance": "b19a3e56f111aa7e2c0abfac8c76ed82",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717564085
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717564111
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717566915
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717566928
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717566928
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717566956
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717566956
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717566956
+                },
+                "execution": {
+                  "role": "a",
+                  "loaded_frames": 0,
+                  "loaded_bytes": 0,
+                  "table_read_transactions": 0,
+                  "peak_cached_frames": 0,
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "wasm_linear_memory_bytes": 117243904
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+                "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717567368,
+                "cpu_ms": 446,
+                "wall_ms": 1264,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "role": "a",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "b2c7bfda0bfbe9378c8002896fe78556293588f1ea760fc590775777dd4ab4c1"
+                  },
+                  "module_instance": "b19a3e56f111aa7e2c0abfac8c76ed82",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717567379
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717567389
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717567389
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717567459
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717568487
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717568487
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717568487
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            },
+            "b": {
+              "execution": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717564873,
+                "cpu_ms": 1392,
+                "wall_ms": 2041,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_execute",
+                    "job": "b2c7bfda0bfbe9378c8002896fe78556293588f1ea760fc590775777dd4ab4c1"
+                  },
+                  "module_instance": "163a72d691d3f97c34860613fb90a8e0",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717564894
+                    },
+                    {
+                      "stage": "authorized",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "schedules_loaded",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "execution_reserved",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "adapter_ready",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "input_opened",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "prepared_consumed",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "prepared_opened",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "prepared_restored",
+                      "at_ms": 1792717564915
+                    },
+                    {
+                      "stage": "keygen_completed",
+                      "at_ms": 1792717565748
+                    },
+                    {
+                      "stage": "material_sealed",
+                      "at_ms": 1792717565786
+                    },
+                    {
+                      "stage": "material_persisted",
+                      "at_ms": 1792717565786
+                    },
+                    {
+                      "stage": "result_exchanged",
+                      "at_ms": 1792717565893
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717565893
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 24,
+                    "measured": 24,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717565893
+                },
+                "execution": {
+                  "role": "b",
+                  "loaded_frames": 643,
+                  "loaded_bytes": 41701400,
+                  "table_read_transactions": 24,
+                  "peak_cached_frames": 32,
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "wasm_linear_memory_bytes": 93913088
+                }
+              },
+              "installation": {
+                "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+                "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+                "path": "/router-ab/ml-dsa/registration/role",
+                "event_timestamp_ms": 1792717566650,
+                "cpu_ms": 264,
+                "wall_ms": 1231,
+                "outcome": "ok",
+                "trace": {
+                  "operation": "6c0ba781ffa23f1213f32ff7509c0f979132493bfcf426d0ae07e80759da131d",
+                  "role": "b",
+                  "context": {
+                    "kind": "registration_install",
+                    "job": "b2c7bfda0bfbe9378c8002896fe78556293588f1ea760fc590775777dd4ab4c1"
+                  },
+                  "module_instance": "163a72d691d3f97c34860613fb90a8e0",
+                  "completed": true,
+                  "marks": [
+                    {
+                      "stage": "started",
+                      "at_ms": 1792717566680
+                    },
+                    {
+                      "stage": "installation_checked",
+                      "at_ms": 1792717566708
+                    },
+                    {
+                      "stage": "material_loaded",
+                      "at_ms": 1792717566708
+                    },
+                    {
+                      "stage": "material_installed",
+                      "at_ms": 1792717566817
+                    },
+                    {
+                      "stage": "stock_installed",
+                      "at_ms": 1792717568339
+                    },
+                    {
+                      "stage": "completed",
+                      "at_ms": 1792717568339
+                    }
+                  ],
+                  "table_reads": {
+                    "count": 0,
+                    "measured": 0,
+                    "elapsed_ms": 0,
+                    "maximum_ms": 0
+                  },
+                  "log_timestamp_ms": 1792717568339
+                }
+              },
+              "stock": {
+                "count": 8,
+                "ordinals": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ],
+                "all_completed": true,
+                "all_invocations_ok": true
+              }
+            }
+          },
+          "signing": {
+            "a": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+              "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+              "path": "/router-ab/ml-dsa/execute",
+              "event_timestamp_ms": 1792717570366,
+              "cpu_ms": 438,
+              "wall_ms": 1210,
+              "outcome": "ok",
+              "module_instance": "8e404bb770d19b76f01bbd83fda213ad",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 1,
+              "burned_candidates": 2,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717570500
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717570508
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717570625
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717570625
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717570625
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717571284
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717571290
+                }
+              ]
+            },
+            "b": {
+              "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+              "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+              "path": "/router-ab/ml-dsa/connect",
+              "event_timestamp_ms": 1792717570473,
+              "cpu_ms": 395,
+              "wall_ms": 1104,
+              "outcome": "ok",
+              "module_instance": "a2c35f9c07fa46d5eac4d688e0305210",
+              "signing_call": 0,
+              "schedule_cache_hit": true,
+              "completed": true,
+              "checked_pairs": 1,
+              "burned_candidates": 2,
+              "milestones": [
+                {
+                  "name": "started",
+                  "at_ms": 1792717570483
+                },
+                {
+                  "name": "permit_checked",
+                  "at_ms": 1792717570492
+                },
+                {
+                  "name": "material_loaded",
+                  "at_ms": 1792717570601
+                },
+                {
+                  "name": "material_opened",
+                  "at_ms": 1792717570601
+                },
+                {
+                  "name": "schedules_loaded",
+                  "at_ms": 1792717570601
+                },
+                {
+                  "name": "protocol_completed",
+                  "at_ms": 1792717571317
+                },
+                {
+                  "name": "completed",
+                  "at_ms": 1792717571320
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "registration_ms": {
+        "count": 4,
+        "minimum": 3935.410499999998,
+        "median": 4086.2110830000056,
+        "maximum": 5992.435208000003,
+        "under_5000": 3
+      },
+      "preparation_ms": {
+        "count": 4,
+        "minimum": 51972.71125,
+        "median": 65604.87668750001,
+        "maximum": 80627.07616600001,
+        "under_5000": 0
+      },
+      "initial_signing_ms": {
+        "count": 4,
+        "minimum": 2577.289833000017,
+        "median": 5226.374374999999,
+        "maximum": 6421.442833000008,
+        "under_5000": 2
+      },
+      "provider_outcomes": {
+        "router": {
+          "ok": 256,
+          "exception": 1
+        },
+        "a": {
+          "ok": 280,
+          "canceled": 1
+        },
+        "b": {
+          "ok": 543,
+          "canceled": 9
+        },
+        "preparer-a": {
+          "ok": 27,
+          "canceled": 13
+        },
+        "preparer-b": {
+          "ok": 13
+        }
+      },
+      "non_ok_invocations": [
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+          "version": "9fa47271-6fe0-4218-b72a-06415acd4998",
+          "path": "",
+          "event_timestamp_ms": 1792717489154,
+          "cpu_ms": 0,
+          "wall_ms": 11,
+          "outcome": "canceled",
+          "role": "a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717267224,
+          "cpu_ms": 10,
+          "wall_ms": 791,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717317302,
+          "cpu_ms": 3,
+          "wall_ms": 29,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717331909,
+          "cpu_ms": 25,
+          "wall_ms": 763,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717407997,
+          "cpu_ms": 5,
+          "wall_ms": 26,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717422821,
+          "cpu_ms": 13,
+          "wall_ms": 811,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717473641,
+          "cpu_ms": 3,
+          "wall_ms": 22,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "",
+          "event_timestamp_ms": 1792717497210,
+          "cpu_ms": 0,
+          "wall_ms": 11,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717485604,
+          "cpu_ms": 18,
+          "wall_ms": 765,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+          "version": "8099ebe6-25c0-4754-bd2b-32741229f187",
+          "path": "/router-ab/ml-dsa/registration/role",
+          "event_timestamp_ms": 1792717564012,
+          "cpu_ms": 5,
+          "wall_ms": 38,
+          "outcome": "canceled",
+          "role": "b",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+          "version": "307cb716-6d57-40aa-ba37-aa409278a13f",
+          "path": "/control",
+          "event_timestamp_ms": 1792717413113,
+          "cpu_ms": 2,
+          "wall_ms": 2,
+          "outcome": "exception",
+          "role": "router",
+          "exception_names": [
+            "Error"
+          ],
+          "exception_categories": [
+            "unclassified"
+          ],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717342942,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717363470,
+          "cpu_ms": 0,
+          "wall_ms": 30,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717383491,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717403130,
+          "cpu_ms": 0,
+          "wall_ms": 47,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717420076,
+          "cpu_ms": 0,
+          "wall_ms": 30,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717437195,
+          "cpu_ms": 0,
+          "wall_ms": 30,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717458816,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717476910,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717504898,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717523195,
+          "cpu_ms": 0,
+          "wall_ms": 32,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717541392,
+          "cpu_ms": 0,
+          "wall_ms": 28,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717560613,
+          "cpu_ms": 0,
+          "wall_ms": 31,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        },
+        {
+          "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+          "version": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+          "path": "",
+          "event_timestamp_ms": 1792717578557,
+          "cpu_ms": 0,
+          "wall_ms": 29,
+          "outcome": "canceled",
+          "role": "preparer-a",
+          "exception_names": [],
+          "exception_categories": [],
+          "operation": null
+        }
+      ],
+      "scope": "Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 1000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16
+      },
+      "versions": {
+        "router": "307cb716-6d57-40aa-ba37-aa409278a13f",
+        "a": "9fa47271-6fe0-4218-b72a-06415acd4998",
+        "b": "8099ebe6-25c0-4754-bd2b-32741229f187",
+        "preparer-a": "d598d0d1-26a9-446a-9213-b86e8cf7a908",
+        "preparer-b": "214f8c6b-6273-4e72-a10c-141bb279a1e0"
+      },
+      "builds": {
+        "router": "7a72211891f25b90b94333e089021ad0040e06b6418b8dc399fd087771a96851",
+        "deriver-a": "33423f9f4a956877d07ee99236edb62e0ba725636f785bb83c86efe1a1323f2a",
+        "deriver-b": "928deda447ac3f187d2ba94d3271ad5b57cfa25399016a55652e929e16802c7c"
+      },
+      "a_execution_cpu_ms": {
+        "count": 4,
+        "minimum": 187,
+        "median": 277.5,
+        "maximum": 373,
+        "under_5000": 4
+      },
+      "a_installation_wall_ms": {
+        "count": 4,
+        "minimum": 1264,
+        "median": 1508.5,
+        "maximum": 1728,
+        "under_5000": 4
+      },
+      "b_execution_cpu_ms": {
+        "count": 4,
+        "minimum": 1345,
+        "median": 1428.0,
+        "maximum": 2023,
+        "under_5000": 4
+      },
+      "b_installation_wall_ms": {
+        "count": 4,
+        "minimum": 983,
+        "median": 1353.0,
+        "maximum": 1723,
+        "under_5000": 4
+      }
+    }
+  },
+  "table_chunk_calls_source_derived": {
+    "scope": "Per successful ceremony, successful online takes only; retirement, cleanup, and failed attempts excluded. Source-derived Store method calls, not measured network hops.",
+    "baseline_reads_per_ceremony": 643,
+    "candidate_reads_per_ceremony": 24,
+    "baseline_deletes_per_ceremony": 643,
+    "candidate_deletes_per_ceremony": 24,
+    "metadata_reads_per_ceremony": 643,
+    "tombstones_per_ceremony": 643,
+    "ceremonies_per_profile": 4,
+    "metadata_reads_per_profile": 2572,
+    "tombstones_per_profile": 2572,
+    "measured_network_hops": null
+  },
+  "decision": {
+    "retain": "Bounded grouped chunk reads and deletions inside the existing transactions.",
+    "full_latency_speedup_established": false,
+    "consistent_five_second_registration_qualified": false,
+    "consistent_five_second_signing_qualified": false,
+    "browser_parity_established": false,
+    "sustained_refill_qualified_by_this_screen": false
+  },
+  "verification": {
+    "native_canonical_keygen_cases_passed": 6,
+    "native_missing_later_chunk_refused": true,
+    "native_tombstone_failure_rolled_back_deleted_chunks_and_prior_tombstone": true,
+    "local_gateway_lifecycle_passed": true,
+    "hosted_ceremonies_passed": 8,
+    "hosted_initial_signatures_verified": 8,
+    "final_worker_builds_passed": [
+      "router",
+      "deriver-a",
+      "deriver-b"
+    ],
+    "first_wasm_diagnostic_build_failed": "core::arch resolved to the registration module; corrected to ::core::arch before frozen candidate builds.",
+    "formatter_invocation_correction": "Use edition 2021 for router-ab-cloudflare and edition 2024 for ml-dsa-investigation; final checks pass.",
+    "bloat": {
+      "starting_head_rust_duplicated_lines": 14022,
+      "final_rust_duplicated_lines": 13972,
+      "baseline": 13754,
+      "gate_passed": false,
+      "baseline_changed": false
+    }
+  },
+  "memory": {
+    "instrument": "Post-keygen allocated Wasm page capacity, excluding JS and host allocations; not total live isolate peak.",
+    "hosted_candidate_a_bytes": 117243904,
+    "hosted_candidate_b_bytes": 93913088,
+    "hosted_baseline_comparable_readings": null,
+    "local_repeated_gateway_a_maximum_bytes": 148242432,
+    "local_a_table_frames": 0,
+    "hosted_repeated_module_behavior_qualified": false,
+    "limits_reference": "https://developers.cloudflare.com/workers/platform/limits/"
+  },
+  "independent_review": {
+    "result": "No correctness blocker to bounded grouped I/O; full latency improvement unestablished.",
+    "correction_applied": "643 metadata reads and tombstones are each per ceremony, or 2572 each for four ceremonies per profile. Cleanup and failed attempts are excluded.",
+    "remaining_limits": [
+      "Rejection counts and cache histories differ.",
+      "No matched memory delta or repeated-module qualification.",
+      "Canceled calls remain unassigned.",
+      "Internal phase spans cannot partition CPU and waits."
+    ]
+  },
+  "provider_exception_assessment": {
+    "profile": "candidate",
+    "path": "/control",
+    "event_timestamp_ms": 1792717413113,
+    "reviewed_message": "InvalidGateDecision: Registration operation was changed",
+    "assessment": "Consistent with the wallet-1 recovery changed-replay negative control. No exact nested request identifier join is available. All selected admitted execution/install invocations are ok."
+  },
+  "sources": {
+    "crates/router-ab-cloudflare/src/ml_dsa/registration_tables.rs": {
+      "baseline_sha256": "0224199e7e2c7d5763521c0c7fdaef8976ae482a9f8b4577a57d54327c824c5b",
+      "candidate_sha256": "f271a42fd111aeaa71f524edb364d09aacbdfde04fdcc25d9c851ab8d55b3f74"
+    },
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/registration/engine.rs": {
+      "baseline_sha256": "2a7dab1f1c9075200b96cc13750e82598a01e3e9c691901395a165f226af17b3",
+      "candidate_sha256": "0a8119c2aa56c2fee188db568bfceda6031daaaeca4b3a4e083f275dbb3e1f73"
+    },
+    "tests/e2e/ml-dsa-registration-worker.e2e.mjs": {
+      "baseline_sha256": "506b2479661d546802ef50d0e21ad7be1d36d6ee06d5a5a85376837dd56ecd61",
+      "candidate_sha256": "cd21f90fb0b00fedef9bdd37a1c7feba827f4f9027ae46fd879e4a5c367dddf7"
+    },
+    "tools/ml-dsa-investigation/research/collect_worker_traces.py": {
+      "baseline_sha256": "f994e0607ec47274a24a18e14b08273e3435c03a94e6cf7d457bac609afa82b1",
+      "candidate_sha256": "6be00e646e4120ca34e8a91a2dc8d69ccadaeeafd264b9af2c08f4211f9c2cc5"
+    },
+    "tools/ml-dsa-investigation/src/registration_tables_evidence.rs": {
+      "baseline_sha256": "815e8276df3029c3c4f2fcefc6f9756e34da89de0e4eb10660b98c9cb02ca8ae",
+      "candidate_sha256": "2009a97e61fa9d156ca19b4ab3159c1cca2cd75a5d05ee2dff7b8787b1ce9b14"
+    }
+  },
+  "cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:00:37.337340+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-tbl-1023-632b38-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:00:39.097979+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-tbl-1023-632b38-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:00:40.804856+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-tbl-1023-632b38-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:00:42.595979+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-tbl-1023-632b38-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:00:44.459743+00:00"
+      }
+    ],
+    "candidate": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:06:48.883725+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-tbl-1023-632b38-candidate-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:06:50.434366+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-tbl-1023-632b38-candidate-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:06:51.988813+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-tbl-1023-632b38-candidate-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:06:53.536599+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-tbl-1023-632b38-candidate-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T01:06:55.086401+00:00"
+      }
+    ]
+  },
+  "provenance_credential_values_checked_absent": 6,
+  "provenance": {
+    "file": "ml-dsa-65-registration-table-batch-20261023-data.json.gz",
+    "sha256": "424d93964d9af20b826984186cc3e0cc04cbb3d80044e45f787ad3195a35957a",
+    "bytes": 683289
+  }
+}
