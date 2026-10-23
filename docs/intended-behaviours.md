@@ -180,7 +180,9 @@ The browser bridge contract is
 [`voiceid-device-bridge.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-device-bridge.contract.test.ts).
 It exercises the browser with a fake local host. It verifies activation,
 challenge signing, transfer approval, origin rejection, and cancellation. It
-writes a JSON report and accesses no microphone or Keychain.
+also clicks Activate inside an embedded Wallet iframe to verify browser user
+activation reaches native capture. It writes a JSON report and accesses no
+microphone or Keychain.
 
 The custody boundary contract is
 [`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).

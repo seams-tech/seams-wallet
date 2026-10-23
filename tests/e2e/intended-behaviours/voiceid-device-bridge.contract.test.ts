@@ -13,6 +13,7 @@ import { voiceIdWalletSessionChallengeBytes } from '@shared/authorization/voiceI
 import type {} from '../../fixtures/ui/VoiceIdDeviceCaptureProbe';
 
 const WALLET_ORIGIN = 'https://wallet.example.test';
+const APP_ORIGIN = 'https://app.example.test';
 const PROBE_HTML = `<!doctype html>
 <html><head><title>VoiceID device bridge</title></head><body>
 <button id="approval">Approve transfer</button>
@@ -24,6 +25,14 @@ const PROBE_HTML = `<!doctype html>
 
 function fulfillProbePage(route: Route): Promise<void> {
   return route.fulfill({ status: 200, contentType: 'text/html', body: PROBE_HTML });
+}
+
+function fulfillEmbeddedWalletPage(route: Route): Promise<void> {
+  return route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: `<iframe title="Wallet" src="${WALLET_ORIGIN}/voiceid-embedded"></iframe>`,
+  });
 }
 
 function captureResult(): Promise<unknown> {
@@ -135,6 +144,20 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
   await expect(page.evaluate(captureResult)).rejects.toThrow('cancelled');
   expect(await page.evaluate(requestCount)).toBe(6);
 
+  await page.route(`${APP_ORIGIN}/**`, fulfillEmbeddedWalletPage);
+  await page.goto(`${APP_ORIGIN}/embedded-wallet`);
+  const walletFrame = page.frame({ url: `${WALLET_ORIGIN}/voiceid-embedded` });
+  if (!walletFrame) throw new Error('Embedded Wallet frame did not load');
+  await walletFrame.evaluate(startWalletActivation);
+  expect(await walletFrame.evaluate(requestCount)).toBe(0);
+  await walletFrame.getByRole('button', { name: 'Activate VoiceID' }).click();
+  const embeddedActivation = requireRecord(
+    await walletFrame.evaluate(captureResult),
+    'embedded Wallet VoiceID activation',
+  );
+  expect(embeddedActivation.walletId).toBe('wallet:voiceid-browser');
+  expect(await walletFrame.evaluate(requestCount)).toBe(1);
+
   const reportPath = testInfo.outputPath('voiceid-device-bridge.json');
   await writeFile(reportPath, `${JSON.stringify({
     schemaVersion: 'voiceid_device_bridge_journey_v1',
@@ -149,6 +172,7 @@ async function runJourney({ page }: { page: Page }, testInfo: TestInfo): Promise
       'cancelled_capture_aborts_local_request',
       'wallet_origin_button_starts_capture_only_after_click',
       'wallet_activation_cancel_does_not_start_capture',
+      'embedded_wallet_button_preserves_user_activation',
     ],
   }, null, 2)}\n`);
   await testInfo.attach('voiceid-device-bridge.json', {
