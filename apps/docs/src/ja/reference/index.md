@@ -23,7 +23,7 @@ Seamsパッケージは、少数の公開インポートパスを提供します
 パッケージは、用途を絞ったReactコンポーネントのサブパスと、ホストするウォレットHTMLアセットも公開します。
 これらは、[Reactリファレンス](/ja/reference/react)と[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration)で説明します。
 
-ブラウザーSDKとサーバーSDKは**0.21.0**を使用します。復元CLIは**0.20.0**のままです。
+ブラウザーSDKとサーバーSDKは**0.21.0**を使用します。復元CLIも**0.21.0**です。
 導入とデプロイの要件は、[リリース 0.21.0](/ja/releases)を参照してください。
 
 ## 状態と失敗のリファレンス {#state-and-failure-references}

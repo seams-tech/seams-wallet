@@ -9,14 +9,18 @@ description: Seams Wallet CLIをインストール・検証し、テナント保
 署名済みアセットをローカルで検証し、ホスト環境の操作に必要な、範囲を限定したブラウザー承認だけを開きます。
 CLIは、コマンドライン引数や環境変数から、復元・移行先の認証情報を受け取りません。
 
-ランチャーは**0.20.0**です。署名済みネイティブアセットは、タグ[`seams-cli-v0.20.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.20.0)で公開します。
+ランチャーは**0.21.0**です。署名済みネイティブアセットは、タグ[`seams-cli-v0.21.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.21.0)で公開します。
+
+バージョン0.21.0は、公開前に交換した新しい復元ルートを固定します。古い復元キットと保存済みの
+信頼状態では、新しい権限を確立できません。新しい復元パッケージを取得し、空の信頼ファイルから
+接続してください。古いルートとの継続ブリッジはありません。
 
 ## インストールとオフラインコピーの保管 {#install-and-retain-an-offline-copy}
 
 Node.js 22以降でランチャーをインストールし、実行できることを確認してください。
 
 ```bash
-npm install --global @seams/wallet-cli@0.20.0
+npm install --global @seams/wallet-cli@0.21.0
 seams-wallet --help
 ```
 

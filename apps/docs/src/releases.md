@@ -5,14 +5,17 @@ description: Current SDK, server, CLI, and hosted runtime requirements for Seams
 
 # Release 0.21.0
 
-These docs target version **0.21.0** of the browser and server SDKs. The recovery CLI remains at **0.20.0**.
+These docs target version **0.21.0** of the browser and server SDKs. The recovery CLI also uses **0.21.0**.
 
 | Component                               | Version    | Requirement                                               |
 | --------------------------------------- | ---------- | --------------------------------------------------------- |
 | Browser SDK `@seams/wallet`             | **0.21.0** | Match application code and wallet-origin assets           |
 | Server SDK `@seams/wallet-server`       | **0.21.0** | Deploy the coordinated backend roles                      |
-| Native CLI launcher `@seams/wallet-cli` | **0.20.0** | Use its signed native assets and the dashboard's commands |
+| Native CLI launcher `@seams/wallet-cli` | **0.21.0** | Use its signed native assets and the dashboard's commands |
 | Wallet iframe protocol                  | **16.0.0** | Match the application and wallet host                     |
+
+The CLI pins a new prelaunch recovery root. Recovery packages signed under the earlier root
+need new packages and certificates. The old root has no continuity bridge.
 
 ## Recovery security
 
@@ -34,7 +37,7 @@ The formal verification docs distinguish proved invariants from assumptions and 
 
 ## English and Japanese controls
 
-This release aligns the browser and server SDKs at `0.21.0`. The recovery CLI remains at `0.20.0`.
+This release aligns the browser and server SDKs at `0.21.0`. The recovery CLI also uses `0.21.0`.
 The wallet iframe protocol remains 16.0.0.
 
 Set the SDK language when creating the provider configuration:

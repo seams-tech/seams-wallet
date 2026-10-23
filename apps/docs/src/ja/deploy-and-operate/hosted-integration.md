@@ -57,7 +57,7 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 
 ## リリース 0.21.0 {#release-0-21-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.21.0**に固定してください。`@seams/wallet-cli`は**0.20.0**を使用します。
+`@seams/wallet`と`@seams/wallet-server`を**0.21.0**に固定してください。`@seams/wallet-cli`も**0.21.0**を使用します。
 対応する導入方法は、[リリース 0.21.0](/ja/releases)を参照してください。
 
 APACのウォレットオブジェクトは、`apac-se`で東南アジアへの配置を要求します。

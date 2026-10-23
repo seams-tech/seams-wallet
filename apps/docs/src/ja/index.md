@@ -29,7 +29,7 @@ pnpm add @seams/wallet@0.21.0
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
-ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.20.0**です。
+ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.21.0**です。
 導入とデプロイの要件は[リリース 0.21.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx

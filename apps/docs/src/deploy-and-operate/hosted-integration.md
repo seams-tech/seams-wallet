@@ -73,7 +73,7 @@ same compatible release.
 
 ## Release 0.21.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.21.0**. Keep `@seams/wallet-cli` at **0.20.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.21.0**. Pin `@seams/wallet-cli` to **0.21.0**.
 See [Release 0.21.0](/releases) for the supported integration.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.

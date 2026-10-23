@@ -29,7 +29,7 @@ These docs target `@seams/wallet` **0.21.0**. Keep the wallet-origin assets and
 [the deployment requirements](/deploy-and-operate/hosted-integration)
 before updating an existing integration.
 
-The wallet iframe protocol is **16.0.0**. The recovery CLI uses **0.20.0**.
+The wallet iframe protocol is **16.0.0**. The recovery CLI uses **0.21.0**.
 See [Release 0.21.0](/releases) for integration and deployment requirements.
 
 <<< ./examples/setup.tsx
