@@ -1,0 +1,1328 @@
+{
+  "schema": "seams.ml-dsa-wire-reuse.v1",
+  "scope": "Public lifetime compaction in prepared GMW. Physical value slots change. Gates, layers, correlations, private commitments, protocol messages and canonical recovery/export stay unchanged.",
+  "base_commit": "6384d3b9eae854e0476fa2805d24899b75882460",
+  "source_receipts": {
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs": {
+      "base_sha256": "7ef4804f86cdad80df1744c26f9f3a3df7a83623527f2349b9d45ae7e225ec42",
+      "candidate_sha256": "a9817d8d8ede84d23f44d8dcf8590d03de20abaccea78978dccf0502ed157102"
+    },
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": {
+      "base_sha256": "8004cffe1991d3578d4d8f9f5c4ab7a9232716ce4903e8a9a163736450f134f4",
+      "candidate_sha256": "a122bb1d032d1f41321ab32b76909fadff048e5ef31cfcf6a7232a681aa4dbd2"
+    }
+  },
+  "native": {
+    "original_private_state_bytes": 8763760,
+    "packed_private_state_bytes": 2007628,
+    "and_gates": 2467738,
+    "and_exchanges": 168,
+    "allocation_scope": "Private value and correlation capacities in the mixed 105-output engine check. Excludes compiler temporaries and whole-process or isolate memory."
+  },
+  "structural": {
+    "source": {
+      "scope": "Public compiler-to-evaluator lifetime verification. Production compiler and compactor are extracted verbatim. The standalone parser admits public layout data only. A separate symbolic checker follows evaluator order; it never receives private inputs. Calibration includes a deliberately wrong output address.",
+      "compiler_segment_sha256": "eaff23eed9cabaa17ae8dea3dda9f25624b0f5e239ed8ee533f7a90fda579434",
+      "compactor_segment_sha256": "27c8fe33d65002988c4b28aab38f2698dec9a6fcd40f62b060f6ec9d5250d43a"
+    },
+    "verifier_sha256": "9963b159eacaf87740070610502dcbe48ddbf5aa60664bca141934d7676ab91b",
+    "calibration": {
+      "calibration": "passed",
+      "direct_input_outputs": true,
+      "repeated_operands": true,
+      "same_layer_shared_inputs": true,
+      "late_outputs": true,
+      "unused_output": true,
+      "changed_output_rejected": true,
+      "high_fanout_saturation": true
+    },
+    "circuits": [
+      {
+        "file": "aggregate-check.bin",
+        "original_value_slots": 17123,
+        "compact_value_slots": 3854,
+        "and_gates": 3077,
+        "layers": 17,
+        "outputs": 1,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "db3ac25091ed81d1b015c4472e4a4f48caf1804e9db534dbd60d9c6b3f1339fd"
+      },
+      {
+        "file": "bounds-decision.bin",
+        "original_value_slots": 3349,
+        "compact_value_slots": 3328,
+        "and_gates": 10,
+        "layers": 5,
+        "outputs": 1,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "dbe96ab2435584c3082ec4f2bddf59bbd059af039497d14cf345003786c214b1"
+      },
+      {
+        "file": "commitment-hash.bin",
+        "original_value_slots": 1363360,
+        "compact_value_slots": 12801,
+        "and_gates": 267584,
+        "layers": 169,
+        "outputs": 384,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361"
+      },
+      {
+        "file": "commitment-high.bin",
+        "original_value_slots": 122368,
+        "compact_value_slots": 18944,
+        "and_gates": 28160,
+        "layers": 58,
+        "outputs": 1024,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "efdb530a332a403f8a4b7b1e809b621accd32cf884260ce270ccc0bc7adda2c6"
+      },
+      {
+        "file": "fresh-mask.bin",
+        "original_value_slots": 128512,
+        "compact_value_slots": 16896,
+        "and_gates": 21760,
+        "layers": 66,
+        "outputs": 5888,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "f9c8027fbd968d55fa0418d0473e11eb511c19b2418d4ea356a79bd29c72a5ed"
+      },
+      {
+        "file": "low-response-check.bin",
+        "original_value_slots": 101889,
+        "compact_value_slots": 17153,
+        "and_gates": 28415,
+        "layers": 43,
+        "outputs": 1,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "ad63ee91661532b0a84c883f8f289a8a290ff6f682e80e92d3bed533ec4ca687"
+      },
+      {
+        "file": "mask-0.bin",
+        "original_value_slots": 1056442,
+        "compact_value_slots": 15419,
+        "and_gates": 222400,
+        "layers": 185,
+        "outputs": 5888,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "30de4af0fda9d7f20effd460e48fd4d56e1f7c9fe94f05f372ed8b1eec33291b"
+      },
+      {
+        "file": "prepared-commitment.bin",
+        "original_value_slots": 241408,
+        "compact_value_slots": 24832,
+        "and_gates": 50688,
+        "layers": 114,
+        "outputs": 6912,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "b579f57b089e7ed31abe7a96940ea8787502f3029972f5436f666d5b2440432e"
+      },
+      {
+        "file": "response-check.bin",
+        "original_value_slots": 101633,
+        "compact_value_slots": 17153,
+        "and_gates": 28415,
+        "layers": 43,
+        "outputs": 1,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "22d8f22555ec0149ce158913443672150a5091ae8c3d9210f127f7b7d09e04b6"
+      },
+      {
+        "file": "rounding.bin",
+        "original_value_slots": 212224,
+        "compact_value_slots": 23808,
+        "and_gates": 43008,
+        "layers": 94,
+        "outputs": 8448,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "f93b84946e09c80d94ab9ee8ddbacd5e758989f12533c44d153b189baab88f99"
+      },
+      {
+        "file": "row-check.bin",
+        "original_value_slots": 404993,
+        "compact_value_slots": 36097,
+        "and_gates": 106239,
+        "layers": 104,
+        "outputs": 257,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "ebdde57997d98804fd2a0c5f263cf6284fea3f6ac3845838a7bd5116b6fb556f"
+      },
+      {
+        "file": "sampling-0.bin",
+        "original_value_slots": 1156623,
+        "compact_value_slots": 17951,
+        "and_gates": 300624,
+        "layers": 199,
+        "outputs": 5889,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "a05bc2fba337c33c55234546e8468c794024e6388925f262649cd2d370ea4ca0"
+      },
+      {
+        "file": "sampling-final-bound.bin",
+        "original_value_slots": 1086038,
+        "compact_value_slots": 38628,
+        "and_gates": 215120,
+        "layers": 146,
+        "outputs": 23094,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "a84e145dd62436186c7b5f6200a5981aef6d8101fbf513026f1d1e8ad34d46d6"
+      },
+      {
+        "file": "sampling-three-blocks.bin",
+        "original_value_slots": 847118,
+        "compact_value_slots": 34992,
+        "and_gates": 167728,
+        "layers": 122,
+        "outputs": 19584,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "24f24f2ccfce88ad3d9ba2a97609d9fa24b46864c5361a2d66de8777c9b171ff"
+      },
+      {
+        "file": "sampling-two-blocks.bin",
+        "original_value_slots": 563912,
+        "compact_value_slots": 25200,
+        "and_gates": 111648,
+        "layers": 98,
+        "outputs": 13056,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "38dd48a74443f7393e48f274a57a65ceddf579ff51463d0fec0f4167804fb96e"
+      },
+      {
+        "file": "sampling.bin",
+        "original_value_slots": 1166849,
+        "compact_value_slots": 17954,
+        "and_gates": 292180,
+        "layers": 200,
+        "outputs": 5889,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "d6f3dc98ab66c0496f621419953703910bcd2c8a277fa1aefa02f9871203fb71"
+      },
+      {
+        "file": "seed.bin",
+        "original_value_slots": 189491,
+        "compact_value_slots": 5568,
+        "and_gates": 37824,
+        "layers": 25,
+        "outputs": 1024,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "1a7461eabf7d23d781457211e035d4cfb310a1422b06e43491be21ac0822f657"
+      },
+      {
+        "file": "signing-mask.bin",
+        "original_value_slots": 1069802,
+        "compact_value_slots": 15417,
+        "and_gates": 212928,
+        "layers": 186,
+        "outputs": 5888,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "51a274b48827a2b76631b1ddf3082fc8add9fc8abcdd275e9f05165302d7e5e1"
+      },
+      {
+        "file": "signing-seed.bin",
+        "original_value_slots": 189794,
+        "compact_value_slots": 5312,
+        "and_gates": 37312,
+        "layers": 25,
+        "outputs": 512,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "ca1f7ef577606ad4dadefcaefee6185f97bdbbac60025f8f28766631a172cc41"
+      },
+      {
+        "file": "wallet-seed.bin",
+        "original_value_slots": 185618,
+        "compact_value_slots": 5056,
+        "and_gates": 37056,
+        "layers": 25,
+        "outputs": 256,
+        "reads_and_outputs_verified": true,
+        "schedule_sha256": "0750096d3ce30b04df6037467f2f506045fd5b109da392259a6e5ba4de0c4fa9"
+      }
+    ]
+  },
+  "local_matched_cohorts": [
+    {
+      "cache": "reused",
+      "pairs": 2,
+      "baseline_operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "candidate_operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "baseline_ms": 152.48616700000275,
+      "candidate_ms": 129.50991599999543,
+      "same_payload_lengths": true
+    },
+    {
+      "cache": "first",
+      "pairs": 1,
+      "baseline_operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+      "candidate_operation": "ad583f006a4c2651f1b1af55ad35bf7aefed948c64e934b676e06a25f44f563d",
+      "baseline_ms": 372.35587499999383,
+      "candidate_ms": 402.1137909999961,
+      "same_payload_lengths": true
+    }
+  ],
+  "hosted_registration": {
+    "scope": "Sequential Cloudflare registration screen, four ceremonies and four initial-stock signatures per profile. Preparation is separate. Load results use a separate artifact. Browser and production percentile parity remain unqualified.",
+    "profiles": {
+      "baseline": {
+        "registration_ms": {
+          "count": 4,
+          "minimum": 3920.8480830000044,
+          "median": 4546.567645999996,
+          "maximum": 6221.554208000001,
+          "under_5000": 3
+        },
+        "preparation_ms": {
+          "count": 4,
+          "minimum": 49614.052875,
+          "median": 73707.73827100001,
+          "maximum": 86320.27812500001,
+          "under_5000": 0
+        },
+        "initial_attempt_ms": {
+          "count": 4,
+          "minimum": 4132.321499999991,
+          "median": 9163.400562499999,
+          "maximum": 14115.943624999993,
+          "under_5000": 1
+        },
+        "initial_successful_signing_ms": {
+          "count": 3,
+          "minimum": 4132.321499999991,
+          "median": 6945.545584000007,
+          "maximum": 11381.255540999991,
+          "under_5000": 1
+        },
+        "raw_full_functional_passed": [
+          true,
+          false
+        ],
+        "trace_coverage_gaps": [
+          {
+            "wallet": 1,
+            "epoch": 1,
+            "role": "b"
+          },
+          {
+            "wallet": 2,
+            "epoch": 1,
+            "role": "b"
+          }
+        ],
+        "a_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 179,
+          "median": 205.5,
+          "maximum": 305,
+          "under_5000": 4
+        },
+        "b_execution_cpu_ms": {
+          "count": 3,
+          "minimum": 1492,
+          "median": 1999,
+          "maximum": 2760,
+          "under_5000": 3
+        },
+        "initial_failed_operations": [
+          {
+            "wallet": 2,
+            "epoch": 1,
+            "operation": "de2cb6895d58e7b40ff04d5752dc11b2ea811040068fff0eb763e16fdcf117c3",
+            "signing_ms": 14115.943624999993,
+            "checked_pairs_per_role": {
+              "a": 8,
+              "b": 8
+            }
+          }
+        ],
+        "initial_signing_trace_gaps": []
+      },
+      "packed": {
+        "registration_ms": {
+          "count": 4,
+          "minimum": 4642.377957999997,
+          "median": 5217.709687499992,
+          "maximum": 6058.701207999984,
+          "under_5000": 2
+        },
+        "preparation_ms": {
+          "count": 4,
+          "minimum": 66017.511,
+          "median": 92137.228833,
+          "maximum": 109561.93383400001,
+          "under_5000": 0
+        },
+        "initial_attempt_ms": {
+          "count": 4,
+          "minimum": 3142.0052079999878,
+          "median": 3932.745603999996,
+          "maximum": 8162.683667000005,
+          "under_5000": 3
+        },
+        "initial_successful_signing_ms": {
+          "count": 3,
+          "minimum": 3142.0052079999878,
+          "median": 3603.4748329999857,
+          "maximum": 4262.0163750000065,
+          "under_5000": 3
+        },
+        "raw_full_functional_passed": [
+          false,
+          true
+        ],
+        "trace_coverage_gaps": [],
+        "a_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 298,
+          "median": 326.5,
+          "maximum": 346,
+          "under_5000": 4
+        },
+        "b_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 1438,
+          "median": 1940.5,
+          "maximum": 2368,
+          "under_5000": 4
+        },
+        "initial_failed_operations": [
+          {
+            "wallet": 1,
+            "epoch": 2,
+            "operation": "3b69e5b4eae74ce0831bd448088bc025c0798794ae1d9b4f7f163856aff9e0bb",
+            "signing_ms": 8162.683667000005,
+            "checked_pairs_per_role": {
+              "a": 8,
+              "b": 8
+            }
+          }
+        ],
+        "initial_signing_trace_gaps": [
+          {
+            "wallet": 2,
+            "epoch": 2
+          }
+        ]
+      }
+    }
+  },
+  "hosted_load": {
+    "baseline": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "initial_excluded_batches": 32,
+      "distinct_consumed_batches": 115,
+      "stock_ledger_complete": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "configured_pool_target_respected": true,
+      "whole_window_excluding_starting_stock": {
+        "elapsed_ms": 480082.191167,
+        "observed_new_paired_batches": 92,
+        "paired_batches_per_minute": 11.498031173749224,
+        "minimum_new_material_signatures": 0,
+        "minimum_new_material_signatures_per_minute": 0.0,
+        "limit": "Subtract every excluded starting batch from verified signatures. Each batch is single-use and can produce at most one signature. This gives a conservative bound even when consumption traces are missing. It is not a production percentile or an exact steady-state signing rate."
+      },
+      "common_post_initial_stock": {
+        "start_ms": 1792724557257.485,
+        "elapsed_ms": 407887.7060546875,
+        "observed_new_paired_batches": 80,
+        "successful_signatures": 17,
+        "paired_batches_per_minute": 11.767944776831397,
+        "successful_signatures_per_minute": 2.500688265076672
+      },
+      "successful_http_ms": {
+        "count": 30,
+        "minimum": 910.392165999976,
+        "median": 2353.727271000007,
+        "maximum": 7415.067416999998,
+        "sum": 83282.63041399993
+      },
+      "successful_demand_ms": {
+        "count": 30,
+        "minimum": 1581.172584,
+        "median": 22311.188374999998,
+        "maximum": 148722.16387500003,
+        "sum": 932333.861959
+      },
+      "successful_under_five_seconds": 26,
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 12,
+          "startMs": 462809.143875,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 17193.307374999975
+        },
+        {
+          "wallet": 0,
+          "number": 20,
+          "startMs": 469767.20020799997,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 10314.944875000045
+        }
+      ],
+      "successful_signatures": 30,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 19
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 11
+        }
+      ],
+      "functional_passed": true,
+      "request_statuses": {
+        "service_capacity": 19,
+        "succeeded": 30,
+        "empty_pool": 383,
+        "failed": 2,
+        "wallet_cooldown": 1
+      },
+      "non_ok_outcomes": {
+        "canceled": 90,
+        "exception": 1
+      },
+      "preparation_job_clock_delta_ms": [
+        {
+          "count": 26,
+          "minimum": 7316,
+          "median": 8335.0,
+          "maximum": 11341,
+          "sum": 226872
+        },
+        {
+          "count": 32,
+          "minimum": 5578,
+          "median": 7913.5,
+          "maximum": 10709,
+          "sum": 260759
+        }
+      ]
+    },
+    "packed": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "initial_excluded_batches": 32,
+      "distinct_consumed_batches": 108,
+      "stock_ledger_complete": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "configured_pool_target_respected": true,
+      "whole_window_excluding_starting_stock": {
+        "elapsed_ms": 480134.43450000003,
+        "observed_new_paired_batches": 92,
+        "paired_batches_per_minute": 11.496780075247862,
+        "minimum_new_material_signatures": 4,
+        "minimum_new_material_signatures_per_minute": 0.49986000327164615,
+        "limit": "Subtract every excluded starting batch from verified signatures. Each batch is single-use and can produce at most one signature. This gives a conservative bound even when consumption traces are missing. It is not a production percentile or an exact steady-state signing rate."
+      },
+      "common_post_initial_stock": {
+        "start_ms": 1792725652717.812,
+        "elapsed_ms": 407314.62255859375,
+        "observed_new_paired_batches": 80,
+        "successful_signatures": 26,
+        "paired_batches_per_minute": 11.784502038861868,
+        "successful_signatures_per_minute": 3.829963162630107
+      },
+      "successful_http_ms": {
+        "count": 36,
+        "minimum": 811.5106249999953,
+        "median": 2148.3163540000096,
+        "maximum": 5607.513249999989,
+        "sum": 88128.77004299995
+      },
+      "successful_demand_ms": {
+        "count": 36,
+        "minimum": 1226.6395420000008,
+        "median": 21839.837749500002,
+        "maximum": 84416.28270900005,
+        "sum": 940579.213293
+      },
+      "successful_under_five_seconds": 34,
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 21,
+          "startMs": 460700.21216700005,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 19300.15704099997
+        }
+      ],
+      "successful_signatures": 36,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 20
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 16
+        }
+      ],
+      "functional_passed": true,
+      "request_statuses": {
+        "succeeded": 36,
+        "service_capacity": 16,
+        "empty_pool": 323,
+        "wallet_cooldown": 4
+      },
+      "non_ok_outcomes": {
+        "canceled": 87,
+        "exception": 2
+      },
+      "preparation_job_clock_delta_ms": [
+        {
+          "count": 27,
+          "minimum": 3145,
+          "median": 8576,
+          "maximum": 12312,
+          "sum": 236371
+        },
+        {
+          "count": 28,
+          "minimum": 3747,
+          "median": 9020.5,
+          "maximum": 12970,
+          "sum": 261365
+        }
+      ]
+    }
+  },
+  "hosted_cohorts": {
+    "scope": "Exact-version load-request joins. Separate first and reused module calls and checked pair counts. A sequential sample does not establish a causal speedup or production percentiles. Internal clocks cannot partition CPU and waits.",
+    "profiles": {
+      "baseline": {
+        "cache_pair_cohorts": [
+          {
+            "cache": "first",
+            "pairs": 1,
+            "http_ms": {
+              "count": 2,
+              "minimum": 3096.617,
+              "median": 3516.3959165000006,
+              "maximum": 3936.174833000001,
+              "under_5000": 2
+            },
+            "operations": [
+              "1eadee484e2b087f1a3ac0ffce91ec484facacec5d7bc6f4e3c488e6585f201f",
+              "3aa7c10f7ed58f48444fc7b9d9b1fd56bcc13e182043fce0de6fa5ca6ae39741"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 3,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2796.9406249999956,
+              "median": 2796.9406249999956,
+              "maximum": 2796.9406249999956,
+              "under_5000": 1
+            },
+            "operations": [
+              "0541c423375bbfe65ba764c03a3b498d04f1fc8acf8976327a749438669b0de7"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 8,
+            "http_ms": {
+              "count": 1,
+              "minimum": 5126.9406250000175,
+              "median": 5126.9406250000175,
+              "maximum": 5126.9406250000175,
+              "under_5000": 0
+            },
+            "operations": [
+              "68ffadbb0690e64759f7953f568f37bbcecc41e9bfe57016adc5d95750ee0eea"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 9,
+            "http_ms": {
+              "count": 1,
+              "minimum": 7415.067416999998,
+              "median": 7415.067416999998,
+              "maximum": 7415.067416999998,
+              "under_5000": 0
+            },
+            "operations": [
+              "e01ef1f717b1ef81bb752fef829c9166f72d87883829e8f0d2376c1fcec8df2f"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 1,
+            "http_ms": {
+              "count": 4,
+              "minimum": 910.392165999976,
+              "median": 1388.0362500000065,
+              "maximum": 1967.5299999999988,
+              "under_5000": 4
+            },
+            "operations": [
+              "f938026e02affcb158bc7da0bc2a982cd5c71a644e4085c011b48a7c1a608ce2",
+              "8e55237590650b676e639d91c02b26ea66cb3495df2d6b752691d2ea07ccdea9",
+              "5c2c736f2866c5eeeefdde97a56384d6fb94aeea7bcd84e31c586138d46634ce",
+              "c764b67a24e17a99a3cb9424e78769fbbac68e5f9078b4f9b86cf2c557ba2660"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 2,
+            "http_ms": {
+              "count": 5,
+              "minimum": 1296.8784159999923,
+              "median": 1542.866290999984,
+              "maximum": 1822.8125839999993,
+              "under_5000": 5
+            },
+            "operations": [
+              "a106e1557d9974bbe81a99f7a8bdc6d40cb4eabcb7649649978ac55a650f0ef0",
+              "01eb1c713a359275e680acbd46df1850e66e9ad89a753f94322d7b35513b218e",
+              "fb6a5f74f8a12102546e68038d4c418ef0fcc2b65ca702369dfa95c262e4cec1",
+              "5b3fa552cea14c42b87409ea0821d0eb8f18d4a565859af0970621f078306408",
+              "5e99598b8ab0931538bd21c6cdabca6e950510630a57411516153c60e5706049"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 3,
+            "http_ms": {
+              "count": 4,
+              "minimum": 1730.1765000000005,
+              "median": 2510.553020999998,
+              "maximum": 3630.5330419999664,
+              "under_5000": 4
+            },
+            "operations": [
+              "97837dfc0b8e9cd49fae0b07faf7558fd6e1a090e21b653b498bf510687d0ff9",
+              "dce43ec819a62e3447043fc49ade33f532b8182098be7537d5b57a6fe07dae0f",
+              "68211ec49ebe3315fcbb978bc35858939576ef6abaa44455875c9ceb3c50b0be",
+              "4f3de69b82b8d6d1385994bf4dca995d86223b159e876b9bfbf1109314ff62a7"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 4,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2293.7942090000142,
+              "median": 2293.7942090000142,
+              "maximum": 2293.7942090000142,
+              "under_5000": 1
+            },
+            "operations": [
+              "2c5aac8a84efbda1618028f2e41421bc780cd8997669eaa589f0cd8576847bf3"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 5,
+            "http_ms": {
+              "count": 4,
+              "minimum": 2705.0698330000014,
+              "median": 3063.8653959999997,
+              "maximum": 6102.822000000015,
+              "under_5000": 3
+            },
+            "operations": [
+              "e8061a26cabdefff595bf887247fcf8bd1cc64cf461b26c3a578b031473bf0d6",
+              "5b881ecc2803fd184520bb7d64c16db3ae9fe521a23c2038fcbe98587e3a1e5d",
+              "34b3a82b4806bd47c6dbeb4dff45999af1dcecc6ea4ae9b1809fe76c57a52740",
+              "1a7aa597e9c4bed76b94ed8889c0bb74441453fab77eeba4a885afeb94b235c7"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 6,
+            "http_ms": {
+              "count": 1,
+              "minimum": 3336.8952909999934,
+              "median": 3336.8952909999934,
+              "maximum": 3336.8952909999934,
+              "under_5000": 1
+            },
+            "operations": [
+              "3bbedbb5503328cced8e21230a7c1cae1b1f0fccfbe1e5b9e72f0a2889fbb28e"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 7,
+            "http_ms": {
+              "count": 2,
+              "minimum": 3576.3122079999885,
+              "median": 4561.933999500005,
+              "maximum": 5547.555791000021,
+              "under_5000": 1
+            },
+            "operations": [
+              "370e5c24c3c50f5ecd7d6e6072f91edc56371dc3324d52b63dcc55cbd4b63202",
+              "dce300908c22afd09ba4720ccdb46c76958899aa1be1557ff99bdca6995b8eb0"
+            ]
+          }
+        ],
+        "trace_gaps": [
+          {
+            "operation": "67846959c9d57b20c3026da2b943f1bff89a4c34a73266ef4e13a7331519f0e8",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          },
+          {
+            "operation": "ac996bf22c2ed35182bb59330912aa73f7d42e689ce511725867c3d44d9266d6",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          },
+          {
+            "operation": "869ec28032d3eed5502b32dcd352a1a80c31c4763eaf48d9ec41694ef984c9a2",
+            "role_matches": {
+              "a": 0,
+              "b": 1
+            }
+          },
+          {
+            "operation": "96321f12265bd35b5f200ec5287e9b0dd49f88a580ab17b251bd755150947a98",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          }
+        ],
+        "functional_passed": true,
+        "matched_success_material_mix": {
+          "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+          "generic_pairs": 7,
+          "operations_with_generic_pairs": 6,
+          "committed_pairs": 85
+        },
+        "slow_successes": [
+          {
+            "operation": "e01ef1f717b1ef81bb752fef829c9166f72d87883829e8f0d2376c1fcec8df2f",
+            "http_ms": 7415.067416999998,
+            "cache": "first",
+            "pairs": 9
+          },
+          {
+            "operation": "1a7aa597e9c4bed76b94ed8889c0bb74441453fab77eeba4a885afeb94b235c7",
+            "http_ms": 6102.822000000015,
+            "cache": "reused",
+            "pairs": 5
+          },
+          {
+            "operation": "68ffadbb0690e64759f7953f568f37bbcecc41e9bfe57016adc5d95750ee0eea",
+            "http_ms": 5126.9406250000175,
+            "cache": "first",
+            "pairs": 8
+          },
+          {
+            "operation": "dce300908c22afd09ba4720ccdb46c76958899aa1be1557ff99bdca6995b8eb0",
+            "http_ms": 5547.555791000021,
+            "cache": "reused",
+            "pairs": 7
+          }
+        ]
+      },
+      "packed": {
+        "cache_pair_cohorts": [
+          {
+            "cache": "first",
+            "pairs": 1,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2164.9953749999986,
+              "median": 2164.9953749999986,
+              "maximum": 2164.9953749999986,
+              "under_5000": 1
+            },
+            "operations": [
+              "141ace2126ffd11b0f9bc27b68e2e40b84d9155b7ec6f0637fb31652bbb3b1ea"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 2,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2482.1939589999965,
+              "median": 2482.1939589999965,
+              "maximum": 2482.1939589999965,
+              "under_5000": 1
+            },
+            "operations": [
+              "5ec7d84c61844fe2f2e7b3fe86c5b622da846f173e3b66315b83ac62108ea5fa"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 3,
+            "http_ms": {
+              "count": 1,
+              "minimum": 3147.6717500000013,
+              "median": 3147.6717500000013,
+              "maximum": 3147.6717500000013,
+              "under_5000": 1
+            },
+            "operations": [
+              "b026c28d5833b6f848e0b9054d1636826a1b4b4301310d78804124105a738569"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 4,
+            "http_ms": {
+              "count": 2,
+              "minimum": 3948.820208000019,
+              "median": 4262.593541500013,
+              "maximum": 4576.366875000007,
+              "under_5000": 2
+            },
+            "operations": [
+              "834b69adc8f83634e33a37f3f130bd51923ab7528f9ebe38264c813600a11dff",
+              "930be13cd994faf87fc6cd3216abdf77c77dd6d7508a1df9ad274bc1fe916add"
+            ]
+          },
+          {
+            "cache": "first",
+            "pairs": 9,
+            "http_ms": {
+              "count": 1,
+              "minimum": 5607.513249999989,
+              "median": 5607.513249999989,
+              "maximum": 5607.513249999989,
+              "under_5000": 0
+            },
+            "operations": [
+              "bc9d8f981dcddc6baa6487720cceec9ed45f314b5902defe468a8729f06a7749"
+            ]
+          },
+          {
+            "cache": "mixed",
+            "pairs": 1,
+            "http_ms": {
+              "count": 1,
+              "minimum": 1246.9274999999907,
+              "median": 1246.9274999999907,
+              "maximum": 1246.9274999999907,
+              "under_5000": 1
+            },
+            "operations": [
+              "b4ce2efaeb9d651917c725060fd82170924bd3c2b6dc4ba8d204b3c7d70977a3"
+            ]
+          },
+          {
+            "cache": "mixed",
+            "pairs": 2,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2312.4942920000176,
+              "median": 2312.4942920000176,
+              "maximum": 2312.4942920000176,
+              "under_5000": 1
+            },
+            "operations": [
+              "a3c9ab98b661e408565309cb269a6285b5c4f38f954f3ba23f8aaa68ae002ac7"
+            ]
+          },
+          {
+            "cache": "mixed",
+            "pairs": 3,
+            "http_ms": {
+              "count": 1,
+              "minimum": 2418.2536669999827,
+              "median": 2418.2536669999827,
+              "maximum": 2418.2536669999827,
+              "under_5000": 1
+            },
+            "operations": [
+              "ab672f9e7619f7dcba56879266a80dab5c59def1890250b4e5c1dd201ab0b758"
+            ]
+          },
+          {
+            "cache": "mixed",
+            "pairs": 7,
+            "http_ms": {
+              "count": 1,
+              "minimum": 4758.640125000005,
+              "median": 4758.640125000005,
+              "maximum": 4758.640125000005,
+              "under_5000": 1
+            },
+            "operations": [
+              "7bffc5b39dc5246cb099ae663e85c12a4a2ed221dd167b15f8ce0642f97b76ca"
+            ]
+          },
+          {
+            "cache": "mixed",
+            "pairs": 8,
+            "http_ms": {
+              "count": 1,
+              "minimum": 5519.52670799999,
+              "median": 5519.52670799999,
+              "maximum": 5519.52670799999,
+              "under_5000": 0
+            },
+            "operations": [
+              "477b6407e3659e5584b8024c1c81df4d8303b567042af919c6afd211cbc33529"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 1,
+            "http_ms": {
+              "count": 7,
+              "minimum": 811.5106249999953,
+              "median": 975.2251660000184,
+              "maximum": 1835.797749999998,
+              "under_5000": 7
+            },
+            "operations": [
+              "10b47ffa003f288ef23aad44c2dda4e775a70f3e6278e91d88961fcac0782648",
+              "8039887ad720bb3b495ca7d7e3dc4a931bf3372e6a076710d83059bda443cc47",
+              "79b0c81d8d4ccf6cf81f8cd193314d83cacbeeb9bb3d8bb0b4a3b2873324d62c",
+              "106c2e5cd9b113260d8ec91c01f0347fdbf7db5ced4a9eb91246356a877a23e6",
+              "7e72f22362b56962d9aace76ca99ea3215464417b962949348e1deb4aa005b72",
+              "4f7dbc8d89e01f1247b171eba3d8ecd21ca14fc2b93defb3df5b8287fc7f3386",
+              "e37f12e56fc10c1f342c5588998624488fee931eae4666e37ffcebd6ea9263fc"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 2,
+            "http_ms": {
+              "count": 6,
+              "minimum": 1255.4242080000113,
+              "median": 1352.7331249999843,
+              "maximum": 2059.9068750000006,
+              "under_5000": 6
+            },
+            "operations": [
+              "4be89ab5c7a531ea1dc7c55a742dfd89ace81699cadb6df736cf261470046a5b",
+              "2039032ea7241cd51e4b905810ba7f125ef2113bc7cfbf055088dada9d599d00",
+              "e779c6c74bfeb3372bcfd4023e0fa20b044078d7e65a14e47eb4495ce309ac4e",
+              "f5d29891dd586ac99aba5d24187a87505c4a348a25690efee79f76bd318a0a45",
+              "66f0f0c9009fe6ec1e2081aa72eb230f2def6c0f7a011cfbe6f18d0dbbcefceb",
+              "6f6df58a7bf81dede9aafaed6c854e1d8db5b8c04ec088d806e672b9bedf67d3"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 3,
+            "http_ms": {
+              "count": 2,
+              "minimum": 1969.7912090000173,
+              "median": 2050.714271000019,
+              "maximum": 2131.6373330000206,
+              "under_5000": 2
+            },
+            "operations": [
+              "0ec2e20084b1688e4dda28e55598da9efa98396d8cb639778ad773af986548d2",
+              "2a4402ce8a1e7cffea8a3e792902f8d368d270517c973f327489a5a7fae46f40"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 4,
+            "http_ms": {
+              "count": 3,
+              "minimum": 2391.2959580000024,
+              "median": 2634.444625,
+              "maximum": 4838.643125000002,
+              "under_5000": 3
+            },
+            "operations": [
+              "917b22d266d88a151fd30c99b3b5198bbe39f682bdafff95dcfe1345effa118c",
+              "92e4117ca04ed7207c98f6989b346daa38312359cfbf9c9714d0b82bdbae697a",
+              "7d04185a447b9863ab2a9709bea3f605457425f9f00c3f59e37903113b752ef0"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 6,
+            "http_ms": {
+              "count": 2,
+              "minimum": 2703.915208999999,
+              "median": 3446.1675834999915,
+              "maximum": 4188.419957999984,
+              "under_5000": 2
+            },
+            "operations": [
+              "28d86d028ab903634d678ecc2138c3c90fc4a8ba8722b012adaa52320c218627",
+              "4c7aa893e6796bd6a412c3d3a4b4af0ce08aed439d96f43e105adc2c3d53e318"
+            ]
+          },
+          {
+            "cache": "reused",
+            "pairs": 7,
+            "http_ms": {
+              "count": 1,
+              "minimum": 3947.5611249999997,
+              "median": 3947.5611249999997,
+              "maximum": 3947.5611249999997,
+              "under_5000": 1
+            },
+            "operations": [
+              "2f7486a0464e6f91a961da6e3e527f58b2065913eb96bb1ecdd659c918454071"
+            ]
+          }
+        ],
+        "trace_gaps": [
+          {
+            "operation": "97964aac183ee1c6e302d6d8cbaabd2b8a8c699818d60857d57ba9c956743666",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          },
+          {
+            "operation": "64738338f942951d2f9ac4c8e9dd1833d8561d498e01026d5afdc8be0acdf6f7",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          },
+          {
+            "operation": "746d7b668d3a8c4fbc6b964a4705592304f2e18c9b8b81162ebd8cdd69e7f488",
+            "role_matches": {
+              "a": 0,
+              "b": 0
+            }
+          },
+          {
+            "operation": "a440b718468389aa3769daad75a3dea328a16b1512095e93db1dde7bd1a78249",
+            "role_matches": {
+              "a": 1,
+              "b": 0
+            }
+          }
+        ],
+        "functional_passed": true,
+        "matched_success_material_mix": {
+          "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+          "generic_pairs": 3,
+          "operations_with_generic_pairs": 2,
+          "committed_pairs": 97
+        },
+        "slow_successes": [
+          {
+            "operation": "bc9d8f981dcddc6baa6487720cceec9ed45f314b5902defe468a8729f06a7749",
+            "http_ms": 5607.513249999989,
+            "cache": "first",
+            "pairs": 9
+          },
+          {
+            "operation": "477b6407e3659e5584b8024c1c81df4d8303b567042af919c6afd211cbc33529",
+            "http_ms": 5519.52670799999,
+            "cache": "mixed",
+            "pairs": 8
+          }
+        ]
+      }
+    }
+  },
+  "verification": {
+    "steps": [
+      {
+        "name": "packed-lifetimes",
+        "exit_code": 0,
+        "command": [
+          "python3",
+          "/private/tmp/ml-dsa-signing-pairs-20261023/run_lifetime_verifier.py"
+        ]
+      },
+      {
+        "name": "packed-native-build",
+        "exit_code": 0,
+        "command": [
+          "cargo",
+          "build",
+          "--locked",
+          "--release",
+          "--manifest-path",
+          "tools/ml-dsa-investigation/Cargo.toml"
+        ]
+      },
+      {
+        "name": "packed-gmw",
+        "exit_code": 0,
+        "command": [
+          "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/target/release/ml-dsa-investigation",
+          "prepared-gmw",
+          "/private/tmp/ml-dsa-signing-pairs-20261023/packed-gmw.json"
+        ]
+      },
+      {
+        "name": "packed-keygen",
+        "exit_code": 0,
+        "command": [
+          "/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/tools/ml-dsa-investigation/target/release/ml-dsa-investigation",
+          "prepared-keygen",
+          "/private/tmp/ml-dsa-signing-pairs-20261023/packed-keygen.json"
+        ]
+      },
+      {
+        "name": "packed-mixed-layout",
+        "exit_code": 0,
+        "command": [
+          "python3",
+          "/private/tmp/ml-dsa-signing-pairs-20261023/mixed_layout.py"
+        ]
+      },
+      {
+        "name": "packed-local-profile",
+        "exit_code": 0,
+        "passed": true,
+        "signing_ms": [
+          129.50991599999543,
+          402.1137909999961,
+          191.21829200000502
+        ]
+      },
+      {
+        "name": "packed-registration",
+        "exit_code": 0,
+        "passed": true,
+        "registration_ms": [
+          1206.6465839999983,
+          1409.7667500000025
+        ]
+      }
+    ],
+    "builds": {
+      "router": {
+        "bytes": 42374627,
+        "sha256": "a2c5e6272638cef7e873bca0d081f4a3ad2363459e6f0f6ab84c0d450d80ba29"
+      },
+      "deriver-a": {
+        "bytes": 46254393,
+        "sha256": "edc416d3efcdd6fed057063ab9f02a8c6a144221a025dffae34179db94f6e239"
+      },
+      "deriver-b": {
+        "bytes": 46291707,
+        "sha256": "ee5f21fc278be5d8b9820b759606c32bf15fc5312a3e907e3316dee0e003b628"
+      }
+    }
+  },
+  "offline_reproduction": {
+    "scope": "Offline extraction and analysis replay against captured public data. No deployment or cryptographic material reuse.",
+    "checks": [
+      {
+        "script": "analyze_registration.py",
+        "output": "registration-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "61d6b63584334daa341b671ae2d53ea5d97b75acc44aebacefb8141d5100815a"
+      },
+      {
+        "script": "analyze_capture.py",
+        "output": "capture-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "549bead35403e1c8b5955a3c0a5ae0704e016a3ffdbae0daccdcb021a470da08"
+      },
+      {
+        "script": "analyze_profiles.py",
+        "output": "profile-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "4419025276ff4944bc3350394f475b661135cacf059d4dde9f5422df96e4a705"
+      }
+    ]
+  },
+  "bloat": {
+    "command": "pnpm report:bloat --check",
+    "head": "6384d3b9",
+    "exit_code": 1,
+    "classification": "pre_existing_gate_failure",
+    "baseline_rust_duplicated_lines": 13754,
+    "starting_head_rust_duplicated_lines": 13972,
+    "candidate_rust_duplicated_lines": 13972,
+    "baseline_changed": false,
+    "whitespace_check_passed": true,
+    "javascript_syntax_passed": true,
+    "rustfmt_edition_2021_passed": true,
+    "final_exit_code": 1,
+    "final_log": "bloat-final.log"
+  },
+  "cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:11:47.369234+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:11:48.884312+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:11:50.405033+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:11:52.134979+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:11:53.882200+00:00"
+      }
+    ],
+    "packed": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:29:58.379840+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:29:59.841189+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wire-1023-33e929-packed-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:30:01.422262+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wire-1023-33e929-packed-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:30:05.361490+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wire-1023-33e929-packed-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T03:30:07.108833+00:00"
+      }
+    ]
+  },
+  "decision": {
+    "consistent_five_second_registration_qualified": false,
+    "consistent_five_second_signing_qualified": false,
+    "causal_hosted_speedup_established": false,
+    "total_isolate_memory_reduction_established": false,
+    "browser_timing_parity_established": false
+  },
+  "provenance": {
+    "file": "ml-dsa-65-wire-reuse-20261023-data.json.gz",
+    "sha256": "7abd44f0de186fd9f9969c808886c84293c4318ab62751f369f2f74c9c9c55a6",
+    "bytes": 2746176
+  },
+  "credential_literals_checked_absent": 10
+}

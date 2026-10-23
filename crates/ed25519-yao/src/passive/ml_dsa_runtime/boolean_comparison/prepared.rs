@@ -43,7 +43,9 @@ impl PublicTopologies {
             return Rc::clone(topology);
         }
         self.builds += 1;
-        let topology = Rc::new(Topology::compile(schedule));
+        let mut topology = Topology::compile(schedule);
+        reuse_wire_slots(&mut topology, schedule.inputs);
+        let topology = Rc::new(topology);
         self.entries.push((schedule.digest, Rc::clone(&topology)));
         topology
     }
@@ -59,6 +61,126 @@ impl PublicTopologies {
             .iter()
             .map(|(_, topology)| topology.allocation_bytes())
             .sum()
+    }
+}
+
+/// Public compiler bookkeeping. Twenty-four bits cover the runtime's limit of
+/// five million gates plus inputs. The upper byte counts remaining reads.
+/// Saturation pins a high-fanout wire until evaluation ends.
+#[derive(Clone, Copy, Default)]
+struct WireLifetime(u32);
+
+impl WireLifetime {
+    const SLOT_MASK: u32 = 0x00ff_ffff;
+    const USE: u32 = 1 << 24;
+    const PINNED: u32 = 0xff00_0000;
+
+    fn retain(&mut self) {
+        if self.0 < Self::PINNED {
+            self.0 += Self::USE;
+        }
+    }
+    fn pin(&mut self) {
+        self.0 |= Self::PINNED;
+    }
+    fn assign(&mut self, slot: usize) {
+        assert!(slot <= Self::SLOT_MASK as usize);
+        self.0 = (self.0 & Self::PINNED) | slot as u32;
+    }
+    fn slot(self) -> usize {
+        (self.0 & Self::SLOT_MASK) as usize
+    }
+    fn unused(self) -> bool {
+        self.0 < Self::USE
+    }
+    fn release(&mut self) -> Option<usize> {
+        if self.0 >= Self::PINNED {
+            return None;
+        }
+        self.0 -= Self::USE;
+        if self.unused() {
+            Some(self.slot())
+        } else {
+            None
+        }
+    }
+}
+
+/// Reuses value slots using only public circuit lifetimes. AND inputs remain
+/// live until every output in that layer has a distinct slot. Correlation order
+/// and evaluation order stay unchanged.
+fn reuse_wire_slots(topology: &mut Topology, inputs: usize) {
+    let mut lifetimes = vec![WireLifetime::default(); topology.wires];
+    for gate in &topology.and_gates {
+        lifetimes[gate.left].retain();
+        lifetimes[gate.right].retain();
+    }
+    for layer in &topology.layers {
+        for gate in &layer.linear {
+            lifetimes[gate.left].retain();
+            lifetimes[gate.right].retain();
+        }
+    }
+    for &output in &topology.outputs {
+        lifetimes[output].pin();
+    }
+    let mut available = Vec::new();
+    for input in 0..inputs {
+        lifetimes[input].assign(input);
+        if lifetimes[input].unused() {
+            available.push(input);
+        }
+    }
+    let mut count = inputs;
+    let mut released = Vec::new();
+    for layer in &mut topology.layers {
+        for &index in &layer.and_indices {
+            let gate = &mut topology.and_gates[index];
+            let (left, right, output) = (gate.left, gate.right, gate.output);
+            gate.left = lifetimes[left].slot();
+            gate.right = lifetimes[right].slot();
+            gate.output = allocate_wire_slot(&mut available, &mut count);
+            lifetimes[output].assign(gate.output);
+            release_wire_slot(left, &mut lifetimes, &mut released);
+            release_wire_slot(right, &mut lifetimes, &mut released);
+            if lifetimes[output].unused() {
+                released.push(gate.output);
+            }
+        }
+        available.append(&mut released);
+        for gate in &mut layer.linear {
+            let (left, right, output) = (gate.left, gate.right, gate.output);
+            gate.left = lifetimes[left].slot();
+            gate.right = lifetimes[right].slot();
+            gate.output = allocate_wire_slot(&mut available, &mut count);
+            lifetimes[output].assign(gate.output);
+            release_wire_slot(left, &mut lifetimes, &mut available);
+            release_wire_slot(right, &mut lifetimes, &mut available);
+            if lifetimes[output].unused() {
+                available.push(gate.output);
+            }
+        }
+    }
+    for output in &mut topology.outputs {
+        *output = lifetimes[*output].slot();
+    }
+    topology.wires = count;
+}
+
+fn allocate_wire_slot(available: &mut Vec<usize>, count: &mut usize) -> usize {
+    match available.pop() {
+        Some(slot) => slot,
+        None => {
+            let slot = *count;
+            *count += 1;
+            slot
+        }
+    }
+}
+
+fn release_wire_slot(wire: usize, lifetimes: &mut [WireLifetime], available: &mut Vec<usize>) {
+    if let Some(slot) = lifetimes[wire].release() {
+        available.push(slot);
     }
 }
 

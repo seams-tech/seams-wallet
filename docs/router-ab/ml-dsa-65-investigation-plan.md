@@ -27,7 +27,15 @@ Candidate initial signing takes 2.577–6.421 seconds; two of four cases finish 
 Preceding preparation takes 51.973–80.627 seconds for key-generation material plus sixteen signing candidates. These are not four-candidate preparation timings.
 B execution CPU is 1.428 seconds median, versus 1.708 seconds in the control. This small sequential screen establishes no causal end-to-end gain.
 Repeated-module memory behavior remains unqualified. Both consistent five-second targets remain open, and all ten temporary Workers are deleted.
-Next, isolate remaining registration metadata/consumed-record CPU and activation delays, then profile complete multi-pair signing at storage/restore and protocol boundaries.
+The [prepared GMW wire-reuse screen](ml-dsa-65-wire-reuse-report.md) reduces native private-buffer allocation by 77.1% in the mixed engine check.
+It preserves gates, correlations, exchanges, private commitments, and canonical recovery/export. Twenty symbolic layout checks and both mixed-role directions pass.
+Whole isolate-memory reduction remains unestablished. Local first-use and reused timings move in different directions.
+The packed Cloudflare screen verifies thirty-six load signatures, with thirty-four below five seconds, a 2.148-second median, and a 5.608-second maximum.
+Prepared registration/recovery takes 4.642–6.059 seconds; two of four cases finish below five seconds. Both consistent targets remain open.
+Complete demand takes 21.840 seconds median under saturation. One initial operation exhausts eight pairs, and one load demand remains unfinished at cutoff.
+Both reserves restore and material ledgers balance with unchanged capacity. New paired-material throughput stays near the control's 11.8 pairs per minute.
+The sequential screen establishes no causal full-latency or refill-throughput gain. Partial telemetry joins remain explicit in the evidence.
+All ten temporary Workers are deleted. Next, reduce first-use layout construction and repeated per-pair setup after isolating their complete hosted costs.
 Keep wallet-seed recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate capacity unchanged.
 The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.
