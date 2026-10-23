@@ -1,0 +1,205 @@
+{
+  "schema": "seams.ml-dsa-modularity-hosted-preflight.v1",
+  "source_commit": "7a6e7fe53955bc970c312b9acff9465746276852",
+  "branch": "ml-dsa",
+  "packages": {
+    "wallet": {
+      "name": "@seams/wallet",
+      "version": "0.20.0",
+      "archive_bytes": 9760057,
+      "unpacked_bytes": 35267958,
+      "entries": 2142,
+      "integrity": "sha512-w2JCfliQUlVI9FR5a2zr7hE9AwsS5POEqCFn0I11CE0LYHRLw72enylhD16IEFh6PUuWPmHPEMJY/ZfS6cX9Gw==",
+      "named_optional_files": [
+        {
+          "path": "dist/esm/sdk/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        },
+        {
+          "path": "dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        },
+        {
+          "path": "dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.d.ts",
+          "size": 10950,
+          "mode": 420
+        },
+        {
+          "path": "dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js",
+          "size": 35828,
+          "mode": 420
+        },
+        {
+          "path": "dist/public/sdk/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        },
+        {
+          "path": "dist/public/sdk/workers/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        },
+        {
+          "path": "dist/workers/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        }
+      ],
+      "named_optional_unpacked_bytes": 3223088
+    },
+    "server": {
+      "name": "@seams/wallet-server",
+      "version": "0.20.0",
+      "archive_bytes": 66198292,
+      "unpacked_bytes": 160035308,
+      "entries": 1288,
+      "integrity": "sha512-rLrJiCj1xU1cqebCoed9DtMliIv3IohTX445BpdZsT1v4CoQN0JTpUaiYt0p3UZywa0Teu2wIP9u0m0NGFl08w==",
+      "named_optional_files": [
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/build-stamp.json",
+          "size": 129,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/index_bg.wasm",
+          "size": 45793192,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/index_bg.wasm.names.json",
+          "size": 1170553,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/index.js",
+          "size": 44162,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/package.json",
+          "size": 317,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-a/worker/shim.mjs",
+          "size": 164,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/build-stamp.json",
+          "size": 129,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/index_bg.wasm",
+          "size": 45830606,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/index_bg.wasm.names.json",
+          "size": 1178378,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/index.js",
+          "size": 44162,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/package.json",
+          "size": 317,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/deriver-b/worker/shim.mjs",
+          "size": 164,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/build-stamp.json",
+          "size": 126,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/index_bg.wasm",
+          "size": 8044234,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/index_bg.wasm.names.json",
+          "size": 1232184,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/index.js",
+          "size": 34582,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/package.json",
+          "size": 317,
+          "mode": 420
+        },
+        {
+          "path": "cloudflare-router-ab/build/ml-dsa/router/worker/shim.mjs",
+          "size": 164,
+          "mode": 420
+        },
+        {
+          "path": "dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm",
+          "size": 635262,
+          "mode": 420
+        },
+        {
+          "path": "dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js",
+          "size": 17068,
+          "mode": 420
+        }
+      ],
+      "named_optional_unpacked_bytes": 104026210
+    }
+  },
+  "package_measurement": "npm pack --ignore-scripts --dry-run --json against existing built outputs; no publish or lifecycle scripts",
+  "package_limits": [
+    "No prior whole-package baseline was measured.",
+    "Named optional files exclude shared ML-DSA code.",
+    "Package archive size is not browser download size."
+  ],
+  "hosted": {
+    "status": "awaiting_exact_credential_upload_approval",
+    "temporary_workers_created": 11,
+    "credentials_uploaded": false,
+    "full_service_bindings_deployed": false,
+    "registration_runs": 0,
+    "signing_runs": 0,
+    "latency_target_qualified": false,
+    "scope_path": "/private/tmp/ml-dsa-modularity-hosted-20261023/hosted-upload-scope.md",
+    "policy": {
+      "wallet_cooldown": {
+        "mode": "enabled",
+        "interval_ms": 60000
+      },
+      "max_active_operations": 1,
+      "operation_timeout_ms": 30000,
+      "candidate_group_size": 2,
+      "preparation_group_size": 4,
+      "minimum_ready_batches": 8,
+      "refill_target_batches": 16
+    },
+    "comparison": "Five combined Workers versus six separated Workers including the ordinary forwarding Router.",
+    "planned_load": "Two wallets, one demand per wallet per minute for five minutes. This is a policy-paced screen, not a saturation or p99 qualification.",
+    "first_use_limits": "First use after deployment does not prove a cold isolate. Per-role construction/cache traces must establish observed cohorts."
+  },
+  "migration": {
+    "status": "source_review_only",
+    "live_namespaces_changed": false,
+    "requirement": "Preserve namespace identity or rehearse whole-class transfer; keep role keys and key versions unchanged."
+  },
+  "archive": {
+    "path": "ml-dsa-65-modularity-hosted-preflight-20261023-data.json.gz",
+    "sha256": "ba573d2a74876477bb4502c9d1f8f3b64887eeb45f1899a6c5e6f0fdd4eea8f2",
+    "bytes": 54429
+  }
+}
