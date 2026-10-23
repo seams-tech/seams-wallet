@@ -1,13 +1,15 @@
 # Optimization 11: NEAR registration and signing latency
 
 Status, October 24, 2026: the original preparation and request-reduction work is
-largely implemented. Registration's server waits and signing finalization are the
-next priorities. Storage replacement remains an experiment with no established gain.
+largely implemented. A current local and hosted baseline now exists.
+One hosted registration failed during protocol execution. Its cause remains unresolved.
+The recorder now retains operation and request IDs for further attribution.
+Storage replacement remains an experiment with no established gain.
 
-This review checked wallet `dev` at `4c13b3f3`. Private consumer pins use Wallet SDK
-and server `0.21.0`. The latest controlled comparison below used SDK `0.15.6` and
-`0.15.7-staging.a48231b6`. This update did not inspect current serving deployments.
-A fresh baseline must identify every served build before implementation comparisons.
+The new baseline froze wallet `dev` at `cb7fd391` and private source at `1542df3a`.
+It used SDK/server `0.21.0`. The staging iframe manifest reported `0.21.0`, and all
+14 recorded backend deployment IDs stayed unchanged. Hosted browser assets came
+from a frozen local HTTPS site. The October 21 comparison below remains historical.
 
 This document tracks completed work and remaining priorities. [R155L](./refactor-155L.md)
 records client preparation and conditional server changes. [R155J](./refactor-R155J-p99.md)
@@ -69,6 +71,42 @@ The [original local baseline](./optimization-11-NEAR-local-baseline.md),
 Their timings and request shapes do not describe the current release.
 
 ## Current evidence and remaining budgets
+
+### Current baseline, October 24
+
+The [baseline report][current-baseline-report] and [generated evidence][current-baseline-json]
+retain the current measurements, source/build hashes, verification, and failures.
+These runs establish a baseline. They do not estimate an optimization gain.
+
+| Environment and boundary, ms | Count | Median | p95 | Maximum |
+| --- | ---: | ---: | ---: | ---: |
+| Local NEAR-only full SDK registration | 20 | 553.6 | 606.9 | 742.5 |
+| Hosted full SDK registration | 20 | 3,322.4 | 4,573.9 | 4,670.8 |
+| Hosted registration after passkey completion | 20 | 1,815.5 | 2,591.4 | 2,781.4 |
+| Hosted first NEP-413 signature, including confirmation | 20 | 745.3 | 1,469.4 | 1,626.6 |
+
+The 553.6 ms local result cannot be compared with the historical approximately
+1,600 ms hosted post-passkey result. Their environments and timing boundaries differ.
+That comparison does not establish a hosted speedup.
+
+All 40 local registrations and 80 transaction signatures passed.
+The 20 hosted message workflows passed. Separate transaction testing produced two
+successful seven-signature cases and one registration failure before signing.
+The failed registration took 47.54 seconds, including a 30.74-second setup interval
+and protocol failure spans near 15 seconds. Keep it in the failure ledger.
+
+The slowest warm transaction took 4.324 seconds. Its prepare request included
+a 2.255-second Gateway proxy span. Current message signing's finalize exchange
+measured 372.0 ms at the median. Correlate downstream waits before reducing small
+local completion work. The failure does not establish D1 as its cause.
+
+Four NEAR lifecycle checks passed. The Email OTP case passed after the existing
+test-token helper repaired its environment. Reviewed transactions, delegates, and
+the separate idle case also passed. A later diagnostic case verified seven signatures
+and matched all 14 recorded request IDs to Gateway events.
+
+P0 remains open for warm-message distributions, dedicated step-up latency,
+bounded NEAR concurrency, and broader factor/device/geographic coverage.
 
 ### Controlled browser comparison, October 21
 
@@ -148,9 +186,9 @@ independent source areas while a hosted experiment awaits its authorized window.
 
 ### P0. Establish the current baseline
 
-- [ ] Freeze source, release WASM, SDK assets, and served iframe/Gateway/role versions.
+- [x] Freeze source, release WASM, SDK assets, and served iframe/Gateway/role versions.
   Verify that the completed optimizations above exist in each measured arm.
-- [ ] Reuse the [local benchmark](../tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts)
+- [x] Reuse the [local benchmark](../tests/e2e/intended-behaviours/near-latency/passkey.registration.benchmark.test.ts)
   and private `tests/e2e/hosted-product/near-signing-latency.test.ts`.
   Extend existing diagnostics rather than adding another benchmark framework.
 - [ ] Measure passkey NEAR-only registration, first and warm message signing,
@@ -161,6 +199,9 @@ independent source areas while a hosted experiment awaits its authorized window.
 - [ ] Correlate browser timelines, Gateway stages, role calls, D1 trips/statements,
   and object wall/CPU observations with existing operation identifiers.
   Mark unavailable observations as unknown.
+  The recorder now retains operation IDs and Cloudflare request IDs.
+  A seven-signature check matched all 14 requests to Gateway events.
+  Attribution inside slow role/proxy spans remains incomplete.
 
 Save a baseline with failures, retries, signature proofs, and source/deployment hashes.
 Start with 20 interleaved control/candidate pairs for a representative experiment.
@@ -344,3 +385,5 @@ Completion requires:
 [hosted-speed-json]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-speed-20261021.json
 [d1-diagnosis]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/d1-write-path-diagnosis-20261022.json
 [postgres-plan]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/future-plan-wallet-postgresql-preparation.md#potential-latency-upgrade-postgresql-through-hyperdrive
+[current-baseline-report]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-current-baseline-20261024.md
+[current-baseline-json]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-current-baseline-20261024.json

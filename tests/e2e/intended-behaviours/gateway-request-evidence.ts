@@ -100,6 +100,7 @@ export class GatewayRequestEvidence {
         outcome: observed.outcome.kind,
         error: observed.outcome.kind === 'failed' ? observed.outcome.error : null,
         status: response?.status() ?? null,
+        cfRay: response ? await response.headerValue('cf-ray') : null,
         browserRequestElapsedMs: timing.responseEnd < 0 ? null : timing.responseEnd,
         gatewayPlacement: response ? await response.headerValue('X-Benchmark-Placement') : null,
         serverTiming,
