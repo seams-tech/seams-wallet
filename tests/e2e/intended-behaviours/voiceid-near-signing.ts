@@ -29,6 +29,7 @@ class VoiceIdNearSigningEvidence {
   constructor(
     private readonly gatewayOrigin: string,
     readonly identity: NearIdentity,
+    private readonly broadcastReply: 'available' | 'unavailable',
   ) {}
 
   async observe(context: BrowserContext): Promise<void> {
@@ -62,6 +63,10 @@ class VoiceIdNearSigningEvidence {
     const params = requireRecord(message.params, 'send_tx params');
     const base64 = requireCanonicalString(params.signed_tx_base64, 'signed transaction');
     this.transfers.push(await verifyVoiceIdNearTransfer(this.identity, base64));
+    if (this.broadcastReply === 'unavailable') {
+      await route.fulfill({ status: 503, body: 'The broadcast reply is unavailable.' });
+      return;
+    }
     await route.fallback();
   };
 
@@ -164,7 +169,11 @@ export async function verifyVoiceIdNearSigning(args: {
   await harness.registerPasskeyEd25519YaoWallet();
   await harness.assertRegistrationOwnerSessionIsActive();
   await installVoiceObservation(page);
-  const evidence = new VoiceIdNearSigningEvidence(args.gatewayOrigin, await readNearIdentity(page));
+  const evidence = new VoiceIdNearSigningEvidence(
+    args.gatewayOrigin,
+    await readNearIdentity(page),
+    'available',
+  );
   await evidence.observe(context);
   const settings = await context.newPage();
   await settings.goto(`${args.walletOrigin}/sdk/voiceid.html`);
@@ -233,6 +242,82 @@ export async function verifyVoiceIdNearSigning(args: {
     owner: evidence.identity,
     transfers: evidence.transfers,
   };
+}
+
+export async function verifyVoiceIdNearBroadcastFailure(args: {
+  context: BrowserContext;
+  page: Page;
+  harness: IntendedBehaviourHarness;
+  voice: VoiceTransferDriver;
+  gatewayOrigin: string;
+  identity: NearIdentity;
+}) {
+  const { page, harness, voice } = args;
+  await waitForWalletIframeConfirmationSettlement(page);
+  const evidence = new VoiceIdNearSigningEvidence(args.gatewayOrigin, args.identity, 'unavailable');
+  await evidence.observe(args.context);
+  await voice.select('approve');
+  await startReviewedTransfer(page);
+  expect(evidence.snapshot()).toEqual({ finalizations: 0, transfers: 0 });
+  await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed', {
+    timeout: 60_000,
+  });
+  const failure = requireRecord(
+    JSON.parse(await page.getByTestId('reviewed-near-result').innerText()),
+    'broadcast failure',
+  );
+  const failureMessage = requireCanonicalString(failure.message, 'broadcast failure message');
+  expect(failureMessage).toContain('RPC request failed.');
+  const receiptError = page
+    .frameLocator('iframe.seams-wallet-overlay-iframe')
+    .getByText('RPC request failed: 503 Service Unavailable', { exact: true });
+  await expect(receiptError).toBeVisible();
+  const walletReceiptMessage = await receiptError.innerText();
+  expect(await readVoiceOutcomes(page)).toEqual(['approved', 'approved']);
+  const failedSubmission = evidence.snapshot();
+  expect(failedSubmission.finalizations).toBe(1);
+  expect(failedSubmission.transfers).toBeGreaterThan(1);
+  const signedTransactionHashes = new Set(evidence.transfers.map(signedTransactionHash));
+  expect(signedTransactionHashes.size).toBe(1);
+  const afterFailure = await harness.readCurrentWalletSessionStatus();
+  expect(afterFailure.status).toBe('active');
+  expect(afterFailure.remainingUses).toBe(1);
+  await waitForWalletIframeConfirmationSettlement(page);
+
+  await voice.select('cancel');
+  await startReviewedTransfer(page);
+  expect(evidence.snapshot()).toEqual(failedSubmission);
+  await page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm').click();
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed');
+  const cancellation = requireRecord(
+    JSON.parse(await page.getByTestId('reviewed-near-result').innerText()),
+    'fresh review cancellation',
+  );
+  expect(cancellation.message).toBe('Request cancelled.');
+  expect(await readVoiceOutcomes(page)).toEqual(['approved', 'approved', 'cancelled']);
+  expect(evidence.snapshot()).toEqual(failedSubmission);
+  const afterCancellation = await harness.readCurrentWalletSessionStatus();
+  expect(afterCancellation.status).toBe('exhausted');
+  expect(afterCancellation.remainingUses).toBe(0);
+  return {
+    status: 'passed',
+    fault: 'http_503_after_receiving_each_signed_transaction',
+    onChainOutcome: 'unknown',
+    signingFinalizations: failedSubmission.finalizations,
+    broadcastAttempts: failedSubmission.transfers,
+    distinctSignedTransactions: signedTransactionHashes.size,
+    signedTransactionSha256: evidence.transfers[0].signedTransactionSha256,
+    applicationState: { kind: 'failed', message: failureMessage },
+    walletReceiptMessage,
+    quotaAfterBroadcastFailure: afterFailure.remainingUses,
+    quotaAfterFreshReviewCancellation: afterCancellation.remainingUses,
+    freshVoiceCancellationPreventedAnotherSignature: true,
+  };
+}
+
+function signedTransactionHash(transfer: CapturedTransfer): string {
+  return transfer.signedTransactionSha256;
 }
 
 async function installVoiceObservation(page: Page): Promise<void> {

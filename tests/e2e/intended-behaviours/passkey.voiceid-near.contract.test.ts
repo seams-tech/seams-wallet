@@ -2,11 +2,15 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
-import { verifyVoiceIdNearSigning, type VoiceCommand } from './voiceid-near-signing';
+import {
+  verifyVoiceIdNearSigning,
+  verifyVoiceIdNearBroadcastFailure,
+  type VoiceCommand,
+} from './voiceid-near-signing';
 import type { Page, TestInfo, BrowserContext } from '@playwright/test';
 import type {} from '../../fixtures/ui/VoiceIdBridgeProbe';
 
-test('VoiceID gates a real NEAR MPC transfer under existing owner authority', verifyTransfer);
+test('VoiceID requires fresh approval after a real NEAR MPC broadcast failure', verifyTransfer);
 test.use({ video: 'off', trace: 'off' });
 test.setTimeout(120_000);
 
@@ -38,9 +42,17 @@ async function verifyTransfer(
     walletOrigin: process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202',
     gatewayOrigin: process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
   });
+  const broadcastFailure = await verifyVoiceIdNearBroadcastFailure({
+    context,
+    page,
+    harness,
+    voice,
+    gatewayOrigin: process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
+    identity: report.owner,
+  });
   const reportPath = testInfo.outputPath('voiceid-near-mpc.json');
   await mkdir(path.dirname(reportPath), { recursive: true });
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  await writeFile(reportPath, `${JSON.stringify({ ...report, broadcastFailure }, null, 2)}\n`);
   await testInfo.attach('voiceid-near-mpc.json', {
     path: reportPath,
     contentType: 'application/json',

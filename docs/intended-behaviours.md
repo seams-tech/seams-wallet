@@ -106,6 +106,14 @@ The test verifies the signed transfer against the registered public key.
 Its NEAR RPC response is deterministic and does not confirm an on-chain transfer.
 Denied preparations retain their spent quota use. Owner unlock replenishes the
 session before the approved retry.
+
+The same contract makes every broadcast reply unavailable after signing.
+The SDK retries the identical signed bytes without another MPC signature.
+The final broadcast error rejects the send promise and preserves spent quota.
+A subsequent review requires fresh voice approval. Cancelling that voice check
+prevents another signature and broadcast. The unavailable replies establish no
+on-chain outcome.
+
 The private repository owns the real extension, native models, capture, and
 composed native/browser evaluation.
 
