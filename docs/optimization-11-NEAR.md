@@ -4,6 +4,7 @@ Status, October 24, 2026: the original preparation and request-reduction work is
 largely implemented. A current local and hosted baseline now exists.
 One hosted registration failed during protocol execution. Its cause remains unresolved.
 The recorder now retains operation and request IDs for further attribution.
+The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
 Storage replacement remains an experiment with no established gain.
 
 The new baseline froze wallet `dev` at `cb7fd391` and private source at `1542df3a`.
@@ -64,6 +65,7 @@ The observations below come from different cohorts and cannot be added together.
 | Completed pair reply | Stopped waiting for B's preparation reply after A returns the completed A/B result. [Diagnosis and fix](./evidence/near-registration-followup-20261019.md) | One hosted trace identified a 2,698 ms unnecessary wait. Local fault coverage proves its removal. Hosted savings for that fix remain unmeasured. |
 | Console publication | Persisted pending publication before responding, then sent Console completion with durable retry. [Release 0.13.0 evidence](./evidence/release-0130-staging-20261017.md) | Finalize p95 fell from 1,381 to 858 ms in the dated comparison. Registration tail acceptance remained open. |
 | Browser preparation | Preloaded activation modules and the existing NEAR signer during passkey registration. Optimized default development session-sealing builds. [Implementation](./evidence/refactor-155l-near.md), [hosted comparison][hosted-speed-report] | First signing improved by 15.1% in the controlled comparison. Production sealing WASM was already optimized. |
+| PostgreSQL adapter in Workers | Enabled the existing adapter on WASM and used the Workers retry timer. Native lifecycle and local Worker transaction E2Es pass. [October 24 evidence](./evidence/postgres-role-worker-20261024.md) | Deployed Derivers still use D1. Hosted Hyperdrive correctness and latency remain unverified. |
 
 The [original local baseline](./optimization-11-NEAR-local-baseline.md),
 [custody profiling](./near-custody-profiling.md), and
@@ -103,7 +105,9 @@ local completion work. The failure does not establish D1 as its cause.
 Four NEAR lifecycle checks passed. The Email OTP case passed after the existing
 test-token helper repaired its environment. Reviewed transactions, delegates, and
 the separate idle case also passed. A later diagnostic case verified seven signatures
-and matched all 14 recorded request IDs to Gateway events.
+and matched all 14 recorded request IDs to Gateway and Router events.
+The [trace follow-up][signing-trace-report] preserves those joins and their clock limits.
+SigningWorker requests lack that identifier. Their persistence and dispatch costs remain unresolved.
 
 P0 remains open for warm-message distributions, dedicated step-up latency,
 bounded NEAR concurrency, and broader factor/device/geographic coverage.
@@ -200,7 +204,7 @@ independent source areas while a hosted experiment awaits its authorized window.
   and object wall/CPU observations with existing operation identifiers.
   Mark unavailable observations as unknown.
   The recorder now retains operation IDs and Cloudflare request IDs.
-  A seven-signature check matched all 14 requests to Gateway events.
+  A seven-signature check matched all 14 requests to Gateway and Router events.
   Attribution inside slow role/proxy spans remains incomplete.
 
 Save a baseline with failures, retries, signature proofs, and source/deployment hashes.
@@ -211,10 +215,14 @@ Expand only after a signal warrants it. Small-cohort p95 remains descriptive.
 
 Use the existing [storage adapter](./storage-portability.md#cloudflare-workers-with-hyperdrive)
 and [private implementation plan][postgres-plan]. Native PostgreSQL lifecycle tests
-already pass locally and against RDS. The Workers-to-Hyperdrive path remains unbuilt.
+pass locally and against RDS. The adapter now builds for Workers.
+Its local workerd transaction E2E passes through Workers sockets and local Hyperdrive bindings.
+See [the implementation and evidence](./evidence/postgres-role-worker-20261024.md).
 
-- [ ] Complete the existing role adapter's WASM connection and retry-timer support.
+- [x] Complete the existing role adapter's WASM connection and retry-timer support.
   Reuse `RoleSqlSessionV1` and its batch semantics.
+- [ ] Construct the PostgreSQL store in the Deriver runtime and cover the full lifecycle through Workers.
+  The local fixture currently verifies the transaction driver. Deployed Derivers still construct D1 stores.
 - [ ] Give A and B separate databases, runtime credentials, and Hyperdrive configurations.
   Disable query caching and verify TLS to the origin.
   Hyperdrive does not invalidate cached reads after writes. [Provider documentation](https://developers.cloudflare.com/hyperdrive/concepts/query-caching/)
@@ -240,6 +248,9 @@ and [client exchange](../packages/wallet/src/core/signingEngine/flows/signNear/s
 
 - [ ] Split the observed finalize exchange into authorization, operation/material
   lookup, role dispatch, SigningWorker persistence, and Gateway durable completion.
+  Fourteen diagnostic requests now join through the Router. Downstream correlation remains missing.
+  Worker timestamps and wall durations do not form an additive timeline.
+  Extend existing operation identifiers before assigning the remaining delay or changing routing.
 - [ ] Identify repeated immutable facts or compatible reads within one consistent
   snapshot. Check existing snapshot reuse before adding any helper or cache.
 - [ ] Remove one demonstrated duplicate read or batch compatible writes within
@@ -387,3 +398,4 @@ Completion requires:
 [postgres-plan]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/future-plan-wallet-postgresql-preparation.md#potential-latency-upgrade-postgresql-through-hyperdrive
 [current-baseline-report]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-current-baseline-20261024.md
 [current-baseline-json]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-current-baseline-20261024.json
+[signing-trace-report]: https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-current-baseline-20261024.md#gateway-to-router-trace-follow-up

@@ -1,0 +1,125 @@
+{
+  "activatedEpochs": [
+    2,
+    2
+  ],
+  "atomicEpochSwapPerRole": true,
+  "checkpointMismatchRollsBackEarlierShareInsert": true,
+  "coherentReadSnapshotAcrossConcurrentCommit": true,
+  "encryptedCreationAndSignedReceiptReplay": true,
+  "kind": "postgres_role_store_e2e_v1",
+  "literalBindingsPreserveHostileTextAndNull": true,
+  "lostCommitAcknowledgementReconcilesExactReceipt": true,
+  "managedRestoreRemainsPendingUntilForwardRefresh": true,
+  "missedSwapCheckpointRestoresBothEpochsAndReplay": true,
+  "protocolExchanges": {
+    "repeatedRead": 1,
+    "rootAdmission": 2,
+    "serializationConflictAndConcurrentRead": 3,
+    "sessionRoleCheck": 1,
+    "singleRead": 1,
+    "threeMutationEpochSwap": 1,
+    "threeStatementSnapshot": 1
+  },
+  "reopenedConnectionDecryptsSameRecord": true,
+  "restoreImportAndRetentionRoundTrips": true,
+  "retiredEpochCleanupPreservesActiveSuccessor": true,
+  "separateRoleDatabasesAndCredentials": true,
+  "serializationRetriesCompleteTransaction": true,
+  "server": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+  "sessionAvailableDuringRetryDelay": true,
+  "sourceRetirementRejectsLateWrites": true,
+  "unclaimedCancellationAndClaimedSettlement": true,
+  "wrongRoleSessionRejected": true,
+  "worker": {
+    "coherentSnapshot": true,
+    "concurrentClaimWinners": 1,
+    "conditionalFailureRolledBack": true,
+    "kind": "postgres_role_worker_contract_v1",
+    "quotedTextPreserved": true,
+    "serializationAttempts": 2,
+    "transport": "workerd Hyperdrive binding and Workers socket",
+    "valueAfterReconnect": 9,
+    "wrongRoleRejected": true,
+    "wasmBytes": 4217996
+  },
+  "recordedAt": "2026-10-23T17:00:40.287Z",
+  "reproduce": "pnpm -C crates/router-ab-cloudflare test:postgres-role-store",
+  "image": "postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+  "imageId": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+  "cargo": "cargo test --features postgres --lib postgres_role_store_e2e -- --nocapture",
+  "log": {
+    "path": ".artifacts/postgres-role-store/run.log",
+    "sha256": "f34bb6b8c1a3909981d25cfbee058d6df98c8f66717f5c7af1a49a80e9da0c05"
+  },
+  "sources": [
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.toml",
+      "sha256": "3e4eb5129e69dc05b825aca253bb9b3be1c4ab161bf24cdcf62add745dc364c7"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/lib.rs",
+      "sha256": "9d6dfe469ffd199595d077911bc238b1ec325ef36e8a58986daf135a815da4b2"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs",
+      "sha256": "fbb3e67da7c647e8fced38c6e06a053b934a01ee087c10de23b7d1e59c6c0d8f"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql.rs",
+      "sha256": "a7e0075509ce15635dc8bd7578879098611850b6b391069f6de0a4826047293d"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_sql/d1.rs",
+      "sha256": "a47a3da9873fb88b8da45e32f295aa942ad9ba5f03ef5680b7696cfef80ea391"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1.rs",
+      "sha256": "41a7d5a8aaa2bf3d661ea3ee45d1a7e275974b8fcd93bf51c8981f21af1e0e11"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/mod.rs",
+      "sha256": "dc1470c1df548739fedf71891fd7fb3c337048194b2315dfc84af99eb7c3d4ba"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/protocol_proxy.rs",
+      "sha256": "cf73710e9bb0284cb16c26418b11463ed77097e2843541e746729bf615c58521"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/lifecycle.rs",
+      "sha256": "76a9ad0e4a34176a41bbbece4c84e2415176ec674b76df301d14c7cae797f5e6"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/tests/postgres_role_store/worker.rs",
+      "sha256": "1c3574553194e943c9f105764eba91fe84351f32edbac9a54eb6c2d58e04390a"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/bound_share.rs",
+      "sha256": "96bd27fdc914035782e6889794abefaa8dbd24917fdca288bb0b51284c66ea61"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/recovery.rs",
+      "sha256": "8f00af78dc56472b5a998883cab182e5d7833ecbc36bc9070d2b05fe066f1008"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/src/tenant_root_role_d1/source_retirement.rs",
+      "sha256": "531632877826d664f32e27fcddd46af232368be300210fc24f3adbba7821e325"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/scripts/test-postgres-role-store.mjs",
+      "sha256": "cda2e33fdbee264e9b9520385634207036cded08734d02bd7345ae40216085a9"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/scripts/postgres-worker-evidence.mjs",
+      "sha256": "a6affb37e06436a156b836caa2a29b2f6e1a2dec73c9f6c6f2f7af21e238c347"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/migrations/postgres/0001_role_store.sql",
+      "sha256": "f0259cb7cc0088bf0ea6b5ee941591417ac27c36efc396533acb2fa05f673782"
+    },
+    {
+      "path": "crates/router-ab-cloudflare/Cargo.lock",
+      "sha256": "1aa75b3a651c374512e35284cf75dd7fbcd7e1b64049c5371cb59931a6729775"
+    }
+  ]
+}

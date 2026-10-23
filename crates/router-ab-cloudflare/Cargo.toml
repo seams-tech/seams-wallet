@@ -24,7 +24,7 @@ wasm-opt = ["-O4"]
 
 [features]
 default = []
-postgres = ["dep:postgres-protocol", "dep:tokio", "dep:tokio-postgres"]
+postgres = ["dep:postgres-protocol", "dep:tokio", "dep:tokio-postgres", "worker?/tokio-postgres"]
 strict-worker-router-entrypoint = ["workers-rs"]
 strict-worker-deriver-a-entrypoint = ["workers-rs"]
 wallet-do-b-completion-harness = ["strict-worker-deriver-b-entrypoint"]
@@ -76,6 +76,9 @@ web-sys = { version = "0.3.100", optional = true, features = [
 ] }
 worker = { version = "=0.8.4", optional = true, features = ["d1"] }
 zeroize = { version = "1.8", features = ["zeroize_derive"] }
+postgres-protocol = { version = "0.6.12", optional = true }
+tokio = { version = "1", features = ["sync"], optional = true, default-features = false }
+tokio-postgres = { version = "0.7.18", optional = true, default-features = false }
 
 [dev-dependencies]
 curve25519-dalek = { version = "=4.1.3", features = ["zeroize"] }
@@ -86,6 +89,11 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time", "net", "io-util"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-postgres-protocol = { version = "0.6.12", optional = true }
 tokio = { version = "1", features = ["sync", "time"], optional = true }
-tokio-postgres = { version = "0.7.18", optional = true }
+tokio-postgres = { version = "0.7.18", features = ["runtime"], optional = true }
+
+[[example]]
+name = "postgres-role-store-worker"
+path = "tests/postgres_role_store/worker.rs"
+crate-type = ["cdylib"]
+required-features = ["postgres", "workers-rs"]

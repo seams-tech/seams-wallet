@@ -7,9 +7,16 @@ mod d1;
 #[cfg(feature = "workers-rs")]
 pub use d1::D1RoleSqlSessionV1;
 
-#[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+#[cfg(all(
+    feature = "postgres",
+    target_arch = "wasm32",
+    not(feature = "workers-rs")
+))]
+compile_error!("PostgreSQL on wasm32 requires the workers-rs feature");
+
+#[cfg(feature = "postgres")]
 mod postgres;
-#[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+#[cfg(feature = "postgres")]
 pub use postgres::{
     apply_postgres_role_store_schema_v1, PostgresRoleSqlOutcomeV1, PostgresRoleSqlSessionV1,
 };

@@ -2,12 +2,14 @@
 
 The native PostgreSQL role-store backend passes E2E tests against real local PostgreSQL 18.6
 and against Amazon RDS for PostgreSQL 18.6.
+The adapter also compiles for Workers and passes a local transaction E2E through workerd and Workers sockets.
 The same tenant-root lifecycle code also runs on D1.
 Gateway, Console, SigningWorker, Durable Object coordination, and backup services retain their existing storage implementations.
 
 [`PostgresRoleSqlSessionV1`](../crates/router-ab-cloudflare/src/tenant_root_role_sql/postgres.rs)
 implements the existing `RoleSqlSessionV1` contract.
-Enable the native Rust `postgres` feature to use it.
+Enable the Rust `postgres` feature on native hosts.
+Enable both `postgres` and `workers-rs` for `wasm32-unknown-unknown`.
 The host supplies a connected `tokio_postgres::Client` and the expected Deriver role.
 Connection setup, credentials, TLS, pooling, and the connection task belong to the host.
 This boundary uses standard PostgreSQL connections and has no RDS or serverless-provider API dependency.
@@ -92,8 +94,9 @@ pnpm report:bloat --check
 
 The runner starts a disposable local Docker container with a pinned PostgreSQL image.
 It creates separate databases and credentials, applies the real schema, and uses the real Rust store and driver.
+It then builds and runs a WASM fixture in workerd through local Hyperdrive bindings.
 It removes the container when the run ends.
-The test covers:
+The native lifecycle test covers:
 
 - encrypted creation, signed receipt replay, and connection restart.
 - missed checkpoints that roll back an earlier share insertion and both epoch-swap mutations.
@@ -105,6 +108,13 @@ The test covers:
 - a forced serialization failure that retries the complete transaction.
 - a queued reader that proceeds during the transaction's retry delay.
 - a real committed transaction whose acknowledgement a TCP proxy discards, followed by exact receipt reconciliation.
+
+The Worker fixture verifies role identity, text bindings, rollback, concurrent conditional claims, coherent snapshots, serialization retries, and reconnection.
+Its snapshot check commits a concurrent write while the reader waits between two reads.
+Its ordering barrier uses a separate local test connection and advisory locks.
+The production adapter uses no advisory locks.
+This local fixture does not exercise hosted Hyperdrive pooling or origin TLS.
+The full lifecycle, cancellation, and uncertain-commit scenarios above still need Worker coverage.
 
 The proxy counts PostgreSQL's documented [ReadyForQuery messages](https://www.postgresql.org/docs/18/protocol-message-formats.html).
 One response marks the completion of one Query message.
@@ -118,8 +128,9 @@ Their module uses the existing shared fixture factories.
 Changes to these files do not invalidate the Workers harness's production source freshness check.
 
 Each run saves its result, command, server version, image identity, source hashes, and log under `.artifacts/postgres-role-store/`.
-The committed run is in [the PostgreSQL evidence](evidence/postgres-role-store-20261021.json).
-The same E2E also passes against a private Amazon RDS for PostgreSQL 18.6 instance in `ap-southeast-1`.
+The current native and Worker run is in [the Worker evidence](evidence/postgres-role-worker-20261024.md).
+The earlier native run remains in [the PostgreSQL evidence](evidence/postgres-role-store-20261021.json).
+The native lifecycle E2E also passes against a private Amazon RDS for PostgreSQL 18.6 instance in `ap-southeast-1`.
 Its results and protocol exchange counts equal the local run. See [the RDS evidence](evidence/postgres-role-store-rds-20261021.json).
 That run reaches RDS through a plain TCP forwarder on a runner in the same VPC, with `rds.force_ssl` off on that private path.
 A separate `verify-full` connection to the same instance negotiates TLS 1.3.
@@ -137,32 +148,40 @@ Runtime hosting, Durable Object coordination, R2 replacement, data import, and p
 
 PostgreSQL can replace D1 while the Workers and Durable Objects stay on Cloudflare.
 [Hyperdrive](https://developers.cloudflare.com/hyperdrive/) gives a Worker a pooled connection to a PostgreSQL origin such as RDS.
-This path is possible, but it is not built or tested yet. Status on 2026-10-21:
+The adapter and local Worker connection pass their checks. Status on 2026-10-24:
 
 | Item | Status |
 | --- | --- |
 | Role-store adapter on native hosts | Passes against local PostgreSQL 18.6 and Amazon RDS 18.6. |
-| Role-store adapter inside a Worker | Not available. The `postgres` feature compiles only when `target_arch` is not `wasm32`. |
-| Worker connection support | `worker` 0.8.4 has a Hyperdrive binding with `connection_string()` and a `tokio-postgres` feature with `postgres_tls::PassthroughTls` over Workers sockets. |
+| Role-store adapter inside a Worker | Builds with `postgres,workers-rs`. The local workerd transaction E2E passes. |
+| Worker connection support | The fixture uses the Hyperdrive binding, `Socket`, `Config::connect_raw`, and `postgres_tls::PassthroughTls`. Workers retries use `worker::Delay`. |
+| Deployed Deriver stores | Still use D1. Runtime connection setup and PostgreSQL store construction remain to implement. |
+| Hosted Hyperdrive | Full lifecycle, pooling, origin TLS, cache settings, and latency remain unverified. |
 | Gateway, SigningWorker and Console stores | Still D1 only. Each needs its own PostgreSQL port. |
 | D1 data import | No tool exists. |
 
-To run the role store through Hyperdrive:
+The [Worker fixture](../crates/router-ab-cloudflare/tests/postgres_role_store/worker.rs)
+shows connection setup with `worker` 0.8.4.
+The `postgres` feature enables that crate's `tokio-postgres` support when `workers-rs` is enabled.
+The host schedules the connection task before it awaits queries.
+The same session constructor validates the expected Deriver role on both targets.
 
-1. Build the `postgres` feature for `wasm32`. Replace `tokio::time::sleep` in the serialization retry with a Workers timer, and enable the `worker` crate's `tokio-postgres` feature.
-2. In each Deriver Worker, open a `worker::Socket` to the Hyperdrive host and connect with `Config::connect_raw(socket, PassthroughTls)`.
+Remaining work for the hosted path:
+
+1. In each Deriver Worker, open a `worker::Socket` to the Hyperdrive host and connect with `Config::connect_raw(socket, PassthroughTls)`.
    Pass the connected client to `PostgresRoleSqlSessionV1::new`, as on a native host.
-3. Create one Hyperdrive configuration for each Deriver database, with separate credentials. Never share one configuration between A and B.
-4. Create each configuration with `--caching-disabled`. Hyperdrive caches read queries by default and does not invalidate them after writes.
+2. Create one Hyperdrive configuration for each Deriver database, with separate credentials. Never share one configuration between A and B.
+3. Create each configuration with `--caching-disabled`. Hyperdrive caches read queries by default and does not invalidate them after writes.
    A cached read breaks the store's coherent-read and serializable rules.
-5. Keep TLS verified between Hyperdrive and the origin.
-6. Run the role-store lifecycle E2E through the Hyperdrive connection. Claim the path ready only after it passes.
+4. Keep TLS verified between Hyperdrive and the origin.
+5. Run the role-store lifecycle E2E through the hosted Hyperdrive connection. Claim the path ready only after it passes.
 
-The adapter's transaction design is compatible with Hyperdrive's transaction-mode pooling.
+The adapter's transaction design keeps its settings within each transaction.
 Each batch is one Simple Query message, so PostgreSQL runs it as one implicit transaction on one server connection.
 Its `SET TRANSACTION` and `SET LOCAL` statements apply only inside that message.
 The adapter uses no SQL-level `PREPARE`, advisory locks, `LISTEN`, or session state, which Hyperdrive does not support.
-Two behaviors still need evidence through Hyperdrive: serialization-failure retries, and reconciliation after a lost commit acknowledgement.
+Hosted transaction pooling still needs verification with the complete lifecycle.
+Include serialization-failure retries and reconciliation after a lost commit acknowledgement.
 
 Durable Objects keep their own storage and coordination. This path changes only the SQL stores that use D1 today.
 A PostgreSQL origin has one primary region. Place it near the Workers that write to it, and measure the added round trips before production use.

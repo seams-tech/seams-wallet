@@ -40,7 +40,7 @@ pub async fn apply_postgres_role_store_schema_v1(
     transaction.commit().await.map_err(database_error)
 }
 
-/// A native PostgreSQL session for exactly one Deriver's database.
+/// A PostgreSQL session for exactly one Deriver's database.
 /// The host owns connection setup, TLS, credentials, and connection-task lifetime.
 pub struct PostgresRoleSqlSessionV1 {
     client: Mutex<Client>,
@@ -82,13 +82,21 @@ impl PostgresRoleSqlSessionV1 {
             match result {
                 Ok(messages) => return decode_outcomes(messages, statements.len()),
                 Err(error) if retryable(&error) && attempt < SERIALIZATION_RETRIES => {
-                    tokio::time::sleep(std::time::Duration::from_millis(5 << attempt)).await;
+                    serialization_retry_delay(attempt).await;
                 }
                 Err(error) => return Err(database_error(error)),
             }
         }
         unreachable!("every transaction attempt returns or retries")
     }
+}
+
+async fn serialization_retry_delay(attempt: usize) {
+    let duration = std::time::Duration::from_millis(5 << attempt);
+    #[cfg(not(target_arch = "wasm32"))]
+    tokio::time::sleep(duration).await;
+    #[cfg(all(target_arch = "wasm32", feature = "workers-rs"))]
+    worker::Delay::from(duration).await;
 }
 
 /// Fully decoded outcomes return only after the transaction commits.

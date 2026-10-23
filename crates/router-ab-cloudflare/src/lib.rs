@@ -117,7 +117,7 @@ pub use ordinary_inactive_signer_material::{
     CLOUDFLARE_SIGNING_WORKER_ECDSA_RESERVE_INACTIVE_SOURCE_PRESERVING_PATH,
 };
 mod tenant_root_role_sql;
-#[cfg(all(feature = "postgres", not(target_arch = "wasm32")))]
+#[cfg(feature = "postgres")]
 pub use tenant_root_role_sql::{
     apply_postgres_role_store_schema_v1, PostgresRoleSqlOutcomeV1, PostgresRoleSqlSessionV1,
 };
