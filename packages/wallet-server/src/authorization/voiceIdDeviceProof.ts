@@ -36,6 +36,7 @@ export type VerifiedVoiceIdSessionProof = VerifiedVoiceIdWalletSessionProof;
 
 export type ConsumeVoiceIdChallenge = (
   challenge: VoiceIdWalletSessionChallenge,
+  nowMs: number,
 ) => Promise<boolean>;
 
 function sameChallenge(
@@ -100,7 +101,7 @@ export async function verifyVoiceIdWalletSessionAssertion(input: {
     voiceIdWalletSessionChallengeBytes(challenge),
   );
   if (!verified) throw new Error('VoiceID device signature is invalid');
-  if (!(await input.consumeChallenge(challenge))) {
+  if (!(await input.consumeChallenge(challenge, input.nowMs))) {
     throw new Error('VoiceID challenge was already consumed');
   }
   return new VerifiedVoiceIdWalletSessionProof(challenge, input.registered.deviceKeyId);
