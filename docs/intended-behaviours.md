@@ -174,7 +174,9 @@ retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
 A changed origin and replayed assertion fail. The same journey loses an
 activation response, reads its pending record, and retries the exact ciphertext.
 The stored result opens in WASM. The test writes a JSON report with public
-identities and no private key or factor secret.
+identities and no private key or factor secret. It also revokes the VoiceID
+method, then proves a pending challenge and a new challenge cannot issue a
+session. The original owner method and shared authority remain active.
 
 The browser bridge contract is
 [`voiceid-device-bridge.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-device-bridge.contract.test.ts).

@@ -333,9 +333,10 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     const authMethods = new D1WalletAuthMethodStore({ database, ...SCOPE });
     const envelopes = new CloudflareD1PasskeyCustodyEnvelopeStore({ database, scope: SCOPE });
     const activation = new D1VoiceIdActivation(database, SCOPE, authMethods, envelopes);
+    const authorities = new D1WalletAuthorityStore({ database, scope: SCOPE });
     const voiceIdSessions = new D1VoiceIdSessions(
       authMethods,
-      new D1WalletAuthorityStore({ database, scope: SCOPE }),
+      authorities,
       envelopes,
       new D1VoiceIdWalletSessionChallenges(database, SCOPE),
       authorization,
@@ -626,6 +627,43 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     ), voiceRoutes);
     expect(replayResponse.status).toBe(403);
 
+    const pendingRevocationChallenge = await client.challenge({
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      signal,
+    });
+    const pendingRevocationSignature = await crypto.subtle.sign(
+      'Ed25519',
+      device.privateKey,
+      voiceIdWalletSessionChallengeBytes(pendingRevocationChallenge),
+    );
+    const revoked = await authorities.revokeWalletAuthMethod({
+      walletId: fixture.authority.walletId,
+      authorityId: fixture.authority.authorityId,
+      walletAuthMethodId: methodId,
+      expectedAuthorityRevocationEpoch: fixture.authority.revocationEpoch,
+      requestedAtMs: Math.max(Date.now(), activated.updatedAtMs + 1),
+    });
+    if (revoked.kind !== 'revoked_method') {
+      throw new Error(`VoiceID method revocation failed: ${revoked.kind}`);
+    }
+    expect(revoked.authMethod.kind).toBe('voiceid');
+    expect(revoked.authority.state).toBe('active');
+    expect((await authMethods.readByIdV2({
+      walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
+    }))?.status).toBe('active');
+    const revokedAssertion = parseVoiceIdDeviceAssertion({
+      kind: 'voiceid_device_assertion_v1',
+      challenge: pendingRevocationChallenge,
+      signatureB64u: base64UrlEncode(new Uint8Array(pendingRevocationSignature)),
+    });
+    await expect(client.verify({ assertion: revokedAssertion, signal })).rejects.toThrow('HTTP 403');
+    await expect(client.challenge({
+      walletId: fixture.authority.walletId,
+      walletAuthMethodId: methodId,
+      signal,
+    })).rejects.toThrow('HTTP 403');
+
     const reportPath = testInfo.outputPath('voiceid-activation.json');
     await writeFile(reportPath, `${JSON.stringify({
       schemaVersion: 'voiceid_activation_journey_v1',
@@ -646,6 +684,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
         'retired_owner_session_rolls_back_method_and_envelope',
         'typed_client_reads_fresh_voiceid_session_after_source_retirement',
         'changed_origin_and_challenge_replay_rejected',
+        'revoked_voiceid_method_blocks_pending_and_new_challenges_while_owner_authority_survives',
       ],
     }, null, 2)}\n`);
     await testInfo.attach('voiceid-activation.json', { path: reportPath, contentType: 'application/json' });
