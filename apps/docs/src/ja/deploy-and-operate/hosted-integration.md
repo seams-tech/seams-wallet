@@ -55,10 +55,10 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 公開アセットの`@seams/wallet/web/wallet-iframe-client-html`は、対応するホスト型ウォレットのビルド経路だけで使ってください。
 パッケージのコードとホストするアセットを、互換性のある同じリリースに揃えてください。
 
-## リリース 0.20.0 {#release-0-20-0}
+## リリース 0.21.0 {#release-0-21-0}
 
-`@seams/wallet`、`@seams/wallet-server`、`@seams/wallet-cli`を**0.20.0**に固定してください。
-対応する導入方法は、[リリース 0.20.0](/ja/releases)を参照してください。
+`@seams/wallet`と`@seams/wallet-server`を**0.21.0**に固定してください。`@seams/wallet-cli`は**0.20.0**を使用します。
+対応する導入方法は、[リリース 0.21.0](/ja/releases)を参照してください。
 
 APACのウォレットオブジェクトは、`apac-se`で東南アジアへの配置を要求します。
 ホスト環境を受け入れる前に、実際のオブジェクトとデータベースの配置を確認してください。

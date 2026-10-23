@@ -11,12 +11,12 @@ setting that used it.
 
 ## Availability
 
-These docs target **0.20.0**. Deployment availability remains
-environment-specific. See [Release 0.20.0](/releases).
+These docs target **0.21.0**. Deployment availability remains
+environment-specific. See [Release 0.21.0](/releases).
 
 | Capability | Status | Scope |
 | --- | --- | --- |
-| Wallet browser and server SDKs | Version 0.20.0 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
+| Wallet browser and server SDKs | Version 0.21.0 | Wallet lifecycle, signing, per-wallet regional routing, owner-selected region moves, and ownership contracts |
 | Managed tenant-root backup and refresh | Implemented in Wallet Server | Role-private D1 shares and separate R2 backups. Verify custody and refresh policy in the deployed environment. |
 | Tenant-controlled root recovery | CLI launcher 0.20.0 is published with its signed native assets. | Dashboard approval, holder-key custody, and an approved empty destination are also required |
 | Wallet/deployment portability | Planned | Wallet inventory, signing-participant handoff, destination provisioning, and explicit cutover |
