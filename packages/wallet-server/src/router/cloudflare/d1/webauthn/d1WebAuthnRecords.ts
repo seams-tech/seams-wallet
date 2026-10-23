@@ -444,6 +444,8 @@ function buildWebAuthnRecoveryContinuityEnvelopeAnchor(
         updatedAtMs: envelope.updatedAtMs,
         bindingKind: 'wallet_custody_seed_v1',
       };
+    case 'voiceid':
+      throw new Error('WebAuthn recovery continuity does not accept a VoiceID envelope');
   }
 }
 

@@ -2899,6 +2899,12 @@ function walletCustodyEnvelopeFactorsMatch(
         left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion &&
         left.kekVersion === right.kekVersion
       );
+    case 'voiceid':
+      return (
+        right.kind === 'voiceid' &&
+        left.deviceKeyId === right.deviceKeyId &&
+        left.kekVersion === right.kekVersion
+      );
     default:
       return assertNever(left);
   }

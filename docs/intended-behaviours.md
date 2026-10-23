@@ -116,6 +116,40 @@ Its NEAR RPC response is deterministic and does not confirm an on-chain transfer
 Denied preparations retain their spent quota use. Owner unlock replenishes the
 session before the approved retry.
 
+## VoiceID Wallet Session unlock (in progress)
+
+The user first activates VoiceID through an existing Passkey or Email OTP owner
+unlock. The user then controls the open device and its OS. The MVP does not
+evaluate spoofed or replayed recordings. The server still rejects a reused
+device assertion, a changed origin, a changed wallet, or an expired challenge.
+
+The native device creates one random signing key and a separate random factor
+secret for the wallet method. The private key remains on the device. A voice
+match permits the host to sign one server challenge and release the scoped
+factor secret to the Wallet custody worker.
+
+The custody worker opens an existing wallet seed envelope before it reseals
+that seed under VoiceID. The new envelope binds the device key ID, wallet,
+auth method, and custody purpose. A changed key ID, wallet, method, or factor
+secret cannot open it. JavaScript never receives the custody seed.
+
+The server issues a fresh Wallet Session only after it verifies an active
+VoiceID method, its active authority, the exact challenge, and the device
+signature. It consumes the challenge once. Revoking the method retires its
+sessions and custody envelope. A missing native host, lost key, failed voice
+check, or unavailable server leaves the wallet locked.
+
+The current SDK plugin still selects the local approval prototype above.
+Fresh-session unlock requires activation, server issuance, custody activation,
+and one composed Wallet E2E before the SDK can offer it.
+
+The custody boundary contract is
+[`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).
+It reseals a generated seed from Passkey to VoiceID in Rust. The Wallet parser
+must accept the exact Rust envelope binding. The rebuilt browser WASM must
+open the same ciphertext with the VoiceID secret and reject another secret.
+The test writes a JSON report.
+
 The same contract makes every broadcast reply unavailable after signing.
 The SDK retries the identical signed bytes without another MPC signature.
 The final broadcast error rejects the send promise and preserves spent quota.

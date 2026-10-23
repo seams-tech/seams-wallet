@@ -192,6 +192,30 @@ const emailOtpFactor: WalletCustodyEnvelopeFactor = {
 };
 void emailOtpFactor;
 
+const voiceIdFactor: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1',
+};
+void voiceIdFactor;
+
+// @ts-expect-error A VoiceID factor cannot contain an Email OTP enrollment.
+const voiceIdWithEmailEnrollment: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1',
+  enrollmentId: 'enrollment-1',
+};
+void voiceIdWithEmailEnrollment;
+
+// @ts-expect-error A VoiceID factor cannot declare another factor's KEK version.
+const voiceIdWithPasskeyKek: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'passkey_prf_kek_hkdf_sha256_v1',
+};
+void voiceIdWithPasskeyKek;
+
 // @ts-expect-error An Email OTP factor has no relying party or credential.
 const emailOtpFactorWithCredential: WalletCustodyEnvelopeFactor = {
   kind: 'email_otp',
