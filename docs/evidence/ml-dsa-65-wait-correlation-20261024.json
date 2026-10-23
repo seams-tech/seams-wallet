@@ -1,0 +1,272 @@
+{
+  "schema": "seams.ml-dsa-wait-correlation.v1",
+  "source_parent": "fdf96004",
+  "dev_base": "4c13b3f3",
+  "change": "Public failure correlation and opt-in storage/peer boundary observations. No storage or cryptographic protocol optimization selected.",
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "standard_fips_export": true,
+    "preparation_candidates": 4,
+    "consumption_candidates": 2,
+    "pool_candidates": 32,
+    "minimum_admission_candidates": 16,
+    "wallet_cooldown_ms": 60000,
+    "maximum_active_operations": 1
+  },
+  "local": {
+    "canonical_creation_and_recovery": true,
+    "durable_restart_replay": true,
+    "verified_signatures": 1,
+    "recovery_signing": "cooldown preserved",
+    "delay_calibration": [
+      {
+        "case": "calibration",
+        "delays": [
+          {
+            "kind": "peer_connect",
+            "requested_ms": 400,
+            "actual_ms": 401,
+            "state": "end",
+            "observed_ms": 405,
+            "call_id": "9ea34d51a729835080a3b41d00000001",
+            "sequence": 0
+          },
+          {
+            "kind": "load_tables",
+            "requested_ms": 400,
+            "actual_ms": 402,
+            "state": "end",
+            "observed_ms": 423,
+            "call_id": "d5305a4919c90ed2fa429b6f00000001",
+            "sequence": 2
+          },
+          {
+            "kind": "peer_connect",
+            "requested_ms": 400,
+            "actual_ms": 530,
+            "state": "end",
+            "observed_ms": 533,
+            "call_id": "8f5e0b27c81dcd7ed238c58f00000001",
+            "sequence": 0
+          },
+          {
+            "kind": "load_tables",
+            "requested_ms": 400,
+            "actual_ms": 444,
+            "state": "end",
+            "observed_ms": 487,
+            "call_id": "60d5ba23b8f3c6c5422e25c700000001",
+            "sequence": 2
+          }
+        ],
+        "parsed_wait_events": 1280,
+        "maximum_boundaries_per_call": 533,
+        "failure_correlation": null
+      },
+      {
+        "case": "failure",
+        "delays": [
+          {
+            "kind": "peer_connect",
+            "requested_ms": 400,
+            "actual_ms": 401,
+            "state": "end",
+            "observed_ms": 407,
+            "call_id": "956c3a85c4db0eba6a3af76400000001",
+            "sequence": 0
+          },
+          {
+            "kind": "load_tables",
+            "requested_ms": 400,
+            "actual_ms": 401,
+            "state": "error",
+            "observed_ms": 411,
+            "call_id": "992bce5d6bae7ca0b5b88c4d00000001",
+            "sequence": 2
+          }
+        ],
+        "parsed_wait_events": 577,
+        "maximum_boundaries_per_call": 533,
+        "failure_correlation": {
+          "passed": true,
+          "httpRequest": "3ad4b95c71fe11726f61451f375b9437",
+          "job": "3dbb49bda58a2c2c32acad85fa3df6c26972c80e903a85f33a61e47e52819817",
+          "operation": "5d7e74a9739d2bf48be7be9cdd38568a926bd39747152d7a16eb38eb9a7d8a5c",
+          "callId": "992bce5d6bae7ca0b5b88c4d00000001",
+          "sequence": 2,
+          "status": 500,
+          "kind": "load_tables"
+        }
+      }
+    ],
+    "first_fixture_attempt": "Failed before key generation due to WorkerEntrypoint class wrapper; corrected and retained."
+  },
+  "hosted_off": {
+    "request_to_participant_reset_join": "exact public identifiers",
+    "http_failure_ms": 61118.001,
+    "participant_a_cpu_ms": 6642,
+    "participant_a_wall_ms": 59708,
+    "storage_reset_messages_in_one_invocation": 3,
+    "participant_b": "Canceled invocation; no separate storage failure established.",
+    "completed_registrations": 0,
+    "detailed_wait_events": 0
+  },
+  "blocked_retry": {
+    "category": "registration_preprocessing_already_running",
+    "participant_dispatch": false,
+    "existing_prepare_lease_ms": 300000
+  },
+  "hosted_on": {
+    "fresh_namespaces": true,
+    "all_six_binary_and_credential_hashes_match_off": true,
+    "policy_matches_off": true,
+    "all_six_versions_changed": true,
+    "invocations_retained": 595,
+    "wait_scopes": 12,
+    "summaries": 12,
+    "maximum_boundaries_per_call": 533,
+    "provider_truncated_invocations": 0,
+    "non_ok_invocations": 13,
+    "non_ok_categories": "Canceled with no exception categories; client operations complete.",
+    "cases": [
+      {
+        "epoch": 1,
+        "preparation_ms": 121730.057833,
+        "registration_ms": 6164.612208999999,
+        "signing_ms": 23556.35841700001,
+        "verified": true
+      },
+      {
+        "epoch": 2,
+        "preparation_ms": 118213.81608300001,
+        "registration_ms": 15954.186833999993,
+        "signing_ms": 8502.339708000014,
+        "verified": true
+      }
+    ],
+    "preparation_scope": "Generic key-generation material plus sixteen initial signing candidates.",
+    "boundary_distributions": [
+      {
+        "role": "a",
+        "phase": "execute",
+        "kind": "consume_private",
+        "count": 2,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 2
+      },
+      {
+        "role": "a",
+        "phase": "execute",
+        "kind": "peer_connect",
+        "count": 2,
+        "median_ms": 383.5,
+        "max_ms": 653,
+        "zero_count": 0
+      },
+      {
+        "role": "a",
+        "phase": "prepare",
+        "kind": "peer_connect",
+        "count": 2,
+        "median_ms": 2228.5,
+        "max_ms": 2666,
+        "zero_count": 0
+      },
+      {
+        "role": "a",
+        "phase": "prepare",
+        "kind": "publish_private",
+        "count": 2,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 2
+      },
+      {
+        "role": "a",
+        "phase": "prepare",
+        "kind": "store_signing_stock",
+        "count": 16,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 16
+      },
+      {
+        "role": "b",
+        "phase": "execute",
+        "kind": "consume_private",
+        "count": 2,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 2
+      },
+      {
+        "role": "b",
+        "phase": "execute",
+        "kind": "load_tables",
+        "count": 48,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 48
+      },
+      {
+        "role": "b",
+        "phase": "prepare",
+        "kind": "publish_private",
+        "count": 2,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 2
+      },
+      {
+        "role": "b",
+        "phase": "prepare",
+        "kind": "store_signing_stock",
+        "count": 16,
+        "median_ms": 0.0,
+        "max_ms": 0,
+        "zero_count": 16
+      },
+      {
+        "role": "b",
+        "phase": "prepare",
+        "kind": "store_tables",
+        "count": 340,
+        "median_ms": 0.0,
+        "max_ms": 51,
+        "zero_count": 321
+      }
+    ]
+  },
+  "limits": [
+    "Local delay calibration does not calibrate hosted storage clocks.",
+    "All 48 hosted table reads suspend and report 0 ms; zero does not prove free storage.",
+    "One peer counter 2960 ms exceeds provider wall 2890 ms; counters do not partition wall time.",
+    "No instrumented provider reset occurred. Its exact active storage boundary remains unknown.",
+    "No successful off baseline exists, so observer overhead and causal latency regression are unmeasured.",
+    "The sanitized trace dataset covers five roles, excluding the forwarding front. No truncation flag does not prove complete capture.",
+    "Fresh recreation changes namespace state, versions, and potentially placement.",
+    "No sustained refill qualification or complete browser ceremony in this screen."
+  ],
+  "validation": {
+    "worker_release_builds": "passed",
+    "local_e2e": "passed",
+    "injected_failure_correlation": "passed",
+    "independent_review": "Measurements, hashes, correlation, and limitations reproduced.",
+    "bloat": "Inherited Rust duplication excess remains 13,972 versus 13,754; baseline unchanged."
+  },
+  "cleanup": {
+    "first_deployment_deleted": 6,
+    "final_deployment_deleted": 6
+  },
+  "next": [
+    "Externally calibrate transaction completion versus durable commit.",
+    "Separate peer completion gates and CPU work from boundary counters.",
+    "Durably retire definitive failed preparation without allowing late completion or material reuse."
+  ],
+  "archive": {
+    "path": "ml-dsa-65-wait-correlation-20261024-data.json.gz",
+    "bytes": 164336,
+    "sha256": "787c69f1350458cedcc6892e9ca6e7b7c39e6a501a9aedd72454a9628ba06712"
+  }
+}

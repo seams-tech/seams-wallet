@@ -8,6 +8,7 @@ mod router_trace;
 mod schedules;
 mod signing_trace;
 mod stage_trace;
+mod wait_trace;
 mod transport;
 use super::{
     admission::{self, Claim, Completion, Decision, Permit, Status},

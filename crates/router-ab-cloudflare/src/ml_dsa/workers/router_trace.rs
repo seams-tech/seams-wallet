@@ -48,6 +48,15 @@ impl RouterTrace {
         self.operation = Some(operation);
         self.mark("decoded");
     }
+    pub(super) fn bind_job(&self, job: [u8; 32]) {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_registration_job_v1", "http_request": self.request_id,
+                "job": hex(&job), "operation": self.operation.as_ref().map(|value| hex(value)),
+            })
+        );
+    }
     pub(super) fn mark(&mut self, stage: &'static str) {
         self.milestones.push(Milestone {
             stage,

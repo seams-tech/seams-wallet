@@ -30,6 +30,57 @@ enum Command {
     Result { claim: core::Claim },
 }
 impl Command {
+    fn phase(&self) -> &'static str {
+        match self {
+            Self::Prepare { .. } => "prepare",
+            Self::PreparePeer { .. } => "prepare_peer",
+            Self::Execute { .. } => "execute",
+            Self::ExecutePeer { .. } => "execute_peer",
+            Self::Install { .. } => "install",
+            Self::Result { .. } => "result",
+        }
+    }
+    fn operation(&self) -> Option<[u8; 32]> {
+        match self {
+            Self::Prepare { .. } | Self::PreparePeer { .. } => None,
+            Self::Execute { claim }
+            | Self::ExecutePeer { claim }
+            | Self::Install { claim }
+            | Self::Result { claim } => Some(claim.request.operation),
+        }
+    }
+    fn stamp(
+        &self,
+        request: &mut worker::Request,
+        call: Option<crate::CloudflareTraceIdV1>,
+    ) -> Result<()> {
+        let headers = request.headers_mut().map_err(storage_error)?;
+        headers
+            .set("x-ml-dsa-job-id", &hex(&self.job().id))
+            .map_err(storage_error)?;
+        headers
+            .set("x-ml-dsa-command", self.phase())
+            .map_err(storage_error)?;
+        if let Some(operation) = self.operation() {
+            headers
+                .set("x-ml-dsa-operation-id", &hex(&operation))
+                .map_err(storage_error)?;
+        }
+        if let Some(call) = call {
+            crate::set_cloudflare_trace_id_header_v1(headers, call)?;
+        }
+        Ok(())
+    }
+    fn dispatched(&self, call: Option<crate::CloudflareTraceIdV1>) {
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_registration_call_v1", "job": hex(&self.job().id),
+                "operation": self.operation().as_ref().map(|value| hex(value)),
+                "phase": self.phase(), "call_id": call.map(crate::CloudflareTraceIdV1::as_hex),
+            })
+        );
+    }
     fn job(&self) -> &core::Job {
         match self {
             Self::Prepare { job } | Self::PreparePeer { job } => job,
@@ -80,11 +131,17 @@ pub(crate) async fn handle_role(
     let stub = namespace
         .id_from_name(&hex(&command.job().id))?
         .get_stub()?;
-    let forwarded = if request.method() == Method::Get {
+    let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
+        .ok()
+        .flatten();
+    let mut forwarded = if request.method() == Method::Get {
         socket_request(env, ROLE_PATH, &command).map_err(protocol_error)?
     } else {
         object_request(env, CallAuthority::Internal, ROLE_PATH, &command).map_err(protocol_error)?
     };
+    command
+        .stamp(&mut forwarded, call)
+        .map_err(protocol_error)?;
     stub.fetch_with_request(forwarded).await
 }
 async fn role_call<T: serde::de::DeserializeOwned>(
@@ -92,6 +149,8 @@ async fn role_call<T: serde::de::DeserializeOwned>(
     role: &str,
     command: &Command,
 ) -> Result<T> {
+    let call = wait_trace::call_id();
+    command.dispatched(call);
     let mut response = crate::router_coordinator::post_role_request(
         env,
         role,
@@ -99,7 +158,7 @@ async fn role_call<T: serde::de::DeserializeOwned>(
         ROLE_PATH,
         "ML-DSA registration",
         command,
-        None,
+        call,
     )
     .await?;
     if response.status_code() != 200 {
@@ -113,8 +172,18 @@ struct PrepareRequest {
     wallet: WalletScope,
 }
 pub(crate) async fn handle_prepare(
+    request: worker::Request,
+    env: &Env,
+) -> worker::Result<Response> {
+    let mut trace = router_trace::RouterTrace::new(request.headers())?;
+    let mut response = prepare_request(request, env, &mut trace).await;
+    trace.finish(&mut response)?;
+    response
+}
+async fn prepare_request(
     mut request: worker::Request,
     env: &Env,
+    trace: &mut router_trace::RouterTrace,
 ) -> worker::Result<Response> {
     if let Err(error) = crate::require_cloudflare_gateway_to_router_auth_request_v1(&request, env) {
         return crate::cloudflare_private_service_auth_error_response_v1(error);
@@ -142,6 +211,7 @@ pub(crate) async fn handle_prepare(
     )
     .await
     .map_err(protocol_error)?;
+    trace.bind_job(job.id);
     let ready: bool = role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() })
         .await
         .map_err(protocol_error)?;
@@ -189,6 +259,7 @@ async fn register_request(
         } => claim,
         other => return Response::from_json(&other),
     };
+    trace.bind_job(claim.job.id);
     let execution = execute_with_storage_initialization(env, &claim)
         .await
         .map_err(protocol_error)?;
@@ -327,6 +398,17 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                 .await
                 .map_err(protocol_error)?
         };
+        let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
+            .ok()
+            .flatten();
+        let waits = wait_trace::WaitTrace::new(
+            &self.env,
+            command.job().id,
+            command.operation(),
+            configured_role(&self.env)?,
+            call,
+        )
+        .map_err(protocol_error)?;
         if let Command::Install { claim } = &command {
             return before_deadline(claim.deadline, async {
                 self.install(claim).await.map_err(storage_error)
@@ -346,7 +428,7 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             let state = Rc::clone(&self.state);
             let env = self.env.clone();
             self.state.wait_until(async move {
-                let result = engine::connected(&env, &state, &command, &pair.server).await;
+                let result = engine::connected(&env, &state, &command, &pair.server, waits).await;
                 let _ = pair.server.close(
                     Some(if result.is_ok() { 1000 } else { 1011 }),
                     Some("Registration peer ended"),
@@ -418,20 +500,27 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                     },
                     _ => return Response::error("Invalid registration command", 400),
                 };
-                let response = self
-                    .env
-                    .service("DERIVER_B")?
-                    .fetch_request(
-                        socket_request(&self.env, ROLE_PATH, &peer).map_err(protocol_error)?,
-                    )
-                    .await?;
+                let peer_call = wait_trace::call_id();
+                peer.dispatched(peer_call);
+                let mut peer_request =
+                    socket_request(&self.env, ROLE_PATH, &peer).map_err(protocol_error)?;
+                peer.stamp(&mut peer_request, peer_call)
+                    .map_err(protocol_error)?;
+                let service = self.env.service("DERIVER_B")?;
+                let response = wait_trace::observe(
+                    waits.as_deref(),
+                    wait_trace::Kind::PeerConnect,
+                    service.fetch_request(peer_request),
+                )
+                .await?;
                 if response.status_code() != 101 {
                     return Response::error("Registration peer connection failed", 503);
                 }
                 let socket = response
                     .websocket()
                     .ok_or_else(|| protocol_error(invalid("Registration socket absent")))?;
-                let result = engine::connected(&self.env, &self.state, &command, &socket).await;
+                let result =
+                    engine::connected(&self.env, &self.state, &command, &socket, waits).await;
                 let _ = socket.close(
                     Some(if result.is_ok() { 1000 } else { 1011 }),
                     Some("Registration ended"),

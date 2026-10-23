@@ -38,6 +38,7 @@ pub(super) async fn connected(
     state: &Rc<State>,
     command: &Command,
     socket: &WebSocket,
+    waits: Option<Rc<wait_trace::WaitTrace>>,
 ) -> Result<serde_json::Value> {
     let role = configured_role(env).map_err(storage_error)?;
     let trace = match command {
@@ -100,7 +101,7 @@ pub(super) async fn connected(
     schedule_refill_alarm(state, cleanup_at.saturating_sub(now))
         .await
         .map_err(storage_error)?;
-    let wire = match command {
+    let mut wire = match command {
         Command::Prepare { .. } | Command::PreparePeer { .. } => {
             transport::Duplex::for_preparation(socket, deadline)
         }
@@ -110,7 +111,9 @@ pub(super) async fn connected(
         _ => return Err(invalid("Invalid registration execution command")),
     }
     .map_err(storage_error)?;
+    wire.trace_waits(waits.clone());
     let mut adapter = adapter::Adapter {
+        waits: waits.clone(),
         wire,
         trace: trace.as_ref(),
         state: Rc::clone(state),
@@ -151,11 +154,24 @@ pub(super) async fn connected(
             registration_preparation::seal(prepared.into_storage(job.id), &binding, &seed)?;
         let stored = binding.clone();
         let now = crate::cloudflare_now_unix_ms_v1()?;
-        transaction(state, move |store| async move {
-            registration_preparation::publish(&store, stored, sealed, now).await
-        })
+        wait_trace::observe(
+            waits.as_deref(),
+            wait_trace::Kind::PublishPrivate,
+            transaction(state, move |store| async move {
+                registration_preparation::publish(&store, stored, sealed, now).await
+            }),
+        )
         .await?;
-        signing_stock::prepare(env, state, job, signing_role, &seed, &mut adapter.wire).await?;
+        signing_stock::prepare(
+            env,
+            state,
+            job,
+            signing_role,
+            &seed,
+            &mut adapter.wire,
+            waits.as_deref(),
+        )
+        .await?;
         // Only public readiness is exchanged; each role keeps its own private state.
         adapter.send(&[1]).await.map_err(runtime_error)?;
         if adapter.receive(1).await.map_err(runtime_error)? != [1] {
@@ -207,9 +223,13 @@ pub(super) async fn connected(
     }
     let expected = binding.clone();
     let now = crate::cloudflare_now_unix_ms_v1()?;
-    let sealed = transaction(state, move |store| async move {
-        registration_preparation::consume(&store, &expected, ceremony, now).await
-    })
+    let sealed = wait_trace::observe(
+        waits.as_deref(),
+        wait_trace::Kind::ConsumePrivate,
+        transaction(state, move |store| async move {
+            registration_preparation::consume(&store, &expected, ceremony, now).await
+        }),
+    )
     .await?;
     if let Some(trace) = &trace {
         trace.mark("prepared_consumed");
