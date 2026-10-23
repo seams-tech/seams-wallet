@@ -1,77 +1,98 @@
 import { requireRecord } from '@shared/utils/validation';
 
 type Mode = 'approved' | 'cancelled' | 'rejected' | 'different_operation' | 'held';
+const BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
+const originalFetch = window.fetch.bind(window);
+const encoder = new TextEncoder();
+const connections: VoiceResponse[] = [];
 let mode: Mode = 'approved';
-const connections: ProbePort[] = [];
 
-class MessageListeners {
-  private readonly listeners = new Set<(message: unknown) => void>();
-  addListener(listener: (message: unknown) => void): void {
-    this.listeners.add(listener);
-  }
-  send(message: unknown): void {
-    for (const listener of this.listeners) listener(message);
-  }
-}
-class DisconnectListeners {
-  private readonly listeners = new Set<() => void>();
-  addListener(listener: () => void): void {
-    this.listeners.add(listener);
-  }
-  send(): void {
-    for (const listener of this.listeners) listener();
-  }
-}
-class ProbePort {
-  readonly onMessage = new MessageListeners();
-  readonly onDisconnect = new DisconnectListeners();
-  private request: Record<string, unknown> | null = null;
+class VoiceResponse {
+  private controller: ReadableStreamDefaultController<Uint8Array> | null = null;
 
-  postMessage(message: unknown): void {
-    this.request = requireRecord(message, 'native request');
-    queueMicrotask(this.started);
+  constructor(
+    private readonly binding: Record<string, unknown>,
+    private readonly signal: AbortSignal | null | undefined,
+  ) {
+    this.signal?.addEventListener('abort', this.abort, { once: true });
   }
-  disconnect(): void {
-    this.onDisconnect.send();
-  }
-  private readonly started = (): void => {
-    if (!this.request) throw new Error('The bridge has no request');
-    if (this.request.kind === 'listen') {
-      this.onMessage.send({ kind: 'listening', binding: this.request.binding });
-    }
-    if (mode !== 'held') this.reply();
-  };
-  readonly reply = (): void => {
-    if (!this.request) throw new Error('The bridge has no request');
-    if (this.request.kind === 'status') {
-      this.onMessage.send({ kind: 'status', id: this.request.id, enrollment: 'ready' });
+
+  readonly start = (controller: ReadableStreamDefaultController<Uint8Array>): void => {
+    this.controller = controller;
+    if (this.signal?.aborted) {
+      this.abort();
       return;
     }
-    const binding = requireRecord(this.request.binding, 'voice binding');
-    this.onMessage.send({
+    this.send({ kind: 'listening', binding: this.binding });
+    if (mode !== 'held') this.reply();
+  };
+
+  readonly abort = (): void => {
+    if (!this.controller) return;
+    this.controller.error(new DOMException('VoiceID request aborted', 'AbortError'));
+    this.controller = null;
+  };
+
+  reply(): void {
+    if (!this.controller || this.signal?.aborted) return;
+    const binding = {
+      attemptId: this.binding.attemptId,
+      operationHash: mode === 'different_operation' ? 'f'.repeat(64) : this.binding.operationHash,
+      expiresAtMs: this.binding.expiresAtMs,
+    };
+    this.send({
       kind: 'result',
-      binding: {
-        attemptId: binding.attemptId,
-        operationHash: mode === 'different_operation' ? 'f'.repeat(64) : binding.operationHash,
-        expiresAtMs: binding.expiresAtMs,
-      },
+      binding,
       outcome: mode === 'cancelled' || mode === 'rejected' ? mode : 'approved',
     });
-  };
+    this.controller.close();
+    this.controller = null;
+    this.signal?.removeEventListener('abort', this.abort);
+  }
+
+  private send(message: unknown): void {
+    this.controller?.enqueue(encoder.encode(`${JSON.stringify(message)}\n`));
+  }
 }
 
-function connect(): ProbePort {
-  const port = new ProbePort();
-  connections.push(port);
-  return port;
+async function bridgeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (requestUrl(input) !== BRIDGE_URL) return originalFetch(input, init);
+  if (typeof init?.body !== 'string') throw new Error('The bridge request is missing a body.');
+  const request = requireRecord(JSON.parse(init.body), 'VoiceID bridge request');
+  if (request.kind === 'status') {
+    return responseFor({ kind: 'status', id: request.id, enrollment: 'ready' });
+  }
+  if (request.kind !== 'listen') throw new Error('Unknown VoiceID bridge request.');
+  const connection = new VoiceResponse(
+    requireRecord(request.binding, 'VoiceID binding'),
+    init.signal,
+  );
+  connections.push(connection);
+  return new Response(new ReadableStream({ start: connection.start }), {
+    headers: { 'content-type': 'application/x-ndjson' },
+  });
 }
+
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
+}
+
+function responseFor(message: unknown): Response {
+  return new Response(`${JSON.stringify(message)}\n`, {
+    headers: { 'content-type': 'application/x-ndjson' },
+  });
+}
+
 function setMode(next: Mode): void {
   mode = next;
 }
+
 function releasePrevious(): void {
-  const port = connections.at(-1);
-  if (!port) throw new Error('The bridge has no connection');
-  port.reply();
+  const response = connections.at(-1);
+  if (!response) throw new Error('The bridge has no request');
+  response.reply();
 }
 
 declare global {
@@ -79,5 +100,5 @@ declare global {
     voiceBridgeProbe: { setMode: typeof setMode; releasePrevious: typeof releasePrevious };
   }
 }
-Reflect.set(window, 'chrome', { runtime: { connect } });
+window.fetch = bridgeFetch;
 window.voiceBridgeProbe = { setMode, releasePrevious };

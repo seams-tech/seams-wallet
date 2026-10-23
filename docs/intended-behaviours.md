@@ -83,6 +83,9 @@ fail when VoiceID is required.
 The wallet freezes and hashes the complete request and execution configuration.
 The hash includes the wallet, transaction, request, connection, surface, review
 generation, network, and expiry. Selecting Confirm starts one native voice check.
+The wallet iframe sends its bounded request to a loopback service on the device.
+That service accepts only the pinned Wallet origins and keeps one native session
+open for later checks. A failed native host requires a deliberate service restart.
 The result must match its attempt, operation hash, and exclusive deadline.
 The existing signing boundary consumes the approval once. The existing wallet
 session, authorization, quota, and MPC checks still apply.

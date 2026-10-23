@@ -20,7 +20,7 @@ class VoiceIdSettings {
     title.textContent = 'VoiceID on this device';
     const detail = document.createElement('p');
     detail.textContent =
-      'Install the prototype Chrome extension and native host. Use voiceid-host enroll to record three voice samples. The local Keychain stores your voice template.';
+      'Start the local VoiceID service on this device. Use its enrollment page to record three voice samples. The local Keychain stores your voice template.';
     const scope = document.createElement('p');
     scope.textContent =
       'VoiceID approves one reviewed NEAR transfer. Your existing wallet session and signing limits still apply. Other signing routes will be unavailable while VoiceID is enabled.';
@@ -50,7 +50,7 @@ class VoiceIdSettings {
     try {
       const status = await nativeEnrollmentStatus(this.lifetime.signal);
       if (status !== 'ready')
-        throw new Error('Enroll your voice with voiceid-host enroll, then try again.');
+        throw new Error('Enroll your voice with the local VoiceID page, then try again.');
       if (this.lifetime.signal.aborted) return;
       localStorage.setItem(VOICE_ID_POLICY_KEY, 'required');
       this.refresh();

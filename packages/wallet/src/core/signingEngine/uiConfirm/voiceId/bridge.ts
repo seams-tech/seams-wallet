@@ -1,24 +1,7 @@
 import { isPlainObject } from '@shared/utils/validation';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 
-// Pinned ID of the unpacked prototype Chrome extension.
-const EXTENSION_ID = 'ackhkimailmgolplljlhgoclgdjcgdba';
-
-type NativePort = {
-  postMessage(message: unknown): void;
-  disconnect(): void;
-  onMessage: { addListener(listener: (message: unknown) => void): void };
-  onDisconnect: { addListener(listener: () => void): void };
-};
-
-declare const chrome:
-  | {
-      runtime: {
-        connect(extensionId: string, options: { name: string }): NativePort;
-        lastError?: { message?: string };
-      };
-    }
-  | undefined;
+const LOCAL_BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 
 export type VoiceBinding = Readonly<{
   attemptId: string;
@@ -80,13 +63,6 @@ function parseNativeReply(value: unknown): NativeReply {
   throw new Error('VoiceID returned an invalid message.');
 }
 
-function connectNativeBridge(): NativePort {
-  if (typeof chrome === 'undefined' || !chrome.runtime?.connect) {
-    throw new Error('Install the VoiceID Chrome extension on this device.');
-  }
-  return chrome.runtime.connect(EXTENSION_ID, { name: 'seams-voiceid-v1' });
-}
-
 export function sameVoiceBinding(left: VoiceBinding, right: VoiceBinding): boolean {
   return (
     left.attemptId === right.attemptId &&
@@ -95,9 +71,9 @@ export function sameVoiceBinding(left: VoiceBinding, right: VoiceBinding): boole
   );
 }
 
-// Each connection admits one operation. Closing it cancels the native capture.
+// Each request admits one operation. Aborting it cancels the native capture.
 class NativeExchange {
-  private readonly port = connectNativeBridge();
+  private readonly controller = new AbortController();
   private readonly timer: ReturnType<typeof setTimeout>;
   private readonly signal: AbortSignal;
   private readonly completion = new WorkerDeferred<NativeReply>();
@@ -109,18 +85,64 @@ class NativeExchange {
     else this.state = { kind: 'starting', binding: input.binding, onListening: input.onListening };
     this.signal = signal;
     this.timer = setTimeout(this.expire, timeoutMs);
-    this.port.onMessage.addListener(this.receive);
-    this.port.onDisconnect.addListener(this.disconnected);
     signal.addEventListener('abort', this.aborted, { once: true });
     if (signal.aborted) this.aborted();
-    else if (input.kind === 'status') this.port.postMessage({ kind: 'status', id: input.id });
-    else this.port.postMessage({ kind: 'listen', binding: input.binding });
+    else void this.exchange(input);
   }
 
-  private readonly receive = (value: unknown): void => {
+  private async exchange(input: ExchangeInput): Promise<void> {
+    try {
+      const request = input.kind === 'status'
+        ? { kind: 'status', id: input.id }
+        : { kind: 'listen', binding: input.binding };
+      const response = await fetch(LOCAL_BRIDGE_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-voiceid-protocol': 'v1',
+        },
+        body: JSON.stringify(request),
+        cache: 'no-store',
+        credentials: 'omit',
+        signal: this.controller.signal,
+      });
+      if (!response.ok || !response.body) {
+        throw new Error('VoiceID local service rejected the Wallet request.');
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let pending = '';
+      while (!this.isSettled()) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        pending += decoder.decode(chunk.value, { stream: true });
+        if (pending.length > 2 * 4096 + 16) {
+          throw new Error('VoiceID returned an invalid message.');
+        }
+        let newline = pending.indexOf('\n');
+        while (newline >= 0) {
+          this.receive(pending.slice(0, newline));
+          pending = pending.slice(newline + 1);
+          if (this.isSettled()) return;
+          newline = pending.indexOf('\n');
+        }
+      }
+      if (!this.isSettled()) {
+        throw new Error('VoiceID local service closed before a result.');
+      }
+    } catch (error) {
+      if (this.state.kind === 'settled') return;
+      const message = error instanceof Error && error.message.startsWith('VoiceID ')
+        ? error.message
+        : 'Start the local VoiceID service on this device.';
+      this.fail(new Error(message));
+    }
+  }
+
+  private receive(line: string): void {
     if (this.state.kind === 'settled') return;
     try {
-      const reply = parseNativeReply(value);
+      const reply = parseNativeReply(JSON.parse(line));
       const state = this.state;
       if (reply.kind === 'listening') {
         if (state.kind !== 'starting' || !sameVoiceBinding(state.binding, reply.binding)) {
@@ -148,13 +170,11 @@ class NativeExchange {
     } catch {
       this.fail(new Error('VoiceID returned an invalid message.'));
     }
-  };
+  }
 
-  private readonly disconnected = (): void => {
-    // Reading lastError also acknowledges Chrome's disconnected-port error.
-    if (typeof chrome !== 'undefined') void chrome.runtime.lastError;
-    this.fail(new Error('VoiceID is unavailable. Check the local host installation.'));
-  };
+  private isSettled(): boolean {
+    return this.state.kind === 'settled';
+  }
 
   private readonly aborted = (): void => {
     this.fail(new Error('Voice approval was cancelled.'));
@@ -174,7 +194,7 @@ class NativeExchange {
     this.state = { kind: 'settled' };
     clearTimeout(this.timer);
     this.signal.removeEventListener('abort', this.aborted);
-    this.port.disconnect();
+    this.controller.abort();
   }
 }
 
