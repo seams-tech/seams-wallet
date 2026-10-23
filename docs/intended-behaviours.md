@@ -74,11 +74,11 @@ Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
 
 ## Local VoiceID approval (prototype)
 
-The wallet origin controls VoiceID through `/sdk/voiceid.html`. Enabling it
-requires a ready local enrollment. The application cannot set this preference
-through the wallet message protocol. This prototype supports one reviewed NEAR
-testnet transfer per request. Other signing routes and reviews without an expiry
-fail when VoiceID is required.
+The SDK enables the VoiceID plugin with `authMethods: [voiceIdAuthMethod()]`.
+The wallet iframe loads its implementation only for an enabled request.
+This prototype supports one reviewed NEAR testnet transfer per request.
+Other signing routes and reviews without an expiry fail while the plugin is
+enabled. The local native host requires an enrolled voice before capture.
 
 The wallet freezes and hashes the complete request and execution configuration.
 The hash includes the wallet, transaction, request, connection, surface, review
@@ -90,11 +90,17 @@ The result must match its attempt, operation hash, and exclusive deadline.
 The existing signing boundary consumes the approval once. The existing wallet
 session, authorization, quota, and MPC checks still apply.
 
-Cancellation, lock, execution changes, settlement, expiry, and a changed VoiceID
-preference invalidate pending approval. Another request requires its own approval.
+Cancellation, lock, execution changes, settlement, expiry, and a changed SDK
+plugin selection invalidate pending approval. Another request requires its own approval.
 VoiceID failure cannot choose an automatic approval path. Audio, transcripts,
 speaker embeddings, templates, and wallet secrets do not cross this bridge.
 The native result grants no server authentication or signing authority.
+
+This local approval profile does not issue a fresh Wallet Session. The
+`voiceIdAuthMethod()` descriptor currently selects this on-demand prototype.
+Fresh-session VoiceID requires an activated device credential, server-verified
+assertion, and method-bound custody envelope before it can be offered as an
+unlock method.
 
 The MVP assumes a user-controlled device and OS. Spoof detection, camera input,
 and standalone voice authentication remain outside this profile.

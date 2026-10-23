@@ -59,9 +59,6 @@ async function bridgeFetch(input: RequestInfo | URL, init?: RequestInit): Promis
   if (requestUrl(input) !== BRIDGE_URL) return originalFetch(input, init);
   if (typeof init?.body !== 'string') throw new Error('The bridge request is missing a body.');
   const request = requireRecord(JSON.parse(init.body), 'VoiceID bridge request');
-  if (request.kind === 'status') {
-    return responseFor({ kind: 'status', id: request.id, enrollment: 'ready' });
-  }
   if (request.kind !== 'listen') throw new Error('Unknown VoiceID bridge request.');
   const connection = new VoiceResponse(
     requireRecord(request.binding, 'VoiceID binding'),
@@ -77,12 +74,6 @@ function requestUrl(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input;
   if (input instanceof URL) return input.href;
   return input.url;
-}
-
-function responseFor(message: unknown): Response {
-  return new Response(`${JSON.stringify(message)}\n`, {
-    headers: { 'content-type': 'application/x-ndjson' },
-  });
 }
 
 function setMode(next: Mode): void {

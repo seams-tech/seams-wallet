@@ -61,7 +61,6 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   await page.route('**/voiceid-wallet', routePage);
   await page.route('**/wallet-ui.css', routeCss);
   await page.goto('/voiceid-wallet');
-  await page.evaluate(requireVoice);
   const cases: string[] = [];
 
   await expect(page.evaluate(mainnetApproval)).rejects.toThrow('requires NEAR testnet');
@@ -132,9 +131,6 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   });
 }
 
-function requireVoice(): void {
-  localStorage.setItem('seams.voiceid.required.v1', 'required');
-}
 function mainnetApproval(): Promise<void> {
   return window.voiceJourney.requestMainnetApproval();
 }

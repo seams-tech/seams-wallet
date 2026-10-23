@@ -1,7 +1,7 @@
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
   walletHostExecutionFingerprint,
-  type WalletHostConfigurationState,
+  type ConfiguredWalletHost,
 } from '@/SeamsWeb/walletIframe/shared/configuration';
 import { resolveNearNetwork } from '@/core/config/chains';
 import {
@@ -12,8 +12,6 @@ import {
 import { ActionType } from '@shared/near/actions';
 import { isPlainObject } from '@shared/utils/validation';
 import { listenForVoiceApproval, sameVoiceBinding, type VoiceBinding } from './bridge';
-
-export const VOICE_ID_POLICY_KEY = 'seams.voiceid.required.v1';
 
 export type VoiceIdPolicy =
   | { readonly kind: 'disabled'; readonly approval?: never }
@@ -40,13 +38,6 @@ function assertNever(value: never): never {
   throw new Error(`Unexpected voice outcome: ${String(value)}`);
 }
 
-export function voiceIdIsRequired(): boolean {
-  const stored = localStorage.getItem(VOICE_ID_POLICY_KEY);
-  if (stored === null) return false;
-  if (stored === 'required') return true;
-  throw new Error('The VoiceID setting is invalid. Open the wallet VoiceID settings.');
-}
-
 function freezeRequestValue(value: unknown): void {
   if (!isPlainObject(value) && !Array.isArray(value)) return;
   for (const child of Object.values(value)) freezeRequestValue(child);
@@ -57,9 +48,8 @@ function freezeRequestValue(value: unknown): void {
 // configuration before runtime code can normalize or change either value.
 export async function voiceIdPolicyForRequest(
   request: ParentToChildEnvelope,
-  configuration: WalletHostConfigurationState,
+  configuration: ConfiguredWalletHost,
 ): Promise<VoiceIdPolicy> {
-  if (!voiceIdIsRequired()) return { kind: 'disabled' };
   switch (request.type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
     case 'PM_SIGN_DELEGATE_ACTION':
@@ -67,10 +57,7 @@ export async function voiceIdPolicyForRequest(
     case 'PM_SIGN_TEMPO':
       throw unsupportedVoiceOperation();
     case 'PM_SIGN_AND_SEND_TX': {
-      if (
-        configuration.kind !== 'configured' ||
-        resolveNearNetwork(configuration.config.network.chains) !== 'testnet'
-      ) {
+      if (resolveNearNetwork(configuration.config.network.chains) !== 'testnet') {
         throw new TransactionReviewError(
           'review_unsupported_mode',
           'This VoiceID prototype requires NEAR testnet.',
@@ -149,8 +136,13 @@ export class VoiceIdApproval {
       return;
     }
     if (this.state.kind !== 'pending') throw new Error('Voice approval already started.');
-    if (!navigator.userActivation.isActive)
-      throw new Error('Select Confirm to start voice capture.');
+    if (
+      !navigator.userActivation.isActive ||
+      document.visibilityState !== 'visible' ||
+      !document.hasFocus()
+    ) {
+      throw new Error('Open the Wallet review and select Confirm to start voice capture.');
+    }
     const remaining = Math.min(25_000, this.reviewExpiresAtMs - Date.now());
     if (remaining < 250 || signal.aborted)
       throw new Error('This voice review has expired or closed.');

@@ -75,6 +75,20 @@ class VoiceIdNearSigningEvidence {
   }
 }
 
+class VoiceIdChunkObservation {
+  private requests = 0;
+
+  readonly observe = (request: Request): void => {
+    if (/\/approval-[A-Za-z0-9_-]+\.js$/.test(new URL(request.url()).pathname)) {
+      this.requests += 1;
+    }
+  };
+
+  count(): number {
+    return this.requests;
+  }
+}
+
 export async function verifyVoiceIdNearTransfer(
   identity: NearIdentity,
   base64: string,
@@ -166,8 +180,12 @@ export async function verifyVoiceIdNearSigning(args: {
     ),
   );
   await context.addInitScript({ content: bundles[0].code });
+  const voiceIdChunk = new VoiceIdChunkObservation();
+  context.on('request', voiceIdChunk.observe);
+  harness.enableVoiceIdPlugin();
   await harness.registerPasskeyEd25519YaoWallet();
   await harness.assertRegistrationOwnerSessionIsActive();
+  expect(voiceIdChunk.count()).toBe(0);
   await installVoiceObservation(page);
   const evidence = new VoiceIdNearSigningEvidence(
     args.gatewayOrigin,
@@ -175,14 +193,6 @@ export async function verifyVoiceIdNearSigning(args: {
     'available',
   );
   await evidence.observe(context);
-  const settings = await context.newPage();
-  await settings.goto(`${args.walletOrigin}/sdk/voiceid.html`);
-  await settings.getByRole('button', { name: 'Enable VoiceID', exact: true }).click();
-  await expect(settings.getByRole('status')).toHaveText(
-    'VoiceID is required on this wallet origin.',
-  );
-  await settings.close();
-
   const outcomes: string[] = [];
   for (const command of ['cancel', 'other_speaker', 'extra_words'] as const) {
     await voice.select(command);
@@ -195,6 +205,7 @@ export async function verifyVoiceIdNearSigning(args: {
     );
     expect(denial.message).toBe('Request cancelled.');
     outcomes.push(command === 'cancel' ? 'cancelled' : 'rejected');
+    expect(voiceIdChunk.count()).toBeGreaterThan(0);
     expect(await readVoiceOutcomes(page)).toEqual(outcomes);
     expect(evidence.snapshot()).toEqual({ finalizations: 0, transfers: 0 });
     await waitForWalletIframeConfirmationSettlement(page);
@@ -239,6 +250,7 @@ export async function verifyVoiceIdNearSigning(args: {
     differentSpeakerPreventedFinalization: true,
     extraWordsPreventedFinalization: true,
     observedVoiceOutcomes: [...outcomes, 'approved'],
+    voiceIdPluginLoadedOnFirstUse: true,
     owner: evidence.identity,
     transfers: evidence.transfers,
   };

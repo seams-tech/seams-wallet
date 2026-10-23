@@ -22,7 +22,8 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
-The optional VoiceID prototype calls a loopback service from the wallet iframe.
+The SDK enables the optional VoiceID plugin by configuration. The wallet iframe
+loads its implementation on first use and calls a loopback service on the device.
 It sends one bounded operation hash and receives a voice result from the native
 host. The wallet iframe owns the approval lifecycle and consumes the result
 before signing. The local service and native host receive no wallet secrets or

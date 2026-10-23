@@ -1,4 +1,5 @@
 import type { Variant } from '@shared/utils/variant';
+import { parseWalletAuthMethodPlugins } from '@/core/authMethods/plugins';
 import { normalizeWalletLocale } from '@/core/ui/locale';
 import { parseWebAuthnRpId, type WebAuthnRpId } from '@shared/utils/domainIds';
 import type { AppearanceConfig, SeamsClientConfig, SeamsConfigsReadonly } from '@/core/types/seams';
@@ -24,6 +25,7 @@ function resolveWalletRpId(config: SeamsClientConfig): WebAuthnRpId {
 
 export function createWalletHostConfig(config: SeamsClientConfig): WalletHostConfig {
   return {
+    authMethods: config.authMethods,
     network: config.network,
     registration: config.registration,
     signing: config.signing,
@@ -203,8 +205,13 @@ function isHostWallet(value: unknown): boolean {
 }
 
 function isWalletHostConfig(value: unknown): value is WalletHostConfig {
+  if (!isPlainObject(value)) return false;
+  try {
+    parseWalletAuthMethodPlugins(value.authMethods);
+  } catch {
+    return false;
+  }
   return (
-    isPlainObject(value) &&
     isNetwork(value.network) &&
     isRegistration(value.registration) &&
     isSigning(value.signing) &&
@@ -229,6 +236,7 @@ export function replaceWalletHostAppearance(
   appearance: AppearanceConfig,
 ): WalletHostConfig {
   return {
+    authMethods: config.authMethods,
     network: config.network,
     registration: config.registration,
     signing: config.signing,
@@ -311,6 +319,7 @@ function normalizeForStableSerialize(value: unknown): unknown {
 export function walletHostExecutionFingerprint(config: WalletHostConfig | null): string {
   return JSON.stringify(
     normalizeForStableSerialize({
+      authMethods: config?.authMethods,
       network: config?.network,
       registration: config?.registration,
       signing: config?.signing,

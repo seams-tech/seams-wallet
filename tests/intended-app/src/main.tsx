@@ -1,6 +1,11 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider, TransactionReviewHost, defineSeamsConfig } from '@seams/wallet/react';
+import {
+  SeamsWebProvider,
+  TransactionReviewHost,
+  defineSeamsConfig,
+  voiceIdAuthMethod,
+} from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';
 import { EmailCodeUnlock } from './EmailCodeUnlock';
@@ -38,6 +43,9 @@ function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
 const config = defineSeamsConfig({
   walletOrigin,
+  authMethods: new URL(window.location.href).searchParams.get('authMethod') === 'voiceid'
+    ? [voiceIdAuthMethod()]
+    : [],
   signingSessionDefaults: signingSessionDefaultsFromUrl(),
   relayerUrl: requiredEnvironmentValue('VITE_RELAYER_URL'),
   projectEnvironmentId: requiredEnvironmentValue('VITE_SEAMS_PROJECT_ENVIRONMENT_ID'),

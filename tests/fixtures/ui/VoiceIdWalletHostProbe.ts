@@ -16,6 +16,7 @@ import { walletIframeRequestIdFromBoundary } from '@/core/types/walletIframeIden
 import { ActionType, toActionArgsWasm } from '@shared/near/actions';
 import type { Variant } from '@shared/utils/variant';
 import { buildConfigsFromEnv } from '@/core/config/defaultConfigs';
+import { voiceIdAuthMethod } from '@/core/authMethods/plugins';
 import {
   applyWalletConfigurationUpdate,
   createWalletHostConfig,
@@ -240,6 +241,7 @@ function transferRequest(generation: number, timeoutMs: number, amount: string):
 
 function journeyConfiguration(network: 'near-testnet' | 'near-mainnet') {
   const config = buildConfigsFromEnv({
+    authMethods: [voiceIdAuthMethod()],
     relayer: { url: location.origin },
     iframeWallet: { walletOrigin: location.origin },
     chains: [{ network, rpcUrl: location.origin, explorerUrl: location.origin }],

@@ -192,8 +192,24 @@ wallet can be absent from the Console list and unavailable for region moves.
 - `@seams/wallet/threshold` — session-policy helpers, PRF salts, and intent digests.
 - `@seams/wallet/runtime` — explicit platform ports and custom signing runtime.
 
-Use the documented package exports. Agent-lane issuance and VoiceID
-authentication are planned and have no public API in this release.
+Use the documented package exports. Agent-lane issuance remains planned.
+The VoiceID approval prototype is opt-in:
+
+```ts
+import { defineSeamsConfig, voiceIdAuthMethod } from '@seams/wallet';
+
+const config = defineSeamsConfig({
+  walletOrigin,
+  relayerUrl,
+  publishableKey,
+  authMethods: [voiceIdAuthMethod()],
+});
+```
+
+The SDK loads its Wallet-origin VoiceID code on first use. The current plugin
+gates a reviewed NEAR testnet transfer on the local device. Fresh Wallet Session
+unlock through VoiceID is still under implementation and requires a registered
+device key, server verification, and a custody envelope.
 
 ## Develop from source
 

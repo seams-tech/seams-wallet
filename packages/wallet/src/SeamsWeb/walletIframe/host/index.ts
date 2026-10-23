@@ -1,13 +1,11 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
-import {
-  voiceIdIsRequired,
-  voiceIdPolicyForRequest,
-  VOICE_ID_POLICY_KEY,
-} from '@/core/signingEngine/uiConfirm/voiceId/approval';
+import { walletAuthMethodPluginEnabled } from '@/core/authMethods/plugins';
+import type { VoiceIdPolicy } from '@/core/signingEngine/uiConfirm/voiceId/approval';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
   walletHostExecutionFingerprint,
+  type WalletHostConfigurationState,
 } from '../shared/configuration';
 import {
   TransactionReviewAdmission,
@@ -54,17 +52,22 @@ import {
 
 let initialized = false;
 
-function voiceIdSettingChanged(event: StorageEvent): void {
-  if (event.key !== VOICE_ID_POLICY_KEY && event.key !== null) return;
-  cancelTransactionReviews(
-    new TransactionReviewError(
-      'review_identity_changed',
-      'The VoiceID setting changed. Start a new review.',
-    ),
+async function voiceIdPolicyForConfiguredRequest(
+  request: ParentToChildEnvelope,
+  configuration: WalletHostConfigurationState,
+): Promise<VoiceIdPolicy> {
+  if (
+    configuration.kind !== 'configured' ||
+    !walletAuthMethodPluginEnabled(configuration.config.authMethods, 'voiceid')
+  ) {
+    return { kind: 'disabled' };
+  }
+  if (!request.type.startsWith('PM_SIGN_')) return { kind: 'disabled' };
+  const { voiceIdPolicyForRequest } = await import(
+    '@/core/signingEngine/uiConfirm/voiceId/approval'
   );
+  return voiceIdPolicyForRequest(request, configuration);
 }
-
-window.addEventListener('storage', voiceIdSettingChanged);
 
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
@@ -251,18 +254,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
-      const voiceId = await voiceIdPolicyForRequest(req, state.configuration);
+      const voiceId = await voiceIdPolicyForConfiguredRequest(req, state.configuration);
       if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
         return;
-      if (
-        req.type.startsWith('PM_SIGN_') &&
-        voiceIdIsRequired() !== (voiceId.kind === 'required')
-      ) {
-        throw new TransactionReviewError(
-          'review_identity_changed',
-          'The VoiceID setting changed. Start a new review.',
-        );
-      }
       if ('transactionReview' in req) {
         if (req.type !== 'PM_SIGN_AND_SEND_TX' && req.type !== 'PM_SIGN_TEMPO') {
           throw new TransactionReviewError(

@@ -11,29 +11,16 @@ export type VoiceBinding = Readonly<{
 
 type VoiceOutcome = 'approved' | 'cancelled' | 'rejected' | 'failed';
 type NativeReply =
-  | { kind: 'status'; id: string; enrollment: 'ready' | 'empty' }
   | { kind: 'listening'; binding: VoiceBinding }
   | { kind: 'result'; binding: VoiceBinding; outcome: VoiceOutcome };
 
-type ExchangeInput =
-  | { kind: 'status'; id: string; onListening?: never; binding?: never }
-  | { kind: 'listen'; binding: VoiceBinding; onListening: () => void; id?: never };
-
 type ExchangeState =
-  | { kind: 'status'; id: string }
   | { kind: 'starting'; binding: VoiceBinding; onListening: () => void }
   | { kind: 'listening'; binding: VoiceBinding }
   | { kind: 'settled' };
 
 function parseNativeReply(value: unknown): NativeReply {
   if (!isPlainObject(value)) throw new Error('VoiceID returned an invalid message.');
-  if (
-    value.kind === 'status' &&
-    typeof value.id === 'string' &&
-    (value.enrollment === 'ready' || value.enrollment === 'empty')
-  ) {
-    return { kind: 'status', id: value.id, enrollment: value.enrollment };
-  }
   const binding = value.binding;
   if (
     (value.kind === 'result' || value.kind === 'listening') &&
@@ -80,28 +67,29 @@ class NativeExchange {
   private state: ExchangeState;
   readonly reply = this.completion.promise;
 
-  constructor(input: ExchangeInput, timeoutMs: number, signal: AbortSignal) {
-    if (input.kind === 'status') this.state = { kind: 'status', id: input.id };
-    else this.state = { kind: 'starting', binding: input.binding, onListening: input.onListening };
+  constructor(
+    binding: VoiceBinding,
+    onListening: () => void,
+    timeoutMs: number,
+    signal: AbortSignal,
+  ) {
+    this.state = { kind: 'starting', binding, onListening };
     this.signal = signal;
     this.timer = setTimeout(this.expire, timeoutMs);
     signal.addEventListener('abort', this.aborted, { once: true });
     if (signal.aborted) this.aborted();
-    else void this.exchange(input);
+    else void this.exchange(binding);
   }
 
-  private async exchange(input: ExchangeInput): Promise<void> {
+  private async exchange(binding: VoiceBinding): Promise<void> {
     try {
-      const request = input.kind === 'status'
-        ? { kind: 'status', id: input.id }
-        : { kind: 'listen', binding: input.binding };
       const response = await fetch(LOCAL_BRIDGE_URL, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'x-voiceid-protocol': 'v1',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({ kind: 'listen', binding }),
         cache: 'no-store',
         credentials: 'omit',
         signal: this.controller.signal,
@@ -152,19 +140,14 @@ class NativeExchange {
         state.onListening();
         return;
       }
-      if (reply.kind === 'status') {
-        if (state.kind !== 'status' || state.id !== reply.id)
-          throw new Error('Unexpected VoiceID status.');
-      } else {
-        if (
-          state.kind !== 'listening' &&
-          (state.kind !== 'starting' || reply.outcome !== 'failed')
-        ) {
-          throw new Error('VoiceID returned a result before capture.');
-        }
-        if (!sameVoiceBinding(state.binding, reply.binding))
-          throw new Error('VoiceID returned a different operation.');
+      if (
+        state.kind !== 'listening' &&
+        (state.kind !== 'starting' || reply.outcome !== 'failed')
+      ) {
+        throw new Error('VoiceID returned a result before capture.');
       }
+      if (!sameVoiceBinding(state.binding, reply.binding))
+        throw new Error('VoiceID returned a different operation.');
       this.close();
       this.completion.resolve(reply);
     } catch {
@@ -198,23 +181,13 @@ class NativeExchange {
   }
 }
 
-export async function nativeEnrollmentStatus(signal: AbortSignal): Promise<'ready' | 'empty'> {
-  const id = crypto.randomUUID();
-  const exchange = new NativeExchange({ kind: 'status', id }, 60_000, signal);
-  const reply = await exchange.reply;
-  if (reply.kind !== 'status' || reply.id !== id) {
-    throw new Error('VoiceID returned a different request.');
-  }
-  return reply.enrollment;
-}
-
 export async function listenForVoiceApproval(
   binding: VoiceBinding,
   timeoutMs: number,
   signal: AbortSignal,
   onListening: () => void,
 ): Promise<VoiceOutcome> {
-  const exchange = new NativeExchange({ kind: 'listen', binding, onListening }, timeoutMs, signal);
+  const exchange = new NativeExchange(binding, onListening, timeoutMs, signal);
   const reply = await exchange.reply;
   if (reply.kind !== 'result' || !sameVoiceBinding(binding, reply.binding)) {
     throw new Error('VoiceID returned a different operation.');

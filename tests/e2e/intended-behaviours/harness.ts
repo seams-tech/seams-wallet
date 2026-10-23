@@ -1247,6 +1247,7 @@ export class IntendedBehaviourHarness {
 
   /** This device's place in a device-link contract: Device 1 registered the wallet. */
   private deviceNumber = 1;
+  private voiceIdPluginEnabled = false;
 
   constructor(args: {
     context: BrowserContext;
@@ -1276,6 +1277,10 @@ export class IntendedBehaviourHarness {
     await this.installWebAuthnVirtualAuthenticator();
     await this.resetBrowserStorage();
     await this.assertServicesReady();
+  }
+
+  enableVoiceIdPlugin(): void {
+    this.voiceIdPluginEnabled = true;
   }
 
   async registerPasskeyWallet(): Promise<void> {
@@ -4486,6 +4491,7 @@ export class IntendedBehaviourHarness {
   private intendedPageUrl(): URL {
     const url = new URL('/__intended-e2e', this.config.appUrl);
     url.searchParams.set('flow', this.flow);
+    if (this.voiceIdPluginEnabled) url.searchParams.set('authMethod', 'voiceid');
     url.searchParams.set('walletId', this.walletId);
     if (this.registeredWallet?.nearReadiness === 'ready') {
       url.searchParams.set('nearAccountId', this.registeredWallet.nearAccountId);
