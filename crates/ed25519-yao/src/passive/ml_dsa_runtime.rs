@@ -1271,12 +1271,16 @@ fn pack_bits(bits: &[bool]) -> Vec<u8> {
 fn read_u32(bytes: &[u8]) -> usize {
     u32::from_be_bytes(bytes.try_into().expect("fixed public width")) as usize
 }
+#[inline(always)]
 fn read_slot(bytes: &[u8]) -> usize {
-    let mut result = 0;
-    for byte in bytes {
-        result = (result << 8) | usize::from(*byte);
+    // Width is public and checked before any circuit record is decoded.
+    match bytes {
+        [a] => usize::from(*a),
+        [a, b] => usize::from(u16::from_be_bytes([*a, *b])),
+        [a, b, c] => u32::from_be_bytes([0, *a, *b, *c]) as usize,
+        [a, b, c, d] => u32::from_be_bytes([*a, *b, *c, *d]) as usize,
+        _ => unreachable!("Public circuit index has an invalid width"),
     }
-    result
 }
 fn check(condition: bool, error: RuntimeError) -> Result<()> {
     if condition {

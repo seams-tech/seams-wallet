@@ -384,10 +384,20 @@ impl PreparedGmwBatch<'_> {
             .map(|group| group.topology.layers.len())
             .max()
             .unwrap_or(0);
+        let mut outgoing =
+            Zeroizing::new(Vec::with_capacity(opening_capacity(&self.groups, depth)));
         let mut exchanges = 0;
         for layer in 0..depth {
-            exchanges +=
-                usize::from(evaluate_layer(layer, &self.groups, &mut values, &mut context).await?);
+            exchanges += usize::from(
+                evaluate_layer(
+                    layer,
+                    &self.groups,
+                    &mut values,
+                    &mut outgoing,
+                    &mut context,
+                )
+                .await?,
+            );
         }
         context.set_phase(Phase::Output);
         let outputs = outputs(&self.groups, &self.instances, &values, &mut context).await?;
@@ -443,13 +453,27 @@ fn correlation_word(bytes: &[u8], group: &Group<'_>, gate: usize, word: usize) -
     read_word(&bytes[start..start + word_bytes(group, word)])
 }
 
+fn opening_capacity(groups: &[Group<'_>], depth: usize) -> usize {
+    let mut maximum = 0;
+    for index in 0..depth {
+        let mut bytes = 0;
+        for group in groups {
+            if let Some(layer) = group.topology.layers.get(index) {
+                bytes += 2 * layer.and_indices.len() * group.lanes.div_ceil(8);
+            }
+        }
+        maximum = maximum.max(bytes);
+    }
+    maximum
+}
+
 async fn evaluate_layer(
     depth: usize,
     groups: &[Group<'_>],
     values: &mut [Zeroizing<Vec<u32>>],
+    outgoing: &mut Zeroizing<Vec<u8>>,
     context: &mut Context<'_, impl Transport>,
 ) -> Result<bool> {
-    let mut outgoing = Zeroizing::new(Vec::new());
     for (group, own) in groups.iter().zip(values.iter()) {
         let Some(layer) = group.topology.layers.get(depth) else {
             continue;
@@ -507,6 +531,8 @@ async fn evaluate_layer(
             }
         }
     }
+    outgoing.as_mut_slice().zeroize();
+    outgoing.clear();
     Ok(exchanged)
 }
 

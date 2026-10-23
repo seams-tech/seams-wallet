@@ -37,6 +37,13 @@ Both reserves restore and material ledgers balance with unchanged capacity. New 
 The sequential screen establishes no causal full-latency or refill-throughput gain. Partial telemetry joins remain explicit in the evidence.
 All ten temporary Workers are deleted. Next, reduce first-use layout construction and repeated per-pair setup after isolating their complete hosted costs.
 Keep wallet-seed recovery, FIPS export, private commitments, two-at-once consumption, and the thirty-two-candidate capacity unchanged.
+The [setup and per-pair allocation screen](ml-dsa-65-setup-cost-report.md) retains direct public-index decoding and one zeroized outgoing buffer per GMW batch.
+The isolated layout probe improves from 43.902 to 36.484 ms for one AND-count parse plus three constructions. Full validation and Worker startup are excluded.
+Native, mixed-version, local Worker lifecycle, canonical recovery, and export checks pass.
+Hosted results remain variable. The candidate's initial slowdown also occurs after restoring the control binary to the same Workers.
+No causal hosted gain or consistent five-second qualification is established. Complete-demand capacity waits remain part of the evidence.
+All measured material ledgers balance at unchanged capacity. The report records the control reversal, candidate repeat, and narrow interruption-evidence correction.
+Next, isolate complete first-use validation and compilation, then repeated key-state construction and committed-pair restoration.
 The latest [resource and dispatch screen](ml-dsa-65-resource-dispatch-report.md) verifies nineteen load signatures, with eleven final HTTP attempts below five seconds.
 Final HTTP latency is 3.568 seconds median and 6.891 seconds maximum. Complete demand is 6.496 seconds median, with two long unfinished demands.
 Creation/recovery takes 6.413–8.552 seconds. Four-candidate preparation takes 19.146 seconds median. Both five-second targets remain unmet.

@@ -1,0 +1,2677 @@
+{
+  "schema": "seams.ml-dsa-setup-cost.v1",
+  "base_commit": "00397c8e",
+  "source_receipts": {
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs": {
+      "base_sha256": "3adb65665f338a6dd092b9d00ad4aff35431ee94ef851a86b2a3be11055223cb",
+      "candidate_sha256": "9dbed7ca39ec5097cce9504df2c31948a12305b9806f12bfc7f807c123384297"
+    },
+    "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs": {
+      "base_sha256": "a9817d8d8ede84d23f44d8dcf8590d03de20abaccea78978dccf0502ed157102",
+      "candidate_sha256": "87e26b1e8bd1d757ff242f27c05dcd045e7c5b8870199b22577ea691ca18253d"
+    },
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": {
+      "base_sha256": "a122bb1d032d1f41321ab32b76909fadff048e5ef31cfcf6a7232a681aa4dbd2",
+      "candidate_sha256": "b5f98bac604e8a4dc9d89177e0b686f43513edff0f734e3e4c46388d3ff43938"
+    }
+  },
+  "native": {
+    "scope": "Three alternating observations per native variant with fresh correlations and fixed public oracle workloads. Includes peer waits. This is an engine component, not full signing or hosted latency.",
+    "samples": {
+      "baseline": [
+        {
+          "file": "baseline-gmw-0.json",
+          "a_ns": 13589209,
+          "b_ns": 13884500,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        },
+        {
+          "file": "baseline-gmw-3.json",
+          "a_ns": 13685000,
+          "b_ns": 13505208,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        },
+        {
+          "file": "baseline-gmw-4.json",
+          "a_ns": 11297458,
+          "b_ns": 11333875,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        }
+      ],
+      "candidate": [
+        {
+          "file": "candidate-gmw-1.json",
+          "a_ns": 12045583,
+          "b_ns": 11962250,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        },
+        {
+          "file": "candidate-gmw-2.json",
+          "a_ns": 10561208,
+          "b_ns": 10550792,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        },
+        {
+          "file": "candidate-gmw-5.json",
+          "a_ns": 11432541,
+          "b_ns": 11379541,
+          "batch": {
+            "and_exchanges": 168,
+            "and_gates": 2467738,
+            "instances": 105,
+            "phases": [
+              {
+                "received_bytes": 672,
+                "sent_bytes": 8442
+              },
+              {
+                "received_bytes": 533440,
+                "sent_bytes": 2089920
+              },
+              {
+                "received_bytes": 0,
+                "sent_bytes": 0
+              },
+              {
+                "received_bytes": 32,
+                "sent_bytes": 32
+              },
+              {
+                "received_bytes": 1103568,
+                "sent_bytes": 1103568
+              },
+              {
+                "received_bytes": 131,
+                "sent_bytes": 199
+              }
+            ],
+            "private_state_allocation_bytes": 2007628,
+            "topology_allocation_bytes": 48993144
+          }
+        }
+      ]
+    },
+    "median_role_b_online_ns": {
+      "baseline": 13505208,
+      "candidate": 11379541
+    },
+    "identical_metrics": true
+  },
+  "public_layout_probe": {
+    "scope": "Public layout CPU diagnostic in Node Wasm. Production decoder, compiler and slot reuse, with standalone public parser. Includes one AND-count parse plus three layout constructions per sample. Excludes SHA-256, full schedule validation, Workers, private inputs and networking. Module compilation and fixture transfer are outside timing. These are probe results, not complete signing latencies.",
+    "node": "v26.4.0",
+    "modules": {
+      "baseline": "994a0f85047c1684efed20fe7ffeb85e43dc15e51eaa1a393247ae71d2ea8043",
+      "candidate": "205361d2db50bbb19cc083f635d710fa365cebd49cb2d2ddf6977e690bd3caa8"
+    },
+    "circuits": [
+      {
+        "name": "fresh-mask",
+        "scheduleSha256": "f9c8027fbd968d55fa0418d0473e11eb511c19b2418d4ea356a79bd29c72a5ed",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.578375000000001,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 2.035249999999998,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 2.037084,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.6803329999999974,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.6929170000000013,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 2.1046249999999986,
+            "checksum": 134400,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.983833000000004,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 3.4566249999999954,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 3.4056659999999965,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.912125000000003,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.9214999999999947,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 3.4176669999999945,
+            "checksum": 22784,
+            "allocatedWasmBytes": 4456448
+          }
+        ]
+      },
+      {
+        "name": "prepared-commitment",
+        "scheduleSha256": "b579f57b089e7ed31abe7a96940ea8787502f3029972f5436f666d5b2440432e",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 5.368250000000003,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 4.455458000000007,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 4.070791999999997,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 5.501708999999991,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 5.281499999999994,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 4.303041000000007,
+            "checksum": 248320,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 7.8250830000000065,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 6.962583000000009,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 6.844750000000005,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 7.798749999999998,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 7.7687910000000215,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 6.9432079999999985,
+            "checksum": 31744,
+            "allocatedWasmBytes": 7536640
+          }
+        ]
+      },
+      {
+        "name": "commitment-hash",
+        "scheduleSha256": "5cf192972068135e97d0ca9173121e7dda91bd49d9f301b63b2544c78a488361",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 30.006708000000003,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 24.36379100000002,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 22.99670900000001,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 30.13145800000001,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 29.87816700000002,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 23.358458999999982,
+            "checksum": 1363744,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 44.30433399999998,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 35.66825,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 36.48399999999998,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 43.71224999999998,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 43.901625000000024,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 37.25045899999998,
+            "checksum": 13185,
+            "allocatedWasmBytes": 37814272
+          }
+        ]
+      },
+      {
+        "name": "response-check",
+        "scheduleSha256": "22d8f22555ec0149ce158913443672150a5091ae8c3d9210f127f7b7d09e04b6",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.7576250000000755,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.738416999999913,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.6602080000000115,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.2534579999999096,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.4858330000000706,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.67937500000005,
+            "checksum": 101634,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.110457999999994,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.937000000000012,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.6988329999999223,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.20962499999996,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.391458000000057,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.8962910000000193,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          }
+        ]
+      },
+      {
+        "name": "low-response-check",
+        "scheduleSha256": "ad63ee91661532b0a84c883f8f289a8a290ff6f682e80e92d3bed533ec4ca687",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.082084000000009,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.8056249999999636,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.669917000000055,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.2346659999999474,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 2.194415999999933,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 1.7235000000000582,
+            "checksum": 101890,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.316291999999976,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.861833000000047,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.9071250000000646,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.378417000000013,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 3.288874999999962,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 2.9257920000000013,
+            "checksum": 17154,
+            "allocatedWasmBytes": 3801088
+          }
+        ]
+      },
+      {
+        "name": "bounds-decision",
+        "scheduleSha256": "dbe96ab2435584c3082ec4f2bddf59bbd059af039497d14cf345003786c214b1",
+        "samples": [
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 0.0038749999999936335,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 0.004000000000019099,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 0.0027919999999994616,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 0.0029589999999188876,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "baseline",
+            "compact": false,
+            "elapsedMs": 0.0028340000000071086,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": false,
+            "elapsedMs": 0.0027499999999918145,
+            "checksum": 3350,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 0.011791000000016538,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 0.01170799999999872,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 0.011249999999904503,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 0.011542000000076769,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "baseline",
+            "compact": true,
+            "elapsedMs": 0.01125000000001819,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          },
+          {
+            "variant": "candidate",
+            "compact": true,
+            "elapsedMs": 0.011875000000031832,
+            "checksum": 3329,
+            "allocatedWasmBytes": 1179648
+          }
+        ]
+      }
+    ]
+  },
+  "local": [
+    {
+      "profile": "baseline",
+      "exit_code": 0,
+      "passed": true,
+      "signing_ms": [
+        96.4410410000055,
+        584.4340830000001,
+        204.41008400000283
+      ]
+    },
+    {
+      "profile": "candidate",
+      "exit_code": 0,
+      "passed": true,
+      "signing_ms": [
+        135.79029199999786,
+        798.5498330000119,
+        92.97054199999548
+      ]
+    },
+    {
+      "profile": "candidate-registration",
+      "exit_code": 0,
+      "passed": true
+    }
+  ],
+  "local_matched_cohorts": [
+    {
+      "cache": "reused",
+      "pairs": 1,
+      "baseline_operation": "8eca1545d6ebe1cc331999977ec001501e99b8cd9964bc7f7181260cd790ab32",
+      "candidate_operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+      "baseline_ms": 96.4410410000055,
+      "candidate_ms": 92.97054199999548,
+      "same_payload_lengths": true
+    }
+  ],
+  "worker_builds": {
+    "scope": "Frozen control artifacts from the prior packed build. Runtime source became commit 00397c8eb1652045f51aa3cf3e719501207734b0. Current E2E source receipts do not identify these binary sources. Candidate artifacts were built before the E2E-only correction.",
+    "baseline": {
+      "router": {
+        "bytes": 42374627,
+        "sha256": "a2c5e6272638cef7e873bca0d081f4a3ad2363459e6f0f6ab84c0d450d80ba29"
+      },
+      "deriver-a": {
+        "bytes": 46254393,
+        "sha256": "edc416d3efcdd6fed057063ab9f02a8c6a144221a025dffae34179db94f6e239"
+      },
+      "deriver-b": {
+        "bytes": 46291707,
+        "sha256": "ee5f21fc278be5d8b9820b759606c32bf15fc5312a3e907e3316dee0e003b628"
+      }
+    },
+    "candidate": {
+      "router": {
+        "bytes": 42375389,
+        "sha256": "678c9840fd6060fa1e87c568885963c214307c242d685192bd53513e1460a0af"
+      },
+      "deriver-a": {
+        "bytes": 46255134,
+        "sha256": "2dfc3bbb49406655dd12b4d40a1791cdea167a479228a189e5328c79efba64e0"
+      },
+      "deriver-b": {
+        "bytes": 46292448,
+        "sha256": "f06b6bf31ca3bb5980a72c3102a0a33f30808e9e35f5b97f1908e18de173f05b"
+      }
+    }
+  },
+  "initial_lifecycle_failure": {
+    "classification": "valid_test_needs_update",
+    "invariant": "Private commitment completion must precede durable publication and consumption.",
+    "failure": "A producer completion log was required after an intentional interruption that withholds the successful durable Put response.",
+    "material": "f0e0205ea3cb51efd67af1dc4d812c0e03a99b73ecc92bd65b63b7ed6d315eb4",
+    "facts": [
+      "Both commitment_completed stages exist before sealing.",
+      "B published stage exists. A published stage is absent.",
+      "The fault holds the second A Put response after status200.",
+      "The test observes both role inventories as Ready before resetting the runtime.",
+      "Subsequent standard signatures verify with committed-refill online depths."
+    ],
+    "change": "Record that exact paired Ready snapshot and the already-received preparation event count. Use it only for a missing completion marker on the known interrupted job. Preserve strict ordering checks for recorded completion markers and refuse missing markers elsewhere.",
+    "production_lifecycle_changed": false
+  },
+  "hosted_registration": {
+    "scope": "Sequential Cloudflare registration screen, four ceremonies and four initial-stock signatures per profile. Preparation is separate. Load results use a separate artifact. Browser and production percentile parity remain unqualified.",
+    "profiles": {
+      "baseline": {
+        "registration_ms": {
+          "count": 4,
+          "minimum": 4484.21424999999,
+          "median": 5300.046916500007,
+          "maximum": 5389.657999999996,
+          "under_5000": 1
+        },
+        "preparation_ms": {
+          "count": 4,
+          "minimum": 52617.887,
+          "median": 56875.69329149999,
+          "maximum": 77677.65029199999,
+          "under_5000": 0
+        },
+        "initial_attempt_ms": {
+          "count": 4,
+          "minimum": 3568.3690829999978,
+          "median": 3818.314166499993,
+          "maximum": 11087.235915999998,
+          "under_5000": 3
+        },
+        "initial_successful_signing_ms": {
+          "count": 4,
+          "minimum": 3568.3690829999978,
+          "median": 3818.314166499993,
+          "maximum": 11087.235915999998,
+          "under_5000": 3
+        },
+        "raw_full_functional_passed": [
+          true,
+          true
+        ],
+        "trace_coverage_gaps": [
+          {
+            "wallet": 1,
+            "epoch": 1,
+            "role": "b"
+          }
+        ],
+        "a_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 211,
+          "median": 222.5,
+          "maximum": 320,
+          "under_5000": 4
+        },
+        "b_execution_cpu_ms": {
+          "count": 3,
+          "minimum": 1337,
+          "median": 1776,
+          "maximum": 1907,
+          "under_5000": 3
+        },
+        "a_installation_wall_ms": {
+          "count": 4,
+          "minimum": 1107,
+          "median": 1541.0,
+          "maximum": 1696,
+          "under_5000": 4
+        },
+        "b_installation_wall_ms": {
+          "count": 3,
+          "minimum": 1331,
+          "median": 1367,
+          "maximum": 1455,
+          "under_5000": 3
+        },
+        "initial_failures": []
+      },
+      "packed": {
+        "registration_ms": {
+          "count": 4,
+          "minimum": 6660.778875000004,
+          "median": 7431.111458000007,
+          "maximum": 9264.654791999987,
+          "under_5000": 0
+        },
+        "preparation_ms": {
+          "count": 4,
+          "minimum": 84994.01608300001,
+          "median": 87374.82985399998,
+          "maximum": 113419.6505,
+          "under_5000": 0
+        },
+        "initial_attempt_ms": {
+          "count": 4,
+          "minimum": 4511.615332999994,
+          "median": 6729.3793535,
+          "maximum": 10829.797667000006,
+          "under_5000": 1
+        },
+        "initial_successful_signing_ms": {
+          "count": 4,
+          "minimum": 4511.615332999994,
+          "median": 6729.3793535,
+          "maximum": 10829.797667000006,
+          "under_5000": 1
+        },
+        "raw_full_functional_passed": [
+          true,
+          true
+        ],
+        "trace_coverage_gaps": [],
+        "a_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 341,
+          "median": 382.5,
+          "maximum": 420,
+          "under_5000": 4
+        },
+        "b_execution_cpu_ms": {
+          "count": 4,
+          "minimum": 1388,
+          "median": 1649.0,
+          "maximum": 2727,
+          "under_5000": 4
+        },
+        "a_installation_wall_ms": {
+          "count": 4,
+          "minimum": 2252,
+          "median": 2296.0,
+          "maximum": 2600,
+          "under_5000": 4
+        },
+        "b_installation_wall_ms": {
+          "count": 4,
+          "minimum": 2011,
+          "median": 2439.5,
+          "maximum": 2890,
+          "under_5000": 4
+        },
+        "initial_failures": []
+      }
+    }
+  },
+  "hosted_load": {
+    "baseline": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "stock_ledger_complete": true,
+      "configured_pool_target_respected": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "common_post_initial_stock": {
+        "start_ms": 1792736103725.5635,
+        "elapsed_ms": 382607.4931640625,
+        "observed_new_paired_batches": 74,
+        "successful_signatures": 32,
+        "paired_batches_per_minute": 11.604581926199034,
+        "successful_signatures_per_minute": 5.0181975897076905
+      },
+      "successful_http_ms": {
+        "count": 48,
+        "minimum": 848.0155419999974,
+        "median": 1954.9700630000016,
+        "maximum": 12238.896707999986,
+        "sum": 116981.47608199995
+      },
+      "successful_demand_ms": {
+        "count": 48,
+        "minimum": 917.7813339999993,
+        "median": 20092.861896000002,
+        "maximum": 126766.361584,
+        "sum": 916653.752876
+      },
+      "successful_under_five_seconds": 44,
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 21,
+          "startMs": 441465.257209,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 38534.75262500002
+        },
+        {
+          "wallet": 0,
+          "number": 29,
+          "startMs": 475568.965542,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 4431.05237499997
+        }
+      ],
+      "successful_signatures": 48,
+      "functional_passed": true,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 28
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 20
+        }
+      ],
+      "non_ok_outcomes": {
+        "canceled": 82,
+        "exception": 1
+      },
+      "producer_clock_delta_ms": [
+        {
+          "count": 29,
+          "minimum": 3583,
+          "median": 8943,
+          "maximum": 13898,
+          "sum": 270404
+        },
+        {
+          "count": 29,
+          "minimum": 3700,
+          "median": 8792,
+          "maximum": 12268,
+          "sum": 251351
+        }
+      ]
+    },
+    "packed": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "stock_ledger_complete": true,
+      "configured_pool_target_respected": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "common_post_initial_stock": {
+        "start_ms": 1792737518760.3394,
+        "elapsed_ms": 333478.89501953125,
+        "observed_new_paired_batches": 28,
+        "successful_signatures": 10,
+        "paired_batches_per_minute": 5.03780006798213,
+        "successful_signatures_per_minute": 1.7992143099936178
+      },
+      "successful_http_ms": {
+        "count": 19,
+        "minimum": 1925.6879999999946,
+        "median": 4009.974333,
+        "maximum": 11873.321875000023,
+        "sum": 87755.1343730002
+      },
+      "successful_demand_ms": {
+        "count": 19,
+        "minimum": 2368.9924580000225,
+        "median": 38986.65387499999,
+        "maximum": 115141.12137499999,
+        "sum": 805962.158291
+      },
+      "successful_under_five_seconds": 12,
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 7,
+          "startMs": 366624.209125,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 113376.29045800003
+        },
+        {
+          "wallet": 1,
+          "number": 14,
+          "startMs": 439686.985792,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 40770.147750000004
+        }
+      ],
+      "successful_signatures": 19,
+      "functional_passed": true,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 6
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 13
+        }
+      ],
+      "non_ok_outcomes": {
+        "canceled": 49,
+        "exception": 1
+      },
+      "producer_clock_delta_ms": [
+        {
+          "count": 15,
+          "minimum": 15561,
+          "median": 18637,
+          "maximum": 28733,
+          "sum": 285869
+        },
+        {
+          "count": 17,
+          "minimum": 9615,
+          "median": 18196,
+          "maximum": 28550,
+          "sum": 312834
+        }
+      ]
+    },
+    "reversal": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "stock_ledger_complete": true,
+      "configured_pool_target_respected": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "common_post_initial_stock": {
+        "start_ms": 1792740195530.225,
+        "elapsed_ms": 130508.27978515625,
+        "observed_new_paired_batches": 10,
+        "successful_signatures": 1,
+        "paired_batches_per_minute": 4.597409459290435,
+        "successful_signatures_per_minute": 0.4597409459290435
+      },
+      "successful_http_ms": {
+        "count": 9,
+        "minimum": 1972.7655000000013,
+        "median": 5366.2304170000025,
+        "maximum": 9281.411166999998,
+        "sum": 48852.329790999975
+      },
+      "successful_demand_ms": {
+        "count": 9,
+        "minimum": 3439.9032910000096,
+        "median": 20731.781584000004,
+        "maximum": 157400.90287500003,
+        "sum": 532890.726084
+      },
+      "successful_under_five_seconds": 4,
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 5,
+          "startMs": 201296.580209,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 158873.89404099996
+        },
+        {
+          "wallet": 0,
+          "number": 6,
+          "startMs": 331964.204959,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 28036.51783299999
+        }
+      ],
+      "successful_signatures": 9,
+      "functional_passed": true,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 5
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 4
+        }
+      ],
+      "non_ok_outcomes": {
+        "canceled": 26
+      },
+      "producer_clock_delta_ms": [
+        {
+          "count": 12,
+          "minimum": 18306,
+          "median": 20820.0,
+          "maximum": 24950,
+          "sum": 251103
+        },
+        {
+          "count": 13,
+          "minimum": 18509,
+          "median": 19670,
+          "maximum": 23427,
+          "sum": 268482
+        }
+      ]
+    },
+    "rechallenge": {
+      "scope": "Exact-version concurrent-wallet screen. Common throughput starts only after every wallet consumes its excluded starting stock. Pending demands at the cutoff remain censored. Clock deltas do not partition CPU and waits.",
+      "stock_ledger_complete": true,
+      "configured_pool_target_respected": true,
+      "peak_observed_batches_per_role_and_wallet": 16,
+      "common_post_initial_stock": {
+        "start_ms": 1792741117867.3228,
+        "elapsed_ms": 196118.42431640625,
+        "observed_new_paired_batches": 16,
+        "successful_signatures": 5,
+        "paired_batches_per_minute": 4.895001595827585,
+        "successful_signatures_per_minute": 1.5296879986961203
+      },
+      "successful_http_ms": {
+        "count": 20,
+        "minimum": 2225.8125,
+        "median": 4829.616062500001,
+        "maximum": 9369.370208000008,
+        "sum": 99034.34383399998
+      },
+      "successful_demand_ms": {
+        "count": 20,
+        "minimum": 2225.9194169999973,
+        "median": 30744.0158545,
+        "maximum": 148348.734375,
+        "sum": 671653.14208
+      },
+      "successful_under_five_seconds": 12,
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 10,
+          "startMs": 306186.589125,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 53814.449708
+        }
+      ],
+      "successful_signatures": 20,
+      "functional_passed": true,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 11
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 9
+        }
+      ],
+      "non_ok_outcomes": {
+        "canceled": 39
+      },
+      "producer_clock_delta_ms": [
+        {
+          "count": 16,
+          "minimum": 9200,
+          "median": 18547.5,
+          "maximum": 23645,
+          "sum": 292746
+        },
+        {
+          "count": 12,
+          "minimum": 10085,
+          "median": 18727.5,
+          "maximum": 22301,
+          "sum": 219371
+        }
+      ]
+    }
+  },
+  "hosted_cohorts": {
+    "baseline": {
+      "cache_pair_cohorts": [
+        {
+          "cache": "first",
+          "pairs": 1,
+          "http_ms": {
+            "count": 2,
+            "minimum": 2560.672292000032,
+            "median": 5346.311312500024,
+            "maximum": 8131.950333000015,
+            "under_5000": 1
+          },
+          "operations": [
+            "cbffd55365b4fda35ee800e6abda3778dd680cc597e2e86610215e63ae86edd0",
+            "7219b53745fd6f5f614ea828687f530360431497a052a541ee20a478c77b9280"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 2,
+          "http_ms": {
+            "count": 3,
+            "minimum": 2569.107375000007,
+            "median": 2596.359375,
+            "maximum": 3064.0147499999985,
+            "under_5000": 3
+          },
+          "operations": [
+            "dc3684d9ef6699e2ec97ed2118f4c3a41702d57af0f5774a3cdc7375b996097b",
+            "9ad56fb5ccaf706d1dd5cad1d917a824c48a93621732e800165ff9e36f4c91d5",
+            "3026b0a4ed30a19a561c9bdedae008315b504c547b0e313c6585ecc14a997372"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3678.728833000001,
+            "median": 3678.728833000001,
+            "maximum": 3678.728833000001,
+            "under_5000": 1
+          },
+          "operations": [
+            "1b084a47df38a8772ecc1e6aa5406f70466a2d3aa959d4c9ce902b5cef9b8c72"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 6,
+          "http_ms": {
+            "count": 1,
+            "minimum": 6554.666499999992,
+            "median": 6554.666499999992,
+            "maximum": 6554.666499999992,
+            "under_5000": 0
+          },
+          "operations": [
+            "7e3ceb1cd0607a0ea93f43427b710e2e79e534a5fefd812e8c16987597ef312a"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 8,
+          "http_ms": {
+            "count": 1,
+            "minimum": 12238.896707999986,
+            "median": 12238.896707999986,
+            "maximum": 12238.896707999986,
+            "under_5000": 0
+          },
+          "operations": [
+            "f35b09658e864910b49a0b441fe7d8b754b4a1ff8ef2e582dc422e4c60ea7e20"
+          ]
+        },
+        {
+          "cache": "mixed",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 2059.341415999981,
+            "median": 2059.341415999981,
+            "maximum": 2059.341415999981,
+            "under_5000": 1
+          },
+          "operations": [
+            "2531c52c74ae4ec9d7b037cfc182f8a1c4ecba5372bf8a7d235392bd54f2dfd9"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 1,
+          "http_ms": {
+            "count": 14,
+            "minimum": 924.1887500000012,
+            "median": 1245.2276040000083,
+            "maximum": 2420.0277079999796,
+            "under_5000": 14
+          },
+          "operations": [
+            "0ecd483d97ef342cf7443b1284bd34f63ced18410583056fa294d1178afe5f6b",
+            "9a0eb5a370140109be69456fe1e04a998a4cfb79e66bbed6a1d145b67c066593",
+            "ec8b92c8161783aa1bfaac20817e0692566c69a67ed64b671993c3f66700da80",
+            "fbbfbe5b9b2b77325b83286fcb57f5e94215fcf0607a2f1396b4a24692bb6fa8",
+            "250302699f5ad770d0b6f0842502f6b6b314e206562070f96711597de7e580de",
+            "9b10c183f6133722402d5adeeb327961310c0de9b61768d40b988a74d042fd05",
+            "28123589ddaf30010fddc06ee450c79b3d74115ca870654cf56595de736d49dd",
+            "01c978b206156078074e7a1595ebf82203f97550f85dcaff92f8672abeddb588",
+            "2b7d52cee2eab99da970f727d10624240ac6a370a87ca2296696fea0de24ea2c",
+            "63cc2d7fb4afa7357902d1e70bed2cd675ceba64e3cf95c377d2ec4d92a71058",
+            "52809595fd2d34592ba8a3647baee1d1730d83a3a227d83ee8bde73471ab3e08",
+            "f778cc784992b298ff30e1180e4f2f8280cd0c8bf6c8f43efca8907c9b43cd22",
+            "6798f0ccdd5ffc12251cc29b7f92bfe74e3025cd28ef37862287cbf1987bc9a6",
+            "e6838fb6c3e1793f6f7794345b4ff1ea4b5c9aa5d73c02ded78cf3b198d07842"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 2,
+          "http_ms": {
+            "count": 10,
+            "minimum": 1453.0042499999981,
+            "median": 1890.5890830000008,
+            "maximum": 3854.69862499999,
+            "under_5000": 10
+          },
+          "operations": [
+            "8bb059c0c442fd1113d68467be828da5d6d7297113cd3e5c6eb364cbba3314ad",
+            "e08a5e65ca6210359f4d3cca75e4a678c2385aea7f334f222e8e758d20846f41",
+            "abc8226e1d3572fbbc9a387117a93ab62cf09ba91d83f12cf574254e99efdfa4",
+            "80b5e200ef6638dec6587dc7950a77557d390f0cb137093b8e01e84fcf8d130b",
+            "2877b94bae46313d4b14141c12f63e4d8b3d5fc7a72ecaacd12b670681cbf9af",
+            "b0477139c3f46cffb8ebb14b5c54c81d1b0a69dd4d9fa5d4ad2f25b350bdf034",
+            "9513960e1938172c7e79cf3e560116744124de4125f68c18a9442c4bd3d88f2f",
+            "67739c4fcb9bb0b1dd2509fb3c63382033b001411c60762c0302b492d8025b46",
+            "7cfc97387443e06b2c89e2d3d9fe29d6706330028377cfac1d01c994eb21507b",
+            "b9ee0fa55525d9eae7fc4d67f5bfbc06550d8fc6e0f69b882e2ed679522f81c3"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 3,
+          "http_ms": {
+            "count": 6,
+            "minimum": 1941.699834000001,
+            "median": 2059.5100209999982,
+            "maximum": 2627.619166999997,
+            "under_5000": 6
+          },
+          "operations": [
+            "5cb2ee4faed0d949181336f07746e022d52f90990a9a8249674b4b7374040ce0",
+            "6a9cb7c67ead4e743ef234efbaa18354bc7c7d068f1939ca73892ddafcef3e58",
+            "19ca16fd07eb22d149208e9c2252760c711b313598b7158d96b0928f199348af",
+            "9f4da68fe085977d06711d706fa4c92b8127298a4d1de0b41e2cbb37af556b4a",
+            "3e538e45b36448546992a18cfc98f2d6cb1b1ac4461e5860c761cf6ed5a811cb",
+            "daba1258e6a4b73148c4dadf3614d1db13271078fdf5b91e78f4979dcf5367ed"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 4,
+          "http_ms": {
+            "count": 2,
+            "minimum": 2928.076499999999,
+            "median": 3059.8101665000013,
+            "maximum": 3191.5438330000034,
+            "under_5000": 2
+          },
+          "operations": [
+            "0c39da6c10c2362af4a1a04f0422d9b1807bcad11707fdafda70eb7d844a391c",
+            "d2c46f6986c44764253d6cb70ebf14c8234abd178194e8a0e3e2b05041a1ec7b"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 5,
+          "http_ms": {
+            "count": 1,
+            "minimum": 2720.707374999998,
+            "median": 2720.707374999998,
+            "maximum": 2720.707374999998,
+            "under_5000": 1
+          },
+          "operations": [
+            "b503b746712f2cc8eb19cf502472600f6600a0a529fa33aa4c503ab12b9290d1"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 8,
+          "http_ms": {
+            "count": 1,
+            "minimum": 5887.530958999996,
+            "median": 5887.530958999996,
+            "maximum": 5887.530958999996,
+            "under_5000": 0
+          },
+          "operations": [
+            "de185ecaab8437ac1935d129ce72feef657635b616fbfa0adb55d49b78db2853"
+          ]
+        }
+      ],
+      "trace_gaps": [
+        {
+          "operation": "ee700a3efcf282fd613b9ce33215abc9d81b6fbcb9d529b0f0196023a2c4c2b3",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "e164b611ff07ac1bf32ddbc8080e853e08f2b8e37f5e9ded1ee54ab3d580dc76",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "6bf3c89621ae6e3b0146c52993c610665ec6933ba946fdb54e95313c469355f2",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "03eac9288a172e6704b40398968ea386671faea6f62c1006bf59f5b2cd09ed13",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        },
+        {
+          "operation": "1aee08e35f36326674aed616181dc7c74d734eb1575f1677185e4241dc96315b",
+          "role_matches": {
+            "a": 1,
+            "b": 0
+          }
+        }
+      ],
+      "matched_success_material_mix": {
+        "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+        "generic_pairs": 10,
+        "operations_with_generic_pairs": 6,
+        "committed_pairs": 90
+      },
+      "request_statuses": {
+        "service_capacity": 20,
+        "succeeded": 48,
+        "wallet_cooldown": 9,
+        "empty_pool": 251,
+        "failed": 1
+      },
+      "slow_successes": [
+        {
+          "operation": "7e3ceb1cd0607a0ea93f43427b710e2e79e534a5fefd812e8c16987597ef312a",
+          "http_ms": 6554.666499999992,
+          "cache": "first",
+          "pairs": 6,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "cbffd55365b4fda35ee800e6abda3778dd680cc597e2e86610215e63ae86edd0",
+          "http_ms": 8131.950333000015,
+          "cache": "first",
+          "pairs": 1,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "f35b09658e864910b49a0b441fe7d8b754b4a1ff8ef2e582dc422e4c60ea7e20",
+          "http_ms": 12238.896707999986,
+          "cache": "first",
+          "pairs": 8,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "de185ecaab8437ac1935d129ce72feef657635b616fbfa0adb55d49b78db2853",
+          "http_ms": 5887.530958999996,
+          "cache": "reused",
+          "pairs": 8,
+          "generic_pairs": 0
+        }
+      ]
+    },
+    "packed": {
+      "cache_pair_cohorts": [
+        {
+          "cache": "first",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3528.8501250000118,
+            "median": 3528.8501250000118,
+            "maximum": 3528.8501250000118,
+            "under_5000": 1
+          },
+          "operations": [
+            "d91366d28612ea3a7b92ffdbb82e03c0b4622ed1ec419dfbdf231e05b69192f0"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 2,
+          "http_ms": {
+            "count": 1,
+            "minimum": 6715.243542000011,
+            "median": 6715.243542000011,
+            "maximum": 6715.243542000011,
+            "under_5000": 0
+          },
+          "operations": [
+            "b0bbe3918c98c2c7cde2dbb4c8e1e11fe7d2612c991f110576b089224599e8ab"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 3,
+          "http_ms": {
+            "count": 2,
+            "minimum": 4009.974333,
+            "median": 5250.125937500027,
+            "maximum": 6490.277542000054,
+            "under_5000": 1
+          },
+          "operations": [
+            "80a17e270e7cd8cdb1b0145188f97afbf24f57d0c937a986d6e16d413903e361",
+            "2b516dec7d570224da38728a6f45c391559cc971545e15138a3087e7bf7d628f"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 5015.616458,
+            "median": 5015.616458,
+            "maximum": 5015.616458,
+            "under_5000": 0
+          },
+          "operations": [
+            "891017aad718ac239285da717e29c59157fc4a4c907e18113e203fd5fe89be9e"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 5,
+          "http_ms": {
+            "count": 1,
+            "minimum": 4142.842749999982,
+            "median": 4142.842749999982,
+            "maximum": 4142.842749999982,
+            "under_5000": 1
+          },
+          "operations": [
+            "fc27ff64ce65fbba7490f1246e9218edd7aa3f5534d9b7c40f7c73cd19fbde55"
+          ]
+        },
+        {
+          "cache": "mixed",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3109.6512500000536,
+            "median": 3109.6512500000536,
+            "maximum": 3109.6512500000536,
+            "under_5000": 1
+          },
+          "operations": [
+            "087b7d07ad68e3370cfe02b023cf275b272097b7d34ce85dcfeb095cff1d8976"
+          ]
+        },
+        {
+          "cache": "mixed",
+          "pairs": 3,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3244.289625000005,
+            "median": 3244.289625000005,
+            "maximum": 3244.289625000005,
+            "under_5000": 1
+          },
+          "operations": [
+            "1a10569697aa2c57741abc1a034a4f2585360c83e34bb408f8405568a072cfd8"
+          ]
+        },
+        {
+          "cache": "mixed",
+          "pairs": 5,
+          "http_ms": {
+            "count": 1,
+            "minimum": 6434.991791000008,
+            "median": 6434.991791000008,
+            "maximum": 6434.991791000008,
+            "under_5000": 0
+          },
+          "operations": [
+            "98e3bba8a922ad4a7e26db35c0a45f06ede24f8912074417e16a29324dd94ae2"
+          ]
+        },
+        {
+          "cache": "mixed",
+          "pairs": 8,
+          "http_ms": {
+            "count": 1,
+            "minimum": 11873.321875000023,
+            "median": 11873.321875000023,
+            "maximum": 11873.321875000023,
+            "under_5000": 0
+          },
+          "operations": [
+            "6b7275ebf7031ba7aeefce54d003007b3e3d5c76cd39bc3130eec73e9afabd00"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 1,
+          "http_ms": {
+            "count": 3,
+            "minimum": 1925.6879999999946,
+            "median": 2120.908374999999,
+            "maximum": 2248.207166,
+            "under_5000": 3
+          },
+          "operations": [
+            "a2ad68c68c39964dd574799bae5e3edc81c5172c5d27c7259679677ebbc24428",
+            "5af3f93a27d470a5ae8fa577eda0e36ac1c5760aefafe6796b71d56c1421cc46",
+            "d42564109604985dfbcfa67b7e425b36ffb2eebad60c62c38a8499e214cc1952"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 2,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3192.3337499999907,
+            "median": 3192.3337499999907,
+            "maximum": 3192.3337499999907,
+            "under_5000": 1
+          },
+          "operations": [
+            "7569b878a649f515255b3c208a922ceeddab6d1ee4f3249792ba0d20adbbab34"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 3,
+          "http_ms": {
+            "count": 1,
+            "minimum": 4947.763917000004,
+            "median": 4947.763917000004,
+            "maximum": 4947.763917000004,
+            "under_5000": 1
+          },
+          "operations": [
+            "58ce4b44560c45de556f7c3cbcfa8f604ee4d52483b4188a4e6b7e5e525cb8a1"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 6,
+          "http_ms": {
+            "count": 1,
+            "minimum": 5065.383500000001,
+            "median": 5065.383500000001,
+            "maximum": 5065.383500000001,
+            "under_5000": 0
+          },
+          "operations": [
+            "d7b89fc271e8c1a310359626b0fa3d45c795f70fe7f2d1db79705c1b5f7df8ab"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 11,
+          "http_ms": {
+            "count": 1,
+            "minimum": 8189.145166,
+            "median": 8189.145166,
+            "maximum": 8189.145166,
+            "under_5000": 0
+          },
+          "operations": [
+            "3ae3523a3e88a7a07e8d81a402a3bcad1fba6e7725d4617390e527ab96b55e9e"
+          ]
+        }
+      ],
+      "trace_gaps": [
+        {
+          "operation": "b863ee25311ee3df7a6707a2b9dc7164ab2b380767e8ed5bf2e4c14ac678061b",
+          "role_matches": {
+            "a": 1,
+            "b": 0
+          }
+        },
+        {
+          "operation": "9c2ac885c4f2bd8971bd11bd3db268610da3be9521fbafde58e79dd5ef8ea963",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        }
+      ],
+      "matched_success_material_mix": {
+        "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+        "generic_pairs": 12,
+        "operations_with_generic_pairs": 4,
+        "committed_pairs": 48
+      },
+      "request_statuses": {
+        "service_capacity": 34,
+        "succeeded": 19,
+        "empty_pool": 336
+      },
+      "slow_successes": [
+        {
+          "operation": "d7b89fc271e8c1a310359626b0fa3d45c795f70fe7f2d1db79705c1b5f7df8ab",
+          "http_ms": 5065.383500000001,
+          "cache": "reused",
+          "pairs": 6,
+          "generic_pairs": 4
+        },
+        {
+          "operation": "3ae3523a3e88a7a07e8d81a402a3bcad1fba6e7725d4617390e527ab96b55e9e",
+          "http_ms": 8189.145166,
+          "cache": "reused",
+          "pairs": 11,
+          "generic_pairs": 4
+        },
+        {
+          "operation": "891017aad718ac239285da717e29c59157fc4a4c907e18113e203fd5fe89be9e",
+          "http_ms": 5015.616458,
+          "cache": "first",
+          "pairs": 4,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "b0bbe3918c98c2c7cde2dbb4c8e1e11fe7d2612c991f110576b089224599e8ab",
+          "http_ms": 6715.243542000011,
+          "cache": "first",
+          "pairs": 2,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "6b7275ebf7031ba7aeefce54d003007b3e3d5c76cd39bc3130eec73e9afabd00",
+          "http_ms": 11873.321875000023,
+          "cache": "mixed",
+          "pairs": 8,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "2b516dec7d570224da38728a6f45c391559cc971545e15138a3087e7bf7d628f",
+          "http_ms": 6490.277542000054,
+          "cache": "first",
+          "pairs": 3,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "98e3bba8a922ad4a7e26db35c0a45f06ede24f8912074417e16a29324dd94ae2",
+          "http_ms": 6434.991791000008,
+          "cache": "mixed",
+          "pairs": 5,
+          "generic_pairs": 0
+        }
+      ]
+    },
+    "reversal": {
+      "cache_pair_cohorts": [
+        {
+          "cache": "first",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3138.716082999992,
+            "median": 3138.716082999992,
+            "maximum": 3138.716082999992,
+            "under_5000": 1
+          },
+          "operations": [
+            "22985110369a24b6c0a00b9dff10528a88ca9aed11ba2f237c1a02ffd3413cdd"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 5366.2304170000025,
+            "median": 5366.2304170000025,
+            "maximum": 5366.2304170000025,
+            "under_5000": 0
+          },
+          "operations": [
+            "ce32480e13bc3646c230158fa632a9ca50cb6df1a60109a27d16d5dfd27ae177"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 5,
+          "http_ms": {
+            "count": 2,
+            "minimum": 6317.381166,
+            "median": 6841.169207999988,
+            "maximum": 7364.957249999978,
+            "under_5000": 0
+          },
+          "operations": [
+            "d6909dbe8fdca227b24d45d2cdf5b22b46fd0c37b1b078c9918fa630062a97e6",
+            "3a691a1423336a23be48e3d39a50dd6fee9ec6e3c7ddf81b7e65b30431304b17"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 8,
+          "http_ms": {
+            "count": 1,
+            "minimum": 7801.2092910000065,
+            "median": 7801.2092910000065,
+            "maximum": 7801.2092910000065,
+            "under_5000": 0
+          },
+          "operations": [
+            "285ed6c881b3e83972546bd54e4a235467483d00558c3a8cf2b03b4584a7c6fc"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 11,
+          "http_ms": {
+            "count": 1,
+            "minimum": 9281.411166999998,
+            "median": 9281.411166999998,
+            "maximum": 9281.411166999998,
+            "under_5000": 0
+          },
+          "operations": [
+            "7920b50030309a4ba0686ee5d97032cf89ed18b83127d85d69478a0698cc0d7b"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 1972.7655000000013,
+            "median": 1972.7655000000013,
+            "maximum": 1972.7655000000013,
+            "under_5000": 1
+          },
+          "operations": [
+            "82d048cf2bbdb0f8546deab5f4c9308be92d812e11ce2fa50180b3e8c3cbaa7b"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 3,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3439.8241249999846,
+            "median": 3439.8241249999846,
+            "maximum": 3439.8241249999846,
+            "under_5000": 1
+          },
+          "operations": [
+            "ec65c5391972f47ce98d8df9ce97d221e93da961f9fffd2cd6157843b19ffbec"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 4169.834792000009,
+            "median": 4169.834792000009,
+            "maximum": 4169.834792000009,
+            "under_5000": 1
+          },
+          "operations": [
+            "67b20edb9fd800171617d0a87d313eebc4e1df704dfae852a876b71fba38e0c5"
+          ]
+        }
+      ],
+      "trace_gaps": [],
+      "matched_success_material_mix": {
+        "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+        "generic_pairs": 0,
+        "operations_with_generic_pairs": 0,
+        "committed_pairs": 42
+      },
+      "request_statuses": {
+        "service_capacity": 28,
+        "succeeded": 9,
+        "empty_pool": 300,
+        "failed": 1
+      },
+      "slow_successes": [
+        {
+          "operation": "d6909dbe8fdca227b24d45d2cdf5b22b46fd0c37b1b078c9918fa630062a97e6",
+          "http_ms": 6317.381166,
+          "cache": "first",
+          "pairs": 5,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "7920b50030309a4ba0686ee5d97032cf89ed18b83127d85d69478a0698cc0d7b",
+          "http_ms": 9281.411166999998,
+          "cache": "first",
+          "pairs": 11,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "ce32480e13bc3646c230158fa632a9ca50cb6df1a60109a27d16d5dfd27ae177",
+          "http_ms": 5366.2304170000025,
+          "cache": "first",
+          "pairs": 4,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "285ed6c881b3e83972546bd54e4a235467483d00558c3a8cf2b03b4584a7c6fc",
+          "http_ms": 7801.2092910000065,
+          "cache": "first",
+          "pairs": 8,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "3a691a1423336a23be48e3d39a50dd6fee9ec6e3c7ddf81b7e65b30431304b17",
+          "http_ms": 7364.957249999978,
+          "cache": "first",
+          "pairs": 5,
+          "generic_pairs": 0
+        }
+      ]
+    },
+    "rechallenge": {
+      "cache_pair_cohorts": [
+        {
+          "cache": "first",
+          "pairs": 1,
+          "http_ms": {
+            "count": 3,
+            "minimum": 3383.098874999996,
+            "median": 3386.8520000000135,
+            "maximum": 4910.4080419999955,
+            "under_5000": 3
+          },
+          "operations": [
+            "b442896b0c8df1d791b4f205960d22896914b634be764df9f5c7de2c97589429",
+            "f38a9f5e56890cbe7ec67a0639a92f8e43e4a78a2aba4a67946094d13bf895e9",
+            "df3dee24de2105a452efcd009a7e88fbb12d8fb37cd04249770c2bed74c23f42"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 2,
+          "http_ms": {
+            "count": 4,
+            "minimum": 4794.966583000001,
+            "median": 5750.2311045000015,
+            "maximum": 6641.566291999996,
+            "under_5000": 1
+          },
+          "operations": [
+            "3c85cc987503e8cde40e2a4d0009da4566de95af717851330d2d3ac5f3bc8cc5",
+            "27889227acebef9a1f016e1383db6ff19b48bfd7039e35a610fcf78a60605ea4",
+            "23e4c5fc6604d4aef61e4184b14b8895419a7c96998930336fad9927a9f2a6f2",
+            "832a6defbc27ff725ab9540bbcc22cf7ffdd8489ac5712fc169cf61afac996a2"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 3,
+          "http_ms": {
+            "count": 1,
+            "minimum": 4128.885207999992,
+            "median": 4128.885207999992,
+            "maximum": 4128.885207999992,
+            "under_5000": 1
+          },
+          "operations": [
+            "f7e13ae3338815f121ecb19f5ded58cff3fdff4ce4c37683b3d97e967d1685e6"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 8122.2020829999965,
+            "median": 8122.2020829999965,
+            "maximum": 8122.2020829999965,
+            "under_5000": 0
+          },
+          "operations": [
+            "35051a91a362abe6e901789b79c805d3bb138d9f43ca1f8fc9849a260f3fd2a6"
+          ]
+        },
+        {
+          "cache": "first",
+          "pairs": 7,
+          "http_ms": {
+            "count": 1,
+            "minimum": 9369.370208000008,
+            "median": 9369.370208000008,
+            "maximum": 9369.370208000008,
+            "under_5000": 0
+          },
+          "operations": [
+            "48a3877dff529914c8e0d37761b22d3918641f15fe08ec662a0801d0462db05b"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 1,
+          "http_ms": {
+            "count": 1,
+            "minimum": 3119.5648749999964,
+            "median": 3119.5648749999964,
+            "maximum": 3119.5648749999964,
+            "under_5000": 1
+          },
+          "operations": [
+            "37b80d318ba5d78a523307f7e6dfc5fdb216d7cf814b3c5686029edaaa612116"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 2,
+          "http_ms": {
+            "count": 2,
+            "minimum": 3621.867207999996,
+            "median": 3881.184708499998,
+            "maximum": 4140.502209,
+            "under_5000": 2
+          },
+          "operations": [
+            "b9c66d645d1b23f670d8dbe360f9ff25d0fb3141eea4211b455b7c0aa68cdd73",
+            "b924a60a71cedc82ab60733f9dec54a2829302f7316fd032feea1a5e07863795"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 3,
+          "http_ms": {
+            "count": 4,
+            "minimum": 3209.1612089999835,
+            "median": 5148.242896,
+            "maximum": 5436.976999999999,
+            "under_5000": 2
+          },
+          "operations": [
+            "c18e9dcc1d3016976a304653aef15da4ef33602a5cff1585fd1eb01c9691fee3",
+            "f34edeab9a7a36a3844def2a81c543877ffdc33d7767cc08df5c21285c1e306e",
+            "629cc92a713a07166d5b018e26321c6e0873cbfafba362ad32d3b23f69a56e7a",
+            "a3e8c036df2d846b7adcc3de2ada7954bf3fe63e7c045528436b01c4af808f96"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 4,
+          "http_ms": {
+            "count": 1,
+            "minimum": 4005.7225409999955,
+            "median": 4005.7225409999955,
+            "maximum": 4005.7225409999955,
+            "under_5000": 1
+          },
+          "operations": [
+            "71dab46102a16915da58b929e9dc05bff8e4513f44ab20b44f0df7bd6e26915f"
+          ]
+        },
+        {
+          "cache": "reused",
+          "pairs": 7,
+          "http_ms": {
+            "count": 1,
+            "minimum": 6740.439000000013,
+            "median": 6740.439000000013,
+            "maximum": 6740.439000000013,
+            "under_5000": 0
+          },
+          "operations": [
+            "118074ba5b1c3aeec60049af4bfc6d8d7d0e2d914460d961d9cdc235b000234e"
+          ]
+        }
+      ],
+      "trace_gaps": [
+        {
+          "operation": "e1de7b28d9d5128d7881d0a929896de902d3f260fd0b28ef77130389322c53f0",
+          "role_matches": {
+            "a": 0,
+            "b": 0
+          }
+        }
+      ],
+      "matched_success_material_mix": {
+        "scope": "Only complete two-role joins of verified load requests. A public 113-layer commitment phase identifies a generic pair; missing joins stay unknown.",
+        "generic_pairs": 0,
+        "operations_with_generic_pairs": 0,
+        "committed_pairs": 53
+      },
+      "request_statuses": {
+        "succeeded": 20,
+        "service_capacity": 25,
+        "empty_pool": 219
+      },
+      "slow_successes": [
+        {
+          "operation": "3c85cc987503e8cde40e2a4d0009da4566de95af717851330d2d3ac5f3bc8cc5",
+          "http_ms": 5583.555584,
+          "cache": "first",
+          "pairs": 2,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "f34edeab9a7a36a3844def2a81c543877ffdc33d7767cc08df5c21285c1e306e",
+          "http_ms": 5432.2202499999985,
+          "cache": "reused",
+          "pairs": 3,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "35051a91a362abe6e901789b79c805d3bb138d9f43ca1f8fc9849a260f3fd2a6",
+          "http_ms": 8122.2020829999965,
+          "cache": "first",
+          "pairs": 4,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "629cc92a713a07166d5b018e26321c6e0873cbfafba362ad32d3b23f69a56e7a",
+          "http_ms": 5436.976999999999,
+          "cache": "reused",
+          "pairs": 3,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "27889227acebef9a1f016e1383db6ff19b48bfd7039e35a610fcf78a60605ea4",
+          "http_ms": 6641.566291999996,
+          "cache": "first",
+          "pairs": 2,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "118074ba5b1c3aeec60049af4bfc6d8d7d0e2d914460d961d9cdc235b000234e",
+          "http_ms": 6740.439000000013,
+          "cache": "reused",
+          "pairs": 7,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "832a6defbc27ff725ab9540bbcc22cf7ffdd8489ac5712fc169cf61afac996a2",
+          "http_ms": 5916.906625000003,
+          "cache": "first",
+          "pairs": 2,
+          "generic_pairs": 0
+        },
+        {
+          "operation": "48a3877dff529914c8e0d37761b22d3918641f15fe08ec662a0801d0462db05b",
+          "http_ms": 9369.370208000008,
+          "cache": "first",
+          "pairs": 7,
+          "generic_pairs": 0
+        }
+      ]
+    }
+  },
+  "fixed_work_preparation": {
+    "baseline": [
+      {
+        "a_schedule_cache_hit": true,
+        "jobs": [
+          "bf5f3f4131ca5a25eaddccda360ccf3fb2e356893eb2d5c6423d60793d1a5fe8",
+          "fd44629bdf9fa4a5f4a0d86b4dbd8d36d20706f00bf86f359647696294e6e63b",
+          "7989a9634d0b03504dd78f973bd10bf56e1bafe0a8daa14cb73c90cd9f82e038",
+          "99fc924fed2783005bcf4550f189b3744e989eedb4cf7479fda7faab9aa8dd5b",
+          "fffb0376ef66994dba56838d8f14ccedaf5d09906ab978e7e0da42ea4bee097c",
+          "d1bc064e7ff56b4f9e04349c93f77d4faa8c672f13d061f708e1d1dbee2eaeca",
+          "2002eb5132ab9e6a8856e0eb26272843a39c28dd8735e0dd1613d3058f601e26",
+          "23bca99cd61e94dcf5ea04fd46dd4c562c32805d2f9c328abbc8011dc522056e",
+          "5d147e7cf653b928dcc3617e6279c7f9b67c1e291ec7b0449c19b68e9d374ed9",
+          "8455d1a92cbe34a230b478559d0c40169d45444c38be3577f92470230568e646",
+          "24d654a8ebdd9ee2271e691542617cca6d0df4b72e8b9797690c1abf8245111d",
+          "07d14676044b704cd58850c47b5016a6481033d76457566d8a75d5f6e913c684",
+          "ce7eb2d66024422a0ed2acffaecc232dd8a3b4514631c7ee66eb00c4628ba3cf",
+          "aa9a787a894146786fcb5586e11663dbf3616fdf943328287eff22d311286736",
+          "7c1d19d954a550cd1babee25a57d1ff6b5014100f6d06585f5fe7b8c1fc94fd3",
+          "6d38278905b87d703879fda0cacde3bddb824124a4849dea438e28588f46daf1",
+          "596443bb45309dc5c3c85fd299b4b20e245225e5a18bd2efa12e0998bfbf442a",
+          "3e3812726d1dc7182d6b51daed86117700bc49574dbc1e672913f4aa70378cae",
+          "ec736114029650eaf9f993a3aa6f9aeb45d057ed8ad9fe4d6f6004aa01aec5a6",
+          "3a40e1e3e2cf3e7c4f1c26f853699c0ec0a4acfc751f688f67c94b7011ee2117",
+          "599c1f426321411018c92ad8803d2e619f3031f31a88b4866bd4fb1ff46da267",
+          "8d1976fbf92bb25d77531d5adf57ec86d83f16f83b520ca23f131a68f42a02cb",
+          "a8fe51411749444812b9896f889c9c2451bd9c365be3a22f64240b7fe5575c0d",
+          "18b6b3d7fcd946a34f2d6041cb1a8b9fc29f4e8eb41bab6edab1bf48c500f442",
+          "93eb58cabfb173da90a95e8f5866c591de41491eb33e66d930880987ed773b4f",
+          "bdcb3ccbcc27c28c186294d5216b53d9acff5301dfb9dd6232e3aed891d98fe8",
+          "76b2f97f10dfeeb04b588ad574b4d8b9b38156a45c5ae2b5134c16aa0eb2f4ac",
+          "ab1c8251e240d5ee90ca88995bc13ee2b935e70413cdd4ded049b0540f6e5ccd",
+          "b0d9357229dbf7e0a745bde56efb7034b67a6ac0c2a7c3058185667187dde7ef",
+          "d10a66daf336537dd338a53682590cfe67fbd1d1d4f6d9164a0b60f22979f80a",
+          "22c7e423ed4e5c68a007580fb4b3349c70027b4312609094d5a9461d3a400a95",
+          "da0640a87b6921b22cf79e71e8428d391d0e2f3e69263020a7261813a507f1a7",
+          "c50419bcab35347a64876c913a9bd3e2a28fde6d47e4ee1595d8bf275e79cf9e",
+          "249b59d6f583a3ffde013acc39b3b5fe59825f7565d3f11b672bec30a57868ae",
+          "c30310bd568273992be973e5d268c045c6e485df0266651e8eea6c6de6f1748b",
+          "5817d00426cdee87bbd72868265893bbc2898d356d368e3cc7de80700329ad13",
+          "787c03238504c5b89710cb537872b2313cec00b873053bbd4f7f514a042d17bf",
+          "8b3b4ee506111dacdd5bf4ccdffa3b106825fc52db5115bebea5cabf3f92289f",
+          "e80a015f73f61aaf7892d2642689afc1f06c3bd9726f4c58319e96540c0a18ad",
+          "a919ce4ea3dc24e64ad781f83428801d350f03d4ec3951789db5ad15ef587512",
+          "7fc912a73fe76d027dcb30efab58e28ef12d7fc168f6438f76a0862324af6431",
+          "872f646a96037d2fbadfbb743f7584a27b3b45e1dd46fe068f9247d30283fe90",
+          "e1fd4cdb5b7ea5f67809d5c3e3df8ac126d241dfa36b28dccfde7d2a27225c03",
+          "6f8135568d98ab01485035de762e09c1a7923475ab22b5f23714b7d4fbbe65ad"
+        ],
+        "a_cpu_ms": {
+          "count": 44,
+          "minimum": 3802,
+          "median": 4161.5,
+          "maximum": 6231
+        },
+        "b_cpu_ms": {
+          "count": 44,
+          "minimum": 3902,
+          "median": 4237.0,
+          "maximum": 6260
+        },
+        "cross_clock_publication_delta_ms": {
+          "count": 44,
+          "minimum": 7600,
+          "median": 8975.0,
+          "maximum": 13924
+        }
+      }
+    ],
+    "packed": [
+      {
+        "a_schedule_cache_hit": true,
+        "jobs": [
+          "540dc7ffd5fa07fae5296000671e2bcb0eeb5ed9b01118c4256a4a1f3dc454f5",
+          "759a5e04110ae71b9ae77604f44bf5ec83cb020a6812d66c43431c30f9b39402",
+          "32a2357767911f286536e755a51d76406eb6cb80ed6402b0c2881fff7aa3f6c5",
+          "3f11c32ee20947fd6f12ebf09ebcdc0a692638e31e2196c78d4101e6f3e06ef5",
+          "17b1630c5fb1f17cfb1e018bacc9b2f555b5c49e8cb4b98634396ffacfeda074",
+          "1d67932b055e0f5fd84f948bd06537ba736317fad21b208c4275a49a32374ee1",
+          "3ed9147a8fb0b3b2a0b7f591718bd16aab4c1e1b0208773949193214897ffdb8",
+          "79460899aafdda107f0fc6dd824873296109a233b9414a600f746b750739babe",
+          "799676ac406ef29cc8f4a45b18ae276254114c02f14d3984463dc2ca5a092abf",
+          "4c3aa00cd71f75467ed24bf2dd0f0a8389353f8ea0bf152b1cf153b08098fa99",
+          "0473799a18533bf36ced3d2832f8beb3d8bb01d2250f1d3fc149b0a626ea8e7c",
+          "cc05153472269526fa19c7671014fd35e7824be471323c18d49434791ec6a213",
+          "c7a790b6dd2c65e39e3232d7fda08a7450d9ff22cd66a5843709d1cec6813a5b",
+          "d2a87dafa770fc7c700ba6b92bb3f243bec2b92246decbb46a4bdf6a444cc3a2",
+          "5584d16a05f82a9f54d151d82c375c688b627cfe95d60dd53aff449381182823",
+          "4077ae159786c8d0f0811b392ccc39b88900d043bfc33ccbfb2b4f8934873575",
+          "02078dcb7f57223cc1ea4cc8cf07bb38e809b560fee7765d01343e330e7f4912",
+          "70305ed3a6585dd60b953e1e981155e80a5797c6bc18ffd98637507ab130415e",
+          "f2cc434fc93c080bfed392daf37d5d00fe359bbc18f4e0d512722a9e1d7c3838",
+          "7d62927d1a642a534b6c72d96624bcd79bf72b1bd7c544ffbd441f5cf4edcf6d"
+        ],
+        "a_cpu_ms": {
+          "count": 20,
+          "minimum": 6873,
+          "median": 8024.5,
+          "maximum": 9641
+        },
+        "b_cpu_ms": {
+          "count": 20,
+          "minimum": 7142,
+          "median": 8355.5,
+          "maximum": 10065
+        },
+        "cross_clock_publication_delta_ms": {
+          "count": 20,
+          "minimum": 15279,
+          "median": 17932.0,
+          "maximum": 21419
+        }
+      }
+    ],
+    "reversal": [
+      {
+        "a_schedule_cache_hit": true,
+        "jobs": [
+          "8a711f52569c3a3c89245aea7520b73e070d849c8196e1b547199d2af25c8d47",
+          "84dd25dfe87b7bcb9e81155acd34ff55470cb35f086c617a050079ca9c97dbbf",
+          "8828164df177289a4855706da06578c62736b88024a3d2eb3d227ede63ad2687",
+          "e00f4227794b51991e397c00c1346ab38fecc258545c700ab131f6f99e8a3c87",
+          "f6cd7e201e562d23b06560f5d6ff20f2a1ca7bd08ab6fdd9d11a40c21c0e88ae",
+          "0ac1d0e579c726ddf93a1a5a86e9d57645e030c22f2b92eaaf8cd3bcad255007",
+          "c6525ec58e6733284fd94505f30258426e91286876361dbbdaab8f5851563fb9",
+          "8a2f4502b199168c3b90b4a88cbaf9ce88008c6a5b73b74a8157b87138a4f323",
+          "01a8f60656b4827ee07c851ca0f41185fb7942c186eff80f5b6f6524285c8f1e",
+          "c2c6805caaf17541469d1e76aeea7413fc6efa2f54fed0fca3ebfae72094ba97",
+          "e0fa1aa59b81126cd809640f37bcf6d0fe1d959b4373c58f080bbcb2b297fd0b",
+          "4ee82bc8e7d4ea3eb8eb0f7e1c6ad70905465cf377fc0195110466cebd7d8a66",
+          "1bacb1344ffb44c3803b8c3b3e77560c0e06eccaed884a2e80bb5a6a22a46729",
+          "0170978ddf1c1bec3018d2b40523ad6925363afd28000798cb48a9ead57413ba",
+          "d4781ffb12d78c68068bc9f6c7f23944dd2a17435f2a914b0479695b51f786de"
+        ],
+        "a_cpu_ms": {
+          "count": 15,
+          "minimum": 7870,
+          "median": 8636,
+          "maximum": 10445
+        },
+        "b_cpu_ms": {
+          "count": 15,
+          "minimum": 8712,
+          "median": 9367,
+          "maximum": 11250
+        },
+        "cross_clock_publication_delta_ms": {
+          "count": 15,
+          "minimum": 18310,
+          "median": 19678,
+          "maximum": 23464
+        }
+      }
+    ],
+    "rechallenge": [
+      {
+        "a_schedule_cache_hit": true,
+        "jobs": [
+          "e7e06185b71c726e6875a9cd197f2c56230605c2200fd9dfabd83ee7292e870b",
+          "ccb58a41503b654aa2b4261ae02f94997eadef65ef13711ec1a4959dd4d7a9bd",
+          "bc55b89e87e0b81ffd905c9a3f54c90878f4320232e3dfe8fdbeecaaaa1e2889",
+          "cd204ceccab780410ce5cae75792af200f0cad718e75ee37c6e65e6c229de192",
+          "0f819607079a0bbef76ddf4ee3a51c4a953aafdd2bee750135b7da7b22e5ebb1",
+          "3b5c17128899c0f873407884529f4f4a26d4311fa64ced2e403b68618aaa96f0",
+          "ffc8fdf51704797fd01a66c5b665e87e66d95123b42a571f0fa46273e89d18a9",
+          "241d3b323f83cfe78f251ddf85662677a91580547a9b5876a136ff049d0a40e5",
+          "7c55e2e1ba5366e3c3c166ed18d6688ce9691aa874916450f2d8e82a3846b82d",
+          "22ab7d969da8499e5301c52159d51dec652a85e3b72532d674759388113912d2",
+          "32e778c565902707e49998173ba695910ddec4888e66416d088aa5d2961264fd",
+          "d4024466366d2c88dfab7c064db1a958dd546c247e801db6bd6f66f3fb3c21a8",
+          "019b8d14c7d26f0f0754609d0df577a71d6b7628b698be82a42d52946d1be959",
+          "f30cbae052e25317c0fca634abc071e1c77c0579804a61891de7cd0995c0caa2",
+          "c499edb8ea4325d4293faf65bb8f994bee704176e4ea2d25a116fe1f7222504d",
+          "243887c074753b5b8c94d35b15b38ba3eb84528c374e74f6853d0975e58f90f2"
+        ],
+        "a_cpu_ms": {
+          "count": 16,
+          "minimum": 7089,
+          "median": 8222.5,
+          "maximum": 9391
+        },
+        "b_cpu_ms": {
+          "count": 16,
+          "minimum": 7385,
+          "median": 8500.0,
+          "maximum": 9958
+        },
+        "cross_clock_publication_delta_ms": {
+          "count": 16,
+          "minimum": 15462,
+          "median": 18448.0,
+          "maximum": 21042
+        }
+      }
+    ]
+  },
+  "preflight": {
+    "names_absent": [
+      {
+        "worker": "ml-dsa-wire-1023-33e929-baseline-router",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-baseline-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-baseline-b",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-b",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-packed-router",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-packed-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-packed-b",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-b",
+        "absent": true,
+        "exit_code": 1
+      }
+    ],
+    "probe_correction": {
+      "classification": "environment_or_infrastructure_failure",
+      "initial_defect": "The private Python probe used Authorization instead of the existing internal-service header.",
+      "observed_after_header_correction": "Python received edge403/1010. Node received404 because participant workers_dev is false. Neither response establishes participant storage state.",
+      "correction": "Use the existing authenticated public Router status route for known terminal operation records. Require old records absent before testing and current verified results present afterward. Preserve private participant exposure. Use fresh synthetic wallet scopes and new correlation material.",
+      "participant_pool_direct_inspection": "not measured",
+      "timed_measurement_started": false
+    }
+  },
+  "bloat": {
+    "command": "pnpm report:bloat --check",
+    "exit_code": 1,
+    "rust_duplicated_lines": 13972,
+    "allowed_rust_duplicated_lines": 13754,
+    "baseline_changed": false,
+    "classification": "inherited_failure"
+  },
+  "cleanup": {
+    "baseline": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T06:27:05.406730+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T06:27:06.946452+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T06:27:08.590410+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T06:27:10.341391+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wire-1023-33e929-baseline-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T06:27:12.102761+00:00"
+      }
+    ],
+    "packed": [
+      {
+        "role": "preparer-a",
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T07:46:38.562042+00:00"
+      },
+      {
+        "role": "preparer-b",
+        "worker": "ml-dsa-wire-1023-33e929-packed-preparer-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T07:46:39.993546+00:00"
+      },
+      {
+        "role": "a",
+        "worker": "ml-dsa-wire-1023-33e929-packed-a",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T07:46:41.403196+00:00"
+      },
+      {
+        "role": "b",
+        "worker": "ml-dsa-wire-1023-33e929-packed-b",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T07:46:42.945755+00:00"
+      },
+      {
+        "role": "router",
+        "worker": "ml-dsa-wire-1023-33e929-packed-router",
+        "exit_code": 0,
+        "finished_at": "2026-10-23T07:46:44.364577+00:00"
+      }
+    ]
+  },
+  "qualification": {
+    "consistent_five_second_registration": false,
+    "consistent_five_second_signing": false,
+    "causal_hosted_speedup": false,
+    "total_isolate_memory_reduction": false,
+    "public_browser_timing_parity": false
+  },
+  "archive": {
+    "file": "ml-dsa-65-setup-cost-20261023-data.json.gz",
+    "sha256": "118eb6389bed02db33bf01b11c5c3efbacc5fba3e8442cf1126b66025e9a4e8e",
+    "bytes": 3143354
+  },
+  "credential_literals_checked_absent": 10,
+  "offline_reproduction": {
+    "scope": "Offline extraction and analysis replay against captured public data. No deployment or cryptographic material reuse.",
+    "checks": [
+      {
+        "script": "analyze_registration.py",
+        "output": "registration-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "7e184ff8b391a5585d4c1937a2dc88ace5ff97106849c9901a1179c3065f1330"
+      },
+      {
+        "script": "analyze_capture.py",
+        "output": "capture-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "bce28f0551e2833c624c488f7a2dda9ddd44c6aff8cc4d8930319c2d99826dae"
+      },
+      {
+        "script": "analyze_profiles.py",
+        "output": "profile-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "d0d75804eb38d5f459fc50cf74fde584d8401345e214b3a6cf17171b6f598919"
+      },
+      {
+        "script": "analyze_fixed_work.py",
+        "output": "fixed-work-analysis.json",
+        "exit_code": 0,
+        "exact_json_match": true,
+        "canonical_sha256": "84e9f7fb99f6f3c39dfbb8b53d8da49472b52111647a8341084a51cb1c9d453f"
+      }
+    ]
+  }
+}
