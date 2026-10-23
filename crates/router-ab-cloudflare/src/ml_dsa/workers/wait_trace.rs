@@ -22,6 +22,10 @@ pub(super) fn call_id() -> Option<crate::CloudflareTraceIdV1> {
 pub(super) enum Kind {
     PeerConnect,
     PeerEvent,
+    PeerPrepared,
+    PublishReady,
+    PeerReady,
+    PeerResult,
     StoreTables,
     LoadTables,
     PublishPrivate,

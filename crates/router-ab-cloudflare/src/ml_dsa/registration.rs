@@ -194,6 +194,31 @@ pub async fn ready(store: &impl Store, job: &Job, role: Participant, now: u64) -
         _ => Err(invalid("Registration preparation is stale")),
     }
 }
+/// A failed reply can race a claim. Retirement must never revoke that claim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PreparationRetirement {
+    Retired,
+    AlreadyRetired,
+    Claimed,
+}
+pub async fn retire_preparation(store: &impl Store, job: &Job) -> Result<PreparationRetirement> {
+    match store.get::<Stock>(&job_key(&job.id)).await? {
+        Some(Stock::Preparing { job: expected, .. } | Stock::Ready { job: expected })
+            if expected == *job => {}
+        Some(Stock::Claimed { job: expected }) if expected == *job => {
+            return Ok(PreparationRetirement::Claimed);
+        }
+        // Existing tombstones retain only the ID. A retry makes no state change.
+        Some(Stock::Retired) => return Ok(PreparationRetirement::AlreadyRetired),
+        _ => return Err(invalid("Registration retirement identity changed")),
+    }
+    let mut ids: Vec<[u8; 32]> = store.get("registration-stock").await?.unwrap_or_default();
+    ids.retain(|id| *id != job.id);
+    store.put(&job_key(&job.id), &Stock::Retired).await?;
+    store.put("registration-stock", &ids).await?;
+    Ok(PreparationRetirement::Retired)
+}
 pub async fn check_job(store: &impl Store, job: &Job, now: u64) -> Result<bool> {
     Ok(
         matches!(store.get::<Stock>(&job_key(&job.id)).await?, Some(Stock::Preparing{job: expected,..}) if expected==*job && now<job.prepare_until),

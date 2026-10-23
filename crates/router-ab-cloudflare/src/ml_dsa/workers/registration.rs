@@ -212,10 +212,32 @@ async fn prepare_request(
     .await
     .map_err(protocol_error)?;
     trace.bind_job(job.id);
-    let ready: bool = role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() })
-        .await
-        .map_err(protocol_error)?;
-    Response::from_json(&serde_json::json!({"ready":ready,"job":job}))
+    let prepared: Result<bool> =
+        role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() }).await;
+    match prepared {
+        Ok(true) => Response::from_json(&serde_json::json!({"ready":true,"job":job})),
+        outcome => {
+            let failure = outcome
+                .err()
+                .unwrap_or_else(|| invalid("Registration preparation did not complete"));
+            let retirement: Result<core::PreparationRetirement> = service_call(
+                env,
+                CallAuthority::Gateway(request.headers()),
+                &AdmissionCommand::RetireRegistration { job: job.clone() },
+            )
+            .await;
+            worker::console_log!(
+                "{}",
+                serde_json::json!({
+                    "event": "ml_dsa_registration_retirement_v1", "job": hex(&job.id),
+                    "preparation_failed": true, "retirement": retirement.as_ref().ok(),
+                    "retirement_failed": retirement.is_err(),
+                })
+            );
+            retirement.map_err(protocol_error)?;
+            Err(protocol_error(failure))
+        }
+    }
 }
 pub(crate) async fn handle_register(
     request: worker::Request,

@@ -927,11 +927,13 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     .unwrap();
     drop(refill_store);
     registration_allocator_campaign(&directory);
+    registration_retirement_campaign(&directory);
     let refill_fairness = refill_fairness_campaign(&directory);
+    let retirement_evidence = serde_json::json!({ "restart": true, "late_ready_rejected": true, "changed_identity_rejected": true, "claimed_job_preserved": true, "other_stock_preserved": true, "fresh_replacement": true });
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("ml-dsa-durable-admission-e2e.json"));
-    std::fs::write(&output,serde_json::to_vec_pretty(&serde_json::json!({
+    let mut evidence = serde_json::json!({
         "policy": policy,
         "stock_wait": {
             "survives_restart": true,
@@ -944,7 +946,9 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         "cooldown_across_keys_and_restart":true,"five_minute_configuration":true,"disabled_cooldown_preserves_capacity":true,
         "empty_pool_not_charged":true,"partial_write_rollback":true,"recovery_epoch_retires_preparation":true,"recovery_cannot_substitute_public_key":true,
         "concurrent_service_claim_winners":1,"verified_completion_and_restart_replay":true,"scope":"Transactional lifecycle and encrypted storage E2E. Synthetic prepared bytes. Real threshold persistence is covered by the investigation harness. No hosted latency claim."
-    })).unwrap()).unwrap();
+    });
+    evidence["failed_registration_retirement"] = retirement_evidence;
+    std::fs::write(&output, serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
     drop(a);
     drop(b);
     drop(router);
@@ -1154,6 +1158,91 @@ fn refill_turn(router: &Db, key: &KeyScope, now: u64) -> m::refill::Job {
         m::refill::Claim::Acquired { job } => job,
         other => panic!("The queued refill turn was not granted: {other:?}"),
     }
+}
+
+fn registration_retirement_campaign(directory: &Path) {
+    use m::registration::{self, PreparationRetirement};
+    let path = directory.join("registration-retirement.sqlite");
+    let db = Db::open(&path);
+    let input = registration_request("retirement-wallet", 33);
+    let scope = registration::scope(&input.wallet).unwrap();
+    let retained = tx(
+        &db,
+        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 100),
+    )
+    .unwrap();
+    for role in [Participant::A, Participant::B] {
+        tx(&db, registration::ready(&db, &retained, role, 101)).unwrap();
+    }
+    let failed = tx(
+        &db,
+        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 102),
+    )
+    .unwrap();
+    tx(&db, registration::ready(&db, &failed, Participant::A, 103)).unwrap();
+    let mut changed = failed.clone();
+    changed.expires_at += 1;
+    assert!(tx(&db, registration::retire_preparation(&db, &changed)).is_err());
+    assert!(tx(&db, registration::check_job(&db, &failed, 104)).unwrap());
+    assert_eq!(
+        tx(&db, registration::retire_preparation(&db, &failed)).unwrap(),
+        PreparationRetirement::Retired
+    );
+    drop(db);
+    let db = Db::open(&path);
+    assert_eq!(
+        tx(&db, registration::retire_preparation(&db, &failed)).unwrap(),
+        PreparationRetirement::AlreadyRetired
+    );
+    assert!(!tx(&db, registration::check_job(&db, &failed, 105)).unwrap());
+    for role in [Participant::A, Participant::B] {
+        assert!(tx(&db, registration::ready(&db, &failed, role, 105)).is_err());
+    }
+    let replacement = tx(
+        &db,
+        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 106),
+    )
+    .unwrap();
+    assert_ne!(replacement.id, failed.id);
+    tx(&db, registration::retire_preparation(&db, &failed)).unwrap();
+    assert!(tx(&db, registration::check_job(&db, &replacement, 107)).unwrap());
+    assert_eq!(
+        tx(&db, registration::retire_preparation(&db, &replacement)).unwrap(),
+        PreparationRetirement::Retired
+    );
+    // The other ready entry survives removal of the exact failed job.
+    let claim = match tx(
+        &db,
+        registration::claim(&db, input, [7; 32], [8; 32], 4, 108),
+    )
+    .unwrap()
+    {
+        registration::Decision::Admitted { claim } => claim,
+        _ => panic!("Retirement removed unrelated ready stock"),
+    };
+    assert_eq!(claim.job, retained);
+    assert_eq!(
+        tx(&db, registration::retire_preparation(&db, &retained)).unwrap(),
+        PreparationRetirement::Claimed
+    );
+    assert!(tx(&db, registration::check_claim(&db, &claim, 109)).unwrap());
+    let completed = tx(
+        &db,
+        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 110),
+    )
+    .unwrap();
+    for role in [Participant::A, Participant::B] {
+        tx(&db, registration::ready(&db, &completed, role, 111)).unwrap();
+    }
+    assert_eq!(
+        tx(&db, registration::retire_preparation(&db, &completed)).unwrap(),
+        PreparationRetirement::Retired
+    );
+    assert!(tx(
+        &db,
+        registration::ready(&db, &completed, Participant::B, 112)
+    )
+    .is_err());
 }
 
 fn registration_allocator_campaign(directory: &std::path::Path) {

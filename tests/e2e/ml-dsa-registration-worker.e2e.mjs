@@ -11,12 +11,26 @@ import { build } from 'esbuild';
 import { pathToFileURL } from 'node:url';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 import { registrationDeliveryScript } from '../helpers/mlDsaRegistrationDelivery.e2e.mjs';
+import { commitProbeScript, readinessDelayScript } from '../helpers/mlDsaCommitProbe.e2e.mjs';
 import { waitCalibrationScript } from '../helpers/mlDsaWaitCalibration.e2e.mjs';
 
 const registrationFaultScript = `
 let injections = 0;
 let delayedRequest = null;
+let preparedJob = null;
 async function fetch(request, env) {
+  if (new URL(request.url).pathname === '/prepared-job') return Response.json(preparedJob);
+  if (env.LOSE_PREPARATION && new URL(request.url).pathname === '/router-ab/ml-dsa/registration/role') {
+    const command = await request.clone().json();
+    if (command.command === 'prepare' && injections === 0) {
+      const response = await env.NEXT.fetch(request);
+      if (response.status !== 200) return response;
+      if (await response.json() !== true) throw new Error('Preparation did not return ready');
+      preparedJob = command.job;
+      injections += 1;
+      return new Response('Injected lost preparation reply', { status: 503 });
+    }
+  }
   if (new URL(request.url).pathname === '/injections') return new Response(String(injections));
   if (new URL(request.url).pathname === '/late-result') {
     if (!delayedRequest) return new Response('No delayed request', { status: 409 });
@@ -36,7 +50,7 @@ async function fetch(request, env) {
       return new Response('Injected execution stall', { status: 503 });
     }
   }
-  if (!env.STALL_EXECUTION && new URL(request.url).pathname === '/router-ab/ml-dsa/role') {
+  if (!env.STALL_EXECUTION && !env.LOSE_PREPARATION && new URL(request.url).pathname === '/router-ab/ml-dsa/role') {
     const command = await request.clone().json();
     if (command.command === 'initialize_registration_storage') {
       injections += 1;
@@ -55,6 +69,9 @@ const standardBuildRoot = process.env.ML_DSA_TEST_STANDARD_BUILD_ROOT ?? join(ro
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
+const commitProbe = process.env.ML_DSA_REGISTRATION_COMMIT_PROBE === '1';
+const losePreparation = process.env.ML_DSA_REGISTRATION_LOSE_PREPARATION_REPLY === '1';
+assert.ok(!(hostedUrl && (commitProbe || losePreparation)), 'Probe setup and fault injection are local-only');
 const calibrateWaits = process.env.ML_DSA_REGISTRATION_CALIBRATE_WAITS === '1';
 const failStorage = process.env.ML_DSA_REGISTRATION_FAIL_STORAGE === '1';
 assert.ok(!failStorage || calibrateWaits, 'Storage failure requires local wait calibration');
@@ -64,6 +81,8 @@ const stallDelivery = process.env.ML_DSA_REGISTRATION_STALL_DELIVERY === '1';
 const loseDeliveryReply = process.env.ML_DSA_REGISTRATION_LOSE_DELIVERY_REPLY === '1';
 const stallInitialization = process.env.ML_DSA_REGISTRATION_STALL_INITIALIZATION === '1';
 const stallExecution = process.env.ML_DSA_REGISTRATION_STALL_EXECUTION === '1';
+assert.ok(!(losePreparation && (stallInitialization || stallExecution || calibrateWaits || profilePrefix)), 'Use a separate preparation retirement campaign');
+assert.ok(!(commitProbe && calibrateWaits), 'Use separate calibration wrappers');
 assert.ok(!(stallInitialization && stallExecution), 'Select one registration fault');
 assert.ok(!(hostedUrl && (stallInitialization || stallExecution || loseDeliveryReply || stallDelivery)), 'Fault injection is local-only');
 assert.ok(!((loseDeliveryReply || stallDelivery) && (stallInitialization || stallExecution || profilePrefix)), 'Delivery faults require a separate unprofiled lifecycle run');
@@ -120,6 +139,9 @@ const observations = {
   stageTraces: [],
   registrationExecutions: [],
   waitDiagnostics: [],
+  commitProbes: [],
+  peerCompletionCalibration: [],
+  retirements: [],
   registrationLinks: [],
   waitCalibration: [],
   functionalPassed: false,
@@ -167,6 +189,12 @@ class RegistrationRouterProxy {
 }
 const waitCalibrationPath = join(buildRoot, 'ml-dsa-wait-calibration.e2e.mjs');
 if (calibrateWaits) await writeFile(waitCalibrationPath, waitCalibrationScript.replace('__FAIL_STORAGE__', String(failStorage)));
+const readinessDelayPath = join(buildRoot, 'ml-dsa-readiness-delay.mjs');
+const commitProbePaths = ['a', 'b'].map(commitProbePath);
+if (commitProbe) {
+  await writeFile(readinessDelayPath, readinessDelayScript);
+  for (const role of ['a', 'b']) await writeFile(commitProbePath(role), commitProbeScript(role));
+}
 const materialLossPath = join(buildRoot, 'ml-dsa-material-loss.e2e.mjs');
 if (!hostedUrl) await writeFile(materialLossPath, `
 import { RouterAbMlDsaPoolDurableObject as Pool } from './deriver-a/worker/shim.mjs';
@@ -187,6 +215,7 @@ export class MaterialLossPool extends Pool {
 let runtime;
 let keks;
 let executionFaultArmed = stallExecution;
+let preparationFaultArmed = losePreparation;
 let discoveryFault = 'none';
 try {
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -206,6 +235,7 @@ try {
   assert.equal(denied.status, 403);
   observations.wrongCredentialRejected = true;
   await checkRecipientDiscovery(client);
+  if (commitProbe) observations.commitCalibration = await calibrateCommitProbes();
   let previous;
   let firstRequest;
   for (const epoch of [1, 2]) {
@@ -226,9 +256,11 @@ try {
       observations.emptyPoolRetryTime = true;
       firstRequest = payload.request;
     }
+    if (losePreparation && epoch === 1) observations.preparationRetirement = await checkPreparationRetirement();
     const prepareStarted = performance.now();
     let ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
     assert.equal(ready.ready, true);
+    if (losePreparation && epoch === 1) assert.notDeepEqual(ready.job.id, observations.preparationRetirement.retiredJob.id);
     assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
     let preparationMs = performance.now() - prepareStarted;
     if (epoch === 1 && stallExecution) {
@@ -321,7 +353,7 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
-  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits) {
+  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits && !commitProbe && !losePreparation) {
     const { verifyMlDsaGatewayRegistration } = await import(
       '../helpers/mlDsaGatewayRegistration.e2e.mjs'
     );
@@ -351,6 +383,7 @@ try {
   }
   assert.ok(!failStorage, 'Expected the injected storage failure');
   if (calibrateWaits) verifyWaitCalibration();
+  if (commitProbe) verifyPeerCompletionCalibration();
   if (!observations.functionalPassed) process.exitCode = 1;
 } catch (error) {
   observations.error = String(error);
@@ -361,6 +394,10 @@ try {
   await runtime?.dispose();
   if (!hostedUrl) await rm(materialLossPath, { force: true });
   if (calibrateWaits) await rm(waitCalibrationPath, { force: true });
+  if (commitProbe) {
+    for (const path of commitProbePaths) await rm(path, { force: true });
+    await rm(readinessDelayPath, { force: true });
+  }
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
@@ -504,7 +541,7 @@ function base(name, build, extra) {
       INTERNAL_AUTH: serviceAuth,
       ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
       ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
-      ML_DSA_WAIT_DIAGNOSTICS: calibrateWaits ? '1' : '0',
+      ML_DSA_WAIT_DIAGNOSTICS: calibrateWaits || commitProbe || losePreparation ? '1' : '0',
       ...extra,
     },
   };
@@ -519,6 +556,7 @@ function workers() {
     },
     {
       ...base('router', 'router', {}),
+      scriptPath: commitProbe ? readinessDelayPath : join(buildRoot, 'router/worker/shim.mjs'),
       durableObjects: {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
       },
@@ -529,14 +567,14 @@ function workers() {
     preparerWorker('a', 0),
     preparerWorker('b', 1),
     ...(stallInitialization ? [registrationFaultWorker('a'), registrationFaultWorker('b')] : []),
-    ...(executionFaultArmed ? [registrationFaultWorker('a')] : []),
+    ...(executionFaultArmed || preparationFaultArmed ? [registrationFaultWorker('a')] : []),
     ...(deliveryFault ? [deliveryBarrierWorker()] : []),
   ];
 }
 function registrationRoleBindings() {
   if (discoveryFault === 'swapped') return { DERIVER_A: 'b', DERIVER_B: 'a' };
   return {
-    DERIVER_A: stallInitialization || executionFaultArmed ? 'stall-a' : 'a',
+    DERIVER_A: stallInitialization || executionFaultArmed || preparationFaultArmed ? 'stall-a' : 'a',
     DERIVER_B: stallInitialization ? 'stall-b' : 'b',
   };
 }
@@ -573,6 +611,10 @@ function role(name, index) {
       className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier',
     };
   }
+  if (commitProbe) {
+    worker.scriptPath = commitProbePath(name);
+    worker.durableObjects.ML_DSA_POOL_DO.className = 'RouterAbMlDsaPoolDurableObject';
+  }
   return worker;
 }
 function preparerWorker(participant, index) {
@@ -581,7 +623,7 @@ function preparerWorker(participant, index) {
   worker.scriptPath = join(buildRoot, `deriver-${participant}`, 'worker/shim.mjs');
   worker.durableObjects.ML_DSA_POOL_DO = deliveryFault && participant === 'a'
     ? { className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier' }
-    : { className: participant === 'a' ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
+    : { className: participant === 'a' && !commitProbe ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
   if (participant === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
@@ -699,12 +741,117 @@ function recordStageTrace(line) {
   try { event = JSON.parse(line); } catch { return; }
   if (typeof event.event !== 'string') return;
   if (['ml_dsa_registration_job_v1', 'ml_dsa_registration_call_v1'].includes(event.event)) observations.registrationLinks.push(event);
+  if (event.event === 'ml_dsa_peer_completion_calibration_v1') observations.peerCompletionCalibration.push(event);
+  if (event.event === 'ml_dsa_commit_probe_v1') observations.commitProbes.push(event);
+  if (event.event === 'ml_dsa_registration_retirement_v1') observations.retirements.push(event);
   if (event.event.startsWith('ml_dsa_wait_')) observations.waitDiagnostics.push(event);
   if (event.event === 'ml_dsa_wait_calibration_v1') observations.waitCalibration.push(event);
   if (event.event === 'ml_dsa_stage_trace_v1') observations.stageTraces.push(event);
   if (event.event === 'ml_dsa_registration_execution_v1') observations.registrationExecutions.push(event);
 }
 
+function peerCalibrationScope(injection, role, event) {
+  return event.event === 'ml_dsa_wait_scope_v1' && event.job === injection.job && event.role === role;
+}
+function verifyPeerCompletionCalibration() {
+  assert.ok(observations.peerCompletionCalibration.length > 0);
+  const matches = [];
+  for (const injection of observations.peerCompletionCalibration) {
+    for (const [role, kind] of [['a', 'peer_ready'], ['b', 'publish_ready']]) {
+      const calls = observations.waitDiagnostics.filter(peerCalibrationScope.bind(null, injection, role)).map(scopeCall);
+      let matched = false;
+      for (const begin of observations.waitDiagnostics) {
+        if (begin.kind !== kind || begin.state !== 'begin' || !calls.includes(begin.call_id)) continue;
+        const end = observations.waitDiagnostics.find(matchingEnd.bind(null, begin));
+        if (end && end.at_ms >= injection.finished_ms) {
+          const overlapMs = Math.min(end.at_ms, injection.finished_ms) - Math.max(begin.at_ms, injection.started_ms);
+          if (overlapMs < 350) continue;
+          matches.push({ role, kind, job: injection.job, observedMs: end.at_ms - begin.at_ms, overlapMs });
+          matched = true;
+        }
+      }
+      assert.ok(matched, 'Known readiness delay must appear in ' + kind);
+    }
+  }
+  observations.peerCompletionBoundaries = matches;
+}
+function commitProbePath(role) { return join(buildRoot, 'ml-dsa-commit-probe-' + role + '.mjs'); }
+async function calibrateCommitProbes() {
+  const samples = [];
+  for (const role of ['a', 'b']) {
+    const worker = await runtime.getWorker(role);
+    const denied = await worker.fetch('https://probe.internal/__ml-dsa-commit-calibration');
+    assert.equal(denied.status, 403);
+    const started = performance.now();
+    const response = await worker.fetch('https://probe.internal/__ml-dsa-commit-calibration', {
+      headers: { 'x-router-ab-internal-service-auth': serviceAuth },
+    });
+    assert.equal(response.status, 200);
+    const record = await response.json();
+    const elapsedMs = performance.now() - started;
+    assert.equal(record.state, 'complete');
+    assert.equal(record.calibration.requested_ms, 400);
+    assert.ok(record.transaction_returned_ms <= record.calibration.started_ms);
+    assert.ok(record.sync_finished_ms >= record.calibration.finished_ms);
+    assert.ok(record.calibration.finished_ms - record.calibration.started_ms >= 350);
+    assert.ok(elapsedMs >= 350);
+    samples.push({ role, elapsedMs, record });
+  }
+  return samples;
+}
+async function admissionCommand(path, command, credential) {
+  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_ADMISSION_DO', 'router');
+  const stub = namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
+  return stub.fetch('https://admission.internal' + path, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-router-ab-internal-service-auth': credential },
+    body: JSON.stringify(command),
+  });
+}
+async function checkPreparationRetirement() {
+  const failed = await raw('/router-ab/ml-dsa/registration/prepare', { wallet }, gatewayAuth);
+  await failed.text();
+  assert.ok(failed.status >= 500, 'The fixture must lose a successful preparation reply');
+  const barrier = await runtime.getWorker('stall-a');
+  const retiredJob = await (await barrier.fetch('https://fault.internal/prepared-job')).json();
+  assert.ok(retiredJob, 'The fixture must finish the real preparation before losing its reply');
+  assert.equal(await (await barrier.fetch('https://fault.internal/injections')).text(), '1');
+  preparationFaultArmed = false;
+  await runtime.dispose();
+  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  await runtime.ready;
+  const started = performance.now();
+  const check = await admissionCommand('/check', { command: 'check_registration_job', job: retiredJob }, serviceAuth);
+  assert.equal(await check.json(), false);
+  for (const role of ['a', 'b']) {
+    await assert.rejects(
+      admissionCommand('/check', { command: 'ready_registration', job: retiredJob, role }, serviceAuth),
+      /Registration preparation is stale/,
+    );
+  }
+  for (const path of ['/check', '/control']) {
+    const denied = await admissionCommand(path, { command: 'retire_registration', job: retiredJob }, serviceAuth);
+    await denied.text();
+    assert.equal(denied.status, 403);
+  }
+  const retry = await admissionCommand('/control', { command: 'retire_registration', job: retiredJob }, gatewayAuth);
+  assert.equal(await retry.json(), 'already_retired');
+  const replacementStarted = performance.now();
+  const replacement = await admissionCommand('/control', {
+    command: 'prepare_registration', scope: retiredJob.scope, schedule: retiredJob.schedule,
+    signing_schedule: retiredJob.signing_schedule, signing_batches: retiredJob.signing_batches,
+  }, gatewayAuth);
+  assert.equal(replacement.status, 200);
+  const fresh = await replacement.json();
+  const replacementAllocationMs = performance.now() - replacementStarted;
+  const replacementAtMs = Date.now();
+  assert.ok(replacementAtMs < retiredJob.prepare_until, 'Replacement must precede the failed preparation lease expiry');
+  assert.notDeepEqual(fresh.id, retiredJob.id);
+  const release = await admissionCommand('/control', { command: 'retire_registration', job: fresh }, gatewayAuth);
+  assert.equal(await release.json(), 'retired');
+  return { retiredJob, replacementJob: fresh, restart: true, lateReadyRejected: true,
+    participantRetirementDenied: true, existingTombstone: true, replacementAllocationMs, replacementAtMs,
+    postRestartChecksMs: performance.now() - started };
+}
 function failedStorageBoundary(event) {
   return event.event === 'ml_dsa_wait_boundary_v1' && event.kind === 'load_tables' && event.state === 'error';
 }
@@ -921,7 +1068,7 @@ function registrationFaultWorker(role) {
     name: 'stall-' + role,
     modules: true,
     script: registrationFaultScript,
-    bindings: { STALL_EXECUTION: stallExecution },
+    bindings: { STALL_EXECUTION: stallExecution, LOSE_PREPARATION: losePreparation },
     compatibilityDate: '2026-06-12',
     serviceBindings: { NEXT: role },
   };

@@ -1,0 +1,258 @@
+{
+  "schema": "seams.ml-dsa-commit-retirement.v1",
+  "source_parent": "42d6e73c9c054fb37feb9b8a0919c524e7c83fda",
+  "production_change": "Gateway-authorized exact-job retirement on observed preparation failure; preserve claimed jobs and cleanup alarms.",
+  "production_sync_barriers_added": false,
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_export": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "local_retirement": {
+    "retirement_before_expiry_ms": 277495,
+    "replacement_allocation_ms": 9.140292000000045,
+    "retirement_public_events": 1,
+    "parsed_commit_events": 512,
+    "timer_calibration_records": 2,
+    "peer_completion_boundaries": [
+      {
+        "role": "a",
+        "kind": "peer_ready",
+        "job": "1ede8395a6faf7cd0fac329623d8d54d662881de38f7092382f6f44f275efc6f",
+        "observedMs": 401,
+        "overlapMs": 399
+      },
+      {
+        "role": "b",
+        "kind": "publish_ready",
+        "job": "1ede8395a6faf7cd0fac329623d8d54d662881de38f7092382f6f44f275efc6f",
+        "observedMs": 402,
+        "overlapMs": 400
+      },
+      {
+        "role": "a",
+        "kind": "peer_ready",
+        "job": "cde5f4ca2c450d42c4544d81ea7dcf992e8429f6f9aba7aa21cecd4557c588b1",
+        "observedMs": 403,
+        "overlapMs": 401
+      },
+      {
+        "role": "b",
+        "kind": "publish_ready",
+        "job": "cde5f4ca2c450d42c4544d81ea7dcf992e8429f6f9aba7aa21cecd4557c588b1",
+        "observedMs": 405,
+        "overlapMs": 402
+      }
+    ],
+    "canonical_recovery_both_campaigns": true
+  },
+  "native_retirement": {
+    "changed_identity_rejected": true,
+    "claimed_job_preserved": true,
+    "fresh_replacement": true,
+    "late_ready_rejected": true,
+    "other_stock_preserved": true,
+    "restart": true
+  },
+  "hosted": {
+    "functional_passed": true,
+    "cases": [
+      {
+        "epoch": 1,
+        "preparation_ms": 105320.509042,
+        "registration_ms": 8512.420249999996,
+        "signing_ms": 9728.927083000002,
+        "signature_verified": true
+      },
+      {
+        "epoch": 2,
+        "preparation_ms": 85586.45829099999,
+        "registration_ms": 6000.494666999992,
+        "signing_ms": 3868.530040999991,
+        "signature_verified": true
+      }
+    ],
+    "preparation_scope": "Generic key-generation material plus sixteen initial signing candidates.",
+    "retained_invocations": 463,
+    "provider_truncated_invocations": 2,
+    "commit_summary": [
+      {
+        "role": "a",
+        "phase": "execute",
+        "transaction_return": {
+          "count": 8,
+          "zero_count": 8,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 8,
+          "zero_count": 0,
+          "median_ms": 29.0,
+          "maximum_ms": 311,
+          "minimum_ms": 9
+        }
+      },
+      {
+        "role": "a",
+        "phase": "install",
+        "transaction_return": {
+          "count": 34,
+          "zero_count": 34,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 34,
+          "zero_count": 8,
+          "median_ms": 2.0,
+          "maximum_ms": 85,
+          "minimum_ms": 0
+        }
+      },
+      {
+        "role": "a",
+        "phase": "outside_registration_request",
+        "transaction_return": {
+          "count": 10,
+          "zero_count": 10,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 10,
+          "zero_count": 4,
+          "median_ms": 15.0,
+          "maximum_ms": 94,
+          "minimum_ms": 0
+        }
+      },
+      {
+        "role": "a",
+        "phase": "prepare",
+        "transaction_return": {
+          "count": 20,
+          "zero_count": 20,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 20,
+          "zero_count": 0,
+          "median_ms": 29.5,
+          "maximum_ms": 446,
+          "minimum_ms": 10
+        }
+      },
+      {
+        "role": "b",
+        "phase": "execute_peer",
+        "transaction_return": {
+          "count": 54,
+          "zero_count": 54,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 54,
+          "zero_count": 0,
+          "median_ms": 54.0,
+          "maximum_ms": 210,
+          "minimum_ms": 12
+        }
+      },
+      {
+        "role": "b",
+        "phase": "install",
+        "transaction_return": {
+          "count": 34,
+          "zero_count": 34,
+          "median_ms": 0.0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 34,
+          "zero_count": 6,
+          "median_ms": 2.0,
+          "maximum_ms": 13,
+          "minimum_ms": 0
+        }
+      },
+      {
+        "role": "b",
+        "phase": "outside_registration_request",
+        "transaction_return": {
+          "count": 99,
+          "zero_count": 99,
+          "median_ms": 0,
+          "maximum_ms": 0,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 99,
+          "zero_count": 7,
+          "median_ms": 15,
+          "maximum_ms": 191,
+          "minimum_ms": 0
+        }
+      },
+      {
+        "role": "b",
+        "phase": "prepare_peer",
+        "transaction_return": {
+          "count": 356,
+          "zero_count": 344,
+          "median_ms": 0.0,
+          "maximum_ms": 5,
+          "minimum_ms": 0
+        },
+        "post_transaction_sync": {
+          "count": 356,
+          "zero_count": 0,
+          "median_ms": 20.0,
+          "maximum_ms": 666,
+          "minimum_ms": 11
+        }
+      }
+    ],
+    "retirement_events": 0
+  },
+  "limits": [
+    "Explicit sync changes execution and can wait for earlier writes.",
+    "Boundary clocks can include preceding CPU work and scheduling.",
+    "The 400 ms timer validates clock visibility, not disk latency; calibration records are excluded from commit statistics.",
+    "Both B preparation records are truncated; their distributions and missing peer completion records are incomplete.",
+    "No paired unwrapped control or production speedup established.",
+    "Retirement is verified in native and local real-Worker tests; no hosted failure retirement event occurred.",
+    "Retirement does not immediately stop remote work or physically erase it; existing cleanup and lease fallback remain.",
+    "The five-second target remains unmet."
+  ],
+  "validation": {
+    "release_builds": "passed",
+    "native_e2e": "passed",
+    "local_worker_retirement": "passed",
+    "local_commit_and_peer_calibration": "passed",
+    "hosted_canonical_recovery_and_signatures": "passed",
+    "independent_review": "Measurements and safety conditions reproduced.",
+    "bloat": "Inherited Rust duplication failure remains 13972 versus 13754; baseline unchanged."
+  },
+  "cleanup": {
+    "workers_deleted": 6
+  },
+  "archive": {
+    "path": "ml-dsa-65-commit-retirement-20261024-data.json.gz",
+    "bytes": 276452,
+    "sha256": "d94c5e8db4dea347bb38ce4b326dec59678a1dab2fd9d77e7b6387b2d5d4f6aa"
+  }
+}

@@ -266,7 +266,7 @@ def public_wait_trace(value, timestamp):
             return None
         result.update({key: value[key] for key in ("observations", "emitted_events", "event_limit_reached")})
     else:
-        if value.get("kind") not in ("peer_connect", "peer_event", "store_tables", "load_tables", "publish_private", "consume_private", "store_signing_stock"):
+        if value.get("kind") not in ("peer_connect", "peer_event", "peer_prepared", "publish_ready", "peer_ready", "peer_result", "store_tables", "load_tables", "publish_private", "consume_private", "store_signing_stock"):
             return None
         if value.get("state") not in ("begin", "end", "error") or type(value.get("pending")) is not bool:
             return None
@@ -274,6 +274,52 @@ def public_wait_trace(value, timestamp):
             return None
         result.update({key: value[key] for key in ("kind", "state", "pending", "sequence", "at_ms")})
     return result
+
+
+def public_retirement(value, timestamp):
+    if value.get("event") != "ml_dsa_registration_retirement_v1" or not public_time(timestamp):
+        return None
+    if not public_id(value.get("job")) or value.get("preparation_failed") is not True:
+        return None
+    outcome = value.get("retirement")
+    failed = value.get("retirement_failed")
+    if type(failed) is not bool or outcome not in (None, "retired", "already_retired", "claimed"):
+        return None
+    if failed != (outcome is None):
+        return None
+    return {"job": value["job"], "retirement": outcome, "retirement_failed": failed,
+            "preparation_failed": True, "log_timestamp_ms": timestamp}
+
+
+def public_commit_probe(value, timestamp):
+    if value.get("event") != "ml_dsa_commit_probe_v1" or not public_time(timestamp):
+        return None
+    if value.get("role") not in ("a", "b") or not public_id(value.get("object")):
+        return None
+    if not public_call_id(value.get("instance")) or not public_counter(value.get("sequence")):
+        return None
+    if value.get("state") not in ("complete", "transaction_error", "sync_error"):
+        return None
+    times = ("transaction_started_ms", "transaction_returned_ms", "sync_finished_ms")
+    if any(key not in value for key in times) or not public_counter(value["transaction_started_ms"]):
+        return None
+    if not all(public_time(value[key]) for key in times):
+        return None
+    if value["state"] == "complete" and not all(public_counter(value[key]) for key in times):
+        return None
+    if value["state"] == "sync_error" and not public_counter(value["transaction_returned_ms"]):
+        return None
+    if value["state"] != "complete" and value["sync_finished_ms"] is not None:
+        return None
+    calibration = value.get("calibration")
+    if calibration is not None:
+        if not isinstance(calibration, dict) or calibration.get("requested_ms") != 400:
+            return None
+        if not all(public_counter(calibration.get(key)) for key in ("started_ms", "finished_ms")):
+            return None
+        calibration = {key: calibration[key] for key in ("requested_ms", "started_ms", "finished_ms")}
+    fields = ("role", "object", "instance", "sequence", "state", *times)
+    return {**{key: value[key] for key in fields}, "calibration": calibration, "log_timestamp_ms": timestamp}
 
 
 def public_producer_entry(value, timestamp):
@@ -463,6 +509,8 @@ def records(path, role):
         router_traces = []
         registration_links = []
         wait_traces = []
+        retirements = []
+        commit_probes = []
         stage_traces = []
         socket_completion = []
         peer_close = []
@@ -485,6 +533,12 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                retirement = public_retirement(value, log.get("timestamp"))
+                if retirement is not None:
+                    retirements.append(retirement)
+                commit_probe = public_commit_probe(value, log.get("timestamp"))
+                if commit_probe is not None:
+                    commit_probes.append(commit_probe)
                 link = public_registration_link(value)
                 if link is not None:
                     registration_links.append(link)
@@ -619,6 +673,8 @@ def records(path, role):
             "registration_context": registration_context,
             "registration_links": registration_links,
             "wait_traces": wait_traces,
+            "retirements": retirements,
+            "commit_probes": commit_probes,
             "worker": item.get("scriptName"),
             "entrypoint": item.get("entrypoint") if item.get("entrypoint") in (
                 "default", "RouterAbMlDsaRegistrationDurableObject", "RouterAbMlDsaPoolDurableObject",
@@ -672,11 +728,12 @@ def main():
     parser.add_argument("--router", type=pathlib.Path)
     parser.add_argument("--preparer-a", type=pathlib.Path)
     parser.add_argument("--preparer-b", type=pathlib.Path)
+    parser.add_argument("--front", type=pathlib.Path)
     args = parser.parse_args()
     retained = records(args.role_a, "a") + records(args.role_b, "b")
     if args.router:
         retained += records(args.router, "router")
-    for role, path in [("preparer-a", args.preparer_a), ("preparer-b", args.preparer_b)]:
+    for role, path in [("preparer-a", args.preparer_a), ("preparer-b", args.preparer_b), ("front", args.front)]:
         if path:
             retained += records(path, role)
     report = {

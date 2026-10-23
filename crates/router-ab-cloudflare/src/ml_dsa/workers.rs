@@ -49,6 +49,9 @@ pub enum AdmissionCommand {
         signing_schedule: [u8; 32],
         signing_batches: usize,
     },
+    RetireRegistration {
+        job: super::registration::Job,
+    },
     ReadyRegistration {
         job: super::registration::Job,
         role: Participant,
@@ -427,6 +430,9 @@ async fn execute_admission(
             )
             .await?,
         ),
+        AdmissionCommand::RetireRegistration { job } => {
+            json(super::registration::retire_preparation(store, &job).await?)
+        }
         AdmissionCommand::ReadyRegistration { job, role } => {
             super::registration::ready(store, &job, role, now).await?;
             json(true)

@@ -7,8 +7,11 @@ Native and workerd correctness pass, but hosted creation takes 15.418 seconds, s
 The selected protocol source remains unchanged. The [failure-correlation screen](ml-dsa-65-wait-correlation-report.md) now joins a hosted storage reset to its exact request and participant calls.
 Local delay and failure calibration pass. Hosted storage intervals often report zero, and peer counters cannot partition invocation wall time.
 The fresh diagnostic run completes canonical creation/recovery and two verified signatures, but registration takes 6.165–15.954 seconds and signing takes 8.502–23.556 seconds.
-A failed preparation also holds the shared preparation slot until its five-minute deadline.
-Next, calibrate transaction/commit and peer-completion timing, then add safe retirement of failed preparation. Detailed tracing remains disabled by default.
+The [commit and retirement screen](ml-dsa-65-commit-retirement-report.md) adds Gateway-authorized retirement of exact unclaimed failed jobs.
+Its real-Worker test proves a durable tombstone, late-readiness rejection, and replacement before the old five-minute deadline; existing claims remain protected.
+The hosted test-only sync probe records execution barrier medians of 29 ms on A and 54 ms on B. These boundary intervals can include CPU work, scheduling, and earlier writes.
+Probe registration takes 8.512 and 6.000 seconds; verified signing takes 9.729 and 3.869 seconds. Two B preparation traces are truncated.
+Next, obtain complete low-volume diagnostics and a matched unwrapped control, then test hosted retirement races. Production adds no sync barrier; detailed tracing remains disabled by default.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.
