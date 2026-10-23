@@ -1,8 +1,3 @@
-import {
-  buildDelegatedWalletAuthorityV1,
-  buildFullOwnerPermissionsV1,
-  sameDelegatedWalletAuthorityV1,
-} from '@shared/authorization/delegatedAuthority';
 import type { VoiceIdDevicePublicKeyB64u } from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlDecode } from '@shared/utils/base64';
 import { alphabetizeStringify } from '@shared/utils/digests';
@@ -13,6 +8,7 @@ import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMetho
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { CloudflareD1PasskeyCustodyEnvelopeStore } from '../passkeyCustody/d1PasskeyCustodyEnvelopeStore';
+import { isFullOwnerAuthorityV1 } from './d1WalletAuthMethodService';
 import type {
   VoiceIdActivationCommand,
   VoiceIdActivationEnvelope,
@@ -41,10 +37,7 @@ function ownerSessionIsCurrent(source: VoiceIdActivationOwnerSession, nowMs: num
     session.createdAtMs <= nowMs &&
     session.expiresAtMs > nowMs &&
     quota.expiresAtMs > nowMs &&
-    sameDelegatedWalletAuthorityV1(
-      buildDelegatedWalletAuthorityV1({ permissions: source.authority.permissions }),
-      buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
-    )
+    isFullOwnerAuthorityV1(source.authority)
   );
 }
 

@@ -1112,6 +1112,30 @@ export function createRouterApiRouteDefinitions(
       ROUTER_API_VOICEID_ACTIVATION_SERVICES,
     ),
     publicRoute(
+      'wallet_voiceid_challenge',
+      'POST',
+      '/wallet/voiceid/challenge',
+      'Issue a device-bound VoiceID Wallet Session challenge',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale: 'An active method receives a short-lived challenge bound to the hosted wallet origin.',
+      },
+      ROUTER_API_WALLET_UNLOCK_SERVICES,
+    ),
+    publicRoute(
+      'wallet_voiceid_verify',
+      'POST',
+      '/wallet/voiceid/verify',
+      'Verify a VoiceID device assertion and issue a Wallet Session',
+      {
+        plane: 'public',
+        proof: 'signed_payload',
+        rationale: 'The registered device signature and single-use server challenge authorize issuance.',
+      },
+      ROUTER_API_WALLET_UNLOCK_SERVICES,
+    ),
+    publicRoute(
       'wallet_email_otp_challenge',
       'POST',
       '/wallet/email-otp/challenge',

@@ -5,11 +5,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type TestInfo } from '@playwright/test';
 import { buildFullOwnerPermissionsV1 } from '@shared/authorization/delegatedAuthority';
-import { parseVoiceIdDevicePublicKeyB64u } from '@shared/authorization/voiceIdDeviceAssertion';
+import { parseTenantId } from '@shared/authorization/capabilityKinds';
+import {
+  parseVoiceIdDevicePublicKeyB64u,
+  parseVoiceIdWalletSessionChallenge,
+  voiceIdWalletSessionChallengeBytes,
+} from '@shared/authorization/voiceIdDeviceAssertion';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { sha256DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { allocateWalletAuthMethodId, parsePasskeyEnvelopeId } from '@shared/utils/domainIds';
 import { custodyEnvelopeBindingJsonV1 } from '@shared/passkey-custody/custodyEnvelope';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking/activeWalletSession';
+import { requireRecord } from '@shared/utils/validation';
 import { D1WalletAuthMethodStore, prepareD1WalletAuthMethodV2PutStatement } from '@server/core/d1WalletAuthMethodStore';
 import { AuthorizationService } from '@server/authorization/service';
 import { capabilityPolicyPort } from '@server/authorization/capabilityPolicy';
@@ -19,7 +26,14 @@ import { D1WalletExecutionAuthority } from '@server/router/cloudflare/d1/registr
 import { readActiveWalletSessionCredential } from '@server/router/cloudflare/d1/auth/walletSessionCredentialReaders';
 import { prepareD1WalletAuthorityPutStatement } from '@server/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
 import { D1VoiceIdActivation } from '@server/router/cloudflare/d1/wallet/d1VoiceIdActivation';
+import { D1VoiceIdSessions } from '@server/router/cloudflare/d1/wallet/d1VoiceIdSessions';
+import { D1VoiceIdWalletSessionChallenges } from '@server/router/cloudflare/d1/wallet/d1VoiceIdWalletSessionChallenges';
+import { D1WalletAuthorityStore } from '@server/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
 import { handleVoiceIdActivationRequest } from '@server/router/transport/fetch/routes/walletVoiceIdActivation';
+import {
+  handleVoiceIdChallengeRequest,
+  handleVoiceIdVerifyRequest,
+} from '@server/router/transport/fetch/routes/walletVoiceIdSessions';
 import {
   parseVoiceIdActivationEnvelope,
   type VoiceIdActivationOwnerSession,
@@ -43,15 +57,19 @@ const SCOPE = {
 type TestDeviceKey = {
   readonly publicKeyB64u: ReturnType<typeof parseVoiceIdDevicePublicKeyB64u>;
   readonly deviceKeyId: Awaited<ReturnType<typeof sha256DigestB64u>>;
+  readonly privateKey: CryptoKey;
 };
 
 async function generateTestDeviceKey(): Promise<TestDeviceKey> {
   const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
-  if (!('publicKey' in keys)) throw new Error('Test device key was unavailable');
+  if (!('publicKey' in keys) || !('privateKey' in keys)) {
+    throw new Error('Test device key was unavailable');
+  }
   const publicKey = new Uint8Array(await crypto.subtle.exportKey('raw', keys.publicKey));
   return {
     publicKeyB64u: parseVoiceIdDevicePublicKeyB64u(base64UrlEncode(publicKey)),
     deviceKeyId: await sha256DigestB64u(publicKey),
+    privateKey: keys.privateKey,
   };
 }
 
@@ -113,6 +131,14 @@ function activationHttpRequest(input: {
   });
 }
 
+function voiceIdHttpRequest(pathname: string, origin: string, body: unknown): Request {
+  return new Request(`https://router.example.test${pathname}`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 test('owner session activates one VoiceID key and envelope in the same D1 transaction', runJourney);
 
 async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Promise<void> {
@@ -149,9 +175,11 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       authorizedOperations: authorizationStore,
       audit: {},
     });
+    const tenantId = parseTenantId(SCOPE.orgId);
+    if (!tenantId.ok) throw new Error(tenantId.error.message);
     const issuedAtMs = Date.now();
     const issued = await authorization.issueDirectWalletSessionAuthorizationV2({
-      tenantId: fixture.issuedSession.session.tenantId,
+      tenantId: tenantId.value,
       principalId: fixture.issuedSession.session.principalId,
       walletId: fixture.authority.walletId,
       authority: fixture.authority,
@@ -316,6 +344,71 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
     });
     expect(retiredCustody.kind).toBe('missing');
 
+    const voiceIdSessions = new D1VoiceIdSessions(
+      authMethods,
+      new D1WalletAuthorityStore({ database, scope: SCOPE }),
+      envelopes,
+      new D1VoiceIdWalletSessionChallenges(database, SCOPE),
+      authorization,
+      SCOPE.orgId,
+    );
+    const voiceRoutes = {
+      issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
+      verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
+      hostedWalletOrigins: ['https://wallet.example.test'],
+    };
+    const challengeResponse = await handleVoiceIdChallengeRequest(voiceIdHttpRequest(
+      '/wallet/voiceid/challenge',
+      'https://wallet.example.test',
+      { walletId: fixture.authority.walletId, walletAuthMethodId: methodId },
+    ), voiceRoutes);
+    expect(challengeResponse.status).toBe(200);
+    const challengeBody = requireRecord(await challengeResponse.json(), 'VoiceID challenge response');
+    const challenge = parseVoiceIdWalletSessionChallenge(challengeBody.challenge);
+    const signature = await crypto.subtle.sign(
+      'Ed25519',
+      device.privateKey,
+      voiceIdWalletSessionChallengeBytes(challenge),
+    );
+    const assertion = {
+      kind: 'voiceid_device_assertion_v1',
+      challenge,
+      signatureB64u: base64UrlEncode(new Uint8Array(signature)),
+    };
+    const wrongVerifyOrigin = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
+      '/wallet/voiceid/verify',
+      'https://untrusted.example.test',
+      { assertion },
+    ), voiceRoutes);
+    expect(wrongVerifyOrigin.status).toBe(403);
+    const verifiedResponse = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
+      '/wallet/voiceid/verify',
+      'https://wallet.example.test',
+      { assertion },
+    ), voiceRoutes);
+    expect(verifiedResponse.status).toBe(200);
+    const verifiedBody = requireRecord(await verifiedResponse.json(), 'VoiceID verification response');
+    const voiceCredential = parseWalletSessionOperationCredentialV1(
+      verifiedBody.operationCredential,
+    );
+    const freshSession = await readActiveWalletSessionCredential(authorization, {
+      tenantId: issued.session.tenantId,
+      token: voiceCredential.token,
+      nowMs: Date.now(),
+    });
+    if (!freshSession) throw new Error('VoiceID session credential was not active');
+    expect(freshSession.authMethod.kind).toBe('voiceid');
+    expect(freshSession.authorization.session.mintId).toBe(challenge.challengeId);
+    expect(freshSession.authorization.session.walletSessionId).not.toBe(
+      issued.session.walletSessionId,
+    );
+    const replayResponse = await handleVoiceIdVerifyRequest(voiceIdHttpRequest(
+      '/wallet/voiceid/verify',
+      'https://wallet.example.test',
+      { assertion },
+    ), voiceRoutes);
+    expect(replayResponse.status).toBe(403);
+
     const reportPath = testInfo.outputPath('voiceid-activation.json');
     await writeFile(reportPath, `${JSON.stringify({
       schemaVersion: 'voiceid_activation_journey_v1',
@@ -323,6 +416,9 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       walletId: String(fixture.authority.walletId),
       methodId: String(methodId),
       envelopeId: String(envelopeId),
+      retiredSourceSessionId: String(issued.session.walletSessionId),
+      freshVoiceIdSessionId: String(freshSession.authorization.session.walletSessionId),
+      signedChallengeId: String(challenge.challengeId),
       cases: [
         'owner_session_http_activation_stores_method_and_envelope',
         'untrusted_origin_and_mismatched_device_key_rejected',
@@ -330,6 +426,8 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
         'stored_envelope_opens_in_browser_wasm',
         'duplicate_device_key_rolls_back_envelope',
         'retired_owner_session_rolls_back_method_and_envelope',
+        'voiceid_issues_fresh_session_after_source_retirement',
+        'changed_origin_and_challenge_replay_rejected',
       ],
     }, null, 2)}\n`);
     await testInfo.attach('voiceid-activation.json', { path: reportPath, contentType: 'application/json' });

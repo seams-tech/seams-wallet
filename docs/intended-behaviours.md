@@ -146,16 +146,26 @@ the active method and its exact seed envelope in one D1 transaction. The
 source method, authority, session, and quota must still be active at commit.
 A duplicate device key or retired source session leaves neither new record.
 
+The server now issues a fresh Wallet Session after a registered device
+signs one short-lived challenge. The challenge binds the wallet, method,
+device key, and hosted wallet origin. The server checks the active method,
+full-owner authority, and seed envelope before it issues the challenge and
+again before it consumes the signed proof. Session issuance rechecks the
+method and authority in its D1 transaction. A replay cannot mint a second
+session.
+
 The current SDK plugin still selects the local approval prototype above.
-Fresh-session unlock needs an SDK activation caller, server challenge and
-session issuance routes, custody activation, and a composed Wallet E2E.
+The SDK needs an activation caller, native challenge signing, custody
+activation, and signing-lane scope before it can offer voice-only unlock.
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
 It sends an owner-session HTTP request to a real local D1 database and opens
 the stored envelope in browser WASM. It also verifies transaction rollback for
-a duplicate device key and a retired owner session. The test writes a JSON
-report with public identities and no private key or factor secret.
+a duplicate device key and a retired owner session. After that session is
+retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
+A changed origin and replayed assertion fail. The test writes a JSON report
+with public identities and no private key or factor secret.
 
 The custody boundary contract is
 [`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).

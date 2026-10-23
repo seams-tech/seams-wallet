@@ -28,7 +28,7 @@ const ACTIVATION_FIELDS = [
   'custodyEnvelope',
 ] as const;
 
-function hostedWalletOriginAllowed(
+export function hostedWalletOriginAllowed(
   request: Request,
   allowedOrigins: readonly (string | undefined)[],
 ): boolean {

@@ -4,6 +4,10 @@ import { handleHealth, handleReady } from './routes/health';
 import { handleWalletRegistration } from './routes/walletRegistration';
 import { handleWalletVoiceIdActivation } from './routes/walletVoiceIdActivation';
 import {
+  handleWalletVoiceIdChallenge,
+  handleWalletVoiceIdVerify,
+} from './routes/walletVoiceIdSessions';
+import {
   handlePasskeyCustody,
   handleWalletCustodyEmailOtpChallenge,
   handleWalletCustodyCredentialsList,
@@ -387,6 +391,8 @@ export function createFetchRouter(
     handleWalletUnlockChallenge,
     handleWalletUnlockVerify,
     handleWalletVoiceIdActivation,
+    handleWalletVoiceIdChallenge,
+    handleWalletVoiceIdVerify,
     handleWalletEmailOtpChallenge,
     handleWalletEmailOtpFactorRelease,
     handleWalletEmailOtpDevCleanupGoogleRegistration,

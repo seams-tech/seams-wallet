@@ -354,7 +354,7 @@ function bindEmailOtpAuthorityToMethod(
   };
 }
 
-function isFullOwnerAuthorityV1(authority: ActiveWalletAuthorityV1): boolean {
+export function isFullOwnerAuthorityV1(authority: ActiveWalletAuthorityV1): boolean {
   return sameDelegatedWalletAuthorityV1(
     buildDelegatedWalletAuthorityV1({ permissions: authority.permissions }),
     buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),

@@ -1430,6 +1430,12 @@ export interface RouterApiWalletRegistrationRouteService
 }
 
 export interface RouterApiWalletUnlockService {
+  issueVoiceIdChallenge(
+    input: import('../domains/voiceId/voiceIdSessions').VoiceIdChallengeRequest,
+  ): Promise<import('../domains/voiceId/voiceIdSessions').VoiceIdChallengeResult>;
+  verifyAndIssueVoiceId(
+    input: import('../domains/voiceId/voiceIdSessions').VoiceIdVerifyRequest,
+  ): Promise<import('../domains/voiceId/voiceIdSessions').VoiceIdVerifyResult>;
   createEmailOtpUnlockChallenge(
     input: RouterApiMethodTypes['createEmailOtpUnlockChallenge']['input'],
   ): Promise<RouterApiMethodTypes['createEmailOtpUnlockChallenge']['result']>;

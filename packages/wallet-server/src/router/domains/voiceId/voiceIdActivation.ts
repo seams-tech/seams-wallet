@@ -12,12 +12,25 @@ import {
 } from '@shared/passkey-custody/custodyEnvelope';
 import type { IssuedWalletSessionAuthorizationV2 } from '../../../authorization/domain';
 
-export type VoiceIdActivationEnvelope = PasskeyCustodyEnvelopeRecord & {
+export type VoiceIdSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
   readonly ownership: Extract<PasskeyCustodyEnvelopeRecord['ownership'], { readonly kind: 'method_bound' }>;
   readonly binding: Extract<PasskeyCustodyEnvelopeRecord['binding'], { readonly kind: 'wallet_custody_seed_v1' }>;
   readonly factor: Extract<PasskeyCustodyEnvelopeRecord['factor'], { readonly kind: 'voiceid' }>;
   readonly lifecycle: Extract<PasskeyCustodyEnvelopeRecord['lifecycle'], { readonly state: 'active' }>;
 };
+
+export type VoiceIdActivationEnvelope = VoiceIdSeedEnvelope;
+
+export function isVoiceIdSeedEnvelope(
+  envelope: PasskeyCustodyEnvelopeRecord,
+): envelope is VoiceIdSeedEnvelope {
+  return (
+    envelope.ownership.kind === 'method_bound' &&
+    envelope.binding.kind === 'wallet_custody_seed_v1' &&
+    envelope.factor.kind === 'voiceid' &&
+    envelope.lifecycle.state === 'active'
+  );
+}
 
 export type VoiceIdActivationOwnerSession = Readonly<{
   authorization: IssuedWalletSessionAuthorizationV2;
@@ -40,30 +53,8 @@ export type VoiceIdActivationResult =
 /** Accepts only a method-bound owner seed envelope for the new VoiceID method. */
 export function parseVoiceIdActivationEnvelope(raw: unknown): VoiceIdActivationEnvelope {
   const envelope = parsePasskeyCustodyEnvelopeRecord(raw);
-  if (
-    envelope.ownership.kind !== 'method_bound' ||
-    envelope.binding.kind !== 'wallet_custody_seed_v1' ||
-    envelope.factor.kind !== 'voiceid' ||
-    envelope.lifecycle.state !== 'active' ||
-    Number(envelope.envelopeRevision) !== 1
-  ) {
+  if (!isVoiceIdSeedEnvelope(envelope) || Number(envelope.envelopeRevision) !== 1) {
     throw new Error('VoiceID activation requires an active, method-bound wallet seed envelope');
   }
-  return {
-    kind: envelope.kind,
-    envelopeId: envelope.envelopeId,
-    walletId: envelope.walletId,
-    ownership: envelope.ownership,
-    binding: envelope.binding,
-    factor: envelope.factor,
-    envelopeVersion: envelope.envelopeVersion,
-    envelopeRevision: envelope.envelopeRevision,
-    nonceB64u: envelope.nonceB64u,
-    sealedCustodySecretB64u: envelope.sealedCustodySecretB64u,
-    ciphertextDigestB64u: envelope.ciphertextDigestB64u,
-    aadHashB64u: envelope.aadHashB64u,
-    lifecycle: envelope.lifecycle,
-    createdAtMs: envelope.createdAtMs,
-    updatedAtMs: envelope.updatedAtMs,
-  };
+  return envelope;
 }
