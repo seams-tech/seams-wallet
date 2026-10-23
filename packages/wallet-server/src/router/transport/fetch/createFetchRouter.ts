@@ -2,6 +2,7 @@ import { coerceRouterLogger } from '../../framework/logger';
 import { json, jsonFailure, withCors } from '../../framework/http';
 import { handleHealth, handleReady } from './routes/health';
 import { handleWalletRegistration } from './routes/walletRegistration';
+import { handleWalletVoiceIdActivation } from './routes/walletVoiceIdActivation';
 import {
   handlePasskeyCustody,
   handleWalletCustodyEmailOtpChallenge,
@@ -385,6 +386,7 @@ export function createFetchRouter(
     handleHostedWalletSessionExchangeRedeem,
     handleWalletUnlockChallenge,
     handleWalletUnlockVerify,
+    handleWalletVoiceIdActivation,
     handleWalletEmailOtpChallenge,
     handleWalletEmailOtpFactorRelease,
     handleWalletEmailOtpDevCleanupGoogleRegistration,

@@ -14,7 +14,6 @@ use signer_core::passkey_custody::{
     VOICEID_DEVICE_FACTOR_KEK_VERSION_V1, WALLET_SEED_DERIVATION_SCHEME_V1,
 };
 
-const WALLET_ID: &str = "wallet:voiceid-custody-journey";
 const SEED: [u8; 32] = [3; 32];
 const PASSKEY_SECRET: [u8; 32] = [7; 32];
 const VOICEID_SECRET: [u8; 32] = [11; 32];
@@ -57,11 +56,16 @@ fn voiceid_factor(device_key_id: &str) -> WalletCustodyEnvelopeFactorV1 {
 }
 
 fn main() {
-    let report_path = PathBuf::from(std::env::args().nth(1).expect("report path is required"));
+    let mut args = std::env::args().skip(1);
+    let report_path = PathBuf::from(args.next().expect("report path is required"));
+    let wallet_id = args.next().expect("wallet id is required");
+    let target_method_id = args.next().expect("target method id is required");
+    let device_key_id = args.next().expect("device key id is required");
+    let target_envelope_id = args.next().expect("target envelope id is required");
+    assert!(args.next().is_none(), "unexpected extra argument");
     assert!(report_path.is_absolute(), "report path must be absolute");
-    let device_key_id = Base64UrlUnpadded::encode_string(&Sha256::digest([19; 32]));
     let source = binding(
-        WALLET_ID,
+        &wallet_id,
         "wallet-custody-envelope:source",
         "wallet-auth-method:passkey",
         passkey_factor(),
@@ -81,9 +85,9 @@ fn main() {
     assert_eq!(opened.as_slice(), SEED);
 
     let target = binding(
-        WALLET_ID,
-        "wallet-custody-envelope:voiceid",
-        "wallet-auth-method:voiceid",
+        &wallet_id,
+        &target_envelope_id,
+        &target_method_id,
         voiceid_factor(&device_key_id),
     );
     let sealed_target = reseal_wallet_custody_seed_under_new_factor_v1(
@@ -106,7 +110,7 @@ fn main() {
     assert_eq!(voice_opened.as_slice(), SEED);
 
     let wrong_method = binding(
-        WALLET_ID,
+        &wallet_id,
         &target.envelope_id,
         "wallet-auth-method:other",
         voiceid_factor(&device_key_id),
@@ -114,14 +118,14 @@ fn main() {
     let wrong_wallet = binding(
         "wallet:other",
         &target.envelope_id,
-        "wallet-auth-method:voiceid",
+        &target_method_id,
         voiceid_factor(&device_key_id),
     );
     let wrong_key = Base64UrlUnpadded::encode_string(&Sha256::digest([23; 32]));
     let wrong_device = binding(
-        WALLET_ID,
+        &wallet_id,
         &target.envelope_id,
-        "wallet-auth-method:voiceid",
+        &target_method_id,
         voiceid_factor(&wrong_key),
     );
     for changed in [&wrong_method, &wrong_wallet, &wrong_device] {
@@ -169,9 +173,9 @@ fn main() {
         seal_wallet_custody_seed_envelope_v1(
             &VOICEID_SECRET,
             &binding(
-                WALLET_ID,
+                &wallet_id,
                 "wallet-custody-envelope:invalid-version",
-                "wallet-auth-method:voiceid",
+                &target_method_id,
                 wrong_version,
             ),
             &TARGET_NONCE,
@@ -191,7 +195,7 @@ fn main() {
             "walletId": target.wallet_id,
             "ownership": {
                 "kind": "method_bound",
-                "walletAuthMethodId": "wallet-auth-method:voiceid"
+                "walletAuthMethodId": target_method_id
             },
             "binding": target.binding,
             "factor": target.factor,

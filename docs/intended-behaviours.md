@@ -139,9 +139,23 @@ signature. It consumes the challenge once. Revoking the method retires its
 sessions and custody envelope. A missing native host, lost key, failed voice
 check, or unavailable server leaves the wallet locked.
 
+The activation route requires an active full-owner Wallet Session issued by a
+Passkey or Email OTP method and a configured hosted wallet origin. It checks
+the device public-key digest against the envelope's key ID. The server inserts
+the active method and its exact seed envelope in one D1 transaction. The
+source method, authority, session, and quota must still be active at commit.
+A duplicate device key or retired source session leaves neither new record.
+
 The current SDK plugin still selects the local approval prototype above.
-Fresh-session unlock requires activation, server issuance, custody activation,
-and one composed Wallet E2E before the SDK can offer it.
+Fresh-session unlock needs an SDK activation caller, server challenge and
+session issuance routes, custody activation, and a composed Wallet E2E.
+
+The activation contract is
+[`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
+It sends an owner-session HTTP request to a real local D1 database and opens
+the stored envelope in browser WASM. It also verifies transaction rollback for
+a duplicate device key and a retired owner session. The test writes a JSON
+report with public identities and no private key or factor secret.
 
 The custody boundary contract is
 [`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).

@@ -34,6 +34,10 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       'voiceid_custody_journey',
       '--',
       reportPath,
+      'wallet:voiceid-custody-journey',
+      'wallet-auth-method:voiceid',
+      'I9gAgdk2a_Rsw1Cq6Z9qoSIU5grrTAomSqMhoegJgMs',
+      'wallet-custody-envelope:voiceid',
     ],
     { cwd: ROOT, timeout: 120_000 },
   );

@@ -34,6 +34,7 @@ import {
 } from '@shared/threshold/sessionPolicy';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
+import { D1VoiceIdActivation } from '../wallet/d1VoiceIdActivation';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import {
   resolveActiveOwnerWalletExecutionLane,
@@ -283,7 +284,12 @@ type D1WalletRegistrationRouteServiceAssembly = Pick<
 
 type D1WalletAuthMethodRouteServiceAssembly = Pick<
   CloudflareD1RouterApiAuthAssembly,
-  'registrationIntents' | 'walletAuthMethods' | 'walletAddSigners'
+  | 'options'
+  | 'registrationIntents'
+  | 'walletAuthMethodStore'
+  | 'walletAuthMethods'
+  | 'walletAddSigners'
+  | 'passkeyCustodyEnvelopes'
 >;
 
 type D1WalletUnlockRouteServiceAssembly = Pick<
@@ -1678,7 +1684,19 @@ function createD1WalletRegistrationRouteService(
 function createD1WalletAuthMethodRouteService(
   assembly: D1WalletAuthMethodRouteServiceAssembly,
 ): RouterApiServiceBag['walletAuthMethods'] {
+  const voiceIdActivation = new D1VoiceIdActivation(
+    assembly.options.database,
+    {
+      namespace: assembly.options.namespace,
+      orgId: assembly.options.orgId,
+      projectId: assembly.options.projectId,
+      envId: assembly.options.envId,
+    },
+    assembly.walletAuthMethodStore,
+    assembly.passkeyCustodyEnvelopes,
+  );
   return {
+    activateVoiceId: voiceIdActivation.activate.bind(voiceIdActivation),
     resolveActiveWalletSessionAuthority:
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(
         assembly.walletAuthMethods,

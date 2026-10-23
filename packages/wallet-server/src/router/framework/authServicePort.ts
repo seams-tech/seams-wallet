@@ -1289,6 +1289,9 @@ interface RouterApiWalletAuthVerificationService {
 }
 
 export interface RouterApiWalletAuthMethodService {
+  activateVoiceId(
+    input: import('../domains/voiceId/voiceIdActivation').VoiceIdActivationCommand,
+  ): Promise<import('../domains/voiceId/voiceIdActivation').VoiceIdActivationResult>;
   resolveActiveWalletSessionAuthority(input: {
     readonly walletId: WalletId;
     readonly authorityRef: WalletAuthAuthorityRef;

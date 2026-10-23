@@ -118,6 +118,10 @@ const ROUTER_API_LINKED_DEVICE_PASSKEY_SERVICES = [
 const ROUTER_API_WALLET_UNLOCK_SERVICES = [
   'walletUnlock',
 ] as const satisfies readonly CoreRouteServiceKey[];
+const ROUTER_API_VOICEID_ACTIVATION_SERVICES = [
+  'session',
+  'walletAuthMethods',
+] as const satisfies readonly CoreRouteServiceKey[];
 const ROUTER_API_HOSTED_SESSION_EXCHANGE_SERVICES = [
   'session',
 ] as const satisfies readonly CoreRouteServiceKey[];
@@ -1094,6 +1098,18 @@ export function createRouterApiRouteDefinitions(
           'Wallet unlock verification is intentionally public because the challenge proof is the gate.',
       },
       ROUTER_API_WALLET_UNLOCK_SERVICES,
+    ),
+    publicRoute(
+      'wallet_voiceid_activate',
+      'POST',
+      '/wallet/voiceid/activate',
+      'Activate a device-bound VoiceID method under an owner Wallet Session',
+      {
+        plane: 'public',
+        proof: 'challenge_exchange',
+        rationale: 'An active full-owner Wallet Session and the hosted wallet origin authorize activation.',
+      },
+      ROUTER_API_VOICEID_ACTIVATION_SERVICES,
     ),
     publicRoute(
       'wallet_email_otp_challenge',
