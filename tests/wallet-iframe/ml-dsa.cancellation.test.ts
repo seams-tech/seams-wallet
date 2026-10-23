@@ -2,7 +2,8 @@ import { expect, test, type Frame, type Page, type Route, type TestInfo } from '
 import { build, type PluginBuild, type OnLoadArgs } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { setupBasicPasskeyTest } from '../setup';
+import { setupBasicPasskeyTest, DEFAULT_TEST_CONFIG } from '../setup';
+import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { registerWalletServiceRoute } from './harness';
 import { WALLET_PROTOCOL_VERSION } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
 
@@ -381,10 +382,10 @@ for (const mode of [
     await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
     const gateway: Gateway = { mode, executions: [], held: null };
     await page.context().route('**/__ml-dsa-execute', executeGateway.bind(null, gateway));
-    await page.route('**/__ml-dsa-host.js', serveBundle.bind(null, bundle.outputFiles[0]!.text));
+    await page.route('**/sdk/wallet-iframe-host-runtime.js', serveBundle.bind(null, bundle.outputFiles[0]!.text));
     await registerWalletServiceRoute(
       page,
-      '<!doctype html><html><body><script type="module" src="/__ml-dsa-host.js"></script></body></html>',
+      buildWalletServiceHtml('/sdk', undefined, 'runtime', [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin]),
       '**://wallet.example.localhost/wallet-service*',
     );
     if (mode === 'rpc_timeout') {
