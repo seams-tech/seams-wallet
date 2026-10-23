@@ -3576,6 +3576,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Permit read-only role-storage initialization during an exact live registration claim. It must not install material, schedule refill, or delay completed key generation.
 - Bound the Router's key-generation service call by the registration claim deadline. Reject execution delivered after expiry and preserve failed replay across restart.
 - Publish generic registration preparation only after both participants confirm readiness. Claim it once for an exact ceremony and encrypted input pair.
+- If preparation dispatch fails, use Gateway authority to retire that exact unclaimed job and remove its stock entry atomically. Preserve an existing claim if it wins the race. Reject changed live job identities and late readiness after retirement. Replacement preparation must use fresh job and material identities. Keep role cleanup alarms; retirement does not prove immediate cancellation of remote work.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
 - Deliver at most two initial signing batches concurrently per participant. Serialize exact installation retries and retain each batch's persisted payload and installed marker.

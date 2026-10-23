@@ -173,23 +173,31 @@ pub(super) async fn connected(
         )
         .await?;
         // Only public readiness is exchanged; each role keeps its own private state.
-        adapter.send(&[1]).await.map_err(runtime_error)?;
-        if adapter.receive(1).await.map_err(runtime_error)? != [1] {
-            return Err(invalid("Registration preparation acknowledgement changed"));
-        }
-        let _: bool = service_call(
-            env,
-            CallAuthority::Internal,
-            &AdmissionCommand::ReadyRegistration {
-                job: job.clone(),
-                role,
-            },
+        wait_trace::observe(
+            waits.as_deref(),
+            wait_trace::Kind::PeerPrepared,
+            exchange_ack(&mut adapter, 1),
         )
         .await?;
-        adapter.send(&[2]).await.map_err(runtime_error)?;
-        if adapter.receive(1).await.map_err(runtime_error)? != [2] {
-            return Err(invalid("Registration readiness acknowledgement changed"));
-        }
+        let _: bool = wait_trace::observe(
+            waits.as_deref(),
+            wait_trace::Kind::PublishReady,
+            service_call(
+                env,
+                CallAuthority::Internal,
+                &AdmissionCommand::ReadyRegistration {
+                    job: job.clone(),
+                    role,
+                },
+            ),
+        )
+        .await?;
+        wait_trace::observe(
+            waits.as_deref(),
+            wait_trace::Kind::PeerReady,
+            exchange_ack(&mut adapter, 2),
+        )
+        .await?;
         return Ok(serde_json::json!(true));
     }
     let claim = match command {
@@ -335,7 +343,12 @@ pub(super) async fn connected(
     if let Some(trace) = &trace {
         trace.mark("material_persisted");
     }
-    let peer = exchange(signing_role, &own, &mut adapter).await?;
+    let peer = wait_trace::observe(
+        waits.as_deref(),
+        wait_trace::Kind::PeerResult,
+        exchange(signing_role, &own, &mut adapter),
+    )
+    .await?;
     if let Some(trace) = &trace {
         trace.mark("result_exchanged");
     }
@@ -355,6 +368,13 @@ pub(super) async fn connected(
         trace.finish();
     }
     Ok(result)
+}
+async fn exchange_ack(transport: &mut impl Transport, expected: u8) -> Result<()> {
+    transport.send(&[expected]).await.map_err(runtime_error)?;
+    if transport.receive(1).await.map_err(runtime_error)? != [expected] {
+        return Err(invalid("Registration acknowledgement changed"));
+    }
+    Ok(())
 }
 async fn exchange(
     role: SigningRole,
