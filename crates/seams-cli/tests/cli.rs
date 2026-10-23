@@ -209,7 +209,7 @@ fn a_trust_root_is_never_accepted_as_a_command_line_value() {
             "trust",
             "show",
             option,
-            "seams-recovery-root-production-2026-09",
+            "seams-recovery-root-production-2026-10",
         ]);
         assert_eq!(code(&refused), 2, "{option} must be refused");
         assert!(stderr(&refused).contains("pinned root"));
@@ -351,7 +351,7 @@ fn trust_show_and_update_report_the_pinned_bundle_and_its_continuations() {
     assert_eq!(result["pinned"], true);
     assert_eq!(
         result["currentRootKeyId"],
-        "seams-recovery-root-production-2026-09"
+        "seams-recovery-root-production-2026-10"
     );
     assert_eq!(result["bridgeCount"], 0);
 
@@ -389,7 +389,7 @@ fn trust_show_and_update_report_the_pinned_bundle_and_its_continuations() {
     assert_eq!(result["result"], "trust_updated");
     assert_eq!(
         result["currentRootKeyId"],
-        "seams-recovery-root-production-2026-09"
+        "seams-recovery-root-production-2026-10"
     );
     assert_eq!(
         std::fs::read(&installed).expect("installed"),

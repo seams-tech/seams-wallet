@@ -11,9 +11,12 @@ environments in `seams-tech/seams-monorepo`.
 
 Each environment also holds its corresponding `SEAMS_*_SIGNER_KEY_ID` secret.
 Both environments allow the `main` branch only. The keys are distinct randomly
-generated Ed25519 seeds; each pin names its production key with the
-`-production-2026-09` suffix. Fixture roots remain in test fixtures and are not
-trusted by the production binary.
+generated Ed25519 seeds. The recovery root is
+`seams-recovery-root-production-2026-10`. The release root is
+`seams-release-root-production-2026-10`. Fixture roots remain in test fixtures
+and are not trusted by the production binary. The October recovery root replaces
+the September prelaunch root without a bridge. Recovery packages signed under
+the September root are outside the new CLI trust set.
 
 These are CI-held signing authorities. Workflow code with access to an
 environment can use that environment's key. Normal application deployments,
