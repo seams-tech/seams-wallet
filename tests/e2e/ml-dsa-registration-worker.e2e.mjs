@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomBytes, createPublicKey, verify } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, rm, cp } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
@@ -13,6 +13,8 @@ import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs'
 import { registrationDeliveryScript } from '../helpers/mlDsaRegistrationDelivery.e2e.mjs';
 import { commitProbeScript, readinessDelayScript } from '../helpers/mlDsaCommitProbe.e2e.mjs';
 import { waitCalibrationScript } from '../helpers/mlDsaWaitCalibration.e2e.mjs';
+
+import { preparationRaceRouterScript, preparationRaceRoleScript, preparationRaceFrontScript, runPreparationRace } from '../helpers/mlDsaPreparationRace.e2e.mjs';
 
 const registrationFaultScript = `
 let injections = 0;
@@ -69,6 +71,8 @@ const standardBuildRoot = process.env.ML_DSA_TEST_STANDARD_BUILD_ROOT ?? join(ro
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
+const preparationRace = process.env.ML_DSA_REGISTRATION_RETIREMENT_ORDER ?? 'none';
+assert.ok(['none', 'unclaimed', 'claimed'].includes(preparationRace));
 const commitProbe = process.env.ML_DSA_REGISTRATION_COMMIT_PROBE === '1';
 const losePreparation = process.env.ML_DSA_REGISTRATION_LOSE_PREPARATION_REPLY === '1';
 assert.ok(!(hostedUrl && (commitProbe || losePreparation)), 'Probe setup and fault injection are local-only');
@@ -88,6 +92,7 @@ assert.ok(!(hostedUrl && (stallInitialization || stallExecution || loseDeliveryR
 assert.ok(!((loseDeliveryReply || stallDelivery) && (stallInitialization || stallExecution || profilePrefix)), 'Delivery faults require a separate unprofiled lifecycle run');
 assert.ok(!(loseDeliveryReply && stallDelivery), 'Select one delivery fault');
 const deliveryFault = loseDeliveryReply || stallDelivery;
+assert.ok(preparationRace === 'none' || !(losePreparation || calibrateWaits || commitProbe || stallInitialization || stallExecution || deliveryFault || profilePrefix), 'Use a separate retirement ordering campaign');
 assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
@@ -122,7 +127,7 @@ const policy = {
 const wallet = {
   org: 'registration-e2e',
   project: 'wallet',
-  environment: 'temporary',
+  environment: preparationRace === 'none' ? 'temporary' : 'temporary-' + preparationRace,
   wallet: process.env.ML_DSA_TEST_WALLET_ID ?? `wallet-${randomBytes(8).toString('hex')}`,
 };
 const children = [];
@@ -132,6 +137,7 @@ const observations = {
   scope:
     'Authenticated private Gateway request through real Worker key generation, durable two-role installation, initial signing stock, and client custody verification. Public login and SDK UI are outside this campaign.',
   hosted: Boolean(hostedUrl),
+  retirementOrdering: preparationRace,
   initializationStallMs: stallInitialization ? 10000 : 0,
   policy,
   cases: [],
@@ -212,6 +218,17 @@ export class MaterialLossPool extends Pool {
   }
 }
 `);
+const racePaths = {
+  router: join(buildRoot, 'router/worker/preparation-race.mjs'),
+  a: join(buildRoot, 'deriver-a/worker/preparation-race.mjs'),
+  front: join(buildRoot, 'front/worker/preparation-race.mjs'),
+};
+if (preparationRace !== 'none' && !hostedUrl) {
+  await cp(join(standardBuildRoot, 'router'), join(buildRoot, 'front'), { recursive: true });
+  await writeFile(racePaths.router, preparationRaceRouterScript);
+  await writeFile(racePaths.a, preparationRaceRoleScript);
+  await writeFile(racePaths.front, preparationRaceFrontScript);
+}
 let runtime;
 let keks;
 let executionFaultArmed = stallExecution;
@@ -238,7 +255,8 @@ try {
   if (commitProbe) observations.commitCalibration = await calibrateCommitProbes();
   let previous;
   let firstRequest;
-  for (const epoch of [1, 2]) {
+  const epochs = preparationRace === 'none' ? [1, 2] : [1];
+  for (const epoch of epochs) {
     if (epoch === 2) client = await startClient();
     const continuity =
       epoch === 1
@@ -258,7 +276,15 @@ try {
     }
     if (losePreparation && epoch === 1) observations.preparationRetirement = await checkPreparationRetirement();
     const prepareStarted = performance.now();
-    let ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
+    let ready;
+    if (preparationRace !== 'none') {
+      const race = await runPreparationRace({ mode: preparationRace, request: payload.request, wallet, credential: gatewayAuth, raw, post });
+      ready = race.ready;
+      observations.retirementRace = race.evidence;
+      observations.scope = 'Controlled preparation retirement ordering, canonical creation and signing. Registration timing includes orchestration or cached replay; no recovery timing claim.';
+    } else {
+      ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
+    }
     assert.equal(ready.ready, true);
     if (losePreparation && epoch === 1) assert.notDeepEqual(ready.job.id, observations.preparationRetirement.retiredJob.id);
     assert.equal(ready.job.signing_batches, Math.max(2, policy.minimum_ready_batches));
@@ -353,7 +379,7 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
-  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits && !commitProbe && !losePreparation) {
+  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits && !commitProbe && !losePreparation && preparationRace === 'none') {
     const { verifyMlDsaGatewayRegistration } = await import(
       '../helpers/mlDsaGatewayRegistration.e2e.mjs'
     );
@@ -376,7 +402,7 @@ try {
     observations.registrationChecksPassed = false;
     observations.latencyTargetMet = false;
   } else {
-    observations.recoveryPreservesCanonicalKey = true;
+    observations.recoveryPreservesCanonicalKey = observations.cases.length === 2;
     observations.registrationChecksPassed = true;
     observations.functionalPassed = observations.cases.every(signatureCheckPassed);
     observations.latencyTargetMet = observations.cases.every(meetsLatencyTarget);
@@ -393,6 +419,9 @@ try {
   for (const child of children) child.kill();
   await runtime?.dispose();
   if (!hostedUrl) await rm(materialLossPath, { force: true });
+  if (!hostedUrl && preparationRace !== 'none') {
+    for (const path of Object.values(racePaths)) await rm(path, { force: true });
+  }
   if (calibrateWaits) await rm(waitCalibrationPath, { force: true });
   if (commitProbe) {
     for (const path of commitProbePaths) await rm(path, { force: true });
@@ -541,22 +570,27 @@ function base(name, build, extra) {
       INTERNAL_AUTH: serviceAuth,
       ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
       ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
-      ML_DSA_WAIT_DIAGNOSTICS: calibrateWaits || commitProbe || losePreparation ? '1' : '0',
+      ML_DSA_WAIT_DIAGNOSTICS: calibrateWaits || commitProbe || losePreparation || preparationRace !== 'none' ? '1' : '0',
       ...extra,
     },
   };
+}
+function routerScriptPath() {
+  if (preparationRace !== 'none') return racePaths.router;
+  if (commitProbe) return readinessDelayPath;
+  return join(buildRoot, 'router/worker/shim.mjs');
 }
 function workers() {
   return [
     {
       ...base('gateway-router', 'router', {}),
-      scriptPath: join(standardBuildRoot, 'router/worker/shim.mjs'),
-      modulesRoot: standardBuildRoot,
+      scriptPath: preparationRace === 'none' ? join(standardBuildRoot, 'router/worker/shim.mjs') : racePaths.front,
+      modulesRoot: preparationRace === 'none' ? standardBuildRoot : buildRoot,
       serviceBindings: { ML_DSA_ROUTER: 'router' },
     },
     {
       ...base('router', 'router', {}),
-      scriptPath: commitProbe ? readinessDelayPath : join(buildRoot, 'router/worker/shim.mjs'),
+      scriptPath: routerScriptPath(),
       durableObjects: {
         ML_DSA_ADMISSION_DO: { className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true },
       },
@@ -615,6 +649,10 @@ function role(name, index) {
     worker.scriptPath = commitProbePath(name);
     worker.durableObjects.ML_DSA_POOL_DO.className = 'RouterAbMlDsaPoolDurableObject';
   }
+  if (preparationRace !== 'none' && name === 'a') {
+    worker.scriptPath = racePaths.a;
+    worker.durableObjects.ML_DSA_POOL_DO.className = 'RouterAbMlDsaPoolDurableObject';
+  }
   return worker;
 }
 function preparerWorker(participant, index) {
@@ -623,7 +661,7 @@ function preparerWorker(participant, index) {
   worker.scriptPath = join(buildRoot, `deriver-${participant}`, 'worker/shim.mjs');
   worker.durableObjects.ML_DSA_POOL_DO = deliveryFault && participant === 'a'
     ? { className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier' }
-    : { className: participant === 'a' && !commitProbe ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
+    : { className: participant === 'a' && !commitProbe && preparationRace === 'none' ? 'MaterialLossPool' : 'RouterAbMlDsaPoolDurableObject', scriptName: participant };
   if (participant === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', useSQLite: true,
