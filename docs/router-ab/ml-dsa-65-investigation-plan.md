@@ -1,10 +1,14 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: public SDK lifecycle integrated; production release remains gated, 2026-10-23.
+Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
 The [metadata-batching experiment](ml-dsa-65-metadata-batch-report.md), after rebasing onto `dev` at `4c13b3f3`, remains unselected.
 Native and workerd correctness pass, but hosted creation takes 15.418 seconds, signing exhausts sixteen candidates, and recovery preparation fails with storage errors.
-The selected source and evaluator are restored. Next, correlate failed storage/participant operations and distinguish storage waits from protocol waits before selecting another optimization.
+The selected protocol source remains unchanged. The [failure-correlation screen](ml-dsa-65-wait-correlation-report.md) now joins a hosted storage reset to its exact request and participant calls.
+Local delay and failure calibration pass. Hosted storage intervals often report zero, and peer counters cannot partition invocation wall time.
+The fresh diagnostic run completes canonical creation/recovery and two verified signatures, but registration takes 6.165–15.954 seconds and signing takes 8.502–23.556 seconds.
+A failed preparation also holds the shared preparation slot until its five-minute deadline.
+Next, calibrate transaction/commit and peer-completion timing, then add safe retirement of failed preparation. Detailed tracing remains disabled by default.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.

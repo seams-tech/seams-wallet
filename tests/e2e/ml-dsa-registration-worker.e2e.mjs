@@ -11,6 +11,7 @@ import { build } from 'esbuild';
 import { pathToFileURL } from 'node:url';
 import { calibrateCpuProfiler, startCpuProfile } from './ml-dsa-cpu-profile.mjs';
 import { registrationDeliveryScript } from '../helpers/mlDsaRegistrationDelivery.e2e.mjs';
+import { waitCalibrationScript } from '../helpers/mlDsaWaitCalibration.e2e.mjs';
 
 const registrationFaultScript = `
 let injections = 0;
@@ -54,6 +55,10 @@ const standardBuildRoot = process.env.ML_DSA_TEST_STANDARD_BUILD_ROOT ?? join(ro
 const directory = resolve(process.argv[2]);
 const artifact = resolve(process.argv[3]);
 const hostedUrl = process.env.ML_DSA_REGISTRATION_ROUTER_URL;
+const calibrateWaits = process.env.ML_DSA_REGISTRATION_CALIBRATE_WAITS === '1';
+const failStorage = process.env.ML_DSA_REGISTRATION_FAIL_STORAGE === '1';
+assert.ok(!failStorage || calibrateWaits, 'Storage failure requires local wait calibration');
+assert.ok(!(hostedUrl && calibrateWaits), 'Wait calibration is local-only');
 const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
 const stallDelivery = process.env.ML_DSA_REGISTRATION_STALL_DELIVERY === '1';
 const loseDeliveryReply = process.env.ML_DSA_REGISTRATION_LOSE_DELIVERY_REPLY === '1';
@@ -114,6 +119,9 @@ const observations = {
   httpAttempts: [],
   stageTraces: [],
   registrationExecutions: [],
+  waitDiagnostics: [],
+  registrationLinks: [],
+  waitCalibration: [],
   functionalPassed: false,
   latencyTargetMet: false,
 };
@@ -157,6 +165,8 @@ class RegistrationRouterProxy {
     });
   }
 }
+const waitCalibrationPath = join(buildRoot, 'ml-dsa-wait-calibration.e2e.mjs');
+if (calibrateWaits) await writeFile(waitCalibrationPath, waitCalibrationScript.replace('__FAIL_STORAGE__', String(failStorage)));
 const materialLossPath = join(buildRoot, 'ml-dsa-material-loss.e2e.mjs');
 if (!hostedUrl) await writeFile(materialLossPath, `
 import { RouterAbMlDsaPoolDurableObject as Pool } from './deriver-a/worker/shim.mjs';
@@ -311,7 +321,7 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
-  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault) {
+  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits) {
     const { verifyMlDsaGatewayRegistration } = await import(
       '../helpers/mlDsaGatewayRegistration.e2e.mjs'
     );
@@ -339,14 +349,18 @@ try {
     observations.functionalPassed = observations.cases.every(signatureCheckPassed);
     observations.latencyTargetMet = observations.cases.every(meetsLatencyTarget);
   }
+  assert.ok(!failStorage, 'Expected the injected storage failure');
+  if (calibrateWaits) verifyWaitCalibration();
   if (!observations.functionalPassed) process.exitCode = 1;
 } catch (error) {
   observations.error = String(error);
-  throw error;
+  if (failStorage) verifyFailedStorageCorrelation();
+  else throw error;
 } finally {
   for (const child of children) child.kill();
   await runtime?.dispose();
   if (!hostedUrl) await rm(materialLossPath, { force: true });
+  if (calibrateWaits) await rm(waitCalibrationPath, { force: true });
   await mkdir(resolve(artifact, '..'), { recursive: true });
   await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
   await rm(persistence, { recursive: true, force: true });
@@ -490,6 +504,7 @@ function base(name, build, extra) {
       INTERNAL_AUTH: serviceAuth,
       ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
       ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
+      ML_DSA_WAIT_DIAGNOSTICS: calibrateWaits ? '1' : '0',
       ...extra,
     },
   };
@@ -546,6 +561,7 @@ function role(name, index) {
     },
     serviceBindings: { DERIVER_B: 'b' },
   };
+  if (calibrateWaits && name === 'b') worker.scriptPath = waitCalibrationPath;
   if (name === 'a') {
     worker.scriptPath = materialLossPath;
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
@@ -681,10 +697,87 @@ function recordStageTrace(line) {
   if (!line.startsWith('{')) return;
   let event;
   try { event = JSON.parse(line); } catch { return; }
+  if (typeof event.event !== 'string') return;
+  if (['ml_dsa_registration_job_v1', 'ml_dsa_registration_call_v1'].includes(event.event)) observations.registrationLinks.push(event);
+  if (event.event.startsWith('ml_dsa_wait_')) observations.waitDiagnostics.push(event);
+  if (event.event === 'ml_dsa_wait_calibration_v1') observations.waitCalibration.push(event);
   if (event.event === 'ml_dsa_stage_trace_v1') observations.stageTraces.push(event);
   if (event.event === 'ml_dsa_registration_execution_v1') observations.registrationExecutions.push(event);
 }
 
+function failedStorageBoundary(event) {
+  return event.event === 'ml_dsa_wait_boundary_v1' && event.kind === 'load_tables' && event.state === 'error';
+}
+function sameCall(call, event) { return event.call_id === call; }
+function matchingJob(job, event) {
+  return event.event === 'ml_dsa_registration_job_v1' && event.job === job && event.operation !== null;
+}
+function matchingStorageInjection(job, injection) {
+  return injection.kind === 'load_tables' && injection.job === job;
+}
+function matchingBegin(end, begin) {
+  return begin.event === 'ml_dsa_wait_boundary_v1' && begin.call_id === end.call_id &&
+    begin.sequence === end.sequence && begin.state === 'begin';
+}
+function sameRequest(request, attempt) { return attempt.httpRequest === request; }
+function verifyFailedStorageCorrelation() {
+  const failed = observations.waitDiagnostics.find(failedStorageBoundary);
+  assert.ok(failed, 'The injected storage failure must reach its boundary observer');
+  const dispatch = observations.registrationLinks.find(sameCall.bind(null, failed.call_id));
+  assert.equal(dispatch?.phase, 'execute_peer');
+  const injection = observations.waitCalibration.find(matchingStorageInjection.bind(null, dispatch.job));
+  const begin = observations.waitDiagnostics.find(matchingBegin.bind(null, failed));
+  assert.ok(injection && begin && begin.at_ms <= injection.started_at_ms &&
+    failed.at_ms >= injection.finished_at_ms, 'The failed boundary must enclose the injected storage failure');
+  const link = observations.registrationLinks.find(matchingJob.bind(null, dispatch.job));
+  assert.equal(link?.operation, dispatch.operation);
+  const request = observations.httpAttempts.find(sameRequest.bind(null, link.http_request));
+  assert.ok(request.status >= 500 && !request.completed, 'The storage failure must reach the original request');
+  assert.equal(request.operation, dispatch.operation);
+  assert.equal(observations.cases.length, 0);
+  observations.failureCorrelation = {
+    passed: true, httpRequest: link.http_request, job: dispatch.job,
+    operation: dispatch.operation, callId: failed.call_id, sequence: failed.sequence,
+    status: request.status, kind: failed.kind,
+  };
+  observations.scope = 'Local injected table-read failure through the real registration protocol. No successful registration or recovery claim.';
+}
+function calibrationScope(injection, scope) {
+  return scope.event === 'ml_dsa_wait_scope_v1' && scope.job === injection.job &&
+    (injection.operation === null || scope.operation === injection.operation) &&
+    scope.role === (injection.kind === 'load_tables' ? 'b' : 'a');
+}
+function matchingEnd(begin, end) {
+  return end.event === 'ml_dsa_wait_boundary_v1' && end.call_id === begin.call_id &&
+    end.sequence === begin.sequence && end.state === 'end';
+}
+function verifyWaitCalibration() {
+  const measurements = [];
+  for (const injection of observations.waitCalibration) {
+    const calls = observations.waitDiagnostics.filter(calibrationScope.bind(null, injection)).map(scopeCall);
+    for (const begin of observations.waitDiagnostics) {
+      if (begin.event !== 'ml_dsa_wait_boundary_v1' || begin.kind !== injection.kind ||
+          begin.state !== 'begin' || !calls.includes(begin.call_id)) continue;
+      const end = observations.waitDiagnostics.find(matchingEnd.bind(null, begin));
+      if (end && begin.at_ms <= injection.started_at_ms && end.at_ms >= injection.finished_at_ms &&
+          end.at_ms - begin.at_ms >= injection.delay_ms - 50) {
+        measurements.push({ kind: injection.kind, job: injection.job, callId: begin.call_id,
+          injectedMs: injection.delay_ms, observedBoundaryMs: end.at_ms - begin.at_ms });
+        break;
+      }
+    }
+  }
+  for (const kind of ['load_tables', 'peer_connect']) {
+    assert.ok(measurements.some(hasCalibrationKind.bind(null, kind)), 'Missing calibrated ' + kind + ' interval');
+  }
+  assert.equal(measurements.length, observations.waitCalibration.length, 'Every injected delay must have an enclosing measured interval');
+  observations.calibratedWaitBoundaries = measurements;
+}
+function scopeCall(scope) {
+  assert.match(scope.call_id, /^[0-9a-f]{32}$/);
+  return scope.call_id;
+}
+function hasCalibrationKind(kind, value) { return value.kind === kind; }
 async function raw(path, input, credential, requestId = randomBytes(16).toString('hex')) {
   const init = {
     method: 'POST',

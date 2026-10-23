@@ -14,6 +14,7 @@ pub(super) async fn prepare(
     role: SigningRole,
     seed: &[u8; 32],
     wire: &mut impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport,
+    waits: Option<&wait_trace::WaitTrace>,
 ) -> Result<()> {
     let schedules = super::super::schedules::load()?;
     if signing_schedule_digest(env)? != job.signing_schedule {
@@ -43,19 +44,23 @@ pub(super) async fn prepare(
                 &(job, participant, ordinal),
                 seed,
             )?;
-            transaction(state, move |store| async move {
-                let prefix = format!("registration-signing/{ordinal}");
-                let chunks = sealed.store_chunks(&store, &prefix).await?;
-                store
-                    .put(
-                        &format!("{prefix}/record"),
-                        &Stored {
-                            encapsulated_key: sealed.encapsulated_key,
-                            chunks,
-                        },
-                    )
-                    .await
-            })
+            wait_trace::observe(
+                waits,
+                wait_trace::Kind::StoreSigningStock,
+                transaction(state, move |store| async move {
+                    let prefix = format!("registration-signing/{ordinal}");
+                    let chunks = sealed.store_chunks(&store, &prefix).await?;
+                    store
+                        .put(
+                            &format!("{prefix}/record"),
+                            &Stored {
+                                encapsulated_key: sealed.encapsulated_key,
+                                chunks,
+                            },
+                        )
+                        .await
+                }),
+            )
             .await?;
         }
         next += count;

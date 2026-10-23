@@ -19,6 +19,8 @@ def exception_category(error):
         return "runtime_hung_response"
     if message == "Durable Object storage operation exceeded timeout which caused object to be reset.":
         return "durable_storage_timeout_reset"
+    if message == "InvalidGateDecision: Registration preprocessing is already running":
+        return "registration_preprocessing_already_running"
     if message == "InvalidGateDecision: ML-DSA operation deadline expired":
         return "ml_dsa_operation_deadline_expired"
     if message == "InvalidGateDecision: ML-DSA registration execution failed":
@@ -203,6 +205,77 @@ def public_stage_trace(value, timestamp):
     }
 
 
+def public_call_id(value):
+    return isinstance(value, str) and re.fullmatch("[0-9a-f]{32}", value) is not None
+
+
+def public_registration_context(headers):
+    job = headers.get("x-ml-dsa-job-id")
+    phase = headers.get("x-ml-dsa-command")
+    operation = headers.get("x-ml-dsa-operation-id")
+    if not public_id(job) or phase not in ("prepare", "prepare_peer", "execute", "execute_peer", "install", "result"):
+        return None
+    if phase in ("prepare", "prepare_peer"):
+        if operation is not None:
+            return None
+    elif not public_id(operation):
+        return None
+    return {"job": job, "operation": operation, "phase": phase}
+
+
+def public_registration_link(value):
+    event = value.get("event")
+    if event not in ("ml_dsa_registration_job_v1", "ml_dsa_registration_call_v1"):
+        return None
+    if not public_id(value.get("job")) or (value.get("operation") is not None and not public_id(value["operation"])):
+        return None
+    result = {key: value.get(key) for key in ("event", "job", "operation")}
+    if event == "ml_dsa_registration_job_v1":
+        if not public_call_id(value.get("http_request")):
+            return None
+        result["http_request"] = value["http_request"]
+    else:
+        if value.get("call_id") is not None and not public_call_id(value["call_id"]):
+            return None
+        if value.get("phase") not in ("prepare", "prepare_peer", "execute", "execute_peer", "install", "result"):
+            return None
+        result.update(call_id=value.get("call_id"), phase=value["phase"])
+    return result
+
+
+def public_wait_trace(value, timestamp):
+    event = value.get("event")
+    if event not in ("ml_dsa_wait_scope_v1", "ml_dsa_wait_boundary_v1", "ml_dsa_wait_summary_v1"):
+        return None
+    if not public_time(timestamp) or (value.get("call_id") is not None and not public_call_id(value["call_id"])):
+        return None
+    result = {"event": event, "call_id": value.get("call_id"), "log_timestamp_ms": timestamp}
+    if event == "ml_dsa_wait_scope_v1":
+        if not public_id(value.get("job")) or value.get("role") not in ("a", "b"):
+            return None
+        if value.get("operation") is not None and not public_id(value["operation"]):
+            return None
+        result.update(job=value["job"], operation=value.get("operation"), role=value["role"])
+        return result
+    for key in ("peer_ready", "peer_pending", "peer_boundary_ms"):
+        if not public_counter(value.get(key)):
+            return None
+        result[key] = value[key]
+    if event == "ml_dsa_wait_summary_v1":
+        if not all(public_counter(value.get(key)) for key in ("observations", "emitted_events")) or type(value.get("event_limit_reached")) is not bool:
+            return None
+        result.update({key: value[key] for key in ("observations", "emitted_events", "event_limit_reached")})
+    else:
+        if value.get("kind") not in ("peer_connect", "peer_event", "store_tables", "load_tables", "publish_private", "consume_private", "store_signing_stock"):
+            return None
+        if value.get("state") not in ("begin", "end", "error") or type(value.get("pending")) is not bool:
+            return None
+        if not public_counter(value.get("sequence")) or not public_time(value.get("at_ms")):
+            return None
+        result.update({key: value[key] for key in ("kind", "state", "pending", "sequence", "at_ms")})
+    return result
+
+
 def public_producer_entry(value, timestamp):
     if value.get("event") != "ml_dsa_producer_entry_v1" or not public_time(timestamp):
         return None
@@ -367,6 +440,11 @@ def records(path, role):
         request_id = request.get("headers", {}).get("x-ml-dsa-request-id")
         if not isinstance(request_id, str) or re.fullmatch("[0-9a-f]{32}", request_id) is None:
             request_id = None
+        headers = request.get("headers", {})
+        service_call_id = headers.get("x-seams-trace-id")
+        if not public_call_id(service_call_id):
+            service_call_id = None
+        registration_context = public_registration_context(headers)
         url = urllib.parse.urlsplit(request.get("url", ""))
         query = urllib.parse.parse_qs(url.query)
         run_id = query.get("run_id", [None])[0]
@@ -383,6 +461,8 @@ def records(path, role):
         signing = []
         signing_traces = []
         router_traces = []
+        registration_links = []
+        wait_traces = []
         stage_traces = []
         socket_completion = []
         peer_close = []
@@ -405,6 +485,12 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                link = public_registration_link(value)
+                if link is not None:
+                    registration_links.append(link)
+                wait_trace = public_wait_trace(value, log.get("timestamp"))
+                if wait_trace is not None:
+                    wait_traces.append(wait_trace)
                 stage_trace = public_stage_trace(value, log.get("timestamp"))
                 if stage_trace is not None:
                     stage_traces.append(stage_trace)
@@ -529,7 +615,15 @@ def records(path, role):
         result.append({
             "role": role,
             "http_request": request_id,
+            "service_call_id": service_call_id,
+            "registration_context": registration_context,
+            "registration_links": registration_links,
+            "wait_traces": wait_traces,
             "worker": item.get("scriptName"),
+            "entrypoint": item.get("entrypoint") if item.get("entrypoint") in (
+                "default", "RouterAbMlDsaRegistrationDurableObject", "RouterAbMlDsaPoolDurableObject",
+                "RouterAbMlDsaProducerDurableObject", "RouterAbMlDsaAdmissionDurableObject",
+            ) else None,
             "version": item.get("scriptVersion", {}).get("id"),
             "run_id": run_id,
             "run_id_available": run_id_available,
@@ -541,6 +635,7 @@ def records(path, role):
             "cpu_ms": item.get("cpuTime"),
             "wall_ms": item.get("wallTime"),
             "outcome": item.get("outcome"),
+            "logs_truncated": item.get("truncated") if type(item.get("truncated")) is bool else None,
             "exception_names": [error.get("name") for error in item.get("exceptions", [])],
             "exception_categories": [exception_category(error) for error in item.get("exceptions", [])],
             "public_preparation_progress": progress,

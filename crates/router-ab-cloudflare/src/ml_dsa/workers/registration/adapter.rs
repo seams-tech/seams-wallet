@@ -7,6 +7,7 @@ pub(super) struct PendingFrame {
     bytes: Vec<u8>,
 }
 pub(super) struct Adapter<'a> {
+    pub waits: Option<Rc<wait_trace::WaitTrace>>,
     pub wire: transport::Duplex<'a>,
     pub trace: Option<&'a stage_trace::StageTrace>,
     pub state: Rc<State>,
@@ -33,21 +34,25 @@ impl Adapter<'_> {
         let binding = self.binding.clone();
         let seed = self.seed.clone();
         let now = crate::cloudflare_now_unix_ms_v1()?;
-        transaction(&self.state, move |store| async move {
-            for frame in frames {
-                registration_tables::put(
-                    &store,
-                    &binding,
-                    frame.circuit,
-                    frame.ordinal,
-                    &frame.bytes,
-                    &seed,
-                    now,
-                )
-                .await?;
-            }
-            Ok(())
-        })
+        wait_trace::observe(
+            self.waits.as_deref(),
+            wait_trace::Kind::StoreTables,
+            transaction(&self.state, move |store| async move {
+                for frame in frames {
+                    registration_tables::put(
+                        &store,
+                        &binding,
+                        frame.circuit,
+                        frame.ordinal,
+                        &frame.bytes,
+                        &seed,
+                        now,
+                    )
+                    .await?;
+                }
+                Ok(())
+            }),
+        )
         .await?;
         self.written_frames += count;
         self.write_transactions += 1;
@@ -101,12 +106,16 @@ impl prepared::Transport for Adapter<'_> {
             let ceremony = self.ceremony;
             let now = crate::cloudflare_now_unix_ms_v1().map_err(failed)?;
             let started = crate::cloudflare_now_unix_ms_v1().ok();
-            let result = transaction(&self.state, move |store| async move {
-                registration_tables::take(
-                    &store, &binding, ceremony, circuit, ordinal, length, &seed, now,
-                )
-                .await
-            })
+            let result = wait_trace::observe(
+                self.waits.as_deref(),
+                wait_trace::Kind::LoadTables,
+                transaction(&self.state, move |store| async move {
+                    registration_tables::take(
+                        &store, &binding, ceremony, circuit, ordinal, length, &seed, now,
+                    )
+                    .await
+                }),
+            )
             .await;
             if let Some(trace) = self.trace {
                 trace.table_read(started);

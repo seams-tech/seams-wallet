@@ -47,6 +47,7 @@ pub(super) struct Duplex<'a> {
     pending: VecDeque<Vec<u8>>,
     scheduling: Scheduling,
     metrics: Metrics,
+    waits: Option<std::rc::Rc<super::wait_trace::WaitTrace>>,
 }
 impl<'a> Duplex<'a> {
     pub(super) fn new(socket: &'a WebSocket, deadline: u64) -> worker::Result<Self> {
@@ -82,7 +83,11 @@ impl<'a> Duplex<'a> {
             pending: VecDeque::new(),
             scheduling,
             metrics: Metrics::default(),
+            waits: None,
         })
+    }
+    pub(super) fn trace_waits(&mut self, waits: Option<std::rc::Rc<super::wait_trace::WaitTrace>>) {
+        self.waits = waits;
     }
     pub(super) fn metrics(&self) -> Metrics {
         self.metrics.clone()
@@ -182,6 +187,15 @@ impl<'a> Duplex<'a> {
         }
     }
     async fn event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
+        let waits = self.waits.clone();
+        super::wait_trace::observe(
+            waits.as_deref(),
+            super::wait_trace::Kind::PeerEvent,
+            self.next_event(),
+        )
+        .await
+    }
+    async fn next_event(&mut self) -> core::result::Result<WebsocketEvent, RuntimeError> {
         let started = crate::cloudflare_now_unix_ms_v1().map_err(transport_error)?;
         let delay = worker::Delay::from(Duration::from_millis(self.remaining()?));
         let event = self.events.next();
