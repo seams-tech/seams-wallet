@@ -389,15 +389,22 @@ try {
       const held = await waitForHeldPublication(barrier);
       assert.equal(held.stage, 'after');
       assert.deepEqual(held.job, job);
-      const published = await inventories();
+      const [publishedA, publishedB] = await inventories();
       const batches = preparationBatches(job);
-      for (const role of published) {
+      for (const role of [publishedA, publishedB]) {
         for (const batch of batches) {
           assert.ok(role.ready.map(batchId).includes(batch), 'The reset fixture lacks paired publication');
         }
       }
       observations.interruptedProducer = {
         batch: job.batch,
+        publicationEvidence: {
+          state: 'paired_ready_before_interruption',
+          batches,
+          readyA: publishedA.ready.map(batchId),
+          readyB: publishedB.ready.map(batchId),
+          preparationEventCount: preparationEvents.length,
+        },
         beforeResetState: await producerState(job),
         recoveryAlarmBeforeReset: (await producerSnapshot(job.batch)).alarm,
         remainingLeaseMs: job.expires_at_ms - Date.now(),
@@ -908,6 +915,7 @@ function committedExecutionEvidence() {
       }
       assert.equal(onlineStart, null);
       let pairs = 0;
+      const publicationSources = [];
       for (const batch of trace.batches) {
         if (batch.value.stage !== 'checked') continue;
         pairs += 1;
@@ -921,7 +929,19 @@ function committedExecutionEvidence() {
           if (event.stage === 'published') publication = index;
         }
         assert.ok(commitment >= 0, 'Consumed refill lacks completed private commitments');
-        assert.ok(publication > commitment, 'Refill became ready before private commitments finished');
+        if (publication < 0) {
+          const evidence = observations.interruptedProducer.publicationEvidence;
+          assert.equal(evidence.state, 'paired_ready_before_interruption');
+          assert.ok(evidence.batches.includes(material), 'Missing publication is outside the interrupted job');
+          assert.ok(evidence.readyA.includes(material) && evidence.readyB.includes(material),
+            'Interrupted publication lacks paired durable ready state');
+          assert.ok(commitment < evidence.preparationEventCount,
+            'Private commitments were not observed before durable ready state');
+          publicationSources.push({ material, source: 'durable_ready_before_interruption' });
+        } else {
+          assert.ok(publication > commitment, 'Refill publication preceded private commitment completion');
+          publicationSources.push({ material, source: 'producer_completion' });
+        }
       }
       assert.ok(pairs > 0);
       let andLayerDataFrames = 0;
@@ -929,7 +949,7 @@ function committedExecutionEvidence() {
       assert.ok(andLayerDataFrames > 0 && andLayerDataFrames <= pairs * 214,
         'Committed refill exceeded its reviewed online AND-layer budget');
       rows.push({ operation: trace.operation, role: trace.role, pairs, layers,
-        andLayerDataFrames, commitmentsFinishedBeforePublication: true });
+        andLayerDataFrames, commitmentsFinishedBeforePublication: true, publicationSources });
     }
     assert.deepEqual(roles, new Set(['a', 'b']));
   }
