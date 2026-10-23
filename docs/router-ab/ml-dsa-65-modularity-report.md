@@ -50,7 +50,8 @@ Dedicated participant/preparer builds still carry the full participant circuit s
 Both browser modules ship in the SDK package. The server package also includes the optional Worker binaries.
 Smaller ordinary downloads and deployments do not imply smaller complete npm packages.
 The Gateway can package both verification modules and initializes the selected one separately.
-Whole JavaScript entry sizes, full npm archive deltas, total process memory, and production cold-start latency remain unqualified.
+Whole JavaScript entry sizes, npm archive deltas, total process memory, and production cold-start latency remain unqualified.
+The follow-up package inventory below measures current complete archives.
 
 ## Runtime and custody boundaries
 
@@ -154,3 +155,70 @@ This change performs no deployment, namespace deletion, branch merge, or key mig
 4. Set complete JavaScript/package-size budgets separately from the Wasm measurements in this report.
 
 The [evidence summary](../evidence/ml-dsa-65-modularity-20261023.json) records build hashes, circuit exclusion, checks, and a reproducible public-data archive.
+
+
+## Hosted qualification preflight and package inventory
+
+The hosted comparison uses eleven fresh temporary Workers: five combined roles and six separated roles.
+The separated path includes the ordinary Router before the ML-DSA Router.
+Both use a sixty-second cooldown, four-candidate preparation, two-candidate consumption, and thirty-two-candidate capacity.
+All names were absent before creation. Namespace bootstrap completed without production bindings or wallet state.
+Credential upload requires approval for these exact new destinations and payloads.
+No hosted registration or signing measurement exists from this follow-up yet.
+The bootstrap Workers remain allocated while approval is pending. Cleanup follows the test campaign.
+
+The prepared campaign checks two synthetic wallets per topology, including canonical-key recovery and independently verified signatures.
+It then submits one demand per wallet per minute for five minutes.
+Exact deployed versions, request failures, censored demands, stock observations, and per-role traces must remain in the evidence.
+This small policy-paced screen cannot establish saturation throughput or p99 latency.
+Use observed construction and cache traces to classify first-use and warm requests. A fresh deployment alone does not prove a cold isolate.
+Do not subtract timestamps from different Worker clocks to estimate preparation duration.
+
+Current package inventory uses `npm pack --ignore-scripts --dry-run --json` in each package directory.
+The command reads existing built outputs. It publishes nothing and runs no lifecycle scripts.
+
+| Package | Archive | Unpacked | Files |
+| --- | ---: | ---: | ---: |
+| `@seams/wallet` | 9,760,057 bytes | 35,267,958 bytes | 2,142 |
+| `@seams/wallet-server` | 66,198,292 bytes | 160,035,308 bytes | 1,288 |
+
+Named optional ML-DSA files account for 3,223,088 unpacked SDK bytes and 104,026,210 unpacked server bytes.
+The SDK includes the optional Wasm in five supported output locations. A consumer does not fetch all five for one operation.
+The server package includes the three optional Worker builds.
+These totals exclude ML-DSA code inside shared files. They are not a measured delta against dev.
+Separating optional server artifacts into another package could reduce installation size. That packaging change remains separate from runtime isolation.
+
+## State-preserving cutover requirements
+
+The current templates create fresh namespaces. Do not use their create migrations to replace existing ML-DSA state.
+Wallet-seed recovery reproduces the key. It does not reproduce consumed-material records or operation history.
+
+| Existing namespace | State that must remain authoritative |
+| --- | --- |
+| Admission | Key activation and epoch, wallet cooldown, exact-operation results, active claims, registration claims/results, refill queue and fairness order. |
+| Each participant pool | Wallet ownership, active key and encrypted share, prepared ciphertext, reservations, consumed/burned records, refill intent. |
+| Each registration object | Preparation ownership, encrypted inputs/tables, consumed/retired records, execution and delivery state. |
+| Producer | Pending order, job state, publication/settlement state, and recovery alarm behavior. |
+
+The admission name remains `ml-dsa-admission-v1`. Pool names derive from the full wallet scope.
+Registration object names derive from the job ID. The producer name remains `ml-dsa-producer-v1`.
+Changing a Worker binding to a fresh namespace would reset the meaning of those names.
+Keep each participant's wrapping key and version unchanged during a topology-only move.
+The fresh templates' `ml-dsa-v1` version must not replace a deployed key version without a separate key rotation.
+
+Prefer an in-place code deployment when the Worker and namespace ownership can remain unchanged.
+When ownership must move, rehearse a whole-class transfer with synthetic state before any live cutover.
+Cloudflare's [transfer migration documentation](https://developers.cloudflare.com/durable-objects/reference/durable-object-class-migrations-legacy/#transfer-migration) states that transfer preserves stored objects and creates the destination class.
+It also prohibits creating that destination class first. Existing bindings forward after transfer, and migrations cannot use gradual deployment.
+The existing migration mechanism remains supported. This review does not change the repository's configuration mechanism.
+
+A rehearsal must retain a completed operation, a live cooldown, consumed and reserved candidates, and an interrupted producer.
+After transfer, exact retries must return the same result. Changed retries and consumed-material publication must fail.
+The same public key must sign successfully after recovery. Old-epoch operations must remain invalid.
+Refill must resume without duplicating publication or changing queue order or capacity.
+Gate new admissions during cutover and settle or fence in-flight work before changing ownership.
+Do not restore an old database snapshot as rollback after material was consumed. That could make single-use material available again.
+
+No namespace transfer, state-copy implementation, or live cutover was performed in this review.
+The [preflight evidence](../evidence/ml-dsa-65-modularity-hosted-preflight-20261023.json) includes package inventories, exact binary hashes, deployment receipts, and campaign scripts.
+It contains no credential values or wallet secrets.
