@@ -22,7 +22,7 @@ class WaveformAnimation {
   }
 
   private readonly draw = (time: number): void => {
-    const interval = matchMedia('(prefers-reduced-motion: reduce)').matches ? 160 : 45;
+    const interval = matchMedia('(prefers-reduced-motion: reduce)').matches ? 160 : 32;
     if (time - this.previousTime >= interval) {
       this.previousTime = time;
       this.history.copyWithin(0, 1);

@@ -6,7 +6,11 @@ branding, and model details stay outside the capture card.
 
 The preview uses the existing `voice-glow` `VoiceBeam` as a subtle background.
 The waveform is the main feedback. Its bars show recent microphone amplitude,
-including quiet gaps. There is no decorative speaking animation in microphone mode.
+including quiet gaps. A continuous response curve preserves differences in louder
+speech without a hard amplitude cap. The preview requests automatic gain control
+off and samples the waveform every 32 ms. This changes only the preview display;
+production VoiceID capture and model inputs are unchanged.
+There is no decorative speaking animation in microphone mode.
 
 From the repository root:
 

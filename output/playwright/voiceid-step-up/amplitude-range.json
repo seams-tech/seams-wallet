@@ -1,0 +1,40 @@
+{
+  "scope": "Synthetic audio through preview capture and live waveform, no physical microphone used",
+  "mapping": "continuous soft-knee response above RMS noise floor",
+  "measurements": {
+    "rows": [
+      {
+        "amplitude": 0,
+        "height": 4
+      },
+      {
+        "amplitude": 0.015,
+        "height": 13.576390981674194
+      },
+      {
+        "amplitude": 0.04,
+        "height": 22.89812409877777
+      },
+      {
+        "amplitude": 0.08,
+        "height": 31.758827686309814
+      },
+      {
+        "amplitude": 0.16,
+        "height": 39.52941274642944
+      },
+      {
+        "amplitude": 0.32,
+        "height": 46.04782032966614
+      },
+      {
+        "amplitude": 0.64,
+        "height": 50.2537407875061
+      }
+    ],
+    "settledHeight": 4,
+    "tracksStopped": true,
+    "automaticGainControl": false
+  },
+  "repeat": "amplitude-range-check.txt contains the runnable Playwright CLI function and captured result"
+}

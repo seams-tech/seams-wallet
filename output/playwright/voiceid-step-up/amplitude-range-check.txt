@@ -1,0 +1,48 @@
+### Result
+"{\"rows\":[{\"amplitude\":0,\"height\":4},{\"amplitude\":0.015,\"height\":13.576390981674194},{\"amplitude\":0.04,\"height\":22.89812409877777},{\"amplitude\":0.08,\"height\":31.758827686309814},{\"amplitude\":0.16,\"height\":39.52941274642944},{\"amplitude\":0.32,\"height\":46.04782032966614},{\"amplitude\":0.64,\"height\":50.2537407875061}],\"settledHeight\":4,\"tracksStopped\":true,\"automaticGainControl\":false}"
+### Ran Playwright code
+```js
+await (async (page) => {
+  await page.reload();
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const destination = context.createMediaStreamDestination();
+      gain.gain.value = 0;
+      oscillator.frequency.value = 220;
+      oscillator.connect(gain).connect(destination);
+      oscillator.start();
+      await context.resume();
+      window.__rangeProbe = {context, gain, stream:destination.stream, constraints};
+      return destination.stream;
+    };
+  });
+  await page.getByRole('button', {name:'Record',exact:true}).click();
+  await page.getByRole('status').filter({hasText:/^Listening$/}).waitFor();
+  const rows=[];
+  for (const amplitude of [0, 0.015, 0.04, 0.08, 0.16, 0.32, 0.64]) {
+    await page.evaluate(value => {window.__rangeProbe.gain.gain.value=value;}, amplitude);
+    await page.waitForTimeout(300);
+    const height = Number(await page.locator('svg.waveform rect').last().getAttribute('height'));
+    rows.push({amplitude,height});
+  }
+  for (let index=1;index<rows.length;index++) {
+    if (rows[index].height-rows[index-1].height<2) throw new Error('Amplitude steps flattened: '+JSON.stringify(rows));
+  }
+  await page.evaluate(() => {window.__rangeProbe.gain.gain.value=0;});
+  await page.waitForTimeout(1800);
+  const settled = await page.locator('svg.waveform rect').evaluateAll(nodes=>Math.max(...nodes.map(node=>Number(node.getAttribute('height')))));
+  if (settled>6) throw new Error('Waveform did not settle during silence');
+  await page.getByRole('button',{name:'Cancel recording',exact:true}).click();
+  const tracksStopped = await page.evaluate(()=>window.__rangeProbe.stream.getTracks().every(track=>track.readyState==='ended'));
+  const automaticGainControl = await page.evaluate(()=>window.__rangeProbe.constraints.audio.autoGainControl);
+  await page.evaluate(()=>window.__rangeProbe.context.close());
+  if (!tracksStopped || automaticGainControl !== false) throw new Error('Capture lifecycle or constraints are incorrect');
+  return JSON.stringify({rows,settledHeight:settled,tracksStopped,automaticGainControl});
+}
+)(page);
+```
+### Events
+- New console entries: .playwright-cli/console-2026-10-24T11-11-22-545Z.log#L13-L14
