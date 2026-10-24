@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 
-test('desktop transaction settings preserve selection callbacks and no-review constraints', async ({
+test('desktop transaction settings switch review and choose the review layout', async ({
   page,
 }) => {
   await injectImportMap(page);
@@ -52,15 +52,18 @@ test('desktop transaction settings preserve selection callbacks and no-review co
     createRoot(document.body).render(React.createElement(Fixture));
   });
   const modal = page.getByRole('button', { name: /^Modal/ });
-  const automatic = page.getByRole('button', { name: /^Start automatically/ });
+  const drawer = page.getByRole('button', { name: /^Drawer/ });
+  const review = page.getByRole('switch', { name: 'Review before signing' });
+  await expect(page.getByRole('button', { name: /^No review/ })).toHaveCount(0);
   await expect(modal).toHaveAttribute('aria-pressed', 'true');
-  await automatic.click();
-  await expect(automatic).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: /^No review/ }).click();
-  await expect(automatic).toBeDisabled();
-  await modal.click();
-  await expect(automatic).toBeEnabled();
-  await page.getByRole('button', { name: /^Click to continue/ }).click();
+  await expect(review).toHaveAttribute('aria-checked', 'true');
+  await review.click();
+  await expect(review).toHaveAttribute('aria-checked', 'false');
+  await drawer.click();
+  await expect(drawer).toHaveAttribute('aria-pressed', 'true');
+  await expect(review).toHaveAttribute('aria-checked', 'false');
+  await review.click();
+  await expect(review).toHaveAttribute('aria-checked', 'true');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

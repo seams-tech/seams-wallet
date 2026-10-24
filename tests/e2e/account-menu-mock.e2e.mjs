@@ -136,11 +136,10 @@ try {
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: 'Start automatically', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Start automatically', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await page.getByRole('switch', { name: 'Review before signing', exact: true }).click();
+  await expect(
+    page.getByRole('switch', { name: 'Review before signing', exact: true }),
+  ).toHaveAttribute('aria-checked', 'false');
   await page.screenshot({ path: `${artifacts}/transaction-screen.png` });
   await back(page);
   await page.locator('[data-account-menu-item="linked-devices"]').click();
