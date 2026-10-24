@@ -410,13 +410,12 @@ These controlled savings do not establish hosted registration or full wallet-sig
 The live testnet RPC comparison ran 20 interleaved pairs with one excluded warm-up per arm.
 Among 18 successful pairs, medians were 6,579.2 ms sequential and 6,576.5 ms concurrent.
 The median paired saving was 1.6 ms. Nine pairs favored concurrency.
-Four calls failed with HTTP 429, two per arm. All failures remain in the evidence.
+Four calls failed with HTTP 429, two per arm.
 This live comparison establishes no consistent improvement and includes no chain writes or hosted Wallet calls.
 
 Retain the small concurrency change for its controlled reduction in exposed RPC wait.
 The server type-check, server build, and bloat check passed.
 All temporary measurement drivers and compiled bundles were removed. No production profiling code or additional tests remain.
-[Evidence](./evidence/near-relayer-rpc-concurrency-20261024.json) retains summaries, public signature proofs, source hashes, and hashes of the raw local artifacts.
 
 The [existing transaction benchmark](./evidence/refactor-155g-early-delegate-transaction-hosted.md)
 waited for context and early prepare before confirming. Its automated confirmation
