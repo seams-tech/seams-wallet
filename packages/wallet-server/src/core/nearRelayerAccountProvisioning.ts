@@ -279,12 +279,11 @@ async function fetchRelayerTxContext(input: {
   readonly relayerAccount: string;
   readonly relayerPublicKey: string;
 }): Promise<{ readonly nextNonce: string; readonly blockHash: string }> {
-  const accessKey = await input.nearClient.viewAccessKey(
-    input.relayerAccount,
-    input.relayerPublicKey,
-  );
+  const [accessKey, block] = await Promise.all([
+    input.nearClient.viewAccessKey(input.relayerAccount, input.relayerPublicKey),
+    input.nearClient.viewBlock({ finality: 'final' }),
+  ]);
   const nonce = BigInt(accessKey.nonce);
-  const block = await input.nearClient.viewBlock({ finality: 'final' });
   return {
     nextNonce: (nonce + 1n).toString(),
     blockHash: block.header.hash,

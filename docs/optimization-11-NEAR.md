@@ -9,7 +9,8 @@ Captured wallet-object invocations took 7–31 ms for transaction requests.
 Elevated CPU readings in stateless Worker events remain unexplained.
 The native profiler did not attribute those spikes to source functions.
 All profiling additions from this investigation are removed after evidence collection, as requested.
-This investigation is closed without a verified new performance improvement.
+The tracing investigation closed without a verified new performance improvement.
+A separate relayer RPC comparison verified savings under controlled delays. Live RPC savings remain unproven. See P4.
 The remaining proposals below are deferred. They do not require further profiling or implementation now.
 The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
 PostgreSQL integration and provisioning are deferred at the user's request.
@@ -383,13 +384,39 @@ Service bindings normally execute on the same server and thread. [Provider docum
 
 ### P4. Improve transactions when confirmation is immediate
 
-One untested candidate remains in
-[`fetchRelayerTxContext`](../packages/wallet-server/src/core/nearRelayerAccountProvisioning.ts):
-fetch the relayer access key and final block concurrently.
-The helper currently performs these independent reads sequentially for implicit-account funding and sponsored account creation.
-No change or timing comparison was made, and no speedup is established.
-If resumed, preserve nonce handling and exact transaction replay, verify both provisioning paths, and compare complete latency against controls.
+Completed October 24: [`fetchRelayerTxContext`](../packages/wallet-server/src/core/nearRelayerAccountProvisioning.ts)
+fetches the relayer access key and final block concurrently.
+Both reads must succeed before signing or broadcasting.
+This removes one sequential RPC wait from implicit-account funding and sponsored account creation.
 The client nonce coordinator already fetches its access key and block concurrently.
+
+The controlled comparison used real HTTP and signer WASM with a local RPC stub.
+Each path ran 20 interleaved control/candidate pairs against the sequential source at `4f7fc083`.
+Arm order alternated. One warm-up per arm/path was excluded before measurement.
+Read delays alternated between 80/120 ms and 120/80 ms, with a 20 ms broadcast response.
+
+| Complete provisioning call, ms | Sequential median | Concurrent median | Median paired saving |
+| --- | --- | --- | --- |
+| Implicit-account funding | 231.0 | 147.5 | 83.4 |
+| Sponsored preparation and broadcast | 229.8 | 146.7 | 83.6 |
+
+These boundaries include signing and the simulated broadcast response. They exclude the D1 sponsorship ownership claim and real chain execution.
+All 80 measured signatures passed independent Ed25519 verification. Signed bytes matched between arms for each path.
+Both read completion orders preserved the nonce, receiver, block hash, and requested finality.
+Failures of either read prevented broadcast in both provisioning paths.
+The existing D1 sponsorship E2E passed uncertain-broadcast recovery, cross-wallet rejection, and exact replay without rebroadcast.
+These controlled savings do not establish hosted registration or full wallet-signing gains.
+
+The live testnet RPC comparison ran 20 interleaved pairs with one excluded warm-up per arm.
+Among 18 successful pairs, medians were 6,579.2 ms sequential and 6,576.5 ms concurrent.
+The median paired saving was 1.6 ms. Nine pairs favored concurrency.
+Four calls failed with HTTP 429, two per arm. All failures remain in the evidence.
+This live comparison establishes no consistent improvement and includes no chain writes or hosted Wallet calls.
+
+Retain the small concurrency change for its controlled reduction in exposed RPC wait.
+The server type-check, server build, and bloat check passed.
+All temporary measurement drivers and compiled bundles were removed. No production profiling code or additional tests remain.
+[Evidence](./evidence/near-relayer-rpc-concurrency-20261024.json) retains summaries, public signature proofs, source hashes, and hashes of the raw local artifacts.
 
 The [existing transaction benchmark](./evidence/refactor-155g-early-delegate-transaction-hosted.md)
 waited for context and early prepare before confirming. Its automated confirmation

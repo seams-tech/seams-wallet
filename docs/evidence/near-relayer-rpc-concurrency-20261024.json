@@ -1,0 +1,182 @@
+{
+  "date": "2026-10-24",
+  "baselineCommit": "4f7fc083",
+  "baselineSourceSha256": "458f1e7f0d36ec8da4e1afd6b7f26c0b55b08e768dc6912d13c3be18a2127f90",
+  "candidateSourceSha256": "b30d007206971a7ec4693cfaad56437c2f97244bfb6656733c8c56c940d2f837",
+  "signerWasmSha256": "33950a7a3c817079619b47d860ec562998ec28d6fe1ce792eeba0a5504017c05",
+  "controlledComparison": {
+    "environment": {
+      "node": "v26.4.0",
+      "rpc": "local HTTP stub",
+      "wasm": "real near_signer",
+      "delaysMs": "access/block 80/120 then 120/80, broadcast 20"
+    },
+    "design": "20 interleaved pairs per path, alternating arm order; one excluded warm-up per arm/path; no retries or dropped samples",
+    "boundary": "funding entry through broadcast response; sponsorship preparation entry through broadcast response; excludes D1 ownership claim",
+    "summary": {
+      "funding": {
+        "sequential": {
+          "count": 20,
+          "medianMs": 231.04975000000013,
+          "p95Ms": 233.477625,
+          "minMs": 228.08579199999986,
+          "maxMs": 234.70508300000006
+        },
+        "concurrent": {
+          "count": 20,
+          "medianMs": 147.50341650000007,
+          "p95Ms": 149.5275829999996,
+          "minMs": 146.17541699999992,
+          "maxMs": 149.56275000000005
+        },
+        "pairedSavings": {
+          "count": 20,
+          "medianMs": 83.37795849999958,
+          "p95Ms": 86.10962500000005,
+          "minMs": 80.08670899999925,
+          "maxMs": 87.06624999999985
+        }
+      },
+      "sponsorship": {
+        "sequential": {
+          "count": 20,
+          "medianMs": 229.8451869999999,
+          "p95Ms": 233.25945800000045,
+          "minMs": 226.96579100000054,
+          "maxMs": 235.85183400000096
+        },
+        "concurrent": {
+          "count": 20,
+          "medianMs": 146.72318750000068,
+          "p95Ms": 148.55374999999913,
+          "minMs": 145.4166669999995,
+          "maxMs": 148.609292000001
+        },
+        "pairedSavings": {
+          "count": 20,
+          "medianMs": 83.55385350000051,
+          "p95Ms": 85.46016600000075,
+          "minMs": 80.12237500000083,
+          "maxMs": 87.55766800000129
+        }
+      }
+    },
+    "publicKey": "ed25519:GoskNnsFEos4ww8vVhBNZsLgrUk8VtWcdmh5sMXp1y3n",
+    "signatureVerification": "Node Ed25519 over SHA-256 of unsigned Borsh, plus WASM decode of nonce, receiver and block hash"
+  },
+  "signatureProofs": [
+    {
+      "path": "funding",
+      "verifiedSamples": 40,
+      "transactionHash": "H4dPcnYYRx2yrMPYYAMqqv7HjQGiZFg6h1QLchXNwyb2",
+      "signedTransactionB64": "DwAAAHJlbGF5ZXIudGVzdG5ldADq4WbiwavgRaxmK7nd/Gp7eD9zzUFdqdv4mDGYnHatMUoAAAAAAAAAQAAAAGVhZTE2NmUyYzFhYmUwNDVhYzY2MmJiOWRkZmM2YTdiNzgzZjczY2Q0MTVkYTlkYmY4OTgzMTk4OWM3NmFkMzEHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwEAAAADAQAAAAAAAAAAAAAAAAAAAAD79JA9WRNPcCHtwvWAkTTuMYzudtWt0NYtfCCR15irWIobQp2xjOShhv/pkm0cGgypgrk+5M5WYoeR89F7CREN"
+    },
+    {
+      "path": "sponsorship",
+      "verifiedSamples": 40,
+      "transactionHash": "5Y69gF7DjQHZVJ5JqhUnKUPWQyKK6XE7SNoJBfFjZzFm",
+      "signedTransactionB64": "DwAAAHJlbGF5ZXIudGVzdG5ldADq4WbiwavgRaxmK7nd/Gp7eD9zzUFdqdv4mDGYnHatMUoAAAAAAAAAFQAAAG93bmVkLnJlbGF5ZXIudGVzdG5ldAcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHAwAAAAADAQAAAAAAAAAAAAAAAAAAAAUA6uFm4sGr4EWsZiu53fxqe3g/c81BXanb+JgxmJx2rTEAAAAAAAAAAAEAtuz2rZ3gzlFm+iZdUTCxfW1SKDlups3+4wWi3UbmbO7znUpba1M37SN9kjgko5GMGTRwYhXykvcKTAGv1kx3Dw=="
+    }
+  ],
+  "readFailures": [
+    {
+      "path": "funding",
+      "failedRead": "query",
+      "returnedFailure": true,
+      "broadcasts": 0
+    },
+    {
+      "path": "funding",
+      "failedRead": "block",
+      "returnedFailure": true,
+      "broadcasts": 0
+    },
+    {
+      "path": "sponsorship",
+      "failedRead": "query",
+      "returnedFailure": true,
+      "broadcasts": 0
+    },
+    {
+      "path": "sponsorship",
+      "failedRead": "block",
+      "returnedFailure": true,
+      "broadcasts": 0
+    }
+  ],
+  "liveComparison": {
+    "endpoint": "https://rpc.testnet.near.org",
+    "account": "guest-book.testnet",
+    "publicKey": "ed25519:2nnxJ1zYdTxUHkfLbFfDoPBrrEm2ad3QbPUYRKeNBQja",
+    "boundary": "actual fetchRelayerTxContext helper, two read-only final RPCs; no signing, funding, or chain writes",
+    "design": "20 interleaved pairs, alternating order, one excluded warm-up per arm, 100ms pause after each sample, shared production RPC client, no experiment retries",
+    "summary": {
+      "sequential": {
+        "count": 18,
+        "medianMs": 6579.243895999993,
+        "p95Ms": 7068.892374999999,
+        "minMs": 6546.353874999972,
+        "maxMs": 7068.892374999999
+      },
+      "concurrent": {
+        "count": 18,
+        "medianMs": 6576.468374999991,
+        "p95Ms": 6614.799625000014,
+        "minMs": 6542.7472919999855,
+        "maxMs": 6614.799625000014
+      },
+      "pairedSavings": {
+        "count": 18,
+        "medianMs": 1.6390620000165654,
+        "p95Ms": 507.2119160000002,
+        "minMs": -63.49829100002535,
+        "maxMs": 507.2119160000002
+      },
+      "failures": 4,
+      "positivePairs": 9
+    }
+  },
+  "liveConclusion": "No consistent live latency improvement: 9 of 18 successful pairs favored concurrency. Four of 40 measured calls failed with HTTP 429 (two per arm). No hosted registration or signing gain established.",
+  "ownershipE2E": {
+    "source": "tests/e2e/sponsored-account-ownership.e2e.mjs",
+    "outputPathOnlyChangedForRun": true,
+    "pendingOwner": "wallet-a",
+    "terminalOwner": "wallet-a",
+    "crossWalletConflictBeforeRpc": true,
+    "resumedWithoutRebroadcast": true,
+    "exactReplayWithoutRpc": true,
+    "signedBytesSha256": "1a31b53e3dee06b6c22123151b08ba75e60d0d80f1334eeeea2853409ca64366",
+    "requests": [
+      "query",
+      "block",
+      "send_tx",
+      "query",
+      "EXPERIMENTAL_tx_status"
+    ]
+  },
+  "checks": {
+    "serverTypeCheck": "passed",
+    "serverBuild": "passed",
+    "bloat": "passed",
+    "diffCheck": "passed"
+  },
+  "cleanup": "Temporary comparison, live-read, and ownership drivers and compiled bundles removed; raw numeric data and public signature proofs retained. No production profiling code or additional tests retained.",
+  "rawArtifacts": [
+    {
+      "path": ".artifacts/optimization-11-near/20261024-rpc-concurrency/comparison.json",
+      "sha256": "e91d0879475113a469e9b9e53cb1a151c3f5c511d8d1aaff3c1dfd0a61e28761"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-rpc-concurrency/live-rpc.json",
+      "sha256": "81db91ecc389ea727471d9ca75e6a05e302ec13c67ce3c9231a4e5b438e1cafc"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-rpc-concurrency/evidence.json",
+      "sha256": "4d0946cb2fd1e66b31eb0fba9a94711a0230ff5f27725c5bd0848de3e2c6ccc1"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-rpc-concurrency/bloat.log",
+      "sha256": "7fdd393332ddd922621874c171deaa99e202ca761626d078929f7a516633135e"
+    }
+  ]
+}
