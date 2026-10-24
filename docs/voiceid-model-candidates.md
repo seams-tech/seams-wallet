@@ -1,11 +1,16 @@
 # VoiceID model candidates
 
-Research date: 2026-10-24. Status: shortlist only. No candidate in this document
+Research date: 2026-10-24. Status: shortlist with initial browser evaluation. No candidate in this document
 replaces the model used by the working browser prototype.
 
 Evaluate ReDimNet B0 and B1 first for speaker verification. Evaluate AuroraASR-1M
 for optional spoken-phrase checking, with Moonshine Tiny as the browser baseline.
 Select a replacement only after browser compatibility and accuracy checks.
+
+The [B0/B1 browser evaluation](evidence/voiceid-redimnet-20261024/README.md) is complete
+on Chromium and desktop WebKit using 29 public-corpus speakers. Full-waveform
+exports measured 4.41 MB and 8.86 MB. B1 is the next live-test candidate; broader
+accuracy qualification and the complete Wallet E2E remain required.
 
 ## Two separate tasks
 

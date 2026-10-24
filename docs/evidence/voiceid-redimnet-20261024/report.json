@@ -1,0 +1,745 @@
+{
+  "status": "passed",
+  "sources": {
+    "sourceRevision": "ce039a624cb99fe127702ceb94c6080090e5032f",
+    "weightsRevision": "5180983b6895dafa0cd88aa88e8a07296df27834",
+    "dataset": "LibriSpeech test-clean",
+    "datasetUrl": "https://www.openslr.org/12",
+    "datasetLicense": "CC-BY-4.0"
+  },
+  "versions": {
+    "torch": "2.6.0",
+    "onnx": "1.17.0",
+    "onnxruntime": "1.23.2",
+    "numpy": "2.2.6"
+  },
+  "models": [
+    {
+      "name": "b0",
+      "bytes": 4405224,
+      "gzipBytes": 3789819,
+      "sha256": "fab8ed6d270981180506077715636b479531ccc8c434de65c07d6259b0fe10e0",
+      "checkpointSha256": "68b8507be1f859d49e4cfd0c2d2bd7aa94e6a288a7df21e65276c9a5d5886cb0",
+      "referenceChecks": [
+        {
+          "sampleCount": 16000,
+          "cosine": 0.9999999999987904,
+          "maxAbsoluteError": 1.1563301086425781e-05
+        },
+        {
+          "sampleCount": 32000,
+          "cosine": 0.9999999999974609,
+          "maxAbsoluteError": 1.2040138244628906e-05
+        },
+        {
+          "sampleCount": 64000,
+          "cosine": 0.9999999999985252,
+          "maxAbsoluteError": 9.700655937194824e-06
+        },
+        {
+          "sampleCount": 128000,
+          "cosine": 0.9999999999989839,
+          "maxAbsoluteError": 1.1324882507324219e-05
+        },
+        {
+          "sampleCount": 128001,
+          "cosine": 0.9999999999985602,
+          "maxAbsoluteError": 8.106231689453125e-06
+        }
+      ]
+    },
+    {
+      "name": "b1",
+      "bytes": 8859593,
+      "gzipBytes": 7980315,
+      "sha256": "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
+      "checkpointSha256": "6e634bbbeb0f6afd9bbbb0606da834f93e23e4869b3954177a5717acc20ea36c",
+      "referenceChecks": [
+        {
+          "sampleCount": 16000,
+          "cosine": 0.9999999999957325,
+          "maxAbsoluteError": 2.586841583251953e-05
+        },
+        {
+          "sampleCount": 32000,
+          "cosine": 0.9999999999968003,
+          "maxAbsoluteError": 2.014636993408203e-05
+        },
+        {
+          "sampleCount": 64000,
+          "cosine": 0.9999999999942153,
+          "maxAbsoluteError": 2.3484230041503906e-05
+        },
+        {
+          "sampleCount": 128000,
+          "cosine": 0.9999999999957161,
+          "maxAbsoluteError": 1.9788742065429688e-05
+        },
+        {
+          "sampleCount": 128001,
+          "cosine": 0.9999999999969991,
+          "maxAbsoluteError": 2.082809805870056e-05
+        }
+      ]
+    },
+    {
+      "name": "ecapa",
+      "bytes": 83533672,
+      "gzipBytes": 77820177,
+      "sha256": "0d56d37287767d3c43a4f2ffc7ed12452bdd73d67c40428acd78279ecff8d5c3"
+    }
+  ],
+  "speakers": {
+    "calibration": [
+      "1221",
+      "1320",
+      "1995",
+      "237",
+      "2961",
+      "4077",
+      "4970",
+      "5105",
+      "5683",
+      "61",
+      "6930",
+      "7127",
+      "8224",
+      "8555",
+      "908"
+    ],
+    "evaluation": [
+      "1089",
+      "121",
+      "1284",
+      "1580",
+      "260",
+      "2830",
+      "3570",
+      "4446",
+      "4992",
+      "5142",
+      "6829",
+      "7021",
+      "7176",
+      "8463"
+    ]
+  },
+  "sharedRuntimeAssets": [
+    {
+      "file": "ort-wasm-simd-threaded.wasm",
+      "bytes": 14239897,
+      "gzipBytes": 3668761
+    },
+    {
+      "file": "ort-wasm-simd-threaded.mjs",
+      "bytes": 24381,
+      "gzipBytes": 9075
+    },
+    {
+      "file": "ort.wasm.bundle.min-BM2y6FPl.js",
+      "bytes": 70722,
+      "gzipBytes": 23193
+    }
+  ],
+  "corpusArchiveSha256": "39fde525e59672dc6d1551919b1478f724438a95aa55f874b576be21967e6c23",
+  "recordings": 203,
+  "inputs": 406,
+  "sampleRate": 16000,
+  "protocol": "Three enrollment utterances from one chapter; four probes from another. Center-crop to 4s or 2s and apply Wallet energy trimming. Independent templates and thresholds per duration. Calibration FAR target 1%.",
+  "limitations": [
+    "Small read-English cohort; not microphone or room robustness.",
+    "Corpus membership held out across calibration/evaluation; pretraining identity overlap not audited.",
+    "The 1% FAR target is an exploratory comparison, not a deployment security target.",
+    "2s clips allow 1s voiced audio as a stress test; production requires 2s voiced.",
+    "No physical mobile device measurements; WebKit is desktop automation.",
+    "Load timing uses localhost; no internet transfer latency or total memory measurement.",
+    "Browser runs are sequential, one pass per model; timing is indicative.",
+    "Small-sample zero-error observations and degenerate bootstrap intervals do not establish zero population error."
+  ],
+  "browsers": {
+    "chromium": {
+      "environment": {
+        "browser": "chromium",
+        "browserVersion": "140.0.7339.16",
+        "nodeVersion": "v26.4.0",
+        "platform": "darwin",
+        "architecture": "arm64",
+        "transport": "localhost HTTP, uncompressed; load times are not internet download estimates"
+      },
+      "models": [
+        {
+          "name": "ecapa",
+          "rawResultSha256": "9af5e4ef2f0b888f932d3f31bd9f13b1b7e650857c74df67f784f9779118467c",
+          "minReferenceCosine": 0.9999999999930955,
+          "loadMsLocalhost": 260.2999999523163,
+          "firstInferenceMs": 377.2000000476837,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 345.39999997615814,
+              "p95": 363.15499992966653
+            },
+            "2": {
+              "p50": 172.5,
+              "p95": 179.89999997615814
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3119899229689173,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3119899229689173,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.01098901098901099
+              },
+              "evaluationEerDescriptiveOnly": 0.0,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.0027472527472527475,
+                  0.023351648351648352
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              },
+              "currentThresholdEvaluation": {
+                "threshold": 0.6,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 12,
+                "falseAccepts": 0,
+                "falseRejectRate": 0.21428571428571427,
+                "falseAcceptRate": 0.0
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.27415316555719793,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.27415316555719793,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 15,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.020604395604395604
+              },
+              "evaluationEerDescriptiveOnly": 0.013736263736263736,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.008241758241758242,
+                  0.03571428571428571
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              },
+              "currentThresholdEvaluation": {
+                "threshold": 0.6,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 33,
+                "falseAccepts": 0,
+                "falseRejectRate": 0.5892857142857143,
+                "falseAcceptRate": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "name": "b0",
+          "rawResultSha256": "c88d2d67c79c27729e71ff6fa936b41a9aaa23cd00aa22a1ab2d9909b6fa8777",
+          "minReferenceCosine": 0.9999999999968655,
+          "loadMsLocalhost": 240.60000002384186,
+          "firstInferenceMs": 74.30000007152557,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 49.0,
+              "p95": 50.70000004172325
+            },
+            "2": {
+              "p50": 24.799999952316284,
+              "p95": 25.789999961853024
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3451480735960864,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3451480735960864,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 9,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.012362637362637362
+              },
+              "evaluationEerDescriptiveOnly": 0.0020604395604395605,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.0013736263736263737,
+                  0.024759615384615196
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.3014859380871689,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3014859380871689,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 29,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.03983516483516483
+              },
+              "evaluationEerDescriptiveOnly": 0.013736263736263736,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.023351648351648352,
+                  0.059065934065934064
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            }
+          ]
+        },
+        {
+          "name": "b1",
+          "rawResultSha256": "fb41a6654fbfe99ac1c3e9177f44fccb18e4d57b83da8ae0c3e7a2b0ca7d28e2",
+          "minReferenceCosine": 0.9999999999972028,
+          "loadMsLocalhost": 221.19999992847443,
+          "firstInferenceMs": 94.89999997615814,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 70.60000002384186,
+              "p95": 74.68499993085861
+            },
+            "2": {
+              "p50": 35.90000009536743,
+              "p95": 38.19000004529953
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3411799731010793,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3411799731010793,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 10,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.013736263736263736
+              },
+              "evaluationEerDescriptiveOnly": 0.0006868131868131869,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.004120879120879121,
+                  0.0260989010989011
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.3224679123505995,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3224679123505995,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 21,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.028846153846153848
+              },
+              "evaluationEerDescriptiveOnly": 0.0027472527472527475,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.015075549450549453,
+                  0.04395604395604396
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "webkit": {
+      "environment": {
+        "browser": "webkit",
+        "browserVersion": "26.0",
+        "nodeVersion": "v26.4.0",
+        "platform": "darwin",
+        "architecture": "arm64",
+        "osRelease": "24.6.0",
+        "cpuModel": "Apple M4 Pro",
+        "ortVersion": "1.30.0",
+        "transport": "localhost HTTP, uncompressed; load times are not internet download estimates"
+      },
+      "models": [
+        {
+          "name": "ecapa",
+          "rawResultSha256": "a05bc948dd97808487b9f6689f67c73295a505cef7a2d60d2b75cb57b6978ddb",
+          "minReferenceCosine": 0.9999999999930955,
+          "loadMsLocalhost": 381,
+          "firstInferenceMs": 403,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 344.0,
+              "p95": 363.95
+            },
+            "2": {
+              "p50": 173.0,
+              "p95": 181.00000000000327
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3119899229689173,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3119899229689173,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.01098901098901099
+              },
+              "evaluationEerDescriptiveOnly": 0.0,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.0027472527472527475,
+                  0.023351648351648352
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              },
+              "currentThresholdEvaluation": {
+                "threshold": 0.6,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 12,
+                "falseAccepts": 0,
+                "falseRejectRate": 0.21428571428571427,
+                "falseAcceptRate": 0.0
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.27415316555719793,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.27415316555719793,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 15,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.020604395604395604
+              },
+              "evaluationEerDescriptiveOnly": 0.013736263736263736,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.008241758241758242,
+                  0.03571428571428571
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              },
+              "currentThresholdEvaluation": {
+                "threshold": 0.6,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 33,
+                "falseAccepts": 0,
+                "falseRejectRate": 0.5892857142857143,
+                "falseAcceptRate": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "name": "b0",
+          "rawResultSha256": "77b0be5a46c6bb1e67042432d4b317b26055ca0aac056d286d6e9fef457117c0",
+          "minReferenceCosine": 0.9999999999968655,
+          "loadMsLocalhost": 367,
+          "firstInferenceMs": 88,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 48.0,
+              "p95": 50.0
+            },
+            "2": {
+              "p50": 24.00000000000182,
+              "p95": 26.0
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3451480735960864,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3451480735960864,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 9,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.012362637362637362
+              },
+              "evaluationEerDescriptiveOnly": 0.0020604395604395605,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.0013736263736263737,
+                  0.024759615384615196
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.3014859380871689,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3014859380871689,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 29,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.03983516483516483
+              },
+              "evaluationEerDescriptiveOnly": 0.013736263736263736,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.023351648351648352,
+                  0.059065934065934064
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            }
+          ]
+        },
+        {
+          "name": "b1",
+          "rawResultSha256": "8fab65b7e1385628002449211367c8113886424e9311a501e73086e26dcd1322",
+          "minReferenceCosine": 0.9999999999972028,
+          "loadMsLocalhost": 357,
+          "firstInferenceMs": 109,
+          "warmInferenceMs": {
+            "4": {
+              "p50": 66.0,
+              "p95": 69.0
+            },
+            "2": {
+              "p50": 34.0,
+              "p95": 35.0
+            }
+          },
+          "quietFinite": true,
+          "cases": [
+            {
+              "seconds": 4,
+              "calibration": {
+                "threshold": 0.3411799731010793,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3411799731010793,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 10,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.013736263736263736
+              },
+              "evaluationEerDescriptiveOnly": 0.0006868131868131869,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.004120879120879121,
+                  0.0260989010989011
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            },
+            {
+              "seconds": 2,
+              "calibration": {
+                "threshold": 0.3224679123505995,
+                "genuineTrials": 60,
+                "impostorTrials": 840,
+                "falseRejects": 0,
+                "falseAccepts": 8,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.009523809523809525
+              },
+              "evaluation": {
+                "threshold": 0.3224679123505995,
+                "genuineTrials": 56,
+                "impostorTrials": 728,
+                "falseRejects": 0,
+                "falseAccepts": 21,
+                "falseRejectRate": 0.0,
+                "falseAcceptRate": 0.028846153846153848
+              },
+              "evaluationEerDescriptiveOnly": 0.0027472527472527475,
+              "evaluationUncertainty": {
+                "falseRejectRate95": [
+                  0.0,
+                  0.0
+                ],
+                "falseAcceptRate95": [
+                  0.015075549450549453,
+                  0.04395604395604396
+                ],
+                "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "trialArtifact": {
+    "file": "trials.csv.gz",
+    "rows": 20208,
+    "sha256": "d8cec551ab9eaa424b492c2d565d0f596836aa0aa3c9b5a481f39e27c5ffb42a"
+  }
+}
