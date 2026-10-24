@@ -85,3 +85,16 @@ const preferenceAsSigner: NearTransactionSignerSelection = {
   signingKeyId: signer.signingKeyId,
 };
 void preferenceAsSigner;
+
+import type { NearSignerSelectionResult } from '../../packages/wallet/src/core/signingEngine/flows/signNear/selectNearSigner';
+import type { Variant } from '../../packages/shared-ts/src/utils/variant';
+type ConfirmedReview = Variant<NearSignerSelectionResult, 'kind', 'reviewed'>['review'];
+declare const consumeReview: ConfirmedReview['consume'];
+// @ts-expect-error A plain object cannot manufacture a host-confirmed transaction review.
+const forgedReview: ConfirmedReview = { consume: consumeReview };
+void forgedReview;
+declare const unreviewedSelection: Variant<NearSignerSelectionResult, 'kind', 'unreviewed'>;
+declare const reviewedSelection: Variant<NearSignerSelectionResult, 'kind', 'reviewed'>;
+// @ts-expect-error An unreviewed selection cannot retain a review receipt through a spread.
+const mixedReview: NearSignerSelectionResult = { ...unreviewedSelection, review: reviewedSelection.review };
+void mixedReview;

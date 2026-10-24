@@ -1,0 +1,306 @@
+{
+  "scope": "Endpoints, status and timing only. No headers, credentials, or RPC params.",
+  "elapsedMs": 47731,
+  "requests": [
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1258,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1260,
+      "status": 200,
+      "finishedMs": 1260,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1261,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1264,
+      "status": 200,
+      "finishedMs": 1264,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1265,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1267,
+      "status": 200,
+      "finishedMs": 1267,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1400,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1402,
+      "status": 200,
+      "finishedMs": 1402,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1402,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1403,
+      "status": 200,
+      "finishedMs": 1403,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1411,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 1413,
+      "status": 200,
+      "finishedMs": 1413,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1785,
+      "rpcMethod": "query",
+      "requestType": "view_access_key",
+      "responseMs": 1787,
+      "status": 200,
+      "finishedMs": 1787,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 1786,
+      "rpcMethod": "block",
+      "requestType": null,
+      "responseMs": 1787,
+      "status": 200,
+      "finishedMs": 1788,
+      "failed": false
+    },
+    {
+      "endpoint": "http://127.0.0.1:19100/wallets/:walletId/ml-dsa/metadata",
+      "startedMs": 17914,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 17920,
+      "status": 200,
+      "finishedMs": 17920,
+      "failed": false
+    },
+    {
+      "endpoint": "http://127.0.0.1:19100/wallets/:walletId/ml-dsa/metadata",
+      "startedMs": 17957,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 17963,
+      "status": 200,
+      "finishedMs": 17963,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 17988,
+      "rpcMethod": "query",
+      "requestType": "view_access_key",
+      "responseMs": 18357,
+      "status": 200,
+      "finishedMs": 18357,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 17988,
+      "rpcMethod": "block",
+      "requestType": null,
+      "responseMs": 19148,
+      "status": 200,
+      "finishedMs": 19148,
+      "failed": false
+    },
+    {
+      "endpoint": "http://127.0.0.1:19100/wallets/:walletId/ml-dsa/metadata",
+      "startedMs": 38580,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 38586,
+      "status": 200,
+      "finishedMs": 38586,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 38669,
+      "rpcMethod": "EXPERIMENTAL_protocol_config",
+      "requestType": null,
+      "responseMs": 39578,
+      "status": 200,
+      "finishedMs": 39578,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42021,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": null,
+      "status": null,
+      "finishedMs": 42168,
+      "failed": true
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42023,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": null,
+      "status": null,
+      "finishedMs": 42168,
+      "failed": true
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42023,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": null,
+      "status": null,
+      "finishedMs": 42168,
+      "failed": true
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42026,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": null,
+      "status": null,
+      "finishedMs": 42168,
+      "failed": true
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42612,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 42929,
+      "status": 200,
+      "finishedMs": 42929,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42615,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 43459,
+      "status": 200,
+      "finishedMs": 43459,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42616,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 43451,
+      "status": 200,
+      "finishedMs": 43451,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 42634,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 43480,
+      "status": 200,
+      "finishedMs": 43480,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 43226,
+      "rpcMethod": "query",
+      "requestType": "view_access_key",
+      "responseMs": 44082,
+      "status": 200,
+      "finishedMs": 44082,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 43227,
+      "rpcMethod": "block",
+      "requestType": null,
+      "responseMs": 44341,
+      "status": 200,
+      "finishedMs": 44341,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 44390,
+      "rpcMethod": "query",
+      "requestType": "view_account",
+      "responseMs": 44696,
+      "status": 200,
+      "finishedMs": 44696,
+      "failed": false
+    },
+    {
+      "endpoint": "http://127.0.0.1:19100/wallets/:walletId/ml-dsa/metadata",
+      "startedMs": 45020,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 45025,
+      "status": 200,
+      "finishedMs": 45025,
+      "failed": false
+    },
+    {
+      "endpoint": "http://127.0.0.1:19100/wallets/:walletId/ml-dsa/metadata",
+      "startedMs": 47190,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 47195,
+      "status": 200,
+      "finishedMs": 47195,
+      "failed": false
+    },
+    {
+      "endpoint": "http://localhost:19201/@fs/Users/pta/Dev/rust/seams-wallet/.worktrees/ml-dsa/packages/wallet/dist/esm/wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js",
+      "startedMs": 47196,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 47205,
+      "status": 200,
+      "finishedMs": 47205,
+      "failed": false
+    },
+    {
+      "endpoint": "http://localhost:19202/sdk/workers/ml_dsa_signer_bg.wasm",
+      "startedMs": 47205,
+      "rpcMethod": null,
+      "requestType": null,
+      "responseMs": 47208,
+      "status": 200,
+      "finishedMs": 47216,
+      "failed": false
+    },
+    {
+      "endpoint": "https://rpc.testnet.fastnear.com/",
+      "startedMs": 47217,
+      "rpcMethod": "query",
+      "requestType": "view_access_key_list",
+      "responseMs": 47540,
+      "status": 200,
+      "finishedMs": 47540,
+      "failed": false
+    }
+  ]
+}

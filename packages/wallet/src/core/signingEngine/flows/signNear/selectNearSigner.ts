@@ -1,3 +1,8 @@
+import { alphabetizeStringify } from '@shared/utils/digests';
+import {
+  parseMlDsaSigningSessionPolicy,
+  type MlDsaSigningSessionPolicy,
+} from '@shared/near/mlDsaSigningSession';
 import { resolveWalletRpId } from '@/SeamsWeb/walletIframe/shared/configuration';
 import { requireBrowserCapabilityOperation } from '@/SeamsWeb/publicApi/capabilitySelection';
 import {
@@ -30,6 +35,8 @@ export type NearSignerSelectionInput = {
   readonly transaction: TransactionInput;
   readonly confirmationConfig: Partial<ConfirmationConfig> | null;
   readonly shouldAbort: () => boolean;
+  readonly sessionPolicy: MlDsaSigningSessionPolicy | null;
+  readonly signerSlot: number | null;
 };
 type Dependencies = {
   readonly configs: SeamsConfigsReadonly;
@@ -40,11 +47,11 @@ type Dependencies = {
 export async function selectNearTransactionSigner(
   deps: Dependencies,
   input: NearSignerSelectionInput,
-): Promise<NearTransactionSignerSelection> {
+): Promise<NearSignerSelectionResult> {
   const request = input.request;
   if (request.kind !== 'wallet_default') {
     requireSignerCapability(deps.configs, request);
-    return request;
+    return { kind: 'unreviewed', signer: request };
   }
   const preference = await readDefaultNearSigner({
     walletId: input.walletSession.walletId,
@@ -102,32 +109,43 @@ export async function selectNearTransactionSigner(
     ...input.confirmationConfig,
   };
   if (choices.length === 1 || config.behavior === 'skipClick' || config.uiMode === 'none')
-    return selected.signer;
+    return { kind: 'unreviewed', signer: selected.signer };
   const txSigningRequests = [
     {
       receiverId: input.transaction.receiverId,
       actions: input.transaction.actions.map(toActionArgsWasm),
     },
   ];
+  const policy =
+    input.sessionPolicy === null ? null : parseMlDsaSigningSessionPolicy(input.sessionPolicy);
+  const bindings = new Map<string, string>();
+  for (const choice of choices)
+    bindings.set(choice.id, transactionReviewBinding(input, choice.signer));
   const handle = await mountConfirmUI({
     ctx: deps.ui,
     summary: {
-      title: 'Choose signing key',
-      body: 'Choose a signing key, then approve the transaction.',
+      title: 'Review transaction',
+      body: 'Choose a signing key and approve this transaction.',
     },
     model: buildNearDisplayModel({ txSigningRequests, signerAccount: input.nearAccount.accountId }),
     txSigningRequests,
     uiMode: config.uiMode === 'drawer' ? 'drawer' : 'modal',
     securityContext: { rpId: resolveWalletRpId(deps.configs) },
   });
-  const selection = { selected, choices, handle };
-  updateChoice(selection);
+  const selection = { selected, choices, handle, policy };
   const timer = setInterval(cancelSelectionIfRequested.bind(null, input, handle), 100);
   try {
+    updateChoice(selection);
     const decision = await handle.takeDecision();
     if (decision.kind === 'cancelled' || input.shouldAbort()) throw new Error('Request cancelled');
     requireSignerCapability(deps.configs, selection.selected.signer);
-    return selection.selected.signer;
+    const binding = bindings.get(selection.selected.id);
+    if (!binding) throw new Error('The selected key has no transaction review');
+    return {
+      kind: 'reviewed',
+      signer: selection.selected.signer,
+      review: new ConfirmedNearTransactionReview(binding),
+    };
   } finally {
     clearInterval(timer);
     handle.close(false);
@@ -137,13 +155,15 @@ type Selection = {
   selected: Choice;
   readonly choices: readonly Choice[];
   readonly handle: MountedConfirmUIHandle;
+  readonly policy: MlDsaSigningSessionPolicy | null;
 };
 function displayChoice(choice: Choice): SigningKeyChoice['options'][number] {
   return { id: choice.id, label: choice.label };
 }
 function updateChoice(selection: Selection): void {
   selection.handle.update({
-    confirmText: 'Continue',
+    confirmText: 'Approve transaction',
+    body: reviewBody(selection),
     signingKeyChoice: {
       selected: selection.selected.id,
       options: selection.choices.map(displayChoice),
@@ -180,3 +200,59 @@ function requireSignerCapability(
     operationKind: NEAR_ML_DSA_65_MPC_OPERATION_KINDS.signTransaction,
   });
 }
+
+function reviewBody(selection: Selection): string {
+  if (selection.selected.signer.kind !== 'near_ml_dsa_65' || selection.policy === null)
+    return 'Approve this transaction with the selected signing key. Authentication follows when required.';
+  return `Approve this transaction and, if needed, a signing session for this key: up to ${selection.policy.maxOperations} operations over up to ${Math.ceil(selection.policy.durationMs / 1000)} seconds. Failed operations consume one use. Authentication follows when required.`;
+}
+
+type ReviewedTransactionInput = Pick<
+  NearSignerSelectionInput,
+  'walletSession' | 'nearAccount' | 'transaction' | 'sessionPolicy' | 'signerSlot'
+>;
+function transactionReviewBinding(
+  input: ReviewedTransactionInput,
+  signer: NearTransactionSignerSelection,
+): string {
+  return alphabetizeStringify({
+    walletSession: input.walletSession,
+    nearAccount: input.nearAccount,
+    signer,
+    signerSlot: input.signerSlot,
+    sessionPolicy: input.sessionPolicy,
+    receiverId: input.transaction.receiverId,
+    actions: input.transaction.actions.map(toActionArgsWasm),
+  });
+}
+/** A host-only, single-use semantic review. It grants no signing or factor authority. */
+class ConfirmedNearTransactionReview {
+  private state: 'available' | 'consumed' = 'available';
+  constructor(private readonly binding: string) {}
+
+  consume(
+    input: ReviewedTransactionInput & {
+      readonly signer: NearTransactionSignerSelection;
+      readonly confirmationConfig: Partial<ConfirmationConfig> | null;
+    },
+  ): Partial<ConfirmationConfig> {
+    if (this.state !== 'available') throw new Error('This transaction review was already consumed');
+    this.state = 'consumed';
+    if (transactionReviewBinding(input, input.signer) !== this.binding)
+      throw new Error('The transaction or signing key changed after approval');
+    // Reuse the existing confirmation path. Its OTP and platform activation rules
+    // remain authoritative; only the already completed semantic review is omitted.
+    return { ...input.confirmationConfig, behavior: 'skipClick', autoProceedDelay: 0 };
+  }
+}
+export type NearSignerSelectionResult =
+  | {
+      readonly kind: 'unreviewed';
+      readonly signer: NearTransactionSignerSelection;
+      readonly review?: never;
+    }
+  | {
+      readonly kind: 'reviewed';
+      readonly signer: NearTransactionSignerSelection;
+      readonly review: ConfirmedNearTransactionReview;
+    };

@@ -108,7 +108,7 @@ export async function fundImplicitWallet(accountId: string) {
       {
         nearAccountId: sponsorId,
         receiverId: accountId,
-        actions: [{ action_type: 'Transfer', deposit: '1000000000000000000000000' }],
+        actions: [{ action_type: 'Transfer', deposit: '100000000000000000000000' }],
       },
     ],
     transactionContext: {
