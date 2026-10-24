@@ -81,3 +81,14 @@ Configure `SEAMS_INTENDED_APP_URL`, `SEAMS_INTENDED_WALLET_ORIGIN`,
 `SEAMS_INTENDED_PUBLISHABLE_KEY` for the local service instance.
 Each successful contract writes JSON evidence. The chain RPC is deterministic;
 Wallet sessions and Ed25519 Yao signing use the real local services.
+
+Two capture-quality fixtures derive from the tracked synthetic `0.wav`:
+
+```sh
+ffmpeg -v error -y -i tests/fixtures/audio/aurora/0.wav -t 0.8 tests/fixtures/audio/aurora/short.wav
+ffmpeg -v error -y -i tests/fixtures/audio/aurora/0.wav -af volume=0.001 tests/fixtures/audio/aurora/quiet.wav
+```
+
+The unlock contract injects these before a valid sample. It checks that the first
+two attempts stay locked, supply distinct measurement IDs, and never call verify.
+All three attempts use one original server challenge.

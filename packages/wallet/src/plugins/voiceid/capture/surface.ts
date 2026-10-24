@@ -1,6 +1,6 @@
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { newSpokenPhrase, type SpokenPhrase } from '../browser/phrase';
-import type { VoiceCaptureObserver } from '../browser/microphone';
+import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePrompt } from './prompt';
 import { toError } from '@shared/utils/errors';
 
@@ -31,7 +31,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
-  private readonly phrase = newSpokenPhrase(null);
+  private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -97,20 +97,33 @@ class VoiceIdCaptureSurface<T> {
     if (this.state.kind !== 'ready') return;
     const capture = this.state.capture;
     this.state = { kind: 'capturing' };
-    void this.perform(capture.action);
+    void this.perform(capture);
   };
 
-  private async perform(activate: CaptureAction<T>): Promise<void> {
+  private async perform(capture: PreparedVoiceCapture<T>): Promise<void> {
     this.activateButton.disabled = true;
     this.status.textContent = 'Opening microphone…';
     try {
       // Start in the button event so capture retains browser user activation.
-      const result = await activate(this.controller.signal, this.prompt.capture, this.phrase);
+      const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
     } catch (error: unknown) {
       if (this.state.kind === 'closed') return;
+      if (error instanceof InsufficientVoiceAudioError) {
+        if (capture.expiresAtMs !== null && Date.now() >= capture.expiresAtMs) {
+          this.expire();
+          return;
+        }
+        this.phrase = newSpokenPhrase(this.phrase);
+        this.prompt.setPhrase(this.phrase);
+        this.state = { kind: 'ready', capture };
+        this.activateButton.textContent = 'Try again';
+        this.prompt.ready(error.message);
+        this.activateButton.focus();
+        return;
+      }
       this.state = { kind: 'closed' };
       this.completion.reject(toError(error));
     }

@@ -7,6 +7,9 @@ import type { VoiceCaptureEvent } from '../browser/microphone';
 import { VoiceWaveform } from '../browser/waveform';
 
 const CSS = `
+.seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
+.seams-voiceid-recording-details summary { cursor:pointer; }
+
 .seams-voiceid-prompt {
   box-sizing: border-box;
   position: relative;
@@ -112,6 +115,8 @@ export class VoicePrompt {
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
   private readonly waveform: VoiceWaveform;
+  private readonly details: HTMLDetailsElement;
+  private readonly detailText: HTMLParagraphElement;
   private disposed = false;
 
   constructor(document: Document, label: string, phrase: SpokenPhrase) {
@@ -139,6 +144,13 @@ export class VoicePrompt {
     this.status = document.createElement('p');
     this.status.className = 'seams-voiceid-status';
     this.status.setAttribute('role', 'status');
+    this.details = document.createElement('details');
+    this.details.hidden = true;
+    this.details.className = 'seams-voiceid-recording-details';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Recording details';
+    this.detailText = document.createElement('p');
+    this.details.append(summary, this.detailText);
     this.record = document.createElement('button');
     this.record.type = 'button';
     this.record.className = 'seams-voiceid-primary';
@@ -157,6 +169,7 @@ export class VoicePrompt {
       this.phrase,
       this.waveform.element,
       this.status,
+      this.details,
       slot,
     );
   }
@@ -170,11 +183,21 @@ export class VoicePrompt {
     if (this.disposed) return;
     switch (event.kind) {
       case 'listening':
+        this.details.hidden = true;
+        this.details.open = false;
+        delete this.status.dataset.voiceCaptureQuality;
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
         this.status.textContent = 'Listening';
         this.waveform.start(event.stream);
         return;
+      case 'measured': {
+        const quality = event.quality;
+        this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
+        this.details.hidden = quality.voicedMs >= quality.requiredVoicedMs;
+        this.detailText.textContent = `Input: ${quality.microphone}. Recorded ${(quality.durationMs / 1_000).toFixed(1)} s; ${(quality.voicedMs / 1_000).toFixed(2)} s above the minimum level. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}.`;
+        return;
+      }
       case 'processing':
         this.element.dataset.capture = 'processing';
         this.waveform.stop();

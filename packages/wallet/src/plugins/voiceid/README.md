@@ -129,3 +129,16 @@ stop another microphone stream. A continuous display curve preserves volume deta
 The meter closes its AudioContext after capture, error, or cancellation. Model audio,
 gain control, phrase thresholds, and speaker thresholds are unchanged. The visual
 meter cannot grant approval. Voice and phrase matches still gate signing.
+
+## Recording quality feedback
+
+Short or quiet recordings stay in the unlock prompt with Try again. The original
+server challenge and expiry timer remain unchanged. Only typed insufficient-audio
+results can take this path. A retry displays a new phrase before capture starts.
+The normal phrase and speaker checks still apply before device-key use.
+
+Recording details show the actual input label, decoded duration, qualifying frame
+duration, and peak frame RMS. The level threshold stays 0.006 and the required
+qualifying duration stays two seconds. This energy proxy cannot generally separate
+short speech from quiet or suppressed speech. Each measurement has an attempt ID
+and timestamp. No audio or transcript is saved or sent by these diagnostics.

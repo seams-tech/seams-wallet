@@ -1,4 +1,4 @@
-import type { VoiceCaptureObserver } from '../browser/microphone';
+import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import { verifyBrowserVoice } from '../browser/enrollment';
@@ -33,6 +33,8 @@ export async function listenForVoiceApproval(
   switch (result.kind) {
     case 'matched':
       return { kind: 'approved' };
+    case 'insufficient_audio':
+      return { kind: 'retry', message: voiceQualityMessage(result.quality) };
     case 'mismatch':
       return { kind: 'retry', message: 'VoiceID did not match the enrolled voice.' };
     case 'phrase_mismatch':

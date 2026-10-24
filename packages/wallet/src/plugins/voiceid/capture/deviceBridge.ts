@@ -18,7 +18,7 @@ import {
   openBrowserVoiceFactor,
 } from '../browser/deviceStore';
 import { readVoiceEnrollment, enrollBrowserVoice, verifyBrowserVoice } from '../browser/enrollment';
-import { requireVoiceUserAction } from '../browser/microphone';
+import { requireVoiceUserAction, InsufficientVoiceAudioError } from '../browser/microphone';
 
 export async function captureVoiceIdActivation(input: {
   readonly walletId: WalletId;
@@ -98,6 +98,8 @@ async function requireVoiceMatch(
   switch (result.kind) {
     case 'matched':
       return;
+    case 'insufficient_audio':
+      throw new InsufficientVoiceAudioError(result.quality);
     case 'mismatch':
       throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
     case 'phrase_mismatch':

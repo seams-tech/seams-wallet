@@ -2,10 +2,40 @@ import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferre
 
 export type VoiceCaptureEvent =
   | { readonly kind: 'listening'; readonly stream: MediaStream }
-  | { readonly kind: 'processing'; readonly stream?: never };
+  | { readonly kind: 'processing'; readonly stream?: never }
+  | { readonly kind: 'measured'; readonly quality: VoiceCaptureQuality; readonly stream?: never };
 export type VoiceCaptureObserver = (event: VoiceCaptureEvent) => void;
 
+export type VoiceCaptureQuality = Readonly<{
+  attemptId: string;
+  capturedAtMs: number;
+  durationMs: number;
+  voicedMs: number;
+  peakFrameRms: number;
+  levelThreshold: number;
+  requiredVoicedMs: number;
+  microphone: string;
+}>;
+
+type VoiceRecordingResult =
+  | { kind: 'captured'; samples: Float32Array; quality: VoiceCaptureQuality }
+  | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality; samples?: never };
+
+export function voiceQualityMessage(quality: VoiceCaptureQuality): string {
+  return `Audio too brief or quiet: ${(quality.voicedMs / 1_000).toFixed(2)} of ${(quality.requiredVoicedMs / 1_000).toFixed(2)} seconds detected.`;
+}
+
+/** Carries a typed capture rejection across the SDK's exception-based UI action boundary. */
+export class InsufficientVoiceAudioError extends Error {
+  constructor(readonly quality: VoiceCaptureQuality) {
+    super(voiceQualityMessage(quality));
+    this.name = 'InsufficientVoiceAudioError';
+  }
+}
+
 const SAMPLE_RATE = 16_000;
+const LEVEL_THRESHOLD = 0.006;
+const REQUIRED_VOICED_MS = 2_000;
 
 export function requireVoiceUserAction(): void {
   if (
@@ -20,8 +50,9 @@ export function requireVoiceUserAction(): void {
 export async function recordVoice(
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
-): Promise<{ samples: Float32Array; voicedMs: number; durationMs: number; microphone: string }> {
+): Promise<VoiceRecordingResult> {
   if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
+  const attemptId = crypto.randomUUID();
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       channelCount: 1,
@@ -47,15 +78,37 @@ export async function recordVoice(
     source.buffer = decoded;
     source.connect(renderer.destination);
     source.start();
-    const rendered = await renderer.startRendering();
-    if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
-    const speech = speechSamples(rendered.getChannelData(0), SAMPLE_RATE * 2);
-    return {
-      samples: speech.samples,
-      voicedMs: speech.voicedMs,
-      durationMs: rendered.duration * 1_000,
-      microphone: stream.getAudioTracks()[0]?.label || 'Default microphone',
-    };
+    try {
+      const rendered = await renderer.startRendering();
+      try {
+        if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
+        const samples = rendered.getChannelData(0);
+        const measurement = measureAudio(samples);
+        const quality: VoiceCaptureQuality = {
+          attemptId,
+          capturedAtMs: Date.now(),
+          durationMs: rendered.duration * 1_000,
+          voicedMs: measurement.voicedMs,
+          peakFrameRms: measurement.peakFrameRms,
+          levelThreshold: LEVEL_THRESHOLD,
+          requiredVoicedMs: REQUIRED_VOICED_MS,
+          microphone: stream.getAudioTracks()[0]?.label || 'Default microphone',
+        };
+        onCapture({ kind: 'measured', quality });
+        if (measurement.kind === 'insufficient_audio') {
+          return { kind: 'insufficient_audio', quality };
+        }
+        const speech = samples.slice(
+          Math.max(0, measurement.first - 3_200),
+          Math.min(samples.length, measurement.last + 3_200),
+        );
+        return { kind: 'captured', samples: speech, quality };
+      } finally {
+        wipeAudioBuffer(rendered);
+      }
+    } finally {
+      wipeAudioBuffer(decoded);
+    }
   } finally {
     for (const track of stream.getTracks()) track.stop();
   }
@@ -124,28 +177,41 @@ class VoiceRecording {
   }
 }
 
-function speechSamples(
-  samples: Float32Array,
-  minimumVoicedSamples: number,
-): { samples: Float32Array; voicedMs: number } {
+type AudioMeasurement =
+  | { kind: 'captured'; first: number; last: number; voicedMs: number; peakFrameRms: number }
+  | {
+      kind: 'insufficient_audio';
+      voicedMs: number;
+      peakFrameRms: number;
+      first?: never;
+      last?: never;
+    };
+
+function measureAudio(samples: Float32Array): AudioMeasurement {
   let first = -1;
   let last = 0;
   let voicedSamples = 0;
+  let peakFrameRms = 0;
   const frameSize = 160;
   for (let offset = 0; offset + frameSize <= samples.length; offset += frameSize) {
     let energy = 0;
     for (let i = offset; i < offset + frameSize; i += 1) energy += samples[i] * samples[i];
-    if (Math.sqrt(energy / frameSize) < 0.006) continue;
+    const rms = Math.sqrt(energy / frameSize);
+    peakFrameRms = Math.max(peakFrameRms, rms);
+    if (rms < LEVEL_THRESHOLD) continue;
     if (first < 0) first = offset;
     last = offset + frameSize;
     voicedSamples += frameSize;
   }
-  if (first < 0 || voicedSamples < minimumVoicedSamples)
-    throw new Error(
-      'VoiceID needs more clear speech. Read the full sentence after Listening appears.',
-    );
-  return {
-    samples: samples.slice(Math.max(0, first - 3_200), Math.min(samples.length, last + 3_200)),
-    voicedMs: (voicedSamples / SAMPLE_RATE) * 1_000,
-  };
+  const voicedMs = (voicedSamples / SAMPLE_RATE) * 1_000;
+  if (first < 0 || voicedMs < REQUIRED_VOICED_MS) {
+    return { kind: 'insufficient_audio', voicedMs, peakFrameRms };
+  }
+  return { kind: 'captured', first, last, voicedMs, peakFrameRms };
+}
+
+function wipeAudioBuffer(buffer: AudioBuffer): void {
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    buffer.getChannelData(channel).fill(0);
+  }
 }

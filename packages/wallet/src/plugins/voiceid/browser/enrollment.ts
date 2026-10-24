@@ -4,7 +4,13 @@ import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { requireRecord } from '@shared/utils/validation';
 import { prepareVoiceModelWithProgress } from './progress';
-import { recordVoice, requireVoiceUserAction, type VoiceCaptureObserver } from './microphone';
+import {
+  recordVoice,
+  requireVoiceUserAction,
+  voiceQualityMessage,
+  type VoiceCaptureQuality,
+  type VoiceCaptureObserver,
+} from './microphone';
 import { VoicePrompt } from '../capture/prompt';
 import {
   normalizeVoiceVector,
@@ -130,6 +136,14 @@ class VoiceEnrollmentSurface {
       this.record.disabled = true;
       this.status.textContent = 'Opening microphone…';
       const pcm = await recordVoice(this.controller.signal, this.prompt.capture);
+      if (this.signal.aborted || this.closed) {
+        if (pcm.kind === 'captured') pcm.samples.fill(0);
+        return;
+      }
+      if (pcm.kind === 'insufficient_audio') {
+        this.status.textContent = voiceQualityMessage(pcm.quality);
+        return;
+      }
       let embedding: number[];
       try {
         this.status.textContent = 'Checking your voice…';
@@ -145,10 +159,12 @@ class VoiceEnrollmentSurface {
       for (const previous of this.samples)
         minimumSimilarity = Math.min(minimumSimilarity, voiceSimilarity(previous, embedding));
       this.status.dataset.voiceCapture = JSON.stringify({
+        attemptId: pcm.quality.attemptId,
+        capturedAtMs: pcm.quality.capturedAtMs,
         sample: this.samples.length + 1,
-        durationMs: pcm.durationMs,
-        voicedMs: pcm.voicedMs,
-        microphone: pcm.microphone,
+        durationMs: pcm.quality.durationMs,
+        voicedMs: pcm.quality.voicedMs,
+        microphone: pcm.quality.microphone,
         minimumSimilarity,
       });
       for (const previous of this.samples) {
@@ -216,22 +232,35 @@ export async function verifyBrowserVoice(
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
-): Promise<{ kind: 'matched' } | { kind: 'mismatch' } | { kind: 'phrase_mismatch' }> {
+): Promise<
+  | { kind: 'matched' }
+  | { kind: 'mismatch' }
+  | { kind: 'phrase_mismatch' }
+  | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
+> {
+  delete document.body.dataset.voiceVerification;
   const enrollment = await readVoiceEnrollment();
   if (!enrollment)
     throw new Error(
       'Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.',
     );
   const pcm = await recordVoice(signal, onCapture);
+  if (pcm.kind === 'insufficient_audio') {
+    signal.throwIfAborted();
+    return pcm;
+  }
   try {
+    signal.throwIfAborted();
     const phraseMatched = await spokenPhraseMatches(pcm.samples, phrase);
     const embedding = await voiceEmbedding(pcm.samples);
     if (signal.aborted) throw new Error('VoiceID verification was cancelled.');
     const similarity = voiceSimilarity(embedding, enrollment.template);
     document.body.dataset.voiceVerification = JSON.stringify({
-      durationMs: pcm.durationMs,
-      voicedMs: pcm.voicedMs,
-      microphone: pcm.microphone,
+      attemptId: pcm.quality.attemptId,
+      capturedAtMs: pcm.quality.capturedAtMs,
+      durationMs: pcm.quality.durationMs,
+      voicedMs: pcm.quality.voicedMs,
+      microphone: pcm.quality.microphone,
       similarity,
       threshold: VOICE_MATCH_THRESHOLD,
       phraseMatched,

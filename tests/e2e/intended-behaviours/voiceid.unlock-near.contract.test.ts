@@ -3,7 +3,9 @@ import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
 } from './voiceid-browser-audio';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import type {} from '../../fixtures/ui/VoiceIdMicrophoneObservation';
 import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
@@ -53,15 +55,60 @@ async function verifyUnlock(
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
   const preparation = await verifyPreparationCancellation(context, page, method.walletAuthMethodId);
   await verifyLockDuringUnlock(context, page, method.walletAuthMethodId);
+  const qualityRequests = new QualityRetryRequests();
+  context.on('request', qualityRequests.observe);
   const verifiedResponse = page.waitForResponse(isVerifyResponse);
   const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
+  const shortAudio = await readFile(
+    path.resolve(import.meta.dirname, '../../fixtures/audio/aurora/short.wav'),
+  );
+  await wallet.locator('body').evaluate(useNextAudio, shortAudio.toString('base64'));
   await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled({
+    timeout: 15_000,
+  });
+  const shortQuality = await readQuality(page);
+  expect(shortQuality.voicedMs).toBeGreaterThan(0);
+  expect(shortQuality.voicedMs).toBeLessThan(1_000);
+  expect(shortQuality.peakFrameRms).toBeGreaterThan(shortQuality.levelThreshold);
+  expect(qualityRequests.verifies).toBe(0);
+  expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
+  const retryPhrase = await wallet
+    .locator('[data-voiceid-phrase]')
+    .getAttribute('data-voiceid-phrase');
+  if (retryPhrase === null) throw new Error('Retry phrase is unavailable');
+  const quietAudio = await readFile(
+    path.resolve(import.meta.dirname, '../../fixtures/audio/aurora/quiet.wav'),
+  );
+  await wallet.locator('body').evaluate(useNextAudio, quietAudio.toString('base64'));
+  await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled({
+    timeout: 15_000,
+  });
+  const quietQuality = await readQuality(page);
+  expect(quietQuality.attemptId).not.toBe(shortQuality.attemptId);
+  expect(quietQuality.voicedMs).toBe(0);
+  expect(quietQuality.peakFrameRms).toBeLessThan(quietQuality.levelThreshold);
+  expect(qualityRequests.verifies).toBe(0);
+  expect(qualityRequests.challenges).toBe(1);
+  await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute(
+    'data-voiceid-phrase',
+    retryPhrase,
+  );
+  await wallet.getByText('Recording details', { exact: true }).click();
+  await wallet
+    .locator('.seams-voiceid-prompt')
+    .screenshot({ path: testInfo.outputPath('voiceid-quality-retry.png') });
+  await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
   expect(await unlocked).toMatchObject({
     success: true,
     kind: 'near_wallet_unlocked',
     walletId: identity.walletId,
     operationalPublicKey: identity.publicKey,
   });
+  expect(qualityRequests.verifies).toBe(1);
+  expect(qualityRequests.challenges).toBe(1);
+  context.off('request', qualityRequests.observe);
   const verified = requireRecord(await (await verifiedResponse).json(), 'VoiceID response');
   const freshSession = requireRecord(verified.walletSession, 'fresh Wallet Session');
   expect(freshSession.authMethodId).toBe(method.walletAuthMethodId);
@@ -117,6 +164,12 @@ async function verifyUnlock(
         concurrentLockRejectedStaleUnlock: true,
         preparation,
         activationDialogMs,
+        qualityRetries: {
+          shortQuality,
+          quietQuality,
+          oneChallenge: true,
+          verifiesBeforeGoodAudio: 0,
+        },
         authentication: session.authentication,
         signing: 'real_ed25519_yao_mpc',
         signatureVerification: 'registered_wallet_public_key',
@@ -255,4 +308,49 @@ async function lock(): Promise<void> {
 }
 function isVerifyResponse(response: import('@playwright/test').Response): boolean {
   return new URL(response.url()).pathname === '/wallet/voiceid/verify';
+}
+
+function useNextAudio(_: HTMLElement, base64: string): void {
+  window.voiceIdNextAudio(base64);
+}
+
+async function readQuality(page: Page): Promise<{
+  attemptId: string;
+  voicedMs: number;
+  durationMs: number;
+  peakFrameRms: number;
+  levelThreshold: number;
+}> {
+  const value = await page
+    .frameLocator('iframe.seams-wallet-overlay-iframe')
+    .locator('[data-voice-capture-quality]')
+    .getAttribute('data-voice-capture-quality');
+  if (value === null) throw new Error('Capture quality is unavailable');
+  const raw = requireRecord(JSON.parse(value), 'capture quality');
+  if (
+    typeof raw.attemptId !== 'string' ||
+    typeof raw.voicedMs !== 'number' ||
+    typeof raw.durationMs !== 'number' ||
+    typeof raw.peakFrameRms !== 'number' ||
+    typeof raw.levelThreshold !== 'number'
+  ) {
+    throw new Error('Capture quality has invalid fields');
+  }
+  return {
+    attemptId: raw.attemptId,
+    voicedMs: raw.voicedMs,
+    durationMs: raw.durationMs,
+    peakFrameRms: raw.peakFrameRms,
+    levelThreshold: raw.levelThreshold,
+  };
+}
+
+class QualityRetryRequests {
+  challenges = 0;
+  verifies = 0;
+  readonly observe = (request: import('@playwright/test').Request): void => {
+    const path = new URL(request.url()).pathname;
+    if (path === '/wallet/voiceid/challenge') this.challenges += 1;
+    if (path === '/wallet/voiceid/verify') this.verifies += 1;
+  };
 }
