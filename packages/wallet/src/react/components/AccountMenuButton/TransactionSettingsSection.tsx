@@ -1,11 +1,7 @@
 import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import type { TransactionSettingsSectionProps } from './types';
-import { SegmentedControl } from './SegmentedControl';
 import TouchIcon from './icons/TouchIcon';
-
-const TRANSACTION_SETTINGS_ACTIVE_BACKGROUND =
-  'var(--seams-colors-buttonBackground, var(--seams-colors-primary))';
 
 export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProps> = ({
   currentConfirmConfig,
@@ -31,142 +27,52 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
 
   const disableRequireClick = currentConfirmConfig?.uiMode === 'none';
   const disableAll = !isOpen;
-
-  if (presentation === 'page') {
-    return (
-      <div className="seams-transaction-page">
-        <fieldset className="seams-transaction-group" disabled={disableAll}>
-          <legend>
-            <WalletText message="Review appearance" />
-          </legend>
-          <p>
-            <WalletText message="Choose where transaction details appear before signing." />
-          </p>
-          <div className="seams-transaction-choices">
-            {UI_CHOICES.map(
-              renderUiChoice.bind(null, currentConfirmConfig.uiMode ?? 'modal', onSetUiMode),
-            )}
-          </div>
-        </fieldset>
-        <fieldset className="seams-transaction-group" disabled={disableAll || disableRequireClick}>
-          <legend>
-            <WalletText message="Confirmation step" />
-          </legend>
-          <p>
-            {disableRequireClick ? (
-              <WalletText message="Choose Modal or Drawer to configure the confirmation step." />
-            ) : (
-              <WalletText message="Choose whether to click Continue before authentication starts." />
-            )}
-          </p>
-          <div className="seams-transaction-choices">
-            {BEHAVIOR_CHOICES.map(
-              renderBehaviorChoice.bind(null, currentConfirmConfig, onSetDelay, onToggleSkipClick),
-            )}
-          </div>
-        </fieldset>
-      </div>
-    );
-  }
+  // The menu is narrow: its cards show the drawing and the label only.
+  const compact = presentation === 'menu';
 
   return (
     <div
-      className={`seams-dropdown-tx-settings-root ${isOpen ? 'is-expanded' : ''} ${className || ''}`}
+      className={`seams-transaction-page${className ? ` ${className}` : ''}`}
+      data-presentation={presentation}
       style={style}
-      onClick={handleClick}
+      onClick={compact ? handleClick : undefined}
     >
-      <div className="seams-dropdown-toggle-tx-settings">
-        <div
-          className="seams-dropdown-toggle-tx-settings-content"
-          aria-hidden={!isOpen}
-          style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
-        >
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
-            <div>
-              <div className="seams-confirmation-options">
-                <WalletText message="Confirmer UI" />
-              </div>
-              <div style={{ width: '100%' }}>
-                <SegmentedControl
-                  items={[
-                    { value: 'none', label: 'none', disabled: disableAll },
-                    { value: 'modal', label: 'modal', disabled: disableAll },
-                    { value: 'drawer', label: 'drawer', disabled: disableAll },
-                  ]}
-                  value={currentConfirmConfig?.uiMode ?? 'modal'}
-                  onValueChange={(v) => onSetUiMode?.(v as 'none' | 'modal' | 'drawer')}
-                  activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
-                  height={40}
-                  buttonFontSize={12}
-                  containerStyle={{ width: '100%' }}
-                  buttonStyle={{
-                    display: 'grid',
-                    placeItems: 'center',
-                    lineHeight: 1,
-                    padding: '0 10px',
-                  }}
-                  activeButtonStyle={{ color: 'var(--seams-colors-textButton)' }}
-                />
-              </div>
-            </div>
-            <div
-              style={{
-                opacity: disableRequireClick ? 0.6 : 1,
-                pointerEvents: disableRequireClick ? 'none' : 'auto',
-              }}
-            >
-              <div className="seams-confirmation-options">
-                <WalletText message="Confirmation Options" />
-              </div>
-              <div style={{ width: '100%' }}>
-                <SegmentedControl
-                  items={[
-                    {
-                      value: 'skipClick',
-                      label: 'skip click',
-                      disabled: disableAll || disableRequireClick,
-                    },
-                    {
-                      value: 'requireClick',
-                      label: 'require click',
-                      disabled: disableAll || disableRequireClick,
-                    },
-                  ]}
-                  value={
-                    currentConfirmConfig?.behavior === 'skipClick' ? 'skipClick' : 'requireClick'
-                  }
-                  onValueChange={(v) => {
-                    const wantsSkipClick = v === 'skipClick';
-                    const isSkipClick = currentConfirmConfig?.behavior === 'skipClick';
-                    if (wantsSkipClick && (currentConfirmConfig?.autoProceedDelay ?? 0) !== 0) {
-                      onSetDelay(0);
-                    }
-                    if (wantsSkipClick !== isSkipClick) onToggleSkipClick?.();
-                  }}
-                  activeBg={TRANSACTION_SETTINGS_ACTIVE_BACKGROUND}
-                  height={40}
-                  buttonFontSize={12}
-                  containerStyle={{ width: '100%' }}
-                  buttonStyle={{
-                    display: 'grid',
-                    placeItems: 'center',
-                    lineHeight: 1,
-                    padding: '0 10px',
-                  }}
-                  activeButtonStyle={{ color: 'var(--seams-colors-textButton)' }}
-                />
-              </div>
-            </div>
-          </div>
+      <fieldset className="seams-transaction-group" disabled={disableAll}>
+        <legend>
+          <WalletText message="Review appearance" />
+        </legend>
+        <p>
+          <WalletText message="Choose where transaction details appear before signing." />
+        </p>
+        <div className="seams-transaction-choices">
+          {UI_CHOICES.map(
+            renderUiChoice.bind(null, compact, currentConfirmConfig.uiMode ?? 'modal', onSetUiMode),
+          )}
         </div>
-      </div>
+      </fieldset>
+      <fieldset className="seams-transaction-group" disabled={disableAll || disableRequireClick}>
+        <legend>
+          <WalletText message="Confirmation step" />
+        </legend>
+        <p>
+          {disableRequireClick ? (
+            <WalletText message="Choose Modal or Drawer to configure the confirmation step." />
+          ) : (
+            <WalletText message="Choose whether to click Continue before authentication starts." />
+          )}
+        </p>
+        <div className="seams-transaction-choices">
+          {BEHAVIOR_CHOICES.map(
+            renderBehaviorChoice.bind(
+              null,
+              compact,
+              currentConfirmConfig,
+              onSetDelay,
+              onToggleSkipClick,
+            ),
+          )}
+        </div>
+      </fieldset>
     </div>
   );
 };
@@ -231,6 +137,7 @@ function ChoicePreview({
 }
 
 function renderUiChoice(
+  compact: boolean,
   selected: UiChoice['value'],
   onSelect: TransactionSettingsSectionProps['onSetUiMode'],
   choice: UiChoice,
@@ -251,9 +158,11 @@ function renderUiChoice(
           </strong>
           <span className="seams-transaction-choice-indicator" aria-hidden="true" />
         </span>
-        <span className="seams-transaction-choice-description">
-          <WalletText copy={choice.description} />
-        </span>
+        {compact ? null : (
+          <span className="seams-transaction-choice-description">
+            <WalletText copy={choice.description} />
+          </span>
+        )}
       </span>
     </button>
   );
@@ -270,6 +179,7 @@ function setBehavior(
 }
 
 function renderBehaviorChoice(
+  compact: boolean,
   config: TransactionSettingsSectionProps['currentConfirmConfig'],
   setDelay: TransactionSettingsSectionProps['onSetDelay'],
   toggle: TransactionSettingsSectionProps['onToggleSkipClick'],
@@ -292,9 +202,11 @@ function renderBehaviorChoice(
           </strong>
           <span className="seams-transaction-choice-indicator" aria-hidden="true" />
         </span>
-        <span className="seams-transaction-choice-description">
-          <WalletText copy={choice.description} />
-        </span>
+        {compact ? null : (
+          <span className="seams-transaction-choice-description">
+            <WalletText copy={choice.description} />
+          </span>
+        )}
       </span>
     </button>
   );

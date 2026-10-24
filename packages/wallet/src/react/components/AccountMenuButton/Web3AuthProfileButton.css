@@ -457,11 +457,7 @@
 .seams-account-identity:focus {
   outline: none;
 }
-.seams-account-screen .seams-dropdown-tx-settings-root {
-  --seams-expander-surface: var(--seams-colors-colorBackground);
-  border: 0;
-  border-radius: 12px;
-  overflow: hidden;
+.seams-account-screen .seams-transaction-page {
   margin-top: 14px;
 }
 

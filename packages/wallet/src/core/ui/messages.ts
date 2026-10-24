@@ -301,7 +301,6 @@ const walletMessages = [
   ['Reveal with passkey', 'パスキーで表示'],
   ['View on explorer', 'エクスプローラーで表示'],
   ['This wallet', 'このウォレット'],
-  ['Addresses', 'アドレス'],
   ['Security & devices', 'セキュリティとデバイス'],
   ['Close wallet settings', 'ウォレット設定を閉じる'],
   ['Wallet account', 'ウォレットアカウント'],

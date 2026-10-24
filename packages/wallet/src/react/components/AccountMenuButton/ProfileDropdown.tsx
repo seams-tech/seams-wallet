@@ -6,20 +6,37 @@ import { LockMenuItem } from './LockMenuItem';
 import type { ProfileDropdownProps, MenuItem as MenuItemModel } from './types';
 import './ProfileDropdown.css';
 
+// The same order as the settings page. Export keys comes last: it is rare
+// and has the highest impact.
+const MENU_ORDER = [
+  'accounts',
+  'transaction-settings',
+  'authentication-methods',
+  'recovery-codes',
+  'linked-devices',
+  'scan-link-device',
+  'export-keys',
+];
 const SECURITY_ITEMS = [
   'authentication-methods',
-  'scan-link-device',
-  'linked-devices',
   'recovery-codes',
+  'linked-devices',
+  'scan-link-device',
+  'export-keys',
 ];
 function isSecurityItem(item: MenuItemModel): boolean {
   return SECURITY_ITEMS.includes(item.id ?? '');
 }
-function compareSecurityItems(a: MenuItemModel, b: MenuItemModel): number {
-  return SECURITY_ITEMS.indexOf(a.id ?? '') - SECURITY_ITEMS.indexOf(b.id ?? '');
-}
-function isAccountItem(item: MenuItemModel): boolean {
+function isWalletItem(item: MenuItemModel): boolean {
   return !isSecurityItem(item);
+}
+// Items outside MENU_ORDER keep their place after the known ones.
+function menuRank(item: MenuItemModel): number {
+  const rank = MENU_ORDER.indexOf(item.id ?? '');
+  return rank === -1 ? MENU_ORDER.length : rank;
+}
+function compareMenuItems(a: MenuItemModel, b: MenuItemModel): number {
+  return menuRank(a) - menuRank(b);
 }
 function storeMenuRef(
   refs: React.MutableRefObject<(HTMLElement | null)[]>,
@@ -66,13 +83,13 @@ export function ProfileDropdown(props: ProfileDropdownProps): React.JSX.Element 
   return (
     <div className="seams-profile-dropdown-menu">
       <MenuGroup
-        label={walletText(locale, 'Addresses')}
-        items={props.menuItems.filter(isAccountItem)}
+        label={walletText(locale, 'Wallet')}
+        items={props.menuItems.filter(isWalletItem).sort(compareMenuItems)}
         props={props}
       />
       <MenuGroup
         label={walletText(locale, 'Security & devices')}
-        items={props.menuItems.filter(isSecurityItem).sort(compareSecurityItems)}
+        items={props.menuItems.filter(isSecurityItem).sort(compareMenuItems)}
         props={props}
       />
       <LockMenuItem onLock={props.onLock} className="seams-lock-menu-item" />
