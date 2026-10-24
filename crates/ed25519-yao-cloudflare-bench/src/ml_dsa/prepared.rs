@@ -1,6 +1,6 @@
 //! Hosted prepared keygen with R2 streaming and a client-controlled online start.
 
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         prepared::{keygen::prepare_keygen, Phase, Transport},
         RuntimeError, TrustedMlDsaSchedule,
@@ -473,18 +473,18 @@ async fn run_b_session(
     Ok(())
 }
 
-impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> {
+impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
         Transport::send(self, bytes).await
     }
     async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
         Transport::receive(self, length).await
     }
-    fn phase(&mut self, phase: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
+    fn phase(&mut self, phase: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {
         // The client admission boundary owns complete offline/online accounting.
         if matches!(
             phase,
-            ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase::Preprocessing
+            ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase::Preprocessing
         ) {
             self.boolean_binding_phases += 1;
             if self.boolean_binding_phases == 1 || self.boolean_binding_phases.is_multiple_of(64) {

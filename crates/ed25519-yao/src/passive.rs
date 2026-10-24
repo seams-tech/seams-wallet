@@ -5,12 +5,8 @@ use aes::Aes128;
 use subtle::{Choice, ConditionallySelectable};
 use zeroize::{DefaultIsZeroes, Zeroize, ZeroizeOnDrop};
 
-mod gate_aes;
-#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
-pub mod ml_dsa_runtime;
-#[cfg(feature = "ml-dsa-runtime-benchmark")]
-pub mod ml_dsa_signing;
-mod ot;
+pub mod gate_aes;
+pub mod ot;
 mod packages;
 #[cfg(test)]
 mod parser_fuzz_tests;
@@ -30,7 +26,7 @@ mod process_support;
 pub mod role_protocol;
 mod role_protocol_support;
 mod roles;
-mod runtime;
+pub(crate) mod runtime;
 mod schedule;
 mod stream;
 #[cfg(feature = "passive-benchmark")]
@@ -41,20 +37,24 @@ mod stream_runtime;
 #[cfg(test)]
 mod stream_runtime_tests;
 
-const LABEL_BYTES: usize = 16;
-const AND_GATE_BYTES: usize = 2 * LABEL_BYTES;
+/// Bytes in one private wire label.
+pub const LABEL_BYTES: usize = 16;
+/// Bytes in a half-gates AND table.
+pub const AND_GATE_BYTES: usize = 2 * LABEL_BYTES;
 const FIXED_AES_KEY: [u8; LABEL_BYTES] = [0_u8; LABEL_BYTES];
 const GF128_REDUCTION: u8 = 0x87;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
-pub(crate) struct WireValue(u8);
+/// One private input bit, reduced to zero or one.
+pub struct WireValue(u8);
 
 impl WireValue {
     const ZERO: Self = Self(0);
     const ONE: Self = Self(1);
 
-    const fn from_secret_bit(bit: u8) -> Self {
+    /// Role-private bytes owned by this value.
+    pub const fn from_secret_bit(bit: u8) -> Self {
         Self(bit & 1)
     }
 
@@ -86,7 +86,7 @@ impl ChoiceBit {
 /// about a third of garbling and of evaluation. `DefaultIsZeroes` selects the
 /// same volatile write for the whole value at once, as for an integer.
 #[derive(Clone, Copy, Default)]
-struct SecretBlock([u8; LABEL_BYTES]);
+pub struct SecretBlock(pub [u8; LABEL_BYTES]);
 
 impl DefaultIsZeroes for SecretBlock {}
 
@@ -152,10 +152,12 @@ impl fmt::Debug for WireLabel {
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(crate) struct GlobalDelta(WireLabel);
+/// Private free-XOR offset, wiped when dropped.
+pub struct GlobalDelta(WireLabel);
 
 impl GlobalDelta {
-    pub(crate) fn random() -> Result<Self, getrandom::Error> {
+    /// Draws a fresh private free-XOR offset.
+    pub fn random() -> Result<Self, getrandom::Error> {
         let mut bytes = [0_u8; LABEL_BYTES];
         getrandom::getrandom(&mut bytes)?;
         bytes[LABEL_BYTES - 1] |= 1;
@@ -180,11 +182,18 @@ impl fmt::Debug for GlobalDelta {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SessionDomain(u64);
+/// Nonzero public domain separating circuit executions.
+pub struct SessionDomain(u64);
 
 impl SessionDomain {
+    /// Returns the validated public domain value for its wire encoding.
+    #[inline]
+    pub const fn protocol_value(self) -> u64 {
+        self.0
+    }
+
     #[cfg(test)]
-    pub(crate) fn random() -> Result<Self, getrandom::Error> {
+    pub fn random() -> Result<Self, getrandom::Error> {
         loop {
             let mut bytes = [0_u8; 8];
             getrandom::getrandom(&mut bytes)?;
@@ -196,7 +205,8 @@ impl SessionDomain {
         }
     }
 
-    pub(super) const fn from_protocol_value(value: u64) -> Option<Self> {
+    /// Role-private bytes owned by this value.
+    pub const fn from_protocol_value(value: u64) -> Option<Self> {
         if value == 0 {
             None
         } else {
@@ -211,10 +221,12 @@ impl SessionDomain {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct GateOrdinal(u64);
+/// Public gate index in a circuit schedule.
+pub struct GateOrdinal(u64);
 
 impl GateOrdinal {
-    pub(crate) const fn from_schedule_index(value: u64) -> Option<Self> {
+    /// Role-private bytes owned by this value.
+    pub const fn from_schedule_index(value: u64) -> Option<Self> {
         if value < (1_u64 << 63) {
             Some(Self(value))
         } else {
@@ -352,16 +364,25 @@ fn double_gf128(input: &[u8; LABEL_BYTES]) -> [u8; LABEL_BYTES] {
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(crate) struct GarblerWire {
+/// The garbler-owned zero label for one wire.
+pub struct GarblerWire {
     zero: WireLabel,
 }
 
 impl GarblerWire {
+    /// Returns the zero-label translation bit.
+    #[inline]
+    pub fn selection_bit(&self) -> u8 {
+        self.zero.selection_bit().0
+    }
+
+    /// Role-private bytes owned by this value.
     pub(crate) const fn from_zero_label(zero: WireLabel) -> Self {
         Self { zero }
     }
 
-    pub(crate) fn random_batch(count: usize) -> Result<Vec<Self>, getrandom::Error> {
+    /// Draws fresh private labels for the requested input count.
+    pub fn random_batch(count: usize) -> Result<Vec<Self>, getrandom::Error> {
         let byte_count = count
             .checked_mul(LABEL_BYTES)
             .expect("fixed circuit input-label count fits usize");
@@ -390,45 +411,59 @@ impl GarblerWire {
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(crate) struct EvaluatorWire {
+/// The evaluator-owned active label for one wire.
+pub struct EvaluatorWire {
     active: WireLabel,
 }
 
 impl EvaluatorWire {
+    /// Returns the active label translation bit.
+    #[inline]
+    pub fn selection_bit(&self) -> u8 {
+        self.active.selection_bit().0
+    }
+
+    /// Role-private bytes owned by this value.
     pub(crate) const fn from_active_label(active: WireLabel) -> Self {
         Self { active }
     }
 
-    pub(super) fn from_secret_bytes(bytes: [u8; LABEL_BYTES]) -> Self {
+    /// Takes ownership of private active-label bytes.
+    pub fn from_secret_bytes(bytes: [u8; LABEL_BYTES]) -> Self {
         Self::from_active_label(WireLabel::from_secret_bytes(bytes))
     }
 
-    pub(super) fn append_secret_bytes(&self, output: &mut Vec<u8>) {
+    /// Appends the private active label to its protocol message.
+    pub fn append_secret_bytes(&self, output: &mut Vec<u8>) {
         output.extend_from_slice(self.active.bytes());
     }
 }
 
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(crate) struct GarbledAndGate {
+/// The two masked table entries for one AND gate.
+pub struct GarbledAndGate {
     garbler_half: WireLabel,
     evaluator_half: WireLabel,
 }
 
 impl GarbledAndGate {
     #[cfg(test)]
-    pub(crate) fn encode(&self) -> [u8; AND_GATE_BYTES] {
+    #[inline]
+    pub fn encode(&self) -> [u8; AND_GATE_BYTES] {
         let mut encoded = [0_u8; AND_GATE_BYTES];
         encoded[..LABEL_BYTES].copy_from_slice(self.garbler_half.bytes());
         encoded[LABEL_BYTES..].copy_from_slice(self.evaluator_half.bytes());
         encoded
     }
 
-    pub(super) fn append_encoded(&self, encoded: &mut Vec<u8>) {
+    /// Appends the two masked table entries.
+    pub fn append_encoded(&self, encoded: &mut Vec<u8>) {
         encoded.extend_from_slice(self.garbler_half.bytes());
         encoded.extend_from_slice(self.evaluator_half.bytes());
     }
 
-    pub(crate) fn decode(encoded: &[u8; AND_GATE_BYTES]) -> Self {
+    /// Decodes the fixed-size masked AND table.
+    pub fn decode(encoded: &[u8; AND_GATE_BYTES]) -> Self {
         let mut garbler_half = [0_u8; LABEL_BYTES];
         let mut evaluator_half = [0_u8; LABEL_BYTES];
         garbler_half.copy_from_slice(&encoded[..LABEL_BYTES]);
@@ -440,14 +475,16 @@ impl GarbledAndGate {
     }
 }
 
-pub(crate) struct Garbler {
+/// Role-local half-gates garbling state.
+pub struct Garbler {
     hash: FixedAesGarblingHash,
     delta: GlobalDelta,
     domain: SessionDomain,
 }
 
 impl Garbler {
-    pub(crate) fn new(delta: GlobalDelta, domain: SessionDomain) -> Self {
+    /// Constructs the role-local primitive state.
+    pub fn new(delta: GlobalDelta, domain: SessionDomain) -> Self {
         Self {
             hash: FixedAesGarblingHash::new(),
             delta,
@@ -455,29 +492,36 @@ impl Garbler {
         }
     }
 
-    pub(crate) fn encode(&self, wire: &GarblerWire, value: WireValue) -> EvaluatorWire {
+    /// Selects the active label for one private input bit.
+    #[inline]
+    pub fn encode(&self, wire: &GarblerWire, value: WireValue) -> EvaluatorWire {
         EvaluatorWire::from_active_label(wire.active_label(&self.delta, value))
     }
 
-    pub(super) fn encoded_pair(
-        &self,
-        wire: &GarblerWire,
-    ) -> ([u8; LABEL_BYTES], [u8; LABEL_BYTES]) {
+    /// Returns both private labels for authenticated input transfer.
+    #[inline]
+    pub fn encoded_pair(&self, wire: &GarblerWire) -> ([u8; LABEL_BYTES], [u8; LABEL_BYTES]) {
         (
             *wire.active_label(&self.delta, WireValue::ZERO).bytes(),
             *wire.active_label(&self.delta, WireValue::ONE).bytes(),
         )
     }
 
-    pub(crate) fn xor(&self, left: &GarblerWire, right: &GarblerWire) -> GarblerWire {
+    /// Computes a free-XOR output wire.
+    #[inline]
+    pub fn xor(&self, left: &GarblerWire, right: &GarblerWire) -> GarblerWire {
         GarblerWire::from_zero_label(left.zero.xor(&right.zero))
     }
 
-    pub(crate) fn invert(&self, input: &GarblerWire) -> GarblerWire {
+    /// Computes an inverted output wire.
+    #[inline]
+    pub fn invert(&self, input: &GarblerWire) -> GarblerWire {
         GarblerWire::from_zero_label(input.zero.xor(self.delta.label()))
     }
 
-    pub(crate) fn garble_and(
+    /// Produces one AND output and its masked table entries.
+    #[inline]
+    pub fn garble_and(
         &self,
         gate_ordinal: GateOrdinal,
         left: &GarblerWire,
@@ -520,28 +564,36 @@ impl Garbler {
     }
 }
 
-pub(crate) struct Evaluator {
+/// Role-local half-gates evaluation state.
+pub struct Evaluator {
     hash: FixedAesGarblingHash,
     domain: SessionDomain,
 }
 
 impl Evaluator {
-    pub(crate) fn new(domain: SessionDomain) -> Self {
+    /// Constructs the role-local primitive state.
+    pub fn new(domain: SessionDomain) -> Self {
         Self {
             hash: FixedAesGarblingHash::new(),
             domain,
         }
     }
 
-    pub(crate) fn xor(&self, left: &EvaluatorWire, right: &EvaluatorWire) -> EvaluatorWire {
+    /// Computes a free-XOR output wire.
+    #[inline]
+    pub fn xor(&self, left: &EvaluatorWire, right: &EvaluatorWire) -> EvaluatorWire {
         EvaluatorWire::from_active_label(left.active.xor(&right.active))
     }
 
-    pub(crate) fn invert(&self, input: &EvaluatorWire) -> EvaluatorWire {
+    /// Computes an inverted output wire.
+    #[inline]
+    pub fn invert(&self, input: &EvaluatorWire) -> EvaluatorWire {
         EvaluatorWire::from_active_label(input.active.duplicate())
     }
 
-    pub(crate) fn evaluate_and(
+    /// Evaluates one AND table with active input labels.
+    #[inline]
+    pub fn evaluate_and(
         &self,
         gate_ordinal: GateOrdinal,
         left: &EvaluatorWire,

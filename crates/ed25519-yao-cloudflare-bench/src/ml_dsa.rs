@@ -15,7 +15,7 @@ mod prepared_storage;
 
 use std::collections::VecDeque;
 
-use ed25519_yao::ml_dsa_runtime::{RuntimeOutput, Step, MAX_MESSAGE_BYTES};
+use ml_dsa_threshold::ml_dsa_runtime::{RuntimeOutput, Step, MAX_MESSAGE_BYTES};
 use futures_util::StreamExt;
 use serde_json::{json, Value};
 use wasm_bindgen::JsCast;

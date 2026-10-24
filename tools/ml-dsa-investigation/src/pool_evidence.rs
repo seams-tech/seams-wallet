@@ -4,7 +4,7 @@ use crate::{
     InvestigationResult, boolean_engine_evidence::run_ready,
     prepared_keygen_evidence::HostTransport, reference, require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
@@ -232,12 +232,12 @@ impl Transport for SuspendedTransport {
     }
     fn phase(&mut self, _: Phase) {}
 }
-impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for SuspendedTransport {
+impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for SuspendedTransport {
     async fn send(&mut self, _: &[u8]) -> Result<(), RuntimeError> {
         pending().await
     }
     async fn receive(&mut self, _: usize) -> Result<Vec<u8>, RuntimeError> {
         pending().await
     }
-    fn phase(&mut self, _: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {}
+    fn phase(&mut self, _: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {}
 }

@@ -14,16 +14,12 @@ mod metrics;
 #[cfg(any(
     test,
     feature = "passive-benchmark",
-    feature = "ml-dsa-runtime-benchmark",
+    feature = "passive-primitives",
     feature = "passive-wasm-benchmark",
     feature = "phase9-role-benchmark",
     feature = "local-protocol"
 ))]
 mod passive;
-
-#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
-#[doc(hidden)]
-pub use passive::ml_dsa_runtime;
 
 #[cfg(feature = "passive-benchmark")]
 #[doc(hidden)]
@@ -93,6 +89,21 @@ pub use metrics::{
     CircuitMetrics, GateMetrics, ScheduleMetrics, PASSIVE_HALF_GATES_TABLE_BYTES_PER_AND_GATE,
 };
 
+/// Internal shared passive Yao and OT backend for protocol crates.
 #[doc(hidden)]
-#[cfg(feature = "ml-dsa-runtime-benchmark")]
-pub use passive::ml_dsa_signing;
+#[cfg(feature = "passive-primitives")]
+pub mod primitives {
+    pub use crate::passive::{gate_aes, ot};
+    pub use crate::passive::{
+        Evaluator, EvaluatorWire, GarbledAndGate, Garbler, GarblerWire, GateOrdinal, GlobalDelta,
+        SecretBlock, SessionDomain, WireValue, AND_GATE_BYTES, LABEL_BYTES,
+    };
+    pub mod arena {
+        pub use crate::passive::runtime::{empty_arena, install_inputs};
+        #[derive(Debug)]
+        pub struct MissingWire;
+        pub fn required_wire<T>(arena: &[Option<T>], slot: usize) -> Result<&T, MissingWire> {
+            arena[slot].as_ref().ok_or(MissingWire)
+        }
+    }
+}

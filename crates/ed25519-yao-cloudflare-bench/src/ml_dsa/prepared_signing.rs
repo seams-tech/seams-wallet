@@ -8,7 +8,7 @@ use super::{
     decode_hex, encode_hex, failure, missing_fixture_field, required_string, runtime_failure,
     wasm_linear_memory_highwater_bytes, Duplex, ROLE,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         prepared::{Phase, Transport},
         TrustedMlDsaSchedule,
@@ -101,8 +101,8 @@ impl PreparedOperation<'_> {
                     .activate(own, &public_key, epoch, adapter)
                     .await?;
                 match signer.sign(message, context, operation, adapter).await? {
-                    ed25519_yao::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Signed(signature) => Ok(Output::Gmw(signature)),
-                    ed25519_yao::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Exhausted(_) => Err(SigningError::PreparedPoolExhausted),
+                    ml_dsa_threshold::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Signed(signature) => Ok(Output::Gmw(signature)),
+                    ml_dsa_threshold::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Exhausted(_) => Err(SigningError::PreparedPoolExhausted),
                 }
             }
         }
@@ -129,7 +129,7 @@ impl Output {
     }
 }
 pub(super) fn batch_metrics(
-    metrics: &ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::BatchMetrics,
+    metrics: &ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::BatchMetrics,
 ) -> Value {
     let phases: Vec<_> = metrics
         .phases
@@ -236,7 +236,7 @@ async fn prepare<'a>(
 async fn generate_key(
     book: &Value,
     adapter: &mut Adapter<'_>,
-) -> worker::Result<Box<ed25519_yao::ml_dsa_signing::keygen::KeygenOutput>> {
+) -> worker::Result<Box<ml_dsa_threshold::ml_dsa_signing::keygen::KeygenOutput>> {
     let key_schedules = prepared::schedules(book)?;
     let fixture = prepared::fixture(book, 0)?;
     let root = prepared::own_root(fixture)?;

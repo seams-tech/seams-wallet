@@ -5,7 +5,7 @@ use crate::{
     digest, material_storage_evidence, private_execution, private_keygen, private_signing, require,
     wallet_recovery_evidence,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport, keygen::prepare_keygen},
@@ -360,30 +360,30 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",
         "tools/ml-dsa-investigation/src/registration_tables_evidence.rs",
         "tools/ml-dsa-investigation/src/keygen_storage_evidence.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared/keygen.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/wallet_seed.rs",
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/commitment.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/commitment.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent.rs",
         "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/prepared.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
         "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
         "tools/ml-dsa-investigation/src/pool_evidence.rs",
         "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
         "tools/ml-dsa-investigation/src/durable_execution_evidence.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/storage.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/prepared_signing/gmw/pool.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/storage.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/pool.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
@@ -404,14 +404,14 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     Ok(())
 }
 
-impl ed25519_yao::ml_dsa_runtime::boolean_comparison::Transport for HostTransport {
+impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for HostTransport {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
         Transport::send(self, bytes).await
     }
     async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
         Transport::receive(self, length).await
     }
-    fn phase(&mut self, _: ed25519_yao::ml_dsa_runtime::boolean_comparison::Phase) {
+    fn phase(&mut self, _: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {
         // The complete operation owns the offline/online measurement boundary.
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, garbled_execution,
     private_execution, private_keygen, require,
 };
-use ed25519_yao::phase5_benchmark::ml_dsa_private::{
+use ml_dsa_threshold::benchmarks::ml_dsa_private::{
     PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
 };
 use serde_json::{Value, json};

@@ -1,0 +1,24 @@
+[package]
+name = "ml-dsa-threshold"
+version = "0.1.0"
+edition = "2021"
+description = "Passive two-party ML-DSA-65 key generation and signing"
+license = "Apache-2.0"
+publish = false
+
+[features]
+default = []
+benchmarks = []
+
+[dependencies]
+ed25519-yao = { path = "../ed25519-yao", features = ["passive-primitives"] }
+sha2 = { version = "=0.10.9", default-features = false }
+sha3 = { version = "=0.10.9", default-features = false }
+subtle = { version = "=2.6.1", default-features = false }
+zeroize = { version = "=1.9.0", default-features = false, features = ["zeroize_derive"] }
+getrandom = { version = "=0.2.17", features = ["js"] }
+cryprot-codes = { path = "../ed25519-yao/vendor/cryprot-codes" }
+cryprot-core = { path = "../ed25519-yao/vendor/cryprot-core" }
+getrandom04 = { package = "getrandom", version = "=0.4.3", features = ["wasm_js"] }
+aes09 = { package = "aes", version = "=0.9.1", default-features = false, features = ["zeroize"] }
+cipher05 = { package = "cipher", version = "=0.5.2", default-features = false, features = ["zeroize"] }

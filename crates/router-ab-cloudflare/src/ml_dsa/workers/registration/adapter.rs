@@ -1,5 +1,5 @@
 use super::*;
-use ed25519_yao::ml_dsa_runtime::{prepared, RuntimeError};
+use ml_dsa_threshold::ml_dsa_runtime::{prepared, RuntimeError};
 const WRITE_BATCH_FRAMES: usize = 16;
 pub(super) struct PendingFrame {
     circuit: [u8; 32],

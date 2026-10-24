@@ -6,7 +6,7 @@ use crate::{
     prepared_keygen_evidence::HostTransport,
     require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport},

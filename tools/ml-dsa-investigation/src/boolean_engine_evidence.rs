@@ -3,7 +3,7 @@
 use crate::{
     InvestigationResult, command_text, digest, garbled_execution, private_execution, require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         boolean_comparison::{self, Engine, Phase, Transport},
@@ -95,8 +95,8 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     }
     let mut sources = Vec::new();
     for path in [
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
         "crates/ed25519-yao/Cargo.toml",
         "tools/ml-dsa-investigation/src/worker_fixtures.rs",

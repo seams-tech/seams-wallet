@@ -460,7 +460,8 @@ fn evaluate_fixed(
     })
 }
 
-pub(super) fn empty_arena<T>(length: usize) -> Vec<Option<T>> {
+/// Allocates empty slots for a validated circuit schedule.
+pub fn empty_arena<T>(length: usize) -> Vec<Option<T>> {
     let mut arena = Vec::with_capacity(length);
     let mut index = 0_usize;
     while index < length {
@@ -470,7 +471,8 @@ pub(super) fn empty_arena<T>(length: usize) -> Vec<Option<T>> {
     arena
 }
 
-pub(super) fn install_inputs<T>(arena: &mut [Option<T>], inputs: Vec<T>) {
+/// Installs the validated input wires in schedule order.
+pub fn install_inputs<T>(arena: &mut [Option<T>], inputs: Vec<T>) {
     for (slot, input) in inputs.into_iter().enumerate() {
         arena[slot] = Some(input);
     }

@@ -38,7 +38,7 @@ const ROW_EXPANSION_DOMAIN: [u8; 8] = *b"YAOIKNP1";
 
 /// Failures from the benchmark-only passive OT state machine and wire codec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum OtError {
+pub enum OtError {
     /// The operating system random source failed.
     Randomness,
     /// A fixed-size input, output, or frame had the wrong length.
@@ -73,11 +73,11 @@ impl From<getrandom::Error> for OtError {
 
 /// Caller-provided nonzero ceremony domain bound into every OT frame and hash.
 #[derive(Clone, Copy, PartialEq, Eq, Zeroize)]
-pub(super) struct OtSessionId([u8; 32]);
+pub struct OtSessionId([u8; 32]);
 
 impl OtSessionId {
     /// Validates a fixed ceremony domain supplied by the surrounding role protocol.
-    pub(super) fn new(bytes: [u8; 32]) -> Result<Self, OtError> {
+    pub fn new(bytes: [u8; 32]) -> Result<Self, OtError> {
         if bytes.iter().all(|byte| *byte == 0) {
             Err(OtError::InvalidSession)
         } else {
@@ -86,7 +86,7 @@ impl OtSessionId {
     }
 
     /// Borrows the exact ceremony-domain bytes for surrounding transcript binding.
-    pub(super) const fn as_bytes(&self) -> &[u8; 32] {
+    pub const fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
 
@@ -119,7 +119,7 @@ mod sealed {
 }
 
 /// Sealed benchmark family shape used by the typed OT states and codecs.
-pub(super) trait OtFamily: sealed::Sealed + 'static {
+pub trait OtFamily: sealed::Sealed + 'static {
     /// Fixed family byte in every OT frame and hash domain.
     const CODE: u8;
     /// Exact number of evaluator-selected circuit inputs.
@@ -169,7 +169,7 @@ impl OtFamily for LaneMaterializationOtFamily {
 
 /// Fixed evaluator input shape for the investigation seed-expansion circuit.
 #[derive(Debug)]
-pub(super) struct MlDsaSeedOtFamily;
+pub struct MlDsaSeedOtFamily;
 impl sealed::Sealed for MlDsaSeedOtFamily {}
 impl OtFamily for MlDsaSeedOtFamily {
     const CODE: u8 = 4;
@@ -178,7 +178,7 @@ impl OtFamily for MlDsaSeedOtFamily {
 
 /// Fixed evaluator input shape for one investigation sampling circuit.
 #[derive(Debug)]
-pub(super) struct MlDsaSamplingOtFamily;
+pub struct MlDsaSamplingOtFamily;
 impl sealed::Sealed for MlDsaSamplingOtFamily {}
 impl OtFamily for MlDsaSamplingOtFamily {
     const CODE: u8 = 5;
@@ -187,7 +187,7 @@ impl OtFamily for MlDsaSamplingOtFamily {
 
 /// Fixed evaluator input shape for one investigation rounding polynomial.
 #[derive(Debug)]
-pub(super) struct MlDsaRoundingOtFamily;
+pub struct MlDsaRoundingOtFamily;
 impl sealed::Sealed for MlDsaRoundingOtFamily {}
 impl OtFamily for MlDsaRoundingOtFamily {
     const CODE: u8 = 6;
@@ -196,7 +196,7 @@ impl OtFamily for MlDsaRoundingOtFamily {
 
 /// Fixed evaluator input shape for an investigation signing component.
 #[derive(Debug)]
-pub(super) struct MlDsaCommitmentOtFamily;
+pub struct MlDsaCommitmentOtFamily;
 impl sealed::Sealed for MlDsaCommitmentOtFamily {}
 impl OtFamily for MlDsaCommitmentOtFamily {
     const CODE: u8 = 7;
@@ -205,7 +205,7 @@ impl OtFamily for MlDsaCommitmentOtFamily {
 
 /// Fixed evaluator input shape for an investigation signing component.
 #[derive(Debug)]
-pub(super) struct MlDsaSigningRowOtFamily;
+pub struct MlDsaSigningRowOtFamily;
 impl sealed::Sealed for MlDsaSigningRowOtFamily {}
 impl OtFamily for MlDsaSigningRowOtFamily {
     const CODE: u8 = 8;
@@ -214,7 +214,7 @@ impl OtFamily for MlDsaSigningRowOtFamily {
 
 /// Fixed evaluator input shape for an investigation signing component.
 #[derive(Debug)]
-pub(super) struct MlDsaDecisionOtFamily;
+pub struct MlDsaDecisionOtFamily;
 impl sealed::Sealed for MlDsaDecisionOtFamily {}
 impl OtFamily for MlDsaDecisionOtFamily {
     const CODE: u8 = 9;
@@ -223,7 +223,7 @@ impl OtFamily for MlDsaDecisionOtFamily {
 
 /// Exact evaluator input shape for the fresh-mask conversion experiment.
 #[derive(Debug)]
-pub(super) struct MlDsaFreshMaskOtFamily;
+pub struct MlDsaFreshMaskOtFamily;
 impl sealed::Sealed for MlDsaFreshMaskOtFamily {}
 impl OtFamily for MlDsaFreshMaskOtFamily {
     const CODE: u8 = 11;
@@ -231,12 +231,12 @@ impl OtFamily for MlDsaFreshMaskOtFamily {
 }
 
 /// Fixed bounded batch for the investigation's Boolean-engine preprocessing.
-#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 #[derive(Debug)]
-pub(super) struct MlDsaBooleanBatchOtFamily;
-#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+pub struct MlDsaBooleanBatchOtFamily;
+#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 impl sealed::Sealed for MlDsaBooleanBatchOtFamily {}
-#[cfg(any(feature = "passive-benchmark", feature = "ml-dsa-runtime-benchmark"))]
+#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 impl OtFamily for MlDsaBooleanBatchOtFamily {
     const CODE: u8 = 13;
     const OT_COUNT: usize = 16_384;
@@ -244,12 +244,12 @@ impl OtFamily for MlDsaBooleanBatchOtFamily {
 }
 
 /// Full-block PPRF base correlations for the fixed silent-OT profile.
-#[cfg(feature = "ml-dsa-runtime-benchmark")]
+#[cfg(feature = "passive-primitives")]
 #[derive(Debug)]
-pub(super) struct MlDsaSilentBaseOtFamily;
-#[cfg(feature = "ml-dsa-runtime-benchmark")]
+pub struct MlDsaSilentBaseOtFamily;
+#[cfg(feature = "passive-primitives")]
 impl sealed::Sealed for MlDsaSilentBaseOtFamily {}
-#[cfg(feature = "ml-dsa-runtime-benchmark")]
+#[cfg(feature = "passive-primitives")]
 impl OtFamily for MlDsaSilentBaseOtFamily {
     const CODE: u8 = 14;
     const OT_COUNT: usize = 3_072;
@@ -263,16 +263,14 @@ struct PayloadPair {
 
 /// Exactly one family-sized vector of garbler-owned 16-byte payload pairs.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct SenderPayloads<F: OtFamily> {
+pub struct SenderPayloads<F: OtFamily> {
     pairs: Vec<PayloadPair>,
     family: PhantomData<F>,
 }
 
 impl<F: OtFamily> SenderPayloads<F> {
     /// Validates the exact family count at the local typed boundary.
-    pub(super) fn new(
-        mut pairs: Vec<([u8; LABEL_BYTES], [u8; LABEL_BYTES])>,
-    ) -> Result<Self, OtError> {
+    pub fn new(mut pairs: Vec<([u8; LABEL_BYTES], [u8; LABEL_BYTES])>) -> Result<Self, OtError> {
         if pairs.len() != F::OT_COUNT {
             pairs.zeroize();
             return Err(OtError::InvalidLength);
@@ -301,14 +299,14 @@ impl<F: OtFamily> SenderPayloads<F> {
 
 /// Exactly one family-sized packed vector of evaluator choice bits.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct ReceiverChoices<F: OtFamily> {
+pub struct ReceiverChoices<F: OtFamily> {
     bytes: Vec<u8>,
     family: PhantomData<F>,
 }
 
 impl<F: OtFamily> ReceiverChoices<F> {
     /// Validates the exact family bit count at the local typed boundary.
-    pub(super) fn from_packed_bytes(mut bytes: Vec<u8>) -> Result<Self, OtError> {
+    pub fn from_packed_bytes(mut bytes: Vec<u8>) -> Result<Self, OtError> {
         if bytes.len() != F::ROW_BYTES {
             bytes.zeroize();
             return Err(OtError::InvalidLength);
@@ -326,14 +324,14 @@ impl<F: OtFamily> ReceiverChoices<F> {
 
 /// Family-sized selected evaluator payloads returned by the final OT flight.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct SelectedPayloads<F: OtFamily> {
+pub struct SelectedPayloads<F: OtFamily> {
     payloads: Vec<[u8; LABEL_BYTES]>,
     family: PhantomData<F>,
 }
 
 impl<F: OtFamily> SelectedPayloads<F> {
     /// Borrows the selected 16-byte payloads in circuit input order.
-    pub(super) fn as_slice(&self) -> &[[u8; LABEL_BYTES]] {
+    pub fn as_slice(&self) -> &[[u8; LABEL_BYTES]] {
         &self.payloads
     }
 }
@@ -411,7 +409,7 @@ fn encode_points(points: &[RistrettoPoint]) -> Vec<u8> {
 }
 
 /// Flight 1: B's 128 fresh Chou-Orlandi base-OT sender points.
-pub(super) struct BaseOffer<F: OtFamily> {
+pub struct BaseOffer<F: OtFamily> {
     session: OtSessionId,
     points: Vec<RistrettoPoint>,
     family: PhantomData<F>,
@@ -419,17 +417,17 @@ pub(super) struct BaseOffer<F: OtFamily> {
 
 impl<F: OtFamily> BaseOffer<F> {
     /// Returns the exact fixed wire byte count for this flight.
-    pub(super) const fn wire_bytes() -> usize {
+    pub const fn wire_bytes() -> usize {
         FRAME_HEADER_BYTES + SECURITY_PARAMETER * POINT_BYTES
     }
 
     /// Encodes the exact binary flight with its family and session binding.
-    pub(super) fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         encode_frame::<F>(BASE_OFFER_TYPE, self.session, &encode_points(&self.points))
     }
 
     /// Strictly decodes one exact binary base-offer flight.
-    pub(super) fn decode(encoded: &[u8]) -> Result<Self, OtError> {
+    pub fn decode(encoded: &[u8]) -> Result<Self, OtError> {
         let frame = decode_frame::<F>(encoded, BASE_OFFER_TYPE, SECURITY_PARAMETER * POINT_BYTES)?;
         Ok(Self {
             session: frame.session,
@@ -439,7 +437,7 @@ impl<F: OtFamily> BaseOffer<F> {
     }
 
     /// Decodes an offer and requires the surrounding ceremony's exact OT domain.
-    pub(super) fn decode_for_session(
+    pub fn decode_for_session(
         encoded: &[u8],
         expected_session: OtSessionId,
     ) -> Result<Self, OtError> {
@@ -452,7 +450,7 @@ impl<F: OtFamily> BaseOffer<F> {
 }
 
 /// Flight 2: A's 128 fresh Chou-Orlandi base-OT receiver points.
-pub(super) struct BaseChoices<F: OtFamily> {
+pub struct BaseChoices<F: OtFamily> {
     session: OtSessionId,
     points: Vec<RistrettoPoint>,
     family: PhantomData<F>,
@@ -460,12 +458,12 @@ pub(super) struct BaseChoices<F: OtFamily> {
 
 impl<F: OtFamily> BaseChoices<F> {
     /// Returns the exact fixed wire byte count for this flight.
-    pub(super) const fn wire_bytes() -> usize {
+    pub const fn wire_bytes() -> usize {
         FRAME_HEADER_BYTES + SECURITY_PARAMETER * POINT_BYTES
     }
 
     /// Encodes the exact binary flight with its family and session binding.
-    pub(super) fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         encode_frame::<F>(
             BASE_CHOICES_TYPE,
             self.session,
@@ -474,7 +472,7 @@ impl<F: OtFamily> BaseChoices<F> {
     }
 
     /// Strictly decodes one exact binary base-choice flight.
-    pub(super) fn decode(encoded: &[u8]) -> Result<Self, OtError> {
+    pub fn decode(encoded: &[u8]) -> Result<Self, OtError> {
         let frame =
             decode_frame::<F>(encoded, BASE_CHOICES_TYPE, SECURITY_PARAMETER * POINT_BYTES)?;
         Ok(Self {
@@ -485,7 +483,7 @@ impl<F: OtFamily> BaseChoices<F> {
     }
 
     /// Decodes base choices and requires the surrounding ceremony's exact OT domain.
-    pub(super) fn decode_for_session(
+    pub fn decode_for_session(
         encoded: &[u8],
         expected_session: OtSessionId,
     ) -> Result<Self, OtError> {
@@ -499,7 +497,7 @@ impl<F: OtFamily> BaseChoices<F> {
 
 /// Flight 3: B's family-sized IKNP correction matrix.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct ExtensionMatrix<F: OtFamily> {
+pub struct ExtensionMatrix<F: OtFamily> {
     session: OtSessionId,
     matrix: Vec<u8>,
     family: PhantomData<F>,
@@ -507,17 +505,17 @@ pub(super) struct ExtensionMatrix<F: OtFamily> {
 
 impl<F: OtFamily> ExtensionMatrix<F> {
     /// Returns the exact fixed wire byte count for this family.
-    pub(super) const fn wire_bytes() -> usize {
+    pub const fn wire_bytes() -> usize {
         FRAME_HEADER_BYTES + F::MATRIX_BYTES
     }
 
     /// Encodes the exact binary flight with its family and session binding.
-    pub(super) fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         encode_frame::<F>(EXTENSION_MATRIX_TYPE, self.session, &self.matrix)
     }
 
     /// Strictly decodes one exact binary extension-matrix flight.
-    pub(super) fn decode(encoded: &[u8]) -> Result<Self, OtError> {
+    pub fn decode(encoded: &[u8]) -> Result<Self, OtError> {
         let frame = decode_frame::<F>(encoded, EXTENSION_MATRIX_TYPE, F::MATRIX_BYTES)?;
         Ok(Self {
             session: frame.session,
@@ -529,7 +527,7 @@ impl<F: OtFamily> ExtensionMatrix<F> {
 
 /// Flight 4: A's two masked 16-byte payloads per evaluator choice.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct MaskedPayloads<F: OtFamily> {
+pub struct MaskedPayloads<F: OtFamily> {
     session: OtSessionId,
     payloads: Vec<u8>,
     family: PhantomData<F>,
@@ -537,17 +535,17 @@ pub(super) struct MaskedPayloads<F: OtFamily> {
 
 impl<F: OtFamily> MaskedPayloads<F> {
     /// Returns the exact fixed wire byte count for this family.
-    pub(super) const fn wire_bytes() -> usize {
+    pub const fn wire_bytes() -> usize {
         FRAME_HEADER_BYTES + F::MASKED_PAYLOAD_BYTES
     }
 
     /// Encodes the exact binary flight with its family and session binding.
-    pub(super) fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         encode_frame::<F>(MASKED_PAYLOADS_TYPE, self.session, &self.payloads)
     }
 
     /// Strictly decodes one exact binary masked-payload flight.
-    pub(super) fn decode(encoded: &[u8]) -> Result<Self, OtError> {
+    pub fn decode(encoded: &[u8]) -> Result<Self, OtError> {
         let frame = decode_frame::<F>(encoded, MASKED_PAYLOADS_TYPE, F::MASKED_PAYLOAD_BYTES)?;
         Ok(Self {
             session: frame.session,
@@ -732,16 +730,16 @@ fn base_receiver_response(
 }
 
 /// Initial one-shot evaluator state for a fresh passive OT ceremony.
-pub(super) struct ReceiverStart<F: OtFamily>(PhantomData<F>);
+pub struct ReceiverStart<F: OtFamily>(PhantomData<F>);
 
 impl<F: OtFamily> ReceiverStart<F> {
     /// Constructs an unstarted family-specific evaluator state.
-    pub(super) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 
     /// Samples fresh base-OT state and emits flight 1.
-    pub(super) fn begin_os(
+    pub fn begin_os(
         self,
         session: OtSessionId,
         choices: ReceiverChoices<F>,
@@ -778,7 +776,7 @@ impl<F: OtFamily> ReceiverStart<F> {
 
 /// Evaluator state that consumes exactly one family-matched flight 2.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct ReceiverAwaitBaseChoices<F: OtFamily> {
+pub struct ReceiverAwaitBaseChoices<F: OtFamily> {
     session: OtSessionId,
     choices: ReceiverChoices<F>,
     offer_scalars: Vec<Scalar>,
@@ -787,7 +785,7 @@ pub(super) struct ReceiverAwaitBaseChoices<F: OtFamily> {
 impl<F: OtFamily> ReceiverAwaitBaseChoices<F> {
     /// Completes fresh base OTs and emits the family-sized IKNP matrix in flight 3.
     #[allow(clippy::op_ref)]
-    pub(super) fn accept(
+    pub fn accept(
         mut self,
         message: BaseChoices<F>,
     ) -> Result<(ReceiverAwaitMaskedPayloads<F>, ExtensionMatrix<F>), OtError> {
@@ -850,17 +848,17 @@ impl<F: OtFamily> ReceiverAwaitBaseChoices<F> {
 }
 
 /// Initial one-shot garbler state for a fresh passive OT ceremony.
-pub(super) struct SenderStart<F: OtFamily>(PhantomData<F>);
+pub struct SenderStart<F: OtFamily>(PhantomData<F>);
 
 impl<F: OtFamily> SenderStart<F> {
     /// Constructs an unstarted family-specific garbler state.
-    pub(super) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self(PhantomData)
     }
 
     /// Samples fresh base choices and emits flight 2 for one decoded offer.
     #[allow(clippy::op_ref)]
-    pub(super) fn begin_os(
+    pub fn begin_os(
         self,
         offer: BaseOffer<F>,
         payloads: SenderPayloads<F>,
@@ -912,7 +910,7 @@ impl<F: OtFamily> SenderStart<F> {
 
 /// Garbler state that consumes exactly one family-matched flight 3.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct SenderAwaitExtension<F: OtFamily> {
+pub struct SenderAwaitExtension<F: OtFamily> {
     session: OtSessionId,
     base_choices: [u8; BASE_CHOICE_BYTES],
     chosen_seeds: Vec<[u8; LABEL_BYTES]>,
@@ -921,7 +919,7 @@ pub(super) struct SenderAwaitExtension<F: OtFamily> {
 
 impl<F: OtFamily> SenderAwaitExtension<F> {
     /// Completes IKNP and emits the two masked labels per input in flight 4.
-    pub(super) fn accept(self, message: ExtensionMatrix<F>) -> Result<MaskedPayloads<F>, OtError> {
+    pub fn accept(self, message: ExtensionMatrix<F>) -> Result<MaskedPayloads<F>, OtError> {
         if message.session != self.session {
             return Err(OtError::SessionMismatch);
         }
@@ -983,7 +981,7 @@ impl<F: OtFamily> SenderAwaitExtension<F> {
 
 /// Evaluator state that consumes exactly one family-matched flight 4.
 #[derive(Zeroize, ZeroizeOnDrop)]
-pub(super) struct ReceiverAwaitMaskedPayloads<F: OtFamily> {
+pub struct ReceiverAwaitMaskedPayloads<F: OtFamily> {
     session: OtSessionId,
     choices: ReceiverChoices<F>,
     retained_matrix: Vec<u8>,
@@ -991,7 +989,7 @@ pub(super) struct ReceiverAwaitMaskedPayloads<F: OtFamily> {
 
 impl<F: OtFamily> ReceiverAwaitMaskedPayloads<F> {
     /// Opens exactly the selected payload from every fixed pair.
-    pub(super) fn accept(self, message: MaskedPayloads<F>) -> Result<SelectedPayloads<F>, OtError> {
+    pub fn accept(self, message: MaskedPayloads<F>) -> Result<SelectedPayloads<F>, OtError> {
         if message.session != self.session {
             return Err(OtError::SessionMismatch);
         }

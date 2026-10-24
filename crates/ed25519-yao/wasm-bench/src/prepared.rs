@@ -1,6 +1,6 @@
 //! Node-hosted Wasm experiment with separate processes and disk-backed tables.
 
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         prepared::{keygen::prepare_keygen, Phase, Transport},
         RuntimeError, TrustedMlDsaSchedule,

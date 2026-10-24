@@ -8,7 +8,7 @@ use super::{
     prepared_storage::Tables,
     required_string, runtime_failure, wasm_linear_memory_highwater_bytes, Duplex, ROLE,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         prepared::{
             keygen::{prepare_keygen, PreparedKeygen},

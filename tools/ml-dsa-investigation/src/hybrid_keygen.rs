@@ -23,7 +23,7 @@ const COLUMNS: usize = 5;
 const PREFIX_BYTES: usize = 481;
 const FIXTURE_NAMES: [&str; 4] = ["zero", "incrementing", "all-ff", "alternating"];
 
-pub(super) use ed25519_yao::ml_dsa_signing::arithmetic::{
+pub(super) use ml_dsa_threshold::ml_dsa_signing::arithmetic::{
     Polynomial, SecretVector, add_mod, encode_public_key, expand_a, matrix_product_plus_error,
     ntt_twiddles, subtract_mod,
 };

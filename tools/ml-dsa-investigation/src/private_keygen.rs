@@ -13,7 +13,7 @@ use crate::{
     InvestigationResult, circuit_evidence::reference_shake256, digest, hybrid_keygen,
     private_execution, private_signing, reference, require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::TrustedMlDsaSchedule,
     ml_dsa_signing::{
         SigningRole,

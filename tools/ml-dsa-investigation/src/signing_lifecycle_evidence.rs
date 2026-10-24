@@ -1,7 +1,7 @@
 //! Core lifecycle scenarios using separate disposable-key role processes.
 
 use crate::{InvestigationResult, digest, private_execution, private_signing, require};
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::MessageKind,
     ml_dsa_signing::{SigningKernel, SigningRole},
 };

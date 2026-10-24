@@ -32,7 +32,8 @@ impl PlaneWord for wide::u8x16 {
 }
 
 #[derive(Clone, Copy, Default)]
-pub(in crate::passive) struct EightBlocks(pub(in crate::passive) [[u8; 16]; 8]);
+/// Eight role-private AES input blocks, wiped as one value.
+pub struct EightBlocks(pub [[u8; 16]; 8]);
 impl DefaultIsZeroes for EightBlocks {}
 #[derive(Clone, Copy, Default)]
 struct KeyBytes([u8; 16]);
@@ -48,11 +49,13 @@ impl Default for WideKeys {
     }
 }
 impl DefaultIsZeroes for WideKeys {}
-pub(in crate::passive) struct EightBlockAes128 {
+/// Eight-lane bitsliced AES-128 key schedule.
+pub struct EightBlockAes128 {
     keys: WideKeys,
 }
 impl EightBlockAes128 {
-    pub(in crate::passive) fn from_four(cipher: &FourBlockAes128) -> Self {
+    /// Widens an existing four-lane key schedule without changing its key.
+    pub fn from_four(cipher: &FourBlockAes128) -> Self {
         let mut keys = WideKeys::default();
         let mut bytes = zeroize::Zeroizing::new(KeyBytes::default());
         for (target, source) in keys.0.iter_mut().zip(&cipher.round_keys) {
@@ -61,7 +64,8 @@ impl EightBlockAes128 {
         }
         Self { keys }
     }
-    pub(in crate::passive) fn encrypt_eight(&self, blocks: &mut [[u8; 16]; 8]) {
+    /// Encrypts eight independent blocks in place.
+    pub fn encrypt_eight(&self, blocks: &mut [[u8; 16]; 8]) {
         let mut state = zeroize::Zeroizing::new(WideState::default());
         let transpose = wide::u8x16::new([0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15]);
         for (word, block) in state.0.iter_mut().zip(&*blocks) {

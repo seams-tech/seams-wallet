@@ -653,15 +653,9 @@ name = "ed25519-yao"
 version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
- "aes 0.9.1",
- "cipher 0.5.2",
- "cryprot-codes",
- "cryprot-core",
  "curve25519-dalek",
  "getrandom 0.2.17",
- "getrandom 0.4.3",
  "sha2 0.10.9",
- "sha3 0.10.8",
  "subtle",
  "wide",
  "zeroize",
@@ -1365,13 +1359,13 @@ dependencies = [
  "base64ct",
  "borsh",
  "bs58",
- "ed25519-yao",
  "ed25519-yao-generator",
  "getrandom 0.2.17",
  "hex",
  "hpke-ng",
  "keccak 0.1.6",
  "ml-dsa",
+ "ml-dsa-threshold",
  "router-ab-cloudflare",
  "router-ab-core",
  "rusqlite",
@@ -1384,6 +1378,23 @@ dependencies = [
  "wallet_custody_ceremony",
  "wasm_signer_worker",
  "wasmparser",
+ "zeroize",
+]
+
+[[package]]
+name = "ml-dsa-threshold"
+version = "0.1.0"
+dependencies = [
+ "aes 0.9.1",
+ "cipher 0.5.2",
+ "cryprot-codes",
+ "cryprot-core",
+ "ed25519-yao",
+ "getrandom 0.2.17",
+ "getrandom 0.4.3",
+ "sha2 0.10.9",
+ "sha3 0.10.8",
+ "subtle",
  "zeroize",
 ]
 
@@ -1676,6 +1687,7 @@ dependencies = [
  "hmac 0.12.1",
  "hpke-ng",
  "ml-dsa",
+ "ml-dsa-threshold",
  "poly1305",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",

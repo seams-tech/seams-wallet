@@ -1,6 +1,6 @@
 //! Real preparation survives sealed SQLite storage before threshold signing.
 use crate::{InvestigationResult, boolean_engine_evidence::run_ready, require};
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{TrustedMlDsaSchedule, boolean_comparison::prepared::PublicTopologies},
     ml_dsa_signing::{SigningRole, prepared_signing::gmw::PreparedGmwReservation},
 };

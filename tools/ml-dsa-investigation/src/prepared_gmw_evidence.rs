@@ -6,7 +6,7 @@ use crate::{
     circuit_evidence, digest, garbled_execution, prepared_signing_evidence, private_execution,
     require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         TrustedMlDsaSchedule,
         boolean_comparison::{
@@ -70,7 +70,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         &mut transport,
     ))? {
         Ok(prepared) => prepared,
-        Err(ed25519_yao::ml_dsa_runtime::RuntimeError::SessionBinding) => {
+        Err(ml_dsa_threshold::ml_dsa_runtime::RuntimeError::SessionBinding) => {
             fs::write(
                 &args[3],
                 serde_json::to_vec(
@@ -112,7 +112,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
 async fn barrier(
     role: SigningRole,
     transport: &mut impl Transport,
-) -> Result<(), ed25519_yao::ml_dsa_runtime::RuntimeError> {
+) -> Result<(), ml_dsa_threshold::ml_dsa_runtime::RuntimeError> {
     match role {
         SigningRole::A => {
             transport.send(&[1]).await?;

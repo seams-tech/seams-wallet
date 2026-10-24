@@ -5,7 +5,7 @@
 //! binding through admission and durable activation. These files do neither.
 
 use crate::{InvestigationResult, private_keygen, private_signing, require};
-use ed25519_yao::ml_dsa_signing::SigningRole;
+use ml_dsa_threshold::ml_dsa_signing::SigningRole;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use signer_core::ml_dsa_custody::{

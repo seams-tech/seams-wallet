@@ -1,7 +1,7 @@
 //! Durable alarms dispatch fresh paired preparation outside signing requests.
 mod producer;
 use super::*;
-use ed25519_yao::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservations, SigningRole};
+use ml_dsa_threshold::ml_dsa_signing::{prepared_signing::gmw::prepare_gmw_reservations, SigningRole};
 pub use producer::RouterAbMlDsaProducerDurableObject;
 use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";

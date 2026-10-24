@@ -4,7 +4,7 @@ use crate::{
     durable_preparation_evidence::{Db, tx},
     require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{TrustedMlDsaSchedule, prepared::keygen::PreparedKeygen},
     ml_dsa_signing::SigningRole,
 };
