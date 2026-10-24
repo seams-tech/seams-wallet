@@ -5,6 +5,7 @@ import { ScanIcon } from './icons/ScanIcon';
 import { KeyIcon } from './icons/KeyIcon';
 import { LinkIcon } from './icons/LinkIcon';
 import { GlobeIcon } from './icons/GlobeIcon';
+import { MapPinIcon } from './icons/MapPinIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
@@ -504,7 +505,7 @@ const AccountMenuButtonInner: React.FC<
     if (presentation === 'page') {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
-        icon: <GlobeIcon />,
+        icon: <MapPinIcon />,
         label: 'Wallet region',
         description: 'Choose where your wallet runs',
         disabled: accountMenuCapabilities.kind !== 'owner',

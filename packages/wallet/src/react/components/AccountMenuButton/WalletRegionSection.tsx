@@ -359,11 +359,15 @@ export class WalletRegionSection extends Component<Props, { readonly view: State
                 <WalletText copy={regionName(state.placement.region)} />
               </strong>
             </p>
-            <label>
-              <WalletText message="Destination region" />{' '}
-              <select value={state.selected} onChange={this.select}>
-                {REGIONS.map(renderRegion)}
-              </select>
+            <label className="seams-region-field">
+              <span>
+                <WalletText message="Destination region" />
+              </span>
+              <span className="seams-region-select">
+                <select value={state.selected} onChange={this.select}>
+                  {REGIONS.map(renderRegion)}
+                </select>
+              </span>
             </label>
             <p>
               <WalletText message="Moving your wallet ends signing sessions on all devices. After the move, unlock your wallet again to sign." />

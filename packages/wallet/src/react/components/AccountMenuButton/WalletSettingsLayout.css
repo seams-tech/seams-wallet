@@ -462,3 +462,94 @@
     padding: 20px;
   }
 }
+
+.seams-region-field {
+  display: grid;
+  gap: 8px;
+  max-width: 360px;
+  margin: 24px 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+/* The wrapper draws the chevron, so the closed control looks the same in
+   every browser. */
+.seams-region-select {
+  position: relative;
+  display: block;
+}
+.seams-region-select::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 18px;
+  width: 7px;
+  height: 7px;
+  border-inline-end: 1.5px solid var(--seams-colors-textSecondary);
+  border-block-end: 1.5px solid var(--seams-colors-textSecondary);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.seams-region-select select {
+  appearance: none;
+  width: 100%;
+  min-height: 48px;
+  padding-block: 12px;
+  padding-inline: 14px 44px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 12px;
+  background: var(--seams-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  font-weight: 400;
+  cursor: pointer;
+}
+.seams-region-select select:hover {
+  background: var(--seams-colors-surface);
+}
+.seams-region-select select:focus-visible {
+  outline: 2px solid var(--seams-colors-textPrimary);
+  outline-offset: 2px;
+}
+/* Browsers with customizable select also style the open list. Others keep
+   the native list. */
+@supports (appearance: base-select) {
+  .seams-region-select select,
+  .seams-region-select ::picker(select) {
+    appearance: base-select;
+  }
+  .seams-region-select select::picker-icon {
+    display: none;
+  }
+  .seams-region-select ::picker(select) {
+    margin-block: 6px;
+    padding: 6px;
+    border: 1px solid var(--seams-colors-borderPrimary);
+    border-radius: 12px;
+    background: var(--seams-colors-colorBackground);
+    color: var(--seams-colors-textPrimary);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  }
+  .seams-region-select option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+  }
+  .seams-region-select option:hover,
+  .seams-region-select option:focus-visible {
+    outline: none;
+    background: var(--seams-colors-surface2);
+  }
+  .seams-region-select option:checked {
+    font-weight: 500;
+  }
+  .seams-region-select option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+    color: var(--seams-colors-textSecondary);
+  }
+}

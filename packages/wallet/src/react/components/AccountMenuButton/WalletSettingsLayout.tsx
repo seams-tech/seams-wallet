@@ -10,6 +10,7 @@ import { blinkMenuItem } from '@/utils/menuItemBlink';
 import type { MenuItem, ProfileSettingsMenuItemId } from './types';
 import { PROFILE_MENU_ITEM_IDS } from './types';
 import { GlobeIcon } from './icons/GlobeIcon';
+import { MapPinIcon } from './icons/MapPinIcon';
 import { KeyIcon } from './icons/KeyIcon';
 import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import TouchIcon from './icons/TouchIcon';
@@ -25,28 +26,16 @@ import './WalletSettingsLayout.css';
 
 const SETTINGS_ITEMS = [
   {
-    id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
-    label: 'Wallet region',
-    description: 'Choose where your wallet runs',
-    icon: <GlobeIcon />,
-  },
-  {
     id: PROFILE_MENU_ITEM_IDS.ACCOUNTS,
     label: 'Accounts',
     description: 'View accounts on block explorers',
     icon: <GlobeIcon />,
   },
   {
-    id: PROFILE_MENU_ITEM_IDS.EXPORT_KEYS,
-    label: 'Export keys',
-    description: 'Export wallet signing keys',
-    icon: <KeyIcon />,
-  },
-  {
-    id: PROFILE_MENU_ITEM_IDS.RECOVERY_CODES,
-    label: 'Recovery codes',
-    description: 'Back up your wallet recovery codes',
-    icon: <RecoveryCodesIcon />,
+    id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
+    label: 'Transaction settings',
+    description: 'Customize confirmation behavior',
+    icon: <SlidersIcon />,
   },
   {
     id: PROFILE_MENU_ITEM_IDS.AUTHENTICATION_METHODS,
@@ -55,10 +44,10 @@ const SETTINGS_ITEMS = [
     icon: <TouchIcon />,
   },
   {
-    id: PROFILE_MENU_ITEM_IDS.SCAN_LINK_DEVICE,
-    label: 'Scan and link device',
-    description: 'Scan a QR code to link a device',
-    icon: <ScanIcon />,
+    id: PROFILE_MENU_ITEM_IDS.RECOVERY_CODES,
+    label: 'Recovery codes',
+    description: 'Back up your wallet recovery codes',
+    icon: <RecoveryCodesIcon />,
   },
   {
     id: PROFILE_MENU_ITEM_IDS.LINKED_DEVICES,
@@ -67,10 +56,22 @@ const SETTINGS_ITEMS = [
     icon: <LinkIcon />,
   },
   {
-    id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
-    label: 'Transaction settings',
-    description: 'Customize confirmation behavior',
-    icon: <SlidersIcon />,
+    id: PROFILE_MENU_ITEM_IDS.SCAN_LINK_DEVICE,
+    label: 'Scan and link device',
+    description: 'Scan a QR code to link a device',
+    icon: <ScanIcon />,
+  },
+  {
+    id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
+    label: 'Wallet region',
+    description: 'Choose where your wallet runs',
+    icon: <MapPinIcon />,
+  },
+  {
+    id: PROFILE_MENU_ITEM_IDS.EXPORT_KEYS,
+    label: 'Export keys',
+    description: 'Export wallet signing keys',
+    icon: <KeyIcon />,
   },
 ] satisfies readonly {
   id: ProfileSettingsMenuItemId;
