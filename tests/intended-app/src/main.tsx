@@ -12,6 +12,7 @@ import { EmailCodeUnlock } from './EmailCodeUnlock';
 import { UnlockWallet } from './UnlockWallet';
 import { AssetMenu } from './AssetMenu';
 import { AccountMenu } from './AccountMenu';
+import { LiveVoiceId } from './LiveVoiceId';
 
 function requiredEnvironmentValue(name: string): string {
   const environment = import.meta.env as Record<string, unknown>;
@@ -43,9 +44,10 @@ function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
 const config = defineSeamsConfig({
   walletOrigin,
-  authMethods: new URL(window.location.href).searchParams.get('authMethod') === 'voiceid'
-    ? [voiceIdAuthMethod()]
-    : [],
+  authMethods:
+    new URL(window.location.href).searchParams.get('authMethod') === 'voiceid'
+      ? [voiceIdAuthMethod()]
+      : [],
   signingSessionDefaults: signingSessionDefaultsFromUrl(),
   relayerUrl: requiredEnvironmentValue('VITE_RELAYER_URL'),
   projectEnvironmentId: requiredEnvironmentValue('VITE_SEAMS_PROJECT_ENVIRONMENT_ID'),
@@ -89,11 +91,17 @@ createRoot(root).render(
   <React.StrictMode>
     <SeamsWebProvider config={config}>
       <TransactionReviewHost>
-        <IntendedBehaviourE2EPage />
-        <UnlockWallet />
-        <EmailCodeUnlock />
-        <AssetMenu />
-        <AccountMenu />
+        {window.location.pathname === '/voiceid' ? (
+          <LiveVoiceId />
+        ) : (
+          <>
+            <IntendedBehaviourE2EPage />
+            <UnlockWallet />
+            <EmailCodeUnlock />
+            <AssetMenu />
+            <AccountMenu />
+          </>
+        )}
       </TransactionReviewHost>
     </SeamsWebProvider>
   </React.StrictMode>,
