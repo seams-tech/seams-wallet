@@ -17,7 +17,6 @@ import type {
   AccountMenuButtonProps,
   AccountMenuButtonOptions,
   AccountsSectionRow,
-  ExportChain,
   MenuItem,
 } from './types';
 import { PROFILE_MENU_ITEM_IDS } from './types';
@@ -27,13 +26,11 @@ import { AuthenticationMethodsModal } from './AuthenticationMethodsModal';
 import TouchIcon from './icons/TouchIcon';
 import './Web3AuthProfileButton.css';
 import { Theme, useTheme } from '../theme';
-import { requirePrimaryChainByFamily, resolvePrimaryExplorerUrl } from '@/core/config/chains';
+import { resolvePrimaryExplorerUrl } from '@/core/config/chains';
 import type { ConfirmationBehavior, ConfirmationConfig } from '@/core/types/signer-worker';
 import {
-  thresholdEcdsaChainTargetFromConfig,
   toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
-import type { NearProvisioningState } from '@/core/types/seams';
 import { accountMenuCapabilitiesForLoginState } from '../../context/reactLoginStateBuilders';
 import type { StoredAccountOption } from '../../types';
 import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
@@ -41,8 +38,6 @@ import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { WalletSettingsLayout, WalletSettingsHeader } from './WalletSettingsLayout';
 import { AccountsSection } from './AccountsSection';
 import { AddEvmAccount, useEvmAccountSetup } from './AddEvmAccount';
-import { ExportKeysScreen } from './ExportKeysScreen';
-import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { HostedSeamsAuthMenu } from '../HostedSeamsAuthMenu/public';
 import { WalletIcon } from './icons/WalletIcon';
@@ -78,7 +73,6 @@ type AccountMenuRoute =
   | 'send'
   | 'accounts'
   | 'signing-keys'
-  | 'export-keys'
   | 'recovery-codes'
   | 'authentication-methods'
   | 'scan-link-device'
@@ -156,25 +150,6 @@ function isRecoveryCodeDialogDismissal(error: unknown): boolean {
   return error instanceof Error && error.message.includes('cancelled before acknowledgement');
 }
 
-async function resolveNearAccountIdForExport(input: {
-  readonly walletId: string;
-  readonly sessionNearAccountId: string | null | undefined;
-  readonly getNearAccountState: (args: {
-    walletId: string;
-  }) => Promise<NearProvisioningState | null>;
-}): Promise<string> {
-  if (input.sessionNearAccountId) return input.sessionNearAccountId;
-  const state = await input.getNearAccountState({ walletId: input.walletId });
-  if (state?.status === 'near_ready') return state.nearAccountId;
-  if (state?.status === 'near_pending' || state?.status === 'near_provisioning') {
-    throw new Error('NEAR signer provisioning is still in progress. Try again shortly.');
-  }
-  if (state?.status === 'near_failed_retryable') {
-    throw new Error(`NEAR signer provisioning must be retried (${state.errorCode}).`);
-  }
-  throw new Error('Ed25519 export requires an active NEAR signer.');
-}
-
 /** Shared settings content for the menu, modal, and full-page layout. */
 type AccountMenuButtonInnerProps =
   | (AccountMenuButtonProps & { layout: 'menu' })
@@ -220,8 +195,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     () => emailAddressForWallet(accountInputState.indexDBAccountOptions, walletId),
     [accountInputState.indexDBAccountOptions, walletId],
   );
-  const canExportNearKey = Boolean(nearAccountId);
-  const canExportEvmKeys = Boolean(loginState.thresholdEcdsaEthereumAddress);
 
   // Local state for modals/expanded sections
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -234,7 +207,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       ? accountSetupState.walletId
       : walletId;
   const [recoveryCodesOpen, setRecoveryCodesOpen] = useState(false);
-  const [exportLoadingChain, setExportLoadingChain] = useState<ExportChain | null>(null);
   const [currentConfirmConfig, setCurrentConfirmConfig] = useState<ConfirmationConfig | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -380,60 +352,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     seams.preferences.setConfirmationConfig({ autoProceedDelay: delay });
   };
 
-  const startExportKeyFlow = useCallback(
-    async (chain: ExportChain) => {
-      if (exportLoadingChain) return;
-      if (!loginState.isLoggedIn || !walletId) {
-        onExportKeyError?.(new Error('Key export requires an unlocked wallet.'));
-        return;
-      }
-
-      setExportLoadingChain(chain);
-      setSettingsError(null);
-      try {
-        if (chain === 'near') {
-          const exportNearAccountId = await resolveNearAccountIdForExport({
-            walletId,
-            sessionNearAccountId: nearAccountId,
-            getNearAccountState: seams.registration.getNearAccountState,
-          });
-          await seams.keys.exportKey({
-            kind: 'ed25519',
-            walletSession: walletId,
-            nearAccount: exportNearAccountId,
-            options: { onEvent: onExportKeyEvent },
-          });
-          return;
-        }
-        const chainTarget = thresholdEcdsaChainTargetFromConfig(
-          requirePrimaryChainByFamily(seams.configs.network.chains, 'evm'),
-        );
-        await seams.keys.exportKey({
-          kind: 'ecdsa',
-          walletSession: walletId,
-          chainTarget,
-          options: { onEvent: onExportKeyEvent },
-        });
-      } catch (error: unknown) {
-        setSettingsError(formatExportKeyErrorMessage(error));
-        console.error('[AccountMenuButton] Key export failed:', error);
-        // Surface through the host (e.g. as a toast) instead of inline menu UI
-        onExportKeyError?.(new Error(formatExportKeyErrorMessage(error)));
-      } finally {
-        setExportLoadingChain(null);
-      }
-    },
-    [
-      exportLoadingChain,
-      loginState.isLoggedIn,
-      nearAccountId,
-      onExportKeyError,
-      onExportKeyEvent,
-      seams,
-      walletId,
-    ],
-  );
-
   const startRecoveryCodesFlow = useCallback(async () => {
     if (recoveryCodesOpen || !walletId) return;
     if (!loginState.isLoggedIn || loginState.currentAuthMethod.kind !== 'selected') {
@@ -537,20 +455,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       });
     }
 
-    if (accountMenuCapabilities.kind !== 'signed_out') {
-      items.push({
-        id: PROFILE_MENU_ITEM_IDS.EXPORT_KEYS,
-        icon: exportLoadingChain ? <SpinnerIcon /> : <KeyIcon />,
-        label: 'Export keys',
-        description: accountMenuCapabilities.canExportKeys
-          ? 'Export wallet signing keys'
-          : 'Owner key export is not available on this device yet',
-        disabled: !accountMenuCapabilities.canExportKeys,
-        onClick: setScreen.bind(null, 'export-keys'),
-        keepOpenOnClick: true,
-      });
-    }
-
     if (canShowRecoveryCodes) {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.RECOVERY_CODES,
@@ -607,12 +511,12 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       });
     }
 
-    if (walletId && nearAccountId && accountMenuCapabilities.kind === 'owner') {
+    if (walletId && accountMenuCapabilities.kind === 'owner') {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.SIGNING_KEYS,
         icon: <KeyIcon />,
         label: 'Signing keys',
-        description: 'Manage keys or add an ML-DSA signer',
+        description: 'Manage wallet signing keys',
         disabled: false,
         onClick: setScreen.bind(null, 'signing-keys'),
         keepOpenOnClick: true,
@@ -646,7 +550,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     accountMenuCapabilities,
     canReadSettings,
     canShowRecoveryCodes,
-    exportLoadingChain,
     loginState.isLoggedIn,
     recoveryCodesOpen,
     startRecoveryCodesFlow,
@@ -720,13 +623,14 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       </AccountMenuScreen>
     ),
     'signing-keys':
-      walletId && nearAccountId ? (
+      walletId ? (
         <AccountMenuScreen title="Signing keys" onBack={backToMenu}>
           <Suspense fallback={<SigningKeysLoading />}>
             <SigningKeysSection
-              key={`${walletId}:${nearAccountId}`}
+              key={walletId}
               walletId={walletId}
-              nearAccountId={nearAccountId}
+              onExportKeyError={onExportKeyError}
+              onExportKeyEvent={onExportKeyEvent}
             />
           </Suspense>
         </AccountMenuScreen>
@@ -759,15 +663,6 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           <AddEvmAccount key={accountsWalletId} walletId={accountsWalletId} setup={accountSetup} />
         ) : null}
       </AccountMenuScreen>
-    ),
-    'export-keys': (
-      <ExportKeysScreen
-        onBack={backToMenu}
-        loadingChain={exportLoadingChain}
-        canExportNearKey={canExportNearKey}
-        canExportEvmKeys={canExportEvmKeys}
-        onSelectChain={startExportKeyFlow}
-      />
     ),
     'recovery-codes': (
       <AccountMenuScreen title={walletText(locale, 'Recovery codes')} onBack={backToMenu}>
@@ -838,26 +733,17 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
                 onView={setPageAssetView}
               />
             ),
-            'signing-keys': nearAccountId ? (
+            'signing-keys': (
               <Suspense fallback={<SigningKeysLoading />}>
                 <SigningKeysSection
-                  key={`${walletId}:${nearAccountId}`}
+                  key={walletId}
                   walletId={walletId}
-                  nearAccountId={nearAccountId}
+                  onExportKeyError={onExportKeyError}
+                  onExportKeyEvent={onExportKeyEvent}
                 />
               </Suspense>
-            ) : null,
-            accounts: <AccountsSection rows={accountsRows} presentation="page" />,
-            'export-keys': (
-              <ExportKeysSection
-                presentation="page"
-                isOpen
-                loadingChain={exportLoadingChain}
-                canExportNearKey={canExportNearKey}
-                canExportEvmKeys={canExportEvmKeys}
-                onSelectChain={startExportKeyFlow}
-              />
             ),
+            accounts: <AccountsSection rows={accountsRows} presentation="page" />,
             'recovery-codes': (
               <button
                 type="button"

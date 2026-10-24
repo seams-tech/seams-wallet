@@ -9,10 +9,10 @@ import { AccountMenuDeviceDetails } from './AccountMenuDeviceDetails';
 import { AuthenticationMethodRow } from './AuthenticationMethodRow';
 import { QRCodeScannerCamera } from '../QRCodeScannerCamera';
 import { MailIcon } from './icons/MailIcon';
-import { ExportKeysScreen } from './ExportKeysScreen';
 import { AccountsSection } from './AccountsSection';
-import type { AccountsSectionRow, ExportChain } from './types';
+import type { AccountsSectionRow } from './types';
 
+type ExportChain = 'near' | 'evm';
 type DeviceMethods = 'passkey' | 'email_otp' | 'both';
 type PreviewDevice = { id: string; name: string; lastUsed: string; methods: DeviceMethods };
 export type AccountPreviewScreen =
@@ -21,7 +21,7 @@ export type AccountPreviewScreen =
   | { kind: 'receive'; parent: 'overview' | 'assets' }
   | { kind: 'send'; parent: 'overview' | 'assets' }
   | { kind: 'accounts' }
-  | { kind: 'export-keys' }
+  | { kind: 'signing-keys' }
   | { kind: 'export-key'; chain: ExportChain }
   | { kind: 'transactions' }
   | { kind: 'methods' }
@@ -176,15 +176,30 @@ export function AccountMenuMockScreens({
           {transactionSettings}
         </AccountMenuScreen>
       );
-    case 'export-keys':
+    case 'signing-keys':
       return (
-        <ExportKeysScreen
-          onBack={back}
-          loadingChain={null}
-          canExportNearKey
-          canExportEvmKeys
-          onSelectChain={selectExportKey.bind(null, setScreen)}
-        />
+        <AccountMenuScreen title="Signing keys" onBack={back}>
+          <div className="seams-signing-key-row">
+            <strong>Ed25519 · NEAR</strong>
+            <button
+              type="button"
+              className="seams-account-action"
+              onClick={selectExportKey.bind(null, setScreen, 'near')}
+            >
+              <WalletText copy="Export key" />
+            </button>
+          </div>
+          <div className="seams-signing-key-row">
+            <strong>ECDSA · EVM</strong>
+            <button
+              type="button"
+              className="seams-account-action"
+              onClick={selectExportKey.bind(null, setScreen, 'evm')}
+            >
+              <WalletText copy="Export key" />
+            </button>
+          </div>
+        </AccountMenuScreen>
       );
     case 'export-key':
       return (
@@ -193,7 +208,7 @@ export function AccountMenuMockScreens({
             locale,
             screen.chain === 'near' ? 'Export NEAR key' : 'Export EVM keys',
           )}
-          onBack={setScreen.bind(null, { kind: 'export-keys' })}
+          onBack={setScreen.bind(null, { kind: 'signing-keys' })}
         >
           <p className="seams-account-description">
             <WalletText message="Your wallet requires authentication before revealing this signing key." />

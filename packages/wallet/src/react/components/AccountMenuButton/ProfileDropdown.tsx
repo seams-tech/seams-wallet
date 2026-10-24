@@ -17,14 +17,12 @@ const MENU_ORDER = [
   'recovery-codes',
   'linked-devices',
   'scan-link-device',
-  'export-keys',
 ];
 const SECURITY_ITEMS = [
   'authentication-methods',
   'recovery-codes',
   'linked-devices',
   'scan-link-device',
-  'export-keys',
 ];
 function isSecurityItem(item: MenuItemModel): boolean {
   return SECURITY_ITEMS.includes(item.id ?? '');

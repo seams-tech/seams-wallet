@@ -207,8 +207,7 @@
   margin: 64px auto;
   padding: 24px;
 }
-[data-seams-root].seams-theme-provider .seams-settings-content .seams-dropdown-accounts-root,
-[data-seams-root].seams-theme-provider .seams-settings-content .seams-dropdown-export-keys-root {
+[data-seams-root].seams-theme-provider .seams-settings-content .seams-dropdown-accounts-root {
   margin: 0;
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 16px;
@@ -253,26 +252,17 @@
 
 [data-seams-root].seams-theme-provider
   .seams-settings-content
-  .seams-dropdown-accounts-root[data-presentation='page'],
-[data-seams-root].seams-theme-provider
-  .seams-settings-content
-  .seams-dropdown-export-keys-root[data-presentation='page'] {
+  .seams-dropdown-accounts-root[data-presentation='page'] {
   display: block;
   border: 0;
   border-radius: 0;
   background: transparent;
   overflow: visible;
 }
-[data-seams-root].seams-theme-provider [data-presentation='page'] > .seams-dropdown-accounts-clip,
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  > .seams-dropdown-export-keys-clip {
+[data-seams-root].seams-theme-provider [data-presentation='page'] > .seams-dropdown-accounts-clip {
   overflow: visible;
 }
-[data-seams-root].seams-theme-provider [data-presentation='page'] .seams-dropdown-accounts-content,
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  .seams-dropdown-export-keys-content {
+[data-seams-root].seams-theme-provider [data-presentation='page'] .seams-dropdown-accounts-content {
   padding: 0;
   gap: 16px;
   transition: none;
@@ -305,87 +295,17 @@
   width: 20px;
   height: 20px;
 }
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  .seams-dropdown-export-keys-content {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-[data-seams-root].seams-theme-provider [data-presentation='page'] button.seams-export-keys-row {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  min-height: 248px;
-  padding: 28px;
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 16px;
-  background: var(--seams-colors-colorBackground);
-}
-[data-seams-root].seams-theme-provider .seams-export-keys-card-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  background: var(--seams-colors-surface2);
-}
-[data-seams-root].seams-theme-provider .seams-export-keys-card-icon svg {
-  width: 24px;
-  height: 24px;
-}
-[data-seams-root].seams-theme-provider [data-presentation='page'] .seams-export-keys-row-label {
-  font-size: 20px;
-  white-space: normal;
-}
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  .seams-export-keys-row-description {
-  flex: none;
-  font-size: 14px;
-  text-align: start;
-  white-space: normal;
-}
-[data-seams-root].seams-theme-provider .seams-export-keys-action {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  margin-top: auto;
-  padding-top: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--seams-colors-textPrimary);
-}
-[data-seams-root].seams-theme-provider [data-presentation='page'] .seams-export-keys-row-spinner {
-  position: absolute;
-  inset-block-start: 28px;
-  inset-inline-end: 28px;
-}
-[data-seams-root].seams-theme-provider [data-presentation='page'] a.seams-accounts-row:hover,
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  button.seams-export-keys-row:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider [data-presentation='page'] a.seams-accounts-row:hover {
   background: var(--seams-colors-surface2);
 }
 [data-seams-root].seams-theme-provider
   [data-presentation='page']
-  a.seams-accounts-row:focus-visible,
-[data-seams-root].seams-theme-provider
-  [data-presentation='page']
-  button.seams-export-keys-row:focus-visible {
+  a.seams-accounts-row:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 4px;
 }
 @media (max-width: 600px) {
-  [data-seams-root].seams-theme-provider
-    [data-presentation='page']
-    .seams-dropdown-export-keys-content {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  [data-seams-root].seams-theme-provider [data-presentation='page'] a.seams-accounts-row,
-  [data-seams-root].seams-theme-provider [data-presentation='page'] button.seams-export-keys-row {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] a.seams-accounts-row {
     padding: 20px;
   }
   [data-seams-root].seams-theme-provider .seams-accounts-explorer-label {

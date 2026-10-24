@@ -11,11 +11,11 @@ Use the same navigation, lifecycle actions, approval patterns, and status vocabu
 Algorithm-specific protocol code and key formats stay behind those shared interactions.
 Lazy loading applies to optional signer implementations through their existing module boundaries.
 
-The current Signing keys implementation is an intermediate state.
-It lists Ed25519 and ML-DSA for NEAR, exposes an ML-DSA-specific add action, and places ML-DSA export inside key details.
-ECDSA and Ed25519 exports still use the existing Export keys screen.
-Multi-key transactions currently add a selection step before approval.
-These differences need consolidation before treating the UI as the common signer experience.
+The [shared settings implementation](ml-dsa-65-signer-parity-report.md) now displays Ed25519, ECDSA, and ML-DSA in one Signing keys screen.
+It uses current session capabilities, exposes consistent details/export actions, and offers missing signer families through the existing add-signer APIs.
+The separate export menu and its production components are removed.
+NEAR setup in progress stays distinct from an absent signer, so the screen does not offer duplicate creation.
+Multi-key transactions still have a selection step before approval. Combining those steps remains the next integration task.
 
 Prioritize these implementation tasks:
 
@@ -32,7 +32,7 @@ Use the same preparing, awaiting approval, signing, retry, and unavailable state
 Keep pool details internal unless a wait or retry affects the user's next action.
 
 Wallet-seed recovery, standard FIPS export, two-at-once consumption, and pool capacity remain required.
-This section records the product requirement. It does not claim that these parity tasks are implemented.
+Shared settings and its first lifecycle contracts are implemented. Single-review signing and the remaining authentication/device-permission parity work stay open.
 
 ## Outcome
 

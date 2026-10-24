@@ -5410,6 +5410,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('ml-dsa.lifecycle.contract.test.ts') ||
+    normalized.endsWith('signing-keys.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts')
   ) {
     return 'passkey.registration';

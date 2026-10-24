@@ -5,7 +5,7 @@
 @import './externalWalletPicker.css';
 
 /* Import AccountMenuButton styles */
-@import './components/AccountMenuButton/ExportKeysSection.css';
+@import './components/AccountMenuButton/SigningKeysSection.css';
 @import './components/AccountMenuButton/AccountsSection.css';
 @import './components/AccountMenuButton/LinkedDevicesModal.css';
 @import './components/AccountMenuButton/MenuItem.css';

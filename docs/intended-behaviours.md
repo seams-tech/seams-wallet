@@ -768,7 +768,7 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Its recovery preview shows four distinct 16-digit sample codes. Authentication methods opens directly for
   the current wallet and displays each enrolled method as its own row. Device
   inventory stays under Linked devices; methods are never a preference toggle.
-  Export keys opens shared NEAR/EVM selection; preview choices display an
+  Signing keys groups the managed keys by network; preview export choices display an
   authentication-required summary without exporting secrets.
 
 - Accounts offers **Add EVM account** when this wallet has no ECDSA address and
@@ -3504,7 +3504,9 @@ Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 - Load the ML-DSA registration implementation when the user adds a signer. Load its codec for configured-key enrollment checks or selected ML-DSA operations. Keep export secrets inside the existing Wallet-origin export worker.
 - Read public signer references through an exact current full-owner passkey session. Metadata reads require no new passkey prompt, consume no signing quota, and grant no signing permission. Retired sessions and revoked owners cannot read this inventory.
 - Discover the same published key after recovery and full-owner device linking. Validate metadata responses at the Gateway and iframe boundaries.
-- The settings menu and settings page expose Signing keys. Distinguish a created signer from a finalized full-access NEAR key. Check network support before creating the signer.
+- The settings menu and settings page expose one Signing keys screen for Ed25519, ECDSA, and ML-DSA. ECDSA-only wallets can open it before NEAR provisioning. Read current ECDSA targets and readiness from the authenticated capability projection. Keep a failed ML-DSA inventory read separate from ECDSA availability.
+- Use shared Add signer, Key details, Make default, and Export key actions where supported. Explain native export formats inside key details. Keep all secret export material in Wallet origin. Preserve host export callbacks.
+- Offer missing Ed25519 and ECDSA families using the existing add-signer protocol and configured targets. Adding Ed25519 creates a NEAR account. Adding ML-DSA to NEAR requires an existing account and separate on-chain activation. Distinguish a created signer from a finalized full-access NEAR key. Check network support before creating the ML-DSA signer.
 - Signer creation and NEAR key addition require their existing approvals. An interrupted activation retains the published signer. Status checks never generate another signer or automatically resubmit AddKey.
 - The default signing key is a device preference stored in Wallet origin, scoped by wallet, NEAR network, and account. It grants no authority and changes no on-chain permissions.
 - Remember an ML-DSA default by its stable signing key ID. Resolve its current publication and material epoch before using it. An unavailable ML-DSA default fails explicitly and never silently falls back to Ed25519.
