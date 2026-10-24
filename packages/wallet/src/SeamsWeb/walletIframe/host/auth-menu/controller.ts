@@ -165,9 +165,10 @@ function yieldAfterAuthMenuMount(): Promise<void> {
 }
 
 /* A menu painted before the saved wallets are read drops the wallet selector in
-   later, and every control under it moves down. The first paint waits this long
-   for them; the reads are local, so they usually take a few milliseconds. */
-const LOGIN_ACCOUNTS_FIRST_PAINT_WAIT_MS = 150;
+   later, and every control under it moves down. The first paint waits at most
+   this long for them. The reads are local: in Chromium they took 1–9 ms, also
+   at 6x CPU slowdown, and 37 ms at most (2026-10-24). */
+const LOGIN_ACCOUNTS_FIRST_PAINT_WAIT_MS = 50;
 
 type LocalLoginAccounts = {
   readonly recentUnlocks: GetRecentUnlocksResult | null;
