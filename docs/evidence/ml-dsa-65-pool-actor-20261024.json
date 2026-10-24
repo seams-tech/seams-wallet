@@ -1,0 +1,168 @@
+{
+  "schema": "seams.ml-dsa-pool-actor.v1",
+  "source_parent": "715f4599a094d308c03e294fd933e3f23fa0b4b2",
+  "selection": {
+    "selected": false,
+    "retained_production_change": null,
+    "retained_test_change": "Inspect retired material while the signing peer is still network-stalled.",
+    "reason": "The hosted actor prototype verifies all six signatures but only three finish below five seconds. Observed generic activation and private-check intervals grow, despite lower local consumption intervals. The current signing path remains selected; no placement cause is established.",
+    "prototype_private_wire_change": "load_signing_inputs removed and execution forwarded to the existing wallet actor; archived only.",
+    "retained_private_wire_change": false
+  },
+  "cryptographic_protocol_change": false,
+  "public_sdk_wire_change": false,
+  "retained_private_wire_change": false,
+  "prototype_private_role_command_change": "The tested actor path removes load_signing_inputs and forwards execution to the same wallet actor.",
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "private_commitments": true,
+    "preparation_on_workers": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "verification": {
+    "functional_checks_passed": true,
+    "complete_role_capture": false,
+    "incomplete_trace_operations": {
+      "control": [],
+      "candidate": [
+        "78dd033dfcd2cffb3600e14da3309c7667ae2b3568104ddf57961b2394aa248c",
+        "eb3112c794248434bbd38de77ebd331140e77d139bfe4169d70d873e8a3bae62",
+        "c614fe3206cc72fa245707f6c3a1a61af0f10835749cfac6683c406d81663c5d"
+      ]
+    },
+    "same_policy": true,
+    "canonical_recovery_verified": true,
+    "signature_reverification": {
+      "verified": 17,
+      "changed_messages_rejected": 17
+    },
+    "local": {
+      "control": {
+        "stalledPoolResponsiveMs": 2.8339170000108425,
+        "stalledDeadlineOverrunMs": 5,
+        "stalledPairRetiredBeforeClose": true
+      },
+      "candidate": {
+        "stalledPoolResponsiveMs": 2.6940410000097472,
+        "stalledDeadlineOverrunMs": 9,
+        "stalledPairRetiredBeforeClose": true
+      }
+    },
+    "candidate_calibrated_store_events": 6,
+    "hosted_invocations": 1854,
+    "candidate_completed_actor_traces": 8,
+    "reported_exceptions": [],
+    "reported_truncation": 0,
+    "consistent_five_second_target": false
+  },
+  "hosted": {
+    "control": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 87284.36508300001,
+          "registration_ms": 5477.732000000004,
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 48369.547083,
+          "registration_ms": 4184.474916999985,
+          "canonical_key_verified": true
+        }
+      ],
+      "signing_summary": {
+        "requests": 5,
+        "verified": 5,
+        "below_5000_ms": 5,
+        "minimum_ms": 1204.8987920000072,
+        "median_ms": 2215.979625,
+        "maximum_ms": 4850.161332999996,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 5,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 11,
+      "completed_signing_entrypoints": [
+        null
+      ],
+      "provider_invocations": 851,
+      "reported_truncation": 0,
+      "exceptions": []
+    },
+    "candidate": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 68344.227416,
+          "registration_ms": 4414.771250000005,
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 65537.312167,
+          "registration_ms": 4904.382291999995,
+          "canonical_key_verified": true
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 3,
+        "minimum_ms": 2254.3716249999998,
+        "median_ms": 5626.828791500011,
+        "maximum_ms": 8214.348665999998,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 22,
+      "completed_signing_entrypoints": [
+        "RouterAbMlDsaPoolDurableObject"
+      ],
+      "provider_invocations": 1003,
+      "reported_truncation": 0,
+      "exceptions": []
+    }
+  },
+  "qualification": {
+    "same_policy": true,
+    "canonical_keys_match": true,
+    "consistent_five_second_qualification": false,
+    "limits": [
+      "Sequential fresh deployments do not randomize placement, host load, module tiering, caches, or rejection counts.",
+      "Per-pair Worker-clock intervals include CPU and waits. Zero elapsed clocks do not establish zero CPU cost.",
+      "Provider CPU and wall clocks cover whole invocations. Actor execution changes that invocation boundary.",
+      "This bounded lifecycle screen does not qualify sustained refill or multi-wallet capacity."
+    ]
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_baseline": 13754,
+    "rust_duplicate_current": 13972,
+    "baseline_changed": false
+  },
+  "cleanup": {
+    "worker_destinations": 6,
+    "control_deleted": true,
+    "candidate_deleted": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-pool-actor-20261024-data.json.gz",
+    "bytes": 440505,
+    "sha256": "7eaa9987210441c2cd51c4634ef5a50842deceef5a2890fb174601451bcdda23"
+  }
+}
