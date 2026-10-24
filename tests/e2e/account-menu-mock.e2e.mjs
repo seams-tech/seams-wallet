@@ -131,13 +131,13 @@ try {
     page.getByRole('heading', { name: 'Transaction settings', exact: true }),
   ).toBeFocused();
   await expect(page.locator('[data-account-menu-item]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'drawer', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'drawer', exact: true })).toHaveAttribute(
+  await page.getByRole('button', { name: 'Drawer', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Drawer', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await page.getByRole('button', { name: 'skip click', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'skip click', exact: true })).toHaveAttribute(
+  await page.getByRole('button', { name: 'Start automatically', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Start automatically', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
