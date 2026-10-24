@@ -1,3 +1,9 @@
+import { parseX25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
+import {
+  parseWalletCustodyEnvelopeFactor,
+  type WalletCustodyEnvelopeFactor,
+} from '@shared/passkey-custody';
+import { parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1 } from '@shared/device-linking/sourceContribution';
 import {
   parseCommittedAuthorityPackagesV1,
   type CommittedAuthorityPackagesV1,
@@ -8,7 +14,6 @@ import type {
   OrdinarySignerMaterialReservationPreparationV1,
   VerifiedTargetFactorV1,
 } from '@shared/device-linking/contracts';
-import { parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1 } from '@shared/device-linking/sourceContribution';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -44,6 +49,12 @@ export type DeviceLinkingOrdinarySignerMaterialReservationPreparationV1 =
   OrdinarySignerMaterialReservationPreparationV1;
 
 export type DeviceLinkingOrdinarySignerMaterialRecipientInputV1 =
+  | {
+      readonly kind: 'ordinary_ml_dsa_65_signer_material_recipient_input_v1';
+      readonly keyFamily: 'ml_dsa_65';
+      readonly walletKeyId: WalletKeyId;
+      readonly recipientHandleId: string;
+    }
   | {
       readonly kind: 'ordinary_ed25519_signer_material_recipient_input_v1';
       readonly keyFamily: 'ed25519';
@@ -85,11 +96,8 @@ type DeviceLinkingOrdinarySignerMaterialPreparationResultV1 = {
 };
 
 export type SealedLocalAuthorityMaterialSetV1 = {
-  readonly signerMaterials: readonly [
-    WalletAuthoritySignerMaterialRecordV1,
-    ...WalletAuthoritySignerMaterialRecordV1[],
-  ];
-  readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+  readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
+  readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
   readonly installedRecordSetDigestB64u: DigestB64u;
 };
 
@@ -125,6 +133,7 @@ export type DeviceLinkingOrdinaryMaterialWorkerPrivateRequestV1 = {
     ...OrdinarySignerMaterialRecipientRequestV1[],
   ];
   readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
+  readonly rootFactor: WalletCustodyEnvelopeFactor;
   readonly factorSecret: ArrayBuffer;
 };
 
@@ -155,6 +164,7 @@ export type DeviceLinkingOrdinaryMaterialWorkerPortV1 = {
       ...OrdinarySignerMaterialRecipientRequestV1[],
     ];
     readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
+    readonly rootFactor: WalletCustodyEnvelopeFactor;
     readonly factorSecret: ArrayBuffer;
   }): Promise<DeviceLinkingOrdinarySignerMaterialPreparationResultV1>;
   sealCommittedAuthorityPackagesV1(input: {
@@ -176,6 +186,7 @@ export type DeviceLinkingOrdinaryMaterialSealerV1 = {
       ...DeviceLinkingOrdinarySignerMaterialReservationPreparationV1[],
     ];
     readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
+    readonly rootFactor: WalletCustodyEnvelopeFactor;
     readonly factorSecret: Uint8Array<ArrayBuffer>;
   }): Promise<SealedLocalAuthorityMaterialSetV1>;
 };
@@ -229,6 +240,7 @@ export function createDeviceLinkingOrdinaryMaterialWorkerPortV1(
           preparations,
           recipientRequests,
           recipientInputs,
+          rootFactor: input.rootFactor,
           factorSecret: input.factorSecret,
         },
         transfer,
@@ -319,6 +331,7 @@ export function parseOrdinaryMaterialWorkerPrivateRequestV1(
       'recipientRequests',
       'recipientInputs',
       'factorSecret',
+      'rootFactor',
     ])
   ) {
     throw new Error('ordinary material private worker request has invalid fields');
@@ -340,6 +353,7 @@ export function parseOrdinaryMaterialWorkerPrivateRequestV1(
     preparations,
     recipientRequests,
     recipientInputs,
+    rootFactor: parseWalletCustodyEnvelopeFactor(value.rootFactor),
     factorSecret: value.factorSecret,
   };
 }
@@ -421,23 +435,7 @@ function parsePreparationResult(
 function parsePreparationTuple(
   value: unknown,
 ): DeviceLinkingOrdinarySignerMaterialPreparationResultV1['preparations'] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
-    throw new Error('ordinary signer material preparations must contain one or two entries');
-  }
-  const preparations = value.map(parsePreparation);
-  const families = preparations.map((entry) => ('kind' in entry ? 'ed25519' : 'ecdsa_secp256k1'));
-  if (new Set(families).size !== preparations.length) {
-    throw new Error('ordinary signer material preparations repeat a key family');
-  }
-  const activations = preparations.map((entry) =>
-    'kind' in entry ? entry.targetMaterialActivation : entry.target.activation,
-  );
-  if (activations.length === 2 && activations[0]!.activationId === activations[1]!.activationId) {
-    throw new Error('ordinary signer material preparations repeat an activation reference');
-  }
-  const first = preparations[0];
-  if (!first) throw new Error('ordinary signer material preparations are empty');
-  return [first, ...preparations.slice(1)];
+  return parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1(value);
 }
 
 function parseRecipientRequirementTuple(
@@ -446,9 +444,9 @@ function parseRecipientRequirementTuple(
   OrdinarySignerMaterialRecipientRequirementV1,
   ...OrdinarySignerMaterialRecipientRequirementV1[],
 ] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 66) {
     throw new Error(
-      'ordinary signer material recipient requirements must contain one or two entries',
+      'ordinary signer material recipient requirements must contain between one and 66 entries',
     );
   }
   const requirements = value.map((entry, index): OrdinarySignerMaterialRecipientRequirementV1 => {
@@ -458,7 +456,11 @@ function parseRecipientRequirementTuple(
     if (entry.kind !== 'ordinary_signer_material_recipient_requirement_v1') {
       throw new Error('ordinary recipient requirement kind is invalid');
     }
-    if (entry.keyFamily !== 'ed25519' && entry.keyFamily !== 'ecdsa_secp256k1') {
+    if (
+      entry.keyFamily !== 'ed25519' &&
+      entry.keyFamily !== 'ecdsa_secp256k1' &&
+      entry.keyFamily !== 'ml_dsa_65'
+    ) {
       throw new Error('ordinary recipient requirement key family is invalid');
     }
     const walletKeyId = parseWalletKey(entry.walletKeyId);
@@ -476,11 +478,23 @@ function parseRecipientRequestTuple(
   OrdinarySignerMaterialRecipientRequestV1,
   ...OrdinarySignerMaterialRecipientRequestV1[],
 ] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
-    throw new Error('ordinary signer material recipient requests must contain one or two entries');
+  if (!Array.isArray(value) || value.length === 0 || value.length > 66) {
+    throw new Error(
+      'ordinary signer material recipient requests must contain between one and 66 entries',
+    );
   }
   const requests = value.map((entry): OrdinarySignerMaterialRecipientRequestV1 => {
     if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'recipientPublicKeyB64u'])) {
+      if (
+        entry.kind === 'ordinary_ml_dsa_65_signer_material_recipient_request_v1' &&
+        entry.keyFamily === 'ml_dsa_65'
+      )
+        return {
+          kind: entry.kind,
+          keyFamily: entry.keyFamily,
+          walletKeyId: parseWalletKey(entry.walletKeyId),
+          recipientPublicKeyB64u: parseX25519PublicKeyB64u(entry.recipientPublicKeyB64u),
+        };
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_request_v1' ||
         entry.keyFamily !== 'ed25519'
@@ -541,10 +555,26 @@ function parseRecipientPreparationResult(
 function parseRecipientInputTuple(
   value: unknown,
 ): DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1 {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 2) {
-    throw new Error('ordinary signer material recipient inputs must contain one or two entries');
+  if (!Array.isArray(value) || value.length === 0 || value.length > 66) {
+    throw new Error(
+      'ordinary signer material recipient inputs must contain between one and 66 entries',
+    );
   }
   const inputs = value.map((entry): DeviceLinkingOrdinarySignerMaterialRecipientInputV1 => {
+    if (
+      hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'recipientHandleId']) &&
+      entry.kind === 'ordinary_ml_dsa_65_signer_material_recipient_input_v1' &&
+      entry.keyFamily === 'ml_dsa_65'
+    )
+      return {
+        kind: entry.kind,
+        keyFamily: entry.keyFamily,
+        walletKeyId: parseWalletKey(entry.walletKeyId),
+        recipientHandleId: requireCanonicalString(
+          entry.recipientHandleId,
+          'ML-DSA recipient handle',
+        ),
+      };
     if (hasExactKeys(entry, ['kind', 'keyFamily', 'walletKeyId', 'recipientPrivateKey'])) {
       if (
         entry.kind !== 'ordinary_ed25519_signer_material_recipient_input_v1' ||
@@ -597,11 +627,12 @@ function parsePrivateKeyBuffer(value: unknown, label: string): ArrayBuffer {
 function recipientInputTransferables(
   inputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1,
 ): ArrayBuffer[] {
-  return inputs.map((input) =>
-    input.kind === 'ordinary_ed25519_signer_material_recipient_input_v1'
-      ? input.recipientPrivateKey
-      : input.clientEphemeralPrivateKey,
-  );
+  const result: ArrayBuffer[] = [];
+  for (const input of inputs) {
+    if (input.keyFamily === 'ed25519') result.push(input.recipientPrivateKey);
+    if (input.keyFamily === 'ecdsa_secp256k1') result.push(input.clientEphemeralPrivateKey);
+  }
+  return result;
 }
 
 function assertRecipientInputsMatchRequests(
@@ -629,18 +660,19 @@ function assertRecipientInputsMatchRequests(
 function assertUniqueRecipientFamilies(
   values: readonly { readonly keyFamily: string; readonly walletKeyId: WalletKeyId }[],
 ): void {
-  const families = new Set<string>();
+  let previous = '';
   const keys = new Set<string>();
   for (const value of values) {
-    if (families.has(value.keyFamily)) throw new Error('ordinary recipient family repeats');
-    if (keys.has(String(value.walletKeyId)))
-      throw new Error('ordinary recipient wallet key repeats');
-    families.add(value.keyFamily);
-    keys.add(String(value.walletKeyId));
-  }
-  const first = values[0];
-  if (values.length === 2 && first?.keyFamily !== 'ed25519') {
-    throw new Error('ordinary recipient requests must be ordered Ed25519 then ECDSA');
+    const order =
+      value.keyFamily === 'ed25519'
+        ? '0'
+        : value.keyFamily === 'ecdsa_secp256k1'
+          ? '1'
+          : `2:${value.walletKeyId}`;
+    if (order <= previous || keys.has(value.walletKeyId))
+      throw new Error('Recipient keys must be distinct and use canonical order');
+    previous = order;
+    keys.add(value.walletKeyId);
   }
 }
 
@@ -648,12 +680,6 @@ function parseWalletKey(value: unknown): WalletKeyId {
   const parsed = parseWalletKeyId(value);
   if (!parsed.ok) throw new Error(parsed.error.message);
   return parsed.value;
-}
-
-function parsePreparation(
-  value: unknown,
-): DeviceLinkingOrdinarySignerMaterialReservationPreparationV1 {
-  return parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1(value);
 }
 
 function parseTargetFactorBindingV1(value: unknown): DeviceLinkingOrdinaryTargetFactorBindingV1 {
@@ -746,23 +772,15 @@ function parseWalletAuthorityExportRootRecordV1(value: unknown): WalletAuthority
 }
 
 function parseSealedLocalAuthorityMaterialSetV1(value: unknown): SealedLocalAuthorityMaterialSetV1 {
-  if (!hasExactKeys(value, ['signerMaterials', 'exportRoot', 'installedRecordSetDigestB64u'])) {
-    throw new Error('ordinary material worker returned an invalid sealed record set');
-  }
-  if (!Array.isArray(value.signerMaterials) || value.signerMaterials.length === 0) {
-    throw new Error('ordinary material worker returned an invalid sealed record set');
-  }
-  const signerMaterials = value.signerMaterials.map((entry) =>
-    parseWalletAuthorityLinkedSignerMaterialRecordV1(entry),
-  );
-  const firstSignerMaterial = signerMaterials[0];
-  if (!firstSignerMaterial) {
-    throw new Error('ordinary material worker returned an invalid sealed record set');
-  }
+  if (
+    !hasExactKeys(value, ['signerMaterials', 'exportRoots', 'installedRecordSetDigestB64u']) ||
+    !Array.isArray(value.signerMaterials) ||
+    !Array.isArray(value.exportRoots)
+  )
+    throw new Error('Invalid sealed authority record set');
   return {
-    signerMaterials: [firstSignerMaterial, ...signerMaterials.slice(1)],
-    exportRoot:
-      value.exportRoot === null ? null : parseWalletAuthorityExportRootRecordV1(value.exportRoot),
+    signerMaterials: value.signerMaterials.map(parseWalletAuthorityLinkedSignerMaterialRecordV1),
+    exportRoots: value.exportRoots.map(parseWalletAuthorityExportRootRecordV1),
     installedRecordSetDigestB64u: parseDigestB64u(value.installedRecordSetDigestB64u),
   };
 }

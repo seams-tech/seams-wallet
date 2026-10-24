@@ -1,0 +1,28 @@
+{
+  "observedAt": "2026-10-24T17:10:15.222Z",
+  "scope": "Executable native fixture to production Wasm, original owner to passkey-linked owner to Email OTP-linked owner, two signer slots, canonical FIPS export verified independently by Node crypto. No hosted admission or browser UI claim.",
+  "syntheticPublicFixture": true,
+  "result": "passed",
+  "checks": [
+    {
+      "keyId": "near-ml-dsa-65:1",
+      "publicKeySha256": "96zu5rQg8DLyPPeXMEthN2MT5iY4coDBAAbRn2ICDcc",
+      "keyManifestDigestB64u": "TknZchh6D_3GTOrWT9DqvxAkas4hiv_pVObFCeGWcuk",
+      "canonicalExportMatchesOriginal": true,
+      "ordinaryLibrarySignatureVerified": true,
+      "onwardEmailOwnerExport": true,
+      "recipientSingleUseOnSuccessAndFailure": true,
+      "wrongFactorAndKeyRefused": true
+    },
+    {
+      "keyId": "near-ml-dsa-65:2",
+      "publicKeySha256": "m_vZ7H1OHHiPxf5Z942Cl7gAdurTZZYq8pCoxzKfDOg",
+      "keyManifestDigestB64u": "k77lPVLgH8WJhX5uyqhWf9IE0sM92WlwxfUxe2Y8TBQ",
+      "canonicalExportMatchesOriginal": true,
+      "ordinaryLibrarySignatureVerified": true,
+      "onwardEmailOwnerExport": true,
+      "recipientSingleUseOnSuccessAndFailure": true,
+      "wrongFactorAndKeyRefused": true
+    }
+  ]
+}

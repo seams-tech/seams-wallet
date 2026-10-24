@@ -35,11 +35,11 @@ use signer_core::passkey_custody::{
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
-fn js_error(message: impl core::fmt::Display) -> JsValue {
+pub(super) fn js_error(message: impl core::fmt::Display) -> JsValue {
     JsValue::from_str(&message.to_string())
 }
 
-fn decode_b64u(value: &str, label: &str) -> Result<Vec<u8>, JsValue> {
+pub(super) fn decode_b64u(value: &str, label: &str) -> Result<Vec<u8>, JsValue> {
     Base64UrlUnpadded::decode_vec(value)
         .map_err(|_| js_error(format!("{label} must be unpadded base64url")))
 }
@@ -99,8 +99,6 @@ impl WasmPasskeyCustodyHandleV1 {
         signing_key_id: &str,
         expected_public_key_b64u: &str,
     ) -> Result<String, JsValue> {
-        use ml_dsa::{Keypair, MlDsa65, SigningKey};
-        use sha3::digest::{ExtendableOutput, Update, XofReader};
         use signer_core::wallet_seed_derivation::{
             compute_ml_dsa65_application_binding_digest_v1, derive_ml_dsa65_owner_root_from_seed_v1,
         };
@@ -118,26 +116,26 @@ impl WasmPasskeyCustodyHandleV1 {
             .map_err(js_error)?;
         let root =
             derive_ml_dsa65_owner_root_from_seed_v1(&self.secret, &binding).map_err(js_error)?;
-        let mut hash = sha3::Shake256::default();
-        hash.update(b"seams/ml-dsa-65/canonical-seed/v1");
-        hash.update(root.as_ref());
-        let mut seed = Zeroizing::new([0u8; 32]);
-        hash.finalize_xof().read(seed.as_mut());
-        let seed_ref: &ml_dsa::Seed = seed.as_slice().try_into().map_err(js_error)?;
-        let key = SigningKey::<MlDsa65>::from_seed(seed_ref);
-        let public_key_b64u =
-            Base64UrlUnpadded::encode_string(key.verifying_key().encode().as_slice());
-        if public_key_b64u != expected_public_key_b64u {
-            return Err(js_error(
-                "ML-DSA export did not reproduce the published key",
-            ));
-        }
-        serde_json::to_string(&serde_json::json!({
-            "format": "fips-204-ml-dsa-65-seed-v1",
-            "publicKeyB64u": public_key_b64u,
-            "seedB64u": Base64UrlUnpadded::encode_string(seed.as_ref()),
-        }))
-        .map_err(js_error)
+        let seed = signer_core::ml_dsa_link::canonical_seed(&root);
+        crate::ml_dsa_link_wasm::export_seed_payload(&seed, expected_public_key_b64u)
+    }
+
+    #[cfg(feature = "ml-dsa")]
+    pub fn seal_ml_dsa65_root_for_linked_device_v1(
+        &self,
+        binding_json: &str,
+    ) -> Result<String, JsValue> {
+        let Some(WasmCustodyAdmissionV1::SealedEnvelope(admitted)) = self.admitted.as_ref() else {
+            return Err(js_error("A wallet custody seed envelope is required"));
+        };
+        let binding = serde_json::from_str(binding_json).map_err(js_error)?;
+        let package = signer_core::ml_dsa_link::seal_ml_dsa_root_from_wallet_seed_v1(
+            admitted,
+            &self.secret,
+            &binding,
+        )
+        .map_err(js_error)?;
+        serde_json::to_string(&package).map_err(js_error)
     }
 }
 

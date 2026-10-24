@@ -3520,7 +3520,7 @@ The ML-DSA browser lifecycle contract covers settings enrollment across reload, 
 
 ## Experimental ML-DSA custody contract
 
-The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with an installed NEAR activation can use that key through the normal Wallet transaction API. An active custody owner can restore participant material and export the canonical FIPS seed. ML-DSA-only wallet creation remains outside this release. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
+The experimental public SDK can add an ML-DSA signer to an existing passkey wallet and enroll its ordinary public key on an existing NEAR account. Normal wallet recovery retains the server-held signer. Recovered owners and full-owner linked devices with the exact ML-DSA activation can use that key through the normal Wallet transaction API. Every full owner can export its activated ML-DSA keys. Participant restoration uses the wallet custody seed. ML-DSA-only wallet creation remains outside this release. These requirements govern the native implementation, browser worker boundary, and Gateway integration.
 
 - `near.signTransaction` and `near.signAndSendTransaction` accept an explicit published ML-DSA signer reference. Keep nonce reservation, transaction review, independent signature verification, and ordinary NEAR submission in the existing lifecycle.
 - Offer reusable ML-DSA approvals only through explicit `mlDsaSigningSession` options. The owner must approve the first transaction, exact key, operation limit, and expiry. Require one to thirty-two operations and a lifetime of one to fifteen minutes.
@@ -3530,7 +3530,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Pin each grant to its exact owner method, origin, key, material epoch, and publication version. Recheck owner and grant validity before dispatch and before returning a completed or cached result. Generic signing sessions grant no ML-DSA authority.
 - Reserve one session use atomically with exact operation authorization. Failed operations consume that use. Internal rejection retries, transport retries, and duplicate requests retain the same authorization without another debit.
 - Retain the wallet cooldown, ready-capacity check, service capacity, two-candidate consumption, and single-use preparation rules for session-authorized operations.
-- `keys.exportKey` with `kind: 'ml_dsa_65'` requires a seed-backed custody owner and fresh Passkey authorization. Check current authoritative signer inventory before opening the seed envelope. Refuse linked-device Client-root envelopes.
+- `keys.exportKey` with `kind: 'ml_dsa_65'` requires an active full owner and fresh Passkey or Email OTP export authorization. Check current authoritative signer inventory before opening the wallet seed or the selected ML-DSA root envelope. Export only through the Wallet-origin viewer.
 - Derive the canonical FIPS seed inside the export worker. Check that ordinary ML-DSA key expansion reproduces the published public key. Reveal only the authorized export in the Wallet-origin viewer. Return no secret through the application API.
 
 - The SDK custody driver must keep establishment, existing-custody join, and recovery inputs distinct. Recovery requires the recorded key manifest and replacement factor.
@@ -3549,7 +3549,11 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Suspend public signing while restoration is pending. Fence old prepared operations and cached results through the publication version and material epoch.
 - Preserve the recorded restoration identity after an interrupted operation. A new attempt after expiry must advance beyond the attempted epoch. Creation must never overwrite an expired restoration.
 - Exact restoration retries must reuse the admitted operation and encrypted inputs. Publication retries must return the same result. Revoked owners must lose restoration access.
-- Permit ML-DSA discovery and fresh transaction approval from active full-owner linked Passkeys with an installed NEAR activation. Refuse signing-only linked devices and linked authorities without that activation.
+- Require an exact ML-DSA activation for each signing key. Full-owner linked devices retain the source signer set, including ML-DSA-only and mixed sets. Each ML-DSA activation identifies its stable key and manifest independently of participant epochs. Refuse signing-only device linking for this release.
+- Transfer one encrypted ML-DSA owner root per activated key. Never transfer the wallet custody seed or participant signing shares. Bind each transfer to the target wallet, key, factor, method, device, enrollment, recipient, and target authority epoch.
+- Consume each root recipient on success or failure. Verify the public key and immediately seal the root under the target factor inside Wasm. Missing, extra, duplicate, or mismatched roots prevent activation. Persist the complete root collection with the local installation receipt.
+- A linked full owner can forward the same keys to another approved full owner. Recheck the source authority digest, epoch, and method during durable installation.
+- Publish the ML-DSA key, its owner activation, and live session projections atomically. Preserve credentials, quota, and expiry. Publication replay must tolerate subsequent valid signer additions.
 - Recheck current authority and revocation state before returning inventory or cached signatures. Revoking a linked method must preserve other active owners' access.
 
 - Derive the ML-DSA owner root independently from the wallet custody seed and stable wallet/key binding.

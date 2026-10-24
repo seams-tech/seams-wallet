@@ -235,7 +235,7 @@ export type LinkedDeviceAuthoritySelection = Readonly<{
   readonly authMethod: ActiveWalletAuthMethodRecordV2;
   readonly authority: ActiveWalletAuthorityV1;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
-  readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+  readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
 }>;
 
 export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelection &
@@ -246,7 +246,7 @@ export type LinkedDevicePasskeyAuthoritySelection = LinkedDeviceAuthoritySelecti
     readonly authMethod: ActivePasskeyWalletAuthMethodRecordV2;
     readonly authority: ActiveWalletAuthorityV1;
     readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
-    readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+    readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
   }>;
 
 export type LinkedDeviceEmailOtpAuthoritySelection = LinkedDeviceAuthoritySelection &
@@ -293,7 +293,7 @@ export async function resolveLinkedDevicePasskeyAuthoritySelection(
       authMethod,
       authority,
       signerMaterials: resolved.signerMaterials,
-      exportRoot: resolved.exportRoot,
+      exportRoots: resolved.exportRoots,
     };
   } catch {
     return null;
@@ -375,7 +375,11 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
           : 'Selected Email OTP provider identity does not match the local authority',
     };
   }
-  if (authority.provenance.kind === 'device_link' && resolved.signerMaterials.length === 0) {
+  if (
+    authority.provenance.kind === 'device_link' &&
+    resolved.signerMaterials.length === 0 &&
+    !authority.signerActivations.mlDsa
+  ) {
     return {
       kind: 'rejected',
       message: 'Selected linked Email OTP authority has no signer material',
@@ -400,14 +404,17 @@ export async function resolveLinkedDeviceEmailOtpAuthoritySelection(args: {
       authMethod,
       authority,
       signerMaterials: resolved.signerMaterials,
-      exportRoot: resolved.exportRoot,
+      exportRoots: resolved.exportRoots,
     },
   };
 }
 
 function linkedDeviceActivationForCapability(
   authority: ActiveWalletAuthorityV1,
-  subject: Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>,
+  subject: Extract<
+    WalletCapabilitySubjectV1,
+    { kind: 'sign' | 'export_keys'; keyFamily: 'ed25519' | 'ecdsa_secp256k1' }
+  >,
 ): MpcMaterialActivationRef {
   const activation =
     subject.keyFamily === 'ed25519'
@@ -441,6 +448,14 @@ export function assertLinkedDeviceWalletSessionExact(
     switch (subject.kind) {
       case 'sign':
       case 'export_keys': {
+        if (subject.keyFamily === 'ml_dsa_65') {
+          let found = false;
+          for (const activation of selection.authority.signerActivations.mlDsa ?? [])
+            if (activation.signer.mlDsaSigningKeyId === subject.mlDsaSigningKeyId) found = true;
+          if (!found)
+            throw new Error('[login] linked Wallet Session requested an unavailable ML-DSA key');
+          continue;
+        }
         const activation = linkedDeviceActivationForCapability(selection.authority, subject);
         const material = selectedSignerMaterialForActivation(
           selection.signerMaterials,
@@ -488,7 +503,7 @@ function assertLinkedPasskeyMaterialTargetFactor(
 export async function openLinkedDevicePasskeySignerMaterials(args: {
   readonly selection: LinkedDevicePasskeyAuthoritySelection;
   readonly credential: WebAuthnAuthenticationCredential;
-}): Promise<readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]]> {
+}): Promise<readonly LinkedDevicePasskeyOpenedMaterial[]> {
   const prfFirstB64u = passkeyPrfFirstB64uFromCredential(args.credential);
   if (!prfFirstB64u) {
     throw new Error('[login] linked passkey unlock requires WebAuthn PRF.first output');
@@ -517,7 +532,7 @@ export async function openLinkedDeviceSignerMaterialsWithFactorSecret(args: {
     | LinkedDevicePasskeyAuthoritySelection
     | LinkedDeviceEmailOtpAuthoritySelection;
   readonly factorSecret32: Uint8Array;
-}): Promise<readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]]> {
+}): Promise<readonly LinkedDevicePasskeyOpenedMaterial[]> {
   if (args.factorSecret32.byteLength !== 32) {
     throw new Error('[login] linked signer material requires a 32-byte factor secret');
   }
@@ -551,9 +566,9 @@ export async function openLinkedDeviceSignerMaterialsWithFactorSecret(args: {
       }
       opened.push(result);
     }
-    const [first, ...rest] = opened;
-    if (!first) throw new Error('[login] linked signer material set is empty');
-    return [first, ...rest];
+    if (opened.length === 0 && !args.selection.authority.signerActivations.mlDsa)
+      throw new Error('[login] linked signer material set is empty');
+    return opened;
   } finally {
     factorSecret.fill(0);
   }
@@ -582,7 +597,7 @@ function assertLinkedEmailOtpMaterialTargetFactor(
 export async function openLinkedDeviceEmailOtpSignerMaterials(args: {
   readonly selection: LinkedDeviceEmailOtpAuthoritySelection;
   readonly factorSecret32: Uint8Array;
-}): Promise<readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]]> {
+}): Promise<readonly LinkedDevicePasskeyOpenedMaterial[]> {
   if (args.factorSecret32.byteLength !== 32) {
     throw new Error('[login] linked Email OTP unlock requires a 32-byte factor secret');
   }

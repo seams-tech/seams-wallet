@@ -8,6 +8,7 @@
     "typecheck/voiceid-confirmation-command.typecheck.ts",
     "typecheck/voice-assistant-card.typecheck.ts",
     "typecheck/voiceid-enrollment-store.typecheck.ts",
+    "typecheck/ml-dsa-device-activation.typecheck.ts",
     "typecheck/wallet-locale.typecheck.ts",
     "typecheck/ml-dsa-registration.typecheck.ts",
     "helpers/mlDsaGatewayRegistration.fixtures.ts",

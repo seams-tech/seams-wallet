@@ -44,6 +44,14 @@ type LinkedDeviceClaimTranscriptV1 = {
 };
 
 export type LinkedDeviceSourceKeyManifestDigestsV1 = ReadonlyExclusiveUnion<
+  | { readonly ml_dsa_65: DigestB64u }
+  | { readonly ed25519: DigestB64u; readonly ml_dsa_65: DigestB64u }
+  | { readonly ecdsa_secp256k1: DigestB64u; readonly ml_dsa_65: DigestB64u }
+  | {
+      readonly ed25519: DigestB64u;
+      readonly ecdsa_secp256k1: DigestB64u;
+      readonly ml_dsa_65: DigestB64u;
+    }
   | { readonly ed25519: DigestB64u }
   | { readonly ecdsa_secp256k1: DigestB64u }
   | { readonly ed25519: DigestB64u; readonly ecdsa_secp256k1: DigestB64u }
@@ -63,6 +71,8 @@ export function sourceKeyManifestDigestForFamilyV1(
   keyFamily: ExactAdministeredSignerV1['keyFamily'],
 ): DigestB64u | null {
   switch (keyFamily) {
+    case 'ml_dsa_65':
+      return digests.ml_dsa_65 ?? null;
     case 'ed25519':
       return digests.ed25519 ?? null;
     case 'ecdsa_secp256k1':
@@ -911,12 +921,31 @@ function parseOptionalApprovalTranscript(
   };
 }
 
-function parseSourceKeyManifestDigestsV1(
+export function parseSourceKeyManifestDigestsV1(
   raw: unknown,
   field: string,
 ): LinkedDeviceSourceKeyManifestDigestsV1 {
   const record = requireRecordCopy(raw, field);
   const keys = Object.keys(record).sort();
+  if (keys.includes('ml_dsa_65')) {
+    if (keys.some(isUnknownSourceDigestFamily)) throw new Error(`${field} has an unknown family`);
+    const ml_dsa_65 = requireDigest(record.ml_dsa_65, `${field}.ml_dsa_65`);
+    if (keys.includes('ed25519') && keys.includes('ecdsa_secp256k1'))
+      return {
+        ed25519: requireDigest(record.ed25519, `${field}.ed25519`),
+        ecdsa_secp256k1: requireDigest(record.ecdsa_secp256k1, `${field}.ecdsa_secp256k1`),
+        ml_dsa_65,
+      };
+    if (keys.includes('ed25519'))
+      return { ed25519: requireDigest(record.ed25519, `${field}.ed25519`), ml_dsa_65 };
+    if (keys.includes('ecdsa_secp256k1'))
+      return {
+        ecdsa_secp256k1: requireDigest(record.ecdsa_secp256k1, `${field}.ecdsa_secp256k1`),
+        ml_dsa_65,
+      };
+    return { ml_dsa_65 };
+  }
+
   if (keys.length === 1 && keys[0] === 'ed25519') {
     return { ed25519: requireDigest(record.ed25519, `${field}.ed25519`) };
   }
@@ -945,6 +974,9 @@ function assertSourceKeyManifestDigestFamiliesMatchManifestV1(
   manifest: ExactAdministeredSignerManifestV1,
   digests: LinkedDeviceSourceKeyManifestDigestsV1,
 ): void {
+  const manifestHasMlDsa = new Set<string>(manifest.keyFamilies).has('ml_dsa_65');
+  if (manifestHasMlDsa !== (digests.ml_dsa_65 !== undefined))
+    throw new Error('ML-DSA source digests differ from the approved key set');
   const manifestHasEd25519 = manifest.keyFamilies.some((family) => family === 'ed25519');
   const manifestHasEcdsa = manifest.keyFamilies.some((family) => family === 'ecdsa_secp256k1');
   const digestHasEd25519 = digests.ed25519 !== undefined;
@@ -1311,4 +1343,8 @@ export function integrityResult(
   reason: 'authority_id_mismatch' | 'package_set_digest_mismatch',
 ): LinkedDeviceSessionMutationResultV1 {
   return { outcome: 'integrity_error', reason, record };
+}
+
+function isUnknownSourceDigestFamily(value: string): boolean {
+  return value !== 'ed25519' && value !== 'ecdsa_secp256k1' && value !== 'ml_dsa_65';
 }

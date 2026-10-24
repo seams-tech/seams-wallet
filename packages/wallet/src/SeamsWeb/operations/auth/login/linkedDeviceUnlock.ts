@@ -1,10 +1,10 @@
+import { exportRootEnvelope } from '@/core/indexedDB/walletAuthorityExportRoots';
 import { emitUnlockEvent, finalizeLoginSuccess, finalizeLoginError } from '../unlockCompletion';
 import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import { UnlockEventPhase } from '@/core/types/sdkSentEvents';
 import type { LoginAndCreateSessionResult, LoginResult } from '@/core/types/seams';
 import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import { isUserCancellationError, toError } from '@shared/utils/errors';
-import { isWalletCustodySeedBinding } from '@shared/passkey-custody/custodySecretBinding';
 import type { PasskeyCustodyEnvelopeRecord } from '@shared/passkey-custody';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { isObject } from '@shared/utils/validation';
@@ -140,25 +140,21 @@ type EmailOtpUnlockSourceV1 =
   | {
       readonly kind: 'linked_device';
       readonly selection: LinkedDeviceEmailOtpAuthoritySelection;
-      readonly signerMaterials: readonly [
-        WalletAuthoritySignerMaterialRecordV1,
-        ...WalletAuthoritySignerMaterialRecordV1[],
-      ];
+      readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
     };
 
 function emailOtpUnlockSource(
   selection: LinkedDeviceEmailOtpAuthoritySelection,
 ): EmailOtpUnlockSourceV1 {
-  const [first, ...rest] = selection.signerMaterials;
+  const first = selection.signerMaterials[0];
   /* Provenance decides this, not the material: a device-linked authority always
      has material, so its absence there is corruption rather than an owner
      sibling. The selection resolver already refuses a device_link authority
      with no material. */
   if (selection.authority.provenance.kind === 'device_link') {
-    if (!first) {
-      throw new Error('[login] linked Email OTP authority has no signer material');
-    }
-    return { kind: 'linked_device', selection, signerMaterials: [first, ...rest] };
+    if (!first && !selection.authority.signerActivations.mlDsa)
+      throw new Error('[login] linked authority has no signer activation');
+    return { kind: 'linked_device', selection, signerMaterials: selection.signerMaterials };
   }
   if (first) {
     throw new Error('[login] owner Email OTP authority must not carry linked signer material');
@@ -373,9 +369,7 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
      exact Email method. An Ed25519 bootstrap may retain an older provider label,
      so it cannot redefine the factor authority used by ECDSA step-up. */
   const effectiveProviderIdentity = providerIdentity;
-  let openedMaterials:
-    | readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]]
-    | null = null;
+  let openedMaterials: readonly LinkedDevicePasskeyOpenedMaterial[] | null = null;
   let installedEcdsaRuntime: LinkedEcdsaHolderRuntimeV1 | null = null;
   /* A handle exists only on the owner branch, and only until the runtime it
      belongs to takes ownership. Until then every exit disposes it. */
@@ -408,7 +402,7 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
           args.context.signingEngine.getSignerWorkerContext(),
         ),
         {
-          existingEnvelope: ownerAuthorityWalletCustodySeedEnvelope(unlocked),
+          existingEnvelopes: [ownerAuthorityWalletCustodySeedEnvelope(unlocked)],
           existingFactorSecret: factorSecret32,
           walletId: String(selection.walletId),
           walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),
@@ -500,10 +494,10 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
         relayerUrl: relayUrl,
         providerIdentity: effectiveProviderIdentity,
       });
-    } else if (ecdsaMaterial) {
+    } else if (ecdsaMaterial || selection.authority.signerActivations.mlDsa) {
       loginResult = {
         success: true,
-        kind: 'ecdsa_wallet_unlocked',
+        kind: 'wallet_unlocked',
         walletId: selection.walletId,
       };
     } else {
@@ -517,13 +511,13 @@ export async function unlockLinkedDeviceEmailOtpWallet(args: {
        seed. A linked installation never receives that seed: its envelope
        carries the Ed25519 Yao Client root itself, which the ordinary export
        path opens directly from the persisted export root. */
-    if (selection.exportRoot && isWalletCustodySeedBinding(selection.exportRoot.envelope.binding)) {
+    if (selection.exportRoots.length > 0) {
       await establishUnlockedExportRootCapabilityV1(
         walletCustodyCeremonyTransportFromWorkerContextV1(
           args.context.signingEngine.getSignerWorkerContext(),
         ),
         {
-          existingEnvelope: selection.exportRoot.envelope,
+          existingEnvelopes: selection.exportRoots.map(exportRootEnvelope),
           existingFactorSecret: factorSecret32,
           walletId: String(selection.walletId),
           walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),
@@ -688,10 +682,10 @@ export async function unlockLinkedDevicePasskey(
           material: ed25519Material,
           relayerUrl: relayUrl,
         });
-      } else if (ecdsaMaterial) {
+      } else if (ecdsaMaterial || selection.authority.signerActivations.mlDsa) {
         loginResult = {
           success: true,
-          kind: 'ecdsa_wallet_unlocked',
+          kind: 'wallet_unlocked',
           walletId: selection.walletId,
         };
       } else {
@@ -701,13 +695,13 @@ export async function unlockLinkedDevicePasskey(
         record: verified.walletSession,
         operationCredential: verified.operationCredential,
       });
-      if (selection.exportRoot) {
+      if (selection.exportRoots.length > 0) {
         const passkeyPrfFirstB64u = passkeyPrfFirstB64uFromCredential(credential);
         if (!passkeyPrfFirstB64u) {
           throw new Error('[login] linked export-root unlock requires WebAuthn PRF.first output');
         }
         await context.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
-          existingEnvelope: selection.exportRoot.envelope,
+          existingEnvelopes: selection.exportRoots.map(exportRootEnvelope),
           passkeyPrfFirstB64u,
           walletId: String(selection.walletId),
           walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),

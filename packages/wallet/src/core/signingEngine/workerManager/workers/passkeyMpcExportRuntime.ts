@@ -1,3 +1,6 @@
+import { exactRecord } from '@shared/utils/exactRecord';
+import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import { parseWalletSessionOperationCredentialV1 } from '@shared/device-linking';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import type {
   MlDsaSeedExportWorkerPayload,
@@ -368,32 +371,84 @@ function parseMlDsaSeedExportPayload(raw: unknown): MlDsaSeedExportWorkerPayload
   const signer = parseNearTransactionSigner(r.signer);
   if (signer.kind !== 'near_ml_dsa_65') throw new Error('ML-DSA export requires an ML-DSA key');
   const walletId = requireParsed(parseWalletId(r.walletId), 'walletId');
-  const credentialIdB64u = requireParsed(
-    parseWebAuthnCredentialIdB64u(r.credentialIdB64u),
-    'credentialIdB64u',
-  );
+  const auth = parseMlDsaExportAuth(r.auth);
   const envelope = parsePasskeyCustodyEnvelopeRecord(r.envelope, 'ML-DSA custody envelope');
   if (
     r.artifactKind !== 'ml-dsa-65-fips-seed-export-v1' ||
     envelope.walletId !== walletId ||
-    envelope.factor.kind !== 'passkey' ||
-    envelope.factor.credentialIdB64u !== credentialIdB64u ||
-    envelope.binding.kind !== 'wallet_custody_seed_v1' ||
+    envelope.factor.kind !== auth.kind ||
+    (envelope.binding.kind !== 'wallet_custody_seed_v1' &&
+      envelope.binding.kind !== 'ml_dsa_65_owner_root_v1') ||
     envelope.lifecycle.state !== 'active'
   )
     throw new Error('ML-DSA export requires this owner’s active wallet seed envelope');
+  if (
+    auth.kind === 'passkey' &&
+    (envelope.factor.kind !== 'passkey' ||
+      envelope.factor.rpId !== auth.rpId ||
+      envelope.factor.credentialIdB64u !== auth.credentialIdB64u)
+  )
+    throw new Error('The export factor differs from the selected passkey');
+  if (
+    auth.kind === 'email_otp' &&
+    (envelope.ownership.kind !== 'method_bound' ||
+      envelope.ownership.walletAuthMethodId !== auth.walletAuthMethodId)
+  )
+    throw new Error('The export envelope belongs to another Email OTP owner');
+  if (
+    envelope.binding.kind === 'ml_dsa_65_owner_root_v1' &&
+    (envelope.binding.mlDsaSigningKeyId !== signer.signingKeyId ||
+      envelope.binding.registeredPublicKeyB64u !== signer.publicKeyB64u ||
+      envelope.binding.keyManifestDigestB64u !== signer.keyManifestDigestB64u)
+  )
+    throw new Error('The ML-DSA export root names another key');
   return {
     artifactKind: 'ml-dsa-65-fips-seed-export-v1',
     viewerSessionId: requireCanonicalString(r.viewerSessionId, 'viewerSessionId'),
     walletId,
     nearAccountId: requireCanonicalString(r.nearAccountId, 'nearAccountId'),
     relayerUrl: requireCanonicalString(r.relayerUrl, 'relayerUrl'),
-    rpId: requireParsed(parseWebAuthnRpId(r.rpId), 'rpId'),
-    credentialIdB64u,
+    auth,
     signer,
     envelope,
     variant: r.variant === 'modal' || r.variant === 'drawer' ? r.variant : undefined,
     theme: r.theme === 'dark' || r.theme === 'light' ? r.theme : undefined,
+  };
+}
+
+function parseMlDsaExportAuth(raw: unknown): MlDsaSeedExportWorkerPayload['auth'] {
+  const value = requireRecord(raw, 'ML-DSA export authentication');
+  if (value.kind === 'passkey') {
+    const auth = exactRecord(value, ['kind', 'rpId', 'credentialIdB64u'], 'ML-DSA passkey export');
+    return {
+      kind: 'passkey',
+      rpId: requireParsed(parseWebAuthnRpId(auth.rpId), 'rpId'),
+      credentialIdB64u: requireParsed(
+        parseWebAuthnCredentialIdB64u(auth.credentialIdB64u),
+        'credentialIdB64u',
+      ),
+    };
+  }
+  const auth = exactRecord(
+    value,
+    ['kind', 'walletAuthMethodId', 'sessionAuth', 'challengeId', 'otpCode'],
+    'ML-DSA Email OTP export',
+  );
+  if (
+    auth.kind !== 'email_otp' ||
+    typeof auth.otpCode !== 'string' ||
+    !/^\d{6}$/.test(auth.otpCode)
+  )
+    throw new Error('Invalid ML-DSA export authentication');
+  return {
+    kind: 'email_otp',
+    walletAuthMethodId: requireParsed(
+      parseWalletAuthMethodId(auth.walletAuthMethodId),
+      'walletAuthMethodId',
+    ),
+    sessionAuth: parseWalletSessionOperationCredentialV1(auth.sessionAuth),
+    challengeId: requireCanonicalString(auth.challengeId, 'challengeId'),
+    otpCode: auth.otpCode,
   };
 }
 

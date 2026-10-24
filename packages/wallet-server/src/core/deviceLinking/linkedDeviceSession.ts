@@ -104,7 +104,7 @@ export type LinkedDeviceOwnerAuthorizationContextV1 = {
   readonly authorizationId: WalletSessionAuthorizationId;
   readonly expiresAtMs: number;
   readonly permission: DelegatedWalletAuthorityV1;
-  readonly curve: 'ed25519' | 'ecdsa';
+  readonly curve: 'ed25519' | 'ecdsa' | 'ml_dsa_65';
   readonly keyManifestDigestB64u: DigestB64u;
 };
 

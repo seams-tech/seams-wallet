@@ -1,3 +1,4 @@
+import { assertWalletAuthorityExportRoots } from '@/core/indexedDB/walletAuthorityExportRoots';
 import type {
   ActivateInstalledAuthorityResultV1,
   CommittedAuthorityPackagesV1,
@@ -362,7 +363,7 @@ async function installLocalAuthorityV1(input: {
     authenticator: localProfileProjection.authenticator,
     localAuthMethod: localProfileProjection.localAuthMethod,
     signerMaterials: sealed.signerMaterials,
-    exportRoot: sealed.exportRoot,
+    exportRoots: sealed.exportRoots,
     receipt,
     expectedLockGeneration: input.expectedLockGeneration,
   });
@@ -700,20 +701,7 @@ function assertSealedAuthorityRecordsMatchCommitted(input: {
       throw new Error('sealed signer material identity does not match committed authority');
     }
   }
-  const requiresExportRoot =
-    hasEd25519SignerFamily(authority.signerActivations) &&
-    authority.permissions.includes('export_keys');
-  if (requiresExportRoot !== (input.sealed.exportRoot !== null)) {
-    throw new Error('sealed Ed25519 export root presence does not match committed authority');
-  }
-  if (input.sealed.exportRoot) {
-    if (
-      input.sealed.exportRoot.authorityId !== authority.authorityId ||
-      input.sealed.exportRoot.walletAuthMethodId !== authMethod.walletAuthMethodId
-    ) {
-      throw new Error('sealed export root identity does not match committed authority');
-    }
-  }
+  assertWalletAuthorityExportRoots(authority, authMethod, input.sealed.exportRoots);
   parseDigestB64u(input.sealed.installedRecordSetDigestB64u);
 }
 
@@ -752,36 +740,25 @@ function walletSignerActivationSetsMatch(
   return true;
 }
 
-function hasEd25519SignerFamily(
-  activations: CommittedAuthorityPackagesV1['authority']['signerActivations'],
-): boolean {
-  return activations.keyFamilies.length === 2 || activations.keyFamilies[0] === 'ed25519';
-}
-
 function signerMaterialActivations(
   activations: CommittedAuthorityPackagesV1['authority']['signerActivations'],
 ): readonly {
   readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
   readonly materialActivation: MpcMaterialActivationRef;
 }[] {
-  if (activations.keyFamilies.length === 1 && activations.keyFamilies[0] === 'ed25519') {
-    if (!activations.ed25519) throw new Error('Ed25519 activation is missing');
-    return [{ keyFamily: 'ed25519', materialActivation: activations.ed25519.materialActivation }];
-  }
-  if (activations.keyFamilies.length === 1 && activations.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!activations.ecdsa) throw new Error('ECDSA activation is missing');
-    return [
-      { keyFamily: 'ecdsa_secp256k1', materialActivation: activations.ecdsa.materialActivation },
-    ];
-  }
-  if (activations.keyFamilies.length === 2) {
-    if (!activations.ed25519 || !activations.ecdsa) {
-      throw new Error('combined signer activations are incomplete');
-    }
-    return [
-      { keyFamily: 'ed25519', materialActivation: activations.ed25519.materialActivation },
-      { keyFamily: 'ecdsa_secp256k1', materialActivation: activations.ecdsa.materialActivation },
-    ];
-  }
-  throw new Error('committed signer activation families are invalid');
+  const result: {
+    keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+    materialActivation: MpcMaterialActivationRef;
+  }[] = [];
+  if (activations.ed25519)
+    result.push({
+      keyFamily: 'ed25519',
+      materialActivation: activations.ed25519.materialActivation,
+    });
+  if (activations.ecdsa)
+    result.push({
+      keyFamily: 'ecdsa_secp256k1',
+      materialActivation: activations.ecdsa.materialActivation,
+    });
+  return result;
 }

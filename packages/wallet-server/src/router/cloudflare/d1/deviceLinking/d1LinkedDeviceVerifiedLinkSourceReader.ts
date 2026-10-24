@@ -1,7 +1,10 @@
 import {
-  buildExactAdministeredSignerManifestV1,
-  type ExactAdministeredSignerManifestV1,
-} from '@shared/device-linking/delegatedActivationPlan';
+  walletSignerManifestV1,
+  buildWalletSignerActivationSetV1,
+  computeWalletSignerActivationSetDigestB64u,
+} from '@shared/authorization/walletAuthority';
+import type { D1WalletMlDsaRegistration } from '../wallet/d1WalletMlDsaRegistration';
+import { buildExactAdministeredSignerManifestV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   parseWalletSessionAuthorizationId,
@@ -42,6 +45,7 @@ export function createD1LinkedDeviceVerifiedLinkSourceReaderV1(input: {
     'listEd25519SignersForWallet' | 'listEcdsaSignersForWallet'
   >;
   readonly tenantId: TenantId;
+  readonly mlDsaRegistration: Pick<D1WalletMlDsaRegistration, 'readPublished'> | null;
 }): VerifiedLinkSourceReaderV1 {
   return {
     readVerifiedSourceV1: async (request) => {
@@ -75,6 +79,42 @@ export function createD1LinkedDeviceVerifiedLinkSourceReaderV1(input: {
         throw new Error('source Wallet Auth Method authority provenance is invalid');
       }
       assertSourceSessionAuthorityV1(sourceSession, authority);
+      if (request.keyFamily === 'ml_dsa_65') {
+        const activations = authority.signerActivations.mlDsa;
+        if (!activations) throw new LinkedDeviceSourceFamilyUnavailableErrorV1('ml_dsa_65');
+        if (!input.mlDsaRegistration) throw new Error('ML-DSA publication storage is unavailable');
+        const signers = [];
+        for (const activation of activations) {
+          const signer = activation.signer;
+          const published = await input.mlDsaRegistration.readPublished(
+            authority.walletId,
+            signer.mlDsaSigningKeyId,
+          );
+          if (
+            !published ||
+            published.key.walletKeyId !== signer.walletKeyId ||
+            published.key.registeredPublicKeyB64u !== signer.registeredPublicKeyB64u ||
+            published.key.keyManifestDigestB64u !== signer.keyManifestDigestB64u
+          )
+            throw new Error('The source ML-DSA publication is unavailable or changed');
+          signers.push(signer);
+        }
+        const mlDsaSet = buildWalletSignerActivationSetV1({
+          manifest: buildExactAdministeredSignerManifestV1(signers),
+          materialActivations: { keyFamilies: ['ml_dsa_65'] },
+        });
+        return {
+          authority,
+          authMethod,
+          signerManifest: walletSignerManifestV1(authority.signerActivations),
+          keyManifestDigestB64u: await computeWalletSignerActivationSetDigestB64u(mlDsaSet),
+          principalId: sourceSession.principalId,
+          expiresAtMs: sourceSession.expiresAtMs,
+          authorityDigestB64u: authority.authorityDigestB64u,
+          verifiedRevocationEpoch: authority.revocationEpoch,
+          verifiedAtMs: request.requestedAtMs,
+        };
+      }
       const [ed25519Signers, ecdsaSigners] = await Promise.all([
         input.walletStore.listEd25519SignersForWallet({ walletId: request.walletId }),
         input.walletStore.listEcdsaSignersForWallet({ walletId: request.walletId }),
@@ -87,7 +127,7 @@ export function createD1LinkedDeviceVerifiedLinkSourceReaderV1(input: {
       return {
         authority,
         authMethod,
-        signerManifest: signerManifestFromAuthority(authority),
+        signerManifest: walletSignerManifestV1(authority.signerActivations),
         keyManifestDigestB64u: parseDigestB64u(signer.custodyKeyManifestDigestB64u),
         principalId: sourceSession.principalId,
         expiresAtMs: sourceSession.expiresAtMs,
@@ -159,7 +199,7 @@ export class LinkedDeviceSourceFamilyUnavailableErrorV1 extends Error {
 
 function sourceSignerForFamilyV1(input: {
   readonly authority: ActiveWalletAuthorityV1;
-  readonly keyFamily: ExactAdministeredSignerV1['keyFamily'];
+  readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
   readonly signers: readonly (WalletEd25519SignerRecord | WalletEcdsaSignerRecord)[];
 }): WalletEd25519SignerRecord | WalletEcdsaSignerRecord {
   const activation =
@@ -249,22 +289,4 @@ function sourceSignerIdentityMatchesV1(
     expected.thresholdPublicKey33B64u === signer.walletKey.thresholdEcdsaPublicKeyB64u &&
     expected.evmAddress === signer.walletKey.thresholdOwnerAddress
   );
-}
-
-function signerManifestFromAuthority(
-  authority: ActiveWalletAuthorityV1,
-): ExactAdministeredSignerManifestV1 {
-  const signers = authority.signerActivations.keyFamilies.map((family) => {
-    if (family === 'ed25519') {
-      if (!authority.signerActivations.ed25519) {
-        throw new Error('source Ed25519 activation is missing');
-      }
-      return authority.signerActivations.ed25519.signer;
-    }
-    if (!authority.signerActivations.ecdsa) {
-      throw new Error('source ECDSA activation is missing');
-    }
-    return authority.signerActivations.ecdsa.signer;
-  });
-  return buildExactAdministeredSignerManifestV1(signers);
 }

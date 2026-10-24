@@ -191,7 +191,7 @@ async function authorizeOwnerForLinkingV1(
   const parsed = parseOwnerAuthorizationResponseV1(response.body, session);
   const exportRootRequired =
     hasDelegatedWalletPermissionV1(input.payload.requestedPermission, 'export_keys') &&
-    parsed.sourceSignerManifest.keyFamilies.some((family) => family === 'ed25519');
+    parsed.sourceSignerManifest.keyFamilies.some(signerFamilyRequiresExportRoot);
   const ed25519ExportRootCapability = exportRootRequired
     ? context.readUnlockedEd25519ExportRootCapabilityV1(state.walletId)
     : undefined;
@@ -493,4 +493,8 @@ function positiveSafeInteger(raw: unknown, label: string): number {
     throw new Error(`${label} must be a positive safe integer`);
   }
   return Number(raw);
+}
+
+function signerFamilyRequiresExportRoot(family: string): boolean {
+  return family === 'ed25519' || family === 'ml_dsa_65';
 }

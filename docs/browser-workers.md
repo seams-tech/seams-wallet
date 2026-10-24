@@ -288,3 +288,20 @@ First record a reason here, and check rules 1 to 6.
 3. Check the worker contracts in [Intended Behaviours](intended-behaviours.md)
    and the asset assertions in the registration contract tests.
 4. Check what a timeout of the changed worker now destroys.
+
+## ML-DSA linked-owner roots
+
+The custody worker retains one expiring capability for the selected owner session.
+It contains the wallet seed envelope or the complete linked-root envelope set and its factor.
+It loads the optional ML-DSA module only when it verifies or transfers an ML-DSA root.
+Each Wasm instance opens its own envelope. Handles never cross module instances.
+
+The device-linking worker owns each target ML-DSA recipient for one linking attempt.
+Its optional Wasm operation opens the addressed root, verifies the public key, and seals it under the approved target factor.
+Only ciphertext returns to JavaScript. The recipient is consumed on success and failure.
+The installation transaction requires every expected root before it acknowledges activation.
+
+The export worker opens the exact root after fresh Passkey or Email OTP export authorization.
+Email OTP factor release stays inside that worker. Current signer inventory is checked before and after release.
+The canonical FIPS seed reaches only the Wallet-origin export viewer.
+Root transfer does not change A/B shares, prepared material, candidate consumption, or pool capacity.

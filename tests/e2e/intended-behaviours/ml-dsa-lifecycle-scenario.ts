@@ -174,7 +174,7 @@ export async function runMlDsaBrowserLifecycle(
   const linkedActor = await readActor(linked);
   expect(linkedActor.credentialIdB64u).not.toBe(context.credentialIdB64u);
   await discover(linked, signer, linkedActor.credentialIdB64u);
-  await expect(linked.runMlDsaCommand({ kind: 'export', signer })).rejects.toThrow('custody owner');
+  await assertCanonicalExport(linked.page, linked, signer);
   await pause(60_000);
   const device = await signMlDsaTransaction(linked, signer);
 
@@ -780,4 +780,61 @@ class SignerDiscoveryTrace {
   private elapsed(): number {
     return Math.round(performance.now() - this.startedAt);
   }
+}
+
+export async function runMlDsaDeviceOwnerParity(
+  { harness, browser, page }: { harness: IntendedBehaviourHarness; browser: Browser; page: Page },
+  testInfo: TestInfo,
+): Promise<void> {
+  testInfo.setTimeout(900_000);
+  await harness.registerPasskeyWallet();
+  await harness.awaitNearReady();
+  const context = await harness.runMlDsaCommand({ kind: 'context' });
+  if (!('walletId' in context) || typeof context.walletId !== 'string')
+    throw new Error('Missing test wallet');
+  await prepareMlDsaPool(context.walletId);
+  const signer = await publishAcrossReload(page, harness);
+  await assertCanonicalExport(page, harness, signer);
+  const linked = await harness.openLinkedDevice(browser);
+  await harness.linkDeviceWithPasskey(linked);
+  const linkedActor = await readActor(linked);
+  await discover(linked, signer, linkedActor.credentialIdB64u);
+  await assertCanonicalExport(linked.page, linked, signer);
+  await linked.refreshPagePreservingWalletStorage();
+  await linked.unlockPasskeyWallet();
+  await assertCanonicalExport(linked.page, linked, signer);
+  const third = await linked.openLinkedDevice(browser);
+  await linked.linkDeviceWithPasskey(third);
+  await assertCanonicalExport(third.page, third, signer);
+  await harness.addEmailOtpAuthMethod();
+  await harness.unlockWithAddedEmailOtp();
+  await assertCanonicalExport(page, harness, signer);
+  await harness.unlockPasskeyWallet();
+  await harness.discardPasskeyCredentials();
+  await harness.recoverPasskeyWalletFromFreshBrowser();
+  await harness.assertRecoveryAuthorityIsAdditive('passkey');
+  await assertCanonicalExport(page, harness, signer);
+  await harness.revokeLinkedDeviceWithOwnerPasskey();
+  const revoked = await linked.runMlDsaCommand({ kind: 'metadata' });
+  expect('kind' in revoked && revoked.kind).toBe('refused');
+  await assertCanonicalExport(third.page, third, signer);
+  await saveEvidence(testInfo, {
+    observedAt: new Date().toISOString(),
+    scope:
+      'Public SDK, Chromium with separate authenticators, local Gateway/D1/Router/A/B Workers. NEAR RPC uses the intended-behaviour fixture. No live-chain or latency claim.',
+    walletId: context.walletId,
+    signer,
+    checks: {
+      publicationAcrossReload: true,
+      linkedPasskeyExport: true,
+      exportAfterReload: true,
+      onwardLinkExport: true,
+      otherLinkedOwnerPreservedAfterRevocation: true,
+      originalEmailOtpExport: true,
+      recoveredOwnerExport: true,
+      revokedOwnerRefused: true,
+      exportsVerifiedByNodeCrypto: true,
+    },
+    policy: { candidateGroupSize: 2, preparationGroupSize: 4, poolCapacityCandidates: 32 },
+  });
 }

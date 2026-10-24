@@ -1,3 +1,6 @@
+import { walletCapabilitySubjectsEqual, parseWalletCapabilitySubjectV1 } from '@shared/device-linking/activeWalletSession';
+import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
+import { walletSignerCapabilitySubjectsV1 } from '@shared/authorization/walletAuthority';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { Variant } from '@shared/utils/variant';
@@ -46,12 +49,10 @@ import type {
 } from '@shared/authorization/operationFingerprint';
 import { computeCapabilityOperationFingerprintDigest } from '@shared/authorization/operationFingerprint';
 import {
-  parseMpcMaterialActivationRef,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
   type DomainId,
-  type MpcMaterialActivationRef,
   type WalletAuthMethodId,
   type WalletAuthorityId,
   type WalletId,
@@ -242,26 +243,7 @@ export type ActiveWalletSessionQuota = {
 };
 
 export type WalletSessionCapabilitySubjectV1 =
-  | {
-      readonly kind: 'sign';
-      readonly keyFamily: 'ed25519';
-      readonly materialActivation: MpcMaterialActivationRef;
-    }
-  | {
-      readonly kind: 'sign';
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-    }
-  | {
-      readonly kind: 'export_keys';
-      readonly keyFamily: 'ed25519';
-      readonly materialActivation: MpcMaterialActivationRef;
-    }
-  | {
-      readonly kind: 'export_keys';
-      readonly keyFamily: 'ecdsa_secp256k1';
-      readonly materialActivation: MpcMaterialActivationRef;
-    }
+  | Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>
   | {
       readonly kind: 'link_devices';
       readonly authorityId: WalletAuthorityId;
@@ -435,6 +417,11 @@ export function exactWalletSessionCapabilitySubjectsResolveAuthority(input: {
     switch (subject.kind) {
       case 'sign':
       case 'export_keys': {
+        if (subject.keyFamily === 'ml_dsa_65') {
+          for (const activation of input.signerActivations.mlDsa ?? [])
+            if (activation.signer.mlDsaSigningKeyId === subject.mlDsaSigningKeyId) return true;
+          return false;
+        }
         const activation =
           subject.keyFamily === 'ed25519'
             ? input.signerActivations.ed25519
@@ -458,25 +445,21 @@ export function exactWalletSessionCapabilitySubjectsResolveAuthority(input: {
  * the exact wallet, authority, method, capability, and lifetime identity a
  * reader needs to reconcile its own record, and never the credential digest.
  */
+function projectWalletSessionSubjectForClient(subject: WalletSessionCapabilitySubjectV1): WalletCapabilitySubjectV1 {
+  switch (subject.kind) {
+    case 'sign':
+    case 'export_keys':
+      return subject;
+    case 'link_devices':
+    case 'revoke_devices':
+      return { kind: subject.kind };
+  }
+}
+
 export function projectExactWalletSessionAuthorizationV1(
   session: WalletSessionAuthorizationV2,
 ): ActiveWalletSessionV1 {
-  const capabilitySubjects = session.capabilitySubjects.map((subject) => {
-    switch (subject.kind) {
-      case 'sign':
-      case 'export_keys':
-        return {
-          kind: subject.kind,
-          keyFamily: subject.keyFamily,
-          materialActivation: subject.materialActivation,
-        };
-      case 'link_devices':
-      case 'revoke_devices':
-        return { kind: subject.kind };
-      default:
-        throw new Error('Issued linked-device Wallet Session subject is invalid');
-    }
-  });
+  const capabilitySubjects = session.capabilitySubjects.map(projectWalletSessionSubjectForClient);
   const first = capabilitySubjects[0];
   if (!first) throw new Error('Issued linked-device Wallet Session has no subjects');
   return parseActiveWalletSessionV1({
@@ -495,7 +478,7 @@ export function projectExactWalletSessionAuthorizationV1(
 }
 
 export function projectActiveWalletSession(
-  issued: IssuedWalletSessionAuthorizationV2,
+  issued: { readonly session: WalletSessionAuthorizationV2; readonly quota: Pick<ActiveWalletSessionQuota, 'quotaId'> },
 ): ActiveWalletSessionV1 {
   if (issued.quota.quotaId !== issued.session.quotaId) {
     throw new Error('Issued Wallet Session quota does not belong to its authorization');
@@ -601,67 +584,15 @@ export function buildPersistedActiveWalletSessionAuthorizationV2(fields: {
   };
 }
 
-type WalletSessionSignerSubjectKind = 'sign' | 'export_keys';
-
-function appendWalletSessionSignerSubjects(
-  subjects: WalletSessionCapabilitySubjectV1[],
-  kind: WalletSessionSignerSubjectKind,
-  signerActivations: WalletSignerActivationSetV1,
-): void {
-  if (
-    signerActivations.keyFamilies.length === 1 &&
-    signerActivations.keyFamilies[0] === 'ed25519'
-  ) {
-    if (!signerActivations.ed25519) {
-      throw new Error('Ed25519 signer activation is missing');
-    }
-    subjects.push({
-      kind,
-      keyFamily: 'ed25519',
-      materialActivation: signerActivations.ed25519.materialActivation,
-    });
-    return;
-  }
-  if (
-    signerActivations.keyFamilies.length === 1 &&
-    signerActivations.keyFamilies[0] === 'ecdsa_secp256k1'
-  ) {
-    if (!signerActivations.ecdsa) {
-      throw new Error('ECDSA signer activation is missing');
-    }
-    subjects.push({
-      kind,
-      keyFamily: 'ecdsa_secp256k1',
-      materialActivation: signerActivations.ecdsa.materialActivation,
-    });
-    return;
-  }
-  if (!signerActivations.ed25519 || !signerActivations.ecdsa) {
-    throw new Error('both-family signer activations are incomplete');
-  }
-  subjects.push(
-    {
-      kind,
-      keyFamily: 'ed25519',
-      materialActivation: signerActivations.ed25519.materialActivation,
-    },
-    {
-      kind,
-      keyFamily: 'ecdsa_secp256k1',
-      materialActivation: signerActivations.ecdsa.materialActivation,
-    },
-  );
-}
-
 export function buildWalletSessionCapabilitySubjectsV1(
   authority: ActiveWalletAuthorityV1,
 ): WalletSessionCapabilitySubjectsV1 {
   const subjects: WalletSessionCapabilitySubjectV1[] = [];
   if (authority.permissions.includes('sign')) {
-    appendWalletSessionSignerSubjects(subjects, 'sign', authority.signerActivations);
+    subjects.push(...walletSignerCapabilitySubjectsV1(authority.signerActivations, 'sign'));
   }
   if (authority.permissions.includes('export_keys')) {
-    appendWalletSessionSignerSubjects(subjects, 'export_keys', authority.signerActivations);
+    subjects.push(...walletSignerCapabilitySubjectsV1(authority.signerActivations, 'export_keys'));
   }
   if (authority.permissions.includes('link_devices')) {
     subjects.push({ kind: 'link_devices', authorityId: authority.authorityId });
@@ -741,11 +672,7 @@ export function walletSessionCapabilitySubjectsV1Equal(
     if (leftSubject.kind === 'sign' || leftSubject.kind === 'export_keys') {
       if (
         rightSubject.kind !== leftSubject.kind ||
-        leftSubject.keyFamily !== rightSubject.keyFamily ||
-        !mpcMaterialActivationRefsEqual(
-          leftSubject.materialActivation,
-          rightSubject.materialActivation,
-        )
+        !walletCapabilitySubjectsEqual(leftSubject, rightSubject)
       ) {
         return false;
       }
@@ -777,12 +704,6 @@ export function walletSessionAuthorizationV2RecordsEqual(
   );
 }
 
-function parseMpcMaterialActivationRefRequired(value: unknown): MpcMaterialActivationRef {
-  const parsed = parseMpcMaterialActivationRef(value);
-  if (!parsed.ok) throw new Error(parsed.error.message);
-  return parsed.value;
-}
-
 function parseWalletAuthorityIdRequired(value: unknown): WalletAuthorityId {
   const parsed = parseWalletAuthorityId(value);
   if (!parsed.ok) throw new Error(parsed.error.message);
@@ -806,17 +727,9 @@ function parseWalletSessionCapabilitySubject(value: unknown): WalletSessionCapab
   switch (value.kind) {
     case 'sign':
     case 'export_keys': {
-      if (Object.keys(value).sort().join('|') !== 'keyFamily|kind|materialActivation') {
-        throw new Error('Wallet Session signer capability subject contains unexpected fields');
-      }
-      if (value.keyFamily !== 'ed25519' && value.keyFamily !== 'ecdsa_secp256k1') {
-        throw new Error('Wallet Session signer capability subject key family is invalid');
-      }
-      return {
-        kind: value.kind,
-        keyFamily: value.keyFamily,
-        materialActivation: parseMpcMaterialActivationRefRequired(value.materialActivation),
-      };
+      const parsed = parseWalletCapabilitySubjectV1(value, 'Wallet Session signer capability');
+      if (parsed.kind !== 'sign' && parsed.kind !== 'export_keys') throw new Error('Invalid Wallet Session signer capability');
+      return parsed;
     }
     case 'link_devices':
     case 'revoke_devices':

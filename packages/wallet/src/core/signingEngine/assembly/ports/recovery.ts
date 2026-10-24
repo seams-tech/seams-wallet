@@ -89,7 +89,15 @@ export function createRecoveryPublicDeps(args: {
     };
   };
   return {
-    mlDsa: { relayerUrl: args.relayerUrl, passkeyMpcExport: args.passkeyMpcExport },
+    mlDsa: {
+      relayerUrl: args.relayerUrl,
+      passkeyMpcExport: args.passkeyMpcExport,
+      workerContext: args.signerWorkerManager.getContext(),
+      touchConfirm: args.touchConfirm,
+      requestExportChallenge: args.emailOtpSessions.requestExportChallenge.bind(
+        args.emailOtpSessions,
+      ),
+    },
     sessionLifecycle: args.sessionLifecycle,
     laneSelection: {
       readPersistedAvailableSigningLanesForTargets: (availableLanesArgs) =>

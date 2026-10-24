@@ -1,5 +1,4 @@
 import {
-  buildExactAdministeredSignerManifestV1,
   type ExactAdministeredSignerManifestV1,
 } from '@shared/device-linking/delegatedActivationPlan';
 import type {
@@ -15,7 +14,7 @@ import {
   buildDelegatedWalletAuthorityV1,
   validateDelegatedWalletAuthorityAttenuationV1,
 } from '@shared/authorization/delegatedAuthority';
-import { walletAuthorityDigestsMatchV1 } from '@shared/authorization/walletAuthority';
+import { walletAuthorityDigestsMatchV1, walletSignerManifestV1 } from '@shared/authorization/walletAuthority';
 import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { sha256Utf8DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
@@ -427,7 +426,7 @@ function assertSourceManifestMatchesAuthority(
   authority: ActiveWalletAuthorityV1,
   manifest: ExactAdministeredSignerManifestV1,
 ): void {
-  const expected = manifestFromAuthority(authority);
+  const expected = walletSignerManifestV1(authority.signerActivations);
   if (!linkedDeviceSignerManifestsEqualV1(expected, manifest)) {
     throw new Error('source signer manifest does not match the active authority');
   }
@@ -461,6 +460,15 @@ export function linkedDeviceSignerManifestsEqualV1(
       return false;
     }
     switch (leftSigner.keyFamily) {
+      case 'ml_dsa_65':
+        if (
+          rightSigner.keyFamily !== 'ml_dsa_65' ||
+          leftSigner.mlDsaSigningKeyId !== rightSigner.mlDsaSigningKeyId ||
+          leftSigner.registeredPublicKeyB64u !== rightSigner.registeredPublicKeyB64u ||
+          leftSigner.keyManifestDigestB64u !== rightSigner.keyManifestDigestB64u
+        )
+          return false;
+        break;
       case 'ed25519':
         if (
           rightSigner.keyFamily !== 'ed25519' ||
@@ -487,21 +495,6 @@ export function linkedDeviceSignerManifestsEqualV1(
 
 function assertNeverLinkedDeviceSignerV1(value: never): never {
   throw new Error(`unsupported linked-device signer family: ${String(value)}`);
-}
-
-function manifestFromAuthority(
-  authority: ActiveWalletAuthorityV1,
-): ExactAdministeredSignerManifestV1 {
-  const signers = authority.signerActivations.keyFamilies.map((family) => {
-    if (family === 'ed25519') {
-      if (!authority.signerActivations.ed25519)
-        throw new Error('source Ed25519 activation is missing');
-      return authority.signerActivations.ed25519.signer;
-    }
-    if (!authority.signerActivations.ecdsa) throw new Error('source ECDSA activation is missing');
-    return authority.signerActivations.ecdsa.signer;
-  });
-  return buildExactAdministeredSignerManifestV1(signers);
 }
 
 function canonicalBase64Url(value: string, label: string): string {

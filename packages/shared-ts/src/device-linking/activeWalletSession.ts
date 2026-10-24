@@ -1,3 +1,4 @@
+import { parseMlDsaSigningKeyId } from '../signing-lanes/recordParsers';
 import type {
   ActiveWalletSessionV1,
   WalletCapabilitySubjectV1,
@@ -7,7 +8,13 @@ import type {
 import { mpcMaterialActivationRefsEqual } from '../utils/domainIds';
 import { requireRecord } from '../utils/validation';
 import { rejectUnknownFields } from '../utils/exactRecord';
-import { wireLiteral, wireObject, wireUnion, type AllTrue, type ParsesExactly } from '../utils/wireSchema';
+import {
+  wireLiteral,
+  wireObject,
+  wireUnion,
+  type AllTrue,
+  type ParsesExactly,
+} from '../utils/wireSchema';
 import {
   digest,
   keyLabeled,
@@ -55,7 +62,7 @@ export function activeWalletSessionV1RecordsEqual(
   return true;
 }
 
-function walletCapabilitySubjectsEqual(
+export function walletCapabilitySubjectsEqual(
   left: WalletCapabilitySubjectV1,
   right: WalletCapabilitySubjectV1,
 ): boolean {
@@ -65,6 +72,12 @@ function walletCapabilitySubjectsEqual(
       return right.kind === left.kind;
     case 'sign':
     case 'export_keys':
+      if (left.keyFamily === 'ml_dsa_65')
+        return (
+          right.kind === left.kind &&
+          right.keyFamily === 'ml_dsa_65' &&
+          right.mlDsaSigningKeyId === left.mlDsaSigningKeyId
+        );
       return (
         right.kind === left.kind &&
         right.keyFamily === left.keyFamily &&
@@ -132,9 +145,12 @@ export function parseWalletSessionOperationCredentialV1(
 }
 
 function capabilitySubjectKey(subject: WalletCapabilitySubjectV1): string {
-  return subject.kind === 'sign' || subject.kind === 'export_keys'
-    ? `${subject.kind}:${subject.keyFamily}:${subject.materialActivation.activationId}`
-    : subject.kind;
+  if (subject.kind === 'link_devices' || subject.kind === 'revoke_devices') return subject.kind;
+  const identity =
+    subject.keyFamily === 'ml_dsa_65'
+      ? subject.mlDsaSigningKeyId
+      : subject.materialActivation.activationId;
+  return `${subject.kind}:${subject.keyFamily}:${identity}`;
 }
 
 function activeWalletSessionV1() {
@@ -178,7 +194,7 @@ export function parseActiveWalletSessionV1(raw: unknown): ActiveWalletSessionV1 
 }
 
 // Hand-written: a missing field reaches its parser rather than failing as missing.
-function parseWalletCapabilitySubjectV1(raw: unknown, label: string): WalletCapabilitySubjectV1 {
+export function parseWalletCapabilitySubjectV1(raw: unknown, label: string): WalletCapabilitySubjectV1 {
   const record = requireRecord(raw, label);
   if (record.kind === 'link_devices' || record.kind === 'revoke_devices') {
     rejectUnknownFields(record, ['kind'], label);
@@ -186,6 +202,14 @@ function parseWalletCapabilitySubjectV1(raw: unknown, label: string): WalletCapa
   }
   if (record.kind !== 'sign' && record.kind !== 'export_keys') {
     throw new Error(`${label}.kind is invalid`);
+  }
+  if (record.keyFamily === 'ml_dsa_65') {
+    rejectUnknownFields(record, ['kind', 'keyFamily', 'mlDsaSigningKeyId'], label);
+    return {
+      kind: record.kind,
+      keyFamily: 'ml_dsa_65',
+      mlDsaSigningKeyId: parseMlDsaSigningKeyId(record.mlDsaSigningKeyId),
+    };
   }
   rejectUnknownFields(record, ['kind', 'keyFamily', 'materialActivation'], label);
   if (record.keyFamily !== 'ed25519' && record.keyFamily !== 'ecdsa_secp256k1') {

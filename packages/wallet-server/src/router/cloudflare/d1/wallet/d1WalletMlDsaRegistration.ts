@@ -1,3 +1,7 @@
+import { D1WalletAuthorityStore } from './d1WalletAuthorityStore';
+import { extendWalletAuthorityWithMlDsa65SignerV1 } from '@shared/authorization/walletAuthority';
+import { parseExactAdministeredMlDsa65SignerV1 } from '@shared/device-linking/delegatedActivationPlan';
+import type { D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import { expireUnusedMlDsaAdmissions } from './d1MlDsaRegistrationExpiry';
 import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { ActivePasskeyWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
@@ -447,7 +451,15 @@ export class D1WalletMlDsaRegistration {
     readonly walletId: WalletId;
     readonly addSignerCeremonyId: string;
     readonly custodyCommit: MlDsaCustodyCommit;
-  }) {
+  }): Promise<
+    | MlDsaRegistrationFailure
+    | {
+        readonly ok: true;
+        readonly key: MlDsaCustodyCommit['key'];
+        readonly publishedAtMs: number;
+        readonly authority: ActiveWalletAuthorityV1;
+      }
+  > {
     const commit = input.custodyCommit;
     if (commit.key.walletId !== input.walletId)
       return failure('custody_mismatch', 'ML-DSA completion names a different wallet');
@@ -474,23 +486,79 @@ export class D1WalletMlDsaRegistration {
         'ML-DSA custody completion does not match the installed key',
       );
     }
+    const authorityStore = new D1WalletAuthorityStore({
+      database: this.options.database,
+      scope: this.options.scope,
+    });
+    const authority = await authorityStore.readById(preparation.owner.walletAuthorityId);
+    if (
+      !authority ||
+      authority.state !== 'active' ||
+      authority.walletId !== input.walletId ||
+      authority.revocationEpoch !== preparation.owner.revocationEpoch
+    )
+      throw new MlDsaRegistrationAuthorityChanged();
+    const signer = parseExactAdministeredMlDsa65SignerV1({
+      kind: 'exact_administered_ml_dsa_65_signer_v1',
+      keyFamily: 'ml_dsa_65',
+      walletId: commit.key.walletId,
+      walletKeyId: `wallet-key:ml-dsa:${commit.key.walletId}:${commit.key.signingKeyId}`,
+      mlDsaSigningKeyId: commit.key.signingKeyId,
+      registeredPublicKeyB64u: commit.key.publicKeyB64u,
+      keyManifestDigestB64u: commit.key.keyManifestDigestB64u,
+    });
+    const publishedAtMs = phase.kind === 'published' ? phase.publishedAtMs : Date.now();
+    const next = await extendWalletAuthorityWithMlDsa65SignerV1({
+      authority,
+      signer,
+      now: publishedAtMs,
+    });
+    if (phase.kind === 'published') {
+      if (next !== authority) throw new MlDsaRegistrationAuthorityChanged();
+      await this.assertCurrentOwner(preparation, authority.authorityDigestB64u);
+      return { ok: true as const, key: commit.key, publishedAtMs, authority };
+    }
     await this.assertCurrentOwner(preparation);
-    if (phase.kind === 'published')
-      return { ok: true as const, key: commit.key, publishedAtMs: phase.publishedAtMs };
-    // Both installations committed before the deadline. Their exact verified
-    // completion may publish after a restart while the owner and epoch remain current.
-    const publishedAtMs = Date.now();
-    const stored = await this.commit(
-      withPhase(record, {
-        kind: 'published',
-        inputs: phase.inputs,
-        result: phase.result,
-        publishedAtMs,
-      }),
-      read.version,
-    );
-    if (stored.kind !== 'stored') return failure('conflict', 'ML-DSA publication changed; retry');
-    return { ok: true as const, key: commit.key, publishedAtMs };
+    const extension =
+      next === authority
+        ? []
+        : authorityStore.prepareActiveAuthorityExtension({
+            expected: authority,
+            next,
+            walletSigners: [],
+            promotionAtMs: publishedAtMs,
+          });
+    try {
+      const stored = await this.commit(
+        withPhase(record, {
+          kind: 'published',
+          inputs: phase.inputs,
+          result: phase.result,
+          publishedAtMs,
+        }),
+        read.version,
+        extension,
+      );
+      if (stored.kind === 'stored')
+        return { ok: true as const, key: commit.key, publishedAtMs, authority: next };
+    } catch (error: unknown) {
+      const latest = await this.records.read(recordKey(preparation));
+      if (
+        latest.kind === 'present' &&
+        latest.value.ceremonyId === input.addSignerCeremonyId &&
+        latest.value.phase.kind === 'published'
+      )
+        return this.publish(input);
+      throw error;
+    }
+    const latest = await this.records.read(recordKey(preparation));
+    if (
+      latest.kind === 'present' &&
+      latest.value.ceremonyId === input.addSignerCeremonyId &&
+      latest.value.phase.kind === 'published'
+    )
+      return this.publish(input);
+    return failure('conflict', 'ML-DSA publication changed; retry');
   }
 
   /** Public metadata only. Signing still requires current operation authorization. */
@@ -616,7 +684,10 @@ export class D1WalletMlDsaRegistration {
         WHERE namespace=?1 AND org_id=?2 AND project_id=?3 AND env_id=?4 AND wallet_id=?5
       )`;
   }
-  private authorityBindings(preparation: MlDsaAddSignerPreparation): readonly unknown[] {
+  private authorityBindings(
+    preparation: MlDsaAddSignerPreparation,
+    authorityDigestB64u = preparation.owner.authorityDigestB64u,
+  ): readonly unknown[] {
     const scope = this.options.scope;
     return [
       scope.namespace,
@@ -625,7 +696,7 @@ export class D1WalletMlDsaRegistration {
       scope.envId,
       preparation.identity.walletId,
       preparation.owner.walletAuthorityId,
-      preparation.owner.authorityDigestB64u,
+      authorityDigestB64u,
       preparation.owner.revocationEpoch,
       preparation.owner.walletAuthMethodId,
       `${PASSKEY_ENVELOPE_KEY_PREFIX}:${preparation.custodyEnvelope.recordKey}`,
@@ -649,15 +720,22 @@ export class D1WalletMlDsaRegistration {
     )
       throw new MlDsaRegistrationAuthorityChanged();
   }
-  async assertCurrentOwner(preparation: MlDsaAddSignerPreparation) {
+  async assertCurrentOwner(
+    preparation: MlDsaAddSignerPreparation,
+    authorityDigestB64u = preparation.owner.authorityDigestB64u,
+  ) {
     this.assertScope(preparation.identity);
     const row = await this.options.database
       .prepare(`SELECT (${this.authorityCondition()}) AS allowed`)
-      .bind(...this.authorityBindings(preparation))
+      .bind(...this.authorityBindings(preparation, authorityDigestB64u))
       .first<{ allowed: number }>();
     if (row?.allowed !== 1) throw new MlDsaRegistrationAuthorityChanged();
   }
-  private async commit(record: RegistrationRecord, version: string | null) {
+  private async commit(
+    record: RegistrationRecord,
+    version: string | null,
+    additionalStatements: readonly D1PreparedStatementLike[] = [],
+  ) {
     const key = recordKey(record.preparation);
     let result: Awaited<ReturnType<typeof this.records.putManyWithAdditionalStatements>>;
     try {
@@ -665,6 +743,7 @@ export class D1WalletMlDsaRegistration {
         [{ key, value: record, expectedVersion: version }],
         [
           this.guard(record.preparation, record.phase.kind !== 'admitted'),
+          ...additionalStatements,
           ...this.executionDeadlineStatements(record),
           ...lifecycleWriteFenceStatements(
             this.options,

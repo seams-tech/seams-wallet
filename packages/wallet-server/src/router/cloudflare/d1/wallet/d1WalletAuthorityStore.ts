@@ -1,5 +1,6 @@
 import {
   computeWalletAuthorityDigestB64u,
+  encodeWalletSignerActivationSetV1,
   buildRevokedWalletAuthorityV1,
   parseWalletAuthorityV1,
   parseWalletSignerActivationSetV1,
@@ -16,7 +17,6 @@ import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKi
 import {
   parseLinkedDeviceEnrollmentId,
   parseLinkDeviceSessionId,
-  mpcMaterialActivationRefsEqual,
   parseWalletAuthorityId,
   parseWalletId,
   parseWalletRecoveryOperationId,
@@ -750,13 +750,13 @@ export class D1WalletAuthorityStore {
    * quota and operation-credential hash; promotion retires its hosted
    * credentials and deletes its unredeemed hosted exchange codes.
    */
-  async extendActiveAuthority(input: {
+  prepareActiveAuthorityExtension(input: {
     readonly expected: ActiveWalletAuthorityV1;
     readonly next: ActiveWalletAuthorityV1;
     readonly walletSigners: readonly WalletSignerRecord[];
     readonly promotionAtMs: number;
-  }): Promise<void> {
-    const statements: D1PreparedStatementLike[] = [
+  }): readonly D1PreparedStatementLike[] {
+    return [
       ...input.walletSigners.map((record) =>
         prepareD1WalletPutSignerStatement({
           database: this.database,
@@ -784,6 +784,15 @@ export class D1WalletAuthorityStore {
         },
       }),
     ];
+  }
+
+  async extendActiveAuthority(input: {
+    readonly expected: ActiveWalletAuthorityV1;
+    readonly next: ActiveWalletAuthorityV1;
+    readonly walletSigners: readonly WalletSignerRecord[];
+    readonly promotionAtMs: number;
+  }): Promise<void> {
+    const statements = this.prepareActiveAuthorityExtension(input);
     let results: readonly D1ResultLike[];
     try {
       results = await this.database.batch<D1ResultLike>(statements);
@@ -1320,89 +1329,15 @@ function permissionSetsEqual(left: readonly string[], right: readonly string[]):
   return true;
 }
 
-type Ed25519ActivationSet = Extract<
-  WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ed25519'] }
->;
-type EcdsaActivationSet = Extract<
-  WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
->;
-type BothActivationSet = Extract<
-  WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
->;
-
-function isEd25519ActivationSet(value: WalletSignerActivationSetV1): value is Ed25519ActivationSet {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ed25519';
-}
-
-function isEcdsaActivationSet(value: WalletSignerActivationSetV1): value is EcdsaActivationSet {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ecdsa_secp256k1';
-}
-
-function isBothActivationSet(value: WalletSignerActivationSetV1): value is BothActivationSet {
-  return value.keyFamilies.length === 2;
-}
-
 function signerActivationSetsEqual(
   left: WalletSignerActivationSetV1,
   right: WalletSignerActivationSetV1,
 ): boolean {
-  if (left.kind !== right.kind || left.keyFamilies.length !== right.keyFamilies.length) {
-    return false;
-  }
-  for (let index = 0; index < left.keyFamilies.length; index += 1) {
-    if (left.keyFamilies[index] !== right.keyFamilies[index]) return false;
-  }
-  if (isEd25519ActivationSet(left)) {
-    return isEd25519ActivationSet(right) && ed25519ActivationsEqual(left, right);
-  }
-  if (isEcdsaActivationSet(left)) {
-    return isEcdsaActivationSet(right) && ecdsaActivationsEqual(left, right);
-  }
-  if (isBothActivationSet(left)) {
-    return (
-      isBothActivationSet(right) &&
-      ed25519ActivationsEqual(left, right) &&
-      ecdsaActivationsEqual(left, right)
-    );
-  }
-  return false;
-}
-
-function ed25519ActivationsEqual(
-  left: Ed25519ActivationSet | BothActivationSet,
-  right: Ed25519ActivationSet | BothActivationSet,
-): boolean {
-  return (
-    left.ed25519.kind === right.ed25519.kind &&
-    left.ed25519.signer.kind === right.ed25519.signer.kind &&
-    left.ed25519.signer.keyFamily === right.ed25519.signer.keyFamily &&
-    left.ed25519.signer.walletId === right.ed25519.signer.walletId &&
-    left.ed25519.signer.walletKeyId === right.ed25519.signer.walletKeyId &&
-    left.ed25519.signer.registeredPublicKeyB64u === right.ed25519.signer.registeredPublicKeyB64u &&
-    mpcMaterialActivationRefsEqual(
-      left.ed25519.materialActivation,
-      right.ed25519.materialActivation,
-    )
-  );
-}
-
-function ecdsaActivationsEqual(
-  left: EcdsaActivationSet | BothActivationSet,
-  right: EcdsaActivationSet | BothActivationSet,
-): boolean {
-  return (
-    left.ecdsa.kind === right.ecdsa.kind &&
-    left.ecdsa.signer.kind === right.ecdsa.signer.kind &&
-    left.ecdsa.signer.keyFamily === right.ecdsa.signer.keyFamily &&
-    left.ecdsa.signer.walletId === right.ecdsa.signer.walletId &&
-    left.ecdsa.signer.walletKeyId === right.ecdsa.signer.walletKeyId &&
-    left.ecdsa.signer.thresholdPublicKey33B64u === right.ecdsa.signer.thresholdPublicKey33B64u &&
-    left.ecdsa.signer.evmAddress === right.ecdsa.signer.evmAddress &&
-    mpcMaterialActivationRefsEqual(left.ecdsa.materialActivation, right.ecdsa.materialActivation)
-  );
+  const a = encodeWalletSignerActivationSetV1(left);
+  const b = encodeWalletSignerActivationSetV1(right);
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return false;
+  return true;
 }
 
 function provenanceEqual(

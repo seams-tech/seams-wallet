@@ -50,7 +50,7 @@ void loginSuccess;
 
 const ecdsaLoginSuccess: LoginResult = {
   success: true,
-  kind: 'ecdsa_wallet_unlocked',
+  kind: 'wallet_unlocked',
   walletId,
 };
 void ecdsaLoginSuccess;
@@ -73,7 +73,7 @@ void invalidLoginSuccess;
 // @ts-expect-error ECDSA-only login cannot fabricate NEAR account identity.
 const invalidEcdsaLoginSuccess: LoginResult = {
   success: true,
-  kind: 'ecdsa_wallet_unlocked',
+  kind: 'wallet_unlocked',
   walletId,
   nearAccountId: 'alice.testnet',
 };

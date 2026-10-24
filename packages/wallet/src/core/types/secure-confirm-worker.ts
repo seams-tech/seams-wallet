@@ -202,8 +202,16 @@ export type MlDsaSeedExportWorkerPayload = ExportPrivateKeysWithUiWorkerPayloadB
   readonly walletId: string;
   readonly nearAccountId: string;
   readonly relayerUrl: string;
-  readonly rpId: string;
-  readonly credentialIdB64u: string;
+  readonly auth: import('@shared/utils/variant').ReadonlyExclusiveUnion<
+    | { readonly kind: 'passkey'; readonly rpId: string; readonly credentialIdB64u: string }
+    | {
+        readonly kind: 'email_otp';
+        readonly walletAuthMethodId: import('@shared/utils/domainIds').WalletAuthMethodId;
+        readonly sessionAuth: import('@shared/device-linking/contracts').WalletSessionOperationCredentialV1;
+        readonly challengeId: string;
+        readonly otpCode: string;
+      }
+  >;
   readonly signer: import('./seams').AddedMlDsaSignerCapability;
   readonly envelope: PasskeyCustodyEnvelopeRecord;
 };

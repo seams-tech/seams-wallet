@@ -1,3 +1,5 @@
+import { walletCapabilitySubjectsEqual } from '@shared/device-linking/activeWalletSession';
+import { walletSignerCapabilitySubjectsV1 } from '@shared/authorization/walletAuthority';
 /**
  * Checks an unlock's exact Wallet Session and wallet custody projection, then restores ECDSA and
  * Ed25519 signing material from custody.
@@ -126,67 +128,15 @@ function walletSessionHasEcdsaActivation(args: {
   return matchCount === 1;
 }
 
-function appendEmailOtpWalletUnlockSignerSubjects(
-  subjects: WalletCapabilitySubjectV1[],
-  kind: 'sign' | 'export_keys',
-  authority: EmailOtpVerifiedAuthorityProjection['authority'],
-): void {
-  const activations = authority.signerActivations;
-  if (activations.keyFamilies.length === 1) {
-    const keyFamily = activations.keyFamilies[0];
-    if (keyFamily === 'ed25519') {
-      if (!activations.ed25519) {
-        throw new Error('Email OTP Wallet Session Ed25519 activation is missing');
-      }
-      subjects.push({
-        kind,
-        keyFamily,
-        materialActivation: activations.ed25519.materialActivation,
-      });
-      return;
-    }
-    if (!activations.ecdsa) {
-      throw new Error('Email OTP Wallet Session ECDSA activation is missing');
-    }
-    subjects.push({
-      kind,
-      keyFamily,
-      materialActivation: activations.ecdsa.materialActivation,
-    });
-    return;
-  }
-  if (
-    activations.keyFamilies.length !== 2 ||
-    activations.keyFamilies[0] !== 'ed25519' ||
-    activations.keyFamilies[1] !== 'ecdsa_secp256k1' ||
-    !activations.ed25519 ||
-    !activations.ecdsa
-  ) {
-    throw new Error('Email OTP Wallet Session signer activations are invalid');
-  }
-  subjects.push(
-    {
-      kind,
-      keyFamily: 'ed25519',
-      materialActivation: activations.ed25519.materialActivation,
-    },
-    {
-      kind,
-      keyFamily: 'ecdsa_secp256k1',
-      materialActivation: activations.ecdsa.materialActivation,
-    },
-  );
-}
-
 function emailOtpWalletUnlockCapabilitySubjects(
   authority: EmailOtpVerifiedAuthorityProjection['authority'],
 ): readonly [WalletCapabilitySubjectV1, ...WalletCapabilitySubjectV1[]] {
   const subjects: WalletCapabilitySubjectV1[] = [];
   if (authority.permissions.includes('sign')) {
-    appendEmailOtpWalletUnlockSignerSubjects(subjects, 'sign', authority);
+    subjects.push(...walletSignerCapabilitySubjectsV1(authority.signerActivations, 'sign'));
   }
   if (authority.permissions.includes('export_keys')) {
-    appendEmailOtpWalletUnlockSignerSubjects(subjects, 'export_keys', authority);
+    subjects.push(...walletSignerCapabilitySubjectsV1(authority.signerActivations, 'export_keys'));
   }
   if (authority.permissions.includes('link_devices')) subjects.push({ kind: 'link_devices' });
   if (authority.permissions.includes('revoke_devices')) subjects.push({ kind: 'revoke_devices' });
@@ -212,11 +162,7 @@ function emailOtpWalletUnlockCapabilitySubjectsMatchAuthority(
       case 'export_keys':
         if (
           expectedSubject.kind !== actual.kind ||
-          expectedSubject.keyFamily !== actual.keyFamily ||
-          !mpcMaterialActivationRefsEqual(
-            expectedSubject.materialActivation,
-            actual.materialActivation,
-          )
+          !walletCapabilitySubjectsEqual(expectedSubject, actual)
         ) {
           return false;
         }

@@ -1,3 +1,8 @@
+import { parseSealedMlDsaRootTransferV1 } from '@shared/device-linking/mlDsaExportRoot';
+import type {
+  LinkedDeviceMlDsaSourceContributionPreparationV1,
+  LinkedDeviceMlDsaSourceContributionV1,
+} from '@shared/device-linking/sourceContribution';
 import type {
   LinkedDeviceEd25519SourceContributionPreparationV1,
   LinkedDeviceEd25519SourceContributionV1,
@@ -42,6 +47,12 @@ type DeviceLinkingEcdsaSourceContributionRuntimePortV1 = {
 };
 
 type DeviceLinkingSourceContributionRuntimePortV1 = {
+  readonly mlDsa: {
+    produceSourceContributionV1(input: {
+      readonly preparation: LinkedDeviceMlDsaSourceContributionPreparationV1;
+      readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
+    }): Promise<LinkedDeviceMlDsaSourceContributionV1>;
+  };
   readonly ed25519: DeviceLinkingEd25519SourceContributionRuntimePortV1;
   readonly ecdsa: DeviceLinkingEcdsaSourceContributionRuntimePortV1;
 };
@@ -242,6 +253,12 @@ export function createDeviceLinkingSourceContributionPortV1(
   input: DeviceLinkingSourceContributionPortFactoryInputV1,
 ): DeviceLinkingSourceContributionRuntimePortV1 {
   return {
+    mlDsa: {
+      produceSourceContributionV1: produceMlDsaSourceContribution.bind(
+        undefined,
+        input.workerContext,
+      ),
+    },
     ed25519: input.ed25519,
     ecdsa: {
       produceSourceContributionV1: async ({ preparation }) =>
@@ -289,4 +306,38 @@ async function applicationBindingDigestB64uV1(
   return base64UrlEncode(
     Uint8Array.from(await deriveRouterAbEd25519YaoApplicationBindingDigestV1(applicationBinding)),
   );
+}
+
+async function produceMlDsaSourceContribution(
+  context: WorkerOperationContext,
+  input: {
+    readonly preparation: LinkedDeviceMlDsaSourceContributionPreparationV1;
+    readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
+  },
+): Promise<LinkedDeviceMlDsaSourceContributionV1> {
+  const preparation = input.preparation;
+  const sealed = parseSealedMlDsaRootTransferV1(
+    await context.requestWorkerOperation({
+      kind: 'walletCustodyCeremony',
+      request: {
+        type: 'sealMlDsaExportRootForLinkedDevice',
+        payload: { capability: input.capability, binding: preparation.rootBinding },
+      },
+    }),
+  );
+  return {
+    kind: 'linked_device_ml_dsa_65_source_contribution_v1',
+    keyFamily: 'ml_dsa_65',
+    linkSessionId: preparation.linkSessionId,
+    enrollmentId: preparation.enrollmentId,
+    walletKeyId: preparation.walletKeyId,
+    sourceAuthorityId: preparation.sourceAuthorityId,
+    targetDeviceId: preparation.targetDeviceId,
+    targetFactorVerificationDigestB64u: preparation.targetFactorVerificationDigestB64u,
+    rootPackage: {
+      kind: 'linked_device_ml_dsa_65_export_root_package_v1',
+      binding: preparation.rootBinding,
+      sealed,
+    },
+  };
 }

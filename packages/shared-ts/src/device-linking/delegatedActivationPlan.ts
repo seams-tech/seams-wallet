@@ -1,5 +1,7 @@
 import {
   parseEd25519PublicKeyB64u,
+  parseMlDsa65PublicKeyB64u,
+  type MlDsa65PublicKeyB64u,
   parseSecp256k1CompressedPublicKeyB64u,
   requireParsed,
   type Ed25519PublicKeyB64u,
@@ -8,7 +10,10 @@ import {
 import { parseWalletKeyId, type WalletKeyId } from '../signing-lanes/ids';
 import { parseWalletId, type WalletId } from '../utils/domainIds';
 import { requireRecord } from '../utils/validation';
-import { rejectUnknownFields } from '../utils/exactRecord';
+import { rejectUnknownFields, exactRecord } from '../utils/exactRecord';
+import { parseMlDsaSigningKeyId } from '../signing-lanes/recordParsers';
+import type { MlDsaSigningKeyId } from '../signing-lanes/records';
+import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 
 export type ExactAdministeredSignerManifestV1 =
   | {
@@ -27,7 +32,54 @@ export type ExactAdministeredSignerManifestV1 =
       readonly kind: 'exact_administered_signer_manifest_v1';
       readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'];
       readonly signers: readonly [ExactAdministeredEd25519SignerV1, ExactAdministeredEcdsaSignerV1];
+    }
+  | {
+      readonly kind: 'exact_administered_signer_manifest_v1';
+      readonly keyFamilies: readonly ['ml_dsa_65'];
+      readonly signers: readonly [
+        ExactAdministeredMlDsa65SignerV1,
+        ...ExactAdministeredMlDsa65SignerV1[],
+      ];
+    }
+  | {
+      readonly kind: 'exact_administered_signer_manifest_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ml_dsa_65'];
+      readonly signers: readonly [
+        ExactAdministeredEd25519SignerV1,
+        ExactAdministeredMlDsa65SignerV1,
+        ...ExactAdministeredMlDsa65SignerV1[],
+      ];
+    }
+  | {
+      readonly kind: 'exact_administered_signer_manifest_v1';
+      readonly keyFamilies: readonly ['ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly signers: readonly [
+        ExactAdministeredEcdsaSignerV1,
+        ExactAdministeredMlDsa65SignerV1,
+        ...ExactAdministeredMlDsa65SignerV1[],
+      ];
+    }
+  | {
+      readonly kind: 'exact_administered_signer_manifest_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly signers: readonly [
+        ExactAdministeredEd25519SignerV1,
+        ExactAdministeredEcdsaSignerV1,
+        ExactAdministeredMlDsa65SignerV1,
+        ...ExactAdministeredMlDsa65SignerV1[],
+      ];
     };
+
+/** Stable identity. Participant refresh does not change a device's key authority. */
+export type ExactAdministeredMlDsa65SignerV1 = {
+  readonly kind: 'exact_administered_ml_dsa_65_signer_v1';
+  readonly keyFamily: 'ml_dsa_65';
+  readonly walletId: WalletId;
+  readonly walletKeyId: WalletKeyId;
+  readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+  readonly registeredPublicKeyB64u: MlDsa65PublicKeyB64u;
+  readonly keyManifestDigestB64u: DigestB64u;
+};
 
 export type ExactAdministeredEd25519SignerV1 = {
   readonly kind: 'exact_administered_ed25519_signer_v1';
@@ -48,7 +100,8 @@ export type ExactAdministeredEcdsaSignerV1 = {
 
 export type ExactAdministeredSignerV1 =
   | ExactAdministeredEd25519SignerV1
-  | ExactAdministeredEcdsaSignerV1;
+  | ExactAdministeredEcdsaSignerV1
+  | ExactAdministeredMlDsa65SignerV1;
 
 const MANIFEST_FIELDS = ['kind', 'keyFamilies', 'signers'] as const;
 const ED25519_SIGNER_FIELDS = [
@@ -78,6 +131,8 @@ export function buildExactAdministeredSignerManifestV1(
   let ed25519: ExactAdministeredEd25519SignerV1 | undefined;
   let ecdsa: ExactAdministeredEcdsaSignerV1 | undefined;
   const seenWalletKeyIds = new Set<string>();
+  const mlDsa: ExactAdministeredMlDsa65SignerV1[] = [];
+  const mlDsaIds = new Set<MlDsaSigningKeyId>();
 
   for (const signer of signers) {
     if (walletId !== undefined && walletId !== signer.walletId) {
@@ -92,6 +147,12 @@ export function buildExactAdministeredSignerManifestV1(
     seenWalletKeyIds.add(signer.walletKeyId);
 
     switch (signer.keyFamily) {
+      case 'ml_dsa_65':
+        if (mlDsaIds.has(signer.mlDsaSigningKeyId) || mlDsa.length >= 64)
+          throw new Error('ML-DSA signer identities must be unique and bounded');
+        mlDsaIds.add(signer.mlDsaSigningKeyId);
+        mlDsa.push(signer);
+        break;
       case 'ed25519':
         if (ed25519 !== undefined) {
           throw new Error('exact administered signer manifest repeats the ed25519 family');
@@ -113,6 +174,33 @@ export function buildExactAdministeredSignerManifestV1(
     }
   }
 
+  mlDsa.sort(compareMlDsaKeys);
+  const [firstMlDsa, ...remainingMlDsa] = mlDsa;
+  if (firstMlDsa) {
+    if (ed25519 && ecdsa)
+      return {
+        kind: 'exact_administered_signer_manifest_v1',
+        keyFamilies: ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'],
+        signers: [ed25519, ecdsa, firstMlDsa, ...remainingMlDsa],
+      };
+    if (ed25519)
+      return {
+        kind: 'exact_administered_signer_manifest_v1',
+        keyFamilies: ['ed25519', 'ml_dsa_65'],
+        signers: [ed25519, firstMlDsa, ...remainingMlDsa],
+      };
+    if (ecdsa)
+      return {
+        kind: 'exact_administered_signer_manifest_v1',
+        keyFamilies: ['ecdsa_secp256k1', 'ml_dsa_65'],
+        signers: [ecdsa, firstMlDsa, ...remainingMlDsa],
+      };
+    return {
+      kind: 'exact_administered_signer_manifest_v1',
+      keyFamilies: ['ml_dsa_65'],
+      signers: [firstMlDsa, ...remainingMlDsa],
+    };
+  }
   if (ed25519 !== undefined && ecdsa !== undefined) {
     return {
       kind: 'exact_administered_signer_manifest_v1',
@@ -144,7 +232,8 @@ export function parseExactAdministeredSignerManifestV1(
   if (record.kind !== 'exact_administered_signer_manifest_v1') {
     throw new Error('ExactAdministeredSignerManifestV1.kind is invalid');
   }
-  const keyFamilies = parseManifestFamilies(record.keyFamilies);
+  if (!Array.isArray(record.keyFamilies)) throw new Error('Signer families must be an array');
+  const keyFamilies = record.keyFamilies;
   if (!Array.isArray(record.signers)) {
     throw new Error('ExactAdministeredSignerManifestV1.signers must be an array');
   }
@@ -162,6 +251,8 @@ export function parseExactAdministeredSignerManifestV1(
 function parseExactAdministeredSignerV1(raw: unknown, label: string): ExactAdministeredSignerV1 {
   const record = requireRecord(raw, label);
   switch (record.keyFamily) {
+    case 'ml_dsa_65':
+      return parseExactAdministeredMlDsa65SignerV1(raw);
     case 'ed25519':
       rejectUnknownFields(record, ED25519_SIGNER_FIELDS, label);
       if (record.kind !== 'exact_administered_ed25519_signer_v1') {
@@ -198,22 +289,8 @@ function parseExactAdministeredSignerV1(raw: unknown, label: string): ExactAdmin
   }
 }
 
-function parseManifestFamilies(raw: unknown): ExactAdministeredSignerManifestV1['keyFamilies'] {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2) {
-    throw new Error('ExactAdministeredSignerManifestV1.keyFamilies must be non-empty');
-  }
-  if (raw.length === 1 && raw[0] === 'ed25519') return ['ed25519'];
-  if (raw.length === 1 && raw[0] === 'ecdsa_secp256k1') return ['ecdsa_secp256k1'];
-  if (raw.length === 2 && raw[0] === 'ed25519' && raw[1] === 'ecdsa_secp256k1') {
-    return ['ed25519', 'ecdsa_secp256k1'];
-  }
-  throw new Error(
-    'ExactAdministeredSignerManifestV1.keyFamilies must be canonical and duplicate-free',
-  );
-}
-
 function sameManifestFamilies(
-  left: ExactAdministeredSignerManifestV1['keyFamilies'],
+  left: readonly unknown[],
   right: ExactAdministeredSignerManifestV1['keyFamilies'],
 ): boolean {
   if (left.length !== right.length) return false;
@@ -230,15 +307,39 @@ function parseEvmAddress(raw: unknown, label: string): string {
   return raw;
 }
 
-function exactRecord(
+export function parseExactAdministeredMlDsa65SignerV1(
   raw: unknown,
-  fields: readonly string[],
-  label: string,
-): Record<string, unknown> {
-  const record = requireRecord(raw, label);
-  rejectUnknownFields(record, fields, label);
-  for (const field of fields) {
-    if (!(field in record)) throw new Error(`${label}.${field} is required`);
-  }
-  return record;
+): ExactAdministeredMlDsa65SignerV1 {
+  const r = exactRecord(
+    raw,
+    [
+      'kind',
+      'keyFamily',
+      'walletId',
+      'walletKeyId',
+      'mlDsaSigningKeyId',
+      'registeredPublicKeyB64u',
+      'keyManifestDigestB64u',
+    ],
+    'ML-DSA signer',
+  );
+  if (r.kind !== 'exact_administered_ml_dsa_65_signer_v1' || r.keyFamily !== 'ml_dsa_65')
+    throw new Error('Invalid ML-DSA signer kind');
+  return {
+    kind: 'exact_administered_ml_dsa_65_signer_v1',
+    keyFamily: 'ml_dsa_65',
+    walletId: requireParsed(parseWalletId(r.walletId), 'walletId'),
+    walletKeyId: requireParsed(parseWalletKeyId(r.walletKeyId), 'walletKeyId'),
+    mlDsaSigningKeyId: parseMlDsaSigningKeyId(r.mlDsaSigningKeyId),
+    registeredPublicKeyB64u: parseMlDsa65PublicKeyB64u(r.registeredPublicKeyB64u),
+    keyManifestDigestB64u: parseDigestB64u(r.keyManifestDigestB64u),
+  };
+}
+function compareMlDsaKeys(
+  left: ExactAdministeredMlDsa65SignerV1,
+  right: ExactAdministeredMlDsa65SignerV1,
+): number {
+  if (left.walletKeyId < right.walletKeyId) return -1;
+  if (left.walletKeyId > right.walletKeyId) return 1;
+  return 0;
 }

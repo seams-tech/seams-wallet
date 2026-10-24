@@ -272,7 +272,7 @@ async function establishEmailOtpUnlockedEd25519ExportRootCapability(args: {
     await establishUnlockedWalletEd25519ExportRootCapabilityV1(
       walletCustodyCeremonyTransportFromWorkerContextV1(args.workerContext),
       {
-        existingEnvelope: args.unlock.ed25519ExportRootCustody.existingEnvelope,
+        existingEnvelopes: [args.unlock.ed25519ExportRootCustody.existingEnvelope],
         existingFactorSecret: args.unlock.ed25519ExportRootCustody.factorSecret32,
         walletId: String(args.authorization.record.walletId),
         walletAuthMethodId: args.walletAuthMethodId,

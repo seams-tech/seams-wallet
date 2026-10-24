@@ -8,7 +8,6 @@ import {
   type WalletSessionId,
 } from '@shared/authorization/capabilityKinds';
 import {
-  parseMpcMaterialActivationRef,
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
   parseWalletId,
@@ -27,6 +26,7 @@ import type {
 } from '@shared/device-linking/contracts';
 import {
   activeWalletSessionV1RecordsEqual,
+  parseWalletCapabilitySubjectV1,
   parseWalletSessionOperationCredentialV1,
 } from '@shared/device-linking/activeWalletSession';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
@@ -275,6 +275,8 @@ function walletCapabilitySubjectKey(subject: WalletCapabilitySubjectV1): string 
   switch (subject.kind) {
     case 'sign':
     case 'export_keys':
+      if (subject.keyFamily === 'ml_dsa_65')
+        return `${subject.kind}:${subject.keyFamily}:${subject.mlDsaSigningKeyId}`;
       return `${subject.kind}:${subject.keyFamily}:${subject.materialActivation.activationId}`;
     case 'link_devices':
     case 'revoke_devices':
@@ -289,28 +291,11 @@ function assertNeverWalletCapabilitySubject(value: never): never {
 }
 
 function parseExactWalletCapabilitySubject(value: unknown): WalletCapabilitySubjectV1 | null {
-  const kind = readWalletSessionField(value, 'kind');
-  if (kind === 'sign' || kind === 'export_keys') {
-    const fields = decodeExactWalletSessionFields(value, [
-      'kind',
-      'keyFamily',
-      'materialActivation',
-    ]);
-    if (!fields) return null;
-    const keyFamily = fields.get('keyFamily');
-    if (keyFamily !== 'ed25519' && keyFamily !== 'ecdsa_secp256k1') return null;
-    const activation = parseMpcMaterialActivationRef(fields.get('materialActivation'));
-    if (!activation.ok) return null;
-    return {
-      kind,
-      keyFamily,
-      materialActivation: activation.value,
-    };
+  try {
+    return parseWalletCapabilitySubjectV1(value, 'Stored Wallet Session capability');
+  } catch {
+    return null;
   }
-  if (kind === 'link_devices' || kind === 'revoke_devices') {
-    return decodeExactWalletSessionFields(value, ['kind']) ? { kind } : null;
-  }
-  return null;
 }
 
 function parseExactWalletCapabilitySubjects(

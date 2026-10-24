@@ -371,6 +371,14 @@ type DeviceLinkingEcdsaSourceContributionPortV1 = {
 };
 
 export type DeviceLinkingSourceContributionPortV1 = {
+  readonly mlDsa: {
+    produceSourceContributionV1(input: {
+      readonly preparation: import('@shared/device-linking/sourceContribution').LinkedDeviceMlDsaSourceContributionPreparationV1;
+      readonly capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
+    }): Promise<
+      import('@shared/device-linking/sourceContribution').LinkedDeviceMlDsaSourceContributionV1
+    >;
+  };
   readonly ed25519: DeviceLinkingEd25519SourceContributionPortV1;
   readonly ecdsa: DeviceLinkingEcdsaSourceContributionPortV1;
 };

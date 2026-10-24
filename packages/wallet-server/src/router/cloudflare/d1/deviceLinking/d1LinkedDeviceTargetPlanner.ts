@@ -1,3 +1,5 @@
+import type { ExactAdministeredMlDsa65SignerV1 } from '@shared/device-linking/delegatedActivationPlan';
+import type { WalletAuthorityId } from '@shared/utils/domainIds';
 import { hasDelegatedWalletPermissionV1 } from '@shared/authorization/delegatedAuthority';
 import type {
   LinkedDeviceApprovalV1,
@@ -71,6 +73,12 @@ type LinkedDeviceOwnerEcdsaSourceChildResolutionV1 =
   };
 
 export type LinkedDeviceOwnerSourceChildResolutionV1 =
+  | {
+      readonly keyFamily: 'ml_dsa_65';
+      readonly walletKeyId: WalletKeyId;
+      readonly signer: ExactAdministeredMlDsa65SignerV1;
+      readonly sourceAuthorityId: WalletAuthorityId;
+    }
   | LinkedDeviceOwnerEd25519SourceChildResolutionV1
   | LinkedDeviceOwnerEcdsaSourceChildResolutionV1;
 

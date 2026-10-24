@@ -629,7 +629,7 @@ export type LoginResult = ExclusiveUnion<
       operationalPublicKey: string | null;
       nearAccountId: AccountId;
     }
-  | { success: true; kind: 'ecdsa_wallet_unlocked'; walletId: WalletId }
+  | { success: true; kind: 'wallet_unlocked'; walletId: WalletId }
   | { success: false; error: string }
 >;
 

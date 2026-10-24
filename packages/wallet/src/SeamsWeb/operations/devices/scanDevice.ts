@@ -11,8 +11,6 @@ import type {
   LinkedDeviceApprovedTargetFactorV1,
   LinkedDeviceEmailOtpBaseFactorChoiceV1,
   LinkedDeviceEmailOtpBaseFactorResolutionResultV1,
-  LinkedDeviceEd25519SourceContributionPreparationV1,
-  LinkedDeviceEcdsaSourceContributionPreparationV1,
   LinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1,
   LinkedDeviceOrdinaryMaterialSourceContributionTupleV1,
   QrLinkedDeviceSessionPayloadV5,
@@ -219,7 +217,9 @@ export async function scanAndLinkDevice(
       enrollmentId: claim.enrollmentId,
       deviceId: claim.deviceId,
       expiresAtMs: Math.min(owner.expiresAtMs, claim.claimExpiresAtMs),
-      exportRootRequirement: owner.exportRootRequirement,
+      exportRootRequirement: owner.sourceSignerManifest.keyFamilies.some(isEd25519Family)
+        ? owner.exportRootRequirement
+        : 'not_required',
       ed25519ExportRootCapability:
         owner.exportRootRequirement === 'required' ? owner.ed25519ExportRootCapability : undefined,
       ed25519ExportRoot: ports.ed25519ExportRoot,
@@ -503,50 +503,32 @@ async function produceSourceContributionTupleV1(input: {
     LinkSessionOwnerTransportPortV1['getApprovalV1']
   >[0]['authentication'];
 }): Promise<LinkedDeviceOrdinaryMaterialSourceContributionTupleV1> {
-  const first = input.preparation[0];
-  if (!first) throw new Error('source contribution preparation is empty');
-  if (isEd25519SourceContributionPreparationV1(first)) {
-    if (!input.ed25519ExportRootCapability) {
-      throw new Error('Ed25519 export-root capability is required for source contribution');
-    }
-    const ed25519 = await input.ports.ed25519.produceSourceContributionV1({
-      preparation: first,
-      capability: input.ed25519ExportRootCapability,
-      authentication: input.authentication,
-    });
-    const second = input.preparation[1];
-    if (!second) return [ed25519];
-    if (isEd25519SourceContributionPreparationV1(second)) {
-      throw new Error('source contribution preparation repeats Ed25519');
-    }
-    const ecdsa = await input.ports.ecdsa.produceSourceContributionV1({
-      preparation: second,
-    });
-    return [ed25519, ecdsa];
+  const contributions: import('@shared/device-linking/sourceContribution').LinkedDeviceOrdinaryMaterialSourceContributionV1[] =
+    [];
+  for (const preparation of input.preparation) {
+    if ('kind' in preparation) {
+      if (!input.ed25519ExportRootCapability)
+        throw new Error('Unlock the wallet before linking its signers');
+      if (preparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1') {
+        contributions.push(
+          await input.ports.mlDsa.produceSourceContributionV1({
+            preparation,
+            capability: input.ed25519ExportRootCapability,
+          }),
+        );
+      } else
+        contributions.push(
+          await input.ports.ed25519.produceSourceContributionV1({
+            preparation,
+            capability: input.ed25519ExportRootCapability,
+            authentication: input.authentication,
+          }),
+        );
+    } else contributions.push(await input.ports.ecdsa.produceSourceContributionV1({ preparation }));
   }
-  if (input.preparation.length !== 1) {
-    throw new Error('ECDSA source contribution preparation is out of order');
-  }
-  const ecdsa = await input.ports.ecdsa.produceSourceContributionV1({
-    preparation: first,
-  });
-  return [ecdsa];
-}
-
-function isEd25519SourceContributionPreparationV1(
-  preparation:
-    | LinkedDeviceEd25519SourceContributionPreparationV1
-    | LinkedDeviceEcdsaSourceContributionPreparationV1,
-): preparation is LinkedDeviceEd25519SourceContributionPreparationV1 {
-  return 'kind' in preparation;
-}
-
-function assertSourceContributionRecordedV1(
-  result: Awaited<ReturnType<LinkSessionOwnerTransportPortV1['recordSourceContributionV1']>>,
-): void {
-  if (result.state.state !== 'authority_pending_local_install' && result.state.state !== 'active') {
-    throw new Error('source contribution acknowledgement did not commit the linked device');
-  }
+  const first = contributions[0];
+  if (!first) throw new Error('The source signer set is empty');
+  return [first, ...contributions.slice(1)];
 }
 
 async function submitEd25519ExportRootIfRequiredV1(input: {
@@ -631,4 +613,14 @@ function resolveApprovalPollV1(resolve: () => void, attempt: number): void {
 
 async function waitForApprovalPollV1(attempt: number): Promise<void> {
   await new Promise<void>((resolve) => resolveApprovalPollV1(resolve, attempt));
+}
+
+function isEd25519Family(family: string): boolean {
+  return family === 'ed25519';
+}
+function assertSourceContributionRecordedV1(
+  result: Awaited<ReturnType<LinkSessionOwnerTransportPortV1['recordSourceContributionV1']>>,
+): void {
+  if (result.state.state !== 'authority_pending_local_install' && result.state.state !== 'active')
+    throw new Error('Source contribution acknowledgement did not commit the linked device');
 }

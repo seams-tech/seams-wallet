@@ -2,18 +2,22 @@ import {
   reservePasskeyCredential,
   type PasskeyCredentialClaims,
 } from '../../../../core/passkeyCredentialClaims';
-import type {
-  ActiveWalletAuthorityV1,
-  WalletEcdsaSignerActivationV1,
-} from '@shared/authorization/walletAuthority';
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import {
   parseWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
   type ActiveWalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { type RegistrationAuthority } from '@shared/utils/registrationAuthMethodInput';
-import { mpcMaterialActivationRefsEqual, parseWalletId, parseWalletAuthorityId, parseWalletAuthMethodId } from '@shared/utils/domainIds';
-import { parseWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import {
+  parseWalletId,
+  parseWalletAuthorityId,
+  parseWalletAuthMethodId,
+} from '@shared/utils/domainIds';
+import {
+  parseWalletAuthorityV1,
+  isEd25519ExtensionOfEcdsaWalletAuthority,
+} from '@shared/authorization/walletAuthority';
 import { toOptionalTrimmedString } from '@shared/utils/validation';
 import type { Variant } from '@shared/utils/variant';
 import { buildWalletSessionCapabilitySubjectsV1 } from '../../../../authorization/domain';
@@ -38,9 +42,7 @@ import type {
   D1PreparedStatementLike,
   D1ResultLike,
 } from '../../../../storage/tenantRoute';
-import {
-  parseD1JsonColumn,
-} from '../../../../storage/d1Sql';
+import { parseD1JsonColumn } from '../../../../storage/d1Sql';
 import {
   prepareD1WalletAuthorityExtensionCasGuard,
   prepareD1WalletAuthorityExtensionStatement,
@@ -85,14 +87,16 @@ type D1WalletRegistrationFoundingFields =
     };
 
 type D1WalletRegistrationCommitInput =
-  | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
-      readonly kind: 'passkey_wallet_registration_commit_v1';
-      readonly emailOtp?: never;
-    })
-  | (D1WalletRegistrationCommitBase & D1WalletRegistrationFoundingFields & {
-      readonly kind: 'email_otp_wallet_registration_commit_v1';
-      readonly emailOtp: D1EmailOtpRegistrationCommitPlan;
-    });
+  | (D1WalletRegistrationCommitBase &
+      D1WalletRegistrationFoundingFields & {
+        readonly kind: 'passkey_wallet_registration_commit_v1';
+        readonly emailOtp?: never;
+      })
+  | (D1WalletRegistrationCommitBase &
+      D1WalletRegistrationFoundingFields & {
+        readonly kind: 'email_otp_wallet_registration_commit_v1';
+        readonly emailOtp: D1EmailOtpRegistrationCommitPlan;
+      });
 
 /** A passkey claim that shared authority granted for one ceremony before its finalization. */
 export type HeldRegistrationPasskeyClaim = {
@@ -175,7 +179,10 @@ function assertCommitWalletIdentity(
     ) {
       throw new Error('Founding authority identities do not match wallet registration');
     }
-    if (input.foundingAuthority.state !== 'active' || input.foundingAuthMethod.status !== 'active') {
+    if (
+      input.foundingAuthority.state !== 'active' ||
+      input.foundingAuthMethod.status !== 'active'
+    ) {
       throw new Error('Founding wallet authority and auth method must be active');
     }
   } else if (input.foundingAuthMethod) {
@@ -338,22 +345,6 @@ function foundingAuthorityIdentityMatches(
   );
 }
 
-function sameWalletEcdsaSignerActivationV1(
-  left: WalletEcdsaSignerActivationV1,
-  right: WalletEcdsaSignerActivationV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.signer.kind === right.signer.kind &&
-    left.signer.keyFamily === right.signer.keyFamily &&
-    left.signer.walletId === right.signer.walletId &&
-    left.signer.walletKeyId === right.signer.walletKeyId &&
-    left.signer.thresholdPublicKey33B64u === right.signer.thresholdPublicKey33B64u &&
-    left.signer.evmAddress === right.signer.evmAddress &&
-    mpcMaterialActivationRefsEqual(left.materialActivation, right.materialActivation)
-  );
-}
-
 function sameActiveWalletAuthorityV1(
   left: ActiveWalletAuthorityV1,
   right: ActiveWalletAuthorityV1,
@@ -370,17 +361,8 @@ function canExtendFoundingAuthorityWithEd25519(
   existing: ActiveWalletAuthorityV1,
   next: ActiveWalletAuthorityV1,
 ): boolean {
-  const existingEcdsa = existing.signerActivations.ecdsa;
-  const nextEcdsa = next.signerActivations.ecdsa;
   return (
-    existing.signerActivations.keyFamilies.length === 1 &&
-    existing.signerActivations.keyFamilies[0] === 'ecdsa_secp256k1' &&
-    next.signerActivations.keyFamilies.length === 2 &&
-    next.signerActivations.keyFamilies[0] === 'ed25519' &&
-    next.signerActivations.keyFamilies[1] === 'ecdsa_secp256k1' &&
-    existingEcdsa !== undefined &&
-    nextEcdsa !== undefined &&
-    sameWalletEcdsaSignerActivationV1(existingEcdsa, nextEcdsa) &&
+    isEd25519ExtensionOfEcdsaWalletAuthority(existing, next) &&
     foundingAuthorityIdentityMatches(existing, next) &&
     next.updatedAtMs >= existing.updatedAtMs
   );
@@ -405,7 +387,8 @@ export function parseRegistrationFoundingRead(
   if (!row) return null;
   const authorityId = parseWalletAuthorityId(row.authority_id);
   const authMethodId = parseWalletAuthMethodId(row.auth_method_id);
-  if (!authorityId.ok || !authMethodId.ok) throw new Error('Registration founding identity is invalid');
+  if (!authorityId.ok || !authMethodId.ok)
+    throw new Error('Registration founding identity is invalid');
   return {
     kind: 'snapshot',
     records: {
@@ -516,9 +499,7 @@ function prepareFoundingStatements(input: {
   const { authorityRow, authMethodRow } = stored;
   let persistedAuthority: ActiveWalletAuthorityV1 | null = null;
   if (authorityRow) {
-    const parsedAuthority = parseWalletAuthorityV1(
-      parseD1JsonColumn(authorityRow.record_json),
-    );
+    const parsedAuthority = parseWalletAuthorityV1(parseD1JsonColumn(authorityRow.record_json));
     if (!parsedAuthority.ok || parsedAuthority.value.state !== 'active') {
       throw new Error('Founding wallet authority replay conflicts with the persisted record');
     }
@@ -627,9 +608,7 @@ function heldClaimCovers(
   );
 }
 
-export class CloudflareD1WalletRegistrationCommitStore
-  implements D1WalletRegistrationCommitStore
-{
+export class CloudflareD1WalletRegistrationCommitStore implements D1WalletRegistrationCommitStore {
   private readonly database: D1DatabaseLike;
   private readonly scope: D1WalletRegistrationCommitScope;
   private readonly credentialClaims: PasskeyCredentialClaims | undefined;

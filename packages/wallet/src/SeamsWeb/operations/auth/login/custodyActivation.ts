@@ -330,7 +330,7 @@ export async function openAndActivatePasskeyEd25519CustodyLogin(
        never opens the envelope again. Runs last: everything above has
        succeeded, so a failed unlock never leaves a capability. */
     await input.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
-      existingEnvelope: input.custody.envelope,
+      existingEnvelopes: [input.custody.envelope],
       passkeyPrfFirstB64u: input.passkeyPrfFirstB64u,
       walletId: String(input.walletBinding.walletId),
       walletAuthMethodId: String(input.authority.walletAuthMethodId),

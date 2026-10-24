@@ -1,3 +1,4 @@
+import { replaceWalletEd25519MaterialV1 } from '@shared/authorization/walletAuthority';
 import {
   sameWalletCustodyEnvelopeOwnership,
   type PasskeyCustodyEnvelopeRecord,
@@ -386,27 +387,10 @@ function recoverySignerActivations(input: {
   if (entries.length !== 1 || entries[0]?.kind !== 'near_ed25519') {
     throw new Error('wallet recovery has no exact fresh Ed25519 activation');
   }
-  const ed25519 = {
-    kind: 'wallet_ed25519_signer_activation_v1' as const,
-    signer: continuityEd25519.signer,
-    materialActivation: routerAbMpcMaterialActivationRefFromWire(
-      entries[0].recoveryBasis.activeMaterialActivation,
-    ),
-  };
-  const continuityEcdsa = input.continuity.ecdsa;
-  if (!continuityEcdsa) {
-    return {
-      kind: 'wallet_signer_activation_set_v1',
-      keyFamilies: ['ed25519'],
-      ed25519,
-    };
-  }
-  return {
-    kind: 'wallet_signer_activation_set_v1',
-    keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-    ed25519,
-    ecdsa: continuityEcdsa,
-  };
+  return replaceWalletEd25519MaterialV1(
+    input.continuity,
+    routerAbMpcMaterialActivationRefFromWire(entries[0].recoveryBasis.activeMaterialActivation),
+  );
 }
 
 function buildRecoveredWalletAuthMethod(input: {

@@ -186,7 +186,7 @@ for (const scenario of ['ecdsa_only', 'mixed_near'] as const) {
       const unlocked = JSON.parse(await recovery.innerText());
       expect(unlocked.result).toMatchObject({
         success: true,
-        kind: requireNear ? 'near_wallet_unlocked' : 'ecdsa_wallet_unlocked',
+        kind: requireNear ? 'near_wallet_unlocked' : 'wallet_unlocked',
         walletId: lost.walletId,
         signingSession: { status: 'active', remainingUses: 2, authMethod: 'passkey' },
       });

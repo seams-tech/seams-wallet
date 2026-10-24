@@ -1,3 +1,4 @@
+import type { WalletCustodyEnvelopeFactor } from '@shared/passkey-custody';
 // The ordinary signer material a key slot holds between steps, and how a repeated step is
 // recognized as a replay of the one already taken.
 import type {
@@ -51,6 +52,7 @@ export type DeviceLinkingOrdinarySignerMaterialRecipientPreparationStateV1 =
   };
 
 export type DeviceLinkingOrdinaryMaterialStateV1 = {
+  readonly rootFactor: WalletCustodyEnvelopeFactor;
   readonly targetFactor: DeviceLinkingOrdinaryTargetFactorBindingV1;
   readonly preparations: OrdinaryPreparationsV1;
   readonly recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputTupleV1;
@@ -108,6 +110,7 @@ export function sameOrdinaryRecipientRequests(
     const rightRequest = right[index];
     if (!leftRequest || !rightRequest || leftRequest.kind !== rightRequest.kind) return false;
     switch (leftRequest.kind) {
+      case 'ordinary_ml_dsa_65_signer_material_recipient_request_v1':
       case 'ordinary_ed25519_signer_material_recipient_request_v1':
         if (
           rightRequest.kind !== leftRequest.kind ||
@@ -176,6 +179,19 @@ function sameOrdinaryPreparations(
     const leftPreparation = left[index];
     const rightPreparation = right[index];
     if (!leftPreparation || !rightPreparation) return false;
+    if (
+      'kind' in leftPreparation &&
+      leftPreparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+    ) {
+      if (alphabetizeStringify(leftPreparation) !== alphabetizeStringify(rightPreparation))
+        return false;
+      continue;
+    }
+    if (
+      'kind' in rightPreparation &&
+      rightPreparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+    )
+      return false;
     if ('kind' in leftPreparation) {
       if (!('kind' in rightPreparation) || leftPreparation.kind !== rightPreparation.kind) {
         return false;

@@ -242,9 +242,6 @@ function ed25519Activation(
 function ecdsaActivation(
   activations: WalletSignerActivationSetV1,
 ): WalletEcdsaSignerActivationV1 | null {
-  if (activations.keyFamilies[0] !== 'ecdsa_secp256k1' && activations.keyFamilies.length !== 2) {
-    return null;
-  }
   if (activations.ecdsa === undefined) return null;
   return activations.ecdsa;
 }

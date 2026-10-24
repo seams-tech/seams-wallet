@@ -1,3 +1,4 @@
+import { walletCapabilitySubjectsEqual } from '@shared/device-linking/activeWalletSession';
 import { recordRegistrationPromiseTiming, recordRegistrationServerTiming } from '../../../framework/registrationTiming';
 import { registrationCommitCompletionWrite } from './registrationCompletionWrite';
 import type { RouterAbEd25519YaoRegistrationExecutionAuthorityV1 } from '../../../domains/ed25519Yao/registration/routerAbEd25519YaoRegistrationExecutionRecord';
@@ -58,7 +59,6 @@ import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { alphabetizeStringify, bytesToUnprefixedHex, sha256BytesUtf8 } from '@shared/utils/digests';
 import {
-  mpcMaterialActivationRefsEqual,
   parseThresholdEd25519SessionId,
   parseWalletKeyId,
   parseWebAuthnCredentialIdB64u,
@@ -6372,11 +6372,7 @@ function sameRegistrationContinuationSubject(
   switch (expected.kind) {
     case 'sign':
     case 'export_keys':
-      return (
-        actual.kind === expected.kind &&
-        actual.keyFamily === expected.keyFamily &&
-        mpcMaterialActivationRefsEqual(actual.materialActivation, expected.materialActivation)
-      );
+      return actual.kind === expected.kind && walletCapabilitySubjectsEqual(actual, expected);
     case 'link_devices':
     case 'revoke_devices':
       return actual.kind === expected.kind;

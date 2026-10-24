@@ -1,3 +1,6 @@
+import type { MlDsaSigningKeyId } from '../signing-lanes/records';
+import { parseMlDsaSigningKeyId } from '../signing-lanes/recordParsers';
+import { parseMlDsa65PublicKeyB64u, requireParsed, type MlDsa65PublicKeyB64u } from './primitives';
 import type {
   LaneShareEpoch,
   LinkedDeviceEnrollmentId,
@@ -39,6 +42,7 @@ import { rejectUnknownFields } from '../utils/exactRecord';
  * derived from the seed.
  */
 export type PasskeyCustodySecretKind =
+  | 'ml_dsa_65_owner_root_v1'
   | 'wallet_custody_seed_v1'
   | 'ed25519_yao_client_root_v1'
   | 'ed25519_lane_holder_share_v1'
@@ -48,7 +52,31 @@ export type PasskeyCustodySecretKind =
 const WALLET_SEED_DERIVATION_SCHEME_V1 = 'wallet_seed_parallel_hkdf_sha256_v1' as const;
 type WalletSeedDerivationScheme = typeof WALLET_SEED_DERIVATION_SCHEME_V1;
 
+export type MlDsa65OwnerRootBindingV1 = {
+  readonly kind: 'ml_dsa_65_owner_root_v1';
+  readonly linkSessionId: LinkDeviceSessionId;
+  readonly walletKeyId: WalletKeyId;
+  readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+  readonly targetFactor: LinkedRootTargetFactorV1;
+  readonly applicationBindingDigestB64u: DigestB64u;
+  readonly registeredPublicKeyB64u: MlDsa65PublicKeyB64u;
+  readonly keyManifestDigestB64u: DigestB64u;
+  readonly enrollmentId: LinkedDeviceEnrollmentId;
+  readonly deviceId: LinkedDeviceId;
+  readonly revocationEpoch: number;
+  readonly derivationScheme?: never;
+  readonly laneId?: never;
+  readonly laneShareEpoch?: never;
+  readonly nearEd25519SigningKeyId?: never;
+  readonly evmFamilySigningKeySlotId?: never;
+  readonly clientRootPublicKey33B64u?: never;
+  readonly participantBindingDigestB64u?: never;
+  readonly thresholdSessionId?: never;
+  readonly thresholdPublicKey33B64u?: never;
+};
+
 export type PasskeyCustodySecretBinding =
+  | MlDsa65OwnerRootBindingV1
   | {
       /**
        * One random seed per wallet. Every owner signing root derives from it in
@@ -65,6 +93,7 @@ export type PasskeyCustodySecretBinding =
        * resealed, and its recovery codes rewrapped, every time one arrived.
        */
       kind: 'wallet_custody_seed_v1';
+      mlDsaSigningKeyId?: never;
       derivationScheme: WalletSeedDerivationScheme;
       keyManifestDigestB64u?: never;
       nearEd25519SigningKeyId?: never;
@@ -80,9 +109,10 @@ export type PasskeyCustodySecretBinding =
     }
   | {
       kind: 'ed25519_yao_client_root_v1';
+      mlDsaSigningKeyId?: never;
       linkSessionId: LinkDeviceSessionId;
       walletKeyId: WalletKeyId;
-      targetFactor: Ed25519YaoClientRootTargetFactorV1;
+      targetFactor: LinkedRootTargetFactorV1;
       applicationBindingDigestB64u: DigestB64u;
       registeredPublicKeyB64u: Ed25519PublicKeyB64u;
       enrollmentId: LinkedDeviceEnrollmentId;
@@ -101,6 +131,7 @@ export type PasskeyCustodySecretBinding =
     }
   | {
       kind: 'ed25519_lane_holder_share_v1';
+      mlDsaSigningKeyId?: never;
       walletKeyId: WalletKeyId;
       laneId: SigningLaneId;
       laneShareEpoch: LaneShareEpoch;
@@ -116,6 +147,7 @@ export type PasskeyCustodySecretBinding =
     }
   | {
       kind: 'ecdsa_lane_holder_share_v1';
+      mlDsaSigningKeyId?: never;
       walletKeyId: WalletKeyId;
       laneId: SigningLaneId;
       laneShareEpoch: LaneShareEpoch;
@@ -133,9 +165,7 @@ export type PasskeyCustodySecretBinding =
       clientRootPublicKey33B64u?: never;
     };
 
-type Ed25519YaoClientRootTargetFactorV1 =
-  | { readonly kind: 'passkey_prf' }
-  | { readonly kind: 'email_otp' };
+type LinkedRootTargetFactorV1 = { readonly kind: 'passkey_prf' } | { readonly kind: 'email_otp' };
 
 type PasskeyCustodySecretBindingOfKind<TKind extends PasskeyCustodySecretKind> = Extract<
   PasskeyCustodySecretBinding,
@@ -162,7 +192,7 @@ export function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKi
 export function buildEd25519YaoClientRootBinding(args: {
   linkSessionId: LinkDeviceSessionId;
   walletKeyId: WalletKeyId;
-  targetFactor: Ed25519YaoClientRootTargetFactorV1;
+  targetFactor: LinkedRootTargetFactorV1;
   applicationBindingDigestB64u: DigestB64u;
   registeredPublicKeyB64u: Ed25519PublicKeyB64u;
   enrollmentId: LinkedDeviceEnrollmentId;
@@ -225,6 +255,19 @@ const LANE_SCOPE_FIELDS = ['kind', 'walletKeyId', 'laneId', 'laneShareEpoch'] as
 const ALLOWED_FIELDS_BY_KIND: Record<PasskeyCustodySecretKind, readonly string[]> = {
   // No lane scope: owner custody is wallet-scoped.
   wallet_custody_seed_v1: ['kind', 'derivationScheme'],
+  ml_dsa_65_owner_root_v1: [
+    'kind',
+    'linkSessionId',
+    'walletKeyId',
+    'mlDsaSigningKeyId',
+    'targetFactor',
+    'applicationBindingDigestB64u',
+    'registeredPublicKeyB64u',
+    'keyManifestDigestB64u',
+    'enrollmentId',
+    'deviceId',
+    'revocationEpoch',
+  ],
   ed25519_yao_client_root_v1: [
     'kind',
     'linkSessionId',
@@ -258,6 +301,7 @@ const ALL_BRANCH_FIELDS: readonly string[] = Array.from(
 
 function requireCustodySecretKind(value: unknown, label: string): PasskeyCustodySecretKind {
   if (
+    value === 'ml_dsa_65_owner_root_v1' ||
     value === 'wallet_custody_seed_v1' ||
     value === 'ed25519_yao_client_root_v1' ||
     value === 'ed25519_lane_holder_share_v1' ||
@@ -281,10 +325,7 @@ function requireNonNegativeSafeInteger(value: unknown, label: string): number {
   return value;
 }
 
-function parseEd25519YaoClientRootTargetFactor(
-  value: unknown,
-  label: string,
-): Ed25519YaoClientRootTargetFactorV1 {
+function parseLinkedRootTargetFactor(value: unknown, label: string): LinkedRootTargetFactorV1 {
   const record = requireRecord(value, label);
   rejectUnknownFields(record, ['kind'], label);
   if (record.kind === 'passkey_prf' || record.kind === 'email_otp') {
@@ -330,6 +371,28 @@ export function parsePasskeyCustodySecretBinding(
   rejectUnknownFields(record, ALLOWED_FIELDS_BY_KIND[kind], label, ALL_BRANCH_FIELDS);
 
   switch (kind) {
+    case 'ml_dsa_65_owner_root_v1':
+      return buildMlDsa65OwnerRootBindingV1({
+        linkSessionId: requireParsed(
+          parseLinkDeviceSessionId(record.linkSessionId),
+          'linkSessionId',
+        ),
+        walletKeyId: requireParsed(parseWalletKeyId(record.walletKeyId), 'walletKeyId'),
+        mlDsaSigningKeyId: parseMlDsaSigningKeyId(record.mlDsaSigningKeyId),
+        targetFactor: parseLinkedRootTargetFactor(record.targetFactor, 'targetFactor'),
+        applicationBindingDigestB64u: parseDigestField(
+          record.applicationBindingDigestB64u,
+          'application binding',
+        ),
+        registeredPublicKeyB64u: parseMlDsa65PublicKeyB64u(record.registeredPublicKeyB64u),
+        keyManifestDigestB64u: parseDigestField(record.keyManifestDigestB64u, 'key manifest'),
+        enrollmentId: requireParsed(
+          parseLinkedDeviceEnrollmentId(record.enrollmentId),
+          'enrollmentId',
+        ),
+        deviceId: requireParsed(parseLinkedDeviceId(record.deviceId), 'deviceId'),
+        revocationEpoch: requireNonNegativeSafeInteger(record.revocationEpoch, 'revocationEpoch'),
+      });
     case 'wallet_custody_seed_v1': {
       if (record.derivationScheme !== WALLET_SEED_DERIVATION_SCHEME_V1) {
         throw new Error(`${label}.derivationScheme must be ${WALLET_SEED_DERIVATION_SCHEME_V1}`);
@@ -338,7 +401,8 @@ export function parsePasskeyCustodySecretBinding(
     }
     case 'ed25519_yao_client_root_v1': {
       const linkSessionId = parseLinkDeviceSessionId(record.linkSessionId);
-      if (!linkSessionId.ok) throw new Error(`${label}.linkSessionId ${linkSessionId.error.message}`);
+      if (!linkSessionId.ok)
+        throw new Error(`${label}.linkSessionId ${linkSessionId.error.message}`);
       const walletKeyId = parseWalletKeyId(record.walletKeyId);
       if (!walletKeyId.ok) throw new Error(`${label}.walletKeyId ${walletKeyId.error.message}`);
       const enrollmentId = parseLinkedDeviceEnrollmentId(record.enrollmentId);
@@ -348,7 +412,7 @@ export function parsePasskeyCustodySecretBinding(
       return buildEd25519YaoClientRootBinding({
         linkSessionId: linkSessionId.value,
         walletKeyId: walletKeyId.value,
-        targetFactor: parseEd25519YaoClientRootTargetFactor(record.targetFactor, `${label}.targetFactor`),
+        targetFactor: parseLinkedRootTargetFactor(record.targetFactor, `${label}.targetFactor`),
         applicationBindingDigestB64u: parseDigestField(
           record.applicationBindingDigestB64u,
           `${label}.applicationBindingDigestB64u`,
@@ -403,4 +467,22 @@ export function parsePasskeyCustodySecretBinding(
       });
     }
   }
+}
+
+export function buildMlDsa65OwnerRootBindingV1(
+  input: Omit<MlDsa65OwnerRootBindingV1, 'kind'>,
+): MlDsa65OwnerRootBindingV1 {
+  return {
+    kind: 'ml_dsa_65_owner_root_v1',
+    linkSessionId: input.linkSessionId,
+    walletKeyId: input.walletKeyId,
+    mlDsaSigningKeyId: input.mlDsaSigningKeyId,
+    targetFactor: input.targetFactor,
+    applicationBindingDigestB64u: input.applicationBindingDigestB64u,
+    registeredPublicKeyB64u: input.registeredPublicKeyB64u,
+    keyManifestDigestB64u: input.keyManifestDigestB64u,
+    enrollmentId: input.enrollmentId,
+    deviceId: input.deviceId,
+    revocationEpoch: input.revocationEpoch,
+  };
 }

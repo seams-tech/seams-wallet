@@ -296,9 +296,14 @@ function hasUnexpectedRegistrationSigningFamily(
   walletSession: ActiveWalletSessionV1,
   ...allowedFamilies: readonly ('ed25519' | 'ecdsa_secp256k1')[]
 ): boolean {
-  return walletSession.capabilitySubjects.some(
-    (subject) => subject.kind === 'sign' && !allowedFamilies.includes(subject.keyFamily),
-  );
+  for (const subject of walletSession.capabilitySubjects) {
+    if (
+      subject.kind === 'sign' &&
+      (subject.keyFamily === 'ml_dsa_65' || !allowedFamilies.includes(subject.keyFamily))
+    )
+      return true;
+  }
+  return false;
 }
 
 export function parseRegistrationEstablishedSessionProjectionV2(

@@ -49,6 +49,7 @@ const MAX_BINDING_FIELD_LEN: usize = 512;
 pub enum PasskeyCustodySecretKind {
     WalletCustodySeed,
     Ed25519YaoClientRoot,
+    MlDsa65OwnerRoot,
     Ed25519LaneHolderShare,
     EcdsaLaneHolderShare,
 }
@@ -79,6 +80,7 @@ impl PasskeyCustodySecretKind {
         match self {
             Self::WalletCustodySeed => "wallet_custody_seed_v1",
             Self::Ed25519YaoClientRoot => "ed25519_yao_client_root_v1",
+            Self::MlDsa65OwnerRoot => "ml_dsa_65_owner_root_v1",
             Self::Ed25519LaneHolderShare => "ed25519_lane_holder_share_v1",
             Self::EcdsaLaneHolderShare => "ecdsa_lane_holder_share_v1",
         }
@@ -100,6 +102,11 @@ pub struct PasskeyCustodyLaneScopeV1 {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum PasskeyCustodySecretBindingV1 {
+    #[serde(rename = "ml_dsa_65_owner_root_v1", rename_all = "camelCase")]
+    MlDsa65OwnerRoot {
+        #[serde(flatten)]
+        root: MlDsa65OwnerRootBindingV1,
+    },
     /// Owner custody: one wallet-scoped seed every owner root derives from.
     /// It carries no lane, because it covers every owner key.
     ///
@@ -139,10 +146,27 @@ pub enum PasskeyCustodySecretBindingV1 {
     },
 }
 
+/// Public identity of one factor-sealed ML-DSA owner root. It covers no other key.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MlDsa65OwnerRootBindingV1 {
+    pub link_session_id: String,
+    pub wallet_key_id: String,
+    pub ml_dsa_signing_key_id: String,
+    pub target_factor: PasskeyCustodyTargetFactorV1,
+    pub application_binding_digest_b64u: String,
+    pub registered_public_key_b64u: String,
+    pub key_manifest_digest_b64u: String,
+    pub enrollment_id: String,
+    pub device_id: String,
+    pub revocation_epoch: u64,
+}
+
 impl PasskeyCustodySecretBindingV1 {
     pub fn kind(&self) -> PasskeyCustodySecretKind {
         match self {
             Self::WalletCustodySeed { .. } => PasskeyCustodySecretKind::WalletCustodySeed,
+            Self::MlDsa65OwnerRoot { .. } => PasskeyCustodySecretKind::MlDsa65OwnerRoot,
             Self::Ed25519YaoClientRoot { .. } => PasskeyCustodySecretKind::Ed25519YaoClientRoot,
             Self::Ed25519LaneHolderShare { .. } => PasskeyCustodySecretKind::Ed25519LaneHolderShare,
             Self::EcdsaLaneHolderShare { .. } => PasskeyCustodySecretKind::EcdsaLaneHolderShare,
@@ -153,7 +177,9 @@ impl PasskeyCustodySecretBindingV1 {
     /// custody. The absence is meaningful and is encoded into the AAD.
     pub fn lane(&self) -> Option<&PasskeyCustodyLaneScopeV1> {
         match self {
-            Self::WalletCustodySeed { .. } | Self::Ed25519YaoClientRoot { .. } => None,
+            Self::WalletCustodySeed { .. }
+            | Self::Ed25519YaoClientRoot { .. }
+            | Self::MlDsa65OwnerRoot { .. } => None,
             Self::Ed25519LaneHolderShare { lane, .. } | Self::EcdsaLaneHolderShare { lane, .. } => {
                 Some(lane)
             }
@@ -265,7 +291,9 @@ fn target_factor_matches_envelope(
 pub enum PasskeyCustodyEnvelopeOwnershipV1 {
     Unbound,
     #[serde(rename_all = "camelCase")]
-    MethodBound { wallet_auth_method_id: String },
+    MethodBound {
+        wallet_auth_method_id: String,
+    },
 }
 
 impl PasskeyCustodyEnvelopeOwnershipV1 {
@@ -484,6 +512,53 @@ pub fn encode_passkey_custody_aad_v1(
     }
 
     match &binding.binding {
+        PasskeyCustodySecretBindingV1::MlDsa65OwnerRoot { root } => {
+            require_field("linkSessionId", &root.link_session_id)?;
+            require_field("walletKeyId", &root.wallet_key_id)?;
+            require_field("mlDsaSigningKeyId", &root.ml_dsa_signing_key_id)?;
+            require_field("enrollmentId", &root.enrollment_id)?;
+            require_field("deviceId", &root.device_id)?;
+            if !target_factor_matches_envelope(&root.target_factor, &binding.factor) {
+                return Err(SignerCoreError::invalid_input(
+                    "ML-DSA target factor differs from the envelope",
+                ));
+            }
+            let application = require_digest_b64u(
+                "applicationBindingDigestB64u",
+                &root.application_binding_digest_b64u,
+            )?;
+            let expected =
+                crate::wallet_seed_derivation::compute_ml_dsa65_application_binding_digest_v1(
+                    &binding.wallet_id,
+                    &root.ml_dsa_signing_key_id,
+                )?;
+            if application != expected {
+                return Err(SignerCoreError::invalid_input(
+                    "ML-DSA application binding differs",
+                ));
+            }
+            let public_key = require_public_key_b64u(
+                "registeredPublicKeyB64u",
+                &root.registered_public_key_b64u,
+                1952,
+            )?;
+            let manifest =
+                require_digest_b64u("keyManifestDigestB64u", &root.key_manifest_digest_b64u)?;
+            labeled_str(&mut out, b"linkSessionId", &root.link_session_id);
+            labeled_str(&mut out, b"walletKeyId", &root.wallet_key_id);
+            labeled_str(&mut out, b"mlDsaSigningKeyId", &root.ml_dsa_signing_key_id);
+            labeled_str(&mut out, b"targetFactor", root.target_factor.as_str());
+            labeled_str(&mut out, b"enrollmentId", &root.enrollment_id);
+            labeled_str(&mut out, b"deviceId", &root.device_id);
+            labeled_field(
+                &mut out,
+                b"revocationEpoch",
+                &root.revocation_epoch.to_be_bytes(),
+            );
+            labeled_field(&mut out, b"applicationBindingDigest", &application);
+            labeled_field(&mut out, b"registeredPublicKey", &public_key);
+            labeled_field(&mut out, b"keyManifestDigest", &manifest);
+        }
         PasskeyCustodySecretBindingV1::WalletCustodySeed { derivation_scheme } => {
             if derivation_scheme != WALLET_SEED_DERIVATION_SCHEME_V1 {
                 return Err(SignerCoreError::invalid_input(format!(
@@ -746,7 +821,10 @@ pub(crate) fn seal_custody_secret(
     // produces — a first seal, a factor addition, an upgrade reseal — names the
     // method that owns it, so no path can mint a fresh pre-109C envelope and
     // reintroduce the ambiguity method binding exists to remove.
-    if matches!(binding.ownership, PasskeyCustodyEnvelopeOwnershipV1::Unbound) {
+    if matches!(
+        binding.ownership,
+        PasskeyCustodyEnvelopeOwnershipV1::Unbound
+    ) {
         return Err(SignerCoreError::invalid_input(
             "a sealed envelope must name the auth method that owns it",
         ));
@@ -868,7 +946,6 @@ mod r109c_method_bound_envelope_tests {
         }
     }
 
-
     /// Reproduces a pre-109C seal: same KEK and AAD derivation, without the
     /// ownership policy the sealer now enforces.
     fn seal_legacy_unbound_for_test(
@@ -909,10 +986,9 @@ mod r109c_method_bound_envelope_tests {
     /// what it was before ownership was introduced.
     #[test]
     fn unbound_aad_carries_no_ownership_and_stays_v2() {
-        let aad = encode_passkey_custody_aad_v1(&binding(
-            PasskeyCustodyEnvelopeOwnershipV1::Unbound,
-        ))
-        .expect("unbound aad");
+        let aad =
+            encode_passkey_custody_aad_v1(&binding(PasskeyCustodyEnvelopeOwnershipV1::Unbound))
+                .expect("unbound aad");
         let haystack = String::from_utf8_lossy(&aad).to_string();
         assert!(haystack.contains(WALLET_CUSTODY_ENVELOPE_VERSION_V2));
         assert!(!haystack.contains(WALLET_CUSTODY_ENVELOPE_VERSION_V3));
@@ -924,14 +1000,12 @@ mod r109c_method_bound_envelope_tests {
     /// is the whole reason ownership is authenticated rather than indexed.
     #[test]
     fn relabelling_a_method_bound_envelope_changes_its_aad() {
-        let owner = encode_passkey_custody_aad_v1(&binding(method_bound(
-            "wallet-auth-method:owner",
-        )))
-        .expect("owner aad");
-        let sibling = encode_passkey_custody_aad_v1(&binding(method_bound(
-            "wallet-auth-method:sibling",
-        )))
-        .expect("sibling aad");
+        let owner =
+            encode_passkey_custody_aad_v1(&binding(method_bound("wallet-auth-method:owner")))
+                .expect("owner aad");
+        let sibling =
+            encode_passkey_custody_aad_v1(&binding(method_bound("wallet-auth-method:sibling")))
+                .expect("sibling aad");
         assert_ne!(owner, sibling);
 
         let unbound =
@@ -1058,8 +1132,8 @@ mod r109c_method_bound_envelope_tests {
         let secret = [5u8; 32];
         let owner = binding(method_bound("wallet-auth-method:owner"));
         let nonce = [3u8; PASSKEY_CUSTODY_NONCE_LEN];
-        let sealed =
-            seal_wallet_custody_seed_envelope_v1(&[4u8; 32], &owner, &nonce, &secret).expect("seal");
+        let sealed = seal_wallet_custody_seed_envelope_v1(&[4u8; 32], &owner, &nonce, &secret)
+            .expect("seal");
 
         let relabelled = PasskeyCustodyEnvelopeBindingV1 {
             ownership: method_bound("wallet-auth-method:sibling"),

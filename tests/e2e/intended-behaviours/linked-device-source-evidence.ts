@@ -53,6 +53,7 @@ export async function verifyLinkSource(
       });
       const reader = createD1LinkedDeviceVerifiedLinkSourceReaderV1({
         authorizationService,
+        mlDsaRegistration: null,
         authorityStore: new D1WalletAuthorityStore({ database, scope }),
         authMethodStore: new D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
         walletStore: new D1WalletStore({ database, ...scope, ensureSchema: false }),

@@ -180,7 +180,9 @@ export interface NonceCoordinatorSurface {
 export interface NearSigningSurface extends NonceCoordinatorSurface {
   selectNearTransactionSigner(
     input: import('@/core/signingEngine/flows/signNear/selectNearSigner').NearSignerSelectionInput,
-  ): Promise<import('@/core/signingEngine/flows/signNear/selectNearSigner').NearSignerSelectionResult>;
+  ): Promise<
+    import('@/core/signingEngine/flows/signNear/selectNearSigner').NearSignerSelectionResult
+  >;
   signMlDsaNearTransaction(
     input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
   ): Promise<import('@/core/types/seams').SignTransactionResult>;
@@ -391,7 +393,7 @@ export interface Ed25519YaoCapabilityActivationSurface {
  */
 export interface UnlockedEd25519ExportRootCapabilitySurface {
   establishUnlockedWalletEd25519ExportRootCapabilityV1(input: {
-    readonly existingEnvelope: PasskeyCustodyEnvelopeRecord;
+    readonly existingEnvelopes: readonly PasskeyCustodyEnvelopeRecord[];
     readonly passkeyPrfFirstB64u: string;
     readonly walletId: string;
     readonly walletAuthMethodId: string;

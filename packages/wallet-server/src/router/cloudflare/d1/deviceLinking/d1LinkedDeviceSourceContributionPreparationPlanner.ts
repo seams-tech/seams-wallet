@@ -1,3 +1,7 @@
+import { buildMlDsaRootTransferBindingV1 } from '@shared/device-linking/mlDsaExportRoot';
+import type { LinkedDeviceMlDsaSourceContributionPreparationV1 } from '@shared/device-linking/sourceContribution';
+import { hasDelegatedWalletPermissionV1 } from '@shared/authorization/delegatedAuthority';
+import type { ExactAdministeredSignerV1 } from '@shared/device-linking/delegatedActivationPlan';
 import type {
   LinkedDeviceApprovalV1,
   LinkedDeviceEcdsaSourceContributionPreparationV1,
@@ -84,10 +88,11 @@ export class D1LinkedDeviceSourceContributionPreparationPlannerV1 implements Lin
     readonly source: VerifiedLinkSourceReadV1;
     readonly requestedAtMs: number;
   }): Promise<LinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1> {
-    const preparations = [] as Array<
+    const preparations: Array<
       | LinkedDeviceEd25519SourceContributionPreparationV1
       | LinkedDeviceEcdsaSourceContributionPreparationV1
-    >;
+      | LinkedDeviceMlDsaSourceContributionPreparationV1
+    > = [];
     for (let index = 0; index < input.source.signerManifest.signers.length; index += 1) {
       const signer = input.source.signerManifest.signers[index];
       const recipientRequest = input.registration.ordinarySignerMaterialRecipientRequests[index];
@@ -103,6 +108,38 @@ export class D1LinkedDeviceSourceContributionPreparationPlannerV1 implements Lin
         childIndex: index,
       });
       assertResolutionMatchesSigner(resolution, signer, index);
+      if (resolution.keyFamily === 'ml_dsa_65') {
+        if (
+          signer.keyFamily !== 'ml_dsa_65' ||
+          recipientRequest.keyFamily !== 'ml_dsa_65' ||
+          !hasDelegatedWalletPermissionV1(input.approval.permission, 'sign') ||
+          !hasDelegatedWalletPermissionV1(input.approval.permission, 'export_keys') ||
+          !hasDelegatedWalletPermissionV1(input.approval.permission, 'link_devices') ||
+          !hasDelegatedWalletPermissionV1(input.approval.permission, 'revoke_devices')
+        ) {
+          throw new Error('ML-DSA device activation requires a full-owner recipient');
+        }
+        const targetDeviceId = parseDeviceId(String(input.registration.deviceId));
+        if (!targetDeviceId.ok) throw new Error('Invalid target device identity');
+        const rootBinding = await buildMlDsaRootTransferBindingV1({
+          signer,
+          target: input.preparation,
+          // This envelope belongs to the new target authority, whose initial epoch is zero.
+          revocationEpoch: 0,
+          recipientPublicKeyB64u: recipientRequest.recipientPublicKeyB64u,
+        });
+        preparations.push({
+          kind: 'linked_device_ml_dsa_65_source_contribution_preparation_v1',
+          linkSessionId: input.registration.linkSessionId,
+          enrollmentId: input.registration.enrollmentId,
+          walletKeyId: signer.walletKeyId,
+          targetDeviceId: targetDeviceId.value,
+          sourceAuthorityId: resolution.sourceAuthorityId,
+          targetFactorVerificationDigestB64u: input.targetFactor.verificationDigestB64u,
+          rootBinding,
+        });
+        continue;
+      }
       const targetActivation = freshTargetActivation(
         resolution.source.materialActivation,
         input,
@@ -265,7 +302,7 @@ function buildEcdsaPreparation(input: {
 }
 
 function assertSignerMatchesRecipient(
-  signer: ExactAdministeredEd25519SignerV1 | ExactAdministeredEcdsaSignerV1,
+  signer: ExactAdministeredSignerV1,
   recipientRequest: OrdinarySignerMaterialRecipientRequestV1,
   index: number,
 ): void {
@@ -279,7 +316,7 @@ function assertSignerMatchesRecipient(
 
 function assertResolutionMatchesSigner(
   resolution: LinkedDeviceOwnerSourceChildResolutionV1,
-  signer: ExactAdministeredEd25519SignerV1 | ExactAdministeredEcdsaSignerV1,
+  signer: ExactAdministeredSignerV1,
   index: number,
 ): void {
   if (resolution.walletKeyId !== signer.walletKeyId || resolution.keyFamily !== signer.keyFamily) {

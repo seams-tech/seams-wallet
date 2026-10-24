@@ -1,4 +1,9 @@
 import {
+  parseWalletAuthorityV1,
+  walletAuthorityDigestsMatchV1,
+  type ActiveWalletAuthorityV1,
+} from '@shared/authorization/walletAuthority';
+import {
   parseMlDsaCustodyCommit,
   parseMlDsaRegistrationFailure,
   type MlDsaCustodyCommit,
@@ -19,6 +24,7 @@ type RegistrationTarget = {
   readonly addSignerCeremonyId: string;
 };
 export type MlDsaPublishedKey = {
+  readonly authority: ActiveWalletAuthorityV1;
   readonly key: MlDsaCustodyCommit['key'];
   readonly publishedAtMs: number;
 };
@@ -74,7 +80,7 @@ export async function publishWalletAddSignerMlDsa(
   if (response.ok === false) return parseMlDsaRegistrationFailure(response);
   const complete = exactRecord(
     response,
-    ['ok', 'key', 'publishedAtMs'],
+    ['ok', 'key', 'publishedAtMs', 'authority'],
     'ML-DSA publication response',
   );
   if (
@@ -87,5 +93,28 @@ export async function publishWalletAddSignerMlDsa(
   const verified = parseMlDsaCustodyCommit({ custodyAction: 'joined', key: complete.key });
   if (JSON.stringify(verified.key) !== JSON.stringify(custodyCommit.key))
     throw new Error('ML-DSA publication changed the verified key');
-  return { ok: true, key: verified.key, publishedAtMs: complete.publishedAtMs };
+  const authority = parseWalletAuthorityV1(complete.authority);
+  if (
+    !authority.ok ||
+    authority.value.state !== 'active' ||
+    authority.value.walletId !== verified.key.walletId ||
+    !(await walletAuthorityDigestsMatchV1(authority.value))
+  )
+    throw new Error('Invalid ML-DSA publication authority');
+  let activated = false;
+  for (const entry of authority.value.signerActivations.mlDsa ?? []) {
+    if (
+      entry.signer.mlDsaSigningKeyId === verified.key.signingKeyId &&
+      entry.signer.registeredPublicKeyB64u === verified.key.publicKeyB64u &&
+      entry.signer.keyManifestDigestB64u === verified.key.keyManifestDigestB64u
+    )
+      activated = true;
+  }
+  if (!activated) throw new Error('ML-DSA publication authority omits its signer');
+  return {
+    ok: true,
+    key: verified.key,
+    publishedAtMs: complete.publishedAtMs,
+    authority: authority.value,
+  };
 }

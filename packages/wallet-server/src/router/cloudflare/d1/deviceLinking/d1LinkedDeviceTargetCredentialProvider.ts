@@ -1341,9 +1341,13 @@ function assertSourceContributionPreparationContextV1(input: {
       'linked-device source contribution preparations do not cover the signer manifest',
     );
   }
-  const targetActivations = input.preparations.map((value) =>
-    'kind' in value ? value.targetMaterialActivation : value.target.activation,
-  );
+  const targetActivations: MpcMaterialActivationRef[] = [];
+  for (const preparation of input.preparations) {
+    if ('kind' in preparation) {
+      if (preparation.kind === 'linked_device_ed25519_source_contribution_preparation_v1')
+        targetActivations.push(preparation.targetMaterialActivation);
+    } else targetActivations.push(preparation.target.activation);
+  }
   for (let index = 0; index < targetActivations.length; index += 1) {
     const current = targetActivations[index];
     if (!current) throw new Error(`linked-device source preparation ${index} is missing`);
@@ -1374,6 +1378,27 @@ function assertSourceContributionPreparationContextV1(input: {
       throw new Error(
         `linked-device source preparation ${index} identity differs from the manifest`,
       );
+    }
+    if (
+      'kind' in preparation &&
+      preparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+    ) {
+      const binding = preparation.rootBinding;
+      if (
+        signer.keyFamily !== 'ml_dsa_65' ||
+        request.keyFamily !== 'ml_dsa_65' ||
+        preparation.walletKeyId !== signer.walletKeyId ||
+        binding.walletId !== input.registration.walletId ||
+        binding.walletAuthMethodId !== input.registration.walletAuthMethodId ||
+        binding.recipientPublicKeyB64u !== request.recipientPublicKeyB64u ||
+        binding.root.mlDsaSigningKeyId !== signer.mlDsaSigningKeyId ||
+        binding.root.registeredPublicKeyB64u !== signer.registeredPublicKeyB64u ||
+        binding.root.keyManifestDigestB64u !== signer.keyManifestDigestB64u ||
+        String(preparation.targetDeviceId) !== String(input.registration.deviceId) ||
+        preparation.targetFactorVerificationDigestB64u !== input.targetFactor.verificationDigestB64u
+      )
+        throw new Error('ML-DSA root preparation differs from the approved target');
+      continue;
     }
     const sourceMaterialActivation = sourceMaterialActivationForSignerV1(input.source, signer);
     if ('kind' in preparation) {
@@ -1602,7 +1627,9 @@ async function parseTargetCredentialRow(
 }
 
 function buildVerifiedEmailOtpGrantProjectionV1(input: {
-  readonly grant: NonNullable<LinkedDeviceTargetCredentialRegistrationV1['emailOtpVerificationGrant']>;
+  readonly grant: NonNullable<
+    LinkedDeviceTargetCredentialRegistrationV1['emailOtpVerificationGrant']
+  >;
   readonly descriptorCredentialIdB64u: WebAuthnCredentialIdB64u;
 }): VerifiedLinkedDeviceEmailOtpGrantV1 {
   const grant = input.grant;

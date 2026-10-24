@@ -957,6 +957,10 @@ export class LinkDeviceFlow {
         preparations: registrationResult.ordinarySignerMaterialPreparations,
         recipientRequests: registrationResult.ordinarySignerMaterialRecipientRequests,
         recipientInputs: this.requireOrdinarySignerMaterialRecipientPreparationV1().recipientInputs,
+        rootFactor: buildEmailOtpEnvelopeFactor({
+          enrollmentId: emailOtpEnrollmentId,
+          enrollmentSealKeyVersion: emailOtpEnrollmentSealKeyVersion,
+        }),
         factorSecret,
       });
       factorSecret = null;
@@ -1245,6 +1249,10 @@ export class LinkDeviceFlow {
         preparations: registrationResult.ordinarySignerMaterialPreparations,
         recipientRequests: registrationResult.ordinarySignerMaterialRecipientRequests,
         recipientInputs: this.requireOrdinarySignerMaterialRecipientPreparationV1().recipientInputs,
+        rootFactor: buildPasskeyEnvelopeFactor({
+          rpId: requireTargetRpIdV1(preparation),
+          credentialIdB64u: credential.webauthnRegistration.credentialIdB64u,
+        }),
         factorSecret: credential.factorSecret.slice().buffer,
       });
       this.assertCurrentRun(runEpoch);

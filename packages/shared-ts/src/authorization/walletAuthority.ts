@@ -1,3 +1,4 @@
+import type { WalletCapabilitySubjectV1 } from '../device-linking/contracts';
 import { base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { sha256Bytes } from '../utils/digests';
@@ -9,6 +10,8 @@ import {
 import { parseDeviceId, type AuthorizationParseResult, type DeviceId } from './capabilityKinds';
 import {
   buildExactAdministeredSignerManifestV1,
+  parseExactAdministeredMlDsa65SignerV1,
+  type ExactAdministeredMlDsa65SignerV1,
   parseExactAdministeredSignerManifestV1,
   type ExactAdministeredEd25519SignerV1,
   type ExactAdministeredEcdsaSignerV1,
@@ -76,22 +79,64 @@ export type WalletEcdsaSignerActivationV1 = {
   readonly materialActivation: MpcMaterialActivationRef;
 };
 
+export type WalletMlDsa65SignerActivationV1 = {
+  readonly materialActivation?: never;
+  readonly materialEpoch?: never;
+  readonly kind: 'wallet_ml_dsa_65_signer_activation_v1';
+  readonly signer: ExactAdministeredMlDsa65SignerV1;
+};
+type MlDsaActivationList = readonly [
+  WalletMlDsa65SignerActivationV1,
+  ...WalletMlDsa65SignerActivationV1[],
+];
+
 export type WalletSignerActivationSetV1 =
   | {
+      readonly mlDsa?: never;
       readonly kind: 'wallet_signer_activation_set_v1';
       readonly keyFamilies: readonly ['ed25519'];
       readonly ed25519: WalletEd25519SignerActivationV1;
       readonly ecdsa?: never;
     }
   | {
+      readonly mlDsa?: never;
       readonly kind: 'wallet_signer_activation_set_v1';
       readonly keyFamilies: readonly ['ecdsa_secp256k1'];
       readonly ed25519?: never;
       readonly ecdsa: WalletEcdsaSignerActivationV1;
     }
   | {
+      readonly mlDsa?: never;
       readonly kind: 'wallet_signer_activation_set_v1';
       readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'];
+      readonly ed25519: WalletEd25519SignerActivationV1;
+      readonly ecdsa: WalletEcdsaSignerActivationV1;
+    }
+  | {
+      readonly kind: 'wallet_signer_activation_set_v1';
+      readonly keyFamilies: readonly ['ml_dsa_65'];
+      readonly mlDsa: MlDsaActivationList;
+      readonly ed25519?: never;
+      readonly ecdsa?: never;
+    }
+  | {
+      readonly kind: 'wallet_signer_activation_set_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ml_dsa_65'];
+      readonly mlDsa: MlDsaActivationList;
+      readonly ed25519: WalletEd25519SignerActivationV1;
+      readonly ecdsa?: never;
+    }
+  | {
+      readonly kind: 'wallet_signer_activation_set_v1';
+      readonly keyFamilies: readonly ['ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly mlDsa: MlDsaActivationList;
+      readonly ed25519?: never;
+      readonly ecdsa: WalletEcdsaSignerActivationV1;
+    }
+  | {
+      readonly kind: 'wallet_signer_activation_set_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly mlDsa: MlDsaActivationList;
       readonly ed25519: WalletEd25519SignerActivationV1;
       readonly ecdsa: WalletEcdsaSignerActivationV1;
     };
@@ -109,6 +154,26 @@ type WalletSignerActivationMaterialsV1 =
     }
   | {
       readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'];
+      readonly ed25519: MpcMaterialActivationRef;
+      readonly ecdsa: MpcMaterialActivationRef;
+    }
+  | {
+      readonly keyFamilies: readonly ['ml_dsa_65'];
+      readonly ed25519?: never;
+      readonly ecdsa?: never;
+    }
+  | {
+      readonly keyFamilies: readonly ['ed25519', 'ml_dsa_65'];
+      readonly ed25519: MpcMaterialActivationRef;
+      readonly ecdsa?: never;
+    }
+  | {
+      readonly keyFamilies: readonly ['ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly ed25519?: never;
+      readonly ecdsa: MpcMaterialActivationRef;
+    }
+  | {
+      readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'];
       readonly ed25519: MpcMaterialActivationRef;
       readonly ecdsa: MpcMaterialActivationRef;
     };
@@ -167,15 +232,18 @@ export type RevokedWalletAuthorityV1 = Extract<WalletAuthorityV1, { readonly sta
 
 export type Ed25519WalletSignerActivationSetV1 = Extract<
   WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ed25519'] }
+  { readonly ed25519: WalletEd25519SignerActivationV1; readonly ecdsa?: never }
 >;
 export type EcdsaWalletSignerActivationSetV1 = Extract<
   WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
+  { readonly ecdsa: WalletEcdsaSignerActivationV1; readonly ed25519?: never }
 >;
 export type CombinedWalletSignerActivationSetV1 = Extract<
   WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
+  {
+    readonly ed25519: WalletEd25519SignerActivationV1;
+    readonly ecdsa: WalletEcdsaSignerActivationV1;
+  }
 >;
 
 export type ActiveEd25519WalletAuthorityV1 = Omit<ActiveWalletAuthorityV1, 'signerActivations'> & {
@@ -237,112 +305,140 @@ export function buildWalletEcdsaSignerActivationV1(input: {
 export function buildWalletSignerActivationSetV1(
   input: WalletSignerActivationSetBuilderInputV1,
 ): WalletSignerActivationSetV1 {
-  const manifest = parseExactAdministeredSignerManifestV1(input.manifest);
-  const materials = normalizeWalletSignerActivationMaterials(input.materialActivations);
-  if (!sameFamilies(manifest.keyFamilies, materials.keyFamilies)) {
-    throw new Error('wallet signer activation materials must match the signer manifest families');
-  }
-
-  if (isEd25519OnlyManifest(manifest)) {
-    if (!isEd25519OnlyMaterials(materials)) {
-      throw new Error('Ed25519 signer activation requires one Ed25519 material activation');
+  const manifest = input.manifest;
+  const materials = input.materialActivations;
+  if (!sameFamilies(manifest.keyFamilies, materials.keyFamilies))
+    throw new Error('Signer materials must match the exact manifest families');
+  let ed25519: WalletEd25519SignerActivationV1 | null = null;
+  let ecdsa: WalletEcdsaSignerActivationV1 | null = null;
+  const mlDsa: WalletMlDsa65SignerActivationV1[] = [];
+  for (const signer of manifest.signers) {
+    switch (signer.keyFamily) {
+      case 'ed25519':
+        if (!materials.ed25519) throw new Error('Missing Ed25519 material activation');
+        ed25519 = buildWalletEd25519SignerActivationV1({
+          signer,
+          materialActivation: materials.ed25519,
+        });
+        break;
+      case 'ecdsa_secp256k1':
+        if (!materials.ecdsa) throw new Error('Missing ECDSA material activation');
+        ecdsa = buildWalletEcdsaSignerActivationV1({ signer, materialActivation: materials.ecdsa });
+        break;
+      case 'ml_dsa_65':
+        mlDsa.push({ kind: 'wallet_ml_dsa_65_signer_activation_v1', signer });
+        break;
+      default:
+        return assertNever(signer, 'Signer activation');
     }
-    return {
-      kind: 'wallet_signer_activation_set_v1',
-      keyFamilies: ['ed25519'],
-      ed25519: buildWalletEd25519SignerActivationV1({
-        signer: manifest.signers[0],
-        materialActivation: materials.ed25519,
-      }),
-    };
   }
-  if (isEcdsaOnlyManifest(manifest)) {
-    if (!isEcdsaOnlyMaterials(materials)) {
-      throw new Error('ECDSA signer activation requires one ECDSA material activation');
-    }
-    return {
-      kind: 'wallet_signer_activation_set_v1',
-      keyFamilies: ['ecdsa_secp256k1'],
-      ecdsa: buildWalletEcdsaSignerActivationV1({
-        signer: manifest.signers[0],
-        materialActivation: materials.ecdsa,
-      }),
-    };
-  }
-  if (!isBothFamilyManifest(manifest) || !isBothFamilyMaterials(materials)) {
-    throw new Error('wallet signer activation set has unsupported families');
-  }
-  if (materials.ed25519.activationId === materials.ecdsa.activationId) {
-    throw new Error('wallet signer activation references must be distinct');
-  }
-  return {
-    kind: 'wallet_signer_activation_set_v1',
-    keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-    ed25519: buildWalletEd25519SignerActivationV1({
-      signer: manifest.signers[0],
-      materialActivation: materials.ed25519,
-    }),
-    ecdsa: buildWalletEcdsaSignerActivationV1({
-      signer: manifest.signers[1],
-      materialActivation: materials.ecdsa,
-    }),
-  };
+  return assembleSignerActivations(ed25519, ecdsa, mlDsa);
 }
 
 export function parseWalletSignerActivationSetV1(
   raw: unknown,
 ): AuthorizationParseResult<WalletSignerActivationSetV1> {
   try {
-    const record = requireRecord(raw, 'WalletSignerActivationSetV1');
-    if (record.kind !== 'wallet_signer_activation_set_v1') {
-      return invalidResult('wallet signer activation set kind is unsupported');
+    const record = requireRecord(raw, 'Wallet signer activations');
+    if (record.kind !== 'wallet_signer_activation_set_v1' || !Array.isArray(record.keyFamilies))
+      throw new Error('Invalid signer activation kind or families');
+    const fields = ['kind', 'keyFamilies'];
+    if (record.keyFamilies.includes('ed25519')) fields.push('ed25519');
+    if (record.keyFamilies.includes('ecdsa_secp256k1')) fields.push('ecdsa');
+    if (record.keyFamilies.includes('ml_dsa_65')) fields.push('mlDsa');
+    exactFields(record, fields, 'Wallet signer activations');
+    const ed25519 = fields.includes('ed25519')
+      ? parseEd25519Activation(record.ed25519, 'ed25519')
+      : null;
+    const ecdsa = fields.includes('ecdsa') ? parseEcdsaActivation(record.ecdsa, 'ecdsa') : null;
+    const mlDsa: WalletMlDsa65SignerActivationV1[] = [];
+    if (fields.includes('mlDsa')) {
+      if (!Array.isArray(record.mlDsa) || record.mlDsa.length === 0 || record.mlDsa.length > 64)
+        throw new Error('ML-DSA activations require a bounded nonempty list');
+      for (const rawActivation of record.mlDsa) {
+        const activation = exactRecord(rawActivation, ['kind', 'signer'], 'ML-DSA activation');
+        if (activation.kind !== 'wallet_ml_dsa_65_signer_activation_v1')
+          throw new Error('Invalid ML-DSA activation kind');
+        mlDsa.push({
+          kind: 'wallet_ml_dsa_65_signer_activation_v1',
+          signer: parseExactAdministeredMlDsa65SignerV1(activation.signer),
+        });
+      }
     }
-    if (!Object.prototype.hasOwnProperty.call(record, 'keyFamilies')) {
-      return invalidResult('WalletSignerActivationSetV1.keyFamilies is required');
-    }
-    const families = parseFamilies(record.keyFamilies, 'WalletSignerActivationSetV1.keyFamilies');
-    if (families.length === 1 && families[0] === 'ed25519') {
-      exactFields(record, ['kind', 'keyFamilies', 'ed25519'], 'WalletSignerActivationSetV1');
-      const activation = parseEd25519Activation(record.ed25519, 'ed25519');
+    const value = assembleSignerActivations(ed25519, ecdsa, mlDsa);
+    if (!sameFamilies(record.keyFamilies, value.keyFamilies))
+      throw new Error('Signer families must use canonical order');
+    return { ok: true, value };
+  } catch (error) {
+    return invalidResult(errorMessage(error, 'Invalid wallet signer activations'));
+  }
+}
+
+/** Validates a complete activation set at construction and persistence boundaries. */
+function assembleSignerActivations(
+  ed25519: WalletEd25519SignerActivationV1 | null,
+  ecdsa: WalletEcdsaSignerActivationV1 | null,
+  mlDsa: readonly WalletMlDsa65SignerActivationV1[],
+): WalletSignerActivationSetV1 {
+  const members = [];
+  if (ed25519) members.push(ed25519.signer);
+  if (ecdsa) members.push(ecdsa.signer);
+  for (const activation of mlDsa) members.push(activation.signer);
+  const canonical = buildExactAdministeredSignerManifestV1(members);
+  const canonicalMlDsa = canonical.signers.filter(isMlDsaSigner);
+  for (let index = 0; index < canonicalMlDsa.length; index += 1)
+    if (canonicalMlDsa[index].walletKeyId !== mlDsa[index]?.signer.walletKeyId)
+      throw new Error('ML-DSA activations must use canonical key order');
+  if (
+    ed25519 &&
+    ecdsa &&
+    ed25519.materialActivation.activationId === ecdsa.materialActivation.activationId
+  )
+    throw new Error('Client material activations must be distinct');
+  const [first, ...rest] = mlDsa;
+  if (first) {
+    const mlDsa: MlDsaActivationList = [first, ...rest];
+    if (ed25519 && ecdsa)
       return {
-        ok: true,
-        value: {
-          kind: 'wallet_signer_activation_set_v1',
-          keyFamilies: ['ed25519'],
-          ed25519: activation,
-        },
-      };
-    }
-    if (families.length === 1 && families[0] === 'ecdsa_secp256k1') {
-      exactFields(record, ['kind', 'keyFamilies', 'ecdsa'], 'WalletSignerActivationSetV1');
-      const activation = parseEcdsaActivation(record.ecdsa, 'ecdsa');
-      return {
-        ok: true,
-        value: {
-          kind: 'wallet_signer_activation_set_v1',
-          keyFamilies: ['ecdsa_secp256k1'],
-          ecdsa: activation,
-        },
-      };
-    }
-    exactFields(record, ['kind', 'keyFamilies', 'ed25519', 'ecdsa'], 'WalletSignerActivationSetV1');
-    const ed25519 = parseEd25519Activation(record.ed25519, 'ed25519');
-    const ecdsa = parseEcdsaActivation(record.ecdsa, 'ecdsa');
-    if (ed25519.materialActivation.activationId === ecdsa.materialActivation.activationId) {
-      return invalidResult('wallet signer activation references must be distinct');
-    }
-    return {
-      ok: true,
-      value: {
         kind: 'wallet_signer_activation_set_v1',
-        keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
+        keyFamilies: ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'],
         ed25519,
         ecdsa,
-      },
-    };
-  } catch (error) {
-    return invalidResult(errorMessage(error, 'wallet signer activation set is invalid'));
+        mlDsa,
+      };
+    if (ed25519)
+      return {
+        kind: 'wallet_signer_activation_set_v1',
+        keyFamilies: ['ed25519', 'ml_dsa_65'],
+        ed25519,
+        mlDsa,
+      };
+    if (ecdsa)
+      return {
+        kind: 'wallet_signer_activation_set_v1',
+        keyFamilies: ['ecdsa_secp256k1', 'ml_dsa_65'],
+        ecdsa,
+        mlDsa,
+      };
+    return { kind: 'wallet_signer_activation_set_v1', keyFamilies: ['ml_dsa_65'], mlDsa };
   }
+  if (ed25519 && ecdsa)
+    return {
+      kind: 'wallet_signer_activation_set_v1',
+      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
+      ed25519,
+      ecdsa,
+    };
+  if (ed25519)
+    return { kind: 'wallet_signer_activation_set_v1', keyFamilies: ['ed25519'], ed25519 };
+  if (ecdsa)
+    return { kind: 'wallet_signer_activation_set_v1', keyFamilies: ['ecdsa_secp256k1'], ecdsa };
+  throw new Error('A wallet authority requires at least one signer');
+}
+function isMlDsaSigner(
+  signer: ExactAdministeredSignerManifestV1['signers'][number],
+): signer is ExactAdministeredMlDsa65SignerV1 {
+  return signer.keyFamily === 'ml_dsa_65';
 }
 
 export function encodeWalletSignerActivationSetV1(value: WalletSignerActivationSetV1): Uint8Array {
@@ -352,11 +448,31 @@ export function encodeWalletSignerActivationSetV1(value: WalletSignerActivationS
     u32(value.keyFamilies.length, 'keyFamilies'),
   ];
   for (const family of value.keyFamilies) parts.push(text(family, 'keyFamilies.item'));
-  if (isEd25519OnlyActivationSet(value) || isBothFamilyActivationSet(value)) {
-    parts.push(lp32(encodeEd25519Activation(value.ed25519), 'ed25519'));
-  }
-  if (isEcdsaOnlyActivationSet(value) || isBothFamilyActivationSet(value)) {
-    parts.push(lp32(encodeEcdsaActivation(value.ecdsa), 'ecdsa'));
+  if (value.ed25519) parts.push(lp32(encodeEd25519Activation(value.ed25519), 'ed25519'));
+  if (value.ecdsa) parts.push(lp32(encodeEcdsaActivation(value.ecdsa), 'ecdsa'));
+  if (value.mlDsa) {
+    parts.push(u32(value.mlDsa.length, 'mlDsa.length'));
+    for (const activation of value.mlDsa) {
+      const signer = activation.signer;
+      parts.push(
+        lp32(
+          concat([
+            text(activation.kind, 'mlDsa.kind'),
+            text(signer.kind, 'signer.kind'),
+            text(signer.keyFamily, 'signer.family'),
+            text(signer.walletId, 'signer.walletId'),
+            text(signer.walletKeyId, 'signer.walletKeyId'),
+            text(signer.mlDsaSigningKeyId, 'signer.keyId'),
+            rawDigest(signer.keyManifestDigestB64u, 'signer.manifest'),
+            lp32(
+              rawPublicKey(signer.registeredPublicKeyB64u, 'signer.publicKey'),
+              'signer.publicKey',
+            ),
+          ]),
+          'mlDsa.activation',
+        ),
+      );
+    }
   }
   return concat(parts);
 }
@@ -420,47 +536,23 @@ export async function replaceActiveWalletAuthorityEd25519MaterialActivationV1(in
   if (!current.ed25519) {
     throw new Error('active Wallet Authority has no Ed25519 material activation to replace');
   }
-  const signerActivations = current.ecdsa
-    ? buildWalletSignerActivationSetV1({
-        manifest: buildExactAdministeredSignerManifestV1([
-          current.ed25519.signer,
-          current.ecdsa.signer,
-        ]),
-        materialActivations: {
-          keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-          ed25519: input.materialActivation,
-          ecdsa: current.ecdsa.materialActivation,
-        },
-      })
-    : buildWalletSignerActivationSetV1({
-        manifest: buildExactAdministeredSignerManifestV1([current.ed25519.signer]),
-        materialActivations: {
-          keyFamilies: ['ed25519'],
-          ed25519: input.materialActivation,
-        },
-      });
-  const signerActivationSetDigestB64u =
-    await computeWalletSignerActivationSetDigestB64u(signerActivations);
-  const draft: ActiveWalletAuthorityV1 = {
-    kind: input.authority.kind,
-    authorityId: input.authority.authorityId,
-    walletId: input.authority.walletId,
-    principal: input.authority.principal,
-    provenance: input.authority.provenance,
-    permissions: input.authority.permissions,
-    signerActivations,
-    signerActivationSetDigestB64u,
-    authorityDigestB64u: input.authority.authorityDigestB64u,
-    revocationEpoch: input.authority.revocationEpoch,
-    createdAtMs: input.authority.createdAtMs,
-    updatedAtMs: Math.max(input.authority.updatedAtMs, input.updatedAtMs),
-    state: 'active',
-    activatedAtMs: input.authority.activatedAtMs,
-  };
-  return buildActiveWalletAuthorityV1({
-    ...draft,
-    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-  });
+  return withSignerActivations(
+    input.authority,
+    replaceWalletEd25519MaterialV1(current, input.materialActivation),
+    input.updatedAtMs,
+  );
+}
+
+export function replaceWalletEd25519MaterialV1(
+  current: WalletSignerActivationSetV1,
+  materialActivation: MpcMaterialActivationRef,
+): WalletSignerActivationSetV1 {
+  if (!current.ed25519) throw new Error('The authority has no Ed25519 activation to replace');
+  return assembleSignerActivations(
+    buildWalletEd25519SignerActivationV1({ signer: current.ed25519.signer, materialActivation }),
+    current.ecdsa ?? null,
+    current.mlDsa ?? [],
+  );
 }
 
 export function buildActiveCombinedWalletAuthorityV1(
@@ -564,7 +656,20 @@ export function parseWalletAuthorityV1(raw: unknown): AuthorizationParseResult<W
   }
 }
 
-function encodeWalletAuthorityV1(value: WalletAuthorityV1): Uint8Array {
+type WalletAuthorityDigestFields = Pick<
+  WalletAuthorityV1,
+  | 'kind'
+  | 'authorityId'
+  | 'walletId'
+  | 'principal'
+  | 'provenance'
+  | 'permissions'
+  | 'signerActivationSetDigestB64u'
+  | 'state'
+  | 'revocationEpoch'
+>;
+
+function encodeWalletAuthorityV1(value: WalletAuthorityDigestFields): Uint8Array {
   const parts: Uint8Array[] = [
     text(WALLET_AUTHORITY_DOMAIN, 'domain'),
     text(value.kind, 'kind'),
@@ -581,7 +686,7 @@ function encodeWalletAuthorityV1(value: WalletAuthorityV1): Uint8Array {
 }
 
 export async function computeWalletAuthorityDigestB64u(
-  value: WalletAuthorityV1,
+  value: WalletAuthorityDigestFields,
 ): Promise<DigestB64u> {
   return parseDigestB64u(base64UrlEncode(await sha256Bytes(encodeWalletAuthorityV1(value))));
 }
@@ -771,25 +876,13 @@ function validateSignerActivationsForWallet(
   value: WalletSignerActivationSetV1,
   walletId: WalletId,
 ): void {
-  if (isEd25519OnlyActivationSet(value)) {
-    if (value.ed25519.signer.walletId !== walletId) {
-      throw new Error('Ed25519 signer activation uses a different wallet id');
-    }
-    return;
-  }
-  if (isEcdsaOnlyActivationSet(value)) {
-    if (value.ecdsa.signer.walletId !== walletId) {
-      throw new Error('ECDSA signer activation uses a different wallet id');
-    }
-    return;
-  }
-  if (isBothFamilyActivationSet(value)) {
-    if (value.ed25519.signer.walletId !== walletId || value.ecdsa.signer.walletId !== walletId) {
-      throw new Error('signer activations must use the authority wallet id');
-    }
-    return;
-  }
-  throw new Error('wallet signer activation families are unsupported');
+  if (value.ed25519 && value.ed25519.signer.walletId !== walletId)
+    throw new Error('Ed25519 activation belongs to another wallet');
+  if (value.ecdsa && value.ecdsa.signer.walletId !== walletId)
+    throw new Error('ECDSA activation belongs to another wallet');
+  for (const activation of value.mlDsa ?? [])
+    if (activation.signer.walletId !== walletId)
+      throw new Error('ML-DSA activation belongs to another wallet');
 }
 
 function parseEd25519Activation(raw: unknown, label: string): WalletEd25519SignerActivationV1 {
@@ -951,17 +1044,7 @@ function exactFields(
   }
 }
 
-function parseFamilies(raw: unknown, label: string): WalletSignerActivationSetV1['keyFamilies'] {
-  if (!Array.isArray(raw)) throw new Error(`${label} must be an array`);
-  if (raw.length === 1 && raw[0] === 'ed25519') return ['ed25519'];
-  if (raw.length === 1 && raw[0] === 'ecdsa_secp256k1') return ['ecdsa_secp256k1'];
-  if (raw.length === 2 && raw[0] === 'ed25519' && raw[1] === 'ecdsa_secp256k1') {
-    return ['ed25519', 'ecdsa_secp256k1'];
-  }
-  throw new Error(`${label} must use canonical family order`);
-}
-
-function sameFamilies(left: readonly string[], right: readonly string[]): boolean {
+function sameFamilies(left: readonly unknown[], right: readonly string[]): boolean {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
     if (left[index] !== right[index]) return false;
@@ -987,95 +1070,20 @@ function isEcdsaOnlyManifest(
   return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ecdsa_secp256k1';
 }
 
-function isBothFamilyManifest(
-  value: ExactAdministeredSignerManifestV1,
-): value is Extract<
-  ExactAdministeredSignerManifestV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
-> {
-  return value.keyFamilies.length === 2;
-}
-
-function isEd25519OnlyMaterials(
-  value: WalletSignerActivationMaterialsV1,
-): value is Extract<
-  WalletSignerActivationMaterialsV1,
-  { readonly keyFamilies: readonly ['ed25519'] }
-> {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ed25519';
-}
-
-function isEcdsaOnlyMaterials(
-  value: WalletSignerActivationMaterialsV1,
-): value is Extract<
-  WalletSignerActivationMaterialsV1,
-  { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
-> {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ecdsa_secp256k1';
-}
-
-function isBothFamilyMaterials(
-  value: WalletSignerActivationMaterialsV1,
-): value is Extract<
-  WalletSignerActivationMaterialsV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
-> {
-  return value.keyFamilies.length === 2;
-}
-
-function normalizeWalletSignerActivationMaterials(
-  value: WalletSignerActivationMaterialsV1,
-): WalletSignerActivationMaterialsV1 {
-  if (isEd25519OnlyMaterials(value)) {
-    return {
-      keyFamilies: ['ed25519'],
-      ed25519: requireParsed(
-        parseMpcMaterialActivationRef(value.ed25519),
-        'materialActivations.ed25519',
-      ),
-    };
-  }
-  if (isEcdsaOnlyMaterials(value)) {
-    return {
-      keyFamilies: ['ecdsa_secp256k1'],
-      ecdsa: requireParsed(parseMpcMaterialActivationRef(value.ecdsa), 'materialActivations.ecdsa'),
-    };
-  }
-  if (isBothFamilyMaterials(value)) {
-    return {
-      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-      ed25519: requireParsed(
-        parseMpcMaterialActivationRef(value.ed25519),
-        'materialActivations.ed25519',
-      ),
-      ecdsa: requireParsed(parseMpcMaterialActivationRef(value.ecdsa), 'materialActivations.ecdsa'),
-    };
-  }
-  throw new Error('wallet signer activation materials are unsupported');
-}
-
 function isEd25519OnlyActivationSet(
   value: WalletSignerActivationSetV1,
-): value is Extract<WalletSignerActivationSetV1, { readonly keyFamilies: readonly ['ed25519'] }> {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ed25519';
+): value is Ed25519WalletSignerActivationSetV1 {
+  return value.ed25519 !== undefined && value.ecdsa === undefined;
 }
-
 function isEcdsaOnlyActivationSet(
   value: WalletSignerActivationSetV1,
-): value is Extract<
-  WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ecdsa_secp256k1'] }
-> {
-  return value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ecdsa_secp256k1';
+): value is EcdsaWalletSignerActivationSetV1 {
+  return value.ecdsa !== undefined && value.ed25519 === undefined;
 }
-
 function isBothFamilyActivationSet(
   value: WalletSignerActivationSetV1,
-): value is Extract<
-  WalletSignerActivationSetV1,
-  { readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'] }
-> {
-  return value.keyFamilies.length === 2;
+): value is CombinedWalletSignerActivationSetV1 {
+  return value.ed25519 !== undefined && value.ecdsa !== undefined;
 }
 
 function parseDigestField(raw: unknown, label: string): DigestB64u {
@@ -1126,14 +1134,25 @@ function assertNever(value: never, label: string): never {
  * Re-seals an authority around its new combined signer activations. Both digests are
  * recomputed; identity, provenance, permissions and lifecycle stay as they were.
  */
-async function withCombinedSignerActivations(
-  authority: Omit<ActiveWalletAuthorityV1, 'signerActivations'>,
-  signerActivations: CombinedWalletSignerActivationSetV1,
+async function withSignerActivations<T extends WalletSignerActivationSetV1>(
+  authority: ActiveWalletAuthorityV1,
+  signerActivations: T,
   now: number,
-): Promise<ActiveCombinedWalletAuthorityV1> {
+): Promise<ActiveWalletAuthorityV1 & { readonly signerActivations: T }> {
   const signerActivationSetDigestB64u =
     await computeWalletSignerActivationSetDigestB64u(signerActivations);
-  const draft: ActiveCombinedWalletAuthorityV1 = {
+  const authorityDigestB64u = await computeWalletAuthorityDigestB64u({
+    kind: 'wallet_authority_v1',
+    authorityId: authority.authorityId,
+    walletId: authority.walletId,
+    principal: authority.principal,
+    provenance: authority.provenance,
+    permissions: authority.permissions,
+    signerActivationSetDigestB64u,
+    state: 'active',
+    revocationEpoch: authority.revocationEpoch,
+  });
+  const next: ActiveWalletAuthorityV1 & { readonly signerActivations: T } = {
     kind: 'wallet_authority_v1',
     authorityId: authority.authorityId,
     walletId: authority.walletId,
@@ -1142,17 +1161,107 @@ async function withCombinedSignerActivations(
     permissions: authority.permissions,
     signerActivations,
     signerActivationSetDigestB64u,
-    authorityDigestB64u: authority.authorityDigestB64u,
+    authorityDigestB64u,
     revocationEpoch: authority.revocationEpoch,
     createdAtMs: authority.createdAtMs,
     updatedAtMs: Math.max(authority.updatedAtMs, now),
     state: 'active',
     activatedAtMs: authority.activatedAtMs,
   };
-  return buildActiveCombinedWalletAuthorityV1({
-    ...draft,
-    authorityDigestB64u: await computeWalletAuthorityDigestB64u(draft),
-  });
+  validateWalletAuthorityV1(next);
+  return next;
+}
+
+export async function extendWalletAuthorityWithMlDsa65SignerV1(input: {
+  readonly authority: ActiveWalletAuthorityV1;
+  readonly signer: ExactAdministeredMlDsa65SignerV1;
+  readonly now: number;
+}): Promise<ActiveWalletAuthorityV1> {
+  if (input.signer.walletId !== input.authority.walletId)
+    throw new Error('ML-DSA activation belongs to another wallet');
+  const current = input.authority.signerActivations;
+  const added: WalletMlDsa65SignerActivationV1 = {
+    kind: 'wallet_ml_dsa_65_signer_activation_v1',
+    signer: input.signer,
+  };
+  const entries = [...(current.mlDsa ?? [])];
+  for (const existing of entries) {
+    if (
+      existing.signer.walletKeyId === added.signer.walletKeyId ||
+      existing.signer.mlDsaSigningKeyId === added.signer.mlDsaSigningKeyId
+    ) {
+      if (!sameMlDsaActivation(existing, added))
+        throw new Error('The ML-DSA signing key already names another identity');
+      return input.authority;
+    }
+  }
+  entries.push(added);
+  entries.sort(compareMlDsaActivation);
+  return withSignerActivations(
+    input.authority,
+    assembleSignerActivations(current.ed25519 ?? null, current.ecdsa ?? null, entries),
+    input.now,
+  );
+}
+export async function isMlDsaExtensionOfWalletAuthorityV1(
+  current: ActiveWalletAuthorityV1,
+  next: ActiveWalletAuthorityV1,
+): Promise<boolean> {
+  if (
+    !(await walletAuthorityDigestsMatchV1(current)) ||
+    !(await walletAuthorityDigestsMatchV1(next))
+  )
+    return false;
+  let extended = current;
+  for (const entry of next.signerActivations.mlDsa ?? []) {
+    try {
+      extended = await extendWalletAuthorityWithMlDsa65SignerV1({
+        authority: extended,
+        signer: entry.signer,
+        now: next.updatedAtMs,
+      });
+    } catch {
+      return false;
+    }
+  }
+  return (
+    extended.authorityDigestB64u === next.authorityDigestB64u &&
+    current.createdAtMs === next.createdAtMs &&
+    current.activatedAtMs === next.activatedAtMs &&
+    next.updatedAtMs >= current.updatedAtMs
+  );
+}
+
+function compareMlDsaActivation(
+  left: WalletMlDsa65SignerActivationV1,
+  right: WalletMlDsa65SignerActivationV1,
+): number {
+  if (left.signer.walletKeyId < right.signer.walletKeyId) return -1;
+  if (left.signer.walletKeyId > right.signer.walletKeyId) return 1;
+  return 0;
+}
+function sameMlDsaActivation(
+  left: WalletMlDsa65SignerActivationV1,
+  right: WalletMlDsa65SignerActivationV1,
+): boolean {
+  return (
+    left.signer.walletId === right.signer.walletId &&
+    left.signer.walletKeyId === right.signer.walletKeyId &&
+    left.signer.mlDsaSigningKeyId === right.signer.mlDsaSigningKeyId &&
+    left.signer.registeredPublicKeyB64u === right.signer.registeredPublicKeyB64u &&
+    left.signer.keyManifestDigestB64u === right.signer.keyManifestDigestB64u
+  );
+}
+function sameMlDsaActivationSet(
+  left: WalletSignerActivationSetV1,
+  right: WalletSignerActivationSetV1,
+): boolean {
+  const a = left.mlDsa ?? [];
+  const b = right.mlDsa ?? [];
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1)
+    if (!sameMlDsaActivation(a[index], b[index])) return false;
+  return true;
 }
 
 export async function extendEcdsaWalletAuthorityWithEd25519(input: {
@@ -1164,19 +1273,15 @@ export async function extendEcdsaWalletAuthorityWithEd25519(input: {
     throw new Error('NEAR signer belongs to a different wallet authority');
   }
   const existingEcdsa = input.authority.signerActivations.ecdsa;
-  const ed25519Signer = input.ed25519.signer;
-  const signerActivationsCandidate = buildWalletSignerActivationSetV1({
-    manifest: buildExactAdministeredSignerManifestV1([ed25519Signer, existingEcdsa.signer]),
-    materialActivations: {
-      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-      ed25519: input.ed25519.materialActivation,
-      ecdsa: existingEcdsa.materialActivation,
-    },
-  });
+  const signerActivationsCandidate = assembleSignerActivations(
+    input.ed25519,
+    existingEcdsa,
+    input.authority.signerActivations.mlDsa ?? [],
+  );
   if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
     throw new Error('Deferred Ed25519 activation did not produce a combined signer activation set');
   }
-  return withCombinedSignerActivations(input.authority, signerActivationsCandidate, input.now);
+  return withSignerActivations(input.authority, signerActivationsCandidate, input.now);
 }
 
 /**
@@ -1192,21 +1297,15 @@ export async function extendEd25519WalletAuthorityWithEcdsa(input: {
     throw new Error('ECDSA signer belongs to a different wallet authority');
   }
   const existingEd25519 = input.authority.signerActivations.ed25519;
-  const signerActivationsCandidate = buildWalletSignerActivationSetV1({
-    manifest: buildExactAdministeredSignerManifestV1([
-      existingEd25519.signer,
-      input.ecdsa.signer,
-    ]),
-    materialActivations: {
-      keyFamilies: ['ed25519', 'ecdsa_secp256k1'],
-      ed25519: existingEd25519.materialActivation,
-      ecdsa: input.ecdsa.materialActivation,
-    },
-  });
+  const signerActivationsCandidate = assembleSignerActivations(
+    existingEd25519,
+    input.ecdsa,
+    input.authority.signerActivations.mlDsa ?? [],
+  );
   if (!isCombinedWalletSignerActivationSetV1(signerActivationsCandidate)) {
     throw new Error('Added ECDSA activation did not produce a combined signer activation set');
   }
-  return withCombinedSignerActivations(input.authority, signerActivationsCandidate, input.now);
+  return withSignerActivations(input.authority, signerActivationsCandidate, input.now);
 }
 
 /** `next` keeps everything of `previous` that an added signer must not change. */
@@ -1241,6 +1340,7 @@ export function isEcdsaExtensionOfEd25519WalletAuthority(
     isActiveEd25519WalletAuthorityV1(previous) &&
     isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
     keepsWalletAuthorityApartFromSigners(previous, next) &&
+    sameMlDsaActivationSet(previous.signerActivations, next.signerActivations) &&
     base64UrlEncode(encodeEd25519Activation(previous.signerActivations.ed25519)) ===
       base64UrlEncode(encodeEd25519Activation(next.signerActivations.ed25519))
   );
@@ -1256,7 +1356,45 @@ export function isEd25519ExtensionOfEcdsaWalletAuthority(
     isCombinedWalletSignerActivationSetV1(next.signerActivations) &&
     previous.provenance.kind === 'wallet_registration' &&
     keepsWalletAuthorityApartFromSigners(previous, next) &&
+    sameMlDsaActivationSet(previous.signerActivations, next.signerActivations) &&
     base64UrlEncode(encodeEcdsaActivation(previous.signerActivations.ecdsa)) ===
       base64UrlEncode(encodeEcdsaActivation(next.signerActivations.ecdsa))
   );
+}
+
+/** Signer subjects are identical at server and browser session boundaries. */
+export function walletSignerCapabilitySubjectsV1(
+  activations: WalletSignerActivationSetV1,
+  kind: 'sign' | 'export_keys',
+): Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>[] {
+  const subjects: Extract<WalletCapabilitySubjectV1, { kind: 'sign' | 'export_keys' }>[] = [];
+  if (activations.ed25519)
+    subjects.push({
+      kind,
+      keyFamily: 'ed25519',
+      materialActivation: activations.ed25519.materialActivation,
+    });
+  if (activations.ecdsa)
+    subjects.push({
+      kind,
+      keyFamily: 'ecdsa_secp256k1',
+      materialActivation: activations.ecdsa.materialActivation,
+    });
+  for (const activation of activations.mlDsa ?? [])
+    subjects.push({
+      kind,
+      keyFamily: 'ml_dsa_65',
+      mlDsaSigningKeyId: activation.signer.mlDsaSigningKeyId,
+    });
+  return subjects;
+}
+
+export function walletSignerManifestV1(
+  activations: WalletSignerActivationSetV1,
+): ExactAdministeredSignerManifestV1 {
+  const signers = [];
+  if (activations.ed25519) signers.push(activations.ed25519.signer);
+  if (activations.ecdsa) signers.push(activations.ecdsa.signer);
+  for (const activation of activations.mlDsa ?? []) signers.push(activation.signer);
+  return buildExactAdministeredSignerManifestV1(signers);
 }

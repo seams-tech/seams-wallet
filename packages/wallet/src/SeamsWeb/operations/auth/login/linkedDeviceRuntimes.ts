@@ -1,8 +1,8 @@
+import { exportRootEnvelope } from '@/core/indexedDB/walletAuthorityExportRoots';
 import { scheduleLinkedDevicePresignaturePrefill } from '../scheduleLinkedDevicePresignaturePrefill';
 import type { LoginResult } from '@/core/types/seams';
 import type { LoginWebContext } from '@/SeamsWeb/signingSurface/types';
 import { toAccountId } from '@/core/types/accountIds';
-import { isWalletCustodySeedBinding } from '@shared/passkey-custody/custodySecretBinding';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import { isObject } from '@shared/utils/validation';
 import type {
@@ -100,7 +100,7 @@ export function linkedDeviceRuntimeRequiresCurve(
 }
 
 export function linkedDeviceEd25519Material(
-  materials: readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]],
+  materials: readonly LinkedDevicePasskeyOpenedMaterial[],
 ): Extract<LinkedDevicePasskeyOpenedMaterial, { readonly keyFamily: 'ed25519' }> | null {
   const matches = materials.filter(
     (
@@ -115,7 +115,7 @@ export function linkedDeviceEd25519Material(
 }
 
 export function linkedDeviceEcdsaMaterial(
-  materials: readonly [LinkedDevicePasskeyOpenedMaterial, ...LinkedDevicePasskeyOpenedMaterial[]],
+  materials: readonly LinkedDevicePasskeyOpenedMaterial[],
 ): Extract<LinkedDevicePasskeyOpenedMaterial, { readonly keyFamily: 'ecdsa_secp256k1' }> | null {
   const matches = materials.filter(
     (
@@ -379,26 +379,23 @@ export async function activateLinkedDeviceSignerRuntimesAfterLink(args: {
         ...(providerIdentity ? { providerIdentity } : {}),
       });
     }
-    if (selection.exportRoot) {
+    if (selection.exportRoots.length > 0) {
       if (args.factor.kind === 'passkey') {
         await args.context.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
-          existingEnvelope: selection.exportRoot.envelope,
+          existingEnvelopes: selection.exportRoots.map(exportRootEnvelope),
           passkeyPrfFirstB64u: base64UrlEncode(args.factorSecret32),
           walletId: String(selection.walletId),
           walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),
           walletSessionId: String(args.operationCredential.walletSessionId),
           expiresAtMs: args.walletSession.expiresAtMs,
         });
-      } else if (
-        isWalletCustodySeedBinding(selection.exportRoot.envelope.binding) ||
-        selection.exportRoot.envelope.binding.kind === 'ed25519_yao_client_root_v1'
-      ) {
+      } else {
         await establishUnlockedExportRootCapabilityV1(
           walletCustodyCeremonyTransportFromWorkerContextV1(
             args.context.signingEngine.getSignerWorkerContext(),
           ),
           {
-            existingEnvelope: selection.exportRoot.envelope,
+            existingEnvelopes: selection.exportRoots.map(exportRootEnvelope),
             existingFactorSecret: args.factorSecret32,
             walletId: String(selection.walletId),
             walletAuthMethodId: String(selection.authMethod.walletAuthMethodId),

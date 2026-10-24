@@ -1,0 +1,54 @@
+{
+  "observedAt": "2026-10-24T17:52:23.774Z",
+  "scope": "Public SDK, Chromium with separate authenticators, local Gateway/D1/Router/A/B Workers. NEAR RPC uses the intended-behaviour fixture. No live-chain or latency claim.",
+  "walletId": "warm-vermillion-wxw2ns",
+  "signer": {
+    "kind": "near_ml_dsa_65",
+    "signingKeyId": "near-ml-dsa-65:1",
+    "publicKeyB64u": "RKF731g2aGvdAzxoC6cYYP56zOy4XrZCttgzQsgZAaBobqRRDkc87opAlK4Yys2ZWgnLtYNWRe_gZajAcXD_fEJCw3w1oVxHYSd1RmB2Xg6NJvrxnE29Uhimn3wMWOynOLK-VGHcKO_U5ERox0_DriAevwckiS9W7mVk0AJUYpDk3vnj2FwU1jD-U-oMAU6iqYUmyh8tOY3yj45ASHt_YYvYFCopsul_IuKtbug92_mVRVjV2ZuvBMv1u2VOf-o4AeinSVakutXAo9EKNPUVIdgWETUbKU1f3rgN2DqiTJXrqsu9eHvhPkJ0HByEVDYx-4FHrylCDB1pQZWcKii5upO-fBZb5ugaVfnLwAgAuF5xNXiJNWs5nZpNXY7fY43VDhVeMR_Gygh-chlVtrkGswZPDNZ85-xJJahmyElpcUnQ1X1wSUORYT9vo3V_wHyEes1gFAWbQn6QvCu11y_ryV9eK9W5Uz9OafY3OVjCGqZqG2vVJGfr_RNHne3aMCTVf_a0MYP8kodUmZ8VmNTrxrpIP4eNwHvQ935AdS_QhyIOKyMXOfw1gbH85rcrLpQrYaZFILlDEXeDq2rpKziB7-4oRv881lIv0NXAH1JmQwjvWE-FFIu7RIP-7aRrrTWwBE-59JYiHPxVTLttyyfX_DSwDyxrWW3g3Jo1_bPthSiNXC0vqWFyM5CsjYVgWIiPEU54SHtXqZGNTo4rXPH9TmQwT6k1hYeWqOLNTKO4CrRhtIulTzqLKJJ7j7tG2YftdlXiR8WjQBjXrFw1iNpQTbuviAobtxScNwekyKhQiZ4HU9icef8D0UV11wuP5zPkpOtPPSM_eDxpyrV32vZ8HOBbq_6KaMpMn67sxNhr49xCjU5VpBKQHXBzaurH6azxrAbU2mwD-q4rebacQcvDx7EhNghFLj5YZgoJ2uhTIyPRhhzN_80CcSGKmeULm8gFF4nC2GjwrZ8WybmrAk1tJ8Bkd8sSswEdj1nKxXlfJ0Rv-wZjchRsLoAbps57VxjpL9ECdHyUxf5KMKv7vJPg_dtUNqziXFy44V4jNbmy6XLhNUv0lkRSDIaWTU8BWRLhUPpom-JC2ssz5RcbsR3A0qZ0854Gr_vbANa8NY53EM4T22SgZkdxOte9eHiB-zXI2Xpq_iQPYNQKm_aCiSEPBI03ORyVODR6d6alb8IdN3aFTD7vQaAzIs-asGJ-mSIA2WptZk_CymQI9U9Pd7GabjtNbnzr7PXgEpF-RZQ7tq_6iyEJcLQZH2DVjZ_mDn2Uj4DxKpdddkc7iN2kyrnkxAxa9f2AEDXSzkQw4NjcEnbSpchTEpF8JEjT1S89l0CvGjZCKcd1Y_BpHAr9a6TBKkrJ9AAk-bAiEq_3nDc4M2VCExchPnSYoUcGrD4Zrvp9TFUw8KZGKWOOfwfBjbw5sZdF02JyvZyXTq-hphnksw185IdJXde-EX0yOuFh2rXKMCOJyVRHdjNY3hk_Ls194UV1-Z3dVATc8LgV4WawLTHYmZc-JWC0pIw8FFI7Fl_tgBqqfWtjxUawnsst_ZGzTYlf9syhbYl9MeslNUoMAdyEhUIMr38hRr9wcv9MvGDM50r9pmzerkWKpUjKqKru7Rq_axUsM5C0WalT6Q5d0kHwBEITbGQM-rZ9IIQSqH5oG_NVa-cWCpx06wFdcj1qPuViadT8-bAaK0cc58QnanpgDCCykxpoBTxdZpODx9JaLKss-XpcRT4sdCBr7PuOxeRgZ9DIsHw00DBvgUizvy47AUjKM5N4C20LBYi4PCq1LNlcb0IKX6WGTzo-_tiEiFoss1t8v7qP8gNtef7ox9ypKmi5jGBIYYxdc_y5eU7eS50IzMPP6HyF-AQ4pDIbjUN3Yl71hF7CQzLwrWWt8I3sflfniZPIm5OnOSU0qHiI0AUs3LJBRighp7xsqg1_i2yw6vbHdrbm5nitqkMPeWul0CRjYaS1QpsLU-8SZKw_ZFyEYlDUlI2MXazkfGhdsavOUzd7VuBg4eWL8N0PsveEq4wh7C-nP03f4KpTjByXqXWquw7CSYn-_OTbKbt4vY5mPPqR_X--rWJP_rfAsyNafRy-feOouViKH5k5xo2SW0P1phnjw_Q5MtLpc6ObJWHar_wW7WguicHi_f-YpRmngDht6dDkiYRsGPOfAPDRnsrbzlN0gWRPR6ygAz-xduz5GxsCQiw70y4PldyJmOLAInMjEpC8kV_XDvYcVpIzHHdIeL2LTf5hotOS9WbZVfSj9H_SPy54EmlBd8XY3Czihi_QiSRHj3JrRXFifSR_TAlNxuSJoVBJOPfAuEigUMRUFCSl8oC57efefYvp3GfEtPa3zksEy4fZkI4V2Ulu1BPmo8RdymeY-mS6JlCAdkDkYCXaCKcXX4T3qsyG1B74kXPrs0LoEbppUbWW7tIxa8OgAXAupL4NMtA6Zjvvsdq_oEqio7CQcYIi6upyOPb4dXn5twj6SDsMxOTwGN4EkPrGNM-9LN1VWnx-5AffaLsQQQ6Pg1LN3dVMX3rUxNSx_taZ4mpzJgCVJfv9fbg2MvL7Q_i4Sg0t-UPU6gyObaYNRCH4UM2Y-yxSPtVLzq4",
+    "keyManifestDigestB64u": "geUidpP4HXTKbzQhk_cxVRCrkaGcgoiu2QVcPyYe0kk",
+    "materialEpoch": 1
+  },
+  "checks": {
+    "publicationAcrossReload": true,
+    "linkedPasskeyExport": true,
+    "exportAfterReload": true,
+    "onwardLinkExport": true,
+    "otherLinkedOwnerPreservedAfterRevocation": true,
+    "originalEmailOtpExport": true,
+    "recoveredOwnerExport": true,
+    "revokedOwnerRefused": true,
+    "exportsVerifiedByNodeCrypto": true
+  },
+  "policy": {
+    "candidateGroupSize": 2,
+    "preparationGroupSize": 4,
+    "poolCapacityCandidates": 32
+  },
+  "sources": {
+    "tests/e2e/intended-behaviours/ml-dsa.lifecycle.contract.test.ts": "9180aafe640bd23a54f99d0a1ab263a3b7aa6f2c0cfeca193e33cb5d2600b905",
+    "tests/e2e/intended-behaviours/ml-dsa-lifecycle-scenario.ts": "70052ca8741ff9bffa3685ade48f71a9216c7f1e88e86ebbca4341238ac4a419",
+    "tests/intended-app/src/mlDsaLifecycle.ts": "2af0445cb0098c9e0310461a60b3029cdd4ffdca1e7c8d95f6303462196c82ce",
+    "tests/helpers/mlDsaHostedLifecycleWorker.ts": "de2720834b2ec0b6c9d283842390f18860b6f0c9b06900f2e9a8b4eb5f563c30",
+    "tests/e2e/intended-behaviours/harness.ts": "4d470fadefa33c7061d68cdb7a5b6d9f266e66b8da4477966947b6f820d94661",
+    "tests/e2e/intended-behaviours/ml-dsa-testnet.ts": "32d9a740cc29234d8027fa98b6206d635be9dd9518ff5fd8de82136424a57e15",
+    "packages/wallet/src/core/signingEngine/flows/signNear/mlDsaTransaction.ts": "1334eb902cbd61e9ed5346d44e8f5b61df42725fcf65b6490e7b1581590720a5",
+    "packages/wallet/src/core/signingEngine/workerManager/workers/mlDsaSeedExport.ts": "5453d35bde548be44d1df6f55d1098a5dbb7ef8f8e3f5284c56c599d7cd1711f",
+    "packages/wallet-server/src/router/cloudflare/d1/wallet/d1MlDsaSigningSessions.ts": "6052d77bd02e45a60b505054b0d3107222e2db3f9113cdb7118e3191de034f22",
+    "crates/router-ab-core/src/protocol/normal_signing.rs": "f84a7b583e444a0abd6bc1f483c836d2ae574682359eeff1773ca5c8bb85d70a",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "65ff24b031d7b724eacafc42bf636baf2362896525f24807560155f4ec4c86f5",
+    "wasm/near_signer/src/passkey_custody_wasm.rs": "326350eb5d32a35810e1f47b10328dd238af6aa568518becfcdff315f572c649",
+    "wasm/near_signer/pkg/wasm_signer_worker_bg.wasm": "ae4ae8036994845b70eddab41f086d3381ee5aea3400d3e6f4f83e97916b9779",
+    "crates/router-ab-cloudflare/build/router/index_bg.wasm": "cd32fc62ec6dd8ae938d53ea6234bf90cc2b5d4cdbe96abefc269d539e082bcf",
+    "crates/router-ab-cloudflare/build/deriver-a/index_bg.wasm": "6b401673f7464e88b51e35ae90c643d91a7ada56117d7d501f17f30417bc6c78",
+    "crates/router-ab-cloudflare/build/deriver-b/index_bg.wasm": "52c7496539115e880ba69eb4cac0955af38f6766312f211f4d1130c5b7bda3f9",
+    "crates/router-ab-cloudflare/build/ml-dsa/router/index_bg.wasm": "2f5e3d39232f96d379c0d17aae658f635de82d7b4d0ef83854524f13f8324134",
+    "crates/router-ab-cloudflare/build/ml-dsa/deriver-a/index_bg.wasm": "9f563cf1a74684560c45d8f6a27856a107978beb16676ee9bac1894ec39ace5f",
+    "crates/router-ab-cloudflare/build/ml-dsa/deriver-b/index_bg.wasm": "85cbfc43a0ec3aac1d4633708b972472989ab4c95f52818ea68df15d4f12c425",
+    "wasm/near_signer/pkg-ml-dsa/ml_dsa_signer_bg.wasm": "ceb46d767e84540f9ca5eb7e4a7093c429e336f672e04bc26ca4d4ba3089d43d",
+    "crates/router-ab-cloudflare/scripts/prepare-local-runtime-config.mjs": "fd907283bca2dd8e00586cfa9f7b58a6e9f89ac793f1b54467d1c180bac4ca1a",
+    "crates/router-ab-cloudflare/scripts/start-local-role-workers.mjs": "a93174e62d4360dd81bbd7f23e59b55b97e42479c895f749139b4158396da1cf",
+    "crates/router-ab-cloudflare/scripts/start-local-wallet-system.mjs": "6dbc803bb73ee7e9b5e8a88ed30e07ba7393d96b218599d17af77af3d7576394",
+    "tests/scripts/start-wallet-intended-services.mjs": "ab2a5fa7ae3d5937e9847173137882d412cf56eb4f741cbd882f1c35cd196bf8"
+  }
+}
