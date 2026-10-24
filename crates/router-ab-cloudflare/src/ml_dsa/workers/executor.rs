@@ -57,6 +57,7 @@ impl Host for WorkerHost<'_> {
                 permit: permit.clone(),
                 batch,
             },
+            None,
         )
         .await?;
         trace.mark("response_headers");
@@ -132,6 +133,7 @@ async fn execute(
         &RoleCommand::LoadSigningInputs {
             permit: input.permit.clone(),
         },
+        None,
     )
     .await?;
     if response.status_code() != 200 {

@@ -1,5 +1,6 @@
 //! Private Worker routes and transactional Durable Object adapters.
 mod coordinator;
+mod durable_trace;
 mod executor;
 mod preparation;
 pub(crate) mod recipient_keys;
@@ -8,8 +9,8 @@ mod router_trace;
 mod schedules;
 mod signing_trace;
 mod stage_trace;
-mod wait_trace;
 mod transport;
+mod wait_trace;
 use super::{
     admission::{self, Claim, Completion, Decision, Permit, Status},
     policy::Policy,
@@ -243,7 +244,18 @@ fn storage_error(error: worker::Error) -> RouterAbProtocolError {
 fn json<T: Serialize>(value: T) -> Result<serde_json::Value> {
     serde_json::to_value(value).map_err(|_| invalid("ML-DSA response encoding failed"))
 }
-struct TransactionStore(Transaction);
+struct TransactionStore {
+    transaction: Transaction,
+    trace: Option<durable_trace::DurableTrace>,
+}
+impl TransactionStore {
+    fn untraced(transaction: Transaction) -> Self {
+        Self {
+            transaction,
+            trace: None,
+        }
+    }
+}
 struct CiphertextChunk<'a>(&'a [u8]);
 impl Serialize for CiphertextChunk<'_> {
     fn serialize<S: serde::Serializer>(
@@ -255,25 +267,37 @@ impl Serialize for CiphertextChunk<'_> {
 }
 impl Store for TransactionStore {
     async fn get<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
-        match self.0.get(key).await {
-            Ok(value) => Ok(Some(value)),
-            Err(worker::Error::JsError(message)) if message == "No such value in storage." => {
-                Ok(None)
+        durable_trace::observe(self.trace.as_ref(), "get", async {
+            match self.transaction.get(key).await {
+                Ok(value) => Ok(Some(value)),
+                Err(worker::Error::JsError(message)) if message == "No such value in storage." => {
+                    Ok(None)
+                }
+                Err(error) => Err(storage_error(error)),
             }
-            Err(error) => Err(storage_error(error)),
-        }
+        })
+        .await
     }
+
     async fn put<T: Serialize>(&self, key: &str, value: &T) -> Result<()> {
-        self.0.put(key, value).await.map_err(storage_error)
-    }
-    async fn delete(&self, key: &str) -> Result<()> {
-        self.0.delete(key).await.map(|_| ()).map_err(storage_error)
-    }
-    async fn put_chunk(&self, key: &str, bytes: &[u8]) -> Result<()> {
-        self.0
-            .put(key, &CiphertextChunk(bytes))
+        durable_trace::observe(self.trace.as_ref(), "put", self.transaction.put(key, value))
             .await
             .map_err(storage_error)
+    }
+    async fn delete(&self, key: &str) -> Result<()> {
+        durable_trace::observe(self.trace.as_ref(), "delete", self.transaction.delete(key))
+            .await
+            .map(|_| ())
+            .map_err(storage_error)
+    }
+    async fn put_chunk(&self, key: &str, bytes: &[u8]) -> Result<()> {
+        durable_trace::observe(
+            self.trace.as_ref(),
+            "put_chunk",
+            self.transaction.put(key, &CiphertextChunk(bytes)),
+        )
+        .await
+        .map_err(storage_error)
     }
     async fn get_chunks(
         &self,
@@ -281,11 +305,13 @@ impl Store for TransactionStore {
         maximum_bytes: usize,
     ) -> Result<Vec<Option<Vec<u8>>>> {
         use worker::wasm_bindgen::JsCast;
-        let entries = self
-            .0
-            .get_multiple(keys.to_vec())
-            .await
-            .map_err(storage_error)?;
+        let entries = durable_trace::observe(
+            self.trace.as_ref(),
+            "get_chunks",
+            self.transaction.get_multiple(keys.to_vec()),
+        )
+        .await
+        .map_err(storage_error)?;
         let mut values = Vec::with_capacity(keys.len());
         for key in keys {
             let value = entries.get(&worker::wasm_bindgen::JsValue::from_str(key));
@@ -304,11 +330,14 @@ impl Store for TransactionStore {
         Ok(values)
     }
     async fn delete_many(&self, keys: &[String]) -> Result<()> {
-        self.0
-            .delete_multiple(keys.to_vec())
-            .await
-            .map(|_| ())
-            .map_err(storage_error)
+        durable_trace::observe(
+            self.trace.as_ref(),
+            "delete_many",
+            self.transaction.delete_multiple(keys.to_vec()),
+        )
+        .await
+        .map(|_| ())
+        .map_err(storage_error)
     }
 }
 
@@ -323,7 +352,9 @@ where
     state
         .storage()
         .transaction(move |tx| async move {
-            let value = work(TransactionStore(tx)).await.map_err(protocol_error)?;
+            let value = work(TransactionStore::untraced(tx))
+                .await
+                .map_err(protocol_error)?;
             captured.replace(Some(value));
             Ok(())
         })
@@ -386,21 +417,37 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         {
             return Response::error("ML-DSA read authority required", 403);
         }
+        let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
+            .ok()
+            .flatten();
+        let trace = durable_trace::DurableTrace::admission(&self.env, &command, call)
+            .map_err(protocol_error)?;
+        durable_trace::mark(trace.as_ref(), "authorized");
+        let callback_trace = trace.clone();
         let policy = policy(&self.env).map_err(protocol_error)?;
         let output = Rc::new(RefCell::new(None));
         let captured = Rc::clone(&output);
-        self.state
-            .storage()
-            .transaction(move |transaction| async move {
-                let store = TransactionStore(transaction);
-                let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                let value = execute_admission(&store, &policy, command, now)
-                    .await
-                    .map_err(protocol_error)?;
-                captured.replace(Some(value));
-                Ok(())
-            })
-            .await?;
+        durable_trace::observe(
+            trace.as_ref(),
+            "transaction",
+            self.state
+                .storage()
+                .transaction(move |transaction| async move {
+                    durable_trace::mark(callback_trace.as_ref(), "callback_started");
+                    let store = TransactionStore {
+                        transaction,
+                        trace: callback_trace.clone(),
+                    };
+                    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                    let value = execute_admission(&store, &policy, command, now)
+                        .await
+                        .map_err(protocol_error)?;
+                    captured.replace(Some(value));
+                    durable_trace::mark(callback_trace.as_ref(), "callback_finished");
+                    Ok(())
+                }),
+        )
+        .await?;
         let value = output.borrow_mut().take().ok_or_else(|| {
             worker::Error::RustError("ML-DSA transaction returned no result".into())
         })?;
@@ -445,10 +492,7 @@ async fn execute_admission(
                 store,
                 request,
                 schedule,
-                execution::signing_layout_digest(
-                    schedules::DIGEST,
-                    policy.candidate_group_size(),
-                ),
+                execution::signing_layout_digest(schedules::DIGEST, policy.candidate_group_size()),
                 policy.minimum_ready_batches().max(2),
                 now,
             )
@@ -532,6 +576,12 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         let command: RoleCommand = decode_bounded_json_request(&mut request, 24 * 1024 * 1024)
             .await
             .map_err(protocol_error)?;
+        let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
+            .ok()
+            .flatten();
+        let durable =
+            durable_trace::DurableTrace::role(&self.env, &command, call).map_err(protocol_error)?;
+        durable_trace::mark(durable.as_ref(), "entered");
         let trace = match &command {
             RoleCommand::Take { permit, batch } => Some(stage_trace::StageTrace::new(
                 permit.request.operation,
@@ -540,17 +590,31 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
             )),
             _ => None,
         };
-        authorize_role_command(&self.env, &command)
-            .await
-            .map_err(protocol_error)?;
+        durable_trace::observe(
+            durable.as_ref(),
+            "authorize",
+            authorize_role_command(&self.env, &command),
+        )
+        .await
+        .map_err(protocol_error)?;
         if let Some(trace) = &trace {
             trace.mark("authorized");
         }
         let waking = matches!(command, RoleCommand::WakeRefill { .. });
         if role == Participant::A && !waking && preparation::refill_key(&command).is_some() {
-            schedule_refill_alarm(&self.state, 1_000).await?;
+            durable_trace::observe(
+                durable.as_ref(),
+                "schedule_alarm",
+                schedule_refill_alarm(&self.state, 1_000),
+            )
+            .await?;
         }
-        let value = role_transaction(&self.state, role, command).await?;
+        let value = durable_trace::observe(
+            durable.as_ref(),
+            "transaction",
+            role_transaction(&self.state, role, command, durable.clone()),
+        )
+        .await?;
         if let Some(trace) = &trace {
             trace.mark("transaction_committed");
         }
@@ -575,13 +639,18 @@ async fn role_transaction(
     state: &State,
     role: Participant,
     command: RoleCommand,
+    trace: Option<durable_trace::DurableTrace>,
 ) -> worker::Result<serde_json::Value> {
     let output = Rc::new(RefCell::new(None));
     let captured = Rc::clone(&output);
     state
         .storage()
         .transaction(move |transaction| async move {
-            let store = TransactionStore(transaction);
+            durable_trace::mark(trace.as_ref(), "callback_started");
+            let store = TransactionStore {
+                transaction,
+                trace: trace.clone(),
+            };
             let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
             if role == Participant::A {
                 if let Some(key) = preparation::refill_key(&command) {
@@ -594,6 +663,7 @@ async fn role_transaction(
                 .await
                 .map_err(protocol_error)?;
             captured.replace(Some(value));
+            durable_trace::mark(trace.as_ref(), "callback_finished");
             Ok(())
         })
         .await?;
@@ -915,9 +985,18 @@ pub(crate) async fn handle_role(
     let command: RoleCommand = decode_bounded_json_request(&mut request, 24 * 1024 * 1024)
         .await
         .map_err(protocol_error)?;
-    local_call(env, &command).await.map_err(protocol_error)
+    let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
+        .ok()
+        .flatten();
+    local_call(env, &command, call)
+        .await
+        .map_err(protocol_error)
 }
-async fn local_call(env: &Env, command: &RoleCommand) -> Result<Response> {
+async fn local_call(
+    env: &Env,
+    command: &RoleCommand,
+    call: Option<crate::CloudflareTraceIdV1>,
+) -> Result<Response> {
     let name = format!("ml-dsa-pool-{}", hex(&digest(b"wallet", command.wallet())?));
     let namespace = env.durable_object(POOL_BINDING).map_err(storage_error)?;
     let stub = namespace
@@ -925,10 +1004,22 @@ async fn local_call(env: &Env, command: &RoleCommand) -> Result<Response> {
         .map_err(storage_error)?
         .get_stub()
         .map_err(storage_error)?;
-    let forwarded = object_request(env, CallAuthority::Internal, ROLE_PATH, command)?;
-    stub.fetch_with_request(forwarded)
-        .await
-        .map_err(storage_error)
+    let call = call.or_else(wait_trace::call_id);
+    let trace = durable_trace::DurableTrace::role(env, command, call)?;
+    let mut forwarded = object_request(env, CallAuthority::Internal, ROLE_PATH, command)?;
+    if let Some(call) = call {
+        crate::set_cloudflare_trace_id_header_v1(
+            forwarded.headers_mut().map_err(storage_error)?,
+            call,
+        )?;
+    }
+    durable_trace::observe(
+        trace.as_ref(),
+        "pool_dispatch",
+        stub.fetch_with_request(forwarded),
+    )
+    .await
+    .map_err(storage_error)
 }
 #[derive(Clone, Copy)]
 enum CallAuthority<'a> {
@@ -990,11 +1081,22 @@ async fn service_call<T: serde::de::DeserializeOwned>(
     } else {
         CHECK_PATH
     };
-    let request = object_request(env, authority, path, command)?;
-    let mut response = stub
-        .fetch_with_request(request)
-        .await
-        .map_err(storage_error)?;
+    let call = wait_trace::call_id();
+    let trace = durable_trace::DurableTrace::admission(env, command, call)?;
+    let mut request = object_request(env, authority, path, command)?;
+    if let Some(call) = call {
+        crate::set_cloudflare_trace_id_header_v1(
+            request.headers_mut().map_err(storage_error)?,
+            call,
+        )?;
+    }
+    let mut response = durable_trace::observe(
+        trace.as_ref(),
+        "admission_dispatch",
+        stub.fetch_with_request(request),
+    )
+    .await
+    .map_err(storage_error)?;
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA admission service refused the request"));
     }

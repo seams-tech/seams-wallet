@@ -205,6 +205,44 @@ def public_stage_trace(value, timestamp):
     }
 
 
+def public_durable_boundary(value, timestamp):
+    if value.get("event") != "ml_dsa_durable_boundary_v1":
+        return None
+    commands = {
+        "prepare_registration", "retire_registration", "ready_registration",
+        "check_registration_job", "claim_registration", "check_registration_claim",
+        "finish_registration", "authorize_key", "commit_key", "key_state",
+        "initialize_registration_storage", "install_registration_batch",
+        "install_material", "install_pool", "check_material",
+    }
+    stages = {
+        "authorized", "entered", "authorize", "transaction", "callback_started",
+        "callback_finished", "get", "put", "delete", "schedule_alarm",
+        "pool_dispatch", "admission_dispatch", "role_dispatch", "get_chunks",
+        "put_chunk", "delete_many",
+    }
+    if value.get("command") not in commands or value.get("stage") not in stages:
+        return None
+    if value.get("state") not in {"mark", "begin", "end", "error"}:
+        return None
+    if value.get("call_id") is not None and not public_call_id(value["call_id"]):
+        return None
+    if any(value.get(key) is not None and not public_id(value[key]) for key in ("job", "operation")):
+        return None
+    if value["state"] == "mark":
+        if value.get("observation") is not None:
+            return None
+    elif not public_counter(value.get("observation")):
+        return None
+    if not public_counter(value.get("sequence")) or not public_time(value.get("at_ms")):
+        return None
+    fields = (
+        "call_id", "command", "job", "operation", "stage", "state",
+        "sequence", "observation", "at_ms",
+    )
+    return {key: value.get(key) for key in fields} | {"log_timestamp_ms": timestamp}
+
+
 def public_call_id(value):
     return isinstance(value, str) and re.fullmatch("[0-9a-f]{32}", value) is not None
 
@@ -509,6 +547,7 @@ def records(path, role):
         router_traces = []
         registration_links = []
         wait_traces = []
+        durable_boundaries = []
         retirements = []
         commit_probes = []
         stage_traces = []
@@ -533,6 +572,9 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                boundary = public_durable_boundary(value, log.get("timestamp"))
+                if boundary is not None:
+                    durable_boundaries.append(boundary)
                 retirement = public_retirement(value, log.get("timestamp"))
                 if retirement is not None:
                     retirements.append(retirement)
@@ -673,6 +715,7 @@ def records(path, role):
             "registration_context": registration_context,
             "registration_links": registration_links,
             "wait_traces": wait_traces,
+            "durable_boundaries": durable_boundaries,
             "retirements": retirements,
             "commit_probes": commit_probes,
             "worker": item.get("scriptName"),

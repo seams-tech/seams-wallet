@@ -16,7 +16,12 @@ Both unwrapped control attempts fail. The explicit-sync arm creates a canonical 
 There is no successful paired control or demonstrated sync benefit. Production adds no sync barrier; detailed tracing remains disabled by default.
 Hosted checks prove durable unclaimed retirement before lease expiry and preservation of an admitted claim at retirement. Both full hosted fault campaigns later fail registration.
 The claimed decision survives a supplemental restart check, but successful hosted completion and replay remain unproved in that scenario.
-Next, correlate Admission commands and role-storage installation with exact operations, isolate their durable completion waits, and obtain a successful unwrapped lifecycle before selecting an optimization.
+The [durable isolation screen](ml-dsa-65-durable-isolation-report.md) preserves command call IDs and adds opt-in storage boundaries with stable observation IDs.
+Two hosted native lifecycle runs pass canonical creation/recovery and four signatures. Prepared registration takes 4.138–5.589 seconds; signing takes 1.692–6.181 seconds.
+The earlier storage failures do not recur, so their root cause remains unresolved and no storage fix is established.
+Initial-stock installation takes 1.639–1.742 seconds on the first run's critical path. Large initial pool dispatch intervals overlap key execution and are not directly removable latency.
+The captures retain 1,024 invocations and 5,578 durable events. Two repeat waits join uniquely across provider records; a false truncation flag does not prove complete capture.
+Next, profile stock serialization/delivery and installation scheduling, then obtain complete per-pair signing captures. Capacity, recovery, and FIPS export remain unchanged.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.

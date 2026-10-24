@@ -180,6 +180,7 @@ async fn install_batch(
             binding,
             sealed,
         },
+        None,
     )
     .await?;
     if response.status_code() != 200 {
