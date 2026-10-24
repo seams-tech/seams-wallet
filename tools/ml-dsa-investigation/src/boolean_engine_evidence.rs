@@ -4,11 +4,11 @@ use crate::{
     InvestigationResult, command_text, digest, garbled_execution, private_execution, require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         RuntimeError, TrustedMlDsaSchedule,
-        boolean_comparison::{self, Engine, Phase, Transport},
+        boolean_mpc::{self, Engine, Phase, Transport},
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
 use serde_json::{Value, json};
 use std::{
@@ -95,9 +95,12 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     }
     let mut sources = Vec::new();
     for path in [
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
+        "crates/ml-dsa-threshold/src/runtime.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "crates/ed25519-yao/Cargo.toml",
         "tools/ml-dsa-investigation/src/worker_fixtures.rs",
         "tools/ml-dsa-investigation/src/boolean_engine_evidence.rs",
@@ -308,7 +311,7 @@ fn run_role(
     let artifact = fs::read(fixtures.join(format!("{kernel}.bin")))?;
     let schedule = TrustedMlDsaSchedule::parse(&artifact, digest_bytes)?;
     let mut transport = PipeTransport::new(io::stdin().lock(), io::stdout().lock());
-    let output = run_ready(boolean_comparison::run(
+    let output = run_ready(boolean_mpc::run(
         engine,
         role,
         &schedule,
@@ -345,9 +348,9 @@ fn run_role(
                 * 2
                 * (2 * 4144
                     + 48
-                    + 16 * boolean_comparison::CORRELATION_BATCH_BITS
+                    + 16 * boolean_mpc::CORRELATION_BATCH_BITS
                     + 48
-                    + boolean_comparison::CORRELATION_BATCH_BITS * 2),
+                    + boolean_mpc::CORRELATION_BATCH_BITS * 2),
         "Complete fresh-base OT traffic differs from the fixed batch formula.",
     )?;
     let mut phases = serde_json::Map::new();

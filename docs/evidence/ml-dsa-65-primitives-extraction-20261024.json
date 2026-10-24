@@ -1,0 +1,46 @@
+{
+  "schema": "seams.ml-dsa-primitives-extraction.v1",
+  "shared_crate": "crates/two-party-primitives",
+  "namespaces": [
+    "ml_dsa_threshold::signing",
+    "ml_dsa_threshold::runtime",
+    "ml_dsa_threshold::runtime::boolean_mpc"
+  ],
+  "validation": {
+    "primitive_vectors_passed": 16,
+    "wire_equivalence_cases_passed": 2,
+    "ed25519_process_cases_passed": 2,
+    "native_canonical_keygen_cases": 6,
+    "node_wasm_keygen_cases": 6,
+    "canonical_recovery_and_fips_export": true,
+    "standard_threshold_signatures": true,
+    "rollover_and_single_use": true,
+    "aes_wasm_equivalence": true,
+    "ml_dsa_scalar_proofs": 4,
+    "ed25519_export_continuity_proof": true,
+    "host_and_ed25519_worker_selection_checks": true,
+    "ml_dsa_worker_release_build": true,
+    "production_excludes_test_fixtures": true,
+    "source_hashes_match": true
+  },
+  "preserved": {
+    "protocol_bytes": true,
+    "wallet_seed_recovery": true,
+    "fips_export": true,
+    "two_at_once_consumption": true,
+    "pool_capacity": true,
+    "ui_work": true
+  },
+  "bloat_check": {
+    "passed": false,
+    "rust_duplicate_lines": 13774,
+    "previous_recorded": 13804,
+    "baseline": 13754,
+    "baseline_changed": false
+  },
+  "archive": {
+    "path": "ml-dsa-65-primitives-extraction-20261024-data.json.gz",
+    "sha256": "a67edc2fac75ca30b6304faf31c9859dcb2d6847a8e84bb7f4f0e4536e7c4212",
+    "bytes": 239048
+  }
+}

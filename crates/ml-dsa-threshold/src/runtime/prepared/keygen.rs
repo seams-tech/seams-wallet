@@ -2,8 +2,8 @@
 
 use super::{prepare, PreparedCircuit, Transport};
 use crate::{
-    ml_dsa_runtime::{RuntimeError, RuntimeMetrics, TrustedMlDsaSchedule},
-    ml_dsa_signing::{
+    runtime::{RuntimeError, RuntimeMetrics, TrustedMlDsaSchedule},
+    signing::{
         keygen::{KeygenError, KeygenOutput, KeygenStep},
         wallet_seed::prepare_wallet_keygen,
         SigningRole,
@@ -100,7 +100,7 @@ impl<'a> PreparedKeygen<'a> {
     /// Consumes the handle into a wiping buffer. Seal before durable storage.
     /// The adapter binds table frames to this reservation and keeps role stores separate.
     pub fn into_storage(self, reservation: [u8; 32]) -> zeroize::Zeroizing<Vec<u8>> {
-        use crate::ml_dsa_runtime::boolean_comparison::prepared::storage::number;
+        use crate::runtime::boolean_mpc::prepared::storage::number;
         // Allocate once: growing a secret buffer would leave copies in freed allocations.
         let size = 8
             + 32
@@ -135,7 +135,7 @@ impl<'a> PreparedKeygen<'a> {
         bytes: zeroize::Zeroizing<Vec<u8>>,
     ) -> Result<Self, RuntimeError> {
         use super::super::check;
-        use crate::ml_dsa_runtime::boolean_comparison::prepared::storage::Reader;
+        use crate::runtime::boolean_mpc::prepared::storage::Reader;
         check(bytes.len() <= 16 * 1024 * 1024, RuntimeError::InputLength)?;
         let mut reader = Reader::new(&bytes);
         check(reader.take(8)? == b"MDKEY001", RuntimeError::SessionBinding)?;

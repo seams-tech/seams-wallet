@@ -1,13 +1,13 @@
 //! Node-hosted Wasm experiment with separate processes and disk-backed tables.
 
+use js_sys::{Array, Uint8Array};
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         prepared::{keygen::prepare_keygen, Phase, Transport},
         RuntimeError, TrustedMlDsaSchedule,
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
-use js_sys::{Array, Uint8Array};
 use sha2::{Digest, Sha256};
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;

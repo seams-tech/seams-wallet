@@ -6,11 +6,11 @@ use crate::{
     digest, private_execution, require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         RuntimeError,
-        boolean_comparison::silent::{CHUNK_TRIPLES, generate_chunk},
+        boolean_mpc::silent::{CHUNK_TRIPLES, generate_chunk},
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
 use serde_json::{Value, json};
 use std::{env, ffi::OsStr, fs, io, path::Path, time::Instant};
@@ -142,10 +142,13 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         .ok_or("Missing repository")?;
     let mut sources = Vec::new();
     for name in [
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/pprf.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "tools/ml-dsa-investigation/src/silent_correlation_evidence.rs",
         "tools/ml-dsa-investigation/Cargo.lock",
         "tools/ml-dsa-investigation/src/boolean_engine_evidence.rs",

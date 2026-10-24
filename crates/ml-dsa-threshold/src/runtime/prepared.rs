@@ -13,7 +13,7 @@ use subtle::{Choice, ConditionallySelectable};
 use zeroize::Zeroize;
 
 use super::*;
-use crate::ml_dsa_signing::SigningRole;
+use crate::signing::SigningRole;
 
 /// Public measurement phase. Both roles finish preparation before online work.
 #[derive(Clone, Copy)]
@@ -60,7 +60,7 @@ enum Secret {
     A {
         input_zeros: Zeroizing<Vec<[u8; 16]>>,
         masked_pairs: Zeroizing<Vec<([u8; 16], [u8; 16])>>,
-        delta: Zeroizing<ed25519_yao::primitives::SecretBlock>,
+        delta: Zeroizing<two_party_primitives::SecretBlock>,
     },
     B {
         choices: Zeroizing<Vec<u8>>,
@@ -412,7 +412,7 @@ fn compact_garbler_inputs(
     pads: &[([u8; 16], [u8; 16])],
     a_bits: usize,
 ) -> Secret {
-    let mut delta = Zeroizing::new(ed25519_yao::primitives::SecretBlock::default());
+    let mut delta = Zeroizing::new(two_party_primitives::SecretBlock::default());
     for byte in 0..16 {
         delta.0[byte] = inputs[0].0[byte] ^ inputs[0].1[byte];
     }

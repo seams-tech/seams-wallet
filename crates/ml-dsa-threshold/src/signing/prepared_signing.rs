@@ -8,7 +8,7 @@
 pub mod gmw;
 
 use super::*;
-use crate::ml_dsa_runtime::{
+use crate::runtime::{
     prepared::{prepare, PreparedCircuit, Transport},
     RuntimeError,
 };

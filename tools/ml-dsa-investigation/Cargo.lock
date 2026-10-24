@@ -652,12 +652,11 @@ dependencies = [
 name = "ed25519-yao"
 version = "0.1.0"
 dependencies = [
- "aes 0.8.4",
  "curve25519-dalek",
  "getrandom 0.2.17",
  "sha2 0.10.9",
  "subtle",
- "wide",
+ "two-party-primitives",
  "zeroize",
 ]
 
@@ -1389,12 +1388,12 @@ dependencies = [
  "cipher 0.5.2",
  "cryprot-codes",
  "cryprot-core",
- "ed25519-yao",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
  "sha2 0.10.9",
  "sha3 0.10.8",
  "subtle",
+ "two-party-primitives",
  "zeroize",
 ]
 
@@ -2341,6 +2340,19 @@ dependencies = [
  "quote",
  "syn 2.0.119",
  "termcolor",
+]
+
+[[package]]
+name = "two-party-primitives"
+version = "0.1.0"
+dependencies = [
+ "aes 0.8.4",
+ "curve25519-dalek",
+ "getrandom 0.2.17",
+ "sha2 0.10.9",
+ "subtle",
+ "wide",
+ "zeroize",
 ]
 
 [[package]]

@@ -10,20 +10,20 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 /// Experimental Boolean-engine comparison with genuine two-party preprocessing.
-pub mod boolean_comparison;
+pub mod boolean_mpc;
 
 /// Input-independent half-gate preparation for isolated performance experiments.
 pub mod prepared;
 
-use ed25519_yao::primitives::arena::{empty_arena, install_inputs, required_wire};
-use ed25519_yao::primitives::ot::{
+use two_party_primitives::arena::{empty_arena, install_inputs, required_wire};
+use two_party_primitives::ot::{
     BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaCommitmentOtFamily,
     MlDsaDecisionOtFamily, MlDsaFreshMaskOtFamily, MlDsaRoundingOtFamily, MlDsaSamplingOtFamily,
     MlDsaSeedOtFamily, MlDsaSigningRowOtFamily, OtError, OtSessionId, ReceiverAwaitBaseChoices,
     ReceiverAwaitMaskedPayloads, ReceiverChoices, ReceiverStart, SenderAwaitExtension,
     SenderPayloads, SenderStart,
 };
-use ed25519_yao::primitives::{
+use two_party_primitives::{
     Evaluator, EvaluatorWire, GarbledAndGate, Garbler, GarblerWire, GateOrdinal, GlobalDelta,
     SessionDomain, WireValue, AND_GATE_BYTES, LABEL_BYTES,
 };

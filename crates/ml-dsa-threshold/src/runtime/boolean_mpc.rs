@@ -16,8 +16,8 @@ use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
 use super::{check, RuntimeError, TrustedMlDsaSchedule};
-use crate::ml_dsa_signing::SigningRole;
-use ed25519_yao::primitives::ot::{
+use crate::signing::SigningRole;
+use two_party_primitives::ot::{
     BaseChoices, BaseOffer, ExtensionMatrix, MaskedPayloads, MlDsaBooleanBatchOtFamily as Batch,
     OtFamily, OtSessionId, ReceiverChoices, ReceiverStart, SenderPayloads, SenderStart,
 };

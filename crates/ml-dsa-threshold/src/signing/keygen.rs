@@ -11,9 +11,7 @@ use super::{
     append_bytes, append_word, fill_uniform, CircuitMetrics, SigningRole, MATERIAL_BYTES,
     PUBLIC_KEY_BYTES,
 };
-use crate::ml_dsa_runtime::{
-    begin_evaluator, begin_garbler, RuntimeOutput, Step, TrustedMlDsaSchedule,
-};
+use crate::runtime::{begin_evaluator, begin_garbler, RuntimeOutput, Step, TrustedMlDsaSchedule};
 
 /// Public prefix choice. Only the final bound can terminate with exhaustion.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -232,8 +230,8 @@ impl KeygenCircuit {
     /// Executes this step with one matching, consumed preprocessing item.
     pub async fn run_prepared(
         self,
-        prepared: crate::ml_dsa_runtime::prepared::PreparedCircuit<'_>,
-        transport: &mut impl crate::ml_dsa_runtime::prepared::Transport,
+        prepared: crate::runtime::prepared::PreparedCircuit<'_>,
+        transport: &mut impl crate::runtime::prepared::Transport,
     ) -> Result<KeygenStep> {
         if prepared.circuit_id() != self.kernel.circuit_id() || prepared.role() != self.machine.role
         {
@@ -255,14 +253,14 @@ impl KeygenCircuit {
     #[cfg(feature = "benchmarks")]
     pub async fn run_boolean(
         self,
-        engine: crate::ml_dsa_runtime::boolean_comparison::Engine,
+        engine: crate::runtime::boolean_mpc::Engine,
         schedule: &TrustedMlDsaSchedule<'_>,
-        transport: &mut impl crate::ml_dsa_runtime::boolean_comparison::Transport,
+        transport: &mut impl crate::runtime::boolean_mpc::Transport,
     ) -> Result<KeygenStep> {
         if schedule.circuit_id() != self.kernel.circuit_id() {
             return Err(KeygenError::Schedule);
         }
-        let output = crate::ml_dsa_runtime::boolean_comparison::run(
+        let output = crate::runtime::boolean_mpc::run(
             engine,
             self.machine.role,
             schedule,

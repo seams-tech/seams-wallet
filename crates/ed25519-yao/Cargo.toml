@@ -18,19 +18,18 @@ required-features = ["passive-benchmark"]
 
 [features]
 default = []
-passive-benchmark = []
-passive-primitives = ["dep:wide"]
-passive-wasm-benchmark = []
-phase9-role-benchmark = []
-local-protocol = []
+passive-benchmark = ["dep:two-party-primitives"]
+passive-wasm-benchmark = ["dep:two-party-primitives"]
+phase9-role-benchmark = ["dep:two-party-primitives"]
+local-protocol = ["dep:two-party-primitives"]
 
 [dependencies]
-aes = { version = "=0.8.4", default-features = false, features = ["zeroize"] }
+two-party-primitives = { path = "../two-party-primitives", optional = true }
 curve25519-dalek = { version = "=4.1.3", default-features = false, features = ["alloc", "precomputed-tables", "zeroize"] }
 getrandom = { version = "=0.2.17", features = ["js"] }
 sha2 = { version = "=0.10.9", default-features = false }
 subtle = { version = "=2.6.1", default-features = false }
 zeroize = { version = "=1.9.0", default-features = false, features = ["zeroize_derive"] }
 
-
-wide = { version = "=1.7.1", optional = true }
+[dev-dependencies]
+two-party-primitives = { path = "../two-party-primitives", features = ["test-fixtures"] }

@@ -289,19 +289,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ed25519-yao"
-version = "0.1.0"
-dependencies = [
- "aes 0.8.4",
- "curve25519-dalek",
- "getrandom 0.2.17",
- "sha2",
- "subtle",
- "wide",
- "zeroize",
-]
-
-[[package]]
 name = "fastdivide"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -443,12 +430,12 @@ dependencies = [
  "cipher 0.5.2",
  "cryprot-codes",
  "cryprot-core",
- "ed25519-yao",
  "getrandom 0.2.17",
  "getrandom 0.4.3",
  "sha2",
  "sha3",
  "subtle",
+ "two-party-primitives",
  "zeroize",
 ]
 
@@ -687,6 +674,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "two-party-primitives"
+version = "0.1.0"
+dependencies = [
+ "aes 0.8.4",
+ "curve25519-dalek",
+ "getrandom 0.2.17",
+ "sha2",
+ "subtle",
+ "wide",
+ "zeroize",
 ]
 
 [[package]]

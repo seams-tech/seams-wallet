@@ -7,15 +7,15 @@ use crate::{
     require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         TrustedMlDsaSchedule,
-        boolean_comparison::{
+        boolean_mpc::{
             Transport,
             prepared::{BatchMetrics, prepare_batch},
             silent::CorrelationStream,
         },
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -70,7 +70,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         &mut transport,
     ))? {
         Ok(prepared) => prepared,
-        Err(ml_dsa_threshold::ml_dsa_runtime::RuntimeError::SessionBinding) => {
+        Err(ml_dsa_threshold::runtime::RuntimeError::SessionBinding) => {
             fs::write(
                 &args[3],
                 serde_json::to_vec(
@@ -112,7 +112,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
 async fn barrier(
     role: SigningRole,
     transport: &mut impl Transport,
-) -> Result<(), ml_dsa_threshold::ml_dsa_runtime::RuntimeError> {
+) -> Result<(), ml_dsa_threshold::runtime::RuntimeError> {
     match role {
         SigningRole::A => {
             transport.send(&[1]).await?;

@@ -1,14 +1,14 @@
 //! Hosted prepared keygen with R2 streaming and a client-controlled online start.
 
+#[cfg(feature = "ml-dsa-a")]
+use futures_util::StreamExt;
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         prepared::{keygen::prepare_keygen, Phase, Transport},
         RuntimeError, TrustedMlDsaSchedule,
     },
-    ml_dsa_signing::{keygen::KeygenOutput, SigningRole},
+    signing::{keygen::KeygenOutput, SigningRole},
 };
-#[cfg(feature = "ml-dsa-a")]
-use futures_util::StreamExt;
 use serde_json::{json, Value};
 use worker::{Env, WebSocket};
 #[cfg(feature = "ml-dsa-a")]
@@ -473,18 +473,18 @@ async fn run_b_session(
     Ok(())
 }
 
-impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for Adapter<'_> {
+impl ml_dsa_threshold::runtime::boolean_mpc::Transport for Adapter<'_> {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
         Transport::send(self, bytes).await
     }
     async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
         Transport::receive(self, length).await
     }
-    fn phase(&mut self, phase: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {
+    fn phase(&mut self, phase: ml_dsa_threshold::runtime::boolean_mpc::Phase) {
         // The client admission boundary owns complete offline/online accounting.
         if matches!(
             phase,
-            ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase::Preprocessing
+            ml_dsa_threshold::runtime::boolean_mpc::Phase::Preprocessing
         ) {
             self.boolean_binding_phases += 1;
             if self.boolean_binding_phases == 1 || self.boolean_binding_phases.is_multiple_of(64) {

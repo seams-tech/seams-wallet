@@ -5,14 +5,14 @@ mod schedules;
 mod signing_stock;
 use super::*;
 use crate::ml_dsa::registration as core;
-use ml_dsa_threshold::ml_dsa_runtime::{
+use ml_dsa_threshold::runtime::{
     prepared::{
         keygen::{prepare_keygen, PreparedKeygen},
         Transport,
     },
     TrustedMlDsaSchedule,
 };
-use ml_dsa_threshold::ml_dsa_signing::SigningRole;
+use ml_dsa_threshold::signing::SigningRole;
 use worker::{WebSocket, WebSocketPair};
 use zeroize::Zeroizing;
 pub const PREPARE_PATH: &str = "/router-ab/ml-dsa/registration/prepare";

@@ -13,8 +13,8 @@ use std::{
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use ed25519_yao::primitives::arena::{empty_arena, install_inputs, required_wire};
-use ed25519_yao::primitives::{
+use two_party_primitives::arena::{empty_arena, install_inputs, required_wire};
+use two_party_primitives::{
     Evaluator, EvaluatorWire, GarbledAndGate, Garbler, GarblerWire, GateOrdinal, GlobalDelta,
     SessionDomain, WireValue, AND_GATE_BYTES, LABEL_BYTES,
 };
@@ -536,7 +536,7 @@ fn ordinal(index: usize) -> Result<GateOrdinal> {
     ))
 }
 
-fn missing_wire(_: ed25519_yao::primitives::arena::MissingWire) -> KernelBenchmarkError {
+fn missing_wire(_: two_party_primitives::arena::MissingWire) -> KernelBenchmarkError {
     KernelBenchmarkError::Invalid("Missing initialized schedule wire.")
 }
 

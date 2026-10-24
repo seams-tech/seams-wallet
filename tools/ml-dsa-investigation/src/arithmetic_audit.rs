@@ -50,7 +50,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     let report = json!({
         "schema": "seams.ml-dsa-arithmetic-audit.v3",
         "source_revision": command_text(Command::new("git").args(["rev-parse", "HEAD"]).current_dir(repository))?,
-        "arithmetic_source_sha256": digest(&fs::read(repository.join("crates/ml-dsa-threshold/src/ml_dsa_signing/arithmetic.rs"))?),
+        "arithmetic_source_sha256": digest(&fs::read(repository.join("crates/ml-dsa-threshold/src/signing/arithmetic.rs"))?),
         "audit_source_sha256": digest(&fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/arithmetic_audit.rs"))?),
         "compiler": compiler,
         "profile": "release",

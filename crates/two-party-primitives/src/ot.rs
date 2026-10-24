@@ -136,7 +136,7 @@ pub trait OtFamily: sealed::Sealed + 'static {
 
 /// The fixed 1,536-choice activation-family benchmark OT shape.
 #[derive(Debug)]
-pub(super) struct ActivationOtFamily;
+pub struct ActivationOtFamily;
 
 impl sealed::Sealed for ActivationOtFamily {}
 
@@ -147,7 +147,7 @@ impl OtFamily for ActivationOtFamily {
 
 /// The fixed 768-choice export-family benchmark OT shape.
 #[derive(Debug)]
-pub(super) struct ExportOtFamily;
+pub struct ExportOtFamily;
 
 impl sealed::Sealed for ExportOtFamily {}
 
@@ -158,7 +158,7 @@ impl OtFamily for ExportOtFamily {
 
 /// The fixed 1,792-choice lane-materialization family OT shape.
 #[derive(Debug)]
-pub(super) struct LaneMaterializationOtFamily;
+pub struct LaneMaterializationOtFamily;
 
 impl sealed::Sealed for LaneMaterializationOtFamily {}
 
@@ -231,12 +231,9 @@ impl OtFamily for MlDsaFreshMaskOtFamily {
 }
 
 /// Fixed bounded batch for the investigation's Boolean-engine preprocessing.
-#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 #[derive(Debug)]
 pub struct MlDsaBooleanBatchOtFamily;
-#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 impl sealed::Sealed for MlDsaBooleanBatchOtFamily {}
-#[cfg(any(feature = "passive-benchmark", feature = "passive-primitives"))]
 impl OtFamily for MlDsaBooleanBatchOtFamily {
     const CODE: u8 = 13;
     const OT_COUNT: usize = 16_384;
@@ -244,12 +241,9 @@ impl OtFamily for MlDsaBooleanBatchOtFamily {
 }
 
 /// Full-block PPRF base correlations for the fixed silent-OT profile.
-#[cfg(feature = "passive-primitives")]
 #[derive(Debug)]
 pub struct MlDsaSilentBaseOtFamily;
-#[cfg(feature = "passive-primitives")]
 impl sealed::Sealed for MlDsaSilentBaseOtFamily {}
-#[cfg(feature = "passive-primitives")]
 impl OtFamily for MlDsaSilentBaseOtFamily {
     const CODE: u8 = 14;
     const OT_COUNT: usize = 3_072;
@@ -678,7 +672,8 @@ fn conditional_xor(target: &mut [u8], source: &[u8], choice: u8) {
     let choice = Choice::from(choice);
     let mut index = 0_usize;
     while index < target.len() {
-        target[index] ^= u8::conditional_select(&0, &source[index], choice);
+        let source_byte = source[index];
+        target[index] ^= u8::conditional_select(&0, &source_byte, choice);
         index += 1;
     }
 }

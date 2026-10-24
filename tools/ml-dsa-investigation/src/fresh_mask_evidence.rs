@@ -4,12 +4,12 @@ use crate::{
     InvestigationResult, circuit_evidence, digest, private_execution, private_keygen, require,
     signing_mask_evidence,
 };
-use ml_dsa_threshold::benchmarks::ml_dsa_private::{
-    PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
-};
 use ed25519_yao_generator::{
     MlDsaSigningWorkloadV1, compile_ml_dsa_private_signing_circuit_v1,
     compile_ml_dsa_private_signing_mask_circuit_v1,
+};
+use ml_dsa_threshold::benchmarks::ml_dsa_private::{
+    PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
 };
 use serde_json::{Value, json};
 use std::{collections::HashSet, env, ffi::OsStr, fs, io, path::Path, time::Instant};
@@ -104,8 +104,11 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
         "tools/ed25519-yao-generator/src/circuit/ir.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
+        "crates/ml-dsa-threshold/src/runtime.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(root.join(path))?)}));
     }

@@ -1,12 +1,12 @@
 //! Host I/O and wall-clock adapter for the resumable private ML-DSA runtime.
 //!
-//! Crypto, fixed schemas, and role output ownership live in ml_dsa_runtime.
+//! Crypto, fixed schemas, and role output ownership live in the protocol runtime.
 //! This adapter trusts locally compiled schedules. Deployed adapters must pin
 //! their expected digest separately. It provides no production admission.
 //! Timing method 2 sums synchronous gate transitions separately from table I/O.
 //! Table buffer counts include the existing eight-byte envelope.
 
-use crate::ml_dsa_runtime::{
+use crate::runtime::{
     begin_evaluator, begin_garbler, MessageKind, RuntimeError, RuntimeMetrics, RuntimePhase, Step,
     TrustedMlDsaSchedule, TABLE_PAYLOAD_BYTES,
 };

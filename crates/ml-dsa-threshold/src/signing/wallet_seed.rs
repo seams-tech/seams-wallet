@@ -7,7 +7,7 @@ use super::{
     keygen::{begin_keygen, KeygenError, KeygenStep},
     SigningRole,
 };
-use crate::ml_dsa_runtime::{
+use crate::runtime::{
     begin_evaluator, begin_garbler, RuntimeMetrics, RuntimeOutput, Step, TrustedMlDsaSchedule,
 };
 
@@ -58,8 +58,8 @@ impl WalletSeedCircuit {
     /// Executes the private wallet-seed stage with matching one-use preparation.
     pub async fn run_prepared(
         self,
-        prepared: crate::ml_dsa_runtime::prepared::PreparedCircuit<'_>,
-        transport: &mut impl crate::ml_dsa_runtime::prepared::Transport,
+        prepared: crate::runtime::prepared::PreparedCircuit<'_>,
+        transport: &mut impl crate::runtime::prepared::Transport,
     ) -> Result<(KeygenStep, RuntimeMetrics), KeygenError> {
         if prepared.circuit_id() != 0x91 || prepared.role() != self.role {
             return Err(KeygenError::Schedule);

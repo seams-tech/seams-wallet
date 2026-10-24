@@ -1,7 +1,7 @@
 //! Consuming persistence boundary for generic stock and key-specific commitments.
 use super::*;
-use crate::ml_dsa_runtime::boolean_comparison::prepared::storage::{number, Reader};
-use crate::ml_dsa_runtime::RuntimeError;
+use crate::runtime::boolean_mpc::prepared::storage::{number, Reader};
+use crate::runtime::RuntimeError;
 const GENERIC_MAGIC: &[u8; 8] = b"MDGMW001";
 const COMMITTED_MAGIC: &[u8; 8] = b"MDGMC001";
 
@@ -85,7 +85,7 @@ impl<'a> PreparedGmwReservation<'a> {
         schedules: &'a [TrustedMlDsaSchedule<'a>],
         topologies: &mut PublicTopologies,
         bytes: &[u8],
-    ) -> core::result::Result<Self, crate::ml_dsa_runtime::RuntimeError> {
+    ) -> core::result::Result<Self, crate::runtime::RuntimeError> {
         let count = usize::from(candidates);
         let mut reader = Reader::new(bytes);
         read_identity(&mut reader, GENERIC_MAGIC, role, &id, count)?;

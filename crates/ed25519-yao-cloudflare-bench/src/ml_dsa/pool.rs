@@ -8,15 +8,17 @@ use super::{
     prepared_storage::Tables,
     required_string, runtime_failure, wasm_linear_memory_highwater_bytes, Duplex, ROLE,
 };
+#[cfg(feature = "ml-dsa-a")]
+use futures_util::StreamExt;
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         prepared::{
             keygen::{prepare_keygen, PreparedKeygen},
             Phase, Transport,
         },
         TrustedMlDsaSchedule,
     },
-    ml_dsa_signing::{
+    signing::{
         prepared_signing::gmw::{
             pool::{PoolInventory, PoolOutcome, PreparedGmwPool, ReadyGmwPool},
             GmwExhaustion,
@@ -24,8 +26,6 @@ use ml_dsa_threshold::{
         OwnSigningShare, SigningError,
     },
 };
-#[cfg(feature = "ml-dsa-a")]
-use futures_util::StreamExt;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use worker::{Env, WebSocket};

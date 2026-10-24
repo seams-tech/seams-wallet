@@ -7,11 +7,11 @@ use crate::{
     require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
 use router_ab_cloudflare::ml_dsa::{
     self as m, Participant, Store, registration_preparation as preparation,
