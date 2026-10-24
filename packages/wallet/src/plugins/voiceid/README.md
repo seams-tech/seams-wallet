@@ -43,3 +43,10 @@ To replace the implementation, preserve `WalletAuthMethodHostPlugin`, the device
 assertion contract, and method-bound custody envelopes. To remove VoiceID, remove
 its registry entry, descriptor exports, implementation directory, ONNX dependency,
 and optional assets. Omitting the descriptor prevents runtime use and downloads.
+
+## Smaller models and spoken phrases
+
+See the [model candidate evaluation plan](../../../../../docs/voiceid-model-candidates.md)
+for verified download sizes, speaker-verification and STT shortlists, licensing,
+and qualification criteria. These are research candidates. The current plugin
+continues to use the pinned ECAPA model and does not transcribe spoken phrases.
