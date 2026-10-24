@@ -4,7 +4,7 @@ use crate::{
     InvestigationResult, command_text, digest, private_execution, private_keygen, private_signing,
     require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::boolean_comparison::Engine as BooleanEngine,
     ml_dsa_signing::{CircuitMetrics, SigningRole},
 };
@@ -181,11 +181,11 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ml-dsa-investigation/src/private_signing.rs",
         "tools/ml-dsa-investigation/src/reference.rs",
         "tools/ml-dsa-investigation/src/hybrid_keygen.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/arithmetic.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/arithmetic.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
         "crates/ed25519-yao/src/passive/gate_aes.rs",
         "crates/ed25519-yao/src/passive/runtime.rs",

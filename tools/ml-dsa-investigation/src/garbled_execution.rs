@@ -1,5 +1,5 @@
 use crate::{InvestigationResult, digest, reference::fixture_bytes, require};
-use ed25519_yao::phase5_benchmark::ml_dsa_kernel::{
+use ml_dsa_threshold::benchmarks::ml_dsa_kernel::{
     KernelRoleMetrics, PublicKernelSchedule, evaluate_public_fixture, garble_public_fixture,
 };
 use ed25519_yao_generator::{MlDsaHashWorkloadV1, compile_ml_dsa_hash_circuit_v1};
@@ -70,7 +70,7 @@ pub(super) fn run(samples: usize) -> InvestigationResult<Value> {
     for path in [
         "crates/ed25519-yao/src/passive.rs",
         "crates/ed25519-yao/src/passive/gate_aes.rs",
-        "crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_kernel.rs",
+        "crates/ml-dsa-threshold/src/benchmarks/ml_dsa_kernel.rs",
     ] {
         engine_sources.push(
             json!({"repository_path": path, "sha256": digest(&fs::read(repository.join(path))?)}),

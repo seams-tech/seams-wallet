@@ -11,7 +11,8 @@ name = "ed25519_yao_wasm_bench"
 path = "src/lib.rs"
 
 [dependencies]
-ed25519-yao = { path = "..", features = ["passive-wasm-benchmark", "ml-dsa-runtime-benchmark"] }
+ml-dsa-threshold = { path = "../../ml-dsa-threshold" }
+ed25519-yao = { path = "..", features = ["passive-wasm-benchmark"] }
 js-sys = "=0.3.103"
 wasm-bindgen = "=0.2.126"
 

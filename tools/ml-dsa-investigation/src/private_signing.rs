@@ -4,7 +4,7 @@ use crate::boolean_engine_evidence::{PipeTransport, run_ready};
 use crate::complete_engine_evidence::{self, Engine};
 use crate::signing_lifecycle_evidence::{RoleExecution, WireFault};
 use crate::{InvestigationResult, digest, private_execution, reference, require};
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{RuntimeOutput, Step, TrustedMlDsaSchedule},
     ml_dsa_signing::{
         OwnSigningShare, PUBLIC_KEY_BYTES, SigningKernel, SigningMode, SigningRole, SigningStep,
@@ -526,7 +526,7 @@ fn encode_result(
         "Signing measurements lost a circuit observation.",
     )?;
     for ((kernel, metrics), observation) in signature.metrics.circuits.iter().zip(&observations) {
-        if let ed25519_yao::ml_dsa_signing::CircuitMetrics::HalfGates(metrics) = metrics {
+        if let ml_dsa_threshold::ml_dsa_signing::CircuitMetrics::HalfGates(metrics) = metrics {
             table_bytes += metrics.table_bytes;
         }
         let mut metrics = complete_engine_evidence::encode_metrics(metrics, role);

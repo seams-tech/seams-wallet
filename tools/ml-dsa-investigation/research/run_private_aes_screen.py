@@ -12,9 +12,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[3]
 AES = Path("crates/ed25519-yao/src/passive/gate_aes.rs")
 EIGHT = AES.with_suffix("") / "eight.rs"
-CORRELATION = Path("crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs")
+CORRELATION = Path("crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs")
 
 RUST = r'''
+// The isolated harness exposes the copied production primitive through its crate path.
+extern crate self as ed25519_yao;
+pub mod primitives {
+    pub use crate::passive::gate_aes;
+}
 use aes::{
     cipher::{BlockCipherEncrypt, KeyInit},
     Aes128,
@@ -25,7 +30,7 @@ mod passive {
     mod correlation_aes;
     mod baseline_adapter;
     mod baseline_gate_aes;
-    pub(crate) mod gate_aes;
+    pub mod gate_aes;
     use gate_aes as candidate;
 
     use super::*;
@@ -227,7 +232,7 @@ codegen-units = 1
 panic = "abort"
 
 [features]
-ml-dsa-runtime-benchmark = []
+passive-primitives = []
 '''
 
 def digest(path):
@@ -254,12 +259,12 @@ def main():
             shutil.copyfile(ROOT / relative, source / "passive" / destination)
         baseline = subprocess.check_output(["git", "show", f"{args.baseline}:{AES}"], cwd=ROOT)
         (source / "baseline.rs").write_bytes(baseline)
-        adapter = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:{CORRELATION}"], cwd=ROOT).decode()
+        adapter = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs"], cwd=ROOT).decode()
         adapter = adapter.replace("crate::passive::gate_aes", "crate::passive::baseline_gate_aes")
         (source / "passive/baseline_gate_aes").mkdir()
         for relative, destination in [(AES, "baseline_gate_aes.rs"), (EIGHT, "baseline_gate_aes/eight.rs")]:
             original = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:{relative}"], cwd=ROOT)
-            (source / "passive" / destination).write_bytes(original)
+            (source / "passive" / destination).write_bytes(original.replace(b"ml-dsa-runtime-benchmark", b"passive-primitives"))
         (source / "passive/baseline_adapter.rs").write_text(adapter)
         (source / "lib.rs").write_text(RUST)
         (work / "Cargo.toml").write_text(MANIFEST)
@@ -267,7 +272,7 @@ def main():
         subprocess.run(["rustfmt", "--edition", "2021", "--config", "skip_children=true", str(source / "lib.rs")], check=True)
         environment = dict(os.environ, RUSTFLAGS="-C target-feature=+simd128")
         subprocess.run(["cargo", "build", "--offline", "--release", "--target", "wasm32-unknown-unknown",
-                        "--features", "ml-dsa-runtime-benchmark"], cwd=work, env=environment, check=True)
+                        "--features", "passive-primitives"], cwd=work, env=environment, check=True)
         wasm = work / "target/wasm32-unknown-unknown/release/ml_dsa_aes_screen.wasm"
         subprocess.run(["node", str(work / "run.mjs"), str(wasm), str(args.output.resolve())], check=True)
         if args.wasm_output is not None:

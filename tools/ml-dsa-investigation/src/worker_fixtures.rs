@@ -4,8 +4,8 @@ use crate::{
     InvestigationResult, circuit_evidence, digest, garbled_execution, private_signing, reference,
     require,
 };
-use ed25519_yao::ml_dsa_runtime::TrustedMlDsaSchedule;
-use ed25519_yao::ml_dsa_signing::{SigningKernel, keygen::KeygenKernel};
+use ml_dsa_threshold::ml_dsa_runtime::TrustedMlDsaSchedule;
+use ml_dsa_threshold::ml_dsa_signing::{SigningKernel, keygen::KeygenKernel};
 use ed25519_yao_generator::{
     compile_ml_dsa_eta4_sampling_circuit_v1, compile_ml_dsa_power2round_circuit_v1,
     compile_ml_dsa_private_rounding_circuit_v1, compile_ml_dsa_private_sampling_circuit_v1,

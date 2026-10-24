@@ -5,7 +5,7 @@
 //! This adapter must never receive production wallet secrets.
 
 use crate::{InvestigationResult, require};
-use ed25519_yao::phase5_benchmark::ml_dsa_private::PrivateRoleMetrics;
+use ml_dsa_threshold::benchmarks::ml_dsa_private::PrivateRoleMetrics;
 use serde_json::{Value, json};
 use std::{
     env,
@@ -87,7 +87,7 @@ pub(super) fn encode_metrics(metrics: &PrivateRoleMetrics) -> Value {
 
 /// Public core counters without host-specific timing fields.
 pub(super) fn encode_runtime_metrics(
-    metrics: &ed25519_yao::ml_dsa_runtime::RuntimeMetrics,
+    metrics: &ml_dsa_threshold::ml_dsa_runtime::RuntimeMetrics,
 ) -> Value {
     json!({
         "table_bytes": metrics.table_bytes,

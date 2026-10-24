@@ -251,11 +251,11 @@ async function main() {
       'crates/ed25519-yao/wasm-bench/scripts/run_prepared_keygen.mjs',
       'crates/ed25519-yao/wasm-bench/Cargo.toml',
       'crates/ed25519-yao/wasm-bench/Cargo.lock',
-      'crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared.rs',
-      'crates/ed25519-yao/src/passive/ml_dsa_runtime/prepared/keygen.rs',
-      'crates/ed25519-yao/src/passive/ml_dsa_runtime.rs',
-      'crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs',
-      'crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs',
+      'crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared.rs',
+      'crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared/keygen.rs',
+      'crates/ml-dsa-threshold/src/ml_dsa_runtime.rs',
+      'crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs',
+      'crates/ml-dsa-threshold/src/ml_dsa_signing/wallet_seed.rs',
     ])
       sources.push({ path, sha256: sha256(await readFile(resolve(ROOT, path))) });
   } finally {

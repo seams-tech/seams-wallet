@@ -4,7 +4,7 @@ use crate::custody_delivery_evidence::WalletRecoveryCase;
 use crate::{
     InvestigationResult, command_text, digest, private_keygen, private_signing, reference, require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::TrustedMlDsaSchedule,
     ml_dsa_signing::{
         CircuitMetrics, SigningRole, keygen::KeygenStep, wallet_seed::prepare_wallet_keygen,
@@ -181,10 +181,10 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "wasm/wallet_custody_ceremony/Cargo.toml",
         "wasm/wallet_custody_ceremony/Cargo.lock",
         "tools/ml-dsa-investigation/src/custody_delivery_evidence.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/wallet_seed.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing/keygen.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_signing.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/wallet_seed.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_signing.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_keygen.rs",
         "tools/ed25519-yao-generator/src/circuit/ir.rs",
         "tools/ml-dsa-investigation/src/private_keygen.rs",

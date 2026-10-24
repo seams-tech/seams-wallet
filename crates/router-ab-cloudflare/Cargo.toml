@@ -24,7 +24,7 @@ wasm-opt = ["-O4"]
 
 [features]
 default = []
-ml-dsa = ["ed25519-yao/ml-dsa-runtime-benchmark", "dep:ml-dsa", "signer-core/ml-dsa-custody"]
+ml-dsa = ["dep:ml-dsa-threshold", "dep:ml-dsa", "signer-core/ml-dsa-custody"]
 postgres = ["dep:postgres-protocol", "dep:tokio", "dep:tokio-postgres", "worker?/tokio-postgres"]
 strict-worker-router-entrypoint = ["workers-rs"]
 strict-worker-deriver-a-entrypoint = ["workers-rs"]
@@ -42,6 +42,7 @@ workers-rs = [
 ]
 
 [dependencies]
+ml-dsa-threshold = { path = "../ml-dsa-threshold", optional = true }
 curve25519-dalek = { version = "=4.1.3", features = ["zeroize"] }
 ed25519-yao = { path = "../ed25519-yao" }
 ml-dsa = { version = "=0.1.1", default-features = false, features = ["alloc"], optional = true }

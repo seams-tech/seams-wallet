@@ -5,7 +5,7 @@
 //! Shared-host files and processes provide no production isolation claim.
 
 use crate::{InvestigationResult, digest, private_execution, require};
-use ed25519_yao::phase5_benchmark::ml_dsa_private::{
+use ml_dsa_threshold::benchmarks::ml_dsa_private::{
     PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
 };
 use ed25519_yao_generator::{
@@ -527,7 +527,7 @@ fn source_identities() -> InvestigationResult<Vec<Value>> {
         "../ed25519-yao-generator/src/circuit/ml_dsa_arithmetic.rs",
         "../ed25519-yao-generator/src/circuit/ir.rs",
         "../ed25519-yao-generator/src/circuit/schedule.rs",
-        "../../crates/ed25519-yao/src/passive/phase5_benchmark/ml_dsa_private.rs",
+        "../../crates/ml-dsa-threshold/src/benchmarks/ml_dsa_private.rs",
         "../../crates/ed25519-yao/src/passive/ot.rs",
     ];
     let mut identities = Vec::with_capacity(sources.len());

@@ -1,6 +1,6 @@
 //! One participant's encrypted signing share, bound to verified custody activation.
 use super::*;
-use ed25519_yao::ml_dsa_signing::OwnSigningShare;
+use ml_dsa_threshold::ml_dsa_signing::OwnSigningShare;
 use signer_core::ml_dsa_custody::{
     material::{open_ml_dsa_role_material_v1, MlDsaMaterialBindingV1, SealedMlDsaRoleMaterialV1},
     MlDsaCeremonyBindingV1, MlDsaRoleV1,

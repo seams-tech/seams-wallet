@@ -26,17 +26,17 @@
 use zeroize::{DefaultIsZeroes, Zeroize};
 
 #[cfg(all(
-    feature = "ml-dsa-runtime-benchmark",
+    feature = "passive-primitives",
     target_arch = "wasm32",
     target_feature = "simd128"
 ))]
 mod eight;
 #[cfg(all(
-    feature = "ml-dsa-runtime-benchmark",
+    feature = "passive-primitives",
     target_arch = "wasm32",
     target_feature = "simd128"
 ))]
-pub(super) use eight::{EightBlockAes128, EightBlocks};
+pub use eight::{EightBlockAes128, EightBlocks};
 
 const BLOCK_BYTES: usize = 16;
 
@@ -74,7 +74,7 @@ impl PlaneWord for u64 {
 }
 /// Four secret blocks that one volatile write wipes.
 #[derive(Clone, Copy, Default)]
-pub(super) struct FourBlocks(pub(super) BatchBlocks);
+pub struct FourBlocks(pub BatchBlocks);
 
 impl DefaultIsZeroes for FourBlocks {}
 
@@ -85,19 +85,20 @@ struct StateCells(State);
 impl DefaultIsZeroes for StateCells {}
 
 /// AES-128 under one key, four blocks per call.
-pub(super) struct FourBlockAes128 {
+pub struct FourBlockAes128 {
     round_keys: RoundKeys,
 }
 
 impl FourBlockAes128 {
-    pub(super) fn new(key: &[u8; BLOCK_BYTES]) -> Self {
+    /// Constructs the role-local primitive state.
+    pub fn new(key: &[u8; BLOCK_BYTES]) -> Self {
         Self {
             round_keys: aes128_key_schedule(key),
         }
     }
 
     /// Encrypts the four blocks in place.
-    pub(super) fn encrypt_four(&self, blocks: &mut FourBlocks) {
+    pub fn encrypt_four(&self, blocks: &mut FourBlocks) {
         blocks.0 = aes128_encrypt(&self.round_keys, &blocks.0);
     }
 }

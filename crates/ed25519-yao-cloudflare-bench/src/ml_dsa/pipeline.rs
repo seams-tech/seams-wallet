@@ -3,7 +3,7 @@
 use super::{drive_runtime, failure, runtime_failure, Duplex};
 use std::collections::BTreeSet;
 
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::TrustedMlDsaSchedule,
     ml_dsa_signing::{
         keygen::{KeygenOutput, KeygenStep},
@@ -17,7 +17,7 @@ pub(super) async fn generate_wallet_key(
     schedules: &[TrustedMlDsaSchedule<'static>],
     transport: &mut Duplex<'_>,
 ) -> worker::Result<Box<KeygenOutput>> {
-    let wallet = ed25519_yao::ml_dsa_signing::wallet_seed::prepare_wallet_keygen(
+    let wallet = ml_dsa_threshold::ml_dsa_signing::wallet_seed::prepare_wallet_keygen(
         super::prepared::role(),
         root,
     )

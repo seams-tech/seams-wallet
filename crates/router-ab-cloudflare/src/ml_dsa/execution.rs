@@ -1,6 +1,6 @@
 //! Runs one admitted operation. Each batch leaves durable storage exactly once.
 use super::{admission::Permit, sealing, *};
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         boolean_comparison::{prepared::PublicTopologies, Transport as BooleanTransport},
         prepared::Transport,

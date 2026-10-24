@@ -1,0 +1,79 @@
+{
+  "schema": "seams.ml-dsa-crate-extraction.v1",
+  "crate": "crates/ml-dsa-threshold",
+  "shared_backend": "ed25519-yao/passive-primitives",
+  "proof": {
+    "schema": "seams.ml-dsa-production-arithmetic.v1",
+    "passed": true,
+    "theorems": [
+      "reduce_once_spec",
+      "add_mod_spec",
+      "subtract_mod_spec",
+      "multiply_mod_spec"
+    ],
+    "allowed_axioms": [
+      "propext",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "production_source": "src/ml_dsa_signing/arithmetic/modular.rs",
+    "production_source_sha256": "40fab17e3d0199f65aeff4d91913f5bd830ff27e75e0f156db1207706e5b001c",
+    "verification_sources": {
+      "rust/modular.rs": "311d26c8b8a208ec2973f1dc9006c89d66e53e90a13138729a7564e337414b78",
+      "MlDsa/Types.lean": "f6bb2b7c5141a33db99efa7e6fd6a86fcee05bdfd4428feed6c975a6021098d8",
+      "MlDsa/Funs.lean": "113d728b7aa6834e3a69807e6c90d9b3446c1a65ac5853015dc50d0cb4505dd1",
+      "MlDsaProofs.lean": "57980e1041c39b21fe4cd7464ae09cd1462cfe894bd0a453da2be12d8265fbc9",
+      "lakefile.lean": "8e9e9bf0ecee679b2fab44967d9a584dbe28f76bb7b5edef4210dbd413ecf67b",
+      "lake-manifest.json": "433c79848f1ac593263832ea826ae7480433cb2febd3a444cdab1f267626b079",
+      "lean-toolchain": "1a587706fb657f9bc937dd1826920e9e68e34d04505c31524357b4ae3c80d407",
+      "check.py": "54193cde6a8ebce4f2fc867225b03e8af48e38f50360fec2832ebebbe8251618"
+    },
+    "tool_pins": {
+      "aeneas": {
+        "repo": "https://github.com/AeneasVerif/aeneas.git",
+        "rev": "42c0e90dacf486f7d3ed5b6cde3a9a81f04915a4"
+      },
+      "charon": {
+        "repo": "https://github.com/AeneasVerif/charon.git",
+        "rev": "419f53b6eed3fe487a8427fd290a734c49634366"
+      },
+      "lean": {
+        "toolchain": "leanprover/lean4:v4.28.0-rc1"
+      }
+    },
+    "assumption_checks": [
+      "MlDsaProofs.reduce_once_spec checked assumptions: [propext, Classical.choice, Quot.sound]",
+      "MlDsaProofs.add_mod_spec checked assumptions: [propext, Classical.choice, Quot.sound]",
+      "MlDsaProofs.subtract_mod_spec checked assumptions: [propext, Classical.choice, Quot.sound]",
+      "MlDsaProofs.multiply_mod_spec checked assumptions: [propext, Classical.choice, Quot.sound]"
+    ]
+  },
+  "validation": {
+    "native_canonical_keygen_cases": 6,
+    "node_wasm_keygen_cases": 6,
+    "native_recovery_and_standard_signatures": true,
+    "simd_aes_matches_rustcrypto": true,
+    "ed25519_process_cases_passed": 2,
+    "ed25519_latency_benchmark_ignored": 1,
+    "worker_release_wasm_simd_build": true,
+    "source_hashes_match": true
+  },
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_export": true,
+    "two_at_once_consumption": true,
+    "pool_capacity": true,
+    "ui_work_excluded": true
+  },
+  "bloat_check": {
+    "passed": false,
+    "rust_duplicate_lines": 13804,
+    "baseline": 13754,
+    "baseline_changed": false
+  },
+  "archive": {
+    "path": "ml-dsa-65-crate-extraction-20261024-data.json.gz",
+    "sha256": "dd4f7243509b479c108ec35f04f8791d796396e268e68f6b0d73b40acafd4fc7",
+    "bytes": 189627
+  }
+}

@@ -5,7 +5,7 @@ use crate::{
     prepared_keygen_evidence::HostTransport, private_execution, private_signing, reference,
     require,
 };
-use ed25519_yao::{
+use ml_dsa_threshold::{
     ml_dsa_runtime::{
         TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
@@ -172,7 +172,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                 require(
                     matches!(
                         activated,
-                        Err(ed25519_yao::ml_dsa_signing::SigningError::RequestBinding)
+                        Err(ml_dsa_threshold::ml_dsa_signing::SigningError::RequestBinding)
                     ),
                     "Activation accepted mismatched key or epoch",
                 )?;
@@ -249,7 +249,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                     )
                 }
                 Ok(prepared_signing::gmw::GmwBatchResult::Exhausted(_)) => {
-                    Err(ed25519_yao::ml_dsa_signing::SigningError::PreparedPoolExhausted)
+                    Err(ml_dsa_threshold::ml_dsa_signing::SigningError::PreparedPoolExhausted)
                 }
                 Err(error) => Err(error),
             }
@@ -258,7 +258,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let online_ns = started.elapsed().as_nanos();
     let result = match result {
         Ok(result) => result,
-        Err(ed25519_yao::ml_dsa_signing::SigningError::PreparedPoolExhausted) => {
+        Err(ml_dsa_threshold::ml_dsa_signing::SigningError::PreparedPoolExhausted) => {
             json!({"status": "exhausted", "attempts": capacity})
         }
         Err(error) => return Err(error.into()),
@@ -276,7 +276,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
 async fn ready(
     role: SigningRole,
     transport: &mut HostTransport,
-) -> Result<(), ed25519_yao::ml_dsa_runtime::RuntimeError> {
+) -> Result<(), ml_dsa_threshold::ml_dsa_runtime::RuntimeError> {
     match role {
         SigningRole::A => {
             transport.send(&[1]).await?;

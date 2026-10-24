@@ -1,7 +1,7 @@
 //! Pinned public circuits. No benchmark key, root share, or nonce enters this module.
 use super::*;
-use ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies;
-use ed25519_yao::ml_dsa_runtime::TrustedMlDsaSchedule;
+use ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies;
+use ml_dsa_threshold::ml_dsa_runtime::TrustedMlDsaSchedule;
 use std::sync::OnceLock;
 
 // Hash of the ordered, pinned circuit digests. Participants validate the full circuits.

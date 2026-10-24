@@ -4,7 +4,7 @@ use crate::{
     InvestigationResult, circuit_evidence, digest, private_execution, private_keygen, require,
     signing_mask_evidence,
 };
-use ed25519_yao::phase5_benchmark::ml_dsa_private::{
+use ml_dsa_threshold::benchmarks::ml_dsa_private::{
     PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
 };
 use ed25519_yao_generator::{
@@ -104,7 +104,7 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing_mask.rs",
         "tools/ed25519-yao-generator/src/circuit/ir.rs",
-        "crates/ed25519-yao/src/passive/ml_dsa_runtime.rs",
+        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
         "crates/ed25519-yao/src/passive/ot.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(root.join(path))?)}));
