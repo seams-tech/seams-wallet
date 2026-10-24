@@ -70,9 +70,12 @@ Native simulation of compression and trimming also rejected two fixture recordin
 that passed on the original WAV. Fixture speaking rates were adjusted without
 changing the production cutoff. This demonstrates sensitivity to audio conditions.
 
-Human enrollment, unlock, and NEAR transfer with randomized phrases remain a live
-qualification step. Test other speakers, accents, noise, and microphones before
-production use. More missing, reordered, and extra-word cases remain necessary.
+The [live transfer evidence](live-transfer.json) records a successful user-reported
+randomized-phrase unlock and transfer using an existing B1 enrollment. NEAR RPC
+independently confirmed final success for a one-yoctoNEAR self-transfer. Exact
+phrases and client inference scores were not collected. Randomized-phrase enrollment
+still needs a live human check. Test other speakers, accents, noise, and microphones
+before production use. More missing, reordered, and extra-word cases remain necessary.
 
 ## Scope
 
