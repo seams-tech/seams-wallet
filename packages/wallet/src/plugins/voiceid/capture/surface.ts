@@ -140,7 +140,7 @@ class VoiceIdCaptureSurface<T> {
   }
 
   private readonly listening = (): void => {
-    this.status.textContent = 'Listening for five seconds. Speak clearly…';
+    this.status.textContent = 'Listening for eight seconds. Read: “My voice helps me open this wallet on my device.”';
   };
 
   private readonly cancel = (): void => {

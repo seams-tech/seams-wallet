@@ -1,3 +1,4 @@
+import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
   walletHostExecutionFingerprint,
@@ -108,9 +109,9 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 
 export class VoiceIdApproval {
   readonly messages = {
-    prompt: 'Review the transfer, select Confirm, then speak for three seconds to verify your voice.',
+    prompt: 'Review the transfer, select Confirm, then read: “My voice helps me open this wallet on my device.”',
     starting: 'Starting VoiceID. Wait for the microphone to be ready.',
-    listening: 'Microphone is ready. Speak for three seconds. Use Cancel to stop approval.',
+    listening: 'Listening for eight seconds. Read: “My voice helps me open this wallet on my device.”',
     approved: 'Voice approved this operation.',
   };
   private state: ApprovalState = { kind: 'pending' };
@@ -130,7 +131,7 @@ export class VoiceIdApproval {
     return new VoiceIdApproval(review.validity.atMs, operationHash);
   }
 
-  async approve(signal: AbortSignal, onListening: () => void): Promise<void> {
+  async approve(signal: AbortSignal, onListening: () => void): Promise<AuthMethodApprovalResult> {
     if (this.state.kind === 'approved') {
       if (
         signal.aborted ||
@@ -139,7 +140,7 @@ export class VoiceIdApproval {
       ) {
         throw new Error('Voice approval expired or closed.');
       }
-      return;
+      return { kind: 'approved' };
     }
     if (this.state.kind !== 'pending') throw new Error('Voice approval already started.');
     if (
@@ -165,18 +166,15 @@ export class VoiceIdApproval {
       if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {
         throw new Error('Voice approval expired or closed.');
       }
-      switch (outcome) {
+      switch (outcome.kind) {
         case 'approved':
           this.state = { kind: 'approved', binding, deadline, signal };
-          return;
-        case 'cancelled':
-          throw new Error('The speaker cancelled this operation.');
-        case 'rejected':
-          throw new Error('VoiceID could not approve this operation. Start a new review.');
-        case 'failed':
-          throw new Error('VoiceID is unavailable. Start a new review.');
+          return outcome;
+        case 'retry':
+          this.state = { kind: 'pending' };
+          return outcome;
         default:
-          assertNever(outcome);
+          return assertNever(outcome);
       }
     } catch (error) {
       this.state = { kind: 'closed' };

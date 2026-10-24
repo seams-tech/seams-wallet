@@ -30,7 +30,7 @@ export async function captureVoiceIdActivation(input: {
   factorSecret32: Uint8Array;
 }> {
   requireVoiceUserAction();
-  if (await readVoiceEnrollment()) await verifyBrowserVoice(input.signal, input.onListening);
+  if (await readVoiceEnrollment()) await requireVoiceMatch(input.signal, input.onListening);
   else await enrollBrowserVoice(input.signal);
   input.signal.throwIfAborted();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
@@ -59,7 +59,7 @@ export async function captureVoiceIdUnlock(input: {
   const device = await readBrowserVoiceDevice(challenge.walletId, challenge.walletAuthMethodId);
   if (!device || device.deviceKeyId !== challenge.deviceKeyId)
     throw new Error('VoiceID device key is unavailable in this browser.');
-  await verifyBrowserVoice(input.signal, input.onListening);
+  await requireVoiceMatch(input.signal, input.onListening);
   input.signal.throwIfAborted();
   if (challenge.expiresAtMs <= Date.now())
     throw new Error('VoiceID challenge expired. Start unlock again.');
@@ -82,4 +82,10 @@ export async function captureVoiceIdUnlock(input: {
     }),
     factorSecret32,
   };
+}
+
+async function requireVoiceMatch(signal: AbortSignal, onListening: () => void): Promise<void> {
+  const result = await verifyBrowserVoice(signal, onListening);
+  if (result.kind === 'mismatch')
+    throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
 }

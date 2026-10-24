@@ -2,6 +2,8 @@ const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.
 const streams: MediaStream[] = [];
 const originalPut = IDBObjectStore.prototype.put;
 let cancelEnrollmentSave = false;
+let nextAudio: string | null = null;
+let injectedAudio: AudioContext | null = null;
 
 function observedPut(
   this: IDBObjectStore,
@@ -36,9 +38,32 @@ function cancelNextEnrollmentSave(): void {
 }
 
 async function observedGetUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
-  const stream = await originalGetUserMedia(constraints);
+  const audio = nextAudio;
+  nextAudio = null;
+  const stream = audio === null ? await originalGetUserMedia(constraints) : await audioStream(audio);
   streams.push(stream);
   return stream;
+}
+
+function useNextAudio(base64: string): void {
+  nextAudio = base64;
+}
+async function audioStream(base64: string): Promise<MediaStream> {
+  if (injectedAudio) await injectedAudio.close();
+  injectedAudio = new AudioContext();
+  const bytes = Uint8Array.from(atob(base64), characterCode);
+  const buffer = await injectedAudio.decodeAudioData(bytes.buffer);
+  const source = injectedAudio.createBufferSource();
+  const destination = injectedAudio.createMediaStreamDestination();
+  source.buffer = buffer;
+  source.loop = true;
+  source.connect(destination);
+  await injectedAudio.resume();
+  source.start();
+  return destination.stream;
+}
+function characterCode(character: string): number {
+  return character.charCodeAt(0);
 }
 
 function microphoneStates(): MediaStreamTrackState[] {
@@ -53,11 +78,13 @@ function trackState(track: MediaStreamTrack): MediaStreamTrackState {
 
 declare global {
   interface Window {
+    voiceIdNextAudio: typeof useNextAudio;
     voiceIdMicrophoneStates: typeof microphoneStates;
     voiceIdCancelNextEnrollmentSave: typeof cancelNextEnrollmentSave;
   }
 }
 navigator.mediaDevices.getUserMedia = observedGetUserMedia;
+window.voiceIdNextAudio = useNextAudio;
 window.voiceIdMicrophoneStates = microphoneStates;
 window.voiceIdCancelNextEnrollmentSave = cancelNextEnrollmentSave;
 IDBObjectStore.prototype.put = observedPut;

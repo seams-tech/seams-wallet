@@ -1,0 +1,50 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "dusky-sequoia-vt9zp7",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "mismatchCapture": {
+    "durationMs": 7920,
+    "voicedMs": 7700,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": -0.0012776743164181863,
+    "threshold": 0.6
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/ecapa.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_ecapa_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "dusky-sequoia-vt9zp7",
+    "accountId": "51b20be9c0ac697f8acd4c140e09fd198b851d8c2c656dc6e3268655fd96596a",
+    "publicKey": "ed25519:6VuVMFK317qurWcz6NUXLHS3Fn8K5fHSXmSAsaxQHe3s"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADUxYjIwYmU5YzBhYzY5N2Y4YWNkNGMxNDBlMDlmZDE5OGI4NTFkOGMyYzY1NmRjNmUzMjY4NjU1ZmQ5NjU5NmEAUbIL6cCsaX+KzUwUDgn9GYuFHYwsZW3G4yaGVf2WWWoCAAAAAAAAAEAAAAA1MWIyMGJlOWMwYWM2OTdmOGFjZDRjMTQwZTA5ZmQxOThiODUxZDhjMmM2NTZkYzZlMzI2ODY1NWZkOTY1OTZhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAu6z/8MzVTeVDm9ap921FoXU2LQSR+FMdRK9WEns1FzODMFO3sO0kuRO5eXWbWlSK7xff29ukREjU5YkhDbcPBw==",
+      "signedTransactionSha256": "0e74fc2f5af09b76a394536de159667538c5a6dd91e0b97286fe67b53a99a5c9",
+      "signerId": "51b20be9c0ac697f8acd4c140e09fd198b851d8c2c656dc6e3268655fd96596a",
+      "receiverId": "51b20be9c0ac697f8acd4c140e09fd198b851d8c2c656dc6e3268655fd96596a",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

@@ -83,8 +83,8 @@ Chrome extension, Keychain access, or system-settings change is part of this flo
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
 Wallet's browser enrollment UI. Each of three samples requires a separate Record
 click. The browser requests microphone permission. Enrollment allows eight seconds
-per sample and requires at least two seconds of voiced audio. Verification allows
-five seconds. All enrollment samples use the displayed sentence.
+per sample and requires at least two seconds of voiced audio. Verification uses the same duration and minimum speech length.
+Enrollment and verification display the same sentence.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
 after local ECAPA inference. Three consistent samples form one normalized
 speaker template. The template stays in Wallet-origin IndexedDB.
@@ -144,7 +144,10 @@ unlock. ECDSA signing and key export retain their supported owner methods.
 This prototype supports one reviewed NEAR testnet transfer per request. Other
 signing routes and reviews without an expiry fail while VoiceID is enabled.
 The Wallet freezes and hashes the complete request and execution configuration.
-Confirm starts a browser speaker check for that review. Cancellation, lock,
+Confirm starts a browser speaker check for that review. A speaker mismatch keeps
+the review open, shows the failure, and requires another Confirm click to retry.
+No signature or broadcast occurs for a mismatch. Each retry checks the original
+review deadline. Cancellation, lock,
 expiry, execution changes, and plugin changes invalidate pending approval.
 The signing boundary consumes the approval once. Existing authorization, session,
 quota, and MPC checks still apply.
@@ -159,7 +162,9 @@ The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.co
 creates a wallet, saves recovery codes, enrolls three browser microphone samples,
 activates VoiceID, locks, unlocks, and signs a transfer. Cancellation stops microphone
 tracks before decoding. Cancelling the final enrollment write aborts that transaction. It verifies that inference
-assets load only after activation and that no native-service requests occur.
+assets load only after activation and that no native-service requests occur. A different
+synthetic speaker is rejected without signing. An explicit retry with the enrolled
+voice signs the same review. See the [retry evidence](evidence/voiceid-browser-mismatch-retry-20261024.json).
 
 The [unlock contract](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts)
 checks fresh session issuance and a concurrent lock during unlock. The

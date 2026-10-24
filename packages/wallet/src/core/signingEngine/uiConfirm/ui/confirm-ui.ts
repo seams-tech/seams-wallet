@@ -410,7 +410,12 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
           authMethodApprovalMessage: this.admission.authMethodApprovalMessages.starting,
         });
       }
-      await this.admission?.approveAuthMethod(this.authMethodListening);
+      const approval = await this.admission?.approveAuthMethod(this.authMethodListening);
+      if (approval?.kind === 'retry') {
+        this.phase = 'pending';
+        this.view?.update({ preparing: false, authMethodApprovalMessage: approval.message });
+        return;
+      }
       if (this.admission?.authMethodApprovalMessages)
         this.view?.update({
           preparing: false,

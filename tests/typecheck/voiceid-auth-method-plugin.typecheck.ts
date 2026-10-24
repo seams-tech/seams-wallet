@@ -3,6 +3,7 @@ import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/des
 import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
 import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
 import type {
+  AuthMethodApprovalResult,
   AuthMethodReviewPolicy,
   AuthMethodReviewApproval,
 } from '../../packages/wallet/src/core/authMethods/hostPlugin';
@@ -68,3 +69,11 @@ declare const ecdsaIdentity: ExactEcdsaSigningLaneIdentity;
 const ecdsaWithVoice = { ...ecdsaIdentity, auth: voiceIdLane };
 // @ts-expect-error The NEAR VoiceID plugin cannot construct an ECDSA signing identity.
 void (ecdsaWithVoice satisfies ExactEcdsaSigningLaneIdentity);
+
+// @ts-expect-error A retry must provide an actionable message.
+const missingRetryMessage: AuthMethodApprovalResult = { kind: 'retry' };
+const retryFields = { message: 'Try again.' };
+// @ts-expect-error Approval cannot include a retry message through a spread.
+const approvedWithRetry: AuthMethodApprovalResult = { kind: 'approved', ...retryFields };
+void missingRetryMessage;
+void approvedWithRetry;

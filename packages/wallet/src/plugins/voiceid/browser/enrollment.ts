@@ -125,7 +125,7 @@ class VoiceEnrollmentSurface {
       this.phase = 'recording';
       this.record.disabled = true;
       this.status.textContent = 'Opening microphone…';
-      const pcm = await recordVoice(this.controller.signal, this.listening, 'enrollment');
+      const pcm = await recordVoice(this.controller.signal, this.listening);
       let embedding: number[];
       try {
         this.status.textContent = 'Checking your voice. The first model download is about 80 MB…';
@@ -203,16 +203,24 @@ class VoiceEnrollmentSurface {
 export async function verifyBrowserVoice(
   signal: AbortSignal,
   onListening: () => void,
-): Promise<void> {
+): Promise<{ kind: 'matched' } | { kind: 'mismatch' }> {
   const enrollment = await readVoiceEnrollment();
   if (!enrollment)
     throw new Error('Activate VoiceID with an owner unlock to enroll this browser first.');
-  const pcm = await recordVoice(signal, onListening, 'verification');
+  const pcm = await recordVoice(signal, onListening);
   try {
     const embedding = await voiceEmbedding(pcm.samples);
     if (signal.aborted) throw new Error('VoiceID verification was cancelled.');
-    if (voiceSimilarity(embedding, enrollment.template) < VOICE_MATCH_THRESHOLD)
-      throw new Error('VoiceID did not match the enrolled voice.');
+    const similarity = voiceSimilarity(embedding, enrollment.template);
+    document.body.dataset.voiceVerification = JSON.stringify({
+      durationMs: pcm.durationMs,
+      voicedMs: pcm.voicedMs,
+      microphone: pcm.microphone,
+      similarity,
+      threshold: VOICE_MATCH_THRESHOLD,
+    });
+    embedding.fill(0);
+    return similarity < VOICE_MATCH_THRESHOLD ? { kind: 'mismatch' } : { kind: 'matched' };
   } finally {
     pcm.samples.fill(0);
   }

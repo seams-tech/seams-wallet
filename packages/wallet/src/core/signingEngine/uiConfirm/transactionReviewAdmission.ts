@@ -7,7 +7,10 @@ import {
 } from '@/SeamsWeb/walletIframe/shared/transactionReview';
 import type { UiConfirmSurfaceMeasurementBinding } from './uiConfirm.types';
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
-import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
+import type {
+  AuthMethodApprovalResult,
+  AuthMethodReviewPolicy,
+} from '@/core/authMethods/hostPlugin';
 
 type AdmissionState =
   | { readonly kind: 'preparing' }
@@ -176,11 +179,15 @@ export class TransactionReviewAdmission {
     this.notify('signing');
   };
 
-  async approveAuthMethod(onListening: () => void): Promise<void> {
+  async approveAuthMethod(onListening: () => void): Promise<AuthMethodApprovalResult> {
     this.assertActive();
-    if (this.authMethodPolicy.kind === 'disabled') return;
-    await this.authMethodPolicy.approval.approve(this.abortController.signal, onListening);
+    if (this.authMethodPolicy.kind === 'disabled') return { kind: 'approved' };
+    const result = await this.authMethodPolicy.approval.approve(
+      this.abortController.signal,
+      onListening,
+    );
     this.assertActive();
+    return result;
   }
 
   get authMethodApprovalMessages() {

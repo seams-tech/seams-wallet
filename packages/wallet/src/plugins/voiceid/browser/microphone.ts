@@ -15,7 +15,6 @@ export function requireVoiceUserAction(): void {
 export async function recordVoice(
   signal: AbortSignal,
   onListening: (microphone: string) => void,
-  purpose: 'enrollment' | 'verification',
 ): Promise<{ samples: Float32Array; voicedMs: number; durationMs: number; microphone: string }> {
   if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -33,7 +32,7 @@ export async function recordVoice(
       stream,
       signal,
       onListening,
-      purpose === 'enrollment' ? 8_000 : 5_000,
+      8_000,
     );
     const bytes = await recording.result;
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
@@ -52,7 +51,7 @@ export async function recordVoice(
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
     const speech = speechSamples(
       rendered.getChannelData(0),
-      purpose === 'enrollment' ? SAMPLE_RATE * 2 : SAMPLE_RATE,
+      SAMPLE_RATE * 2,
     );
     return {
       samples: speech.samples,

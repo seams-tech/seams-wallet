@@ -35,6 +35,10 @@ export type AuthMethodActivationResult = Readonly<{
   walletAuthMethodId: WalletAuthMethodId;
 }>;
 
+export type AuthMethodApprovalResult =
+  | { readonly kind: 'approved'; readonly message?: never }
+  | { readonly kind: 'retry'; readonly message: string };
+
 export interface AuthMethodReviewApproval {
   readonly messages: Readonly<{
     prompt: string;
@@ -42,7 +46,7 @@ export interface AuthMethodReviewApproval {
     listening: string;
     approved: string;
   }>;
-  approve(signal: AbortSignal, onListening: () => void): Promise<void>;
+  approve(signal: AbortSignal, onListening: () => void): Promise<AuthMethodApprovalResult>;
   consume(): void;
 }
 

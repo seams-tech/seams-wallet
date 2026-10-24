@@ -6,7 +6,7 @@ import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
 } from './voiceid-browser-audio';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import {
   expect,
   type BrowserContext,
@@ -128,6 +128,21 @@ async function verifyLivePage(
   );
   await evidence.observe(context);
   await startReviewedTransfer(page);
+  const otherSpeaker = await readFile(
+    path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'),
+  );
+  await wallet.locator('body').evaluate(useOtherSpeaker, otherSpeaker.toString('base64'));
+  const beforeMismatch = evidence.snapshot();
+  await wallet.locator('button.confirm').click();
+  await expect(
+    wallet.getByText('VoiceID did not match the enrolled voice.', { exact: false }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(wallet.locator('button.confirm')).toBeEnabled();
+  expect(evidence.snapshot()).toEqual(beforeMismatch);
+  const mismatchCapture = await wallet.locator('body').getAttribute('data-voice-verification');
+  if (mismatchCapture === null) throw new Error('Voice verification measurement is missing');
+  const mismatch = JSON.parse(mismatchCapture);
+  expect(mismatch.similarity).toBeLessThan(mismatch.threshold);
   await wallet.locator('button.confirm').click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
@@ -157,6 +172,9 @@ async function verifyLivePage(
         nativeHost: 'none',
         nativeRequests: assets.native,
         inferenceLoadedOnlyAfterActivation: true,
+        mismatchCapture: mismatch,
+        mismatchPreventsSigning: true,
+        explicitRetrySignsSameReview: true,
         cancellationStopsMicrophone: true,
         cancellationAbortsEnrollmentCommit: true,
         inferenceAssets: assets.inference,
@@ -198,4 +216,8 @@ function microphoneStates(): MediaStreamTrackState[] {
 
 function cancelNextEnrollmentSave(): void {
   window.voiceIdCancelNextEnrollmentSave();
+}
+
+function useOtherSpeaker(_element: Element, base64: string): void {
+  window.voiceIdNextAudio(base64);
 }
