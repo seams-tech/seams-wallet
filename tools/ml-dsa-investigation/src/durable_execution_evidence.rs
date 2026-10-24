@@ -7,11 +7,11 @@ use crate::{
     reference, require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::{
+    signing::{
         OwnSigningShare, SigningRole,
         prepared_signing::gmw::{
             ConsumedGmwPreparation, PreparedGmwReservation, commit_gmw_reservations,
@@ -559,7 +559,7 @@ fn check_committed_storage(
         require(
             matches!(
                 run_ready(restored.activate(own, expected_key, expected_epoch, transport))?,
-                Err(ml_dsa_threshold::ml_dsa_signing::SigningError::RequestBinding)
+                Err(ml_dsa_threshold::signing::SigningError::RequestBinding)
             ),
             "Committed preparation accepted another key or epoch",
         )?;
@@ -662,7 +662,7 @@ fn check_cohort_bindings(
     epoch: [u8; 32],
     group: &[u8; 32],
     schedules: &[TrustedMlDsaSchedule<'_>],
-    topologies: &mut ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies,
+    topologies: &mut ml_dsa_threshold::runtime::boolean_mpc::prepared::PublicTopologies,
     transport: &mut HostTransport,
 ) -> InvestigationResult<Vec<Value>> {
     let mut checks = Vec::new();

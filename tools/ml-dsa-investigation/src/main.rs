@@ -3,19 +3,18 @@ mod boolean_engine_evidence;
 mod circuit_evidence;
 mod complete_engine_evidence;
 mod custody_delivery_evidence;
+mod durable_execution_evidence;
+mod durable_preparation_evidence;
 mod fresh_mask_evidence;
 mod garbled_execution;
-mod hybrid_keygen;
-mod material_storage_evidence;
-mod keygen_storage_evidence;
 mod gateway_registration_client;
-mod registration_tables_evidence;
-mod near_testnet_evidence;
+mod hybrid_keygen;
+mod keygen_storage_evidence;
+mod material_storage_evidence;
 mod near_enrollment_fixture;
+mod near_testnet_evidence;
 mod near_transaction_evidence;
 mod pool_evidence;
-mod durable_preparation_evidence;
-mod durable_execution_evidence;
 mod prepared_gmw_evidence;
 mod prepared_keygen_evidence;
 mod prepared_signing_evidence;
@@ -25,6 +24,7 @@ mod private_keygen;
 mod private_signing;
 mod public_sampling_evidence;
 mod reference;
+mod registration_tables_evidence;
 mod request_binding_evidence;
 mod rounding_evidence;
 mod sampler_evidence;
@@ -33,9 +33,9 @@ mod signing_lifecycle_evidence;
 mod signing_mask_evidence;
 mod silent_correlation_evidence;
 mod wallet_recovery_evidence;
-mod worker_registration_client;
 mod worker_arithmetic_audit;
 mod worker_fixtures;
+mod worker_registration_client;
 
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -105,8 +105,12 @@ fn run() -> InvestigationResult<()> {
     if near_enrollment_fixture::run()? {
         return Ok(());
     }
-    if gateway_registration_client::run()? { return Ok(()); }
-    if worker_registration_client::run()? { return Ok(()); }
+    if gateway_registration_client::run()? {
+        return Ok(());
+    }
+    if worker_registration_client::run()? {
+        return Ok(());
+    }
     if silent_correlation_evidence::try_run_child()? {
         return Ok(());
     }
@@ -468,16 +472,18 @@ fn generate_report(
         "crates/signer-core/src/ml_dsa_custody.rs",
         "crates/signer-core/src/ml_dsa_custody/material.rs",
         "crates/ed25519-yao/src/passive.rs",
-        "crates/ed25519-yao/src/passive/gate_aes.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "crates/ed25519-yao/src/passive/runtime.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
         "crates/ml-dsa-threshold/src/benchmarks/ml_dsa_kernel.rs",
         "crates/ml-dsa-threshold/src/benchmarks/ml_dsa_private.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/arithmetic.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/runtime.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc.rs",
+        "crates/ml-dsa-threshold/src/signing.rs",
+        "crates/ml-dsa-threshold/src/signing/arithmetic.rs",
+        "crates/ml-dsa-threshold/src/signing/keygen.rs",
         "crates/ed25519-yao/Cargo.toml",
         "crates/ed25519-yao/Cargo.lock",
         "wasm/near_signer/Cargo.toml",

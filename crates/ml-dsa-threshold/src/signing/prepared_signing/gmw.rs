@@ -9,7 +9,7 @@ mod storage;
 use std::rc::Rc;
 
 use super::*;
-use crate::ml_dsa_runtime::boolean_comparison::{
+use crate::runtime::boolean_mpc::{
     prepared::{
         prepare_batch, run_batches, BatchMetrics, PreparedGmwBatch, PreparedGmwRequest,
         PublicTopologies,

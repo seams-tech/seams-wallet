@@ -5,11 +5,11 @@
 //! Shared-host files and processes provide no production isolation claim.
 
 use crate::{InvestigationResult, digest, private_execution, require};
-use ml_dsa_threshold::benchmarks::ml_dsa_private::{
-    PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
-};
 use ed25519_yao_generator::{
     MlDsaPrivateSigningMaskCircuitV1, compile_ml_dsa_private_signing_mask_circuit_v1,
+};
+use ml_dsa_threshold::benchmarks::ml_dsa_private::{
+    PrivateKernelSchedule, evaluate_private_fixture, garble_private_fixture,
 };
 use serde_json::{Value, json};
 use sha3::{
@@ -528,7 +528,10 @@ fn source_identities() -> InvestigationResult<Vec<Value>> {
         "../ed25519-yao-generator/src/circuit/ir.rs",
         "../ed25519-yao-generator/src/circuit/schedule.rs",
         "../../crates/ml-dsa-threshold/src/benchmarks/ml_dsa_private.rs",
-        "../../crates/ed25519-yao/src/passive/ot.rs",
+        "../../crates/two-party-primitives/src/ot.rs",
+        "../../crates/two-party-primitives/src/lib.rs",
+        "../../crates/two-party-primitives/src/decoding.rs",
+        "../../crates/two-party-primitives/src/gate_aes.rs",
     ];
     let mut identities = Vec::with_capacity(sources.len());
     for source in sources {

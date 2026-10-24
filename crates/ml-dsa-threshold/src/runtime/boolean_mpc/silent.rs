@@ -11,7 +11,7 @@ use correlation_aes::{CorrelationAes, SecretBlockBatch};
 use super::*;
 use cryprot_codes::ExConvCode;
 use cryprot_core::Block;
-use ed25519_yao::primitives::ot::MlDsaSilentBaseOtFamily as BaseBatch;
+use two_party_primitives::ot::MlDsaSilentBaseOtFamily as BaseBatch;
 
 /// Every chunk supplies this many independent one-use AND correlations.
 pub const CHUNK_TRIPLES: usize = 262_144;

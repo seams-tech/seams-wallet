@@ -13,12 +13,12 @@ set_option maxHeartbeats 1000000
 namespace ml_dsa_threshold
 
 /-- [ml_dsa_threshold::modular::Q]
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 4:0-4:29
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 4:0-4:29
     Visibility: public -/
 @[global_simps, irreducible] def modular.Q : Std.U32 := 8380417#u32
 
 /-- [ml_dsa_threshold::modular::reduce_once]:
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 32:0-36:1
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 32:0-36:1
     Visibility: public -/
 def modular.reduce_once (value : Std.U32) : Result Std.U32 := do
   let difference ← lift (core.num.U32.wrapping_sub value modular.Q)
@@ -28,14 +28,14 @@ def modular.reduce_once (value : Std.U32) : Result Std.U32 := do
   ok (core.num.U32.wrapping_add difference i1)
 
 /-- [ml_dsa_threshold::modular::add_mod]:
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 7:0-9:1
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 7:0-9:1
     Visibility: public -/
 def modular.add_mod (left : Std.U32) (right : Std.U32) : Result Std.U32 := do
   let i ← left + right
   modular.reduce_once i
 
 /-- [ml_dsa_threshold::modular::subtract_mod]:
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 12:0-14:1
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 12:0-14:1
     Visibility: public -/
 def modular.subtract_mod
   (left : Std.U32) (right : Std.U32) : Result Std.U32 := do
@@ -44,14 +44,14 @@ def modular.subtract_mod
   modular.reduce_once i1
 
 /-- [ml_dsa_threshold::modular::multiply_mod::LOW_MASK]
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 22:4-22:40 -/
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 22:4-22:40 -/
 @[global_simps, irreducible]
 def modular.multiply_mod.LOW_MASK : Result Std.U64 := do
   let i ← 1#u64 <<< 23#i32
   i - 1#u64
 
 /-- [ml_dsa_threshold::modular::multiply_mod]:
-    Source: 'rust/../../src/ml_dsa_signing/arithmetic/modular.rs', lines 17:0-28:1
+    Source: 'rust/../../src/signing/arithmetic/modular.rs', lines 17:0-28:1
     Visibility: public -/
 def modular.multiply_mod
   (left : Std.U32) (right : Std.U32) : Result Std.U32 := do

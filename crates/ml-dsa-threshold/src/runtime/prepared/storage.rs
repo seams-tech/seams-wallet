@@ -1,6 +1,6 @@
 //! Role-private prepared inputs. Table frames remain in authenticated external storage.
 use super::*;
-use crate::ml_dsa_runtime::boolean_comparison::prepared::storage::{number, Reader};
+use crate::runtime::boolean_mpc::prepared::storage::{number, Reader};
 
 impl PreparedCircuit<'_> {
     pub(super) fn storage_bytes(&self) -> usize {
@@ -94,7 +94,7 @@ impl<'a> PreparedCircuit<'a> {
         common.metrics.label_arena_allocation_bytes = arena_bytes;
         let secret = match role {
             SigningRole::A => {
-                let mut delta = Zeroizing::new(ed25519_yao::primitives::SecretBlock::default());
+                let mut delta = Zeroizing::new(two_party_primitives::SecretBlock::default());
                 delta.0.copy_from_slice(reader.take(16)?);
                 let mut input_zeros = Zeroizing::new(vec![[0; 16]; schedule.garbler_input_bits()]);
                 for label in input_zeros.iter_mut() {

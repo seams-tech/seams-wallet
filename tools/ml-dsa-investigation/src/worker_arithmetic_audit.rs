@@ -143,7 +143,7 @@ fn inspect(
     match subject {
         Subject::Arithmetic => {
             for name in PRIVATE_FUNCTIONS {
-                let suffix = format!("::passive::ml_dsa_signing::arithmetic::{name}");
+                let suffix = format!("::passive::signing::arithmetic::{name}");
                 let mut matches = Vec::new();
                 for (index, symbol) in &names {
                     if symbol.starts_with("ed25519_yao[") && symbol.ends_with(&suffix) {
@@ -159,7 +159,7 @@ fn inspect(
         }
         Subject::SilentCorrelations => {
             for (index, symbol) in &names {
-                if symbol.contains("::boolean_comparison::silent::")
+                if symbol.contains("::boolean_mpc::silent::")
                     || symbol.contains("cryprot_codes[")
                     || (symbol.starts_with("aes[") && symbol.contains("::soft::fixslice::"))
                     || symbol.contains("::gate_aes::")

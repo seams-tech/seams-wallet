@@ -1,13 +1,13 @@
 //! Bounded binary messages. Every blocked receive ends at the operation deadline.
-use ml_dsa_threshold::ml_dsa_runtime::{boolean_comparison as boolean, prepared, RuntimeError};
 use futures::{
     future::{select, Either},
     StreamExt,
 };
+use ml_dsa_threshold::runtime::{boolean_mpc as boolean, prepared, RuntimeError};
 use std::{collections::VecDeque, time::Duration};
 use worker::{EventStream, WebSocket, WebsocketEvent};
 const WINDOW: u32 = 8;
-const MAX_BYTES: usize = ml_dsa_threshold::ml_dsa_runtime::MAX_MESSAGE_BYTES;
+const MAX_BYTES: usize = ml_dsa_threshold::runtime::MAX_MESSAGE_BYTES;
 const PREPARATION_BOUNDARIES: u8 = 8;
 
 #[derive(Clone, Default, serde::Serialize)]

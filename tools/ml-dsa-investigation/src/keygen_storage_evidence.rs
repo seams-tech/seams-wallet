@@ -5,8 +5,8 @@ use crate::{
     require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{TrustedMlDsaSchedule, prepared::keygen::PreparedKeygen},
-    ml_dsa_signing::SigningRole,
+    runtime::{TrustedMlDsaSchedule, prepared::keygen::PreparedKeygen},
+    signing::SigningRole,
 };
 use router_ab_cloudflare::ml_dsa::{Participant, registration_preparation as pool};
 use serde_json::{Value, json};

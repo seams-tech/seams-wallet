@@ -5,18 +5,18 @@ use crate::{
     prepared_keygen_evidence::HostTransport, private_execution, private_signing, reference,
     require,
 };
+use ed25519_yao_generator::{
+    MlDsaSigningWorkloadV1 as Workload, compile_ml_dsa_private_signing_circuit_v1,
+};
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::{
+    signing::{
         OwnSigningShare, SigningRole,
         prepared_signing::{self, Reservation},
     },
-};
-use ed25519_yao_generator::{
-    MlDsaSigningWorkloadV1 as Workload, compile_ml_dsa_private_signing_circuit_v1,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -172,7 +172,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                 require(
                     matches!(
                         activated,
-                        Err(ml_dsa_threshold::ml_dsa_signing::SigningError::RequestBinding)
+                        Err(ml_dsa_threshold::signing::SigningError::RequestBinding)
                     ),
                     "Activation accepted mismatched key or epoch",
                 )?;
@@ -249,7 +249,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
                     )
                 }
                 Ok(prepared_signing::gmw::GmwBatchResult::Exhausted(_)) => {
-                    Err(ml_dsa_threshold::ml_dsa_signing::SigningError::PreparedPoolExhausted)
+                    Err(ml_dsa_threshold::signing::SigningError::PreparedPoolExhausted)
                 }
                 Err(error) => Err(error),
             }
@@ -258,7 +258,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
     let online_ns = started.elapsed().as_nanos();
     let result = match result {
         Ok(result) => result,
-        Err(ml_dsa_threshold::ml_dsa_signing::SigningError::PreparedPoolExhausted) => {
+        Err(ml_dsa_threshold::signing::SigningError::PreparedPoolExhausted) => {
             json!({"status": "exhausted", "attempts": capacity})
         }
         Err(error) => return Err(error.into()),
@@ -276,7 +276,7 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
 async fn ready(
     role: SigningRole,
     transport: &mut HostTransport,
-) -> Result<(), ml_dsa_threshold::ml_dsa_runtime::RuntimeError> {
+) -> Result<(), ml_dsa_threshold::runtime::RuntimeError> {
     match role {
         SigningRole::A => {
             transport.send(&[1]).await?;

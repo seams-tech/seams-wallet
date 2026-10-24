@@ -1,8 +1,8 @@
 //! Real preparation survives sealed SQLite storage before threshold signing.
 use crate::{InvestigationResult, boolean_engine_evidence::run_ready, require};
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{TrustedMlDsaSchedule, boolean_comparison::prepared::PublicTopologies},
-    ml_dsa_signing::{SigningRole, prepared_signing::gmw::PreparedGmwReservation},
+    runtime::{TrustedMlDsaSchedule, boolean_mpc::prepared::PublicTopologies},
+    signing::{SigningRole, prepared_signing::gmw::PreparedGmwReservation},
 };
 use router_ab_cloudflare::ml_dsa::{self as durable, admission::Permit, pool, sealing, *};
 use rusqlite::{Connection, OptionalExtension};
@@ -15,7 +15,8 @@ impl Db {
     pub(super) fn remaining_registration_table_chunks(&self) -> InvestigationResult<usize> {
         Ok(self.0.query_row(
             "SELECT COUNT(*) FROM records WHERE key LIKE 'registration-tables/%/data/%'",
-            [], |row| row.get(0),
+            [],
+            |row| row.get(0),
         )?)
     }
     pub(super) fn open(path: &Path) -> InvestigationResult<Self> {

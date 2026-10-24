@@ -4,14 +4,14 @@ This crate owns passive two-party ML-DSA-65 key generation, preparation, and sig
 It preserves wallet-derived canonical seeds and ordinary FIPS key/signature encodings.
 It contains no Cloudflare APIs, HTTP routes, database adapters, or wallet UI.
 
-- `ml_dsa_signing/`: arithmetic, wallet-seed derivation, key generation, and signing.
-- `ml_dsa_runtime/`: private circuits, prepared Yao evaluation, GMW, and silent correlations.
+- `signing/`: arithmetic, wallet-seed derivation, key generation, and signing.
+- `runtime/`: private circuits, prepared Yao evaluation, GMW, and silent correlations.
 - `benchmarks/`: synthetic-fixture adapters enabled only by the `benchmarks` feature.
 - `formal-verification/`: Aeneas extraction and Lean proofs of production scalar arithmetic.
 
-The crate reuses the existing `ed25519-yao` passive Yao/OT/AES primitive backend through
-its `passive-primitives` feature. That backend has one implementation. Its historical
-crate name does not make this protocol an Ed25519 signer.
+The crate depends on `two-party-primitives` for shared Yao, OT, and private AES.
+The same implementation serves Ed25519 and ML-DSA. The `simd` feature enables
+Wasm SIMD when the build target supports it.
 The existing sealed OT family identifiers and wire domains remain unchanged.
 
 Cloudflare admission, durable single use, refill scheduling, and authenticated transport

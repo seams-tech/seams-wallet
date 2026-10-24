@@ -17,50 +17,26 @@ import { spawnSync } from 'node:child_process';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT = resolve(SCRIPT_DIR, '../../..');
-const CORE_MANIFEST = join(REPOSITORY_ROOT, 'crates/ed25519-yao/Cargo.toml');
 const WORKER_MANIFEST = join(REPOSITORY_ROOT, 'crates/router-ab-cloudflare/Cargo.toml');
-const CORE_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive.rs');
-const OT_SOURCE = join(REPOSITORY_ROOT, 'crates/ed25519-yao/src/passive/ot.rs');
+const PRIMITIVE_MANIFEST = join(REPOSITORY_ROOT, 'crates/two-party-primitives/Cargo.toml');
+const CORE_SOURCE = join(REPOSITORY_ROOT, 'crates/two-party-primitives/src/lib.rs');
+const OT_SOURCE = join(REPOSITORY_ROOT, 'crates/two-party-primitives/src/ot.rs');
 const WORKER_BUILD_SCRIPT = join(
   REPOSITORY_ROOT,
   'crates/router-ab-cloudflare/scripts/build-strict-worker.sh',
 );
 const WASM_TARGET = 'wasm32-unknown-unknown';
 const WORKER_WASM = 'router_ab_cloudflare.wasm';
-const SENDER_ACCEPT_SYMBOLS = Object.freeze([
-  Object.freeze({ family: 'activation', pattern: /SenderAwaitExtension.*18ActivationOtFamily.*6accept/ }),
-  Object.freeze({ family: 'export', pattern: /SenderAwaitExtension.*14ExportOtFamily.*6accept/ }),
-  Object.freeze({
-    family: 'lane-materialization',
-    pattern: /SenderAwaitExtension.*27LaneMaterializationOtFamily.*6accept/,
-  }),
-]);
-const OPTIMIZED_SENDER_FAMILY_SYMBOLS = Object.freeze([
-  Object.freeze({ family: 'activation', pattern: /derive_label_pad.*ActivationOtFamily/ }),
-  Object.freeze({ family: 'export', pattern: /derive_label_pad.*ExportOtFamily/ }),
-  Object.freeze({
-    family: 'lane-materialization',
-    pattern: /derive_label_pad.*LaneMaterializationOtFamily/,
-  }),
+const SENDER_FAMILY_SYMBOLS = Object.freeze([
+  Object.freeze({ family: 'activation', pattern: /label_pad_prefix.*ActivationOtFamily/ }),
+  Object.freeze({ family: 'export', pattern: /label_pad_prefix.*ExportOtFamily/ }),
+  Object.freeze({ family: 'lane-materialization', pattern: /label_pad_prefix.*LaneMaterializationOtFamily/ }),
 ]);
 const SECRET_BIT_PREFIX =
   String.raw`i32\.load8_u[\s\S]{0,500}?i32\.shr_u[\s\S]{0,200}?` +
   String.raw`i32\.const\s+1[\s\S]{0,100}?i32\.and`;
 const SECRET_BIT_BRANCH = new RegExp(
   `${SECRET_BIT_PREFIX}[\\s\\S]{0,120}?i32\\.eqz[\\s\\S]{0,100}?br_if`,
-  'g',
-);
-const SECRET_BIT_MASK = new RegExp(
-  `${SECRET_BIT_PREFIX}[\\s\\S]{0,120}?call[\\s\\S]{0,80}?i32\\.sub`,
-  'g',
-);
-// The same selection once the compiler vectorizes the conditional XOR: the
-// optimizer-resistant bit becomes `0 - bit`, is splatted over a vector, and is
-// applied with AND and XOR. The loads of the two operands may sit between the
-// call and the subtraction.
-const SECRET_BIT_VECTOR_MASK = new RegExp(
-  `${SECRET_BIT_PREFIX}[\\s\\S]{0,120}?call[\\s\\S]{0,600}?i32\\.sub[\\s\\S]{0,60}?` +
-    String.raw`i8x16\.splat[\s\S]{0,120}?v128\.and[\s\S]{0,160}?v128\.xor`,
   'g',
 );
 
@@ -180,8 +156,8 @@ function requireSingleFile(directory, predicate, label) {
   return matches[0];
 }
 
-function isEd25519YaoAssembly(path) {
-  return /ed25519_yao-[^/]+\.s$/u.test(path);
+function isPrimitiveAssembly(path) {
+  return /two_party_primitives-[^/]+\.s$/u.test(path);
 }
 
 function requireUniqueSourceLine(path, fragment) {
@@ -225,12 +201,15 @@ function assertSecretBitWrappersCannotUseDebug() {
 }
 
 function assemblyFileId(assemblyLines, sourceSuffix) {
-  const filePattern = /^\s*\.file\s+(\d+)\s+.*"([^"]+)"\s*$/u;
   const matches = [];
   for (const line of assemblyLines) {
-    const match = line.match(filePattern);
-    if (match !== null && match[2].endsWith(sourceSuffix)) {
-      matches.push(Number(match[1]));
+    const id = line.match(/^\s*\.file\s+(\d+)\s/u);
+    if (id === null) {
+      continue;
+    }
+    const segments = [...line.matchAll(/"([^"]*)"/gu)].map(assemblyPathSegment);
+    if (segments.join('/').endsWith(sourceSuffix)) {
+      matches.push(Number(id[1]));
     }
   }
   const unique = [...new Set(matches)];
@@ -238,6 +217,10 @@ function assemblyFileId(assemblyLines, sourceSuffix) {
     fail(`expected one assembly file id for ${sourceSuffix}, found ${unique.length}`);
   }
   return unique[0];
+}
+
+function assemblyPathSegment(match) {
+  return match[1];
 }
 
 function instructionMnemonic(line) {
@@ -320,6 +303,40 @@ function assertNativeSensitiveLine(assemblyLines, sourceSuffix, sourceLine, labe
   }
 }
 
+// LLVM can hoist a secret branch to debug line zero. Reject ambiguous branches
+// in this small helper instead of treating missing line information as safe.
+function assertOtHelperHasNoUnmappedBranches(assemblyLines) {
+  let inHelper = false;
+  let unmapped = false;
+  let helpers = 0;
+  for (const line of assemblyLines) {
+    if (/^\S*two_party_primitives\S*2ot\S*15conditional_xor\S*:/u.test(line)) {
+      inHelper = true;
+      unmapped = true;
+      helpers += 1;
+    }
+    if (!inHelper) {
+      continue;
+    }
+    if (line.includes('.cfi_endproc')) {
+      inHelper = false;
+      continue;
+    }
+    const location = line.match(/^\s*\.loc\s+\d+\s+(\d+)\s/u);
+    if (location !== null) {
+      unmapped = Number(location[1]) === 0;
+      continue;
+    }
+    const mnemonic = instructionMnemonic(line);
+    if (unmapped && mnemonic !== undefined && isConditionalBranch(mnemonic)) {
+      fail(`IKNP helper contains a conditional branch without a source line: ${line.trim()}`);
+    }
+  }
+  if (helpers !== 1) {
+    fail(`expected exactly one standalone IKNP conditional XOR helper, found ${helpers}`);
+  }
+}
+
 function buildAndInspectHost(targetDirectory) {
   runInherited(
     'cargo',
@@ -327,27 +344,26 @@ function buildAndInspectHost(targetDirectory) {
       'rustc',
       '--locked',
       '--manifest-path',
-      CORE_MANIFEST,
+      PRIMITIVE_MANIFEST,
       '--release',
       '--lib',
-      '--features',
-      'local-protocol',
       '--',
       '-Cdebuginfo=2',
       '--emit=asm',
     ],
     { CARGO_TARGET_DIR: targetDirectory },
   );
-  const assembly = requireSingleFile(
+  const primitiveAssembly = requireSingleFile(
     join(targetDirectory, 'release/deps'),
-    isEd25519YaoAssembly,
-    'Ed25519 Yao host assembly file',
+    isPrimitiveAssembly,
+    'shared primitive host assembly',
   );
-  const assemblyLines = readFileSync(assembly, 'utf8').split(/\r?\n/u);
+  const primitiveLines = readFileSync(primitiveAssembly, 'utf8').split(/\r?\n/u);
   const wireLine = requireUniqueSourceLine(CORE_SOURCE, 'self.0[index] ^= u8::conditional_select');
   const otLine = requireUniqueSourceLine(OT_SOURCE, 'target[index] ^= u8::conditional_select');
-  assertNativeSensitiveLine(assemblyLines, 'src/passive.rs', wireLine, 'WireLabel conditional XOR');
-  assertNativeSensitiveLine(assemblyLines, 'src/passive/ot.rs', otLine, 'IKNP row conditional XOR');
+  assertNativeSensitiveLine(primitiveLines, 'two-party-primitives/src/lib.rs', wireLine, 'WireLabel conditional XOR');
+  assertNativeSensitiveLine(primitiveLines, 'two-party-primitives/src/ot.rs', otLine, 'IKNP row conditional XOR');
+  assertOtHelperHasNoUnmappedBranches(primitiveLines);
 }
 
 // Release Workers are built with the target features that the build script
@@ -401,125 +417,93 @@ function symbolNames(symbolTable, pattern) {
   return matches;
 }
 
-function senderAcceptSymbols(symbolTable, feature, requireSender) {
-  const matches = [];
-  const counts = [];
-  for (const specification of SENDER_ACCEPT_SYMBOLS) {
-    const familyMatches = symbolNames(symbolTable, specification.pattern);
-    counts.push(familyMatches.length);
-    if (!requireSender && familyMatches.length !== 0) {
-      fail(
-        `${feature} Worker WASM must contain exactly 0 ${specification.family} IKNP sender accept symbol(s), found ${String(familyMatches.length)}`,
-      );
-    }
-    matches.push(...familyMatches);
-  }
-  if (!requireSender || counts.every((count) => count === 1)) {
-    return matches;
-  }
-  if (!counts.every((count) => count === 0)) {
-    fail(`${feature} Worker WASM contains a partial IKNP sender symbol set`);
-  }
-  for (const specification of OPTIMIZED_SENDER_FAMILY_SYMBOLS) {
-    const familyMatches = symbolNames(symbolTable, specification.pattern);
-    if (familyMatches.length !== 1) {
-      fail(
-        `${feature} optimized Worker WASM must retain exactly 1 ${specification.family} sender family marker, found ${String(familyMatches.length)}`,
-      );
-    }
-  }
-  return matches;
-}
-
 function countMatches(text, pattern) {
   pattern.lastIndex = 0;
   return [...text.matchAll(pattern)].length;
 }
 
-function qualifyWasmPatterns() {
-  const vulnerable = [
-    'i32.load8_u 0',
-    'local.get 1',
-    'i32.shr_u',
-    'i32.const 1',
-    'i32.and',
-    'i32.eqz',
-    'br_if 0',
-  ].join('\n');
-  const safe = [
-    'i32.load8_u 0',
-    'local.get 1',
-    'i32.shr_u',
-    'i32.const 1',
-    'i32.and',
-    'call 2713',
-    'i32.sub',
-    'local.get 2',
-    'i32.and',
-    'i32.xor',
-  ].join('\n');
-  if (countMatches(vulnerable, SECRET_BIT_BRANCH) !== 1) {
-    fail('the WASM regression matcher did not reject its vulnerable qualification fixture');
+// Inspect the emitted mask shape. This is a compiler regression check, not
+// general control-flow verification or proof of callee behavior. Review changes
+// to the helper's control flow manually; textual overwrite order assumes the
+// reviewed public loops and bounds paths.
+function inspectWasmOtHelper(disassembly) {
+  const instructions = [];
+  for (const line of disassembly.split(/\r?\n/u)) {
+    const match = line.match(/^\s*[0-9a-f]+:\s+(?:[0-9a-f]{2}\s+)+([a-z][a-z0-9._]*)\s*(.*)$/u);
+    if (match !== null) {
+      instructions.push({ opcode: match[1], operand: match[2].trim().split(/\s/u)[0] });
+    }
   }
-  if (countMatches(safe, SECRET_BIT_BRANCH) !== 0) {
-    fail('the WASM regression matcher rejected its branchless qualification fixture');
+  if (instructions[0]?.opcode !== 'local.get' || instructions[0]?.operand !== '4' ||
+      instructions[1]?.opcode !== 'call' || instructions[2]?.opcode !== 'local.set') {
+    fail('IKNP helper lost the initial choice-call shape');
   }
-  if (countMatches(safe, SECRET_BIT_MASK) !== 1) {
-    fail('the WASM mask matcher did not accept its branchless qualification fixture');
+  if (localReadsBeforeWrite(instructions, '4', 1).length !== 0) {
+    fail('IKNP helper reuses its choice parameter before the public overwrite');
   }
-  const safeVector = [
-    'i32.load8_u 0',
-    'local.get 5',
-    'i32.const 7',
-    'i32.and',
-    'i32.shr_u',
-    'i32.const 1',
-    'i32.and',
-    'call 9917',
-    'local.set 13',
-    'local.get 2',
-    'local.get 2',
-    'v128.load 0:p2align=0',
-    'local.get 1',
-    'v128.load 0:p2align=0',
-    'i32.const 0',
-    'local.get 13',
-    'i32.sub',
-    'i8x16.splat',
-    'local.tee 10',
-    'v128.and',
-    'v128.xor',
-    'v128.store 0:p2align=0',
-  ].join('\n');
-  // A vector mask with no optimizer-resistant call is not the audited form.
-  const unprotectedVector = safeVector.replace('call 9917\n', '');
-  if (countMatches(safeVector, SECRET_BIT_BRANCH) !== 0) {
-    fail('the WASM regression matcher rejected its vector qualification fixture');
+  const choice = instructions[2].operand;
+  const choiceUses = localReadsBeforeWrite(instructions, choice, 3);
+  if (choiceUses.length !== 1) {
+    fail('IKNP helper must use the protected choice exactly once before overwrite');
   }
-  if (countMatches(safeVector, SECRET_BIT_VECTOR_MASK) !== 1) {
-    fail('the WASM vector mask matcher did not accept its qualification fixture');
+  const use = choiceUses[0];
+  if (instructions[use - 1]?.opcode !== 'i32.const' || instructions[use - 1]?.operand !== '0' ||
+      instructions[use + 1]?.opcode !== 'i32.sub' || instructions[use + 2]?.opcode !== 'local.set') {
+    fail('IKNP helper must consume the choice through a subtraction mask');
   }
-  if (countMatches(unprotectedVector, SECRET_BIT_VECTOR_MASK) !== 0) {
-    fail('the WASM vector mask matcher accepted a mask without the optimizer-resistant call');
+  const mask = instructions[use + 2].operand;
+  const maskUses = immutableLocalReads(instructions, mask);
+  let scalarUses = 0;
+  let vectorUses = 0;
+  for (const index of maskUses) {
+    if (instructions[index + 1]?.opcode === 'i32.and' &&
+        instructions[index + 2]?.opcode === 'i32.xor' &&
+        instructions[index + 3]?.opcode === 'i32.store8') {
+      scalarUses += 1;
+    } else if (instructions[index + 1]?.opcode === 'i8x16.splat' &&
+               instructions[index + 2]?.opcode === 'local.set') {
+      const vector = instructions[index + 2].operand;
+      const uses = immutableLocalReads(instructions, vector);
+      if (uses.length === 0) fail('IKNP helper lost vector mask use');
+      for (const vectorUse of uses) {
+        if (instructions[vectorUse + 1]?.opcode !== 'v128.and' ||
+            instructions[vectorUse + 2]?.opcode !== 'v128.xor' ||
+            instructions[vectorUse + 3]?.opcode !== 'v128.store') {
+          fail('IKNP helper uses its vector mask outside AND/XOR/store');
+        }
+      }
+      vectorUses += 1;
+    } else {
+      fail('IKNP helper uses its mask outside AND/XOR/store or vector splat');
+    }
   }
-  if (countMatches(vulnerable, SECRET_BIT_VECTOR_MASK) !== 0) {
-    fail('the WASM vector mask matcher accepted its vulnerable qualification fixture');
+  if (scalarUses !== 1 || vectorUses !== 1) {
+    fail('IKNP helper must retain one scalar and one vector mask path');
   }
 }
 
-// Counts each selection once. The scalar pattern ends at the subtraction, and
-// the vector pattern is that subtraction followed by the splat, so a scalar
-// match that runs into a splat is the vector form.
-function countSecretBitMasks(text) {
-  let scalar = 0;
-  SECRET_BIT_MASK.lastIndex = 0;
-  for (const match of text.matchAll(SECRET_BIT_MASK)) {
-    const end = match.index + match[0].length;
-    if (!/^[\s\S]{0,60}?i8x16\.splat/u.test(text.slice(end, end + 80))) {
-      scalar += 1;
-    }
+function localReadsBeforeWrite(instructions, local, start) {
+  const reads = [];
+  for (let index = start; index < instructions.length; index += 1) {
+    const instruction = instructions[index];
+    if (instruction.operand !== local) continue;
+    if (instruction.opcode === 'local.set' || instruction.opcode === 'local.tee') break;
+    if (instruction.opcode === 'local.get') reads.push(index);
   }
-  return scalar + countMatches(text, SECRET_BIT_VECTOR_MASK);
+  return reads;
+}
+
+function immutableLocalReads(instructions, local) {
+  const reads = [];
+  let writes = 0;
+  for (let index = 0; index < instructions.length; index += 1) {
+    const instruction = instructions[index];
+    if (instruction.operand !== local) continue;
+    if (instruction.opcode === 'local.set' || instruction.opcode === 'local.tee') writes += 1;
+    if (instruction.opcode === 'local.get') reads.push(index);
+  }
+  if (writes !== 1) fail('IKNP mask local must have exactly one assignment');
+  return reads;
 }
 
 function assertNoSecretBitBranch(disassembly, label) {
@@ -534,25 +518,26 @@ function inspectWorkerWasm(llvmObjdump, wasm, feature, requireSender) {
   const disassembly = runCapturedThroughFile(llvmObjdump, ['-d', wasm]);
   assertNoSecretBitBranch(disassembly, `${feature} Worker WASM`);
 
-  const senderSymbols = senderAcceptSymbols(symbolTable, feature, requireSender);
-  if (requireSender && senderSymbols.length === 0) {
-    const maskCount = countSecretBitMasks(disassembly);
-    if (maskCount < OPTIMIZED_SENDER_FAMILY_SYMBOLS.length) {
-      fail(
-        `${feature} optimized Worker WASM must retain at least ${String(OPTIMIZED_SENDER_FAMILY_SYMBOLS.length)} secret-bit mask sequences, found ${String(maskCount)}`,
-      );
+  if (!requireSender && symbolNames(
+    symbolTable,
+    /SenderAwaitExtension.*(?:ActivationOtFamily|ExportOtFamily|LaneMaterializationOtFamily).*6accept/,
+  ).length !== 0) {
+    fail(`${feature} retains an algorithm-specific IKNP sender accept function`);
+  }
+  const helpers = symbolNames(symbolTable, /two_party_primitives.*2ot15conditional_xor/);
+  const expectedHelpers = 1;
+  if (helpers.length !== expectedHelpers) {
+    fail(`${feature} must contain ${expectedHelpers} outlined IKNP XOR helper(s), found ${helpers.length}`);
+  }
+  if (requireSender) {
+    for (const specification of SENDER_FAMILY_SYMBOLS) {
+      if (symbolNames(symbolTable, specification.pattern).length !== 1) {
+        fail(`${feature} must retain one ${specification.family} sender family marker`);
+      }
     }
   }
-  for (const senderSymbol of senderSymbols) {
-    const sender = runCaptured(llvmObjdump, [`--disassemble-symbols=${senderSymbol}`, wasm]);
-    assertNoSecretBitBranch(sender, `${feature} IKNP sender`);
-    const maskCount = countSecretBitMasks(sender);
-    if (maskCount !== 1) {
-      fail(
-        `${feature} IKNP sender must contain exactly one optimizer-resistant secret-bit mask sequence, found ${maskCount}`,
-      );
-    }
-  }
+  const helper = runCaptured(llvmObjdump, [`--disassemble-symbols=${helpers[0]}`, wasm]);
+  inspectWasmOtHelper(helper);
 }
 
 function sha256File(path) {
@@ -560,7 +545,6 @@ function sha256File(path) {
 }
 
 function inspectWorkerArtifacts(aWasm, bWasm) {
-  qualifyWasmPatterns();
   const llvmObjdump = resolveLlvmObjdump();
   const before = Object.freeze({
     a: sha256File(aWasm),

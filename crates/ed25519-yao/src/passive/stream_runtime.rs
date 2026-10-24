@@ -269,7 +269,7 @@ where
             .ok_or(CircuitRunError::TableLength)?;
         let output_zero_labels = take_outputs(&mut self.arena, self.schedule.output_slots())?;
         let (returned_decoder, evaluator_translation) = partition_garbler_outputs(
-            self.garbler.delta,
+            self.garbler.into_delta(),
             output_zero_labels,
             self.returned_output_count,
         )?;

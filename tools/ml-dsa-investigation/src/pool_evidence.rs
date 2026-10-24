@@ -5,11 +5,11 @@ use crate::{
     prepared_keygen_evidence::HostTransport, reference, require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport},
     },
-    ml_dsa_signing::{
+    signing::{
         OwnSigningShare, SigningError, SigningRole,
         prepared_signing::gmw::pool::{PoolOutcome, PreparedGmwPool, ReadyGmwPool},
     },
@@ -232,12 +232,12 @@ impl Transport for SuspendedTransport {
     }
     fn phase(&mut self, _: Phase) {}
 }
-impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for SuspendedTransport {
+impl ml_dsa_threshold::runtime::boolean_mpc::Transport for SuspendedTransport {
     async fn send(&mut self, _: &[u8]) -> Result<(), RuntimeError> {
         pending().await
     }
     async fn receive(&mut self, _: usize) -> Result<Vec<u8>, RuntimeError> {
         pending().await
     }
-    fn phase(&mut self, _: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {}
+    fn phase(&mut self, _: ml_dsa_threshold::runtime::boolean_mpc::Phase) {}
 }

@@ -1,2 +1,2 @@
-#[path = "../../src/ml_dsa_signing/arithmetic/modular.rs"]
+#[path = "../../src/signing/arithmetic/modular.rs"]
 pub mod modular;

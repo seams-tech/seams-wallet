@@ -8,10 +8,7 @@ use super::stream_runtime::{
     export_garbler_machine, EvaluatorAdvance, EvaluatorBodyComplete, GarblerAdvance,
     GarblerBodyComplete,
 };
-use super::{
-    Evaluator, EvaluatorWire, Garbler, GarblerWire, GlobalDelta, SessionDomain, WireLabel,
-    WireValue,
-};
+use super::{Evaluator, EvaluatorWire, Garbler, GarblerWire, SessionDomain, WireValue};
 
 fn next_u64(state: &mut u64) -> u64 {
     *state ^= *state << 13;
@@ -32,7 +29,7 @@ fn deterministic_inputs(
         let mut bytes = [0_u8; 16];
         bytes[..8].copy_from_slice(&next_u64(&mut state).to_be_bytes());
         bytes[8..].copy_from_slice(&next_u64(&mut state).to_be_bytes());
-        let wire = GarblerWire::from_zero_label(WireLabel::from_test_bytes(bytes));
+        let wire = two_party_primitives::test_fixtures::garbler_wire(bytes);
         let value = WireValue::from_secret_bit(next_u64(&mut state) as u8);
         evaluator_inputs.push(garbler.encode(&wire, value));
         garbler_inputs.push(wire);
@@ -104,16 +101,21 @@ where
 }
 
 fn exercise_activation<C: FixedChunkProfile>() {
-    let domain = SessionDomain::from_test_value(0x1020_3040_5060_7080).expect("domain");
+    let domain = SessionDomain::from_protocol_value(0x1020_3040_5060_7080).expect("domain");
     let delta = [0xa5_u8; 16];
-    let whole_garbler = Garbler::new(GlobalDelta::from_test_bytes(delta), domain);
-    let streamed_garbler = Garbler::new(GlobalDelta::from_test_bytes(delta), domain);
+    let whole_garbler = Garbler::new(
+        two_party_primitives::test_fixtures::global_delta(delta),
+        domain,
+    );
+    let streamed_garbler = Garbler::new(
+        two_party_primitives::test_fixtures::global_delta(delta),
+        domain,
+    );
     let (whole_inputs, whole_evaluator_inputs) =
         deterministic_inputs(&whole_garbler, 3_072, 0x1122_3344_5566_7788);
     let (streamed_inputs, streamed_evaluator_inputs) =
         deterministic_inputs(&streamed_garbler, 3_072, 0x1122_3344_5566_7788);
-    let whole = whole_garbler
-        .garble_phase4_activation(whole_inputs)
+    let whole = super::runtime::garble_phase4_activation(whole_garbler, whole_inputs)
         .expect("whole garble");
     let (chunks, body) = collect_garbler(
         activation_garbler_machine::<C>(streamed_garbler, streamed_inputs, 512)
@@ -153,11 +155,14 @@ fn exercise_activation<C: FixedChunkProfile>() {
         u32::try_from(whole.tables.len().div_ceil(C::MAX_PAYLOAD_BYTES)).expect("frames")
     );
 
-    let whole_evaluated = Evaluator::new(domain)
-        .evaluate_phase4_activation(whole_evaluator_inputs, &whole.tables)
-        .expect("whole evaluate")
-        .into_private_outputs(512)
-        .expect("whole private outputs");
+    let whole_evaluated = super::runtime::evaluate_phase4_activation(
+        Evaluator::new(domain),
+        whole_evaluator_inputs,
+        &whole.tables,
+    )
+    .expect("whole evaluate")
+    .into_private_outputs(512)
+    .expect("whole private outputs");
     let whole_garbled = whole.into_private_outputs(512).expect("whole outputs");
     let whole_a = whole_garbled
         .returned_decoder
@@ -180,17 +185,22 @@ fn exercise_activation<C: FixedChunkProfile>() {
 }
 
 fn exercise_export<C: FixedChunkProfile>() {
-    let domain = SessionDomain::from_test_value(0x8877_6655_4433_2211).expect("domain");
+    let domain = SessionDomain::from_protocol_value(0x8877_6655_4433_2211).expect("domain");
     let delta = [0x3c_u8; 16];
-    let whole_garbler = Garbler::new(GlobalDelta::from_test_bytes(delta), domain);
-    let streamed_garbler = Garbler::new(GlobalDelta::from_test_bytes(delta), domain);
+    let whole_garbler = Garbler::new(
+        two_party_primitives::test_fixtures::global_delta(delta),
+        domain,
+    );
+    let streamed_garbler = Garbler::new(
+        two_party_primitives::test_fixtures::global_delta(delta),
+        domain,
+    );
     let (whole_inputs, whole_evaluator_inputs) =
         deterministic_inputs(&whole_garbler, 1_536, 0x0123_4567_89ab_cdef);
     let (streamed_inputs, streamed_evaluator_inputs) =
         deterministic_inputs(&streamed_garbler, 1_536, 0x0123_4567_89ab_cdef);
-    let whole = whole_garbler
-        .garble_phase4_export(whole_inputs)
-        .expect("whole garble");
+    let whole =
+        super::runtime::garble_phase4_export(whole_garbler, whole_inputs).expect("whole garble");
     let (chunks, body) = collect_garbler(
         export_garbler_machine::<C>(streamed_garbler, streamed_inputs, 256)
             .expect("garbler machine")
@@ -222,11 +232,14 @@ fn exercise_export<C: FixedChunkProfile>() {
     );
     assert_eq!(streamed_evaluated.and_records_decoded, 1_275);
 
-    let whole_evaluated = Evaluator::new(domain)
-        .evaluate_phase4_export(whole_evaluator_inputs, &whole.tables)
-        .expect("whole evaluate")
-        .into_private_outputs(256)
-        .expect("whole private outputs");
+    let whole_evaluated = super::runtime::evaluate_phase4_export(
+        Evaluator::new(domain),
+        whole_evaluator_inputs,
+        &whole.tables,
+    )
+    .expect("whole evaluate")
+    .into_private_outputs(256)
+    .expect("whole private outputs");
     let whole_garbled = whole.into_private_outputs(256).expect("whole outputs");
     let whole_a = whole_garbled
         .returned_decoder

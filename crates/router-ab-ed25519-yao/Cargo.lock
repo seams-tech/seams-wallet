@@ -440,11 +440,11 @@ dependencies = [
 name = "ed25519-yao"
 version = "0.1.0"
 dependencies = [
- "aes",
  "curve25519-dalek",
  "getrandom 0.2.17",
  "sha2 0.10.9",
  "subtle",
+ "two-party-primitives",
  "zeroize",
 ]
 
@@ -1509,6 +1509,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2abe9b86193656635d2411dc43050282ca48aa31c2451210f4202550afb7526"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "two-party-primitives"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "curve25519-dalek",
+ "getrandom 0.2.17",
+ "sha2 0.10.9",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]

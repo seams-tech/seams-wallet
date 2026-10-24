@@ -1,8 +1,8 @@
 use crate::{InvestigationResult, digest, reference::fixture_bytes, require};
+use ed25519_yao_generator::{MlDsaHashWorkloadV1, compile_ml_dsa_hash_circuit_v1};
 use ml_dsa_threshold::benchmarks::ml_dsa_kernel::{
     KernelRoleMetrics, PublicKernelSchedule, evaluate_public_fixture, garble_public_fixture,
 };
-use ed25519_yao_generator::{MlDsaHashWorkloadV1, compile_ml_dsa_hash_circuit_v1};
 use serde_json::{Value, json};
 use std::{
     env, fs, io,
@@ -69,7 +69,7 @@ pub(super) fn run(samples: usize) -> InvestigationResult<Value> {
     let mut engine_sources = Vec::new();
     for path in [
         "crates/ed25519-yao/src/passive.rs",
-        "crates/ed25519-yao/src/passive/gate_aes.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "crates/ml-dsa-threshold/src/benchmarks/ml_dsa_kernel.rs",
     ] {
         engine_sources.push(

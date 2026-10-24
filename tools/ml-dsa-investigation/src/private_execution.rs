@@ -86,9 +86,7 @@ pub(super) fn encode_metrics(metrics: &PrivateRoleMetrics) -> Value {
 }
 
 /// Public core counters without host-specific timing fields.
-pub(super) fn encode_runtime_metrics(
-    metrics: &ml_dsa_threshold::ml_dsa_runtime::RuntimeMetrics,
-) -> Value {
+pub(super) fn encode_runtime_metrics(metrics: &ml_dsa_threshold::runtime::RuntimeMetrics) -> Value {
     json!({
         "table_bytes": metrics.table_bytes,
         "frame_count": metrics.frame_count,

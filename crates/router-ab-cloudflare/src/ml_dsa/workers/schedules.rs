@@ -1,11 +1,14 @@
 //! Pinned public circuits. No benchmark key, root share, or nonce enters this module.
 use super::*;
-use ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies;
-use ml_dsa_threshold::ml_dsa_runtime::TrustedMlDsaSchedule;
+use ml_dsa_threshold::runtime::boolean_mpc::prepared::PublicTopologies;
+use ml_dsa_threshold::runtime::TrustedMlDsaSchedule;
 use std::sync::OnceLock;
 
 // Hash of the ordered, pinned circuit digests. Participants validate the full circuits.
-pub(super) const DIGEST: [u8; 32] = [247, 112, 70, 82, 98, 238, 136, 1, 220, 224, 124, 142, 51, 207, 97, 224, 103, 33, 181, 156, 87, 209, 167, 162, 96, 196, 166, 224, 10, 228, 25, 82];
+pub(super) const DIGEST: [u8; 32] = [
+    247, 112, 70, 82, 98, 238, 136, 1, 220, 224, 124, 142, 51, 207, 97, 224, 103, 33, 181, 156, 87,
+    209, 167, 162, 96, 196, 166, 224, 10, 228, 25, 82,
+];
 
 static SCHEDULES: OnceLock<Result<Vec<TrustedMlDsaSchedule<'static>>>> = OnceLock::new();
 thread_local! {

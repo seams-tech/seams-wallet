@@ -9,11 +9,11 @@ use super::{
     wasm_linear_memory_highwater_bytes, Duplex, ROLE,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         prepared::{Phase, Transport},
         TrustedMlDsaSchedule,
     },
-    ml_dsa_signing::{
+    signing::{
         prepared_signing::{
             gmw::{prepare_gmw_reservation, GmwSignature, PreparedGmwReservation},
             prepare_signer, PreparedSignature, PreparedSigner, Reservation,
@@ -101,8 +101,12 @@ impl PreparedOperation<'_> {
                     .activate(own, &public_key, epoch, adapter)
                     .await?;
                 match signer.sign(message, context, operation, adapter).await? {
-                    ml_dsa_threshold::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Signed(signature) => Ok(Output::Gmw(signature)),
-                    ml_dsa_threshold::ml_dsa_signing::prepared_signing::gmw::GmwBatchResult::Exhausted(_) => Err(SigningError::PreparedPoolExhausted),
+                    ml_dsa_threshold::signing::prepared_signing::gmw::GmwBatchResult::Signed(
+                        signature,
+                    ) => Ok(Output::Gmw(signature)),
+                    ml_dsa_threshold::signing::prepared_signing::gmw::GmwBatchResult::Exhausted(
+                        _,
+                    ) => Err(SigningError::PreparedPoolExhausted),
                 }
             }
         }
@@ -129,7 +133,7 @@ impl Output {
     }
 }
 pub(super) fn batch_metrics(
-    metrics: &ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::BatchMetrics,
+    metrics: &ml_dsa_threshold::runtime::boolean_mpc::prepared::BatchMetrics,
 ) -> Value {
     let phases: Vec<_> = metrics
         .phases
@@ -236,7 +240,7 @@ async fn prepare<'a>(
 async fn generate_key(
     book: &Value,
     adapter: &mut Adapter<'_>,
-) -> worker::Result<Box<ml_dsa_threshold::ml_dsa_signing::keygen::KeygenOutput>> {
+) -> worker::Result<Box<ml_dsa_threshold::signing::keygen::KeygenOutput>> {
     let key_schedules = prepared::schedules(book)?;
     let fixture = prepared::fixture(book, 0)?;
     let root = prepared::own_root(fixture)?;

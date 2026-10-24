@@ -3,21 +3,21 @@
 use super::{drive_runtime, failure, runtime_failure, Duplex};
 use std::collections::BTreeSet;
 
+use ml_dsa::{EncodedSignature, EncodedVerifyingKey, MlDsa65, Signature, VerifyingKey};
 use ml_dsa_threshold::{
-    ml_dsa_runtime::TrustedMlDsaSchedule,
-    ml_dsa_signing::{
+    runtime::TrustedMlDsaSchedule,
+    signing::{
         keygen::{KeygenOutput, KeygenStep},
         SigningRole, PUBLIC_KEY_BYTES, SIGNATURE_BYTES,
     },
 };
-use ml_dsa::{EncodedSignature, EncodedVerifyingKey, MlDsa65, Signature, VerifyingKey};
 
 pub(super) async fn generate_wallet_key(
     root: &[u8; 32],
     schedules: &[TrustedMlDsaSchedule<'static>],
     transport: &mut Duplex<'_>,
 ) -> worker::Result<Box<KeygenOutput>> {
-    let wallet = ml_dsa_threshold::ml_dsa_signing::wallet_seed::prepare_wallet_keygen(
+    let wallet = ml_dsa_threshold::signing::wallet_seed::prepare_wallet_keygen(
         super::prepared::role(),
         root,
     )

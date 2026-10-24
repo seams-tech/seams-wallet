@@ -10,16 +10,14 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[3]
-AES = Path("crates/ed25519-yao/src/passive/gate_aes.rs")
+AES = Path("crates/two-party-primitives/src/gate_aes.rs")
 EIGHT = AES.with_suffix("") / "eight.rs"
-CORRELATION = Path("crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs")
+CORRELATION = Path("crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs")
 
 RUST = r'''
 // The isolated harness exposes the copied production primitive through its crate path.
-extern crate self as ed25519_yao;
-pub mod primitives {
-    pub use crate::passive::gate_aes;
-}
+extern crate self as two_party_primitives;
+pub use crate::passive::gate_aes;
 use aes::{
     cipher::{BlockCipherEncrypt, KeyInit},
     Aes128,
@@ -232,11 +230,20 @@ codegen-units = 1
 panic = "abort"
 
 [features]
-passive-primitives = []
+simd = []
 '''
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def historical_source(revision, paths):
+    """Resolve source locations only at the historical Git-object boundary."""
+    for path in paths:
+        result = subprocess.run(["git", "show", f"{revision}:{path}"], cwd=ROOT, capture_output=True)
+        if result.returncode == 0:
+            return result.stdout
+    raise RuntimeError(f"Missing historical source at {revision}: {paths}")
 
 
 def main():
@@ -257,14 +264,26 @@ def main():
         ]
         for relative, destination in source_copies:
             shutil.copyfile(ROOT / relative, source / "passive" / destination)
-        baseline = subprocess.check_output(["git", "show", f"{args.baseline}:{AES}"], cwd=ROOT)
+        baseline = historical_source(args.baseline, [AES, Path("crates/ed25519-yao/src/passive/gate_aes.rs")])
         (source / "baseline.rs").write_bytes(baseline)
-        adapter = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs"], cwd=ROOT).decode()
-        adapter = adapter.replace("crate::passive::gate_aes", "crate::passive::baseline_gate_aes")
+        adapter = historical_source(args.adapter_baseline, [
+            CORRELATION,
+            Path("crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs"),
+            Path("crates/ed25519-yao/src/passive/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs"),
+        ]).decode()
+        for historical_import in [
+            "crate::passive::gate_aes",
+            "ed25519_yao::primitives::gate_aes",
+            "two_party_primitives::gate_aes",
+        ]:
+            adapter = adapter.replace(historical_import, "crate::passive::baseline_gate_aes")
         (source / "passive/baseline_gate_aes").mkdir()
         for relative, destination in [(AES, "baseline_gate_aes.rs"), (EIGHT, "baseline_gate_aes/eight.rs")]:
-            original = subprocess.check_output(["git", "show", f"{args.adapter_baseline}:{relative}"], cwd=ROOT)
-            (source / "passive" / destination).write_bytes(original.replace(b"ml-dsa-runtime-benchmark", b"passive-primitives"))
+            previous = Path(str(relative).replace("crates/two-party-primitives/src/", "crates/ed25519-yao/src/passive/"))
+            original = historical_source(args.adapter_baseline, [relative, previous])
+            original = original.replace(b"ml-dsa-runtime-benchmark", b"simd")
+            original = original.replace(b"passive-primitives", b"simd")
+            (source / "passive" / destination).write_bytes(original)
         (source / "passive/baseline_adapter.rs").write_text(adapter)
         (source / "lib.rs").write_text(RUST)
         (work / "Cargo.toml").write_text(MANIFEST)
@@ -272,7 +291,7 @@ def main():
         subprocess.run(["rustfmt", "--edition", "2021", "--config", "skip_children=true", str(source / "lib.rs")], check=True)
         environment = dict(os.environ, RUSTFLAGS="-C target-feature=+simd128")
         subprocess.run(["cargo", "build", "--offline", "--release", "--target", "wasm32-unknown-unknown",
-                        "--features", "passive-primitives"], cwd=work, env=environment, check=True)
+                        "--features", "simd"], cwd=work, env=environment, check=True)
         wasm = work / "target/wasm32-unknown-unknown/release/ml_dsa_aes_screen.wasm"
         subprocess.run(["node", str(work / "run.mjs"), str(wasm), str(args.output.resolve())], check=True)
         if args.wasm_output is not None:

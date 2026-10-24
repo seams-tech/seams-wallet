@@ -25,17 +25,9 @@
 
 use zeroize::{DefaultIsZeroes, Zeroize};
 
-#[cfg(all(
-    feature = "passive-primitives",
-    target_arch = "wasm32",
-    target_feature = "simd128"
-))]
+#[cfg(all(feature = "simd", target_arch = "wasm32", target_feature = "simd128"))]
 mod eight;
-#[cfg(all(
-    feature = "passive-primitives",
-    target_arch = "wasm32",
-    target_feature = "simd128"
-))]
+#[cfg(all(feature = "simd", target_arch = "wasm32", target_feature = "simd128"))]
 pub use eight::{EightBlockAes128, EightBlocks};
 
 const BLOCK_BYTES: usize = 16;

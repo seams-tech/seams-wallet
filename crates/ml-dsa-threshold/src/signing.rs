@@ -16,7 +16,7 @@ pub mod wallet_seed;
 use core::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use super::ml_dsa_runtime::{
+use super::runtime::{
     begin_evaluator, begin_garbler, RuntimeMetrics, RuntimeOutput, Step, TrustedMlDsaSchedule,
 };
 use arithmetic::{
@@ -40,9 +40,9 @@ pub enum CircuitMetrics {
     #[cfg(feature = "benchmarks")]
     Boolean {
         /// The Boolean engine used for this invocation.
-        engine: super::ml_dsa_runtime::boolean_comparison::Engine,
+        engine: super::runtime::boolean_mpc::Engine,
         /// Directional phase counters from this role's execution.
-        metrics: super::ml_dsa_runtime::boolean_comparison::Metrics,
+        metrics: super::runtime::boolean_mpc::Metrics,
     },
 }
 
@@ -289,14 +289,14 @@ impl SigningCircuit {
     #[cfg(feature = "benchmarks")]
     pub async fn run_boolean(
         self,
-        engine: super::ml_dsa_runtime::boolean_comparison::Engine,
+        engine: super::runtime::boolean_mpc::Engine,
         schedule: &TrustedMlDsaSchedule<'_>,
-        transport: &mut impl super::ml_dsa_runtime::boolean_comparison::Transport,
+        transport: &mut impl super::runtime::boolean_mpc::Transport,
     ) -> Result<SigningStep> {
         if schedule.circuit_id() != self.kernel.circuit_id() {
             return Err(SigningError::Schedule);
         }
-        let output = super::ml_dsa_runtime::boolean_comparison::run(
+        let output = super::runtime::boolean_mpc::run(
             engine,
             self.machine.role,
             schedule,

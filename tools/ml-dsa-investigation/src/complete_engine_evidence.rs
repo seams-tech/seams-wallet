@@ -5,8 +5,8 @@ use crate::{
     require,
 };
 use ml_dsa_threshold::{
-    ml_dsa_runtime::boolean_comparison::Engine as BooleanEngine,
-    ml_dsa_signing::{CircuitMetrics, SigningRole},
+    runtime::boolean_mpc::Engine as BooleanEngine,
+    signing::{CircuitMetrics, SigningRole},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -181,13 +181,15 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "tools/ml-dsa-investigation/src/private_signing.rs",
         "tools/ml-dsa-investigation/src/reference.rs",
         "tools/ml-dsa-investigation/src/hybrid_keygen.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/arithmetic.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
-        "crates/ed25519-yao/src/passive/gate_aes.rs",
+        "crates/ml-dsa-threshold/src/signing.rs",
+        "crates/ml-dsa-threshold/src/signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/signing/arithmetic.rs",
+        "crates/ml-dsa-threshold/src/runtime.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "crates/ed25519-yao/src/passive/runtime.rs",
     ] {
         sources.push(json!({"path": path, "sha256": digest(&fs::read(repository.join(path))?)}));

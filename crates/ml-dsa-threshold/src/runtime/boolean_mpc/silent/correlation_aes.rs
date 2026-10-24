@@ -1,7 +1,7 @@
 //! AES-128 with the private four-block and eight-block Wasm backends.
-use ed25519_yao::primitives::gate_aes::FourBlocks;
+use two_party_primitives::gate_aes::FourBlocks;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-use ed25519_yao::primitives::gate_aes::{EightBlockAes128, EightBlocks};
+use two_party_primitives::gate_aes::{EightBlockAes128, EightBlocks};
 use zeroize::{DefaultIsZeroes, Zeroizing};
 
 /// Flat secret bytes erased with one volatile whole-value write and barrier.
@@ -19,7 +19,7 @@ pub(super) struct CorrelationAes {
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     wide: EightBlockAes128,
     #[cfg(target_arch = "wasm32")]
-    cipher: ed25519_yao::primitives::gate_aes::FourBlockAes128,
+    cipher: two_party_primitives::gate_aes::FourBlockAes128,
     #[cfg(not(target_arch = "wasm32"))]
     cipher: aes09::Aes128,
 }
@@ -27,7 +27,7 @@ pub(super) struct CorrelationAes {
 impl CorrelationAes {
     pub(super) fn new(key: &[u8; 16]) -> Self {
         #[cfg(target_arch = "wasm32")]
-        let cipher = ed25519_yao::primitives::gate_aes::FourBlockAes128::new(key);
+        let cipher = two_party_primitives::gate_aes::FourBlockAes128::new(key);
         #[cfg(not(target_arch = "wasm32"))]
         let cipher = {
             use aes09::cipher::KeyInit;

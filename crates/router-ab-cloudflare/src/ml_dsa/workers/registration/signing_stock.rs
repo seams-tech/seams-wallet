@@ -1,6 +1,6 @@
 //! Generic signing stock becomes key-bound before registration publishes its result.
 use super::*;
-use ml_dsa_threshold::ml_dsa_signing::prepared_signing::gmw::{
+use ml_dsa_threshold::signing::prepared_signing::gmw::{
     commit_gmw_reservations, prepare_gmw_reservations, PreparedGmwReservation,
 };
 const DOMAIN: &[u8] = b"seams/ml-dsa/registration-signing-stock/v4";
@@ -28,7 +28,7 @@ pub(super) async fn prepare(
     job: &core::Job,
     role: SigningRole,
     seed: &[u8; 32],
-    wire: &mut impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport,
+    wire: &mut impl ml_dsa_threshold::runtime::boolean_mpc::Transport,
     waits: Option<&wait_trace::WaitTrace>,
 ) -> Result<()> {
     let schedules = super::super::schedules::load()?;
@@ -89,7 +89,7 @@ pub(super) async fn commit(
     registration: &registration_preparation::Binding,
     key: &KeyScope,
     public_key: &[u8; 1952],
-    wire: &mut impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport,
+    wire: &mut impl ml_dsa_threshold::runtime::boolean_mpc::Transport,
 ) -> Result<()> {
     let participant = configured_role(env).map_err(storage_error)?;
     let role = match participant {

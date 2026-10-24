@@ -7,7 +7,7 @@ use super::schedule::ScheduleError;
 use super::schedule::{self, GateRecord, ValidatedSchedule};
 #[cfg(test)]
 use super::{Evaluator, GarbledAndGate, Garbler, AND_GATE_BYTES};
-use super::{EvaluatorWire, GarblerWire};
+use super::{EvaluatorWire, GarblerWire, GlobalDelta};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CircuitRunError {
@@ -157,7 +157,7 @@ impl EvaluatorOutputTranslation {
         let mut bits = vec![0_u8; zero_labels.len().div_ceil(8)];
         let mut index = 0_usize;
         while index < zero_labels.len() {
-            bits[index / 8] |= zero_labels[index].zero.selection_bit().0 << (index % 8);
+            bits[index / 8] |= zero_labels[index].selection_bit() << (index % 8);
             index += 1;
         }
         Self {
@@ -202,8 +202,8 @@ impl EvaluatorOutputTranslation {
         let mut decoded = vec![0_u8; self.output_count / 8];
         let mut index = 0_usize;
         while index < self.output_count {
-            let semantic = labels.0[index].active.selection_bit().0
-                ^ ((self.bits[index / 8] >> (index % 8)) & 1);
+            let semantic =
+                labels.0[index].selection_bit() ^ ((self.bits[index / 8] >> (index % 8)) & 1);
             decoded[index / 8] |= semantic << (index % 8);
             index += 1;
         }
@@ -249,69 +249,50 @@ impl ReturnedOutputLabels {
 }
 
 pub(super) fn decode_output_labels(
-    delta: &super::GlobalDelta,
+    delta: &GlobalDelta,
     output_zero_labels: &[GarblerWire],
     output_labels: &[EvaluatorWire],
 ) -> Result<Vec<u8>, CircuitRunError> {
-    if output_zero_labels.len() != output_labels.len()
-        || !output_zero_labels.len().is_multiple_of(8)
-    {
-        return Err(CircuitRunError::OutputCount);
-    }
-    let mut decoded = vec![0_u8; output_zero_labels.len() / 8];
-    let mut invalid = 0_u8;
-    let mut index = 0_usize;
-    while index < output_zero_labels.len() {
-        let zero = &output_zero_labels[index].zero;
-        let one = zero.xor(delta.label());
-        let active = &output_labels[index].active;
-        let is_zero = labels_equal(active, zero);
-        let is_one = labels_equal(active, &one);
-        invalid |= (is_zero.0 | is_one.0) ^ 1;
-        decoded[index / 8] |= is_one.0 << (index % 8);
-        index += 1;
-    }
-    if invalid == 0 {
-        Ok(decoded)
-    } else {
-        Err(CircuitRunError::InvalidOutputLabel)
-    }
+    two_party_primitives::decoding::decode_output_labels(delta, output_zero_labels, output_labels)
+        .map_err(|error| match error {
+            two_party_primitives::decoding::OutputDecodingError::OutputCount => {
+                CircuitRunError::OutputCount
+            }
+            two_party_primitives::decoding::OutputDecodingError::InvalidOutputLabel => {
+                CircuitRunError::InvalidOutputLabel
+            }
+        })
 }
 
 #[cfg(test)]
-impl Garbler {
-    pub(super) fn garble_phase4_activation(
-        self,
-        inputs: Vec<GarblerWire>,
-    ) -> Result<GarbledExecution, CircuitRunError> {
-        garble_fixed(self, schedule::phase4_activation()?, inputs)
-    }
-
-    pub(super) fn garble_phase4_export(
-        self,
-        inputs: Vec<GarblerWire>,
-    ) -> Result<GarbledExecution, CircuitRunError> {
-        garble_fixed(self, schedule::phase4_export()?, inputs)
-    }
+pub(super) fn garble_phase4_activation(
+    garbler: Garbler,
+    inputs: Vec<GarblerWire>,
+) -> Result<GarbledExecution, CircuitRunError> {
+    garble_fixed(garbler, schedule::phase4_activation()?, inputs)
 }
-
 #[cfg(test)]
-impl Evaluator {
-    pub(super) fn evaluate_phase4_activation(
-        self,
-        inputs: Vec<EvaluatorWire>,
-        tables: &[u8],
-    ) -> Result<EvaluatedExecution, CircuitRunError> {
-        evaluate_fixed(self, schedule::phase4_activation()?, inputs, tables)
-    }
-
-    pub(super) fn evaluate_phase4_export(
-        self,
-        inputs: Vec<EvaluatorWire>,
-        tables: &[u8],
-    ) -> Result<EvaluatedExecution, CircuitRunError> {
-        evaluate_fixed(self, schedule::phase4_export()?, inputs, tables)
-    }
+pub(super) fn garble_phase4_export(
+    garbler: Garbler,
+    inputs: Vec<GarblerWire>,
+) -> Result<GarbledExecution, CircuitRunError> {
+    garble_fixed(garbler, schedule::phase4_export()?, inputs)
+}
+#[cfg(test)]
+pub(super) fn evaluate_phase4_activation(
+    evaluator: Evaluator,
+    inputs: Vec<EvaluatorWire>,
+    tables: &[u8],
+) -> Result<EvaluatedExecution, CircuitRunError> {
+    evaluate_fixed(evaluator, schedule::phase4_activation()?, inputs, tables)
+}
+#[cfg(test)]
+pub(super) fn evaluate_phase4_export(
+    evaluator: Evaluator,
+    inputs: Vec<EvaluatorWire>,
+    tables: &[u8],
+) -> Result<EvaluatedExecution, CircuitRunError> {
+    evaluate_fixed(evaluator, schedule::phase4_export()?, inputs, tables)
 }
 
 #[cfg(test)]
@@ -356,7 +337,7 @@ fn garble_fixed(
                     let right_wire = required_wire(&arena, right)?;
                     garbler.garble_and(ordinal, left_wire, right_wire)
                 };
-                tables.extend_from_slice(&table.encode());
+                table.append_encoded(&mut tables);
                 arena[output] = Some(wire);
             }
             GateRecord::Invert { input, output } => {
@@ -375,7 +356,7 @@ fn garble_fixed(
     Ok(GarbledExecution {
         tables,
         decoder: GarblerOutputDecoder {
-            delta: garbler.delta,
+            delta: garbler.into_delta(),
             output_zero_labels,
         },
     })
@@ -460,26 +441,11 @@ fn evaluate_fixed(
     })
 }
 
-/// Allocates empty slots for a validated circuit schedule.
-pub fn empty_arena<T>(length: usize) -> Vec<Option<T>> {
-    let mut arena = Vec::with_capacity(length);
-    let mut index = 0_usize;
-    while index < length {
-        arena.push(None);
-        index += 1;
-    }
-    arena
-}
-
-/// Installs the validated input wires in schedule order.
-pub fn install_inputs<T>(arena: &mut [Option<T>], inputs: Vec<T>) {
-    for (slot, input) in inputs.into_iter().enumerate() {
-        arena[slot] = Some(input);
-    }
-}
+pub(super) use two_party_primitives::arena::{empty_arena, install_inputs};
 
 pub(super) fn required_wire<T>(arena: &[Option<T>], slot: usize) -> Result<&T, CircuitRunError> {
-    arena[slot].as_ref().ok_or(CircuitRunError::MissingWire)
+    two_party_primitives::arena::required_wire(arena, slot)
+        .map_err(|_| CircuitRunError::MissingWire)
 }
 
 pub(super) fn take_outputs<T>(
@@ -491,15 +457,4 @@ pub(super) fn take_outputs<T>(
         outputs.push(arena[slot].take().ok_or(CircuitRunError::OutputWire)?);
     }
     Ok(outputs)
-}
-
-fn labels_equal(left: &super::WireLabel, right: &super::WireLabel) -> super::ChoiceBit {
-    let mut difference = 0_u8;
-    let mut index = 0_usize;
-    while index < super::LABEL_BYTES {
-        difference |= left.bytes()[index] ^ right.bytes()[index];
-        index += 1;
-    }
-    let nonzero = (difference | difference.wrapping_neg()) >> 7;
-    super::ChoiceBit(nonzero ^ 1)
 }

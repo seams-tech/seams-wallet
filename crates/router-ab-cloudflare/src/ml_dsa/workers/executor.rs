@@ -30,12 +30,12 @@ impl Host for WorkerHost<'_> {
     }
     fn public_topologies(
         &self,
-    ) -> ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies {
+    ) -> ml_dsa_threshold::runtime::boolean_mpc::prepared::PublicTopologies {
         schedules::public_topologies()
     }
     fn retain_public_topologies(
         &self,
-        topologies: &ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies,
+        topologies: &ml_dsa_threshold::runtime::boolean_mpc::prepared::PublicTopologies,
     ) {
         schedules::retain_public_topologies(topologies);
     }

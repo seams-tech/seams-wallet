@@ -5,14 +5,14 @@ use crate::{
     digest, material_storage_evidence, private_execution, private_keygen, private_signing, require,
     wallet_recovery_evidence,
 };
+use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use ml_dsa_threshold::{
-    ml_dsa_runtime::{
+    runtime::{
         RuntimeError, TrustedMlDsaSchedule,
         prepared::{Phase, Transport, keygen::prepare_keygen},
     },
-    ml_dsa_signing::SigningRole,
+    signing::SigningRole,
 };
-use ml_dsa::{Keypair, MlDsa65, SigningKey};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
@@ -44,8 +44,13 @@ pub(super) struct Counts {
     table_reads: usize,
 }
 impl Counts {
-    pub(super) fn table_write(&mut self, bytes: usize) { self.table_bytes_written += bytes; }
-    pub(super) fn table_read(&mut self, bytes: usize) { self.table_bytes_read += bytes; self.table_reads += 1; }
+    pub(super) fn table_write(&mut self, bytes: usize) {
+        self.table_bytes_written += bytes;
+    }
+    pub(super) fn table_read(&mut self, bytes: usize) {
+        self.table_bytes_read += bytes;
+        self.table_reads += 1;
+    }
 
     pub(super) fn json(&self) -> Value {
         json!({"sent_bytes": self.sent, "received_bytes": self.received, "sent_messages": self.sends, "received_messages": self.receives, "table_bytes_written": self.table_bytes_written, "table_bytes_read": self.table_bytes_read, "table_frame_reads": self.table_reads})
@@ -155,13 +160,21 @@ pub(super) fn try_run_child() -> InvestigationResult<bool> {
         one_way_delay_us: args[5].parse()?,
     };
     let mut transport = crate::registration_tables_evidence::RegistrationTransport::new(
-        host, role, &schedules, Path::new(&args[3]),
+        host,
+        role,
+        &schedules,
+        Path::new(&args[3]),
     )?;
     let started = Instant::now();
     let prepared = run_ready(prepare_keygen(role, &schedules, &mut transport))??;
     transport.check_before_consume()?;
     let (prepared, preparation_storage) = crate::keygen_storage_evidence::roundtrip(
-        prepared, role, &schedules, Path::new(&args[3]), &transport.binding, &transport.seed,
+        prepared,
+        role,
+        &schedules,
+        Path::new(&args[3]),
+        &transport.binding,
+        &transport.seed,
     )?;
     transport.check_after_consume()?;
     run_ready(barrier(role, &mut transport))??;
@@ -360,30 +373,33 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
         "crates/router-ab-cloudflare/src/ml_dsa/sealing.rs",
         "tools/ml-dsa-investigation/src/registration_tables_evidence.rs",
         "tools/ml-dsa-investigation/src/keygen_storage_evidence.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/prepared/keygen.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/keygen.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/wallet_seed.rs",
+        "crates/ml-dsa-threshold/src/runtime/prepared.rs",
+        "crates/ml-dsa-threshold/src/runtime/prepared/keygen.rs",
+        "crates/ml-dsa-threshold/src/runtime.rs",
+        "crates/ml-dsa-threshold/src/signing/keygen.rs",
+        "crates/ml-dsa-threshold/src/signing/wallet_seed.rs",
         "tools/ml-dsa-investigation/src/prepared_keygen_evidence.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/commitment.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/nonce.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/commitment.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/nonce.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent.rs",
         "crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/pprf.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/prepared.rs",
-        "crates/ed25519-yao/src/passive/ot.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/pprf.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/prepared.rs",
+        "crates/two-party-primitives/src/ot.rs",
+        "crates/two-party-primitives/src/lib.rs",
+        "crates/two-party-primitives/src/decoding.rs",
+        "crates/two-party-primitives/src/gate_aes.rs",
         "tools/ml-dsa-investigation/src/prepared_signing_evidence.rs",
         "tools/ml-dsa-investigation/src/pool_evidence.rs",
         "tools/ml-dsa-investigation/src/durable_preparation_evidence.rs",
         "tools/ml-dsa-investigation/src/durable_execution_evidence.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/storage.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/prepared/storage.rs",
-        "crates/ml-dsa-threshold/src/ml_dsa_signing/prepared_signing/gmw/pool.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/storage.rs",
+        "crates/ml-dsa-threshold/src/runtime/boolean_mpc/prepared/storage.rs",
+        "crates/ml-dsa-threshold/src/signing/prepared_signing/gmw/pool.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_signing.rs",
         "tools/ml-dsa-investigation/src/public_sampling_evidence.rs",
         "tools/ed25519-yao-generator/src/circuit/ml_dsa_public_sampling.rs",
@@ -404,14 +420,14 @@ pub(super) fn run(output: &Path) -> InvestigationResult<()> {
     Ok(())
 }
 
-impl ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Transport for HostTransport {
+impl ml_dsa_threshold::runtime::boolean_mpc::Transport for HostTransport {
     async fn send(&mut self, bytes: &[u8]) -> Result<(), RuntimeError> {
         Transport::send(self, bytes).await
     }
     async fn receive(&mut self, length: usize) -> Result<Vec<u8>, RuntimeError> {
         Transport::receive(self, length).await
     }
-    fn phase(&mut self, _: ml_dsa_threshold::ml_dsa_runtime::boolean_comparison::Phase) {
+    fn phase(&mut self, _: ml_dsa_threshold::runtime::boolean_mpc::Phase) {
         // The complete operation owns the offline/online measurement boundary.
     }
 }
