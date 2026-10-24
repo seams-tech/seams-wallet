@@ -23,6 +23,7 @@ type BuildNearDisplayModelArgs = {
   tokenMetadata: NearTokenMetadataByContract;
   intentDigest?: string;
   signerAccount?: string;
+  signerLabel?: string;
   title?: string;
   subtitle?: string;
 };
@@ -385,6 +386,7 @@ export function buildNearDisplayModel(args: BuildNearDisplayModelArgs): TxDispla
     chain: 'near',
     intentDigest: args.intentDigest,
     signerAccount: args.signerAccount,
+    signerLabel: args.signerLabel ?? 'Ed25519',
     title: args.title || 'NEAR Transaction',
     subtitle: args.subtitle,
     operations,

@@ -10,6 +10,7 @@ import { buildConfirmationBody } from './confirmation-body-model';
 
 export type ConfirmationPresentationInput = Pick<
   ConfirmUIUpdate,
+  | 'signingKeyChoice'
   | 'model'
   | 'securityContext'
   | 'loading'
@@ -118,6 +119,7 @@ export function normalizeConfirmationModel(input: {
         kind: 'transaction',
         capture: source.authMethodCapture ?? null,
         review: { model: source.model ?? null, tree: input.tree },
+        signingKeyChoice: source.signingKeyChoice ?? null,
         header: {
           heading: confirmationHeading(source),
           website: statusText(source.securityContext?.rpId?.trim() ?? ''),

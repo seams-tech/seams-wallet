@@ -1,6 +1,6 @@
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletText } from '@/core/ui/messages';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScanIcon } from './icons/ScanIcon';
 import { KeyIcon } from './icons/KeyIcon';
 import { LinkIcon } from './icons/LinkIcon';
@@ -52,12 +52,27 @@ import { WithdrawPanel } from './assets/WithdrawPanel';
 import { AssetsPageSection, useWalletAssetsController } from './assets/WalletAssets';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from '../HostedSeamsAuthMenu/types';
 
+async function loadSigningKeysSection() {
+  const module = await import('./SigningKeysSection');
+  return { default: module.SigningKeysSection };
+}
+const SigningKeysSection = lazy(loadSigningKeysSection);
+
+function SigningKeysLoading() {
+  return (
+    <p role="status">
+      <WalletText copy="Loading signing keys…" />
+    </p>
+  );
+}
+
 type AccountMenuRoute =
   | 'overview'
   | 'assets'
   | 'deposit'
   | 'withdraw'
   | 'accounts'
+  | 'signing-keys'
   | 'export-keys'
   | 'recovery-codes'
   | 'authentication-methods'
@@ -551,6 +566,18 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       });
     }
 
+    if (walletId && nearAccountId && accountMenuCapabilities.kind === 'owner') {
+      items.push({
+        id: PROFILE_MENU_ITEM_IDS.SIGNING_KEYS,
+        icon: <KeyIcon />,
+        label: 'Signing keys',
+        description: 'Manage keys or add an ML-DSA signer',
+        disabled: false,
+        onClick: setScreen.bind(null, 'signing-keys'),
+        keepOpenOnClick: true,
+      });
+    }
+
     if (layout === 'page') {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
@@ -572,6 +599,8 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     return items;
   }, [
     accountsRows.length,
+    walletId,
+    nearAccountId,
     layout,
     accountMenuCapabilities,
     canReadSettings,
@@ -642,6 +671,18 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
         <WithdrawPanel {...assets.withdraw} />
       </AccountMenuScreen>
     ),
+    'signing-keys':
+      walletId && nearAccountId ? (
+        <AccountMenuScreen title="Signing keys" onBack={backToMenu}>
+          <Suspense fallback={<SigningKeysLoading />}>
+            <SigningKeysSection
+              key={`${walletId}:${nearAccountId}`}
+              walletId={walletId}
+              nearAccountId={nearAccountId}
+            />
+          </Suspense>
+        </AccountMenuScreen>
+      ) : null,
     'transaction-settings': (
       <AccountMenuScreen title={walletText(locale, 'Transaction settings')} onBack={backToMenu}>
         {currentConfirmConfig ? (
@@ -742,6 +783,15 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           error={settingsError}
           sections={{
             assets: <AssetsPageSection controller={assets} />,
+            'signing-keys': nearAccountId ? (
+              <Suspense fallback={<SigningKeysLoading />}>
+                <SigningKeysSection
+                  key={`${walletId}:${nearAccountId}`}
+                  walletId={walletId}
+                  nearAccountId={nearAccountId}
+                />
+              </Suspense>
+            ) : null,
             accounts: <AccountsSection rows={accountsRows} presentation="page" />,
             'export-keys': (
               <ExportKeysSection

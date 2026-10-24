@@ -11,6 +11,7 @@ import './ProfileDropdown.css';
 const MENU_ORDER = [
   'assets',
   'accounts',
+  'signing-keys',
   'transaction-settings',
   'authentication-methods',
   'recovery-codes',

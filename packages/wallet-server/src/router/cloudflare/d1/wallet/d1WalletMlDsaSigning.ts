@@ -197,6 +197,50 @@ export class D1WalletMlDsaSigning {
       logger: normalizeLogger(),
     });
   }
+  /** Public references only. Reading metadata neither consumes quota nor authorizes signing. */
+  async metadata(input: {
+    readonly walletId: WalletId;
+    readonly token: string;
+  }): Promise<MlDsaSignerInventoryOutcome> {
+    const credential = {
+      tenantId: requireParsed(parseTenantId(this.options.scope.orgId), 'tenantId'),
+      token: input.token,
+      nowMs: Date.now(),
+    };
+    const owner =
+      await this.options.authorizations.readWalletSessionExactOperationContextByCredential(
+        credential,
+      );
+    if (
+      !owner ||
+      owner.session.walletId !== input.walletId ||
+      owner.authMethod.kind !== 'passkey' ||
+      !permitsMlDsaSigning(owner.authority)
+    )
+      return refusal(
+        'unauthorized',
+        'Signer metadata requires an unlocked full-owner passkey session',
+      );
+    if (!this.options.registration)
+      return refusal('not_configured', 'ML-DSA is not enabled for this wallet service');
+    const entries = await this.options.registration.listForWallet(input.walletId);
+    const current =
+      await this.options.authorizations.readWalletSessionExactOperationContextByCredential({
+        tenantId: credential.tenantId,
+        token: credential.token,
+        nowMs: Date.now(),
+      });
+    if (
+      !current ||
+      current.session.walletId !== input.walletId ||
+      current.authority.authorityDigestB64u !== owner.authority.authorityDigestB64u ||
+      current.authority.revocationEpoch !== owner.authority.revocationEpoch ||
+      current.authMethod.walletAuthMethodId !== owner.authMethod.walletAuthMethodId
+    )
+      return refusal('unauthorized', 'The signer metadata session changed');
+    return { kind: 'inventory', entries };
+  }
+
   /** Read retained server signers after recovery or full-owner device activation. */
   async prepareInventory(
     actor: MlDsaInventoryActor,

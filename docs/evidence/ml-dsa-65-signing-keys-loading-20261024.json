@@ -1,0 +1,38 @@
+{
+  "observedAt": "2026-10-24T10:49:59.380Z",
+  "scope": "Static ESM imports only. Dynamic operations load optional code later. Source bytes are uncompressed and shared between roots.",
+  "results": [
+    {
+      "root": "mlDsaTransaction-DwdsLGlK.js",
+      "staticFiles": 59,
+      "optionalCodecLoaded": true,
+      "registrationImplementationLoaded": false,
+      "sourceBytes": 836548,
+      "rootSha256": "edc59fd51c7a1671ef2a4e00037aa95a7f61175d710e0528c703c21deb409317"
+    },
+    {
+      "root": "runtime-auth-BcS7BBG4.js",
+      "staticFiles": 117,
+      "optionalCodecLoaded": false,
+      "registrationImplementationLoaded": false,
+      "sourceBytes": 3303253,
+      "rootSha256": "b3b6805987dae833fe4d7ce1e60109e80cd6e99ef6a14b0b56260ac3abde57dd"
+    },
+    {
+      "root": "runtime-near-DWcmp6AF.js",
+      "staticFiles": 117,
+      "optionalCodecLoaded": false,
+      "registrationImplementationLoaded": false,
+      "sourceBytes": 3179988,
+      "rootSha256": "52c6db4660e836d250d451b4d5ed3a2ab4122a5e77ab0529d5f0692abc929c09"
+    },
+    {
+      "root": "wallet-iframe-host-near.js",
+      "staticFiles": 26,
+      "optionalCodecLoaded": false,
+      "registrationImplementationLoaded": false,
+      "sourceBytes": 70459,
+      "rootSha256": "9c9afb1bb55ed6584f5ffae8339acea3d40ba15f1bb85cea589e96e7af5a8f43"
+    }
+  ]
+}

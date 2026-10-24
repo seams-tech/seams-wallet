@@ -955,3 +955,22 @@
 .seams-wallet-ui[data-receipt-morphing] .seams-transaction-toast {
   background: transparent;
 }
+
+.seams-signing-key-choice {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+.seams-signing-key-choice select {
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  font: inherit;
+  width: 100%;
+}
+.seams-signing-key-choice select:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}

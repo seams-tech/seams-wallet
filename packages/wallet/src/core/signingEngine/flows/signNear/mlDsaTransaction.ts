@@ -1,3 +1,4 @@
+import { assertSigningNotCancelled } from '../shared/cancellation';
 import { SignedTransaction, type NearClient } from '@/core/rpcClients/near/NearClient';
 import type {
   AddedMlDsaSignerCapability,
@@ -30,10 +31,7 @@ import {
   prepareMlDsaNearSigning,
   initializeMlDsaCodec,
 } from '@/core/rpcClients/relayer/mlDsaSigning';
-import {
-  assertMlDsaSigningNotCancelled,
-  executeMlDsaSigningUntilSettled,
-} from './mlDsaSigningExecution';
+import { executeMlDsaSigningUntilSettled } from './mlDsaSigningExecution';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
@@ -71,7 +69,7 @@ export async function signMlDsaNearTransaction(
   deps: Dependencies,
   input: MlDsaNearTransactionInput,
 ): Promise<SignTransactionResult> {
-  assertMlDsaSigningNotCancelled(input.shouldAbort);
+  assertSigningNotCancelled(input.shouldAbort);
   if (input.options.signerSlot !== undefined)
     throw new Error('An ML-DSA signer reference already selects the exact key');
   const owner = await resolveMlDsaPasskeyOwner(input.walletSession.walletId);
@@ -102,13 +100,13 @@ export async function signMlDsaNearTransaction(
       transaction: transactionInput,
     },
   });
-  assertMlDsaSigningNotCancelled(input.shouldAbort);
+  assertSigningNotCancelled(input.shouldAbort);
   await initializeMlDsaCodec();
   const identifiers = requireRecord(
     JSON.parse(ml_dsa65_near_key_identifiers(input.signer.publicKeyB64u)),
     'ML-DSA key identifiers',
   );
-  assertMlDsaSigningNotCancelled(input.shouldAbort);
+  assertSigningNotCancelled(input.shouldAbort);
   const reserved = await deps.nonceCoordinator.reserveNearContext({
     lane: buildNearNonceLane({
       chains: deps.configs.network.chains,
@@ -131,7 +129,7 @@ export async function signMlDsaNearTransaction(
   const nonceLease = nonceLeaseToRef(lease);
   const dispatch: SigningDispatch = { kind: 'approved' };
   try {
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     const unsignedTransactionBorshB64u = ml_dsa65_build_near_transaction(
       JSON.stringify({
         signerId: String(input.nearAccount.accountId),
@@ -155,7 +153,7 @@ export async function signMlDsaNearTransaction(
       },
     });
     if (prepared.kind !== 'prepared') throw new Error(prepared.message);
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     const preparation = prepared.preparation;
     const approval = await prepareMlDsaTransactionApproval({
       relayerUrl,
@@ -164,7 +162,7 @@ export async function signMlDsaNearTransaction(
       materialEpoch: input.signer.materialEpoch,
       policy: input.options.mlDsaSigningSession ?? null,
     });
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
       phase: SigningEventPhase.STEP_05_CONFIRMATION_DISPLAYED,
       status: 'running',
@@ -175,7 +173,7 @@ export async function signMlDsaNearTransaction(
     );
     if (!decision.confirmed)
       throw new Error(decision.error || 'ML-DSA transaction approval was cancelled');
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     const credential = decision.credential
       ? redactCredentialExtensionOutputs(normalizeAuthenticationCredential(decision.credential))
       : null;
@@ -220,7 +218,7 @@ export async function signMlDsaNearTransaction(
       operationId,
       operationFingerprint: fingerprint,
     });
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     const signedResult = {
       signedTransaction,
       nearAccountId: String(input.nearAccount.accountId),
@@ -260,6 +258,7 @@ function mlDsaConfirmationRequest(
   };
   const displayModel = buildNearDisplayModel({
     txSigningRequests: [transactionInput],
+    signerLabel: 'ML-DSA-65',
     signerAccount: String(input.nearAccount.accountId),
     intentDigest: approval.challengeB64u,
   });

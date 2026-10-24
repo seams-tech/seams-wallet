@@ -6,7 +6,6 @@ import {
   buildWalletSessionAuthorizationHeaders,
 } from '../../../core/rpcClients/relayer/relayerHttp';
 import { recordWalletCustodyTiming } from '@/core/signingEngine/walletCustody/ceremonyDriver';
-import { addPasskeyMlDsaWalletSigner } from '@/core/signingEngine/walletCustody/mlDsaAddSigner';
 import { registrationSelectionIncludesNear } from './registrationSignerSet';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import { listConfiguredThresholdEcdsaPublicationTargets } from '@/SeamsWeb/operations/session/thresholdEcdsaProvisioning';
@@ -5965,7 +5964,9 @@ async function dispatchPasskeyWalletAddSigner(args: {
   started: WalletAddSignerStartResponse;
 }): Promise<RegistrationResult> {
   switch (args.signerSelection.mode) {
-    case 'ml_dsa_65':
+    case 'ml_dsa_65': {
+      const { addPasskeyMlDsaWalletSigner } =
+        await import('@/core/signingEngine/walletCustody/mlDsaAddSigner');
       if (args.started.kind !== 'near_ml_dsa_65')
         throw new Error('Wallet add-signer start returned a different signer branch');
       return addPasskeyMlDsaWalletSigner({
@@ -5974,6 +5975,7 @@ async function dispatchPasskeyWalletAddSigner(args: {
         relayerUrl: args.input.relayerUrl,
         passkeyPrfFirstB64u: args.input.passkeyPrfFirstB64u,
       });
+    }
     case 'ed25519':
       if (args.started.kind !== 'near_ed25519') {
         throw new Error('Wallet add-signer start returned a different signer branch');

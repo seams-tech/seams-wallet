@@ -1,6 +1,8 @@
 # SeamsAuthMenu: NEAR account and signing-key selection
 
-Status: proposed implementation plan, 2026-10-13. No product implementation is included.
+Status: broader account-grouping proposal, updated 2026-10-24.
+The [Signing keys implementation](ml-dsa-65-signing-keys-report.md) adds authenticated metadata, per-device defaults, settings enrollment, and transaction selection.
+Login-menu account grouping and per-key device projections below remain proposed. This release uses algorithm labels and does not assign primary/backup roles.
 
 ## Outcome
 

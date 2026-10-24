@@ -178,6 +178,9 @@ export interface NonceCoordinatorSurface {
 }
 
 export interface NearSigningSurface extends NonceCoordinatorSurface {
+  selectNearTransactionSigner(
+    input: import('@/core/signingEngine/flows/signNear/selectNearSigner').NearSignerSelectionInput,
+  ): Promise<import('@/core/types/seams').NearTransactionSignerSelection>;
   signMlDsaNearTransaction(
     input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
   ): Promise<import('@/core/types/seams').SignTransactionResult>;

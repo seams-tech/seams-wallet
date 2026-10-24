@@ -1,4 +1,5 @@
 /** @jsxImportSource preact */
+import type { SigningKeyChoice } from '../confirm-ui-types';
 import {
   WalletText,
   WalletLocaleContext,
@@ -57,6 +58,7 @@ export type ConfirmationContentModel =
   | {
       kind: 'transaction';
       capture: HTMLElement | null;
+      signingKeyChoice: SigningKeyChoice | null;
       registration?: never;
       header: Omit<ConfirmHeaderProps, 'styles' | 'icon'>;
       body: ConfirmationBodyModel;
@@ -180,6 +182,13 @@ export class ConfirmationContent extends Component<{
             <WalletText copy={model.header.heading} />
           </h2>
           <TransactionReview data={model.review} />
+          {model.signingKeyChoice ? (
+            <SigningKeySelect choice={model.signingKeyChoice} />
+          ) : model.review.model?.signerLabel ? (
+            <p class="seams-signing-key-label">
+              <WalletText copy="Signing key" />: <strong>{model.review.model.signerLabel}</strong>
+            </p>
+          ) : null}
           <div class="seams-review-context">
             <ConfirmationBody model={model.body} onCopyAccount={this.copyAccount} />
             {model.prompt.kind === 'email' && (
@@ -263,4 +272,27 @@ class AuthMethodCapture extends Component<{ element: HTMLElement }> {
   render(): ComponentChildren {
     return <div ref={this.container} class="seams-auth-method-capture" />;
   }
+}
+
+function changeSigningKey(choice: SigningKeyChoice, event: Event): void {
+  if (event.currentTarget instanceof HTMLSelectElement) choice.onChange(event.currentTarget.value);
+}
+function signingKeyOption(option: SigningKeyChoice['options'][number]) {
+  return (
+    <option key={option.id} value={option.id}>
+      {option.label}
+    </option>
+  );
+}
+function SigningKeySelect({ choice }: { choice: SigningKeyChoice }) {
+  return (
+    <label class="seams-signing-key-choice">
+      <span>
+        <WalletText copy="Signing key" />
+      </span>
+      <select value={choice.selected} onChange={changeSigningKey.bind(null, choice)}>
+        {choice.options.map(signingKeyOption)}
+      </select>
+    </label>
+  );
 }

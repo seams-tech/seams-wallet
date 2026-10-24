@@ -39,6 +39,12 @@ const SETTINGS_ITEMS = [
     icon: <GlobeIcon />,
   },
   {
+    id: PROFILE_MENU_ITEM_IDS.SIGNING_KEYS,
+    label: 'Signing keys',
+    description: 'Manage keys or add an ML-DSA signer',
+    icon: <KeyIcon />,
+  },
+  {
     id: PROFILE_MENU_ITEM_IDS.TRANSACTION_SETTINGS,
     label: 'Transaction settings',
     description: 'Customize confirmation behavior',

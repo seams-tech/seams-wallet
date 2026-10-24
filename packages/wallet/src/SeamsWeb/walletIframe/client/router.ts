@@ -2969,7 +2969,7 @@ export class WalletIframeRouter {
   // ===== SeamsWeb RPCs =====
 
   async signTransaction(payload: {
-    signer: import('@/core/types/seams').NearTransactionSignerSelection;
+    signer: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
     walletId: string;
     nearAccountId: string;
     transaction: TransactionInput;
@@ -3272,6 +3272,38 @@ export class WalletIframeRouter {
       type: 'PM_EXTERNAL_OWNER_AUTH', payload: { action: 'associate', input },
     }, { timeout: 'interactive' });
     return response.result;
+  }
+
+  async getDefaultNearSigner(walletId: string, nearAccountId: string) {
+    const response = await this.post<unknown>({
+      type: 'PM_GET_DEFAULT_NEAR_SIGNER',
+      payload: { walletId, nearAccountId },
+    });
+    const { parseNearSignerPreference } = await import('@/core/types/nearSigningKeys');
+    return parseNearSignerPreference(response.result);
+  }
+  async setDefaultNearSigner(
+    walletId: string,
+    nearAccountId: string,
+    preference: import('@/core/types/nearSigningKeys').NearSignerPreference,
+  ): Promise<void> {
+    await this.post({
+      type: 'PM_SET_DEFAULT_NEAR_SIGNER',
+      payload: { walletId, nearAccountId, preference },
+    });
+  }
+
+  async getMlDsaSigners(
+    walletId: string,
+  ): Promise<import('@shared/near/mlDsaInventory').MlDsaSignerInventoryOutcome> {
+    const expected = parseRequestedWalletId(walletId);
+    const response = await this.post<unknown>({
+      type: 'PM_GET_ML_DSA_SIGNERS',
+      payload: { walletId: expected },
+    });
+    const { parseMlDsaInventoryResponse } =
+      await import('@/core/rpcClients/relayer/mlDsaInventory');
+    return parseMlDsaInventoryResponse(response.result, true, expected);
   }
 
   async getWalletSession(walletId?: string): Promise<WalletSession> {
@@ -4076,7 +4108,7 @@ export class WalletIframeRouter {
 
   async signAndSendTransaction(
     payload: {
-      signer: import('@/core/types/seams').NearTransactionSignerSelection;
+      signer: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
       walletId: string;
       nearAccountId: string;
       transaction: TransactionInput;

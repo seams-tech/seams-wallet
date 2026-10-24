@@ -1,3 +1,4 @@
+import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   MlDsaSigningExecuteRequest,
   MlDsaInventoryRequest,
@@ -42,6 +43,8 @@ function failure(status: number, code: MlDsaSigningFailure['code'], message: str
 export async function handlePublicMlDsaSigning(
   ctx: FetchRouterApiContext,
 ): Promise<Response | null> {
+  const metadata = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_metadata');
+  const isMetadata = metadata && matchesRouteDefinitionRequest(metadata, ctx.method, ctx.pathname);
   const prepare = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_prepare');
   const execute = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_signing_execute');
   const session = findRouteDefinitionById(ctx.routeDefinitions, 'wallet_ml_dsa_session_prepare');
@@ -64,6 +67,7 @@ export async function handlePublicMlDsaSigning(
   const isInventoryPrepare =
     inventoryPrepare && matchesRouteDefinitionRequest(inventoryPrepare, ctx.method, ctx.pathname);
   if (
+    !isMetadata &&
     !isPrepare &&
     !isExecute &&
     !isInventory &&
@@ -90,7 +94,16 @@ export async function handlePublicMlDsaSigning(
       'walletId',
     );
     const body = await readJson(ctx.request);
-    if (isPrepare) command = parseCommand(body, 'prepare');
+    if (isMetadata) {
+      const record = exactRecord(body, ['walletId'], 'Signer metadata request');
+      const token = extractBearerCredential(ctx.request.headers);
+      if (!token)
+        return failure(401, 'unauthorized', 'Unlock this wallet to read its signing keys');
+      command = {
+        kind: 'metadata',
+        request: { walletId: requireParsed(parseWalletId(record.walletId), 'walletId'), token },
+      };
+    } else if (isPrepare) command = parseCommand(body, 'prepare');
     else if (isSession)
       command = { kind: 'session_prepare', request: parseMlDsaSigningSessionRequest(body) };
     else if (isSessionRevoke)
@@ -107,6 +120,9 @@ export async function handlePublicMlDsaSigning(
   try {
     let outcome;
     switch (command.kind) {
+      case 'metadata':
+        outcome = await ctx.service.walletAuthMethods.readMlDsaSignerMetadata(command.request);
+        break;
       case 'session_prepare':
         outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigningSession(
           command.request,
@@ -151,6 +167,10 @@ export async function handlePublicMlDsaSigning(
 }
 
 type PublicSigningCommand =
+  | {
+      readonly kind: 'metadata';
+      readonly request: { readonly walletId: WalletId; readonly token: string };
+    }
   | { readonly kind: 'session_prepare'; readonly request: MlDsaSigningSessionRequest }
   | { readonly kind: 'session_revoke'; readonly request: MlDsaSigningSessionCredential }
   | { readonly kind: 'prepare'; readonly request: MlDsaSigningRequest }
@@ -159,7 +179,7 @@ type PublicSigningCommand =
   | { readonly kind: 'prepare_inventory'; readonly request: MlDsaInventoryActor };
 function parseCommand(
   raw: unknown,
-  kind: Exclude<PublicSigningCommand['kind'], 'session_prepare' | 'session_revoke'>,
+  kind: Exclude<PublicSigningCommand['kind'], 'metadata' | 'session_prepare' | 'session_revoke'>,
 ): PublicSigningCommand {
   if (kind === 'prepare') return { kind: 'prepare', request: parseMlDsaSigningRequest(raw) };
   if (kind === 'prepare_inventory') return { kind, request: parseMlDsaInventoryActor(raw) };

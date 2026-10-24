@@ -1,3 +1,4 @@
+import { parseNearSignerPreference } from '@/core/types/nearSigningKeys';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import { parseEd25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
 import { toTrimmedString } from '@shared/utils/validation';
@@ -1353,7 +1354,26 @@ function parseStoredProfilePreferences(value: unknown): UserPreferences | null |
   ) {
     return null;
   }
+  let nearSigningKeys: UserPreferences['nearSigningKeys'];
+  const storedSigningKeys: unknown = Reflect.get(value, 'nearSigningKeys');
+  if (storedSigningKeys !== undefined) {
+    if (
+      !storedSigningKeys ||
+      typeof storedSigningKeys !== 'object' ||
+      Array.isArray(storedSigningKeys)
+    )
+      return null;
+    const parsed: Record<string, import('@/core/types/nearSigningKeys').NearSignerPreference> = {};
+    try {
+      for (const [scope, preference] of Object.entries(storedSigningKeys))
+        parsed[scope] = parseNearSignerPreference(preference);
+    } catch {
+      return null;
+    }
+    nearSigningKeys = parsed;
+  }
   return {
+    ...(nearSigningKeys === undefined ? {} : { nearSigningKeys }),
     ...(useRelayer === undefined ? {} : { useRelayer }),
     ...(useNetwork === undefined ? {} : { useNetwork }),
     confirmationConfig: {

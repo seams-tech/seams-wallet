@@ -33,3 +33,14 @@ export function parseNearTransactionSigner(raw: unknown): NearTransactionSignerS
       throw new Error('Unsupported NEAR transaction signer');
   }
 }
+
+export function parseNearTransactionSignerRequest(
+  raw: unknown,
+): import('@/core/types/nearSigningKeys').NearTransactionSignerRequest {
+  const value = requireRecord(raw, 'NEAR signer request');
+  if (value.kind === 'wallet_default') {
+    exactRecord(value, ['kind'], 'Wallet signing preference');
+    return { kind: 'wallet_default' };
+  }
+  return parseNearTransactionSigner(value);
+}

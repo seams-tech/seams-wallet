@@ -49,7 +49,6 @@ import type {
   SignAndSendDelegateActionResult,
   SignDelegateActionResult,
   SignTransactionResult,
-  NearTransactionSignerSelection,
   AddedMlDsaSignerCapability,
 } from '@/core/types/seams';
 import type {
@@ -822,13 +821,25 @@ type NearSubjectInput = {
 export interface NearSignerCapability {
   prepareOwnerTransaction(input: import('./ownerNearOperation').PrepareOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
   resumeOwnerTransaction(input: import('./ownerNearOperation').ResumeOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
+  getDefaultSigner(
+    input: NearSubjectInput,
+  ): Promise<import('@/core/types/nearSigningKeys').NearSignerPreference>;
+  setDefaultSigner(
+    input: NearSubjectInput & {
+      readonly preference: import('@/core/types/nearSigningKeys').NearSignerPreference;
+    },
+  ): Promise<void>;
+  /** Public signer references from the current full-owner session. No passkey prompt or signing allowance. */
+  getMlDsaSigners(input: {
+    walletSession?: WalletSessionInput;
+  }): Promise<import('@shared/near/mlDsaInventory').MlDsaSignerInventoryOutcome>;
 
   /** Returns false only for an absent account; unavailable RPC reads reject. */
   accountExists(accountId: string): Promise<boolean>;
 
   signAndSendTransaction(
     args: NearSubjectInput & {
-      signer?: NearTransactionSignerSelection;
+      signer?: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
       receiverId: string;
       actions: ActionArgs[];
       options?: SignAndSendTransactionHooksOptions;
@@ -837,7 +848,7 @@ export interface NearSignerCapability {
 
   signTransaction(
     args: NearSubjectInput & {
-      signer?: NearTransactionSignerSelection;
+      signer?: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
       transaction: TransactionInput;
       options?: SignTransactionHooksOptions;
     },

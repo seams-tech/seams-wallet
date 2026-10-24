@@ -65,3 +65,23 @@ declare const approved: ApprovedMlDsaSessionOperation;
 // @ts-expect-error Raw records cannot mint the verified durable session-admission proof.
 const forgedAdmission: ApprovedMlDsaSessionOperation = { record: approved.record, sessionIdB64u: approved.sessionIdB64u, expiresAtMs: approved.expiresAtMs };
 void forgedAdmission;
+
+import type {
+  NearSignerPreference,
+  NearTransactionSignerRequest,
+} from '../../packages/wallet/src/core/types/nearSigningKeys';
+// @ts-expect-error A default request cannot carry a concrete ML-DSA key through a spread.
+const mixedDefault: NearTransactionSignerRequest = { ...signer, kind: 'wallet_default' };
+void mixedDefault;
+// @ts-expect-error Ed25519 preferences cannot retain another key identity.
+const mixedPreference: NearSignerPreference = {
+  kind: 'ed25519',
+  signingKeyId: signer.signingKeyId,
+};
+void mixedPreference;
+// @ts-expect-error A preference is not enough to authorize a concrete ML-DSA operation.
+const preferenceAsSigner: NearTransactionSignerSelection = {
+  kind: 'near_ml_dsa_65',
+  signingKeyId: signer.signingKeyId,
+};
+void preferenceAsSigner;

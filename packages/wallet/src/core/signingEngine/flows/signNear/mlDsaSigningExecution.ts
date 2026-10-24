@@ -1,20 +1,8 @@
+import { assertSigningNotCancelled } from '../shared/cancellation';
 import { executeMlDsaNearSigning } from '@/core/rpcClients/relayer/mlDsaSigning';
 import type { MlDsaSigningOutcome } from '@shared/near/mlDsaSigning';
 
 type SettledMlDsaSigningOutcome = Exclude<MlDsaSigningOutcome, { readonly kind: 'retry' }>;
-
-class MlDsaSigningCancelledError extends Error {
-  readonly code = 'cancelled';
-
-  constructor() {
-    super('Request cancelled');
-    this.name = 'MlDsaSigningCancelledError';
-  }
-}
-
-export function assertMlDsaSigningNotCancelled(shouldAbort: () => boolean): void {
-  if (shouldAbort()) throw new MlDsaSigningCancelledError();
-}
 
 function scheduleRetry(milliseconds: number, resolve: () => void): void {
   setTimeout(resolve, milliseconds);
@@ -27,7 +15,7 @@ async function waitForRetry(
 ): Promise<void> {
   const wakeAtMs = Math.max(Date.now() + 100, retryAtMs);
   for (;;) {
-    assertMlDsaSigningNotCancelled(shouldAbort);
+    assertSigningNotCancelled(shouldAbort);
     const nowMs = Date.now();
     if (nowMs >= deadlineAtMs) throw new Error('ML-DSA signing approval expired');
     if (nowMs >= wakeAtMs) return;
@@ -43,12 +31,12 @@ export async function executeMlDsaSigningUntilSettled(input: {
   readonly onDispatch: () => void;
 }): Promise<SettledMlDsaSigningOutcome> {
   for (;;) {
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     if (Date.now() >= input.deadlineAtMs) throw new Error('ML-DSA signing approval expired');
     input.onDispatch();
     const result = await executeMlDsaNearSigning(input.request);
     if (result.kind !== 'retry') return result;
-    assertMlDsaSigningNotCancelled(input.shouldAbort);
+    assertSigningNotCancelled(input.shouldAbort);
     if (result.retryAtMs >= input.deadlineAtMs) throw new Error('ML-DSA signing approval expired');
     await waitForRetry(result.retryAtMs, input.deadlineAtMs, input.shouldAbort);
   }

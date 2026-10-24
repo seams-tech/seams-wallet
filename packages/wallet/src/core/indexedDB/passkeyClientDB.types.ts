@@ -39,6 +39,9 @@ export interface PasskeyCredentialRecord {
 }
 
 export interface UserPreferences {
+  nearSigningKeys?: Readonly<
+    Record<string, import('@/core/types/nearSigningKeys').NearSignerPreference>
+  >;
   useRelayer?: boolean;
   useNetwork?: 'testnet' | 'mainnet';
   confirmationConfig: ConfirmationConfig;

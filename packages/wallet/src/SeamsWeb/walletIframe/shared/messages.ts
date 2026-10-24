@@ -50,7 +50,6 @@ import type {
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
 import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
-import type { NearTransactionSignerSelection } from '@/core/types/seams';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
   RegistrationTimingSpanV1,
@@ -918,6 +917,9 @@ export type ParentToChildType =
   | 'PM_GET_WALLET_PLACEMENT'
   | 'PM_GET_WALLET_SESSION'
   | 'PM_GET_EXACT_WALLET_SESSION_STATE'
+  | 'PM_GET_DEFAULT_NEAR_SIGNER'
+  | 'PM_SET_DEFAULT_NEAR_SIGNER'
+  | 'PM_GET_ML_DSA_SIGNERS'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
   | 'PM_REQUEST_EMAIL_OTP_CHALLENGE'
   | 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH'
@@ -1237,7 +1239,7 @@ export type PMGoogleEmailOtpWalletAuthCompleteRegistrationWireResult =
   PMGoogleEmailOtpWalletAuthWireResult<GoogleEmailOtpWalletAuthRegistrationCompleted>;
 
 interface PMSignTxPayload {
-  signer: NearTransactionSignerSelection;
+  signer: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
@@ -1251,7 +1253,7 @@ interface PMSignTxPayload {
 }
 
 interface PMSignAndSendTxPayload {
-  signer: NearTransactionSignerSelection;
+  signer: import('@/core/types/nearSigningKeys').NearTransactionSignerRequest;
   walletId: string;
   nearAccountId: string;
   transaction: TransactionInput;
@@ -1753,6 +1755,19 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_GET_WALLET_PLACEMENT', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_WALLET_SESSION', PMGetWalletSessionPayload>
   | RpcEnvelope<'PM_GET_EXACT_WALLET_SESSION_STATE', PMGetExactWalletSessionStatePayload>
+  | RpcEnvelope<
+      'PM_GET_DEFAULT_NEAR_SIGNER',
+      { readonly walletId: string; readonly nearAccountId: string }
+    >
+  | RpcEnvelope<
+      'PM_SET_DEFAULT_NEAR_SIGNER',
+      {
+        readonly walletId: string;
+        readonly nearAccountId: string;
+        readonly preference: import('@/core/types/nearSigningKeys').NearSignerPreference;
+      }
+    >
+  | RpcEnvelope<'PM_GET_ML_DSA_SIGNERS', { readonly walletId: string }>
   | RpcEnvelope<'PM_GET_NEAR_PROVISIONING_STATE', PMGetNearProvisioningStatePayload>
   | RpcEnvelope<'PM_REQUEST_EMAIL_OTP_CHALLENGE', PMEmailOtpChallengePayload>
   | RpcEnvelope<'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH', PMGoogleEmailOtpWalletAuthStartPayload>

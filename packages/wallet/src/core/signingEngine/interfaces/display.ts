@@ -7,6 +7,7 @@ export interface TxDisplayModel {
   chainId?: number;
   intentDigest?: string;
   signerAccount?: string;
+  signerLabel?: string;
   title?: string;
   subtitle?: string;
   operations: TxDisplayOperation[];

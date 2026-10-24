@@ -35,6 +35,7 @@ export function walletForHostRequest(
   currentWalletId: string | null,
 ): WalletId | null {
   switch (request.type) {
+    case 'PM_SET_DEFAULT_NEAR_SIGNER':
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
     case 'PM_ACTIVATE_AUTH_METHOD':
@@ -95,6 +96,8 @@ export function walletForHostRequest(
     case 'PM_GET_WALLET_PLACEMENT':
     case 'PM_GET_WALLET_SESSION':
     case 'PM_GET_EXACT_WALLET_SESSION_STATE':
+    case 'PM_GET_DEFAULT_NEAR_SIGNER':
+    case 'PM_GET_ML_DSA_SIGNERS':
     case 'PM_GET_NEAR_PROVISIONING_STATE':
     case 'PM_REQUEST_EMAIL_OTP_CHALLENGE':
     case 'PM_BEGIN_GOOGLE_EMAIL_OTP_WALLET_AUTH':
