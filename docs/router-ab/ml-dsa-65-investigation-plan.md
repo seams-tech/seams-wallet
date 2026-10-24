@@ -2,6 +2,20 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [batched-commitment screen](ml-dsa-65-batched-commitments-report.md) validates shared exchanges across independent pairs.
+Eight pairs use 113 AND exchanges instead of 904, with the same 4,866,048 gates and only 448 fewer traffic bytes.
+Its maximum runtime message is 188,416 bytes. Individual two-candidate outputs remain independently consumable.
+Prepared candidate creation/recovery takes 6.213/6.954 seconds, versus matched control 5.224/5.201 seconds.
+Six candidate signatures verify in 1.660–3.079 seconds. They consume twelve pairs, versus nineteen on control, so the latency comparison is confounded.
+The batched commitment phase takes 0.966–2.627 seconds, versus 4.357–11.130 seconds in the separate earlier sequential screen.
+Complete registration plus first signing establishes no useful gain. The current runtime remains selected and all prototype changes are archived and removed.
+Native cohort-binding checks and real-Worker eight-record retirement/publication rollback checks pass.
+The publication campaign's later signature exhausts sixteen candidates, so its complete lifecycle result stays failed. Normal Gateway/restoration and delivery campaigns pass.
+All eighteen retained HTTP/transaction signatures verify again, and all twelve hosted operations have complete A/B traces.
+A control pool call rejects an inactive preprocessing lease; its exact command and trigger remain unresolved. No candidate exception is reported.
+Both arms' six temporary Workers are deleted. Recovery, FIPS export, private commitments, two-at-once consumption, and capacity remain unchanged.
+Next, test direct sealing for the final participant storage binding, while preserving exact replay, authorization, and atomic installation.
+Measure full registration and first signing. Cold/warm tails, sustained refill, multi-wallet memory, lease failures, and release security review remain open.
 The [earlier-commitment screen](ml-dsa-65-early-commitments-report.md) keeps the current runtime selected.
 Sequentially committing all eight initial pairs moves 904 private AND layers per participant into registration.
 Prototype prepared creation/recovery takes 9.968/15.992 seconds, versus control 4.916/5.818 seconds.
@@ -12,7 +26,7 @@ Canonical keys match across both arms and recovery. The prototype retirement, re
 An original local run fails Gateway migration after copying an initialized fixture database. Its preserved failure and fresh key-only repeat are documented.
 The patch and sanitized evidence remain archived. Runtime, storage-format, native-fixture, and fault-flag changes are removed.
 All six temporary Workers are deleted after each arm. Recovery, FIPS export, private commitments, two-at-once consumption, and capacity remain unchanged.
-Next, assess batching commitment exchanges across independently consumable pairs, and profile private checks and binary material delivery in the current Workers.
+The batched screen above completes that exchange experiment. Direct sealing, private checks, and binary material delivery remain open.
 Measure full registration plus first signing. Cold/warm, sustained refill, storage-failure, and release security qualification remain open.
 The [pool-actor signing screen](ml-dsa-65-pool-actor-report.md) keeps execution in the current role Workers.
 The actor prototype verifies six signatures in 2.254–8.214 seconds, with only three below five seconds.

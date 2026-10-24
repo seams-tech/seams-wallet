@@ -1,0 +1,268 @@
+{
+  "schema": "seams.ml-dsa-batched-commitments.v1",
+  "source_parent": "5b58906f29a47d06c4b869ba891b05c6ff5cea83",
+  "selection": {
+    "selected": "current runtime with generic initial registration stock",
+    "prototype_retained": false,
+    "reason": "Batched commitments reduce the commitment phase, but complete prepared registration is6.213/6.954s versus control5.224/5.201s. Six candidate signatures pass below5s, with12 consumed pairs versus19 on control. Complete registration plus first signing has no demonstrated gain. The tested early-commitment placement remains unselected.",
+    "batching_mechanism_validated": true,
+    "private_correlations_independent": true
+  },
+  "cryptographic_primitive_change": false,
+  "public_sdk_wire_change": false,
+  "prototype_private_changes": [
+    "One cohort binding covers ordered independent pairs; their existing GMW groups are co-evaluated without repacking correlations.",
+    "Tagged generic/committing/committed stock and v3 sealing domain.",
+    "Committed-only signing boundary."
+  ],
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "private_commitments": true,
+    "preparation_on_workers": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "verification": {
+    "captured_evidence_checks_passed": true,
+    "local_complete_lifecycles": {
+      "normal": true,
+      "retirement": true,
+      "publication": false,
+      "delivery": true
+    },
+    "local_fault_checks_passed": true,
+    "same_policy": true,
+    "canonical_recovery_verified": true,
+    "signature_reverification": {
+      "verified": 18,
+      "changed_messages_rejected": 18
+    },
+    "role_capture": {
+      "control": {
+        "requests": 6,
+        "complete_role_capture": 6
+      },
+      "candidate": {
+        "requests": 6,
+        "complete_role_capture": 6
+      }
+    },
+    "generic_online_stock_burned_and_refused": true,
+    "interrupted_commitment_retired": true,
+    "reported_exceptions": [
+      {
+        "arm": "control",
+        "record": 73,
+        "categories": [
+          "unclassified"
+        ]
+      }
+    ],
+    "consistent_five_second_target": false
+  },
+  "hosted": {
+    "control": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 67459.893125,
+          "registration_ms": 5224.395875000002,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 3388.2757909999928,
+          "registration_plus_initial_signing_ms": 8612.671665999995
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 56428.068417,
+          "registration_ms": 5200.99895899999,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 4414.4250000000175,
+          "registration_plus_initial_signing_ms": 9615.423959000007
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 5,
+        "minimum_ms": 3388.2757909999928,
+        "median_ms": 4226.410541500009,
+        "maximum_ms": 6969.900709000009,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 19,
+      "commitment_spans": [],
+      "commitment_batches": [],
+      "provider_invocations": 1088,
+      "reported_truncation": 0,
+      "exceptions": [
+        {
+          "record": 73,
+          "role": "a",
+          "categories": [
+            "unclassified"
+          ]
+        }
+      ]
+    },
+    "candidate": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 66495.172709,
+          "registration_ms": 6212.783959000008,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 2203.1809589999903,
+          "registration_plus_initial_signing_ms": 8415.964917999998
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 96954.79837500001,
+          "registration_ms": 6954.013917000004,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 3078.9089169999934,
+          "registration_plus_initial_signing_ms": 10032.922833999997
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 6,
+        "minimum_ms": 1659.5067080000008,
+        "median_ms": 2683.763270500007,
+        "maximum_ms": 3078.9089169999934,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 12,
+      "commitment_spans": [
+        {
+          "role": "a",
+          "job": "8aff9f528dcaae0875a83c49bcf6e0d72051b1e9f5d0f90bc76f498a3c4f460e",
+          "elapsed_ms": 1523
+        },
+        {
+          "role": "a",
+          "job": "1bd6d5909e670fe9226879ec6e5413d658c13f1e5e427e35eb6484b60dcb320d",
+          "elapsed_ms": 966
+        },
+        {
+          "role": "b",
+          "job": "8aff9f528dcaae0875a83c49bcf6e0d72051b1e9f5d0f90bc76f498a3c4f460e",
+          "elapsed_ms": 2141
+        },
+        {
+          "role": "b",
+          "job": "1bd6d5909e670fe9226879ec6e5413d658c13f1e5e427e35eb6484b60dcb320d",
+          "elapsed_ms": 2627
+        }
+      ],
+      "commitment_batches": [
+        {
+          "operation": "10d2e3cff0bb9609dce5dfe9184091fdb4ad976dceaea876b23a79870017557a",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 117309440,
+          "provider_cpu_ms": 648,
+          "provider_wall_ms": 4422
+        },
+        {
+          "operation": "c8b58df2eb02497e1af915b5ffd40e0c60f0a164620df09c83516d61e40a60bb",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 117309440,
+          "provider_cpu_ms": 1037,
+          "provider_wall_ms": 5061
+        },
+        {
+          "operation": "10d2e3cff0bb9609dce5dfe9184091fdb4ad976dceaea876b23a79870017557a",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 94437376,
+          "provider_cpu_ms": 2197,
+          "provider_wall_ms": 4379
+        },
+        {
+          "operation": "c8b58df2eb02497e1af915b5ffd40e0c60f0a164620df09c83516d61e40a60bb",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 94437376,
+          "provider_cpu_ms": 3526,
+          "provider_wall_ms": 5018
+        }
+      ],
+      "provider_invocations": 1016,
+      "reported_truncation": 0,
+      "exceptions": []
+    }
+  },
+  "qualification": {
+    "same_policy": true,
+    "canonical_keys_match": true,
+    "consistent_five_second_qualification": false,
+    "limits": [
+      "Sequential fresh deployments do not randomize placement, host load, module tiering, caches, or rejection counts.",
+      "Per-pair Worker-clock intervals include CPU and waits. Zero elapsed clocks do not establish zero CPU cost.",
+      "Provider CPU and wall clocks cover whole invocations, not individual traced intervals.",
+      "This bounded lifecycle screen does not qualify sustained refill or multi-wallet capacity."
+    ]
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_baseline": 13754,
+    "rust_duplicate_current": 13972,
+    "baseline_changed": false
+  },
+  "cleanup": {
+    "worker_destinations": 6,
+    "control_deleted": true,
+    "candidate_deleted": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-batched-commitments-20261024-data.json.gz",
+    "bytes": 624883,
+    "sha256": "98b75d366b74e52742d12987f192a08d5153acbb3db47db373ab6fbc94590f99"
+  }
+}
