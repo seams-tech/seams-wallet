@@ -1,6 +1,6 @@
-/* Transaction settings: the review surface and the confirmation step, as
-   cards with a small drawing. The settings page and the account menu share
-   these rules; the menu adds a compact variant. */
+/* Transaction settings: a review switch, then the review layout as cards
+   with a small drawing. The settings page and the account menu share these
+   rules; the menu adds a compact variant. */
 .seams-transaction-page {
   display: grid;
   gap: 40px;
@@ -11,7 +11,7 @@
   padding: 0;
   border: 0;
 }
-.seams-transaction-group + .seams-transaction-group {
+.seams-transaction-review + .seams-transaction-group {
   padding-top: 40px;
   border-top: 1px solid var(--seams-colors-borderPrimary);
 }
@@ -101,6 +101,92 @@
   cursor: not-allowed;
 }
 
+/* The switch row uses the card grid, so its edge lines up with the cards. */
+.seams-transaction-review {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+.seams-transaction-review > * {
+  grid-column: span 2;
+}
+.seams-transaction-review > p {
+  margin: 0;
+  padding-inline: 4px;
+  color: var(--seams-colors-textSecondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.seams-transaction-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 16px;
+  background: var(--seams-colors-colorBackground);
+}
+.seams-transaction-review-text {
+  display: grid;
+  gap: 6px;
+}
+.seams-transaction-review-text strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+.seams-transaction-review-text > span {
+  color: var(--seams-colors-textSecondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.seams-transaction-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 13px;
+  background: var(--seams-colors-borderPrimary);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.seams-transaction-switch > span {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--seams-colors-colorBackground);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 150ms ease;
+}
+.seams-transaction-switch[aria-checked='true'] {
+  background: var(--seams-colors-primary);
+}
+.seams-transaction-switch[aria-checked='true'] > span {
+  transform: translateX(18px);
+}
+[dir='rtl'] .seams-transaction-switch[aria-checked='true'] > span {
+  transform: translateX(-18px);
+}
+.seams-transaction-switch:focus-visible {
+  outline: 2px solid var(--seams-colors-primary);
+  outline-offset: 3px;
+}
+.seams-transaction-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seams-transaction-switch,
+  .seams-transaction-switch > span {
+    transition: none;
+  }
+}
+
 /* The preview draws a page with the review surface on top of it. */
 .seams-transaction-preview {
   position: relative;
@@ -166,34 +252,7 @@
   border-radius: 4px;
   background: var(--seams-colors-primary);
 }
-.seams-tp-prompt {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--seams-colors-borderPrimary);
-  border-radius: 50%;
-  background: var(--seams-colors-colorBackground);
-  color: var(--seams-colors-textPrimary);
-  transform: translate(-50%, -50%);
-}
-.seams-tp-panel .seams-tp-prompt {
-  position: static;
-  width: 26px;
-  height: 26px;
-  margin: auto auto 0;
-  transform: none;
-}
-.seams-tp-panel .seams-tp-prompt svg {
-  width: 14px;
-  height: 14px;
-}
-[data-preview='modal'] .seams-tp-panel,
-[data-preview='skipClick'] .seams-tp-panel,
-[data-preview='requireClick'] .seams-tp-panel {
+[data-preview='modal'] .seams-tp-panel {
   inset: 18% 26%;
 }
 [data-preview='drawer'] .seams-tp-panel {
@@ -205,12 +264,14 @@
   border-inline-end: 0;
   border-radius: 0;
 }
-[data-preview='skipClick'] .seams-tp-panel,
-[data-preview='requireClick'] .seams-tp-panel {
-  inset-inline: 30%;
-}
 
 @media (max-width: 600px) {
+  [data-presentation='page'] .seams-transaction-review > * {
+    grid-column: 1 / -1;
+  }
+  [data-presentation='page'] .seams-transaction-review-row {
+    padding: 16px;
+  }
   [data-presentation='page'] .seams-transaction-choices {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
@@ -246,23 +307,6 @@
     height: 6px;
     border-radius: 2px;
   }
-  [data-presentation='page'] .seams-tp-prompt {
-    width: 26px;
-    height: 26px;
-  }
-  [data-presentation='page'] .seams-tp-prompt svg {
-    width: 14px;
-    height: 14px;
-  }
-  [data-presentation='page'] .seams-tp-panel .seams-tp-prompt {
-    width: 16px;
-    height: 16px;
-    border: 0;
-  }
-  [data-presentation='page'] .seams-tp-panel .seams-tp-prompt svg {
-    width: 12px;
-    height: 12px;
-  }
 }
 
 /* The account menu is about 300px wide: three small cards per row, labels
@@ -271,7 +315,7 @@
   gap: 16px;
   padding-bottom: 4px;
 }
-[data-presentation='menu'] .seams-transaction-group + .seams-transaction-group {
+[data-presentation='menu'] .seams-transaction-review + .seams-transaction-group {
   padding-top: 16px;
 }
 [data-presentation='menu'] .seams-transaction-group legend {
@@ -333,23 +377,25 @@
   height: 5px;
   border-radius: 2px;
 }
-[data-presentation='menu'] .seams-tp-prompt {
-  width: 22px;
-  height: 22px;
-}
-[data-presentation='menu'] .seams-tp-prompt svg {
-  width: 12px;
-  height: 12px;
-}
-[data-presentation='menu'] .seams-tp-panel .seams-tp-prompt {
-  width: 14px;
-  height: 14px;
-  border: 0;
-}
-[data-presentation='menu'] .seams-tp-panel .seams-tp-prompt svg {
-  width: 10px;
-  height: 10px;
-}
 [data-presentation='menu'] [data-preview='drawer'] .seams-tp-panel {
   padding-top: 7px;
+}
+[data-presentation='menu'] .seams-transaction-review > * {
+  grid-column: 1 / -1;
+}
+[data-presentation='menu'] .seams-transaction-review {
+  gap: 8px;
+}
+[data-presentation='menu'] .seams-transaction-review-row {
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+}
+[data-presentation='menu'] .seams-transaction-review-text strong {
+  font-size: 14px;
+}
+[data-presentation='menu'] .seams-transaction-review-text > span,
+[data-presentation='menu'] .seams-transaction-review > p {
+  font-size: 12px;
+  line-height: 1.4;
 }

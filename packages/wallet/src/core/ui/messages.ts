@@ -175,31 +175,26 @@ const walletMessages = [
   ['Yes, remove', '削除する'],
   ['Removing…', '削除中…'],
   ['Review appearance', '確認画面の表示'],
+  ['Review before signing', '署名前に確認'],
+  [
+    'Show the transaction details, then click Continue to sign.',
+    'トランザクションの詳細を表示し、「続ける」をクリックして署名します。',
+  ],
+  [
+    'Passkey authentication starts as soon as the details appear.',
+    '詳細が表示されると同時にパスキー認証を開始します。',
+  ],
+  [
+    'On phones, in Safari and for Email OTP sign-in, the wallet always waits for Continue.',
+    'スマートフォン、Safari、メールOTPでのサインインでは、常に「続ける」のクリックを待ちます。',
+  ],
   [
     'Choose where transaction details appear before signing.',
     '署名前にトランザクションの詳細を表示する場所を選択してください。',
   ],
-  ['Confirmation step', '確認操作'],
-  [
-    'Choose Modal or Drawer to configure the confirmation step.',
-    '確認操作を設定するには、モーダルまたはドロワーを選択してください。',
-  ],
-  [
-    'Choose whether to click Continue before authentication starts.',
-    '認証開始前に「続ける」をクリックするか選択してください。',
-  ],
-  ['Confirmer UI', '確認画面'],
-  ['Confirmation Options', '確認オプション'],
-  ['skip click', 'クリックを省略'],
-  ['require click', 'クリックが必要'],
   ['none', '表示なし'],
   ['modal', 'モーダル'],
   ['drawer', 'ドロワー'],
-  ['No review', '確認画面なし'],
-  [
-    'Start authentication without showing a review panel.',
-    '確認画面を表示せずに認証を開始します。',
-  ],
   ['Modal', 'モーダル'],
   [
     'Review the transaction in a centered dialog.',
@@ -209,13 +204,6 @@ const walletMessages = [
   [
     'Review the transaction in a slide-out panel.',
     'スライド式パネルでトランザクションを確認します。',
-  ],
-  ['Start automatically', '自動で開始'],
-  ['Begin authentication as soon as the review opens.', '確認画面を開くと同時に認証を開始します。'],
-  ['Click to continue', 'クリックして続ける'],
-  [
-    'Review the details, then click Continue to start authentication.',
-    '詳細を確認し、「続ける」をクリックして認証を開始します。',
   ],
   [
     'Unable to refresh your wallet. Try again.',
