@@ -1,12 +1,13 @@
 {
   "status": "passed",
   "initialRequestedId": "voiceid-live-20261024",
-  "sdkAllocatedWalletId": "silver-dune-9hrdtc",
+  "sdkAllocatedWalletId": "glacier-wave-nv4kpk",
   "defaultAllocationUsed": true,
   "pageUrlRetainsAllocatedId": true,
   "setupRequiredBeforeUnlock": true,
   "ownerLockBeforeActivationRecovered": true,
   "rejectedActivationVisibleAndRetrySucceeded": true,
+  "keychainDenialBeforeCaptureReported": true,
   "nativeHost": "fake_device_key_and_factor",
   "microphoneAndKeychainUsed": false,
   "authentication": "voiceid",
@@ -14,16 +15,16 @@
   "signing": "real_ed25519_yao_mpc",
   "chain": "deterministic_near_rpc",
   "identity": {
-    "walletId": "silver-dune-9hrdtc",
-    "accountId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
-    "publicKey": "ed25519:SgZdjFZoQ5iCtXC74YfWEX9EJCaawqv67RBSp43vEk5"
+    "walletId": "glacier-wave-nv4kpk",
+    "accountId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
+    "publicKey": "ed25519:3KD7nADBTh1e5JyhP7g4HQpenNMyRu9T173rdwf67JXV"
   },
   "transfers": [
     {
-      "signedTransactionB64": "QAAAADA2OTQ0MGZjNDA4NThiMDY0ODk3Zjg2NmUwODczNGRjNmU5YTBhZGM4MmY0NDVkZjQ4MWRhZDI0YzlmNWQwMWUABpRA/ECFiwZIl/hm4Ic03G6aCtyC9EXfSB2tJMn10B4CAAAAAAAAAEAAAAAwNjk0NDBmYzQwODU4YjA2NDg5N2Y4NjZlMDg3MzRkYzZlOWEwYWRjODJmNDQ1ZGY0ODFkYWQyNGM5ZjVkMDFlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAyqYoaqtSy/dKN4ahdrrEuzkhIwybdQIYbb6PyMS9vjn/ZasmqKX7BYpxWy+STrALrSaSNI87DGxfjEQhO+BSAw==",
-      "signedTransactionSha256": "a703d8d988fd85ac2ed5dbb359c4a57264d50ae740bec2c0dd416fd56a9567f5",
-      "signerId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
-      "receiverId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
+      "signedTransactionB64": "QAAAADIyNjE4NzZkMDZlODIwM2U1NDM0NTQzMWQ5MTRkOGY0ODk4NTNjODBkYTkyMmJmZmI4NzczOWM1Njk2NTYyY2MAImGHbQboID5UNFQx2RTY9ImFPIDakiv/uHc5xWllYswCAAAAAAAAAEAAAAAyMjYxODc2ZDA2ZTgyMDNlNTQzNDU0MzFkOTE0ZDhmNDg5ODUzYzgwZGE5MjJiZmZiODc3MzljNTY5NjU2MmNjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA+xWbgVCzKqFsSA8/4T6oUEYRDwVaBRdUDMbUbY2NA3LN3BCbXNC3wj75DFRr0gCB2umo5SZJmvGq1TVdeY4eDg==",
+      "signedTransactionSha256": "48932fb8f26c85dad93c0142434bfd644d3b2c0ccde1397535e06754002ecd5d",
+      "signerId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
+      "receiverId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
       "amountYocto": "1",
       "nonce": "2"
     }

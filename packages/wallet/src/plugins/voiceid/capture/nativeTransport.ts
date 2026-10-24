@@ -1,3 +1,6 @@
+import { requireRecord } from '@shared/utils/validation';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
+
 const LOCAL_BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 const MAXIMUM_PENDING_BYTES = 2 * 4096 + 16;
 
@@ -18,6 +21,9 @@ export async function streamVoiceIdNative(
     credentials: 'omit',
     signal,
   });
+  if (response.status === 503) {
+    throw new Error('VoiceID device setup is unavailable. The local service has stopped.');
+  }
   if (!response.ok || !response.body) {
     throw new Error('VoiceID local service rejected the Wallet request.');
   }
@@ -41,6 +47,7 @@ export async function streamVoiceIdNative(
           throw new Error('VoiceID returned an invalid message.');
         }
         pending = pending.slice(newline + 1);
+        rejectServiceFailure(value);
         if (receive(value)) return;
         newline = pending.indexOf('\n');
       }
@@ -48,5 +55,19 @@ export async function streamVoiceIdNative(
     throw new Error('VoiceID local service closed before a result.');
   } finally {
     reader.releaseLock();
+  }
+}
+
+function rejectServiceFailure(value: unknown): void {
+  if (typeof value !== 'object' || value === null || !('kind' in value) || value.kind !== 'service_failed') return;
+  const record = requireRecord(value, 'VoiceID service failure');
+  rejectUnknownFields(record, ['kind', 'reason'], 'VoiceID service failure');
+  switch (record.reason) {
+    case 'keychain_access_required':
+      throw new Error('VoiceID needs device setup to access Keychain. Finish setup before another voice attempt.');
+    case 'native_host_stopped':
+      throw new Error('VoiceID native host stopped. Check the local service diagnostics.');
+    default:
+      throw new Error('VoiceID returned an invalid service failure.');
   }
 }

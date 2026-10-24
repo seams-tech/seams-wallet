@@ -76,6 +76,13 @@ async function verifyLivePage(
   await expect(page.getByRole('button', { name: 'Lock wallet', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey', { timeout: 60_000 });
+  await wallet.locator('body').evaluate(denyKeychainAccess);
+  await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await expect(status).toHaveAttribute('data-state', 'failed');
+  await expect(status).toContainText('VoiceID needs device setup to access Keychain.');
+  await expect(status).toBeInViewport();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await wallet.locator('body').evaluate(rejectActivation);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
@@ -125,6 +132,7 @@ async function verifyLivePage(
         setupRequiredBeforeUnlock: true,
         ownerLockBeforeActivationRecovered: true,
         rejectedActivationVisibleAndRetrySucceeded: true,
+        keychainDenialBeforeCaptureReported: true,
         nativeHost: 'fake_device_key_and_factor',
         microphoneAndKeychainUsed: false,
         authentication: 'voiceid',
@@ -150,4 +158,8 @@ function rejectActivation(): void {
 
 function approveActivation(): void {
   window.voiceIdDeviceCaptureProbe.setMode('approved');
+}
+
+function denyKeychainAccess(): void {
+  window.voiceIdDeviceCaptureProbe.setMode('keychain_denied');
 }

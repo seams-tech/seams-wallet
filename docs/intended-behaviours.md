@@ -209,7 +209,8 @@ wallet's NEAR signer. Before VoiceID activation, a locked page instructs the
 user to unlock with the passkey and activate VoiceID. Voice unlock stays disabled
 until an active method exists. Activation failures appear directly below the
 activation controls. A generic native rejection identifies no specific speaker
-or transcription failure. The separate Save recovery codes action opens the
+or transcription failure. A native Keychain denial reports a device-setup error.
+It preserves passkey access and cannot activate VoiceID. The separate Save recovery codes action opens the
 Wallet backup dialog after registration. Cancelling backup preserves the created
 wallet and permits another backup attempt. Transfer review uses the displayed
 wallet's signer.
@@ -217,7 +218,7 @@ wallet's signer.
 The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
 starts with an unallocated ID, creates the wallet, saves recovery codes through
 clickable controls, locks before activation, and recovers through passkey unlock.
-It verifies a visible rejected activation, retries activation, locks, unlocks,
+It verifies visible Keychain denial and rejected activation, retries activation, locks, unlocks,
 and signs a transfer.
 Its [recorded run](evidence/voiceid-live-page-20261024.json) contains the public
 allocation and signature evidence. It uses a simulated device and deterministic

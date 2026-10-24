@@ -17,7 +17,7 @@ import { showVoiceIdCaptureSurface } from '@/plugins/voiceid/capture/surface';
 const BRIDGE_URL = 'http://127.0.0.1:4318/voiceid';
 const originalFetch = window.fetch.bind(window);
 const encoder = new TextEncoder();
-let mode: 'approved' | 'wrong_key' | 'held' | 'rejected' = 'approved';
+let mode: 'approved' | 'wrong_key' | 'held' | 'rejected' | 'keychain_denied' = 'approved';
 let requests = 0;
 let keyPair: CryptoKeyPair | null = null;
 let controller: AbortController | null = null;
@@ -44,7 +44,7 @@ class NativeFixtureResponse {
 
   readonly start = (stream: ReadableStreamDefaultController<Uint8Array>): void => {
     this.stream = stream;
-    this.send(this.firstReply);
+    if (this.firstReply !== null) this.send(this.firstReply);
     if (this.held) return;
     this.send(this.outcome);
     stream.close();
@@ -77,7 +77,10 @@ async function bridgeFetch(input: RequestInfo | URL, init?: RequestInit): Promis
   if (typeof binding.attemptId !== 'string') throw new Error('VoiceID test attempt is missing');
   let outcome: unknown;
   let firstReply: unknown = { kind: 'device_listening', id: binding.attemptId };
-  if (mode === 'rejected' && (request.kind === 'activate' || request.kind === 'unlock')) {
+  if (mode === 'keychain_denied') {
+    firstReply = null;
+    outcome = { kind: 'service_failed', reason: 'keychain_access_required' };
+  } else if (mode === 'rejected' && (request.kind === 'activate' || request.kind === 'unlock')) {
     outcome = { kind: 'device_rejected', id: binding.attemptId, outcome: 'rejected' };
   } else if (request.kind === 'listen') {
     firstReply = { kind: 'listening', binding };
