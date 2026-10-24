@@ -339,8 +339,7 @@
     transition: none;
   }
 }
-[data-seams-root].seams-theme-provider .seams-account-screen .seams-dropdown-accounts-root,
-[data-seams-root].seams-theme-provider .seams-account-screen .seams-dropdown-export-keys-root {
+[data-seams-root].seams-theme-provider .seams-account-screen .seams-dropdown-accounts-root {
   border: 0;
   border-radius: 12px;
 }

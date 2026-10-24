@@ -152,13 +152,13 @@ function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Elemen
       onClick: setScreen.bind(null, { kind: 'accounts' }),
     },
     {
-      id: 'export-keys',
+      id: 'signing-keys',
       icon: <KeyIcon />,
-      label: 'Export keys',
-      description: 'Export wallet signing keys',
+      label: 'Signing keys',
+      description: 'Manage wallet signing keys',
       disabled: false,
       keepOpenOnClick: true,
-      onClick: setScreen.bind(null, { kind: 'export-keys' }),
+      onClick: setScreen.bind(null, { kind: 'signing-keys' }),
     },
     {
       id: 'recovery-codes',

@@ -41,7 +41,7 @@ const SETTINGS_ITEMS = [
   {
     id: PROFILE_MENU_ITEM_IDS.SIGNING_KEYS,
     label: 'Signing keys',
-    description: 'Manage keys or add an ML-DSA signer',
+    description: 'Manage wallet signing keys',
     icon: <KeyIcon />,
   },
   {
@@ -80,12 +80,7 @@ const SETTINGS_ITEMS = [
     description: 'Choose where your wallet runs',
     icon: <MapPinIcon />,
   },
-  {
-    id: PROFILE_MENU_ITEM_IDS.EXPORT_KEYS,
-    label: 'Export keys',
-    description: 'Export wallet signing keys',
-    icon: <KeyIcon />,
-  },
+
 ] satisfies readonly {
   id: ProfileSettingsMenuItemId;
   label: string;

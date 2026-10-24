@@ -49,9 +49,8 @@ export async function runMlDsaBrowserLifecycle(
   await initialWalletFrame.locator('body').evaluate(blockPasskeyPrompts);
   try {
     await openSigningKeys(page);
-    await expect(
-      page.getByRole('button', { name: 'Add ML-DSA signer', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('region', { name: /^ECDSA / }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add signer', exact: true })).toBeVisible();
   } finally {
     await initialWalletFrame.locator('body').evaluate(restorePasskeyPrompts);
   }
@@ -71,14 +70,21 @@ export async function runMlDsaBrowserLifecycle(
   await expect(
     page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }),
   ).toBeVisible();
-  const activated = expect(page.getByText('Active on NEAR', { exact: true })).toBeVisible({
+  const activated = expect(
+    page
+      .getByRole('group', { name: 'ML-DSA-65 signing key', exact: true })
+      .getByText('Available', { exact: true }),
+  ).toBeVisible({
     timeout: 120_000,
   });
   const activating = autoConfirmWalletIframeUntil(page, activated, { timeoutMs: 120_000 });
   await page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }).click();
   await activating;
   await waitForWalletIframeConfirmationSettlement(page);
-  await page.getByRole('button', { name: 'Make default', exact: true }).click({ timeout: 10_000 });
+  await page
+    .getByRole('group', { name: 'ML-DSA-65 signing key', exact: true })
+    .getByRole('button', { name: 'Make default', exact: true })
+    .click({ timeout: 10_000 });
   await expect(page.getByText('Default signing key', { exact: true })).toBeVisible();
   await expect
     .poll(readDefaultSigner.bind(null, harness))
@@ -249,7 +255,7 @@ async function publishAcrossReload(
   const pendingRequest = page.waitForRequest(pattern, { timeout: 120_000 });
   await openSigningKeys(page);
   const publishing = autoConfirmWalletIframeUntil(page, pendingRequest, { timeoutMs: 120_000 });
-  await page.getByRole('button', { name: 'Add ML-DSA signer', exact: true }).click();
+  await page.getByRole('button', { name: 'Add signer', exact: true }).click();
   await publishing;
   await harness.refreshPagePreservingWalletStorage();
   await page.unroute(pattern, abortPublication);
@@ -547,7 +553,7 @@ function recordOptionalAsset(urls: string[], request: import('@playwright/test')
 function isOptionalWasm(url: string): boolean {
   return url.includes('ml_dsa_signer_bg.wasm');
 }
-async function openSigningKeys(page: Page): Promise<void> {
+export async function openSigningKeys(page: Page): Promise<void> {
   await page
     .getByRole('button', { name: 'Show account menu', exact: true })
     .click({ timeout: 10_000 });

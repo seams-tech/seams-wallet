@@ -18,7 +18,6 @@ export const PROFILE_MENU_ITEM_IDS = {
   ASSETS: 'assets',
   ACCOUNTS: 'accounts',
   SIGNING_KEYS: 'signing-keys',
-  EXPORT_KEYS: 'export-keys',
   AUTHENTICATION_METHODS: 'authentication-methods',
   RECOVERY_CODES: 'recovery-codes',
   SCAN_LINK_DEVICE: 'scan-link-device',
@@ -26,9 +25,6 @@ export const PROFILE_MENU_ITEM_IDS = {
   TRANSACTION_SETTINGS: 'transaction-settings',
   WALLET_REGION: 'wallet-region',
 } as const;
-
-/** Which threshold key set an Export Keys row exports. */
-export type ExportChain = 'near' | 'evm';
 
 /** One chain row in the expandable Accounts section: links out to the chain's
  * block explorer on the user's account page. */
