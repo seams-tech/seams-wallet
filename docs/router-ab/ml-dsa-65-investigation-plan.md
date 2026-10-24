@@ -2,6 +2,15 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [per-pair activation screen](ml-dsa-65-receive-deadline-report.md) leaves the production runtime unchanged.
+Native operation-scoped key expansion costs 0.074 ms median; its reuse prototype is archived.
+A shared receive-deadline prototype passes correctness but establishes no useful hosted gain. It is also archived and removed.
+Prototype prepared registration takes 4.676–5.474 seconds. Six signatures verify in 1.513–7.732 seconds; four finish below five seconds.
+The same-Worker control reversal signs in 2.462 and 7.687 seconds. A preparation CPU increase also recurs on control code.
+Different keys, rejection counts, material types, cache state, and incomplete role captures limit causal comparisons.
+The stronger Worker E2E proves that valid later frames preserve the original deadline, consumed material stays retired, and expired take requests fail.
+All six temporary Workers are deleted. Recovery, FIPS export, two-at-once consumption, and thirty-two-candidate capacity remain unchanged.
+Next, isolate private hash/check execution and complete first-use loading, then repeat full latency and sustained refill qualification.
 The [initial-stock delivery screen](ml-dsa-65-stock-delivery-report.md) halves stock requests from eight to four per role, in both creation and recovery.
 Typed one/two-batch requests install atomically and preserve exact ciphertext replay, the two-batch window, and claim deadlines.
 Local rollback, restart, concurrent-retry, and late-reply E2E checks pass.

@@ -527,11 +527,26 @@ try {
   const socket = response.webSocket;
   assert.ok(socket);
   const closed = once(socket, 'close', { signal: AbortSignal.timeout(30000) });
+  const firstReply = once(socket, 'message', { signal: AbortSignal.timeout(2000) });
   socket.accept();
+  await new Promise(waitBeforeProtocolFrame);
+  const executionBinding = executionRequestBinding(admitted.permit, policy.candidate_group_size);
+  socket.send(protocolFrame(executionBinding, 0, 0));
+  const [firstMessage] = await firstReply;
+  checkProtocolReply(firstMessage, executionBinding, 0, 1);
+  const secondReply = once(socket, 'message', { signal: AbortSignal.timeout(2000) });
+  await new Promise(waitBeforeProtocolFrame);
+  const activationBinding = reservationBinding(records[1].public_key, admitted.permit, policy.candidate_group_size);
+  socket.send(protocolFrame(activationBinding, 1, 1));
+  const [secondMessage] = await secondReply;
+  checkProtocolReply(secondMessage, activationBinding, 1, 2);
+  observations.stalledValidExchanges = 2;
   const [closeEvent] = await closed;
   assert.equal(closeEvent.code, 1011, 'The stalled peer did not signal an execution failure');
   observations.stalledPeerCloseCode = closeEvent.code;
   observations.stalledPeerClosedMs = performance.now() - started;
+  observations.stalledDeadlineOverrunMs = Date.now() - admitted.permit.expires_at_ms;
+  assert.ok(observations.stalledDeadlineOverrunMs < 200, 'Later valid frames extended the absolute signing deadline');
   observations.stalledSocketWaitMs = observations.stalledPeerClosedMs - observations.stalledHandshakeMs;
   observations.concurrentTimerMs = await control;
   assert.ok(observations.stalledPeerClosedMs < 2000, 'The idle signing peer exceeded the timeout tolerance');
@@ -539,6 +554,25 @@ try {
   const expired = await post('router', '/router-ab/ml-dsa/status', stalled, gatewayAuth);
   assert.equal(expired.state, 'failed');
   observations.stalledOperationExpiredWithoutSignature = true;
+  const stopped = [];
+  for (const trace of signingEvents) {
+    if (trace.role === 'b' && trace.operation === batchId(stalled.operation)) stopped.push(trace);
+  }
+  assert.equal(stopped.length, 1, 'Missing canceled B signing trace');
+  assert.equal(stopped[0].completed, false);
+  const consumedAfterCancellation = await post('b', '/router-ab/ml-dsa/role', {
+    command: 'inspect', key: stalled.key, batches: [admitted.permit.batches[0]],
+  });
+  assert.deepEqual(consumedAfterCancellation, ['retired']);
+  const canceledReplay = await raw('b', '/router-ab/ml-dsa/role', {
+    command: 'take', permit: admitted.permit, batch: admitted.permit.batches[0],
+  }, serviceAuth);
+  assert.notEqual(canceledReplay.status, 200);
+  observations.canceledSigningExecution = {
+    operation: batchId(stalled.operation),
+    firstPairRetired: true,
+    consumedReplayRejected: true,
+  };
   observations.prepublicationFallback = await checkPrepublicationFallback();
   observations.producerHandoff = {
     liveTimeout: await checkProducerHandoff(false),
@@ -1211,4 +1245,66 @@ async function fileDigest(path) {
   const location = path.startsWith(buildPrefix) ? join(buildRoot, path.slice(buildPrefix.length)) : join(root, path);
   const bytes = await readFile(location);
   return [path, createHash('sha256').update(bytes).digest('hex')];
+}
+
+function waitBeforeProtocolFrame(resolve) {
+  setTimeout(resolve, 150);
+}
+function keyWire(key) {
+  return {
+    wallet: {
+      org: key.wallet.org,
+      project: key.wallet.project,
+      environment: key.wallet.environment,
+      wallet: key.wallet.wallet,
+    },
+    key_id: key.key_id,
+    epoch: key.epoch,
+    public_key_digest: key.public_key_digest,
+    schedule_digest: key.schedule_digest,
+  };
+}
+function executionRequestBinding(permit, candidates) {
+  const request = permit.request;
+  const canonical = {
+    request: {
+      key: keyWire(request.key),
+      operation: request.operation,
+      message_digest: request.message_digest,
+      context_digest: request.context_digest,
+    },
+    expires_at_ms: permit.expires_at_ms,
+    batches: permit.batches,
+  };
+  return createHash('sha256')
+    .update('seams/ml-dsa/durable-execution/v1')
+    .update(JSON.stringify([canonical, candidates]))
+    .digest();
+}
+function reservationBinding(publicKey, permit, candidates) {
+  const epoch = createHash('sha256')
+    .update('seams/ml-dsa/material-epoch/v1')
+    .update(JSON.stringify(keyWire(permit.request.key)))
+    .digest();
+  const width = Buffer.alloc(2);
+  width.writeUInt16LE(candidates);
+  return createHash('shake256', { outputLength: 64 })
+    .update('seams/ml-dsa-65/prepared-signing/reservation/v1')
+    .update(Buffer.from(publicKey))
+    .update(Buffer.from(permit.batches[0]))
+    .update(epoch)
+    .update(width)
+    .update(Buffer.from([1]))
+    .digest();
+}
+function protocolFrame(payload, sequence, acknowledged) {
+  const frame = Buffer.alloc(payload.length + 9);
+  frame[0] = 0;
+  frame.writeUInt32LE(sequence, 1);
+  frame.writeUInt32LE(acknowledged, 5);
+  payload.copy(frame, 9);
+  return frame;
+}
+function checkProtocolReply(message, payload, sequence, acknowledged) {
+  assert.deepEqual(Buffer.from(message.data), protocolFrame(payload, sequence, acknowledged));
 }
