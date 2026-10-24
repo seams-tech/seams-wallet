@@ -1,3 +1,4 @@
+import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
@@ -23,7 +24,7 @@ export async function captureVoiceIdActivation(input: {
   readonly walletId: WalletId;
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly signal: AbortSignal;
-  readonly onListening: () => void;
+  readonly onCapture: VoiceCaptureObserver;
   readonly phrase: SpokenPhrase;
 }): Promise<{
   kind: 'activated';
@@ -32,7 +33,8 @@ export async function captureVoiceIdActivation(input: {
   factorSecret32: Uint8Array;
 }> {
   requireVoiceUserAction();
-  if (await readVoiceEnrollment()) await requireVoiceMatch(input.signal, input.onListening, input.phrase);
+  if (await readVoiceEnrollment())
+    await requireVoiceMatch(input.signal, input.onCapture, input.phrase);
   else await enrollBrowserVoice(input.signal);
   input.signal.throwIfAborted();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
@@ -52,7 +54,7 @@ export async function captureVoiceIdActivation(input: {
 export async function captureVoiceIdUnlock(input: {
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly signal: AbortSignal;
-  readonly onListening: () => void;
+  readonly onCapture: VoiceCaptureObserver;
   readonly phrase: SpokenPhrase;
 }): Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }> {
   requireVoiceUserAction();
@@ -62,7 +64,7 @@ export async function captureVoiceIdUnlock(input: {
   const device = await readBrowserVoiceDevice(challenge.walletId, challenge.walletAuthMethodId);
   if (!device || device.deviceKeyId !== challenge.deviceKeyId)
     throw new Error('VoiceID device key is unavailable in this browser.');
-  await requireVoiceMatch(input.signal, input.onListening, input.phrase);
+  await requireVoiceMatch(input.signal, input.onCapture, input.phrase);
   input.signal.throwIfAborted();
   if (challenge.expiresAtMs <= Date.now())
     throw new Error('VoiceID challenge expired. Start unlock again.');
@@ -89,10 +91,10 @@ export async function captureVoiceIdUnlock(input: {
 
 async function requireVoiceMatch(
   signal: AbortSignal,
-  onListening: () => void,
+  onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<void> {
-  const result = await verifyBrowserVoice(signal, onListening, phrase);
+  const result = await verifyBrowserVoice(signal, onCapture, phrase);
   switch (result.kind) {
     case 'matched':
       return;

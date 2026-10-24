@@ -1,5 +1,10 @@
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 
+export type VoiceCaptureEvent =
+  | { readonly kind: 'listening'; readonly stream: MediaStream }
+  | { readonly kind: 'processing'; readonly stream?: never };
+export type VoiceCaptureObserver = (event: VoiceCaptureEvent) => void;
+
 const SAMPLE_RATE = 16_000;
 
 export function requireVoiceUserAction(): void {
@@ -14,7 +19,7 @@ export function requireVoiceUserAction(): void {
 
 export async function recordVoice(
   signal: AbortSignal,
-  onListening: (microphone: string) => void,
+  onCapture: VoiceCaptureObserver,
 ): Promise<{ samples: Float32Array; voicedMs: number; durationMs: number; microphone: string }> {
   if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -28,13 +33,8 @@ export async function recordVoice(
   });
   try {
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
-    const recording = new VoiceRecording(
-      stream,
-      signal,
-      onListening,
-      8_000,
-    );
-    const bytes = await recording.result;
+    const recording = new VoiceRecording(stream, signal, onCapture, 8_000);
+    const bytes = await recording.result.finally(onCapture.bind(null, { kind: 'processing' }));
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
     const decoder = new OfflineAudioContext(1, SAMPLE_RATE, SAMPLE_RATE);
     const decoded = await decoder.decodeAudioData(bytes);
@@ -49,10 +49,7 @@ export async function recordVoice(
     source.start();
     const rendered = await renderer.startRendering();
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
-    const speech = speechSamples(
-      rendered.getChannelData(0),
-      SAMPLE_RATE * 2,
-    );
+    const speech = speechSamples(rendered.getChannelData(0), SAMPLE_RATE * 2);
     return {
       samples: speech.samples,
       voicedMs: speech.voicedMs,
@@ -74,7 +71,7 @@ class VoiceRecording {
   constructor(
     private readonly stream: MediaStream,
     private readonly signal: AbortSignal,
-    onListening: (microphone: string) => void,
+    onCapture: VoiceCaptureObserver,
     durationMs: number,
   ) {
     this.recorder = new MediaRecorder(stream);
@@ -84,7 +81,7 @@ class VoiceRecording {
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.recorder.start();
     this.timer = setTimeout(this.stop, durationMs);
-    onListening(stream.getAudioTracks()[0]?.label || 'Default microphone');
+    onCapture({ kind: 'listening', stream });
   }
 
   private readonly data = (event: BlobEvent): void => {

@@ -1,3 +1,4 @@
+import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
@@ -12,7 +13,7 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   readonly capture: typeof captureVoiceIdUnlock;
   readonly install: (verified: VoiceIdVerifiedSession, factorSecret32: Uint8Array) => Promise<T>;
   readonly signal: AbortSignal;
-  readonly onListening: () => void;
+  readonly onCapture: VoiceCaptureObserver;
   readonly phrase: SpokenPhrase;
 }): Promise<T> {
   const { authMethod, challenge } = input;
@@ -27,12 +28,15 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   const captured = await input.capture({
     challenge,
     signal: input.signal,
-    onListening: input.onListening,
+    onCapture: input.onCapture,
     phrase: input.phrase,
   });
   try {
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
-    const verified = await input.http.verify({ assertion: captured.assertion, signal: input.signal });
+    const verified = await input.http.verify({
+      assertion: captured.assertion,
+      signal: input.signal,
+    });
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');
     if (
       verified.walletSession.walletId !== authMethod.walletId ||

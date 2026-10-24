@@ -29,6 +29,7 @@ export type ConfirmUIUpdate = {
   title?: string;
   body?: string;
   authMethodApprovalMessage?: string;
+  authMethodCapture?: HTMLElement | null;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 };

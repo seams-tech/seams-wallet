@@ -17,7 +17,11 @@ import {
 } from '@playwright/test';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { base58Encode } from '@shared/utils/base58';
-import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
+import {
+  intendedTest as test,
+  type IntendedBehaviourHarness,
+  waitForWalletIframeConfirmationSettlement,
+} from './harness';
 import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
 
 test('manual VoiceID page allocates its wallet and signs after voice unlock', verifyLivePage);
@@ -90,19 +94,25 @@ async function verifyLivePage(
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await expect(wallet.getByRole('progressbar', { name: 'VoiceID model download' })).toBeVisible();
-  await expect(wallet.locator('.seams-voiceid-model-download')).toHaveAttribute('data-state', 'downloading');
+  await expect(wallet.locator('.seams-voiceid-model-download')).toHaveAttribute(
+    'data-state',
+    'downloading',
+  );
   download.release();
   await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
   await expect
     .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
     .toContain('live');
+  await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('minimal-voice-enrollment.png') });
   await wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }).click();
   await expect(status).toHaveAttribute('data-state', 'failed');
   expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
   expect(assets.models).toBe(1);
   expect(assets.phraseModels).toBe(1);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Unlock with passkey', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Unlock with passkey', exact: true }),
+  ).toBeEnabled();
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await wallet.locator('body').evaluate(cancelNextEnrollmentSave);
@@ -118,14 +128,24 @@ async function verifyLivePage(
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
-  const enrollmentPhrase = await wallet.locator('[data-voiceid-phrase]').innerText();
+  const enrollmentPhrase = await wallet
+    .locator('[data-voiceid-phrase]')
+    .getAttribute('data-voiceid-phrase');
+  if (!enrollmentPhrase) throw new Error('Enrollment phrase is unavailable');
   const wrongEnrollmentIndex = (phrases.indexOf(enrollmentPhrase) + 1) % phrases.length;
-  const wrongEnrollment = await readFile(path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${wrongEnrollmentIndex}.wav`));
+  const wrongEnrollment = await readFile(
+    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${wrongEnrollmentIndex}.wav`),
+  );
   await wallet.locator('body').evaluate(useOtherSpeaker, wrongEnrollment.toString('base64'));
   await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
-  await expect(wallet.getByText('The words did not match.', { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(wallet.getByText('The words did not match.', { exact: false })).toBeVisible({
+    timeout: 20_000,
+  });
   await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
-  await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveText(enrollmentPhrase);
+  await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute(
+    'data-voiceid-phrase',
+    enrollmentPhrase,
+  );
   expect(assets.activations).toBe(0);
   await enrollBrowserMicrophone(page);
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
@@ -134,7 +154,9 @@ async function verifyLivePage(
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   await expect(status).toContainText('Enroll voice again');
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
-  await expect(page.getByRole('button', { name: 'Enroll voice again', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Enroll voice again', exact: true }),
+  ).toBeDisabled();
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await page.getByRole('button', { name: 'Enroll voice again', exact: true }).click();
@@ -148,6 +170,8 @@ async function verifyLivePage(
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening');
+  await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('minimal-voice-unlock.png') });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('voiceid');
   const evidence = new VoiceIdNearSigningEvidence(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
@@ -155,16 +179,52 @@ async function verifyLivePage(
     'available',
   );
   await evidence.observe(context);
+  const beforeCancellation = evidence.snapshot();
   await startReviewedTransfer(page);
-  const originalPrompt = await wallet.locator('.seams-voiceid-instructions').innerText();
-  const originalPhrase = originalPrompt.match(/“([^”]+)”/)?.[1];
-  if (!originalPhrase || !phrases.includes(originalPhrase)) throw new Error('Review phrase is unavailable');
+  await wallet.locator('button.confirm').click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
+    'data-capture',
+    'listening',
+  );
+  await wallet
+    .locator('.seams-voiceid-prompt')
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed');
+  await waitForWalletIframeConfirmationSettlement(page);
+  expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
+  expect(evidence.snapshot()).toEqual(beforeCancellation);
+  await startReviewedTransfer(page);
   const otherSpeaker = await readFile(
     path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'),
   );
   await wallet.locator('body').evaluate(useOtherSpeaker, otherSpeaker.toString('base64'));
   const beforeMismatch = evidence.snapshot();
+  const streamsBefore = await wallet.locator('body').evaluate(microphoneStates);
   await wallet.locator('button.confirm').click();
+  await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
+    'data-capture',
+    'listening',
+  );
+  await expect(wallet.locator('.seams-review-title')).toHaveCount(0);
+  const originalPhrase = await wallet
+    .locator('[data-voiceid-phrase]')
+    .getAttribute('data-voiceid-phrase');
+  if (!originalPhrase || !phrases.includes(originalPhrase))
+    throw new Error('Review phrase is unavailable');
+  expect((await wallet.locator('body').evaluate(microphoneStates)).length).toBe(
+    streamsBefore.length + 1,
+  );
+  await expect
+    .poll(
+      wallet
+        .locator('.seams-voiceid-waveform')
+        .evaluate.bind(wallet.locator('.seams-voiceid-waveform'), waveformHeight),
+    )
+    .toBeGreaterThan(6);
+  await wallet
+    .locator('.seams-voiceid-prompt')
+    .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
   await expect(
     wallet.getByText('VoiceID did not match the enrolled voice.', { exact: false }),
   ).toBeVisible({ timeout: 30_000 });
@@ -174,10 +234,17 @@ async function verifyLivePage(
   if (mismatchCapture === null) throw new Error('Voice verification measurement is missing');
   const mismatch = JSON.parse(mismatchCapture);
   expect(mismatch.similarity).toBeLessThan(mismatch.threshold);
-  const stalePhrase = await readFile(path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${phrases.indexOf(originalPhrase)}.wav`));
+  const stalePhrase = await readFile(
+    path.resolve(
+      import.meta.dirname,
+      `../../fixtures/audio/aurora/${phrases.indexOf(originalPhrase)}.wav`,
+    ),
+  );
   await wallet.locator('body').evaluate(useOtherSpeaker, stalePhrase.toString('base64'));
   await wallet.locator('button.confirm').click();
-  await expect(wallet.getByText('The spoken words did not match.', { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(wallet.getByText('The spoken words did not match.', { exact: false })).toBeVisible({
+    timeout: 20_000,
+  });
   expect(evidence.snapshot()).toEqual(beforeMismatch);
   await wallet.locator('button.confirm').click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
@@ -190,7 +257,8 @@ async function verifyLivePage(
   expect(evidence.transfers).toHaveLength(1);
   const budget = await harness.readCurrentWalletSessionStatus();
   expect(budget.status).toBe('active');
-  expect(budget.remainingUses).toBe(2);
+  // Each warm review prepares once. Its claimed use remains spent on cancellation.
+  expect(budget.remainingUses).toBe(1);
   expect(assets.native).toHaveLength(0);
   expect(assets.inference.length).toBeGreaterThan(0);
   const report = testInfo.outputPath('voiceid-live-page.json');
@@ -214,6 +282,9 @@ async function verifyLivePage(
         incorrectEnrollmentPhraseRejected: true,
         previousAttemptPhraseRejectedBeforeSigning: true,
         phraseRecognition: 'real_aurora_int8_constrained_ctc',
+        minimalPromptReplacesReviewDuringCapture: true,
+        liveWaveformUsesSingleRecordingStream: true,
+        cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning: true,
         ownerReenrollmentReusesDeviceCredential: true,
         mismatchCapture: mismatch,
         mismatchPreventsSigning: true,
@@ -251,10 +322,14 @@ class VoiceAssetRequests {
     const url = new URL(request.url());
     if (url.pathname.endsWith('aurora-int8.onnx')) this.phraseModels += 1;
     if (url.pathname.endsWith('redimnet-b1.onnx')) this.models += 1;
-    if (url.pathname === '/wallet/voiceid/activate' && request.method() === 'POST') this.activations += 1;
+    if (url.pathname === '/wallet/voiceid/activate' && request.method() === 'POST')
+      this.activations += 1;
     if (url.port === '4318') this.native.push(url.pathname);
-    if (url.pathname.includes('ort-wasm') || url.pathname.endsWith('redimnet-b1.onnx') ||
-        url.pathname.endsWith('aurora-int8.onnx')) {
+    if (
+      url.pathname.includes('ort-wasm') ||
+      url.pathname.endsWith('redimnet-b1.onnx') ||
+      url.pathname.endsWith('aurora-int8.onnx')
+    ) {
       this.inference.push(url.pathname);
     }
   };
@@ -285,4 +360,11 @@ class ModelDownloadGate {
   release(): void {
     this.pending.resolve();
   }
+}
+
+function waveformHeight(element: Element): number {
+  let maximum = 0;
+  for (const bar of element.querySelectorAll('rect'))
+    maximum = Math.max(maximum, Number(bar.getAttribute('height')));
+  return maximum;
 }

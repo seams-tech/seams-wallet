@@ -1,3 +1,4 @@
+import type { VoiceCaptureObserver } from '../browser/microphone';
 import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdActivationPlan,
@@ -171,7 +172,7 @@ async function prepareActivationSurface(
 async function activatePreparedVoiceId(
   prepared: PreparedVoiceIdActivation,
   signal: AbortSignal,
-  onListening: () => void,
+  onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<AddVoiceIdResult> {
   if (prepared.kind === 'enroll_existing') {
@@ -184,7 +185,7 @@ async function activatePreparedVoiceId(
     ownerCredential: prepared.ownerCredential,
     http: prepared.http,
     signal,
-    onListening,
+    onCapture,
     phrase,
     capture: captureVoiceIdActivation,
     persistPending: prepared.store.persistPending.bind(prepared.store),

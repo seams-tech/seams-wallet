@@ -375,6 +375,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       case 'transaction':
         return {
           kind: 'transaction',
+          capture: source.capture,
           header: source.header,
           body: source.body,
           review: source.review,

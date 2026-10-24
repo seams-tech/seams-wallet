@@ -11,10 +11,18 @@ function observedPut(
   value: unknown,
   key?: IDBValidKey,
 ): IDBRequest<IDBValidKey> {
-  if (retireEnrollmentModel && this.name === 'app_state' &&
-      typeof value === 'object' && value !== null && 'key' in value &&
-      value.key === 'voiceid-browser-enrollment-v1' && 'value' in value &&
-      typeof value.value === 'object' && value.value !== null && 'model' in value.value) {
+  if (
+    retireEnrollmentModel &&
+    this.name === 'app_state' &&
+    typeof value === 'object' &&
+    value !== null &&
+    'key' in value &&
+    value.key === 'voiceid-browser-enrollment-v1' &&
+    'value' in value &&
+    typeof value.value === 'object' &&
+    value.value !== null &&
+    'model' in value.value
+  ) {
     value.value.model = 'previous-test-model';
     retireEnrollmentModel = false;
   }
@@ -39,7 +47,7 @@ function cancelEnrollment(): void {
   button.click();
 }
 function isEnrollmentCancel(button: HTMLButtonElement): boolean {
-  return button.textContent === 'Cancel enrollment';
+  return button.getAttribute('aria-label') === 'Cancel enrollment';
 }
 function retireNextEnrollmentModel(): void {
   retireEnrollmentModel = true;
@@ -121,11 +129,8 @@ IDBObjectStore.prototype.put = observedPut;
 export {};
 
 function currentPhrase(root: Document | ShadowRoot): string | null {
-  const enrollment = root.querySelector('[data-voiceid-phrase]');
-  if (enrollment) return enrollment.textContent?.trim() ?? null;
-  const surface = root.querySelector('.seams-voiceid-activation-surface') ?? root.querySelector('.seams-voiceid-instructions');
-  const phrase = surface?.textContent?.match(/“([^”]+)”/)?.[1];
-  if (phrase) return phrase;
+  const prompt = root.querySelector('[data-voiceid-phrase]');
+  if (prompt) return prompt.getAttribute('data-voiceid-phrase');
   for (const element of root.querySelectorAll('*')) {
     if (element.shadowRoot) {
       const nested = currentPhrase(element.shadowRoot);

@@ -42,11 +42,10 @@ export type AuthMethodApprovalResult =
 export interface AuthMethodReviewApproval {
   readonly messages: Readonly<{
     prompt: string;
-    starting: string;
-    listening: string;
     approved: string;
   }>;
-  approve(signal: AbortSignal, onListening: () => void): Promise<AuthMethodApprovalResult>;
+  readonly surface: HTMLElement;
+  approve(signal: AbortSignal): Promise<AuthMethodApprovalResult>;
   consume(): void;
 }
 

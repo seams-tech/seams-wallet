@@ -14,10 +14,16 @@ export const voiceIdBrowserAudio = {
 };
 
 export async function allowBrowserMicrophone(context: BrowserContext): Promise<void> {
-  const probe = JSON.parse(execFileSync(process.execPath, [
-    path.resolve(import.meta.dirname, '../../scripts/build-preact-probe.mjs'),
-    'VoiceIdMicrophoneObservation.ts',
-  ], { encoding: 'utf8' }));
+  const probe = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        path.resolve(import.meta.dirname, '../../scripts/build-preact-probe.mjs'),
+        'VoiceIdMicrophoneObservation.ts',
+      ],
+      { encoding: 'utf8' },
+    ),
+  );
   await context.addInitScript({ content: probe[0].code });
   await context.route('**/voiceid-test-audio/*.wav', servePhraseAudio);
   await context.grantPermissions(['microphone'], {
@@ -31,13 +37,19 @@ export async function enrollBrowserMicrophone(page: Page): Promise<void> {
     const button = wallet.getByRole('button', { name: `Record sample ${sample}`, exact: true });
     await expect(button).toBeEnabled({ timeout: 60_000 });
     await button.click();
-    await expect(button).toBeHidden({ timeout: 25_000 });
+    if (sample === 3) {
+      await expect(
+        wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }),
+      ).toHaveCount(0, { timeout: 30_000 });
+    }
   }
 }
 
 async function servePhraseAudio(route: Route): Promise<void> {
   const index = new URL(route.request().url()).pathname.match(/\/(\d+)\.wav$/)?.[1];
   if (index === undefined || Number(index) >= 16) throw new Error('Unknown phrase fixture');
-  const bytes = await readFile(path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${index}.wav`));
+  const bytes = await readFile(
+    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${index}.wav`),
+  );
   await route.fulfill({ contentType: 'audio/wav', body: bytes });
 }

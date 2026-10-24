@@ -1,3 +1,4 @@
+import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import { verifyBrowserVoice } from '../browser/enrollment';
@@ -20,13 +21,13 @@ export async function listenForVoiceApproval(
   binding: VoiceBinding,
   timeoutMs: number,
   signal: AbortSignal,
-  onListening: () => void,
+  onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<AuthMethodApprovalResult> {
   const deadline = Math.min(binding.expiresAtMs, Date.now() + timeoutMs);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
-  const result = await verifyBrowserVoice(signal, onListening, phrase);
+  const result = await verifyBrowserVoice(signal, onCapture, phrase);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
   switch (result.kind) {

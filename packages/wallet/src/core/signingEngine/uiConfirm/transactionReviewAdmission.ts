@@ -179,19 +179,24 @@ export class TransactionReviewAdmission {
     this.notify('signing');
   };
 
-  async approveAuthMethod(onListening: () => void): Promise<AuthMethodApprovalResult> {
+  async approveAuthMethod(): Promise<AuthMethodApprovalResult> {
     this.assertActive();
     if (this.authMethodPolicy.kind === 'disabled') return { kind: 'approved' };
-    const result = await this.authMethodPolicy.approval.approve(
-      this.abortController.signal,
-      onListening,
-    );
+    const result = await this.authMethodPolicy.approval.approve(this.abortController.signal);
     this.assertActive();
     return result;
   }
 
+  get authMethodApprovalSurface(): HTMLElement | null {
+    return this.authMethodPolicy.kind === 'required'
+      ? this.authMethodPolicy.approval.surface
+      : null;
+  }
+
   get authMethodApprovalMessages() {
-    return this.authMethodPolicy.kind === 'required' ? this.authMethodPolicy.approval.messages : null;
+    return this.authMethodPolicy.kind === 'required'
+      ? this.authMethodPolicy.approval.messages
+      : null;
   }
 
   cancel(error: Error): boolean {

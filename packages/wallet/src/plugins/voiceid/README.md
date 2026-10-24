@@ -111,3 +111,21 @@ and allows cancellation while its recording button is disabled. Unlock then chec
 local state, loads the cached model if needed, and requests its server challenge.
 Cancellation aborts the challenge request and prevents late UI or recording.
 Shared model loading can finish and populate the cache after cancellation.
+
+## Minimal capture UI
+
+Enrollment, unlock, and signing share the plugin-owned `VoicePrompt`. The card shows
+Read aloud, a large phrase, a live waveform, a short status, and Cancel. Enrollment
+also shows the sample number and a Record control between samples. The record
+control disappears during capture. Download details disappear when preparation ends.
+
+After transaction Confirm, the Wallet replaces the review contents with the plugin's
+trusted DOM surface. The Wallet retains its modal, cancellation, expiry, and review
+binding. A mismatch returns to the original review and requires another Confirm.
+The core host loads no VoiceID UI code when the plugin is disabled.
+
+The waveform observes the existing MediaRecorder stream. It does not request or
+stop another microphone stream. A continuous display curve preserves volume detail.
+The meter closes its AudioContext after capture, error, or cancellation. Model audio,
+gain control, phrase thresholds, and speaker thresholds are unchanged. The visual
+meter cannot grant approval. Voice and phrase matches still gate signing.

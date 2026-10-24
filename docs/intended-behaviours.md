@@ -89,7 +89,11 @@ Each enrollment, unlock, and signing attempt displays a randomly selected short
 English phrase from a bank of 16. The phrase remains fixed during capture. A retry
 selects a different phrase. The user reads it slowly for about three seconds.
 Activation and unlock show a cancellable modal before asynchronous preparation.
-Recording stays disabled until preparation finishes. A delayed server response
+The capture card shows a large phrase, a live amplitude waveform, a short status,
+and Cancel. Enrollment identifies each of three samples. The waveform observes the
+same microphone stream that supplies model audio. It makes no second capture request
+and does not change the recording or recognition thresholds. It stops after capture
+or cancellation. Recording stays disabled until preparation finishes. A delayed server response
 cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
 after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires
@@ -157,7 +161,10 @@ unlock. ECDSA signing and key export retain their supported owner methods.
 This prototype supports one reviewed NEAR testnet transfer per request. Other
 signing routes and reviews without an expiry fail while VoiceID is enabled.
 The Wallet freezes and hashes the complete request and execution configuration.
-Confirm starts browser speaker and phrase checks for that review. Either mismatch
+Confirm replaces the review contents with the plugin's minimal voice prompt and
+starts browser speaker and phrase checks for that review. The Wallet retains the
+original review binding and deadline. Cancel from the prompt stops capture and
+prevents signing. A mismatch returns to the original review. Either mismatch
 keeps the review open, shows the failure, and requires another Confirm click.
 A retry displays a new phrase while retaining the original review and deadline.
 No signature or broadcast occurs for a mismatch. Each retry checks the original

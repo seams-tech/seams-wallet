@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "opal-sequoia-g4jbgb",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:57eb42bd-f913-42f9-bed7-6022088767cf",
+  "freshSessionId": "wls_AtlF5TIfyHPH5XUPetACt4ifO-vcxhu1NyhKuqEujI8",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 107.72858299999643,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "activationDialogMs": 109.49537499999997,
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "opal-sequoia-g4jbgb",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "opal-sequoia-g4jbgb",
+    "accountId": "ef06a7a2442bab079a743ae002bad913432a967bb614eba625edb618cc126efa",
+    "publicKey": "ed25519:H64KsP5cyWWJiZrWyfRNVSvKstkoEcg28kFhBf7c63eR"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGVmMDZhN2EyNDQyYmFiMDc5YTc0M2FlMDAyYmFkOTEzNDMyYTk2N2JiNjE0ZWJhNjI1ZWRiNjE4Y2MxMjZlZmEA7wanokQrqweadDrgArrZE0Mqlnu2FOumJe22GMwSbvoCAAAAAAAAAEAAAABlZjA2YTdhMjQ0MmJhYjA3OWE3NDNhZTAwMmJhZDkxMzQzMmE5NjdiYjYxNGViYTYyNWVkYjYxOGNjMTI2ZWZhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA2jo3qBnjzOAwByCkaVpqjQ7Ujh+C4tSyIpDmefnmQg/2JAhvoIaGgPL6Pwa1M1ZcwEVvRIktTJzKZ8f/fH/8Ag==",
+      "signedTransactionSha256": "8cdc3dc6870f2855ec9466a245b5fb6b8ffbe4720d5772d9024e6b5433709519",
+      "signerId": "ef06a7a2442bab079a743ae002bad913432a967bb614eba625edb618cc126efa",
+      "receiverId": "ef06a7a2442bab079a743ae002bad913432a967bb614eba625edb618cc126efa",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

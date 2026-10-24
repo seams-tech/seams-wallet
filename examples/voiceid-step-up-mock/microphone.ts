@@ -1,3 +1,4 @@
+import { voiceDisplayLevel } from '../../packages/wallet/src/plugins/voiceid/browser/waveform';
 type CaptureState =
   | { kind: 'idle' }
   | { kind: 'requesting'; context: AudioContext; abort: AbortController }
@@ -19,9 +20,7 @@ export class MicrophonePreview {
     let energy = 0;
     for (const sample of this.state.samples) energy += sample * sample;
     const rms = Math.sqrt(energy / this.state.samples.length);
-    const signal = Math.max(0, rms - 0.003);
-    // Preserve quiet detail and loud peaks without flattening normal speech at a cap.
-    return Math.pow(signal / (signal + 0.08), 0.7);
+    return voiceDisplayLevel(rms);
   };
 
   async start(

@@ -277,7 +277,7 @@ function unlockedSeedCapabilityForTest(input: {
   };
 }
 
-function onVoiceListening(): void {}
+function onVoiceCapture(): void {}
 
 class GeneratedVoiceIdCapture {
   factorSecret32: Uint8Array | null = null;
@@ -290,7 +290,7 @@ class GeneratedVoiceIdCapture {
   async capture(
     input: Parameters<typeof captureVoiceIdUnlock>[0],
   ): ReturnType<typeof captureVoiceIdUnlock> {
-    input.onListening();
+    input.onCapture({ kind: 'processing' });
     const signature = await crypto.subtle.sign(
       'Ed25519',
       this.privateKey,
@@ -509,7 +509,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       ownerCredential: issued.operationCredential,
       http: lostReply,
       signal,
-      onListening: onVoiceListening,
+      onCapture: onVoiceCapture,
       phrase: newSpokenPhrase(null),
       capture: retriedCapture.capture.bind(retriedCapture),
       persistPending: pendingStore.persistPending.bind(pendingStore),
@@ -684,7 +684,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       capture: deviceCapture.capture.bind(deviceCapture),
       install: installer.install.bind(installer),
       signal,
-      onListening: onVoiceListening,
+      onCapture: onVoiceCapture,
       phrase: newSpokenPhrase(null),
     });
     expect(verifiedFromDevice.walletSession.authMethodId).toBe(methodId);
@@ -704,7 +704,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       capture: cancelledCapture.capture.bind(cancelledCapture),
       install: installer.install.bind(installer),
       signal: cancelledController.signal,
-      onListening: onVoiceListening,
+      onCapture: onVoiceCapture,
       phrase: newSpokenPhrase(null),
     })).rejects.toThrow('cancelled');
     expect(cancelledCapture.factorSecret32?.every((value) => value === 0)).toBe(true);

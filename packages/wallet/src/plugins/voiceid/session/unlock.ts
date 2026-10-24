@@ -1,3 +1,4 @@
+import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type {
   AuthMethodSessionInstaller,
@@ -52,7 +53,9 @@ async function prepareUnlockSurface(
     fetchWithWalletHomeDiscovery,
   );
   if (!(await readVoiceEnrollment())) {
-    throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
+    throw new Error(
+      'Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.',
+    );
   }
   await prepareVoiceModelWithProgress(parent);
   signal.throwIfAborted();
@@ -87,7 +90,7 @@ function installVerifiedSession(
 async function captureAndInstall(
   prepared: PreparedVoiceIdUnlock,
   signal: AbortSignal,
-  onListening: () => void,
+  onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<AuthMethodUnlockSuccess> {
   return await verifyVoiceIdChallengeWithDevice({
@@ -97,7 +100,7 @@ async function captureAndInstall(
     capture: captureVoiceIdUnlock,
     install: installVerifiedSession.bind(null, prepared.install, signal),
     signal,
-    onListening,
+    onCapture,
     phrase,
   });
 }

@@ -1,4 +1,8 @@
-import { voiceIdBrowserAudio, allowBrowserMicrophone, enrollBrowserMicrophone } from './voiceid-browser-audio';
+import {
+  voiceIdBrowserAudio,
+  allowBrowserMicrophone,
+  enrollBrowserMicrophone,
+} from './voiceid-browser-audio';
 import { writeFile } from 'node:fs/promises';
 import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
@@ -38,7 +42,7 @@ async function verifyUnlock(
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activationStarted = performance.now();
   const activation = page.evaluate(activate);
-  await expect(wallet.getByRole('heading', { name: 'Activate VoiceID', exact: true })).toBeVisible();
+  await expect(wallet.getByRole('dialog', { name: 'Activate VoiceID', exact: true })).toBeVisible();
   const activationDialogMs = performance.now() - activationStarted;
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
@@ -155,24 +159,36 @@ async function verifyPreparationCancellation(
   context: BrowserContext,
   page: Page,
   methodId: string,
-): Promise<{ dialogVisibleMs: number; delayedChallengeMs: number; cancelDuringPreparation: boolean }> {
+): Promise<{
+  dialogVisibleMs: number;
+  delayedChallengeMs: number;
+  cancelDuringPreparation: boolean;
+}> {
   const challenge = new DelayedChallenge();
   await context.route('**/wallet/voiceid/challenge', challenge.serve);
   const started = performance.now();
   const operation = page.evaluate(unlock, methodId).then(unexpectedUnlock, rejectedUnlock);
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
-  await expect(wallet.getByRole('heading', { name: 'Unlock with VoiceID', exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(
+    wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeVisible({ timeout: 10_000 });
   const dialogVisibleMs = performance.now() - started;
   await challenge.requested.promise;
-  const disabledWhilePreparing = !(await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).isEnabled());
+  const disabledWhilePreparing = !(await wallet
+    .getByRole('button', { name: 'Unlock with VoiceID', exact: true })
+    .isEnabled());
   await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
   const cancelled = await operation;
   await challenge.finished.promise;
   await context.unroute('**/wallet/voiceid/challenge', challenge.serve);
-  await expect(wallet.getByRole('heading', { name: 'Unlock with VoiceID', exact: true })).toHaveCount(0);
+  await expect(
+    wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true }),
+  ).toHaveCount(0);
   expect(cancelled.kind).toBe('rejected');
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
-  console.log(JSON.stringify({ dialogVisibleMs, delayedChallengeMs: 5000, disabledWhilePreparing }));
+  console.log(
+    JSON.stringify({ dialogVisibleMs, delayedChallengeMs: 5000, disabledWhilePreparing }),
+  );
   expect(dialogVisibleMs).toBeLessThan(2_000);
   expect(disabledWhilePreparing).toBe(true);
   return { dialogVisibleMs, delayedChallengeMs: 5000, cancelDuringPreparation: true };

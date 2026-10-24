@@ -1,3 +1,4 @@
+import { VoicePrompt } from './prompt';
 import { newSpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
@@ -110,11 +111,11 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 
 export class VoiceIdApproval {
   private phrase = newSpokenPhrase(null);
+  private readonly prompt: VoicePrompt;
+  readonly surface: HTMLElement;
   get messages() {
     return {
-      prompt: `Review the transfer, select Confirm, then slowly say: “${this.phrase}”`,
-      starting: `Starting VoiceID. Wait for Listening, then read: “${this.phrase}”`,
-      listening: `Listening for eight seconds. Slowly say: “${this.phrase}” Speak for about three seconds.`,
+      prompt: 'Confirm to approve this transfer with your voice.',
       approved: 'Voice approved this operation.',
     };
   }
@@ -123,7 +124,16 @@ export class VoiceIdApproval {
   private constructor(
     private readonly reviewExpiresAtMs: number,
     private readonly operationHash: string,
-  ) {}
+  ) {
+    this.prompt = new VoicePrompt(document, 'Approve transfer with VoiceID', this.phrase);
+    this.prompt.record.hidden = true;
+    this.surface = this.prompt.element;
+    this.prompt.cancel.addEventListener('click', this.cancelPrompt);
+  }
+
+  private readonly cancelPrompt = (): void => {
+    this.surface.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true }));
+  };
 
   static forReview(review: TransactionReviewWire, operationHash: string): VoiceIdApproval {
     if (review.validity.kind !== 'expires_at' || !/^[0-9a-f]{64}$/.test(operationHash)) {
@@ -135,7 +145,7 @@ export class VoiceIdApproval {
     return new VoiceIdApproval(review.validity.atMs, operationHash);
   }
 
-  async approve(signal: AbortSignal, onListening: () => void): Promise<AuthMethodApprovalResult> {
+  async approve(signal: AbortSignal): Promise<AuthMethodApprovalResult> {
     if (this.state.kind === 'approved') {
       if (
         signal.aborted ||
@@ -163,9 +173,17 @@ export class VoiceIdApproval {
       expiresAtMs: Date.now() + remaining,
     });
     const deadline = performance.now() + remaining;
+    this.prompt.setPhrase(this.phrase);
+    this.prompt.status.textContent = 'Opening microphone…';
     this.state = { kind: 'listening', binding, deadline, signal };
     try {
-      const outcome = await listenForVoiceApproval(binding, remaining, signal, onListening, this.phrase);
+      const outcome = await listenForVoiceApproval(
+        binding,
+        remaining,
+        signal,
+        this.prompt.capture,
+        this.phrase,
+      );
       this.assertListening(binding);
       if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {
         throw new Error('Voice approval expired or closed.');
@@ -179,7 +197,7 @@ export class VoiceIdApproval {
           this.state = { kind: 'pending' };
           return {
             kind: 'retry',
-            message: `${outcome.message} Select Confirm, then slowly say: “${this.phrase}”`,
+            message: `${outcome.message} Select Confirm to try a new phrase.`,
           };
         default:
           return assertNever(outcome);

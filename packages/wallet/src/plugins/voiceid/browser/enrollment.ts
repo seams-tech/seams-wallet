@@ -4,7 +4,8 @@ import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { requireRecord } from '@shared/utils/validation';
 import { prepareVoiceModelWithProgress } from './progress';
-import { recordVoice, requireVoiceUserAction } from './microphone';
+import { recordVoice, requireVoiceUserAction, type VoiceCaptureObserver } from './microphone';
+import { VoicePrompt } from '../capture/prompt';
 import {
   normalizeVoiceVector,
   voiceEmbedding,
@@ -86,11 +87,11 @@ export async function enrollBrowserVoice(signal: AbortSignal): Promise<void> {
 class VoiceEnrollmentSurface {
   private readonly completion = new WorkerDeferred<void>();
   readonly result = this.completion.promise;
-  private readonly status = document.createElement('p');
-  private readonly prompt = document.createElement('p');
+  private readonly status: HTMLParagraphElement;
+  private readonly prompt: VoicePrompt;
   private phrase = newSpokenPhrase(null);
-  private readonly record = document.createElement('button');
-  private readonly cancel = document.createElement('button');
+  private readonly record: HTMLButtonElement;
+  private readonly cancel: HTMLButtonElement;
   private readonly samples: number[][] = [];
   private phase: 'ready' | 'recording' | 'committing' | 'closed' = 'ready';
   private get closed(): boolean {
@@ -102,21 +103,17 @@ class VoiceEnrollmentSurface {
     parent: HTMLElement,
     private readonly signal: AbortSignal,
   ) {
-    const title = document.createElement('h2');
-    title.textContent = 'Enroll your voice in this browser';
-    const description = document.createElement('p');
-    description.textContent =
-      `Record three samples in your normal voice. After Listening appears, read the phrase below slowly for about three seconds. Each sample allows eight seconds. Audio stays local and is discarded.`;
-    this.prompt.dataset.voiceidPhrase = '';
-    this.prompt.setAttribute('aria-live', 'polite');
-    this.prompt.textContent = this.phrase;
-    this.status.setAttribute('role', 'status');
+    this.prompt = new VoicePrompt(document, 'Enroll your voice in this browser', this.phrase);
+    this.prompt.title.textContent = 'Read aloud · sample 1 of 3';
+    this.status = this.prompt.status;
+    this.record = this.prompt.record;
+    this.cancel = this.prompt.cancel;
     this.record.textContent = 'Record sample 1';
-    this.record.className = 'seams-voiceid-primary';
     this.record.addEventListener('click', this.capture);
-    this.cancel.textContent = 'Cancel enrollment';
+    this.cancel.setAttribute('aria-label', 'Cancel enrollment');
     this.cancel.addEventListener('click', this.cancelled);
-    parent.replaceChildren(title, description, this.prompt, this.status, this.record, this.cancel);
+    this.prompt.ready('Speak slowly for about three seconds.');
+    parent.replaceChildren(this.prompt.element);
     signal.addEventListener('abort', this.cancelled, { once: true });
     if (signal.aborted) this.cancelled();
     else this.record.focus();
@@ -125,9 +122,6 @@ class VoiceEnrollmentSurface {
   private readonly capture = (): void => {
     void this.collect();
   };
-  private readonly listening = (microphone: string): void => {
-    this.status.textContent = `Listening for eight seconds using ${microphone}. Read the sentence above.`;
-  };
   private async collect(): Promise<void> {
     if (this.phase !== 'ready') return;
     try {
@@ -135,7 +129,7 @@ class VoiceEnrollmentSurface {
       this.phase = 'recording';
       this.record.disabled = true;
       this.status.textContent = 'Opening microphone…';
-      const pcm = await recordVoice(this.controller.signal, this.listening);
+      const pcm = await recordVoice(this.controller.signal, this.prompt.capture);
       let embedding: number[];
       try {
         this.status.textContent = 'Checking your voice…';
@@ -193,7 +187,9 @@ class VoiceEnrollmentSurface {
     } finally {
       if (!this.closed) {
         this.phrase = newSpokenPhrase(this.phrase);
-        this.prompt.textContent = this.phrase;
+        this.prompt.setPhrase(this.phrase);
+        this.prompt.title.textContent = `Read aloud · sample ${this.samples.length + 1} of 3`;
+        this.prompt.ready(this.status.textContent ?? '');
         this.phase = 'ready';
         this.record.disabled = false;
       }
@@ -209,6 +205,7 @@ class VoiceEnrollmentSurface {
     this.phase = 'closed';
     this.controller.abort();
     this.signal.removeEventListener('abort', this.cancelled);
+    this.prompt.dispose();
     this.record.removeEventListener('click', this.capture);
     this.cancel.removeEventListener('click', this.cancelled);
     for (const sample of this.samples) sample.fill(0);
@@ -217,13 +214,15 @@ class VoiceEnrollmentSurface {
 
 export async function verifyBrowserVoice(
   signal: AbortSignal,
-  onListening: () => void,
+  onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<{ kind: 'matched' } | { kind: 'mismatch' } | { kind: 'phrase_mismatch' }> {
   const enrollment = await readVoiceEnrollment();
   if (!enrollment)
-    throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
-  const pcm = await recordVoice(signal, onListening);
+    throw new Error(
+      'Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.',
+    );
+  const pcm = await recordVoice(signal, onCapture);
   try {
     const phraseMatched = await spokenPhraseMatches(pcm.samples, phrase);
     const embedding = await voiceEmbedding(pcm.samples);

@@ -17,6 +17,7 @@ export type ConfirmationPresentationInput = Pick<
   | 'title'
   | 'body'
   | 'authMethodApprovalMessage'
+  | 'authMethodCapture'
   | 'errorMessage'
   | 'confirmText'
   | 'cancelText'
@@ -115,6 +116,7 @@ export function normalizeConfirmationModel(input: {
       appearance: input.appearance,
       content: {
         kind: 'transaction',
+        capture: source.authMethodCapture ?? null,
         review: { model: source.model ?? null, tree: input.tree },
         header: {
           heading: confirmationHeading(source),

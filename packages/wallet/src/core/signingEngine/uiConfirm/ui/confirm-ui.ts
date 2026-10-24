@@ -407,31 +407,32 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
       if (this.admission?.authMethodApprovalMessages) {
         this.view?.update({
           preparing: true,
-          authMethodApprovalMessage: this.admission.authMethodApprovalMessages.starting,
+          authMethodCapture: this.admission.authMethodApprovalSurface,
         });
       }
-      const approval = await this.admission?.approveAuthMethod(this.authMethodListening);
+      const approval = await this.admission?.approveAuthMethod();
       if (approval?.kind === 'retry') {
         this.phase = 'pending';
-        this.view?.update({ preparing: false, authMethodApprovalMessage: approval.message });
+        this.view?.update({
+          preparing: false,
+          authMethodCapture: null,
+          authMethodApprovalMessage: approval.message,
+        });
         return;
       }
       if (this.admission?.authMethodApprovalMessages)
         this.view?.update({
           preparing: false,
+          authMethodCapture: null,
           authMethodApprovalMessage: this.admission.authMethodApprovalMessages.approved,
         });
       this.publishDecision(decision);
     } catch (error) {
-      this.cancel(error instanceof Error ? error.message : 'Authentication method approval failed.');
+      this.cancel(
+        error instanceof Error ? error.message : 'Authentication method approval failed.',
+      );
     }
   }
-
-  private readonly authMethodListening = (): void => {
-    this.view?.update({
-      authMethodApprovalMessage: this.admission?.authMethodApprovalMessages?.listening,
-    });
-  };
 
   async takeDecision(): Promise<ConfirmUISurfaceDecision> {
     const queued = this.queuedDecisions.shift();

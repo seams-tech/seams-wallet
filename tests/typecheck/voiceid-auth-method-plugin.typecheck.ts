@@ -77,3 +77,30 @@ const retryFields = { message: 'Try again.' };
 const approvedWithRetry: AuthMethodApprovalResult = { kind: 'approved', ...retryFields };
 void missingRetryMessage;
 void approvedWithRetry;
+
+// @ts-expect-error A review approval must supply its trusted host capture surface.
+const missingCaptureSurface: AuthMethodReviewApproval = {
+  messages: approval.messages,
+  approve: approval.approve,
+  consume: approval.consume,
+};
+void missingCaptureSurface;
+// @ts-expect-error Capture UI is a trusted DOM element, not raw markup.
+const captureMarkup: AuthMethodReviewApproval = { ...approval, surface: '<button>Record</button>' };
+void captureMarkup;
+
+import type { VoiceCaptureEvent } from '../../packages/wallet/src/plugins/voiceid/browser/microphone';
+declare const captureStream: MediaStream;
+// @ts-expect-error A listening event must carry the existing recording stream.
+const noRecordingStream: VoiceCaptureEvent = { kind: 'listening' };
+const liveStreamFields = { stream: captureStream };
+// @ts-expect-error Processing cannot retain a live stream through a broad spread.
+const processingWithStream: VoiceCaptureEvent = { kind: 'processing', ...liveStreamFields };
+void noRecordingStream;
+void processingWithStream;
+
+import type { ConfirmationContentModel } from '../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent';
+declare const registrationContent: Extract<ConfirmationContentModel, { kind: 'registration' }>;
+const registrationWithCapture = { ...registrationContent, capture: approval.surface };
+// @ts-expect-error Registration cannot acquire a transaction capture surface through a spread.
+void (registrationWithCapture satisfies ConfirmationContentModel);

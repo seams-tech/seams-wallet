@@ -47,6 +47,7 @@ let nextConfirmationId = 0;
 export type ConfirmationContentModel =
   | {
       kind: 'registration';
+      capture?: never;
       registration: Omit<PasskeyRegistrationContentProps, 'styles'>;
       header?: never;
       body?: never;
@@ -55,6 +56,7 @@ export type ConfirmationContentModel =
     }
   | {
       kind: 'transaction';
+      capture: HTMLElement | null;
       registration?: never;
       header: Omit<ConfirmHeaderProps, 'styles' | 'icon'>;
       body: ConfirmationBodyModel;
@@ -136,6 +138,12 @@ export class ConfirmationContent extends Component<{
   private renderTransaction(
     model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
   ): ComponentChildren {
+    if (model.capture)
+      return (
+        <div ref={this.root}>
+          <AuthMethodCapture element={model.capture} />
+        </div>
+      );
     const contentClass =
       this.props.variant === 'drawer'
         ? 'seams-confirmation-content seams-confirmation-content--drawer'
@@ -222,4 +230,23 @@ function ignoreCopyFailure(): void {}
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected confirmation content: ${String(value)}`);
+}
+
+/** The lazy auth plugin owns its contents; the Wallet retains the modal and cancellation. */
+class AuthMethodCapture extends Component<{ element: HTMLElement }> {
+  private readonly container = createRef<HTMLDivElement>();
+  componentDidMount(): void {
+    this.container.current?.append(this.props.element);
+    this.props.element.querySelector<HTMLButtonElement>('button')?.focus();
+  }
+  componentDidUpdate(previous: { element: HTMLElement }): void {
+    if (previous.element !== this.props.element)
+      this.container.current?.replaceChildren(this.props.element);
+  }
+  componentWillUnmount(): void {
+    this.props.element.remove();
+  }
+  render(): ComponentChildren {
+    return <div ref={this.container} />;
+  }
 }
