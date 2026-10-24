@@ -93,6 +93,7 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
                 target: policy.refill_target_batches(),
                 ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
             },
+            None,
         )
         .await?,
     )
@@ -184,7 +185,7 @@ async fn remove_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
     state
         .storage()
         .transaction(move |transaction| async move {
-            let store = TransactionStore(transaction);
+            let store = TransactionStore::untraced(transaction);
             let mut queue: Vec<KeyScope> = store
                 .get(QUEUE)
                 .await
@@ -200,7 +201,7 @@ async fn rotate_queued(state: &State, key: &KeyScope) -> worker::Result<()> {
     state
         .storage()
         .transaction(move |transaction| async move {
-            let store = TransactionStore(transaction);
+            let store = TransactionStore::untraced(transaction);
             let mut queue: Vec<KeyScope> = store
                 .get(QUEUE)
                 .await
@@ -323,7 +324,8 @@ async fn prepare(
 }
 
 async fn claim_role(env: &Env, job: &refill::Job) -> Result<[u8; 1952]> {
-    let mut response = local_call(env, &RoleCommand::StartRefill { job: job.clone() }).await?;
+    let mut response =
+        local_call(env, &RoleCommand::StartRefill { job: job.clone() }, None).await?;
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA preparation was already claimed"));
     }
@@ -352,6 +354,7 @@ async fn publish(
                 binding,
                 sealed,
             },
+            None,
         )
         .await?;
         if response.status_code() != 200 {
@@ -531,6 +534,7 @@ async fn reconcile_and_produce(
                 key: job.key.clone(),
                 batches: retired,
             },
+            None,
         )
         .await
         .map_err(storage_error)?;
@@ -545,6 +549,7 @@ async fn reconcile_and_produce(
                     key: job.key.clone(),
                     batches: only_b.clone(),
                 },
+                None,
             )
             .await
             .map_err(storage_error)?,

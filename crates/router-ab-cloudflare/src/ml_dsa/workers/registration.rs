@@ -377,7 +377,7 @@ impl RouterAbMlDsaRegistrationDurableObject {
         }
         trace.mark("material_loaded");
         let key = record.activation.key.clone();
-        let response = local_call(&self.env, &RoleCommand::InstallMaterial { record })
+        let response = local_call(&self.env, &RoleCommand::InstallMaterial { record }, None)
             .await
             .map_err(protocol_error)?;
         if response.status_code() != 200 {

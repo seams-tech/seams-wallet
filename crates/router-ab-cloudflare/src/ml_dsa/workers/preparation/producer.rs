@@ -376,7 +376,7 @@ async fn settle_remote(env: &Env, job: &refill::Job) -> Result<()> {
         })
     );
     for key in wake {
-        let response = local_call(env, &RoleCommand::WakeRefill { key: key.clone() }).await?;
+        let response = local_call(env, &RoleCommand::WakeRefill { key: key.clone() }, None).await?;
         if response.status_code() != 200 {
             return Err(invalid("ML-DSA refill wake was not acknowledged"));
         }
@@ -398,7 +398,7 @@ async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {
         batches: job.batch_ids(),
     };
     let (a, b) = futures::join!(
-        local_call(env, &command),
+        local_call(env, &command, None),
         coordinator::role_call::<Vec<pool::BatchAvailability>>(env, "DERIVER_B", &command)
     );
     let mut response = a?;

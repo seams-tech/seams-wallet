@@ -17,6 +17,19 @@ pub(super) fn call_id() -> Option<crate::CloudflareTraceIdV1> {
     crate::CloudflareTraceIdV1::parse(&format!("{}{:08x}", &module[..24], number)).ok()
 }
 
+pub(super) fn enabled(env: &Env) -> Result<bool> {
+    match env
+        .var("ML_DSA_WAIT_DIAGNOSTICS")
+        .ok()
+        .map(|value| value.to_string())
+        .as_deref()
+    {
+        None | Some("0") => Ok(false),
+        Some("1") => Ok(true),
+        Some(_) => Err(invalid("Invalid ML-DSA wait diagnostics setting")),
+    }
+}
+
 #[derive(Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Kind {
@@ -50,15 +63,8 @@ impl WaitTrace {
         role: Participant,
         call: Option<crate::CloudflareTraceIdV1>,
     ) -> Result<Option<Rc<Self>>> {
-        match env
-            .var("ML_DSA_WAIT_DIAGNOSTICS")
-            .ok()
-            .map(|value| value.to_string())
-            .as_deref()
-        {
-            None | Some("0") => return Ok(None),
-            Some("1") => {}
-            Some(_) => return Err(invalid("Invalid ML-DSA wait diagnostics setting")),
+        if !enabled(env)? {
+            return Ok(None);
         }
         let trace = Rc::new(Self {
             call,

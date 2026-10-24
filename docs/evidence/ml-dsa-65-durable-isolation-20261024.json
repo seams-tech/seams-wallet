@@ -1,0 +1,161 @@
+{
+  "schema": "seams.ml-dsa-durable-isolation.v1",
+  "source_parent": "f5852b3ffc8791da363e701c938541e2c262d709",
+  "production_change": "Opt-in public command and storage-boundary observations; preserve call IDs through pool forwarding.",
+  "production_sync_barriers_added": false,
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_export": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "local": {
+    "functional_passed": true,
+    "canonical_recovery": true,
+    "verified_signatures": 1,
+    "boundaries": 4466,
+    "commands": {
+      "claim_registration": 108,
+      "prepare_registration": 26,
+      "check_registration_job": 108,
+      "ready_registration": 44,
+      "initialize_registration_storage": 72,
+      "check_registration_claim": 540,
+      "authorize_key": 44,
+      "install_pool": 492,
+      "key_state": 144,
+      "check_material": 120,
+      "install_material": 60,
+      "install_registration_batch": 2656,
+      "commit_key": 22,
+      "finish_registration": 30
+    }
+  },
+  "hosted": {
+    "result": {
+      "functional_passed": true,
+      "error": null,
+      "recovery_preserves_canonical_key": true,
+      "cases": [
+        {
+          "epoch": 1,
+          "preparation_ms": 98651.759791,
+          "registration_ms": 4927.032833000005,
+          "signing": {
+            "state": null,
+            "verified": true,
+            "elapsedMs": 6181.489874999999
+          },
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 94870.662792,
+          "registration_ms": 5588.788124999992,
+          "signing": {
+            "state": null,
+            "verified": true,
+            "elapsedMs": 4989.946041999996
+          },
+          "canonical_key_verified": true
+        }
+      ],
+      "invocations": 585,
+      "truncated_invocations": 0,
+      "observed_boundaries": 3236,
+      "failures": [],
+      "signing_outcomes": [
+        {
+          "operation": "66a6d254cb0683361d66f8327dc36c566efe94a1c0155c87e4c766d2616edb54",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 8,
+            "evaluated_candidates": 16
+          },
+          "log_timestamp_ms": 1792804403879
+        },
+        {
+          "operation": "3f45c556fea427843ffaa044f14a671cfff42a1ed79385c858a020d642d2e137",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 2,
+            "evaluated_candidates": 4
+          },
+          "log_timestamp_ms": 1792804509400
+        }
+      ]
+    },
+    "repeat": {
+      "functional_passed": true,
+      "error": null,
+      "recovery_preserves_canonical_key": true,
+      "cases": [
+        {
+          "epoch": 1,
+          "preparation_ms": 63084.313417000005,
+          "registration_ms": 4138.048625000003,
+          "signing": {
+            "state": null,
+            "verified": true,
+            "elapsedMs": 2289.1638329999987
+          },
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 61939.353334,
+          "registration_ms": 4812.217000000004,
+          "signing": {
+            "state": null,
+            "verified": true,
+            "elapsedMs": 1692.367041999998
+          },
+          "canonical_key_verified": true
+        }
+      ],
+      "invocations": 439,
+      "truncated_invocations": 0,
+      "observed_boundaries": 2342,
+      "failures": [],
+      "signing_outcomes": [
+        {
+          "operation": "df4093b3b0529585d15349cc336b5e3544d18639d561bc117adecc1ef02c529c",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 1,
+            "evaluated_candidates": 2
+          },
+          "log_timestamp_ms": 1792804659741
+        },
+        {
+          "operation": "dca70b1aa78b6197871112623896358ea1bfc4ec08754c0c9d7d15828c6c75e2",
+          "outcome": {
+            "status": "signed",
+            "consumed_batches": 2,
+            "evaluated_candidates": 4
+          },
+          "log_timestamp_ms": 1792804728366
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Boundary intervals include scheduling, CPU, and storage gates; they do not isolate disk latency.",
+    "Fetch completion does not imply HTTP success; transaction completion is not an explicit sync barrier.",
+    "Pairing uses stable call and observation IDs plus stage and owner metadata. Unique cross-record continuations are retained separately.",
+    "Missing terminal records can reflect cancellation, resets, or incomplete capture.",
+    "The hosted campaign excludes public login and browser UI."
+  ],
+  "cleanup": {
+    "workers_deleted": 6
+  },
+  "archive": {
+    "path": "ml-dsa-65-durable-isolation-20261024-data.json.gz",
+    "bytes": 293878,
+    "sha256": "82f9ac0c0b39f412f4b8568300730acd5e922fe7105c234e50c5b9351b1a2c2f"
+  }
+}

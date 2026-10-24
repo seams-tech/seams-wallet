@@ -185,14 +185,20 @@ pub(super) async fn role_call<T: serde::de::DeserializeOwned>(
         RoleCommand::Release { .. } => "ML-DSA settlement release",
         _ => "ML-DSA role storage",
     };
-    let mut response = crate::router_coordinator::post_role_request(
-        env,
-        binding,
-        "https://ml-dsa-role.internal",
-        ROLE_PATH,
-        operation,
-        command,
-        None,
+    let call = wait_trace::call_id();
+    let trace = durable_trace::DurableTrace::role(env, command, call)?;
+    let mut response = durable_trace::observe(
+        trace.as_ref(),
+        "role_dispatch",
+        crate::router_coordinator::post_role_request(
+            env,
+            binding,
+            "https://ml-dsa-role.internal",
+            ROLE_PATH,
+            operation,
+            command,
+            call,
+        ),
     )
     .await?;
     if response.status_code() != 200 {
