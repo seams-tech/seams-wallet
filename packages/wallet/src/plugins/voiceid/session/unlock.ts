@@ -7,7 +7,8 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
-import { prepareVoiceModel } from '../browser/model';
+import { prepareVoiceModelWithProgress } from '../browser/progress';
+import { readVoiceEnrollment } from '../browser/enrollment';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
 import { showVoiceIdCaptureSurface } from '../capture/surface';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
@@ -38,7 +39,10 @@ export async function unlockWithVoiceId(
     location.origin,
     fetchWithWalletHomeDiscovery,
   );
-  await prepareVoiceModel();
+  if (!(await readVoiceEnrollment())) {
+    throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
+  }
+  await prepareVoiceModelWithProgress();
   input.assertActive();
   const challenge = await http.challenge({
     walletId: input.walletId,

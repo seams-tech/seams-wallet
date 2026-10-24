@@ -11,8 +11,8 @@ storage, enrollment templates, credentials, or transaction signing.
 - Checkpoints: [voice-is-cool/ReDimNet](https://huggingface.co/voice-is-cool/ReDimNet),
   MIT, revision `5180983b6895dafa0cd88aa88e8a07296df27834`.
   Use `b0-vox2-ft_lm.pt` and `b1-vox2-ft_lm.pt`. The exporter checks their SHA-256 hashes.
-- ECAPA: the approved full-waveform export at
-  `packages/wallet/assets/voiceid/ecapa.onnx`. The exporter checks its pinned hash.
+- ECAPA: the historical full-waveform baseline export, supplied separately.
+  Save it as `$voiceid_eval/ecapa.onnx` for the comparison. The exporter checks its pinned hash.
 - Audio: [LibriSpeech test-clean](https://www.openslr.org/12), CC-BY-4.0,
   Vassil Panayotov, Guoguo Chen, Daniel Povey, and Sanjeev Khudanpur.
   The source recordings come from LibriVox audiobooks.
@@ -53,7 +53,7 @@ archive extraction. The resulting corpus path must be `LibriSpeech/test-clean`.
 ```sh
 /private/tmp/voiceid-model-env/bin/python tests/scripts/voiceid-model-evaluation/prepare.py \
   --root "$voiceid_eval" \
-  --ecapa packages/wallet/assets/voiceid/ecapa.onnx
+  --ecapa "$voiceid_eval/ecapa.onnx"
 ```
 
 The exporter replaces only the complex-valued spectrogram operation with an
@@ -71,9 +71,9 @@ Wallet server is needed. Each run starts a temporary server bound to 127.0.0.1.
 
 ```sh
 node tests/scripts/voiceid-model-evaluation/run-browser.mjs \
-  "$voiceid_eval" packages/wallet/assets/voiceid/ecapa.onnx chromium
+  "$voiceid_eval" "$voiceid_eval/ecapa.onnx" chromium
 node tests/scripts/voiceid-model-evaluation/run-browser.mjs \
-  "$voiceid_eval" packages/wallet/assets/voiceid/ecapa.onnx webkit
+  "$voiceid_eval" "$voiceid_eval/ecapa.onnx" webkit
 /private/tmp/voiceid-model-env/bin/python tests/scripts/voiceid-model-evaluation/analyze.py \
   --root "$voiceid_eval" \
   --sdk-assets packages/wallet/dist/public/sdk \
@@ -118,3 +118,8 @@ allows recomputing every reported false acceptance and false rejection count.
 
 The benchmark checks conversion and compares models. It does not change the
 Wallet's deployed model or calibrate production authentication policy.
+
+To provision the selected B1 model without the historical ECAPA baseline, run
+`prepare.py --root "$voiceid_eval" --export-only`. Copy the resulting `b1.onnx` to
+`packages/wallet/assets/voiceid/redimnet-b1.onnx`, then build the SDK. The source
+and B0/B1 checkpoints above remain required. No corpus download is needed for export.

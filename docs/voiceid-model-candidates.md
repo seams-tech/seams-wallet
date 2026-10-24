@@ -1,7 +1,7 @@
 # VoiceID model candidates
 
-Research date: 2026-10-24. Status: shortlist with initial browser evaluation. No candidate in this document
-replaces the model used by the working browser prototype.
+Research date: 2026-10-24. Status: shortlist with initial browser evaluation. The browser prototype now uses ReDimNet B1. Broader production accuracy
+qualification remains open.
 
 Evaluate ReDimNet B0 and B1 first for speaker verification. Evaluate AuroraASR-1M
 for optional spoken-phrase checking, with Moonshine Tiny as the browser baseline.
@@ -9,8 +9,9 @@ Select a replacement only after browser compatibility and accuracy checks.
 
 The [B0/B1 browser evaluation](evidence/voiceid-redimnet-20261024/README.md) is complete
 on Chromium and desktop WebKit using 29 public-corpus speakers. Full-waveform
-exports measured 4.41 MB and 8.86 MB. B1 is the next live-test candidate; broader
-accuracy qualification and the complete Wallet E2E remain required.
+exports measured 4.41 MB and 8.86 MB. B1 is integrated into the prototype. The [Wallet E2E evidence](evidence/voiceid-b1-live-page-20261024.json)
+covers model download progress, cache reuse, owner re-enrollment, unlock, and signing.
+Live enrollment with the new model and broader accuracy qualification remain open.
 
 ## Two separate tasks
 
@@ -169,4 +170,5 @@ user enrollment audio or templates as benchmark data without authorization.
 An illustrative B0 + Aurora INT8 + current runtime budget is about 20 MB before
 export and preprocessing overhead. This is not a measured browser bundle.
 A product acceptance threshold for accuracy loss remains to be selected before
-qualification. None of these candidate models has passed our browser Wallet E2E.
+qualification. B1 passed the browser Wallet E2E with synthetic microphone audio. Other candidates
+have not passed this flow. The live B1 microphone test remains open.

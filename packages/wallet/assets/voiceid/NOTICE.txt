@@ -1,10 +1,35 @@
-VoiceID speaker model
+VoiceID speaker model: ReDimNet B1 (VoxCeleb2, large-margin fine-tuned)
 
-This deployment uses an ONNX export of SpeechBrain spkrec-ecapa-voxceleb.
-Upstream: https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb
-Revision: 0f99f2d0ebe89ac095bcc5903c4dd8f72b367286
-License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+Source: https://github.com/IDRnD/redimnet
+Source revision: ce039a624cb99fe127702ceb94c6080090e5032f
+Weights: https://huggingface.co/voice-is-cool/ReDimNet
+Weights revision: 5180983b6895dafa0cd88aa88e8a07296df27834
+Checkpoint: b1-vox2-ft_lm.pt
+Checkpoint SHA-256: 6e634bbbeb0f6afd9bbbb0606da834f93e23e4869b3954177a5717acc20ea36c
+ONNX SHA-256: e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269
 
-The model was converted to accept complete 16 kHz mono waveforms and emit
-192-dimensional speaker embeddings. Preprocessing and model weights are local.
-No model training or user recordings are included in this asset directory.
+Changes: exported to ONNX with complete 16 kHz mono waveform preprocessing.
+The complex STFT is represented with ONNX STFT and equivalent power reduction.
+The model emits 192-dimensional speaker embeddings. No retraining was performed.
+
+MIT License
+
+Copyright (c) 2024 ID R&D, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

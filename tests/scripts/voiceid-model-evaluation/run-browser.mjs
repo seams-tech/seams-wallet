@@ -9,7 +9,7 @@ import { chromium, webkit } from '@playwright/test';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(process.argv[2] || '/private/tmp/voiceid-redimnet-evaluation');
-const ecapa = path.resolve(process.argv[3] || '../packages/wallet/assets/voiceid/ecapa.onnx');
+const ecapa = path.resolve(process.argv[3] || path.join(root, 'ecapa.onnx'));
 const engine = process.argv[4] || 'chromium';
 if (engine !== 'chromium' && engine !== 'webkit') throw new Error('Select chromium or webkit');
 const ortDirectory = path.dirname(require.resolve('onnxruntime-web/wasm'));

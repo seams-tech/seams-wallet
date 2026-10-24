@@ -2,6 +2,7 @@ const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.
 const streams: MediaStream[] = [];
 const originalPut = IDBObjectStore.prototype.put;
 let cancelEnrollmentSave = false;
+let retireEnrollmentModel = false;
 let nextAudio: string | null = null;
 let injectedAudio: AudioContext | null = null;
 
@@ -10,6 +11,13 @@ function observedPut(
   value: unknown,
   key?: IDBValidKey,
 ): IDBRequest<IDBValidKey> {
+  if (retireEnrollmentModel && this.name === 'app_state' &&
+      typeof value === 'object' && value !== null && 'key' in value &&
+      value.key === 'voiceid-browser-enrollment-v1' && 'value' in value &&
+      typeof value.value === 'object' && value.value !== null && 'model' in value.value) {
+    value.value.model = 'previous-test-model';
+    retireEnrollmentModel = false;
+  }
   const request =
     key === undefined ? originalPut.call(this, value) : originalPut.call(this, value, key);
   if (
@@ -33,6 +41,10 @@ function cancelEnrollment(): void {
 function isEnrollmentCancel(button: HTMLButtonElement): boolean {
   return button.textContent === 'Cancel enrollment';
 }
+function retireNextEnrollmentModel(): void {
+  retireEnrollmentModel = true;
+}
+
 function cancelNextEnrollmentSave(): void {
   cancelEnrollmentSave = true;
 }
@@ -78,12 +90,14 @@ function trackState(track: MediaStreamTrack): MediaStreamTrackState {
 
 declare global {
   interface Window {
+    voiceIdRetireNextEnrollmentModel: typeof retireNextEnrollmentModel;
     voiceIdNextAudio: typeof useNextAudio;
     voiceIdMicrophoneStates: typeof microphoneStates;
     voiceIdCancelNextEnrollmentSave: typeof cancelNextEnrollmentSave;
   }
 }
 navigator.mediaDevices.getUserMedia = observedGetUserMedia;
+window.voiceIdRetireNextEnrollmentModel = retireNextEnrollmentModel;
 window.voiceIdNextAudio = useNextAudio;
 window.voiceIdMicrophoneStates = microphoneStates;
 window.voiceIdCancelNextEnrollmentSave = cancelNextEnrollmentSave;

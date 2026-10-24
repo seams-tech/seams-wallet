@@ -37,7 +37,7 @@ const SURFACE_CSS = `
 type CaptureAction<T> = (signal: AbortSignal, onListening: () => void) => Promise<T>;
 const documentStyles = new WeakMap<Document, ReturnType<typeof createCspStylesheetManager>>();
 
-function ensureVoiceIdStyles(document: Document): void {
+export function ensureVoiceIdStyles(document: Document): void {
   let styles = documentStyles.get(document);
   if (!styles) {
     styles = createCspStylesheetManager({

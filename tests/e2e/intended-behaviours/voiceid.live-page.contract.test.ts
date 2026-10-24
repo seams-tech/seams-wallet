@@ -13,7 +13,9 @@ import {
   type Page,
   type TestInfo,
   type Request,
+  type Route,
 } from '@playwright/test';
+import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { base58Encode } from '@shared/utils/base58';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
@@ -21,7 +23,7 @@ import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-nea
 test('manual VoiceID page allocates its wallet and signs after voice unlock', verifyLivePage);
 test.use(voiceIdBrowserAudio);
 test.use({ video: 'off', trace: 'off', screenshot: 'off' });
-test.setTimeout(180_000);
+test.setTimeout(240_000);
 
 async function verifyLivePage(
   {
@@ -43,6 +45,8 @@ async function verifyLivePage(
     ),
   );
   await context.addInitScript({ content: observation[0].code });
+  const download = new ModelDownloadGate();
+  await context.route('**/sdk/voiceid/redimnet-b1.onnx', download.hold);
   const assets = new VoiceAssetRequests();
   context.on('request', assets.observe);
   const initialId = 'voiceid-live-20261024';
@@ -93,8 +97,12 @@ async function verifyLivePage(
   await expect(page.getByRole('button', { name: 'Lock wallet', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey', { timeout: 60_000 });
+  expect(assets.inference).toHaveLength(0);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await expect(wallet.getByRole('progressbar', { name: 'VoiceID model download' })).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-model-download')).toHaveAttribute('data-state', 'downloading');
+  download.release();
   await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
   await expect
     .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
@@ -102,7 +110,11 @@ async function verifyLivePage(
   await wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }).click();
   await expect(status).toHaveAttribute('data-state', 'failed');
   expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
-  expect(assets.inference).toHaveLength(0);
+  expect(assets.models).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Unlock with passkey', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await wallet.locator('body').evaluate(cancelNextEnrollmentSave);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
@@ -112,10 +124,25 @@ async function verifyLivePage(
     'Select Activate VoiceID to finish setup',
   );
 
+  await wallet.locator('body').evaluate(retireNextEnrollmentModel);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
+  expect(assets.activations).toBe(1);
+  await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
+  await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  await expect(status).toContainText('Enroll voice again');
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
+  await expect(page.getByRole('button', { name: 'Enroll voice again', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
+  await page.getByRole('button', { name: 'Enroll voice again', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await enrollBrowserMicrophone(page);
+  await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
+  expect(assets.activations).toBe(1);
+  expect(assets.models).toBe(1);
   await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
@@ -172,6 +199,9 @@ async function verifyLivePage(
         nativeHost: 'none',
         nativeRequests: assets.native,
         inferenceLoadedOnlyAfterActivation: true,
+        modelDownloadProgressVisible: true,
+        modelFetchedOnceAcrossReload: true,
+        ownerReenrollmentReusesDeviceCredential: true,
         mismatchCapture: mismatch,
         mismatchPreventsSigning: true,
         explicitRetrySignsSameReview: true,
@@ -180,7 +210,7 @@ async function verifyLivePage(
         inferenceAssets: assets.inference,
         microphone: 'synthetic_wav_through_browser_mediarecorder',
         keychainUsed: false,
-        speakerInference: 'real_ecapa_onnx_webassembly',
+        speakerInference: 'real_redimnet_b1_onnx_webassembly',
         authentication: 'voiceid',
         remainingUses: budget.remainingUses,
         signing: 'real_ed25519_yao_mpc',
@@ -201,10 +231,14 @@ async function verifyLivePage(
 class VoiceAssetRequests {
   readonly inference: string[] = [];
   readonly native: string[] = [];
+  models = 0;
+  activations = 0;
   readonly observe = (request: Request): void => {
     const url = new URL(request.url());
+    if (url.pathname.endsWith('redimnet-b1.onnx')) this.models += 1;
+    if (url.pathname === '/wallet/voiceid/activate' && request.method() === 'POST') this.activations += 1;
     if (url.port === '4318') this.native.push(url.pathname);
-    if (url.pathname.includes('ort-wasm') || url.pathname.endsWith('ecapa.onnx')) {
+    if (url.pathname.includes('ort-wasm') || url.pathname.endsWith('redimnet-b1.onnx')) {
       this.inference.push(url.pathname);
     }
   };
@@ -220,4 +254,19 @@ function cancelNextEnrollmentSave(): void {
 
 function useOtherSpeaker(_element: Element, base64: string): void {
   window.voiceIdNextAudio(base64);
+}
+
+function retireNextEnrollmentModel(): void {
+  window.voiceIdRetireNextEnrollmentModel();
+}
+
+class ModelDownloadGate {
+  private readonly pending = new WorkerDeferred<void>();
+  readonly hold = async (route: Route): Promise<void> => {
+    await this.pending.promise;
+    await route.continue();
+  };
+  release(): void {
+    this.pending.resolve();
+  }
 }

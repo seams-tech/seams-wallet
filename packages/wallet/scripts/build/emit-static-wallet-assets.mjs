@@ -320,11 +320,11 @@ function buildAssetsManifest(assets, walletProtocolVersion) {
 }
 
 async function copyVoiceIdAssets() {
-  const model = path.join(SDK_ROOT, 'assets/voiceid/ecapa.onnx');
+  const model = path.join(SDK_ROOT, 'assets/voiceid/redimnet-b1.onnx');
   try { await fs.access(model); } catch { return; }
   const destination = path.join(PUBLIC_SDK, 'voiceid');
   await fs.mkdir(destination, { recursive: true });
-  await fs.copyFile(model, path.join(destination, 'ecapa.onnx'));
+  await fs.copyFile(model, path.join(destination, 'redimnet-b1.onnx'));
   await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/NOTICE.txt'), path.join(destination, 'NOTICE.txt'));
   const require = createRequire(import.meta.url);
   const runtime = path.dirname(require.resolve('onnxruntime-web/wasm'));

@@ -1,28 +1,109 @@
 import type { InferenceSession } from 'onnxruntime-web';
 
-const MODEL_PATH = '/sdk/voiceid/ecapa.onnx';
-const MODEL_HASH = '0d56d37287767d3c43a4f2ffc7ed12452bdd73d67c40428acd78279ecff8d5c3';
-export const VOICE_MODEL_ID = `ecapa:${MODEL_HASH}`;
-export const VOICE_MATCH_THRESHOLD = 0.6;
+const MODEL_PATH = '/sdk/voiceid/redimnet-b1.onnx';
+const MODEL_HASH = 'e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269';
+const MODEL_BYTES = 8_859_593;
+const CACHE_NAME = 'seams-voiceid-models-v1';
+export const VOICE_MODEL_ID = `redimnet-b1:${MODEL_HASH}`;
+// Prototype threshold: next tenth above the 4s calibration maximum impostor score (0.4417).
+export const VOICE_MATCH_THRESHOLD = 0.5;
+export type VoiceModelProgress =
+  | { kind: 'checking_cache' }
+  | { kind: 'downloading'; received: number; total: number }
+  | { kind: 'preparing'; storage: 'browser' | 'session' }
+  | { kind: 'ready'; storage: 'browser' | 'session' };
 let session: Promise<InferenceSession> | null = null;
+let progress: VoiceModelProgress = { kind: 'checking_cache' };
+const listeners = new Set<(progress: VoiceModelProgress) => void>();
+
+function publish(next: VoiceModelProgress): void {
+  progress = next;
+  for (const listener of listeners) listener(next);
+}
+
+async function validModel(bytes: ArrayBuffer): Promise<boolean> {
+  if (bytes.byteLength !== MODEL_BYTES) return false;
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  let hex = '';
+  for (const byte of digest) hex += byte.toString(16).padStart(2, '0');
+  return hex === MODEL_HASH;
+}
+
+async function openModelCache(): Promise<Cache | null> {
+  try {
+    return await caches.open(CACHE_NAME);
+  } catch {
+    return null;
+  }
+}
+
+async function modelBytes(): Promise<{ bytes: ArrayBuffer; storage: 'browser' | 'session' }> {
+  publish({ kind: 'checking_cache' });
+  const cache = await openModelCache();
+  const cacheKey = new URL(`${MODEL_PATH}?sha256=${MODEL_HASH}`, location.origin).href;
+  try {
+    const cached = await cache?.match(cacheKey);
+    if (cached) {
+      const bytes = await cached.arrayBuffer();
+      if (await validModel(bytes)) return { bytes, storage: 'browser' };
+      await cache?.delete(cacheKey);
+    }
+  } catch {
+    // Cache access can be unavailable in restricted browser storage.
+  }
+  publish({ kind: 'downloading', received: 0, total: MODEL_BYTES });
+  const response = await fetch(MODEL_PATH, { credentials: 'omit', cache: 'force-cache' });
+  if (!response.ok || !response.body) throw new Error('VoiceID model is unavailable from this Wallet.');
+  const reader = response.body.getReader();
+  const bytes = new Uint8Array(MODEL_BYTES);
+  let received = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      if (received + chunk.value.length > MODEL_BYTES) throw new Error('VoiceID model size is invalid.');
+      bytes.set(chunk.value, received);
+      received += chunk.value.length;
+      publish({ kind: 'downloading', received, total: MODEL_BYTES });
+    }
+  } finally {
+    await reader.cancel();
+    reader.releaseLock();
+  }
+  if (!(await validModel(bytes.buffer))) throw new Error('VoiceID model integrity check failed.');
+  if (cache) {
+    try {
+      await cache.put(cacheKey, new Response(bytes, { headers: { 'Content-Type': 'application/octet-stream' } }));
+      return { bytes: bytes.buffer, storage: 'browser' };
+    } catch {
+      // Inference remains available for this session if storage is full.
+    }
+  }
+  return { bytes: bytes.buffer, storage: 'session' };
+}
 
 async function loadModel(): Promise<InferenceSession> {
   const ort = await import('onnxruntime-web/wasm');
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.wasmPaths = new URL('/sdk/', location.origin).href;
-  const response = await fetch(MODEL_PATH, { credentials: 'omit', cache: 'force-cache' });
-  if (!response.ok) throw new Error('VoiceID model is unavailable from this Wallet.');
-  const bytes = await response.arrayBuffer();
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  let hex = '';
-  for (const byte of digest) hex += byte.toString(16).padStart(2, '0');
-  if (hex !== MODEL_HASH) throw new Error('VoiceID model integrity check failed.');
-  return await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
+  const model = await modelBytes();
+  publish({ kind: 'preparing', storage: model.storage });
+  const loaded = await ort.InferenceSession.create(model.bytes, { executionProviders: ['wasm'] });
+  publish({ kind: 'ready', storage: model.storage });
+  return loaded;
 }
 
-export async function prepareVoiceModel(): Promise<InferenceSession> {
-  if (!session) session = loadModel().catch(modelLoadFailed);
-  return await session;
+export async function prepareVoiceModel(onProgress?: (progress: VoiceModelProgress) => void): Promise<InferenceSession> {
+  if (onProgress) {
+    listeners.add(onProgress);
+    onProgress(progress);
+  }
+  try {
+    if (!session) session = loadModel().catch(modelLoadFailed);
+    return await session;
+  } finally {
+    if (onProgress) listeners.delete(onProgress);
+  }
 }
 
 function modelLoadFailed(error: unknown): never {

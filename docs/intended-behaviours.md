@@ -83,15 +83,20 @@ Chrome extension, Keychain access, or system-settings change is part of this flo
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
 Wallet's browser enrollment UI. Each of three samples requires a separate Record
 click. The browser requests microphone permission. Enrollment allows eight seconds
-per sample and requires at least two seconds of voiced audio. Verification uses the same duration and minimum speech length.
+per sample and requires at least two seconds of voiced audio. Verification uses
+the same duration and minimum speech length.
 Enrollment and verification display the same sentence.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
-after local ECAPA inference. Three consistent samples form one normalized
-speaker template. The template stays in Wallet-origin IndexedDB.
+after local ReDimNet B1 inference. An enrollment from a different model requires
+an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
+envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB.
 
-The first model download is approximately 80 MB. The exact model digest is
-checked before inference. The inference runtime and model are hosted with the
-Wallet's static assets. Missing or changed assets fail enrollment and unlock.
+The first model download is approximately 8.9 MB. The exact model digest is
+checked before inference. A progress bar shows downloaded bytes and percentage.
+Verified bytes are saved in Wallet-origin Cache Storage and reused after reload.
+Storage failure allows session-only inference with a visible explanation. Browser
+eviction or clearing site data can require another download. The inference runtime
+and model are hosted with the Wallet's static assets. Missing or changed assets fail enrollment and unlock.
 The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
@@ -158,6 +163,10 @@ signature or broadcast. Unavailable broadcast replies establish no on-chain resu
 
 ### Repeatable evidence
 
+The [B1 integration evidence](evidence/voiceid-b1-live-page-20261024.json) also
+checks visible model download progress, one model fetch across page reload, and
+owner re-enrollment without another server activation.
+
 The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
 creates a wallet, saves recovery codes, enrolls three browser microphone samples,
 activates VoiceID, locks, unlocks, and signs a transfer. Cancellation stops microphone
@@ -170,7 +179,7 @@ The [unlock contract](../tests/e2e/intended-behaviours/voiceid.unlock-near.contr
 checks fresh session issuance and a concurrent lock during unlock. The
 [broadcast contract](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts)
 checks signature reuse for broadcast retries and cancellation of a new review.
-These journeys use synthetic microphone WAV input, real browser ECAPA inference,
+These journeys use synthetic microphone WAV input, real browser ReDimNet B1 inference,
 WebCrypto device keys, and local MPC signing. NEAR RPC is deterministic; these
 runs do not establish live-microphone accuracy or an on-chain transfer.
 

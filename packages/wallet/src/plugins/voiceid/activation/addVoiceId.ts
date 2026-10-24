@@ -8,6 +8,8 @@ import { VoiceIdHttpClient } from '../session/httpClient';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
+import { enrollBrowserVoice } from '../browser/enrollment';
+import { readBrowserVoiceDevice } from '../browser/deviceStore';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
 import { showVoiceIdCaptureSurface } from '../capture/surface';
 import {
@@ -22,17 +24,25 @@ import {
   parsePasskeyEnvelopeId,
   parseWalletId,
   type WalletId,
+  type WalletAuthMethodId,
 } from '@shared/utils/domainIds';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
 type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
 
-type PreparedVoiceIdActivation = Readonly<{
-  ownerCredential: WalletSessionOperationCredentialV1;
-  plan: VoiceIdActivationPlan;
-  http: VoiceIdHttpClient;
-  store: VoiceIdActivationStore;
-}>;
+type PreparedVoiceIdActivation =
+  | {
+      readonly kind: 'enroll_existing';
+      readonly walletId: WalletId;
+      readonly walletAuthMethodId: WalletAuthMethodId;
+    }
+  | {
+      readonly kind: 'activate';
+      readonly ownerCredential: WalletSessionOperationCredentialV1;
+      readonly plan: VoiceIdActivationPlan;
+      readonly http: VoiceIdHttpClient;
+      readonly store: VoiceIdActivationStore;
+    };
 
 async function resealFromWorker(
   worker: WalletCustodyCeremonyTransportPort,
@@ -84,6 +94,15 @@ async function prepareActivation(
   ) {
     throw new Error('VoiceID activation requires an active owner Wallet Session.');
   }
+  const methods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
+  for (const method of methods) {
+    if (method.kind !== 'voiceid' || method.status !== 'active' ||
+        method.walletAuthorityId !== selected.authority.authorityId) continue;
+    const device = await readBrowserVoiceDevice(walletId, method.walletAuthMethodId);
+    if (device && device.deviceKeyId === method.deviceKeyId) {
+      return { kind: 'enroll_existing', walletId, walletAuthMethodId: method.walletAuthMethodId };
+    }
+  }
   const store = new VoiceIdActivationStore(IndexedDBManager);
   const pending = await store.listPending(walletId);
   if (pending.length > 1) {
@@ -114,6 +133,7 @@ async function prepareActivation(
     };
   }
   return {
+    kind: 'activate',
     ownerCredential: exact.operationCredential,
     plan,
     http: new VoiceIdHttpClient(
@@ -144,6 +164,11 @@ async function activatePreparedVoiceId(
   signal: AbortSignal,
   onListening: () => void,
 ): Promise<AddVoiceIdResult> {
+  if (prepared.kind === 'enroll_existing') {
+    await enrollBrowserVoice(signal);
+    signal.throwIfAborted();
+    return { walletId: prepared.walletId, walletAuthMethodId: prepared.walletAuthMethodId };
+  }
   const outcome = await activateVoiceIdForUnlockedWallet({
     plan: prepared.plan,
     ownerCredential: prepared.ownerCredential,

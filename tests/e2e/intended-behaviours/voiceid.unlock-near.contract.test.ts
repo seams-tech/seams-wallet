@@ -102,7 +102,7 @@ async function verifyUnlock(
         nativeHost: 'none',
         microphone: 'synthetic_wav_through_browser_mediarecorder',
         keychainUsed: false,
-        speakerInference: 'real_ecapa_onnx_webassembly',
+        speakerInference: 'real_redimnet_b1_onnx_webassembly',
         priorAuthentication: ownerSession.authentication,
         voiceIdMethodId: method.walletAuthMethodId,
         freshSessionId,

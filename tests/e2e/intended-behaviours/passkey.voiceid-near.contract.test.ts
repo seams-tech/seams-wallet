@@ -64,7 +64,7 @@ async function verifyTransfer(
       {
         status: 'passed',
         nativeHost: 'none',
-        speakerInference: 'real_ecapa_onnx_webassembly',
+        speakerInference: 'real_redimnet_b1_onnx_webassembly',
         signing: 'real_ed25519_yao_mpc',
         chain: 'deterministic_near_rpc',
         identity,

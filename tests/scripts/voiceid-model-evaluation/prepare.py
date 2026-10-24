@@ -194,10 +194,12 @@ def prepare_samples(root, references, ecapa):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=Path, required=True)
-    parser.add_argument('--ecapa', type=Path, required=True)
+    parser.add_argument('--ecapa', type=Path)
     parser.add_argument('--export-only', action='store_true')
     args = parser.parse_args()
-    if digest(args.ecapa) != ECAPA_HASH:
+    if not args.export_only and args.ecapa is None:
+        parser.error('--ecapa is required for the corpus comparison')
+    if args.ecapa is not None and digest(args.ecapa) != ECAPA_HASH:
         raise ValueError('ECAPA export differs from the current Wallet model')
     torch.set_num_threads(1)
     sys.path.insert(0, str(args.root / 'source' / f'redimnet-{SOURCE_REVISION}'))
@@ -207,9 +209,10 @@ def main():
         metadata = export_candidate(args.root, name, model)
         models.append(metadata)
         print(json.dumps(metadata), flush=True)
-    models.append({'name': 'ecapa', 'bytes': args.ecapa.stat().st_size,
-                   'gzipBytes': len(gzip.compress(args.ecapa.read_bytes(), compresslevel=6, mtime=0)),
-                   'sha256': digest(args.ecapa)})
+    if args.ecapa is not None:
+        models.append({'name': 'ecapa', 'bytes': args.ecapa.stat().st_size,
+                       'gzipBytes': len(gzip.compress(args.ecapa.read_bytes(), compresslevel=6, mtime=0)),
+                       'sha256': digest(args.ecapa)})
     report = {'sourceRevision': SOURCE_REVISION, 'weightsRevision': WEIGHTS_REVISION,
               'versions': {'torch': torch.__version__, 'onnx': onnx.__version__,
                            'onnxruntime': ort.__version__, 'numpy': np.__version__},

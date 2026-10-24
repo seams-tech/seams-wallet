@@ -2,6 +2,7 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { requireRecord } from '@shared/utils/validation';
+import { prepareVoiceModelWithProgress } from './progress';
 import { recordVoice, requireVoiceUserAction } from './microphone';
 import {
   normalizeVoiceVector,
@@ -24,12 +25,13 @@ export async function readVoiceEnrollment(): Promise<VoiceEnrollment | null> {
   const record = requireRecord(raw, 'VoiceID enrollment');
   if (
     record.kind !== 'browser_voiceid_enrollment_v1' ||
-    record.model !== VOICE_MODEL_ID ||
+    typeof record.model !== 'string' ||
     !Array.isArray(record.template) ||
     !record.template.every(isFiniteNumber)
   ) {
     throw new Error('VoiceID browser enrollment is incompatible with this model.');
   }
+  if (record.model !== VOICE_MODEL_ID) return null;
   return {
     kind: 'browser_voiceid_enrollment_v1',
     model: VOICE_MODEL_ID,
@@ -70,6 +72,8 @@ function isFiniteNumber(value: unknown): value is number {
 export async function enrollBrowserVoice(signal: AbortSignal): Promise<void> {
   const parent = document.querySelector('.seams-voiceid-activation-surface');
   if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID activation in the Wallet.');
+  await prepareVoiceModelWithProgress(parent);
+  signal.throwIfAborted();
   const surface = new VoiceEnrollmentSurface(parent, signal);
   try {
     await surface.result;
@@ -128,7 +132,7 @@ class VoiceEnrollmentSurface {
       const pcm = await recordVoice(this.controller.signal, this.listening);
       let embedding: number[];
       try {
-        this.status.textContent = 'Checking your voice. The first model download is about 80 MB…';
+        this.status.textContent = 'Checking your voice…';
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
         pcm.samples.fill(0);
@@ -206,7 +210,7 @@ export async function verifyBrowserVoice(
 ): Promise<{ kind: 'matched' } | { kind: 'mismatch' }> {
   const enrollment = await readVoiceEnrollment();
   if (!enrollment)
-    throw new Error('Activate VoiceID with an owner unlock to enroll this browser first.');
+    throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
   const pcm = await recordVoice(signal, onListening);
   try {
     const embedding = await voiceEmbedding(pcm.samples);

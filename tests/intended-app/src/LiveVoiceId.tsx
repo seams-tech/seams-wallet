@@ -63,7 +63,7 @@ export function LiveVoiceId(): React.ReactNode {
         Record inside the Wallet. No native host or system settings are required.
       </p>
       <p>
-        When the Wallet is listening, speak for about three seconds. VoiceID verifies your voice; the approval button confirms your intent.
+        When Listening appears, read the displayed sentence. Each recording allows eight seconds. VoiceID verifies your voice; the approval button confirms your intent.
       </p>
       <dl>
         <dt>Wallet</dt>
@@ -111,14 +111,14 @@ export function LiveVoiceId(): React.ReactNode {
           Save recovery codes
         </button>{' '}
         <button
-          disabled={busy || !ownerUnlocked || voice !== null}
+          disabled={busy || !ownerUnlocked}
           onClick={
             target.kind === 'selected'
               ? perform.bind(null, { kind: 'activate', walletId: target.walletId })
               : undefined
           }
         >
-          Activate VoiceID
+          {voice ? 'Enroll voice again' : 'Activate VoiceID'}
         </button>
         <output
           role={operation.kind === 'failed' ? 'alert' : 'status'}
