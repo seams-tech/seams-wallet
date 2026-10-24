@@ -1,0 +1,192 @@
+{
+  "schema": "seams.ml-dsa-gmw-cpu.v1",
+  "source_parent": "4e055e7ee8d547d795deb94c8b9069543aa9644b",
+  "selection": {
+    "selected": false,
+    "retained_production_change": null,
+    "reason": "Fixed native component gains do not establish a useful complete Worker signing benefit. The phase abstraction is removed to keep the production runtime simple.",
+    "candidate_functional_validation": "Native lifecycle, both mixed-version directions, and local real-Worker lifecycle pass. Hosted results remain recorded separately.",
+    "crypto_or_wire_change": false
+  },
+  "crypto_or_wire_change": false,
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "private_commitments": true,
+    "preparation_on_workers": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "verification": {
+    "passed": true,
+    "local": {
+      "control": {
+        "deadline_overrun_ms": 54,
+        "verified_signatures": 3
+      },
+      "candidate": {
+        "deadline_overrun_ms": 6,
+        "verified_signatures": 3
+      }
+    },
+    "hosted_invocations": 2376,
+    "invocations_reporting_exceptions": 2,
+    "reported_truncation": 0,
+    "signature_reverification": {
+      "verified": 19,
+      "changed_messages_rejected": 19
+    },
+    "same_policy": true,
+    "canonical_creation_recovery_verified": true,
+    "mixed_version_cases": 2,
+    "fixed_work_cases": 10,
+    "consistent_five_second_target": false
+  },
+  "hosted": {
+    "control_failed": {
+      "registration_functional_passed": false,
+      "canonical_recovery": false,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 68522.76174999999,
+          "registration_ms": 4884.728124999994,
+          "canonical_key_verified": true
+        }
+      ],
+      "signing_summary": {
+        "requests": 1,
+        "verified": 1,
+        "below_5000_ms": 1,
+        "minimum_ms": 4178.866666000002,
+        "median_ms": 4178.866666000002,
+        "maximum_ms": 4178.866666000002,
+        "supplemental_present": false,
+        "supplemental_all_verified": null,
+        "admitted_outcomes": 1,
+        "exhausted_operations": 0
+      },
+      "provider_invocations": 304,
+      "reported_truncation": 0,
+      "exceptions": [
+        {
+          "record": 65,
+          "role": "a",
+          "categories": [
+            "durable_object_inactive_connection_closed",
+            "durable_object_inactive_connection_closed",
+            "durable_object_inactive_connection_closed",
+            "durable_object_inactive_connection_closed"
+          ]
+        }
+      ]
+    },
+    "control_repeat": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 48296.700417,
+          "registration_ms": 4652.468832999999,
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 49325.960374999995,
+          "registration_ms": 5201.755625000005,
+          "canonical_key_verified": true
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 5,
+        "minimum_ms": 2331.4469580000004,
+        "median_ms": 2935.770208500013,
+        "maximum_ms": 6655.893250000001,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "provider_invocations": 1096,
+      "reported_truncation": 0,
+      "exceptions": []
+    },
+    "candidate": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 51932.711334,
+          "registration_ms": 4120.142082999999,
+          "canonical_key_verified": true
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 84704.254334,
+          "registration_ms": 5330.294542000018,
+          "canonical_key_verified": true
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 4,
+        "minimum_ms": 1892.2691669999913,
+        "median_ms": 3352.286374999996,
+        "maximum_ms": 9155.394041999993,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "provider_invocations": 976,
+      "reported_truncation": 0,
+      "exceptions": [
+        {
+          "record": 389,
+          "role": "b",
+          "categories": [
+            "unclassified"
+          ]
+        }
+      ]
+    }
+  },
+  "qualification": {
+    "same_policy": true,
+    "repeat_and_candidate_canonical_keys_equal": true,
+    "consistent_five_second_qualification": false,
+    "limits": [
+      "Sequential deployments and a reused control namespace do not randomize placement, load, engine tiering, caches, or rejection counts.",
+      "The failed original control uses another wallet and remains a separate result.",
+      "Worker-clock pair intervals include CPU and waits; they do not precisely partition wall time.",
+      "Provider CPU covers a whole invocation. It is not CPU per pair.",
+      "This bounded lifecycle screen does not qualify sustained refill throughput."
+    ]
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_baseline": 13754,
+    "rust_duplicate_current": 13972,
+    "baseline_changed": false
+  },
+  "cleanup": {
+    "worker_destinations": 6,
+    "control_deleted": true,
+    "candidate_deleted": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-gmw-cpu-20261024-data.json.gz",
+    "bytes": 711359,
+    "sha256": "a1d1a475b53eccacd1230d31c857842eb35a5db8a20b083c48212d44c5d6024c"
+  }
+}
