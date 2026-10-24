@@ -755,7 +755,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
             request: buildIntendedArcEvmSigningRequest(),
           }}
         />
-        <ReviewedNearTransfer />
+        <ReviewedNearTransfer walletId={state.walletId} />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>

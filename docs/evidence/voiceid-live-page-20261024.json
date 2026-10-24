@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "wild-horizon-6n888u",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "nativeHost": "fake_device_key_and_factor",
+  "microphoneAndKeychainUsed": false,
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "wild-horizon-6n888u",
+    "accountId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
+    "publicKey": "ed25519:815i8BrxNQHqURf8DBEzv2xQP4Du9mwMe86Waw3vWfB7"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADY4MDcyMjBjOWZmMmNiNThlMzk4ZWI3NGU3NDgzNWFiZGRmMWY4YTk4Y2JmZDkzYTMwZTIwMTQ1YTA5MTdhYmEAaAciDJ/yy1jjmOt050g1q93x+KmMv9k6MOIBRaCReroCAAAAAAAAAEAAAAA2ODA3MjIwYzlmZjJjYjU4ZTM5OGViNzRlNzQ4MzVhYmRkZjFmOGE5OGNiZmQ5M2EzMGUyMDE0NWEwOTE3YWJhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA88x5lvgyhOCS6/yGM6Co94CBEWIdUhxjxcqIVbxySIlSza+PwwGj/B4N4NtFtkiw4yWvcg2pNjlNelTGsgRzAw==",
+      "signedTransactionSha256": "89aca117b2f37b90983749f98fe22bf9433f80a47bcfb5576f3052051ae7b583",
+      "signerId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
+      "receiverId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

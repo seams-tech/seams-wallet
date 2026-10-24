@@ -12,10 +12,10 @@ type TransferState =
   | { kind: 'submitted'; transactionId: string; accountId: string }
   | { kind: 'failed'; message: string };
 
-export function ReviewedNearTransfer(): React.ReactNode {
+export function ReviewedNearTransfer({ walletId }: { walletId: string | null }): React.ReactNode {
   const { wallet } = useSeams();
   const [state, setState] = React.useState<TransferState>({ kind: 'idle' });
-  const signer = wallet?.near ?? null;
+  const signer = wallet?.walletId === walletId ? wallet.near : null;
   return (
     <section>
       <button

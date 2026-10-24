@@ -202,6 +202,21 @@ Wallet system with:
 pnpm -C tests exec node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts
 ```
 
+The manual page at `/voiceid?authMethod=voiceid` creates a wallet through the
+SDK's default ID allocation. It retains the returned ID in the page URL.
+A `walletId` query selects an existing wallet. Passkey unlock requires that
+wallet's NEAR signer. The separate Save recovery codes action opens the Wallet
+backup dialog after registration. Cancelling backup preserves the created
+wallet and permits another backup attempt. Transfer review uses the displayed
+wallet's signer.
+
+The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
+starts with an unallocated ID, creates the wallet, saves recovery codes through
+clickable controls, activates VoiceID, locks, unlocks, and signs a transfer.
+Its [recorded run](evidence/voiceid-live-page-20261024.json) contains the public
+allocation and signature evidence. It uses a simulated device and deterministic
+NEAR RPC with real local MPC signing. It does not use the microphone or Keychain.
+
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
 It sends typed browser-client HTTP requests to a real local D1 database
