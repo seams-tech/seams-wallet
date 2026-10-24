@@ -5,6 +5,8 @@ Responses carry the nested timing fields through Gateway completion readback.
 This change supplies diagnostic evidence. It does not establish a latency improvement.
 PostgreSQL integration and provisioning remain deferred.
 The [generated evidence](near-signing-trace-propagation-20261024.json) retains the verified joins, public signatures, source hashes, and replay results.
+This record describes the ten-field candidate at `9493c3a1`.
+The later cleanup below removes seven fields after the hosted capture.
 
 ## Local verification
 
@@ -36,7 +38,43 @@ The run used release Workers, local D1, wallet objects, automated passkeys, and 
 The run froze browser assets because separate UI work changed the shared SDK output.
 The saved source hashes and frozen asset hashes matched after collection.
 
-All five Worker builds, the native library build, intended-test type checking, 38 Cargo lockfiles, and the bloat check passed.
+All five Worker builds, the native library build, intended-test type checking, and 38 Cargo lockfiles passed.
+
+The earlier claim that the committed change passed the bloat check is withdrawn.
+That check omitted newly added files before staging.
+A later check of the complete `9493c3a1` commit found 13,779 duplicated Rust lines against the 13,754 baseline.
+Its parent passed at 13,740 lines.
+This is a maintainability regression in the diagnostic change.
+The follow-up removes unhelpful timing code, without changing the baseline threshold.
+
+## Follow-up cleanup after hosted capture
+
+The [hosted capture](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.md) matched 44 requests through the wallet object.
+Seven detailed fields read zero throughout that capture and could not establish their hosted costs.
+The cleanup removes those fields and the temporary `timing` parameter from `fetch_wallet_request`.
+It also removes their header plumbing, parser entries, and obsolete diagnostic assertions.
+Validation, schema initialization, signing, persistence, response mapping, and trace forwarding keep their existing behavior.
+
+Three measured call spans remain: `near_router_service`, `near_sw_wallet_call`, and `near_sw_handler`.
+The existing object command log still carries the trace ID.
+The [optimization plan](../optimization-11-NEAR.md#p2-reduce-measured-work-in-signing-dispatch-and-finalization) tracks the remaining diagnostic cleanup after the comparison.
+
+All four lifecycle cases above passed again with zero retries.
+All six message/reload/transaction requests matched one object command each and retained the three call spans.
+Independent Node crypto verification passed both message proofs and rejected changes to each signed field.
+All five release Worker builds, the server build, intended-test type checking, and 38 Cargo lockfiles passed.
+The complete bloat check passed at 13,737 duplicated Rust lines, below the unchanged 13,754 threshold.
+
+The cleanup artifacts live under `.artifacts/optimization-11-near/20261024-trace-cleanup/`.
+Their analyzer verifies source hashes, build hashes, frozen SDK assets, trace joins, replay evidence, and test results.
+The private hosted report retains this [separate cleanup evidence](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.json).
+These checks establish local behavior and diagnostic preservation.
+The cleanup was not deployed and establishes no hosted latency gain.
+
+```sh
+node .artifacts/optimization-11-near/20261024-trace-cleanup/verify-proofs.mjs
+python3 .artifacts/optimization-11-near/20261024-trace-cleanup/analyze.py
+```
 
 ## Implementation and measurement boundaries
 

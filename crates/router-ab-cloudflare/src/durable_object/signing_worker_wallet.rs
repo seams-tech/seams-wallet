@@ -690,13 +690,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
         let path = request.path();
         let trace_id = crate::parse_cloudflare_trace_id_from_request_v1(&request).ok().flatten();
         let observation = self.timing.begin(&self.state, "signing_worker", path, trace_id);
-        let mut timing = crate::CloudflareBoundaryTimingV1::with_trace_id(trace_id);
-        let started = crate::CloudflareBoundaryTimingV1::now_ms();
-        let result = self.fetch_wallet_request(request, &mut timing).await;
-        timing.mark("handler", started);
-        if let Ok(response) = &result {
-            timing.apply_to(response)?;
-        }
+        let result = self.fetch_wallet_request(request).await;
         observation.finish(result)
     }
 }

@@ -4,7 +4,6 @@ impl RouterAbSigningWorkerWalletDurableObject {
     pub(super) async fn fetch_wallet_request(
         &self,
         mut request: Request,
-        timing: &mut crate::CloudflareBoundaryTimingV1,
     ) -> worker::Result<Response> {
         if request.path() == crate::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH {
             return self.receive_package_delivery(request).await;
@@ -23,19 +22,12 @@ impl RouterAbSigningWorkerWalletDurableObject {
         if request.method() != worker::Method::Post || request.path() != PATH {
             return Response::error("Unknown SigningWorker wallet object request", 404);
         }
-        let started = crate::CloudflareBoundaryTimingV1::now_ms();
         let command: SigningWorkerWalletDoRequestV1 = request.json().await?;
         if let Err(error) = command.validate() {
             return Response::error(error.message(), 400);
         }
-        timing.mark("decode_validate", started);
-        let started = crate::CloudflareBoundaryTimingV1::now_ms();
         self.initialize_schema()?;
-        timing.mark("schema", started);
-        let started = crate::CloudflareBoundaryTimingV1::now_ms();
-        let result = self.execute(command).await;
-        timing.mark("execute", started);
-        match result {
+        match self.execute(command).await {
             Ok(response) => Ok(response),
             Err(error) => Response::error(
                 format!("{:?}: {}", error.code(), error.message()),

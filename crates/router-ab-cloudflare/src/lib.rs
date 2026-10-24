@@ -5745,7 +5745,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_authenticated_publi
 where
     Verifier: CloudflareRouterWalletSessionVerifierV1,
 {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let admitted = admit_cloudflare_router_normal_signing_prepare_v2(
         runtime.admission_bindings(),
         now_unix_ms,
@@ -5755,7 +5754,6 @@ where
         trusted_source_digest,
         verifier,
     )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
@@ -5951,7 +5949,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     request.validate_at(now_unix_ms)?;
     let material_source =
         cloudflare_router_ed25519_linked_device_binding_v1(&authorized_operation)?
@@ -5984,7 +5981,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
             trusted_admission,
             material_source,
         )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
@@ -6006,7 +6002,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<NormalSigningResponseV1> {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     request.validate_at(now_unix_ms)?;
     let binding = cloudflare_router_ed25519_linked_device_binding_v1(&authorized_operation)?;
     let authorization_id = binding.authorization_id.to_owned();
@@ -6047,7 +6042,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
             effect_claim,
             material_source,
         )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,
@@ -6291,7 +6285,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_re
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let admitted = admit_cloudflare_router_normal_signing_step_up_prepare_v2(
         runtime.admission_bindings(),
         now_unix_ms,
@@ -6299,7 +6292,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_re
         authorized_operation,
         trusted_source_digest,
     )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
@@ -6321,7 +6313,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_r
     authorized_operation: CloudflareRouterEd25519AcceptedAuthorizedOperationV1,
     trusted_source_digest: PublicDigest32,
 ) -> RouterAbProtocolResult<NormalSigningResponseV1> {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let admitted = admit_cloudflare_router_normal_signing_step_up_finalize_v2(
         runtime.admission_bindings(),
         now_unix_ms,
@@ -6329,7 +6320,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_r
         authorized_operation,
         trusted_source_digest,
     )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,
@@ -6671,7 +6661,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_authenticated_publ
 where
     Verifier: CloudflareRouterWalletSessionVerifierV1,
 {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let admitted = admit_cloudflare_router_normal_signing_finalize_v2(
         runtime.admission_bindings(),
         now_unix_ms,
@@ -6681,7 +6670,6 @@ where
         trusted_source_digest,
         verifier,
     )?;
-    timing.mark("near_router_admission", started);
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,

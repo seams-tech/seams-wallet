@@ -405,15 +405,8 @@ async function verifyNearMessageSigningAfterRefresh(
       expect(request.traceId).toMatch(/^[0-9a-f]{32}$/u);
       traces.add(requireNonEmptyString(request.traceId, 'signing trace ID'));
       for (const stage of [
-        'near_router_admission',
         'near_router_service',
-        'near_sw_dispatch_setup',
-        'near_sw_decode_validate',
         'near_sw_wallet_call',
-        'near_sw_do_decode_validate',
-        'near_sw_do_schema',
-        'near_sw_do_execute',
-        'near_sw_do_handler',
         'near_sw_handler',
       ]) {
         expect(request.stagesMs[stage], stage).toBeGreaterThanOrEqual(0);

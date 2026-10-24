@@ -63,7 +63,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Ok(runtime) => runtime,
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
-    timing.mark("dispatch_setup", started);
     let result = match path.as_str() {
         crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 => {
             if request.method() != Method::Post {

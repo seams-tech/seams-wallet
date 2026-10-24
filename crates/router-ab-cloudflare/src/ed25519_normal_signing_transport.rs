@@ -16,7 +16,6 @@ pub async fn handle_cloudflare_signing_worker_normal_signing_round1_prepare_priv
 where
     Handler: CloudflareSigningWorkerNormalSigningPrepareHandlerV2,
 {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != worker::Method::Post {
@@ -52,7 +51,6 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
-    timing.mark("decode_validate", started);
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
         &parsed.material_source,
@@ -72,9 +70,7 @@ where
         )
         .await;
         timing.mark("wallet_call", started);
-        let response = result.map_err(|error| worker::Error::RustError(error.to_string()))?;
-        timing.merge_role("do", response.headers().get("Server-Timing").ok().flatten());
-        return Ok(response);
+        return result.map_err(|error| worker::Error::RustError(error.to_string()));
     }
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_normal_signing_material_v1(
@@ -160,7 +156,6 @@ pub async fn handle_cloudflare_signing_worker_normal_signing_private_fetch_v1<Ha
 where
     Handler: CloudflareSigningWorkerNormalSigningFinalizeHandlerV2,
 {
-    let started = CloudflareBoundaryTimingV1::now_ms();
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
     if request.method() != worker::Method::Post {
@@ -193,7 +188,6 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
-    timing.mark("decode_validate", started);
     #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
     if matches!(
         &parsed.material_source,
@@ -213,9 +207,7 @@ where
         )
         .await;
         timing.mark("wallet_call", started);
-        let response = result.map_err(|error| worker::Error::RustError(error.to_string()))?;
-        timing.merge_role("do", response.headers().get("Server-Timing").ok().flatten());
-        return Ok(response);
+        return result.map_err(|error| worker::Error::RustError(error.to_string()));
     }
     let effect_operation_key = match parsed.effect_operation_key() {
         Ok(value) => value,
