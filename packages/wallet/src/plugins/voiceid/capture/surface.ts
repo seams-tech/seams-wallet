@@ -83,7 +83,7 @@ class VoiceIdCaptureSurface<T> {
       this.expiryTimer = remaining === null ? null : setTimeout(this.expire, remaining);
       for (const progress of this.element.querySelectorAll('.seams-voiceid-model-download'))
         progress.remove();
-      this.status.textContent = 'Read slowly for about three seconds.';
+      this.status.textContent = 'Read naturally, then pause.';
       this.activateButton.disabled = false;
       this.activateButton.focus();
     } catch (error) {

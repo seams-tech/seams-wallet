@@ -25,7 +25,7 @@ export async function allowBrowserMicrophone(context: BrowserContext): Promise<v
     ),
   );
   await context.addInitScript({ content: probe[0].code });
-  await context.route('**/voiceid-test-audio/*.wav', servePhraseAudio);
+  await context.route('**/voiceid-test-audio/**/*.wav', servePhraseAudio);
   await context.grantPermissions(['microphone'], {
     origin: process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202',
   });
@@ -46,10 +46,14 @@ export async function enrollBrowserMicrophone(page: Page): Promise<void> {
 }
 
 async function servePhraseAudio(route: Route): Promise<void> {
-  const index = new URL(route.request().url()).pathname.match(/\/(\d+)\.wav$/)?.[1];
+  const match = new URL(route.request().url()).pathname.match(
+    /\/voiceid-test-audio\/(natural\/)?(\d+)\.wav$/,
+  );
+  const index = match?.[2];
+  const directory = match?.[1] ?? '';
   if (index === undefined || Number(index) >= 16) throw new Error('Unknown phrase fixture');
   const bytes = await readFile(
-    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${index}.wav`),
+    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${directory}${index}.wav`),
   );
   await route.fulfill({ contentType: 'audio/wav', body: bytes });
 }

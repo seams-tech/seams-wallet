@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "solar-grove-je2yxy",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:ff2c65cd-746f-4fcb-8d85-8fd1893a82fe",
+  "freshSessionId": "wls_8iuZpRf0DPnihsZpQWxQ4e2uV1FdhTRIJ7345K09T9g",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 105.93424999999843,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "activationDialogMs": 111.3750829999999,
+  "naturalCapture": {
+    "voicedMs": 1250,
+    "recordingMs": 4777.799999952316,
+    "endedBy": "pause",
+    "similarity": 0.6889570267139767,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1150,
+    "recordingMs": 2901.100000023842,
+    "endedBy": "pause",
+    "similarity": 0.6999750772311213,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "b344b7da-3298-4c6e-8d49-f31f6610b8a3",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2076.899999976158,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "461c2871-5eb5-4767-86e5-99845c341700",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.899999976158,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "solar-grove-je2yxy",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "solar-grove-je2yxy",
+    "accountId": "bc255007f89f7286885909221c6e3266ff10699ac5ea694c7d5eee92dd2c752f",
+    "publicKey": "ed25519:DfSeWLLc9jhRvujSkDZkeYgiMwDSuLeTuYQQmAo178nJ"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGJjMjU1MDA3Zjg5ZjcyODY4ODU5MDkyMjFjNmUzMjY2ZmYxMDY5OWFjNWVhNjk0YzdkNWVlZTkyZGQyYzc1MmYAvCVQB/ifcoaIWQkiHG4yZv8QaZrF6mlMfV7ukt0sdS8CAAAAAAAAAEAAAABiYzI1NTAwN2Y4OWY3Mjg2ODg1OTA5MjIxYzZlMzI2NmZmMTA2OTlhYzVlYTY5NGM3ZDVlZWU5MmRkMmM3NTJmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAq93oza1iLnBq25vXpDVNDCbntZiZPPIcJX0pkj4W115ggO4TljqaGY9ro/aWa6dWIFDBtARj1l2j4bx+0kOJCw==",
+      "signedTransactionSha256": "13fc6b5095d2181d9f9ef09125e4bb9881f7ffee1243a629d7bbee527e66b5db",
+      "signerId": "bc255007f89f7286885909221c6e3266ff10699ac5ea694c7d5eee92dd2c752f",
+      "receiverId": "bc255007f89f7286885909221c6e3266ff10699ac5ea694c7d5eee92dd2c752f",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

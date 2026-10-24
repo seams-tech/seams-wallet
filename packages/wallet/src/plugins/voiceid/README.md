@@ -11,7 +11,7 @@ After a passkey or Email OTP owner unlock, call
 The Wallet requests microphone permission and enrolls this browser through three
 Record clicks. Later use `auth.unlockWithAuthMethod` with that wallet and method
 ID. A reviewed NEAR testnet transfer requires Confirm and a fresh voice match.
-The button confirms intent. Read the displayed phrase slowly. Use Cancel to cancel.
+The button confirms intent. Read the displayed phrase at a normal pace. Use Cancel to cancel.
 
 `browser/` contains capture, model inference, enrollment, and device storage.
 No native service, extension, Keychain, or OS settings are required. The model
@@ -90,8 +90,10 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 
 Enrollment, unlock, and transfer approval randomly select one of 16 short English
 phrases. Each attempt holds its displayed phrase until recording ends. Retries
-select another phrase. Speak slowly for about three seconds within the eight-second
-recording window. Both speaker and phrase checks use the same recording.
+select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
+of quiet once audible input has continued for 100 ms. Initial silence does not
+stop capture. An eight-second maximum bounds silence, continued noise, and
+recordings where live analysis is unavailable. Both speaker and phrase checks use the same recording.
 Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
 
 The decoder scores all 16 phrases before comparing its result with the displayed
@@ -137,8 +139,9 @@ server challenge and expiry timer remain unchanged. Only typed insufficient-audi
 results can take this path. A retry displays a new phrase before capture starts.
 The normal phrase and speaker checks still apply before device-key use.
 
-Recording details show the actual input label, decoded duration, qualifying frame
-duration, and peak frame RMS. The level threshold stays 0.006 and the required
-qualifying duration stays two seconds. This energy proxy cannot generally separate
+Recording details show the actual input label, decoded duration, wall-clock
+recording time, stop reason, qualifying frame duration, and peak frame RMS. The
+level threshold is 0.006. The quality precheck requires 600 ms of qualifying audio.
+Aurora phrase and B1 speaker thresholds are unchanged. This energy proxy cannot generally separate
 short speech from quiet or suppressed speech. Each measurement has an attempt ID
 and timestamp. No audio or transcript is saved or sent by these diagnostics.

@@ -85,10 +85,25 @@ Wallet sessions and Ed25519 Yao signing use the real local services.
 Two capture-quality fixtures derive from the tracked synthetic `0.wav`:
 
 ```sh
-ffmpeg -v error -y -i tests/fixtures/audio/aurora/0.wav -t 0.8 tests/fixtures/audio/aurora/short.wav
+ffmpeg -v error -y -i tests/fixtures/audio/aurora/0.wav -t 0.35 tests/fixtures/audio/aurora/short.wav
 ffmpeg -v error -y -i tests/fixtures/audio/aurora/0.wav -af volume=0.001 tests/fixtures/audio/aurora/quiet.wav
 ```
 
 The unlock contract injects these before a valid sample. It checks that the first
 two attempts stay locked, supply distinct measurement IDs, and never call verify.
 All three attempts use one original server challenge.
+
+
+Natural-paced fixtures in `tests/fixtures/audio/aurora/natural/` use Samantha at
+160 words per minute without time stretching. Regenerate on macOS:
+
+```sh
+python tests/scripts/voiceid-aurora/fixtures.py --natural --output /tmp/voiceid-natural-fixtures
+cp /tmp/voiceid-natural-fixtures/*.wav tests/fixtures/audio/aurora/natural/
+```
+
+The unlock contract enrolls with the slower fixtures, rejects truncated and quiet
+input, then unlocks with natural speech after two seconds of initial silence.
+It signs a reviewed NEAR transfer with another natural-paced phrase. This checks
+existing enrollment compatibility and capture completion with the real browser
+models. Synthetic voices do not establish human false-accept or false-reject rates.

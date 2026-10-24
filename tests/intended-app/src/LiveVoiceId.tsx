@@ -59,11 +59,13 @@ export function LiveVoiceId(): React.ReactNode {
       <p>NEAR testnet · browser microphone</p>
       <h1>Unlock and sign with your voice</h1>
       <p>
-        Enroll your voice in this browser after a passkey unlock. Recording starts only when you select
-        Record inside the Wallet. No native host or system settings are required.
+        Enroll your voice in this browser after a passkey unlock. Recording starts only when you
+        select Record inside the Wallet. No native host or system settings are required.
       </p>
       <p>
-        When Listening appears, read the displayed sentence. Each recording allows eight seconds. VoiceID checks your voice and the displayed phrase. The approval button confirms your intent.
+        When Listening appears, read the displayed sentence at your normal pace. Capture stops after
+        a short pause, with an eight-second maximum. VoiceID checks your voice and the displayed
+        phrase. The approval button confirms your intent.
       </p>
       <dl>
         <dt>Wallet</dt>

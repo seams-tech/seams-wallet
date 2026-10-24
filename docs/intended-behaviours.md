@@ -82,19 +82,22 @@ Chrome extension, Keychain access, or system-settings change is part of this flo
 
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
 Wallet's browser enrollment UI. Each of three samples requires a separate Record
-click. The browser requests microphone permission. Enrollment allows eight seconds
-per sample and requires at least two seconds of voiced audio. Verification uses
-the same duration and minimum speech length. The level check counts 10 ms frames
+click. The browser requests microphone permission. Enrollment and verification
+accept natural-paced phrases. Capture stops after 1.5 seconds of quiet following
+at least 100 ms of consecutive audible input. Initial silence does not stop capture.
+The maximum recording time is eight seconds. Live analysis failure retains that
+maximum. The quality precheck requires 600 ms of qualifying audio; phrase and
+speaker checks still decide approval. The level check counts 10 ms frames
 with RMS of at least 0.006; this is an audio-energy proxy, not speech recognition.
 Insufficient audio does not reach phrase matching, speaker matching, or device-key use.
 The prompt displays the measured qualifying duration and offers recording details
-(input label, decoded duration, and peak frame RMS). Metrics carry an attempt ID and
+(input label, decoded duration, recording time, stop reason, and peak frame RMS). Metrics carry an attempt ID and
 time and remain in the Wallet UI; audio is not retained. Unlock can retry a typed
 insufficient-audio result in place with a fresh phrase. Retries preserve the original
 challenge and expiry timer. Cancellation, expiry, and other failures stay terminal.
 Each enrollment, unlock, and signing attempt displays a randomly selected short
 English phrase from a bank of 16. The phrase remains fixed during capture. A retry
-selects a different phrase. The user reads it slowly for about three seconds.
+selects a different phrase. The user reads it at a normal pace, then pauses.
 Activation and unlock show a cancellable modal before asynchronous preparation.
 The capture card shows a large phrase, a live amplitude waveform, a short status,
 and Cancel. Enrollment identifies each of three samples. The waveform observes the

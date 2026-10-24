@@ -3,7 +3,8 @@ const streams: MediaStream[] = [];
 const originalPut = IDBObjectStore.prototype.put;
 let cancelEnrollmentSave = false;
 let retireEnrollmentModel = false;
-let nextAudio: string | null = null;
+let nextAudio: { base64: string; leadInSeconds: number } | null = null;
+let naturalPhrases = false;
 let injectedAudio: AudioContext | null = null;
 
 function observedPut(
@@ -62,7 +63,7 @@ async function observedGetUserMedia(): Promise<MediaStream> {
   nextAudio = null;
   let stream: MediaStream;
   if (audio !== null) {
-    stream = await audioStream(audio);
+    stream = await audioStream(audio.base64, audio.leadInSeconds);
   } else {
     const phrase = currentPhrase(document);
     document.body.dataset.voiceTestPhrase = phrase ?? 'unresolved';
@@ -70,7 +71,9 @@ async function observedGetUserMedia(): Promise<MediaStream> {
     if (index < 0) {
       throw new Error('Visible VoiceID phrase is unavailable to the audio fixture');
     } else {
-      const response = await fetch(`/voiceid-test-audio/${index}.wav`);
+      const response = await fetch(
+        `/voiceid-test-audio/${naturalPhrases ? 'natural/' : ''}${index}.wav`,
+      );
       if (!response.ok) throw new Error('Synthetic phrase audio is unavailable');
       stream = await decodedAudioStream(await response.arrayBuffer());
     }
@@ -79,13 +82,23 @@ async function observedGetUserMedia(): Promise<MediaStream> {
   return stream;
 }
 
+function useNaturalPhrases(): void {
+  naturalPhrases = true;
+}
+
 function useNextAudio(base64: string): void {
-  nextAudio = base64;
+  nextAudio = { base64, leadInSeconds: 0 };
 }
-async function audioStream(base64: string): Promise<MediaStream> {
-  return await decodedAudioStream(Uint8Array.from(atob(base64), characterCode).buffer);
+function useNextDelayedAudio(base64: string): void {
+  nextAudio = { base64, leadInSeconds: 1.8 };
 }
-async function decodedAudioStream(bytes: ArrayBuffer): Promise<MediaStream> {
+async function audioStream(base64: string, leadInSeconds: number): Promise<MediaStream> {
+  return await decodedAudioStream(
+    Uint8Array.from(atob(base64), characterCode).buffer,
+    leadInSeconds,
+  );
+}
+async function decodedAudioStream(bytes: ArrayBuffer, leadInSeconds = 0): Promise<MediaStream> {
   if (injectedAudio) await injectedAudio.close();
   injectedAudio = new AudioContext();
   const buffer = await injectedAudio.decodeAudioData(bytes);
@@ -95,7 +108,7 @@ async function decodedAudioStream(bytes: ArrayBuffer): Promise<MediaStream> {
   source.loop = false;
   source.connect(destination);
   await injectedAudio.resume();
-  source.start(injectedAudio.currentTime + 0.2);
+  source.start(injectedAudio.currentTime + 0.2 + leadInSeconds);
   return destination.stream;
 }
 function characterCode(character: string): number {
@@ -115,14 +128,18 @@ function trackState(track: MediaStreamTrack): MediaStreamTrackState {
 declare global {
   interface Window {
     voiceIdRetireNextEnrollmentModel: typeof retireNextEnrollmentModel;
+    voiceIdUseNaturalPhrases: typeof useNaturalPhrases;
     voiceIdNextAudio: typeof useNextAudio;
+    voiceIdNextDelayedAudio: typeof useNextDelayedAudio;
     voiceIdMicrophoneStates: typeof microphoneStates;
     voiceIdCancelNextEnrollmentSave: typeof cancelNextEnrollmentSave;
   }
 }
 navigator.mediaDevices.getUserMedia = observedGetUserMedia;
 window.voiceIdRetireNextEnrollmentModel = retireNextEnrollmentModel;
+window.voiceIdUseNaturalPhrases = useNaturalPhrases;
 window.voiceIdNextAudio = useNextAudio;
+window.voiceIdNextDelayedAudio = useNextDelayedAudio;
 window.voiceIdMicrophoneStates = microphoneStates;
 window.voiceIdCancelNextEnrollmentSave = cancelNextEnrollmentSave;
 IDBObjectStore.prototype.put = observedPut;

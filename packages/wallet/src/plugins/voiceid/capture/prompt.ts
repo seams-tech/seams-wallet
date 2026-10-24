@@ -195,7 +195,7 @@ export class VoicePrompt {
         const quality = event.quality;
         this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
         this.details.hidden = quality.voicedMs >= quality.requiredVoicedMs;
-        this.detailText.textContent = `Input: ${quality.microphone}. Recorded ${(quality.durationMs / 1_000).toFixed(1)} s; ${(quality.voicedMs / 1_000).toFixed(2)} s above the minimum level. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}.`;
+        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s above the minimum level. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}.`;
         return;
       }
       case 'processing':

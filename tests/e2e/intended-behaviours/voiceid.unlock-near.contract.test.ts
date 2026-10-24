@@ -1,3 +1,4 @@
+import phrases from '../../fixtures/audio/aurora/phrases.json' with { type: 'json' };
 import {
   voiceIdBrowserAudio,
   allowBrowserMicrophone,
@@ -69,7 +70,9 @@ async function verifyUnlock(
   });
   const shortQuality = await readQuality(page);
   expect(shortQuality.voicedMs).toBeGreaterThan(0);
-  expect(shortQuality.voicedMs).toBeLessThan(1_000);
+  expect(shortQuality.voicedMs).toBeLessThan(600);
+  expect(shortQuality.endedBy).toBe('pause');
+  expect(shortQuality.recordingMs).toBeLessThan(3_500);
   expect(shortQuality.peakFrameRms).toBeGreaterThan(shortQuality.levelThreshold);
   expect(qualityRequests.verifies).toBe(0);
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
@@ -88,6 +91,8 @@ async function verifyUnlock(
   const quietQuality = await readQuality(page);
   expect(quietQuality.attemptId).not.toBe(shortQuality.attemptId);
   expect(quietQuality.voicedMs).toBe(0);
+  expect(quietQuality.endedBy).toBe('limit');
+  expect(quietQuality.recordingMs).toBeGreaterThanOrEqual(7_900);
   expect(quietQuality.peakFrameRms).toBeLessThan(quietQuality.levelThreshold);
   expect(qualityRequests.verifies).toBe(0);
   expect(qualityRequests.challenges).toBe(1);
@@ -99,7 +104,16 @@ async function verifyUnlock(
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('voiceid-quality-retry.png') });
+  const naturalAudio = await phraseAudio(page);
+  await wallet.locator('body').evaluate(useNextDelayedAudio, naturalAudio.toString('base64'));
   await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
+  await unlocked;
+  const naturalQuality = await readLastQuality(page);
+  expect(naturalQuality.voicedMs).toBeGreaterThanOrEqual(600);
+  expect(naturalQuality.voicedMs).toBeLessThan(2_000);
+  expect(naturalQuality.endedBy).toBe('pause');
+  expect(naturalQuality.recordingMs).toBeGreaterThan(3_500);
+  expect(naturalQuality.recordingMs).toBeLessThan(6_000);
   expect(await unlocked).toMatchObject({
     success: true,
     kind: 'near_wallet_unlocked',
@@ -135,6 +149,7 @@ async function verifyUnlock(
     'available',
   );
   await evidence.observe(context);
+  await wallet.locator('body').evaluate(useNaturalPhrases);
   await startReviewedTransfer(page);
   await wallet.locator('button.confirm').click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
@@ -144,6 +159,11 @@ async function verifyUnlock(
       timeout: 60_000,
     },
   );
+  const signingQuality = await readLastQuality(page);
+  expect(signingQuality.voicedMs).toBeGreaterThanOrEqual(600);
+  expect(signingQuality.voicedMs).toBeLessThan(2_000);
+  expect(signingQuality.endedBy).toBe('pause');
+  expect(signingQuality.recordingMs).toBeLessThan(4_500);
   expect(evidence.transfers).toHaveLength(1);
   expect(evidence.snapshot().finalizations).toBeGreaterThan(0);
   const budget = await harness.readCurrentWalletSessionStatus();
@@ -164,6 +184,8 @@ async function verifyUnlock(
         concurrentLockRejectedStaleUnlock: true,
         preparation,
         activationDialogMs,
+        naturalCapture: naturalQuality,
+        naturalSigningCapture: signingQuality,
         qualityRetries: {
           shortQuality,
           quietQuality,
@@ -320,6 +342,8 @@ async function readQuality(page: Page): Promise<{
   durationMs: number;
   peakFrameRms: number;
   levelThreshold: number;
+  recordingMs: number;
+  endedBy: string;
 }> {
   const value = await page
     .frameLocator('iframe.seams-wallet-overlay-iframe')
@@ -332,7 +356,9 @@ async function readQuality(page: Page): Promise<{
     typeof raw.voicedMs !== 'number' ||
     typeof raw.durationMs !== 'number' ||
     typeof raw.peakFrameRms !== 'number' ||
-    typeof raw.levelThreshold !== 'number'
+    typeof raw.levelThreshold !== 'number' ||
+    typeof raw.recordingMs !== 'number' ||
+    typeof raw.endedBy !== 'string'
   ) {
     throw new Error('Capture quality has invalid fields');
   }
@@ -342,6 +368,8 @@ async function readQuality(page: Page): Promise<{
     durationMs: raw.durationMs,
     peakFrameRms: raw.peakFrameRms,
     levelThreshold: raw.levelThreshold,
+    recordingMs: raw.recordingMs,
+    endedBy: raw.endedBy,
   };
 }
 
@@ -352,5 +380,49 @@ class QualityRetryRequests {
     const path = new URL(request.url()).pathname;
     if (path === '/wallet/voiceid/challenge') this.challenges += 1;
     if (path === '/wallet/voiceid/verify') this.verifies += 1;
+  };
+}
+
+async function phraseAudio(page: Page): Promise<Buffer> {
+  const phrase = await page
+    .frameLocator('iframe.seams-wallet-overlay-iframe')
+    .locator('[data-voiceid-phrase]')
+    .getAttribute('data-voiceid-phrase');
+  const index = phrase === null ? -1 : phrases.indexOf(phrase);
+  if (index < 0) throw new Error('Natural speech fixture phrase is unavailable');
+  return await readFile(
+    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/natural/${index}.wav`),
+  );
+}
+
+function useNextDelayedAudio(_: HTMLElement, base64: string): void {
+  window.voiceIdNextDelayedAudio(base64);
+}
+
+function useNaturalPhrases(): void {
+  window.voiceIdUseNaturalPhrases();
+}
+
+async function readLastQuality(page: Page) {
+  const value = await page
+    .frameLocator('iframe.seams-wallet-overlay-iframe')
+    .locator('body')
+    .getAttribute('data-voice-verification');
+  if (value === null) throw new Error('Verification quality is unavailable');
+  const raw = requireRecord(JSON.parse(value), 'verification quality');
+  if (
+    typeof raw.voicedMs !== 'number' ||
+    typeof raw.recordingMs !== 'number' ||
+    typeof raw.endedBy !== 'string' ||
+    typeof raw.similarity !== 'number' ||
+    typeof raw.phraseMatched !== 'boolean'
+  )
+    throw new Error('Invalid verification quality');
+  return {
+    voicedMs: raw.voicedMs,
+    recordingMs: raw.recordingMs,
+    endedBy: raw.endedBy,
+    similarity: raw.similarity,
+    phraseMatched: raw.phraseMatched,
   };
 }

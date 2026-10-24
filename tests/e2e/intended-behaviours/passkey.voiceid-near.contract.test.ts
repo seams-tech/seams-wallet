@@ -34,6 +34,7 @@ async function verifyTransfer(
   const identity = await readNearIdentity(page);
   const activation = page.evaluate(activate);
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await wallet.locator('body').evaluate(useNaturalPhrases);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   await activation;
@@ -45,8 +46,12 @@ async function verifyTransfer(
   await evidence.observe(context);
   await startReviewedTransfer(page);
   await wallet.locator('button.confirm').click();
-  await expect(wallet.locator('body')).toHaveAttribute('data-voice-verification', /phraseMatched/, { timeout: 20_000 });
-  const verification = JSON.parse(await wallet.locator('body').getAttribute('data-voice-verification') || '{}');
+  await expect(wallet.locator('body')).toHaveAttribute('data-voice-verification', /phraseMatched/, {
+    timeout: 20_000,
+  });
+  const verification = JSON.parse(
+    (await wallet.locator('body').getAttribute('data-voice-verification')) || '{}',
+  );
   expect(verification.phraseMatched).toBe(true);
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed', {
     timeout: 60_000,
@@ -68,6 +73,7 @@ async function verifyTransfer(
         status: 'passed',
         nativeHost: 'none',
         speakerInference: 'real_redimnet_b1_onnx_webassembly',
+        speechPace: 'natural_160_words_per_minute',
         signing: 'real_ed25519_yao_mpc',
         chain: 'deterministic_near_rpc',
         identity,
@@ -90,4 +96,8 @@ function activate() {
 }
 function transactionHash(transfer: { signedTransactionSha256: string }): string {
   return transfer.signedTransactionSha256;
+}
+
+function useNaturalPhrases(): void {
+  window.voiceIdUseNaturalPhrases();
 }

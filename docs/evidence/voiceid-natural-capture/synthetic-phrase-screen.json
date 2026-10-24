@@ -1,0 +1,322 @@
+[
+  {
+    "voice": "Samantha",
+    "index": 0,
+    "phrase": "i want to go home",
+    "durationMs": 1294.6875,
+    "voicedMs": 1220,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.7373056411743164
+  },
+  {
+    "voice": "Samantha",
+    "index": 1,
+    "phrase": "i can hear the music",
+    "durationMs": 1306.0625,
+    "voicedMs": 1190,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6638808846473694
+  },
+  {
+    "voice": "Samantha",
+    "index": 2,
+    "phrase": "this is my own voice",
+    "durationMs": 1308.125,
+    "voicedMs": 1240,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6602858304977417
+  },
+  {
+    "voice": "Samantha",
+    "index": 3,
+    "phrase": "we are going home now",
+    "durationMs": 1451.5625,
+    "voicedMs": 1410,
+    "phraseMatched": true,
+    "gap": 0.8972806930541992,
+    "speakerSimilarity": 0.7437050342559814
+  },
+  {
+    "voice": "Samantha",
+    "index": 4,
+    "phrase": "the little dog is sleeping",
+    "durationMs": 1483.125,
+    "voicedMs": 1440,
+    "phraseMatched": true,
+    "gap": 1.744769811630249,
+    "speakerSimilarity": 0.6381378173828125
+  },
+  {
+    "voice": "Samantha",
+    "index": 5,
+    "phrase": "the river is running slowly",
+    "durationMs": 1564.375,
+    "voicedMs": 1510,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.7117669582366943
+  },
+  {
+    "voice": "Samantha",
+    "index": 6,
+    "phrase": "i want a glass of water",
+    "durationMs": 1434.3125,
+    "voicedMs": 1390,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6244586110115051
+  },
+  {
+    "voice": "Samantha",
+    "index": 7,
+    "phrase": "can you open the window",
+    "durationMs": 1319.5,
+    "voicedMs": 1260,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6612112522125244
+  },
+  {
+    "voice": "Samantha",
+    "index": 8,
+    "phrase": "we sat beside the river",
+    "durationMs": 1428.3125,
+    "voicedMs": 1340,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.5955772995948792
+  },
+  {
+    "voice": "Samantha",
+    "index": 9,
+    "phrase": "they are waiting for us",
+    "durationMs": 1319.875,
+    "voicedMs": 1250,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.5958874821662903
+  },
+  {
+    "voice": "Samantha",
+    "index": 10,
+    "phrase": "she is reading a book",
+    "durationMs": 1249.5625,
+    "voicedMs": 1110,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.680949330329895
+  },
+  {
+    "voice": "Samantha",
+    "index": 11,
+    "phrase": "he is looking at me",
+    "durationMs": 1188.75,
+    "voicedMs": 1120,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6552815437316895
+  },
+  {
+    "voice": "Samantha",
+    "index": 12,
+    "phrase": "the door is open now",
+    "durationMs": 1320.5625,
+    "voicedMs": 1270,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6445058584213257
+  },
+  {
+    "voice": "Samantha",
+    "index": 13,
+    "phrase": "let us go home now",
+    "durationMs": 1372.375,
+    "voicedMs": 1290,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6712194681167603
+  },
+  {
+    "voice": "Samantha",
+    "index": 14,
+    "phrase": "that is a good idea",
+    "durationMs": 1168.75,
+    "voicedMs": 1130,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.6070724725723267
+  },
+  {
+    "voice": "Samantha",
+    "index": 15,
+    "phrase": "come and sit with me",
+    "durationMs": 1215.0,
+    "voicedMs": 1150,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.7124297618865967
+  },
+  {
+    "voice": "Daniel",
+    "index": 0,
+    "phrase": "i want to go home",
+    "durationMs": 1410.1875,
+    "voicedMs": 1360,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.21849918365478516
+  },
+  {
+    "voice": "Daniel",
+    "index": 1,
+    "phrase": "i can hear the music",
+    "durationMs": 1443.75,
+    "voicedMs": 1320,
+    "phraseMatched": true,
+    "gap": 0.579645037651062,
+    "speakerSimilarity": 0.27607691287994385
+  },
+  {
+    "voice": "Daniel",
+    "index": 2,
+    "phrase": "this is my own voice",
+    "durationMs": 1600.9375,
+    "voicedMs": 1540,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.2841132581233978
+  },
+  {
+    "voice": "Daniel",
+    "index": 3,
+    "phrase": "we are going home now",
+    "durationMs": 1498.875,
+    "voicedMs": 1470,
+    "phraseMatched": true,
+    "gap": 1.71648108959198,
+    "speakerSimilarity": 0.2325676828622818
+  },
+  {
+    "voice": "Daniel",
+    "index": 4,
+    "phrase": "the little dog is sleeping",
+    "durationMs": 1609.875,
+    "voicedMs": 1520,
+    "phraseMatched": true,
+    "gap": 0.09637308120727539,
+    "speakerSimilarity": 0.20380446314811707
+  },
+  {
+    "voice": "Daniel",
+    "index": 5,
+    "phrase": "the river is running slowly",
+    "durationMs": 1659.0,
+    "voicedMs": 1610,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.20695120096206665
+  },
+  {
+    "voice": "Daniel",
+    "index": 6,
+    "phrase": "i want a glass of water",
+    "durationMs": 1699.625,
+    "voicedMs": 1680,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.15494030714035034
+  },
+  {
+    "voice": "Daniel",
+    "index": 7,
+    "phrase": "can you open the window",
+    "durationMs": 1340.5625,
+    "voicedMs": 1280,
+    "phraseMatched": true,
+    "gap": 1.4969267845153809,
+    "speakerSimilarity": 0.20147249102592468
+  },
+  {
+    "voice": "Daniel",
+    "index": 8,
+    "phrase": "we sat beside the river",
+    "durationMs": 1487.25,
+    "voicedMs": 1470,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.21341973543167114
+  },
+  {
+    "voice": "Daniel",
+    "index": 9,
+    "phrase": "they are waiting for us",
+    "durationMs": 1517.0625,
+    "voicedMs": 1440,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.1802767664194107
+  },
+  {
+    "voice": "Daniel",
+    "index": 10,
+    "phrase": "she is reading a book",
+    "durationMs": 1345.875,
+    "voicedMs": 1210,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.22541123628616333
+  },
+  {
+    "voice": "Daniel",
+    "index": 11,
+    "phrase": "he is looking at me",
+    "durationMs": 1367.0625,
+    "voicedMs": 1260,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.21200357377529144
+  },
+  {
+    "voice": "Daniel",
+    "index": 12,
+    "phrase": "the door is open now",
+    "durationMs": 1447.375,
+    "voicedMs": 1380,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.08100084960460663
+  },
+  {
+    "voice": "Daniel",
+    "index": 13,
+    "phrase": "let us go home now",
+    "durationMs": 1487.8125,
+    "voicedMs": 1440,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.16898295283317566
+  },
+  {
+    "voice": "Daniel",
+    "index": 14,
+    "phrase": "that is a good idea",
+    "durationMs": 1261.625,
+    "voicedMs": 1220,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.18689069151878357
+  },
+  {
+    "voice": "Daniel",
+    "index": 15,
+    "phrase": "come and sit with me",
+    "durationMs": 1294.125,
+    "voicedMs": 1200,
+    "phraseMatched": true,
+    "gap": 0.0,
+    "speakerSimilarity": 0.18167272210121155
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "completed": {
+    "kind": "captured",
+    "quality": {
+      "attemptId": "4f461dd6-d49a-4eca-945e-91ccb576557a",
+      "capturedAtMs": 1792855774727,
+      "durationMs": 5460,
+      "recordingMs": 5532.299999952316,
+      "endedBy": "pause",
+      "voicedMs": 1050,
+      "peakFrameRms": 0.07415704230980186,
+      "levelThreshold": 0.006,
+      "requiredVoicedMs": 600,
+      "microphone": "MediaStreamAudioDestinationNode"
+    },
+    "tracks": [
+      "ended"
+    ]
+  },
+  "cancelled": {
+    "kind": "rejected",
+    "message": "VoiceID recording was cancelled.",
+    "tracks": [
+      "ended"
+    ]
+  },
+  "input": "synthetic tone through real browser MediaRecorder; no identity inference",
+  "timelineMs": {
+    "click": [
+      100,
+      120
+    ],
+    "speech": [
+      [
+        2200,
+        2500
+      ],
+      [
+        3250,
+        3950
+      ]
+    ],
+    "expectedStop": 5450
+  }
+}

@@ -118,7 +118,7 @@ class VoiceEnrollmentSurface {
     this.record.addEventListener('click', this.capture);
     this.cancel.setAttribute('aria-label', 'Cancel enrollment');
     this.cancel.addEventListener('click', this.cancelled);
-    this.prompt.ready('Speak slowly for about three seconds.');
+    this.prompt.ready('Read the full phrase at your normal pace.');
     parent.replaceChildren(this.prompt.element);
     signal.addEventListener('abort', this.cancelled, { once: true });
     if (signal.aborted) this.cancelled();
@@ -163,6 +163,8 @@ class VoiceEnrollmentSurface {
         capturedAtMs: pcm.quality.capturedAtMs,
         sample: this.samples.length + 1,
         durationMs: pcm.quality.durationMs,
+        recordingMs: pcm.quality.recordingMs,
+        endedBy: pcm.quality.endedBy,
         voicedMs: pcm.quality.voicedMs,
         microphone: pcm.quality.microphone,
         minimumSimilarity,
@@ -259,6 +261,8 @@ export async function verifyBrowserVoice(
       attemptId: pcm.quality.attemptId,
       capturedAtMs: pcm.quality.capturedAtMs,
       durationMs: pcm.quality.durationMs,
+      recordingMs: pcm.quality.recordingMs,
+      endedBy: pcm.quality.endedBy,
       voicedMs: pcm.quality.voicedMs,
       microphone: pcm.quality.microphone,
       similarity,
