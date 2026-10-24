@@ -2,6 +2,16 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [initial-stock delivery screen](ml-dsa-65-stock-delivery-report.md) halves stock requests from eight to four per role, in both creation and recovery.
+Typed one/two-batch requests install atomically and preserve exact ciphertext replay, the two-batch window, and claim deadlines.
+Local rollback, restart, concurrent-retry, and late-reply E2E checks pass.
+Candidate prepared creation/recovery takes 4.432/4.186 seconds, compared with 4.748/4.342 seconds in the control.
+Two cases per arm establish no consistent five-second guarantee or causal latency gain.
+Candidate creation signs in 2.774 seconds. Recovery preserves cooldown, and a separate recovered-key signature takes 8.225 seconds using five pairs.
+All four canonical public keys match. The original cooldown artifact and slow supplemental signature remain in the evidence.
+B's observed stock intervals decrease, but Worker-clock marks cannot precisely partition wall time. Earlier storage failures remain unresolved.
+All six temporary Workers are deleted. Recovery, FIPS export, two-at-once consumption, and thirty-two-candidate capacity remain unchanged.
+Next, reduce repeated activation/checking and first-use material loading, then repeat latency and sustained refill qualification.
 The [metadata-batching experiment](ml-dsa-65-metadata-batch-report.md), after rebasing onto `dev` at `4c13b3f3`, remains unselected.
 Native and workerd correctness pass, but hosted creation takes 15.418 seconds, signing exhausts sixteen candidates, and recovery preparation fails with storage errors.
 The selected protocol source remains unchanged. The [failure-correlation screen](ml-dsa-65-wait-correlation-report.md) now joins a hosted storage reset to its exact request and participant calls.
@@ -21,7 +31,7 @@ Two hosted native lifecycle runs pass canonical creation/recovery and four signa
 The earlier storage failures do not recur, so their root cause remains unresolved and no storage fix is established.
 Initial-stock installation takes 1.639–1.742 seconds on the first run's critical path. Large initial pool dispatch intervals overlap key execution and are not directly removable latency.
 The captures retain 1,024 invocations and 5,578 durable events. Two repeat waits join uniquely across provider records; a false truncation flag does not prove complete capture.
-Next, profile stock serialization/delivery and installation scheduling, then obtain complete per-pair signing captures. Capacity, recovery, and FIPS export remain unchanged.
+Those measurements motivated the initial-stock delivery screen above. Complete per-pair signing captures and sustained capacity qualification remain open.
 The latest [hosted isolation screen](ml-dsa-65-modularity-hosted-report.md) completes four prepared creation/recovery operations in 5.545–8.372 seconds.
 Ten load signatures verify in 1.299–7.907 seconds; eight finish below five seconds. Complete demand, including policy retries, has a 7.537-second median.
 Initial-stock signing also takes up to 13.938 seconds, with one sixteen-candidate exhaustion. Both unchanged-control attempts fail at the Durable Object storage boundary.

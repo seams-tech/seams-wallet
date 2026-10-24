@@ -122,16 +122,46 @@ pub enum AdmissionCommand {
     },
 }
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RegistrationStockBatch {
+    ordinal: usize,
+    binding: Binding,
+    sealed: Sealed,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "batches",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum RegistrationStockDelivery {
+    Single([RegistrationStockBatch; 1]),
+    Pair([RegistrationStockBatch; 2]),
+}
+impl RegistrationStockDelivery {
+    fn batches(&self) -> &[RegistrationStockBatch] {
+        match self {
+            Self::Single(batches) => batches,
+            Self::Pair(batches) => batches,
+        }
+    }
+    fn into_batches(self) -> Vec<RegistrationStockBatch> {
+        match self {
+            Self::Single(batches) => Vec::from(batches),
+            Self::Pair(batches) => Vec::from(batches),
+        }
+    }
+}
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum RoleCommand {
     InitializeRegistrationStorage {
         claim: super::registration::Claim,
     },
-    InstallRegistrationBatch {
+    InstallRegistrationStock {
         claim: super::registration::Claim,
-        ordinal: usize,
-        binding: Binding,
-        sealed: Sealed,
+        delivery: RegistrationStockDelivery,
     },
     StartRefill {
         job: refill::Job,
@@ -194,10 +224,9 @@ pub enum RoleCommand {
 impl RoleCommand {
     fn wallet(&self) -> &super::WalletScope {
         match self {
-            Self::InitializeRegistrationStorage { claim } => &claim.request.wallet,
-            Self::InstallRegistrationBatch { binding, .. } | Self::Put { binding, .. } => {
-                &binding.key.wallet
-            }
+            Self::InitializeRegistrationStorage { claim }
+            | Self::InstallRegistrationStock { claim, .. } => &claim.request.wallet,
+            Self::Put { binding, .. } => &binding.key.wallet,
             Self::StartRefill { job } => &job.key.wallet,
             Self::CheckMaterial { activation } => &activation.key.wallet,
             Self::InstallMaterial { record } => &record.activation.key.wallet,
@@ -706,13 +735,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
                 ))
             };
         }
-        RoleCommand::InstallRegistrationBatch {
-            claim,
-            ordinal,
-            binding,
-            ..
-        } => {
-            check_signing_scope(env, &binding.key)?;
+        RoleCommand::InstallRegistrationStock { claim, delivery } => {
             let allowed: bool = service_call(
                 env,
                 CallAuthority::Internal,
@@ -721,17 +744,29 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
                 },
             )
             .await?;
-            let expected_batch = super::registration::signing_batch_id(&claim.job, *ordinal)?;
-            if !allowed
-                || *ordinal >= claim.job.signing_batches
-                || binding.batch != expected_batch
-                || binding.key.wallet != claim.request.wallet
-                || binding.key.key_id != claim.request.key_id
-                || binding.key.epoch != claim.request.epoch
-                || binding.key.schedule_digest != claim.job.signing_schedule
-                || binding.expires_at_ms != claim.job.expires_at
-            {
+            if !allowed {
                 return Err(invalid("Registration signing stock lacks exact admission"));
+            }
+            if let RegistrationStockDelivery::Pair([first, second]) = delivery {
+                if first.ordinal % 2 != 0 || first.ordinal.checked_add(1) != Some(second.ordinal) {
+                    return Err(invalid("Registration stock delivery has invalid ordinals"));
+                }
+            }
+            for batch in delivery.batches() {
+                let binding = &batch.binding;
+                check_signing_scope(env, &binding.key)?;
+                let expected_batch =
+                    super::registration::signing_batch_id(&claim.job, batch.ordinal)?;
+                if batch.ordinal >= claim.job.signing_batches
+                    || binding.batch != expected_batch
+                    || binding.key.wallet != claim.request.wallet
+                    || binding.key.key_id != claim.request.key_id
+                    || binding.key.epoch != claim.request.epoch
+                    || binding.key.schedule_digest != claim.job.signing_schedule
+                    || binding.expires_at_ms != claim.job.expires_at
+                {
+                    return Err(invalid("Registration signing stock lacks exact admission"));
+                }
             }
             return Ok(());
         }
@@ -876,13 +911,14 @@ async fn execute_role(
             let _ = pool::installed_key(store, &claim.request.key_id).await?;
             json(true)
         }
-        RoleCommand::InstallRegistrationBatch {
-            binding, sealed, ..
-        } => {
-            if binding.role != role {
-                return Err(invalid("Registration stock belongs to another role"));
+        RoleCommand::InstallRegistrationStock { delivery, .. } => {
+            // The surrounding transaction commits every batch together or rolls back all writes.
+            for batch in delivery.into_batches() {
+                if batch.binding.role != role {
+                    return Err(invalid("Registration stock belongs to another role"));
+                }
+                pool::install_registration_batch(store, batch.binding, batch.sealed, now).await?;
             }
-            pool::install_registration_batch(store, binding, sealed, now).await?;
             json(true)
         }
         RoleCommand::StartRefill { job } => {

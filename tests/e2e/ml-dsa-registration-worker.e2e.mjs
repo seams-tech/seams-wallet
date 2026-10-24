@@ -736,8 +736,10 @@ async function checkDeliveryRecovery(input) {
   assert.notEqual(response.status, 200, 'Lost delivery reply did not interrupt installation');
   const before = await deliveryState();
   assert.equal(before.lostReplies, 1);
+  assert.equal(before.atomicPairRollback, true);
+  assert.equal(before.oversizedDeliveryRejected, true);
   assert.equal(before.active, 0, 'The peer delivery was not drained');
-  assert.equal(before.maximumActive, 2, 'The bounded delivery pair did not overlap');
+  assert.equal(before.maximumActive, 2, 'The delivery exceeded its two-batch bound');
   assert.deepEqual(Object.keys(before.deliveries).sort(), ['delivery/1/0', 'delivery/1/1']);
   await runtime.dispose();
   runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
@@ -750,7 +752,7 @@ async function checkDeliveryRecovery(input) {
   assert.equal(Object.keys(after.deliveries).length, policy.minimum_ready_batches);
   for (let ordinal = 0; ordinal < policy.minimum_ready_batches; ordinal += 1) {
     const item = after.deliveries['delivery/1/' + ordinal];
-    assert.equal(item.attempts, ordinal === 0 ? 2 : 1);
+    assert.equal(item.attempts, ordinal < 2 ? 2 : 1);
     if (ordinal < 2) assert.equal(item.hash, before.deliveries['delivery/1/' + ordinal].hash);
   }
   return { lostReplyStatus: response.status, beforeRestart: before, afterConcurrentRetries: after,

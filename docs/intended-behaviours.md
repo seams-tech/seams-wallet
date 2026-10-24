@@ -3579,8 +3579,9 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - If preparation dispatch fails, use Gateway authority to retire that exact unclaimed job and remove its stock entry atomically. Preserve an existing claim if it wins the race. Reject changed live job identities and late readiness after retirement. Replacement preparation must use fresh job and material identities. Keep role cleanup alarms; retirement does not prove immediate cancellation of remote work.
 - Return the stored registration status for an exact retry. Reject changed inputs under the same operation ID.
 - Complete registration only after both private shares and initial signing stock are installed. Recovery must reproduce the recorded canonical key and manifest.
-- Deliver at most two initial signing batches concurrently per participant. Serialize exact installation retries and retain each batch's persisted payload and installed marker.
-- Bound installation by its registration claim deadline, including gate waiting. Drain both deliveries on ordinary errors; late remote replies must not complete an expired registration.
+- Deliver initial signing stock in typed requests containing one or two batches. Keep at most two prepared batches awaiting delivery per participant. Validate every batch against the exact live claim, then install the complete request atomically.
+- Serialize exact installation retries. Retain each batch's persisted ciphertext and commit the delivery's installed markers together after acknowledgement. An invalid second batch must not publish the first batch.
+- Bound installation by its registration claim deadline, including gate waiting. Drain both preparation futures on ordinary errors; late remote replies must not complete an expired registration.
 - Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
 - Prepare private nonce commitments during key-bound refill, using only the admitted public key and role-local fresh nonce shares. Keep long-term signing shares in the signing participants.

@@ -1,0 +1,332 @@
+{
+  "schema": "seams.ml-dsa-stock-delivery.v1",
+  "source_parent": "c7b333920434f1ff6e463e9b6a572a469bbd2458",
+  "change": "Deliver one or two initial signing batches in one typed request and commit the delivery atomically.",
+  "selected": true,
+  "selection_reason": "Verified request reduction and atomic delivery. This screen does not establish a causal latency gain.",
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "preparation_on_workers": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1,
+    "maximum_prepared_batches_awaiting_delivery_per_role": 2
+  },
+  "verification": {
+    "same_wallet_and_policy": true,
+    "all_four_canonical_keys_equal": true,
+    "stock_requests_per_role_per_ceremony": {
+      "control": 8,
+      "candidate": 4
+    },
+    "candidate_creation_signature": {
+      "pairs": 2,
+      "evaluated_candidates": 4
+    },
+    "candidate_original_latency_target_met": false,
+    "local": {
+      "atomic_pair_rollback": true,
+      "oversized_rejected": true,
+      "restart_and_exact_replay": true,
+      "concurrent_retry_serialized": true,
+      "maximum_pending_batches": 2,
+      "deadline_ms": 30004.408167,
+      "late_success_cannot_complete_expired_registration": true,
+      "first_fixture_failure_classification": "valid_test_needs_update"
+    },
+    "separate_post_cooldown_recovery_signature": {
+      "verified": true,
+      "elapsed_ms": 8224.962583999999,
+      "pairs": 5,
+      "evaluated_candidates": 10,
+      "cooldown_wait_ms": 0,
+      "initial_stock_timing": false,
+      "provider_invocations": 120,
+      "reported_truncation": 0,
+      "reported_exceptions": 0
+    },
+    "stock_interval_clock_limit": "Worker-clock intervals cannot precisely partition provider invocation wall time.",
+    "cleanup": {
+      "worker_destinations": 6,
+      "deleted_after_each_arm": true
+    }
+  },
+  "hosted": {
+    "control": {
+      "functional_passed": true,
+      "recovery_preserves_canonical_key": true,
+      "target_met": true,
+      "cases": [
+        {
+          "epoch": 1,
+          "operation": "6294c198293a9ae3a0c7f3022ee1e8870eb7ae9ce02bdad9152ec7462c31a5b2",
+          "preparation_ms": 79904.617667,
+          "registration_ms": 4747.528166000004,
+          "signing_ms": 2629.082416999998,
+          "signature_verified": true,
+          "stock_by_role": [
+            {
+              "record": 30,
+              "operation": "6294c198293a9ae3a0c7f3022ee1e8870eb7ae9ce02bdad9152ec7462c31a5b2",
+              "role": "a",
+              "installation_ms": 1214,
+              "stock_ms": 1111
+            },
+            {
+              "record": 127,
+              "operation": "6294c198293a9ae3a0c7f3022ee1e8870eb7ae9ce02bdad9152ec7462c31a5b2",
+              "role": "b",
+              "installation_ms": 2082,
+              "stock_ms": 1690
+            }
+          ],
+          "signing_outcomes": [
+            {
+              "status": "signed",
+              "consumed_batches": 1,
+              "evaluated_candidates": 2
+            }
+          ]
+        },
+        {
+          "epoch": 2,
+          "operation": "a531b53cfca3bb30e1b511d01524d4dc3fcac8e8287ec89e367587ed05e53cd5",
+          "preparation_ms": 59692.80183299999,
+          "registration_ms": 4342.294541999989,
+          "signing_ms": 1288.155792000005,
+          "signature_verified": true,
+          "stock_by_role": [
+            {
+              "record": 92,
+              "operation": "a531b53cfca3bb30e1b511d01524d4dc3fcac8e8287ec89e367587ed05e53cd5",
+              "role": "a",
+              "installation_ms": 1079,
+              "stock_ms": 1009
+            },
+            {
+              "record": 221,
+              "operation": "a531b53cfca3bb30e1b511d01524d4dc3fcac8e8287ec89e367587ed05e53cd5",
+              "role": "b",
+              "installation_ms": 1494,
+              "stock_ms": 1400
+            }
+          ],
+          "signing_outcomes": [
+            {
+              "status": "signed",
+              "consumed_batches": 1,
+              "evaluated_candidates": 2
+            }
+          ]
+        }
+      ],
+      "provider_invocations": 356,
+      "provider_truncated": 0,
+      "exceptions": [],
+      "captured_delivery_dispatches": [
+        {
+          "operation": "6294c198293a9ae3a0c7f3022ee1e8870eb7ae9ce02bdad9152ec7462c31a5b2",
+          "role": "a",
+          "count": 8,
+          "call_ids": [
+            "c34fb8922e2591a07782f8450000000c",
+            "c34fb8922e2591a07782f8450000000d",
+            "c34fb8922e2591a07782f8450000000e",
+            "c34fb8922e2591a07782f8450000000f",
+            "c34fb8922e2591a07782f84500000010",
+            "c34fb8922e2591a07782f84500000011",
+            "c34fb8922e2591a07782f84500000012",
+            "c34fb8922e2591a07782f84500000013"
+          ]
+        },
+        {
+          "operation": "a531b53cfca3bb30e1b511d01524d4dc3fcac8e8287ec89e367587ed05e53cd5",
+          "role": "a",
+          "count": 8,
+          "call_ids": [
+            "4f85c68a87dccac2208b93c50000000c",
+            "4f85c68a87dccac2208b93c50000000d",
+            "4f85c68a87dccac2208b93c50000000e",
+            "4f85c68a87dccac2208b93c50000000f",
+            "4f85c68a87dccac2208b93c500000010",
+            "4f85c68a87dccac2208b93c500000011",
+            "4f85c68a87dccac2208b93c500000012",
+            "4f85c68a87dccac2208b93c500000013"
+          ]
+        },
+        {
+          "operation": "6294c198293a9ae3a0c7f3022ee1e8870eb7ae9ce02bdad9152ec7462c31a5b2",
+          "role": "b",
+          "count": 8,
+          "call_ids": [
+            "7f1db367a9209120ec1bae420000000a",
+            "7f1db367a9209120ec1bae420000000b",
+            "7f1db367a9209120ec1bae420000000c",
+            "7f1db367a9209120ec1bae420000000d",
+            "7f1db367a9209120ec1bae420000000e",
+            "7f1db367a9209120ec1bae420000000f",
+            "7f1db367a9209120ec1bae4200000010",
+            "7f1db367a9209120ec1bae4200000011"
+          ]
+        },
+        {
+          "operation": "a531b53cfca3bb30e1b511d01524d4dc3fcac8e8287ec89e367587ed05e53cd5",
+          "role": "b",
+          "count": 8,
+          "call_ids": [
+            "009778f22639efd43c51bfc10000000a",
+            "009778f22639efd43c51bfc10000000b",
+            "009778f22639efd43c51bfc10000000c",
+            "009778f22639efd43c51bfc10000000d",
+            "009778f22639efd43c51bfc10000000e",
+            "009778f22639efd43c51bfc10000000f",
+            "009778f22639efd43c51bfc100000010",
+            "009778f22639efd43c51bfc100000011"
+          ]
+        }
+      ]
+    },
+    "candidate": {
+      "functional_passed": true,
+      "recovery_preserves_canonical_key": true,
+      "target_met": false,
+      "cases": [
+        {
+          "epoch": 1,
+          "operation": "b0bbd631f0375f486a980eaf3b282c29f785901219511d02e71e94ae0672ab4b",
+          "preparation_ms": 80509.13375,
+          "registration_ms": 4432.432457999996,
+          "signing_ms": 2773.8497919999936,
+          "signature_verified": true,
+          "stock_by_role": [
+            {
+              "record": 34,
+              "operation": "b0bbd631f0375f486a980eaf3b282c29f785901219511d02e71e94ae0672ab4b",
+              "role": "a",
+              "installation_ms": 1257,
+              "stock_ms": 1164
+            },
+            {
+              "record": 146,
+              "operation": "b0bbd631f0375f486a980eaf3b282c29f785901219511d02e71e94ae0672ab4b",
+              "role": "b",
+              "installation_ms": 1860,
+              "stock_ms": 1252
+            }
+          ],
+          "signing_outcomes": [
+            {
+              "status": "signed",
+              "consumed_batches": 2,
+              "evaluated_candidates": 4
+            }
+          ]
+        },
+        {
+          "epoch": 2,
+          "operation": "7554efa70d07c25fd6b3665a0710639fd3625e692a17840af95fec65585deb3e",
+          "preparation_ms": 53409.32783299999,
+          "registration_ms": 4185.602208000026,
+          "signing_ms": null,
+          "signature_verified": false,
+          "stock_by_role": [
+            {
+              "record": 101,
+              "operation": "7554efa70d07c25fd6b3665a0710639fd3625e692a17840af95fec65585deb3e",
+              "role": "a",
+              "installation_ms": 1104,
+              "stock_ms": 1021
+            },
+            {
+              "record": 252,
+              "operation": "7554efa70d07c25fd6b3665a0710639fd3625e692a17840af95fec65585deb3e",
+              "role": "b",
+              "installation_ms": 1296,
+              "stock_ms": 1233
+            }
+          ],
+          "signing_outcomes": []
+        }
+      ],
+      "provider_invocations": 416,
+      "provider_truncated": 0,
+      "exceptions": [],
+      "captured_delivery_dispatches": [
+        {
+          "operation": "b0bbd631f0375f486a980eaf3b282c29f785901219511d02e71e94ae0672ab4b",
+          "role": "a",
+          "count": 4,
+          "call_ids": [
+            "b0b88e83d1c43a874e74e4ce0000000c",
+            "b0b88e83d1c43a874e74e4ce0000000d",
+            "b0b88e83d1c43a874e74e4ce0000000e",
+            "b0b88e83d1c43a874e74e4ce0000000f"
+          ]
+        },
+        {
+          "operation": "7554efa70d07c25fd6b3665a0710639fd3625e692a17840af95fec65585deb3e",
+          "role": "a",
+          "count": 4,
+          "call_ids": [
+            "5e60f52ce1affabdf34614930000000c",
+            "5e60f52ce1affabdf34614930000000d",
+            "5e60f52ce1affabdf34614930000000e",
+            "5e60f52ce1affabdf34614930000000f"
+          ]
+        },
+        {
+          "operation": "b0bbd631f0375f486a980eaf3b282c29f785901219511d02e71e94ae0672ab4b",
+          "role": "b",
+          "count": 4,
+          "call_ids": [
+            "9d053ee53ff6bdc5e5a588770000000a",
+            "9d053ee53ff6bdc5e5a588770000000b",
+            "9d053ee53ff6bdc5e5a588770000000c",
+            "9d053ee53ff6bdc5e5a588770000000d"
+          ]
+        },
+        {
+          "operation": "7554efa70d07c25fd6b3665a0710639fd3625e692a17840af95fec65585deb3e",
+          "role": "b",
+          "count": 4,
+          "call_ids": [
+            "440090df0bdf417e10eb9e060000000a",
+            "440090df0bdf417e10eb9e060000000b",
+            "440090df0bdf417e10eb9e060000000c",
+            "440090df0bdf417e10eb9e060000000d"
+          ]
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Prepared registration requires ready material. Preparation includes key-generation material and sixteen initial signing candidates.",
+    "Two cases per sequential arm do not establish consistent five-second latency, CPU savings, or a causal speedup.",
+    "Worker-clock intervals include preceding CPU and scheduling and cannot precisely partition invocation wall time.",
+    "The original candidate recovery cooldown and false latency target remain preserved. The separate recovered-key signature takes 8.225 seconds.",
+    "The earlier intermittent storage failures remain unresolved.",
+    "Fresh namespaces do not qualify mixed-version deployment with registrations in flight.",
+    "No sustained refill, browser UI, public login, or testnet throughput qualification is claimed.",
+    "The bounded batch count does not establish unchanged peak memory for combined JSON buffers."
+  ],
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_baseline": 13754,
+    "rust_duplicate_current": 13972,
+    "baseline_changed": false
+  },
+  "cleanup": {
+    "worker_destinations": 6,
+    "deleted_after_each_arm": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-stock-delivery-20261024-data.json.gz",
+    "bytes": 303755,
+    "sha256": "ef3917ef1f9595cab06246c707183c1722183f502f5b333b6ddba1aac61023a8"
+  }
+}
