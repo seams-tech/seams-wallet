@@ -62,8 +62,8 @@ impl DurableTrace {
                 Some(claim.job.id),
                 Some(claim.request.operation),
             ),
-            RoleCommand::InstallRegistrationBatch { claim, .. } => (
-                "install_registration_batch",
+            RoleCommand::InstallRegistrationStock { claim, .. } => (
+                "install_registration_stock",
                 Some(claim.job.id),
                 Some(claim.request.operation),
             ),

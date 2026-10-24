@@ -212,7 +212,7 @@ def public_durable_boundary(value, timestamp):
         "prepare_registration", "retire_registration", "ready_registration",
         "check_registration_job", "claim_registration", "check_registration_claim",
         "finish_registration", "authorize_key", "commit_key", "key_state",
-        "initialize_registration_storage", "install_registration_batch",
+        "initialize_registration_storage", "install_registration_stock",
         "install_material", "install_pool", "check_material",
     }
     stages = {

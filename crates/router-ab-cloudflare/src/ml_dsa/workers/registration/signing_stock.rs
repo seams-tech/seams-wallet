@@ -83,24 +83,105 @@ pub(super) async fn install(
     let wrapping = executor::wrapping_key(env)?;
     let mut ordinal = 0;
     while ordinal < claim.job.signing_batches {
-        let first = install_batch(env, state, claim, key, participant, &wrapping, ordinal);
-        if ordinal + 1 < claim.job.signing_batches {
-            // Drain both deliveries before returning an error or starting another pair.
-            let (first, second) = futures::join!(
+        let first = prepare_delivery(env, state, claim, key, participant, &wrapping, ordinal);
+        let (first, second) = if ordinal + 1 < claim.job.signing_batches {
+            // Prepare at most the same two batches held by the original delivery window.
+            futures::join!(
                 first,
-                install_batch(env, state, claim, key, participant, &wrapping, ordinal + 1),
-            );
-            first?;
-            second?;
+                prepare_delivery(env, state, claim, key, participant, &wrapping, ordinal + 1)
+            )
         } else {
-            first.await?;
+            (first.await, Ok(StockPreparation::Installed))
+        };
+        match (first?, second?) {
+            (StockPreparation::Installed, StockPreparation::Installed) => {}
+            (StockPreparation::Pending { batch, trace }, StockPreparation::Installed)
+            | (StockPreparation::Installed, StockPreparation::Pending { batch, trace }) => {
+                deliver_stock(
+                    env,
+                    state,
+                    claim,
+                    RegistrationStockDelivery::Single([batch]),
+                    &[trace],
+                )
+                .await?;
+            }
+            (
+                StockPreparation::Pending {
+                    batch: first,
+                    trace: first_trace,
+                },
+                StockPreparation::Pending {
+                    batch: second,
+                    trace: second_trace,
+                },
+            ) => {
+                deliver_stock(
+                    env,
+                    state,
+                    claim,
+                    RegistrationStockDelivery::Pair([first, second]),
+                    &[first_trace, second_trace],
+                )
+                .await?;
+            }
         }
         ordinal += 2;
     }
     Ok(())
 }
 
-async fn install_batch(
+enum StockPreparation {
+    Installed,
+    Pending {
+        batch: RegistrationStockBatch,
+        trace: stage_trace::StageTrace,
+    },
+}
+
+async fn deliver_stock(
+    env: &Env,
+    state: &State,
+    claim: &core::Claim,
+    delivery: RegistrationStockDelivery,
+    traces: &[stage_trace::StageTrace],
+) -> Result<()> {
+    let ordinals: Vec<_> = delivery
+        .batches()
+        .iter()
+        .map(|batch| batch.ordinal)
+        .collect();
+    let response = local_call(
+        env,
+        &RoleCommand::InstallRegistrationStock {
+            claim: claim.clone(),
+            delivery,
+        },
+        None,
+    )
+    .await?;
+    if response.status_code() != 200 {
+        return Err(invalid("Initial signing stock installation failed"));
+    }
+    for trace in traces {
+        trace.mark("delivery_acknowledged");
+    }
+    transaction(state, move |store| async move {
+        for ordinal in ordinals {
+            store
+                .put(&format!("registration-signing/{ordinal}/installed"), &true)
+                .await?;
+        }
+        Ok(())
+    })
+    .await?;
+    for trace in traces {
+        trace.finish();
+    }
+    Ok(())
+}
+
+async fn prepare_delivery(
     env: &Env,
     state: &State,
     claim: &core::Claim,
@@ -108,7 +189,7 @@ async fn install_batch(
     participant: Participant,
     wrapping: &(Identifier, Zeroizing<[u8; 32]>),
     ordinal: usize,
-) -> Result<()> {
+) -> Result<StockPreparation> {
     let (version, seed) = wrapping;
     let trace = stage_trace::StageTrace::new(
         claim.request.operation,
@@ -127,7 +208,7 @@ async fn install_batch(
         .unwrap_or(false)
     {
         trace.finish();
-        return Ok(());
+        return Ok(StockPreparation::Installed);
     }
     trace.mark("installation_checked");
     let sealed = transaction(state, move |store| async move {
@@ -172,28 +253,14 @@ async fn install_batch(
     })
     .await?;
     trace.mark("delivery_persisted");
-    let response = local_call(
-        env,
-        &RoleCommand::InstallRegistrationBatch {
-            claim: claim.clone(),
+    Ok(StockPreparation::Pending {
+        batch: RegistrationStockBatch {
             ordinal,
             binding,
             sealed,
         },
-        None,
-    )
-    .await?;
-    if response.status_code() != 200 {
-        return Err(invalid("Initial signing stock installation failed"));
-    }
-    trace.mark("delivery_acknowledged");
-    state
-        .storage()
-        .put(&name, &true)
-        .await
-        .map_err(storage_error)?;
-    trace.finish();
-    Ok(())
+        trace,
+    })
 }
 
 pub(super) async fn retire_next(state: &State, count: usize) -> Result<bool> {
