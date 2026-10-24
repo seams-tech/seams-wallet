@@ -101,6 +101,7 @@ test.beforeEach(async ({ page }) => {
         },
         content: {
           kind: 'transaction',
+          capture: null,
           review: { model: null, tree: null },
           header: {
             heading,
