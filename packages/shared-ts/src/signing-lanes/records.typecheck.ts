@@ -34,6 +34,7 @@ import {
   buildLinkedDeviceSigningLaneRecord,
   buildOwnerEmailOtpSigningLaneRecord,
   buildOwnerPasskeySigningLaneRecord,
+  buildOwnerVoiceIdSigningLaneRecord,
   buildRecoverySigningLaneRecord,
   buildRetiredWalletKeyLifecycle,
 } from './recordParsers';
@@ -114,6 +115,11 @@ const rotatableBase = {
 const ownerPasskeyLane: OwnerPasskeySigningLaneRecord =
   buildOwnerPasskeySigningLaneRecord(ownerAuthBase);
 const ownerEmailOtpLane = buildOwnerEmailOtpSigningLaneRecord(ownerAuthBase);
+const ownerVoiceIdLane = buildOwnerVoiceIdSigningLaneRecord(ownerAuthBase);
+// @ts-expect-error VoiceID owner lanes require the exact Wallet authentication method.
+buildOwnerVoiceIdSigningLaneRecord(ownerBase);
+// @ts-expect-error A VoiceID owner lane cannot acquire linked-device identity through a spread.
+void ({ ...ownerVoiceIdLane, linkedDeviceId } satisfies import('./records').SigningLaneRecord);
 const linkedDeviceLane: LinkedDeviceSigningLaneRecord = buildLinkedDeviceSigningLaneRecord({
   ...rotatableBase,
   linkedDeviceId,

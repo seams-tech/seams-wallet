@@ -16,6 +16,8 @@ import type { RouterApiWalletUnlockService } from '../../../framework/authServic
 import { json, readJson } from '../../../framework/http';
 import type { FetchRouterApiContext } from '../createFetchRouter';
 import { hostedWalletOriginAllowed } from './walletVoiceIdActivation';
+import { prepareVoiceIdNearInstallation, type VoiceIdNearInstallation } from './walletVoiceIdNear';
+import type { VoiceIdVerifyResult } from '../../../domains/voiceId/voiceIdSessions';
 
 type HostedVoiceIdRoute = Readonly<{
   hostedWalletOrigins: readonly (string | undefined)[];
@@ -29,7 +31,9 @@ export type VoiceIdChallengeRouteDependencies = HostedVoiceIdRoute & Pick<
 export type VoiceIdVerifyRouteDependencies = HostedVoiceIdRoute & Pick<
   RouterApiWalletUnlockService,
   'verifyAndIssueVoiceId'
->;
+> & {
+  prepareNear(verified: Extract<VoiceIdVerifyResult, { kind: 'issued' }>): Promise<VoiceIdNearInstallation>;
+};
 
 function hostedOrigin(
   request: Request,
@@ -68,6 +72,7 @@ export async function handleWalletVoiceIdVerify(
   if (ctx.method !== 'POST' || ctx.pathname !== '/wallet/voiceid/verify') return null;
   return await handleVoiceIdVerifyRequest(ctx.request, {
     verifyAndIssueVoiceId: ctx.service.walletUnlock.verifyAndIssueVoiceId,
+    prepareNear: prepareVoiceIdNearInstallation.bind(null, ctx),
     hostedWalletOrigins: ctx.opts.hostedWalletOrigins ?? [],
   });
 }
@@ -137,6 +142,7 @@ export async function handleVoiceIdVerifyRequest(
       walletSession: projectActiveWalletSession(result.authorization),
       operationCredential: result.operationCredential,
       custodyEnvelope: result.custodyEnvelope,
+      near: await deps.prepareNear(result),
     }, { status: 200 });
   } catch {
     return json({ ok: false, code: 'verification_unavailable' }, { status: 503 });

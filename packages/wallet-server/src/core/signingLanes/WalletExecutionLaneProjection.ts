@@ -5,6 +5,7 @@ import {
   buildEvmFamilyWalletKeyRecord,
   buildOwnerEmailOtpSigningLaneRecord,
   buildOwnerPasskeySigningLaneRecord,
+  buildOwnerVoiceIdSigningLaneRecord,
   parseWalletKeyVersion,
 } from '@shared/signing-lanes/recordParsers';
 import {
@@ -59,6 +60,7 @@ import {
 import { base58Encode } from '@shared/utils/base58';
 import {
   walletAuthAuthorityRef,
+  buildVoiceIdWalletAuthAuthority,
   type WalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
@@ -101,6 +103,7 @@ export interface WalletExecutionLaneProjectionSource {
 }
 
 export type WalletExecutionLaneAuthSource =
+  | { readonly kind: 'voiceid'; readonly deviceKeyId: DigestB64u }
   | {
       readonly kind: 'passkey';
       readonly credentialIdB64u: string;
@@ -402,7 +405,7 @@ async function buildOwnerLane(input: {
     case 'email_otp':
       return buildOwnerEmailOtpSigningLaneRecord(base);
     case 'voiceid':
-      throw new SignerProjectionConflictError();
+      return buildOwnerVoiceIdSigningLaneRecord(base);
   }
 }
 
@@ -565,7 +568,16 @@ function walletAuthorityForAuthMethod(
       bindingId: authMethod.walletAuthMethodId,
     };
   }
-  if (authMethod.kind === 'voiceid') return null;
+  if (authMethod.kind === 'voiceid') {
+    if (authSource.kind !== 'voiceid' || authSource.deviceKeyId !== authMethod.deviceKeyId) {
+      return null;
+    }
+    return buildVoiceIdWalletAuthAuthority({
+      walletId: authMethod.walletId,
+      walletAuthMethodId: authMethod.walletAuthMethodId,
+      deviceKeyId: authMethod.deviceKeyId,
+    });
+  }
   if (authSource.kind !== 'oidc_provider') return null;
   const providerUserId = parseEmailOtpProviderUserId(authSource.providerSubject);
   if (!providerUserId.ok) return null;

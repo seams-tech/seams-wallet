@@ -684,6 +684,11 @@ export type RequestEmailCodeInput = ExclusiveUnion<
 };
 
 export interface AuthCapability {
+  unlockWithAuthMethod(args: {
+    walletId: WalletId | string;
+    walletAuthMethodId: string;
+    method: WalletAuthMethodPlugin['kind'];
+  }): Promise<LoginAndCreateSessionResult>;
   onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;

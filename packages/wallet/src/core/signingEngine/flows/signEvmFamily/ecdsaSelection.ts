@@ -10,7 +10,6 @@ import type {
   AuthorizedEcdsaLaneCandidate,
   EcdsaLaneCandidate,
 } from '../../session/identity/laneIdentity';
-import { laneCandidateAuthMethod } from '../../session/identity/laneIdentity';
 import {
   buildEvmTransactionSigningLane,
   buildTempoTransactionSigningLane,
@@ -57,20 +56,6 @@ type EcdsaSelectionLaneCandidateDiagnosticsBase = {
   remainingUses: number;
   expiresAtMs: number;
 };
-
-function ecdsaLaneCandidateAuthMethod(
-  candidate: EcdsaLaneCandidate,
-): WalletAuthAuthority['factor']['kind'] {
-  const authMethod = laneCandidateAuthMethod(candidate);
-  switch (authMethod) {
-    case SIGNER_AUTH_METHODS.emailOtp:
-      return SIGNER_AUTH_METHODS.emailOtp;
-    case SIGNER_AUTH_METHODS.passkey:
-      return SIGNER_AUTH_METHODS.passkey;
-  }
-  authMethod satisfies never;
-  throw new Error('[SigningEngine][ecdsa] unsupported ECDSA lane auth method');
-}
 
 type EcdsaSelectionLaneCandidateDiagnostics = EcdsaSelectionLaneCandidateDiagnosticsBase & {
   source: 'canonical_capability';
@@ -144,7 +129,7 @@ function laneCandidateDiagnosticsBase(
   candidate: AuthorizedEcdsaLaneCandidate,
 ): EcdsaSelectionLaneCandidateDiagnosticsBase {
   return {
-    authMethod: ecdsaLaneCandidateAuthMethod(candidate),
+    authMethod: candidate.auth.kind,
     chain: candidate.chain,
     chainTarget: candidate.chainTarget,
     state: candidate.state,
@@ -449,7 +434,7 @@ export async function resolveEvmFamilyEcdsaSigningSelection(args: {
 }): Promise<EvmFamilyEcdsaSigningSelectionResult> {
   const lane = resolvedEvmFamilyEcdsaSigningLaneFromCandidate(args.laneCandidate);
   const emailOtpAuthorityLane = lane;
-  const candidateAuthMethod = ecdsaLaneCandidateAuthMethod(args.laneCandidate);
+  const candidateAuthMethod = args.laneCandidate.auth.kind;
   const emailOtpAuthority =
     candidateAuthMethod === SIGNER_AUTH_METHODS.emailOtp
       ? await resolveEmailOtpAuthorityForSelection({

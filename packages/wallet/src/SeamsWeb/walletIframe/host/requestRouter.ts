@@ -34,6 +34,7 @@ type AuthWalletRequestType =
   | 'PM_CANCEL_AUTH_MENU'
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
   | 'PM_UNLOCK'
+  | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -215,6 +216,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
       };
     }
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_LAST_WALLET_MOVE_REQUEST':

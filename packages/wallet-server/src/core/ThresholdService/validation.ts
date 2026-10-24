@@ -1,10 +1,13 @@
 import { base64UrlDecode } from '@shared/utils/encoders';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import {
   parseWebAuthnRpId,
 } from '@shared/utils/domainIds';
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
   type WalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import { toOptionalString, isPlainObject } from '@shared/utils/validation';
@@ -67,6 +70,12 @@ export function parseThresholdEd25519AuthorityScope(
   if (!isPlainObject(raw)) return null;
   const kind = toOptionalString(raw.kind);
   switch (kind) {
+    case 'voiceid': {
+      try {
+        rejectUnknownFields(raw, ['kind', 'deviceKeyId'], 'device authority scope');
+        return { kind: 'voiceid', deviceKeyId: parseDigestB64u(raw.deviceKeyId) };
+      } catch { return null; }
+    }
     case 'passkey_rp': {
       const rpId = parseWebAuthnRpId(raw.rpId);
       if (
@@ -119,6 +128,7 @@ export function thresholdEd25519AuthorityScopeFromWalletAuthAuthority(
       providerUserId: authority.factor.providerUserId,
     };
   }
+  if (isVoiceIdWalletAuthAuthority(authority)) return { kind: 'voiceid', deviceKeyId: authority.factor.deviceKeyId };
   authority satisfies never;
   throw new Error('[threshold-ed25519] unsupported wallet auth authority');
 }
@@ -129,6 +139,8 @@ export function thresholdEd25519AuthorityScopesMatch(
 ): boolean {
   if (left.kind !== right.kind) return false;
   switch (left.kind) {
+    case 'voiceid':
+      return right.kind === 'voiceid' && left.deviceKeyId === right.deviceKeyId;
     case 'passkey_rp':
       return right.kind === 'passkey_rp' && left.rpId === right.rpId;
     case 'email_otp':

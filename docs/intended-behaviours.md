@@ -116,7 +116,7 @@ Its NEAR RPC response is deterministic and does not confirm an on-chain transfer
 Denied preparations retain their spent quota use. Owner unlock replenishes the
 session before the approved retry.
 
-## VoiceID Wallet Session unlock (in progress)
+## VoiceID Wallet Session unlock
 
 The user first activates VoiceID through an existing Passkey or Email OTP owner
 unlock. The user then controls the open device and its OS. The MVP does not
@@ -166,13 +166,41 @@ reseal. A browser operation now checks the selected device method, captures
 its signed server challenge, verifies the fresh session, and passes the factor
 secret to a custody installer. It erases that secret when the installer ends or
 fails. Cancellation before server verification leaves the challenge unused
-and erases the secret. Voice-only unlock still needs a Wallet host action that
-opens the seed envelope and activates signing lanes before it reports an
-unlocked session. The trusted plugin contract has an unlock hook with a required
-core session installer. VoiceID resolves the active local method and fetches a
-challenge before it shows the Wallet-origin Unlock button. An expired challenge
-closes that surface and cannot start capture. App-facing unlock dispatch and
-the core NEAR installer remain pending.
+and erases the secret. Applications call
+`auth.unlockWithAuthMethod({ walletId, walletAuthMethodId, method: 'voiceid' })`.
+The enabled plugin fetches a challenge before it shows the Wallet-origin Unlock
+button. An expired challenge closes that surface and cannot start capture.
+Cancellation during challenge fetch cannot open a capture surface later.
+
+The server returns the exact NEAR capability authorized by the fresh session.
+The core installer opens the same-device custody cache in WASM with the method's
+envelope and factor. It registers the live Yao client and the exact operation
+credential, publishes the NEAR lane, and establishes the worker custody handle.
+It marks the method unlocked only after installation succeeds. A concurrent
+lock changes the lock generation and prevents the older unlock from committing.
+Installation failure clears volatile signing material and local authorization.
+The native host never receives the wallet seed or the operation credential.
+
+This installer supports NEAR on the activated device. Its custody cache must
+exist from a previous owner unlock. Missing custody requires an owner unlock
+before VoiceID can resume. Reload requires a new VoiceID unlock. ECDSA signing
+and key export require their supported owner methods.
+
+The composed contract is
+[`voiceid.unlock-near.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts).
+It activates a generated device key after passkey registration, locks the owner
+session, unlocks through the public plugin API, and signs a reviewed transfer.
+It checks the signature against the registered NEAR key and writes public JSON
+evidence. The device host and NEAR RPC are deterministic test fixtures. The MPC
+signing protocol runs in the local Wallet system.
+
+The [recorded run](evidence/voiceid-unlock-near-20261024.json) contains the public
+signed transaction and registered public key. Run the contract in a fresh local
+Wallet system with:
+
+```sh
+pnpm -C tests exec node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts
+```
 
 The activation contract is
 [`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).

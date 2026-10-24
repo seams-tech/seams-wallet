@@ -125,6 +125,8 @@ function authMethodForSigningSessionLanes(
   for (const lane of lanes) {
     const source = lane.source;
     switch (source) {
+      case 'voiceid':
+        return 'voiceid';
       case SIGNER_AUTH_METHODS.emailOtp:
         return SIGNER_AUTH_METHODS.emailOtp;
       case SIGNER_AUTH_METHODS.passkey:

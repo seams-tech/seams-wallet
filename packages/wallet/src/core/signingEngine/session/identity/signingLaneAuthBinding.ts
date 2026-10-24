@@ -8,6 +8,7 @@ import type { ExclusiveUnion } from '@shared/utils/variant';
 export type SigningLaneAuthBinding = ExclusiveUnion<
   | { kind: typeof SIGNER_AUTH_METHODS.passkey; rpId: RpId; credentialIdB64u: string }
   | { kind: typeof SIGNER_AUTH_METHODS.emailOtp; providerSubjectId: string }
+  | { kind: 'voiceid'; walletAuthMethodId: WalletAuthMethodId; deviceKeyId: DigestB64u }
 >;
 
 /**
@@ -23,8 +24,8 @@ type LinkedOwnerLaneIdentityV1 = {
   readonly authorityDigest: DigestB64u;
 };
 
-/** Exact Wallet Authority address carried by every resolved Email OTP owner scope. */
-type EmailOtpOwnerAuthorityBindingV1 = {
+/** Exact Wallet Authority address for a method-bound owner scope. */
+type WalletOwnerAuthorityBindingV1 = {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly authorityDigest: WalletAuthorityBindingDigest;
 };
@@ -37,6 +38,13 @@ type EmailOtpOwnerAuthorityBindingV1 = {
  * authenticator; Email OTP has no local authenticator and no slot.
  */
 export type OwnerLaneScope =
+  | {
+      auth: Extract<SigningLaneAuthBinding, { kind: 'voiceid' }>;
+      keyFamily?: never;
+      signerSlot?: never;
+      linkedOwner?: never;
+      ownerAuthority: WalletOwnerAuthorityBindingV1;
+    }
   | {
       auth: Extract<SigningLaneAuthBinding, { kind: typeof SIGNER_AUTH_METHODS.passkey }>;
       signerSlot: number;
@@ -55,13 +63,13 @@ export type OwnerLaneScope =
       auth: Extract<SigningLaneAuthBinding, { kind: typeof SIGNER_AUTH_METHODS.emailOtp }>;
       signerSlot?: never;
       linkedOwner?: never;
-      ownerAuthority: EmailOtpOwnerAuthorityBindingV1;
+      ownerAuthority: WalletOwnerAuthorityBindingV1;
     }
   | {
       auth: Extract<SigningLaneAuthBinding, { kind: typeof SIGNER_AUTH_METHODS.emailOtp }>;
       signerSlot?: never;
       linkedOwner: LinkedOwnerLaneIdentityV1;
-      ownerAuthority: EmailOtpOwnerAuthorityBindingV1;
+      ownerAuthority: WalletOwnerAuthorityBindingV1;
     };
 
 export function signingLaneAuthMethod(auth: SigningLaneAuthBinding): SignerAuthMethod {
@@ -70,6 +78,8 @@ export function signingLaneAuthMethod(auth: SigningLaneAuthBinding): SignerAuthM
       return SIGNER_AUTH_METHODS.passkey;
     case SIGNER_AUTH_METHODS.emailOtp:
       return SIGNER_AUTH_METHODS.emailOtp;
+    case 'voiceid':
+      return 'voiceid';
   }
   auth satisfies never;
   throw new Error('[SigningSession] unsupported signing lane auth binding');
@@ -85,6 +95,8 @@ function requireSigningLaneAuthKeyPart(value: string, label: string): string {
 
 export function signingLaneAuthBindingKey(auth: SigningLaneAuthBinding): string {
   switch (auth.kind) {
+    case 'voiceid':
+      return ['voiceid', auth.walletAuthMethodId, auth.deviceKeyId].join(':');
     case SIGNER_AUTH_METHODS.passkey:
       return [
         SIGNER_AUTH_METHODS.passkey,

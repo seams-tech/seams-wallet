@@ -4126,7 +4126,21 @@ export class SeamsWalletRepositories {
         walletId,
         walletAuthMethodId,
         unlockedAtMs,
+        expectedLockGeneration: null,
       }),
+    );
+  }
+
+  async markWalletSelectionUnlockedAtGeneration(input: {
+    readonly walletId: WalletId;
+    readonly walletAuthMethodId: WalletAuthMethodId;
+    readonly unlockedAtMs: number;
+    readonly expectedLockGeneration: number;
+  }): Promise<void> {
+    await this.manager.runTransaction(
+      [SEAMS_WALLET_STORES.walletSelections, SEAMS_WALLET_STORES.walletAuthMethods],
+      'readwrite',
+      this.markWalletSelectionUnlockedInTransaction.bind(this, input),
     );
   }
 
@@ -4572,6 +4586,7 @@ export class SeamsWalletRepositories {
       readonly walletId: WalletId;
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly unlockedAtMs: number;
+      readonly expectedLockGeneration: number | null;
     },
     ctx: SeamsWalletTransactionContext,
   ): Promise<void> {
@@ -4581,6 +4596,9 @@ export class SeamsWalletRepositories {
       selectionRaw === undefined ? null : parseWalletSelectionStorageRow(selectionRaw);
     if (!selection || selection.wallet_id !== input.walletId) {
       throw new Error('wallet selection is missing or corrupt');
+    }
+    if (input.expectedLockGeneration !== null && selection.record.lockGeneration !== input.expectedLockGeneration) {
+      throw new Error('Wallet lock state changed during unlock.');
     }
     if (selection.record.walletAuthMethodId !== input.walletAuthMethodId) {
       // Unlocking with a sibling method on the same wallet authority

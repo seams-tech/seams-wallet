@@ -1618,6 +1618,7 @@ export function createBrowserSigningSurfaceEnginePorts(
               case 'email_otp':
                 return true;
               case 'passkey':
+              case 'voiceid':
                 return (
                   args.getEnginePorts().ed25519YaoActiveClients.resolve({
                     walletId: reference.walletId,

@@ -82,6 +82,7 @@ import { createWalletHostEmailOtpCommands } from '@/SeamsWeb/walletIframe/host/c
 import { createWalletHostRegistrationCommands } from '@/SeamsWeb/walletIframe/host/createRegistrationCommands';
 import {
   createWalletHostSessionCommands,
+  type WalletHostSessionCommands,
   prefillWalletHostPresignatures,
 } from '@/SeamsWeb/walletIframe/host/createSessionCommands';
 import {
@@ -153,7 +154,7 @@ export class WalletHostRuntime {
       UserPreferencesManager,
       'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
     >;
-  readonly auth: WalletAuthCommands;
+  readonly auth: WalletAuthCommands & Pick<WalletHostSessionCommands, 'unlockWithAuthMethod'>;
   readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;

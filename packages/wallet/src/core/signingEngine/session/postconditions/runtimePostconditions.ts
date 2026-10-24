@@ -13,7 +13,7 @@ import {
   availableEcdsaSigningLaneAuthMethod,
 } from '../availability/availableSigningLanes';
 import { signingLaneAuthMethod, type OwnerLaneScope } from '../identity/signingLaneAuthBinding';
-import type { SigningSessionSealAuthMethod } from '@shared/utils/signingSessionSeal';
+import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 import type {
   MpcWalletSigningQuotaId,
   WalletSessionAuthorizationId,
@@ -39,14 +39,14 @@ type RestorableRuntimeLaneMaterial = Extract<
 
 type UsableRuntimeLaneIdentity =
   | {
-      authMethod: SigningSessionSealAuthMethod;
+      authMethod: SignerAuthMethod;
       target: { curve: 'ed25519'; chainTarget?: never };
       walletSessionId: WalletSessionId;
       quotaId: MpcWalletSigningQuotaId;
       thresholdSessionId: string;
     }
   | {
-      authMethod: SigningSessionSealAuthMethod;
+      authMethod: Exclude<SignerAuthMethod, 'voiceid'>;
       target: { curve: 'ecdsa'; chainTarget: ThresholdEcdsaChainTarget };
       authorizationId: WalletSessionAuthorizationId;
       materialActivationId: string;
@@ -156,7 +156,7 @@ function ed25519LaneMaterial(
 
 function readReadyEd25519Lane(args: {
   lanes: AvailableSigningLanes;
-  authMethod: SigningSessionSealAuthMethod;
+  authMethod: SignerAuthMethod;
   nowMs: number;
 }): UsableRuntimeLane | WalletRuntimePostconditionFailureCode {
   const lane = args.lanes.lanes.ed25519.near;
@@ -199,13 +199,14 @@ function readReadyEd25519Lane(args: {
 function readEcdsaUseCaseReadyLane(args: {
   lanes: AvailableSigningLanes;
   chainTarget: ThresholdEcdsaChainTarget;
-  authMethod: SigningSessionSealAuthMethod;
+  authMethod: SignerAuthMethod;
   nowMs: number;
 }): UsableRuntimeLane | WalletRuntimePostconditionFailureCode {
   const targetKey = thresholdEcdsaChainTargetKey(args.chainTarget);
   const lane: AvailableEcdsaSigningLane | undefined = args.lanes.ecdsa.lanesByTarget[targetKey];
   if (!lane || lane.state === 'missing') return 'ecdsa_lane_missing';
-  if (availableEcdsaSigningLaneAuthMethod(lane) !== args.authMethod) {
+  const authMethod = availableEcdsaSigningLaneAuthMethod(lane);
+  if (authMethod !== args.authMethod) {
     return 'auth_method_route_mismatch';
   }
   if (lane.state !== 'ready') return 'ecdsa_lane_missing';
@@ -216,7 +217,7 @@ function readEcdsaUseCaseReadyLane(args: {
   }
   return {
     state: lane.state,
-    authMethod: args.authMethod,
+    authMethod,
     target: { curve: 'ecdsa', chainTarget: args.chainTarget },
     authorizationId: lane.authorization.session.authorizationId,
     materialActivationId: String(lane.materialActivation.activationId),

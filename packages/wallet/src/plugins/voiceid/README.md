@@ -6,7 +6,13 @@ registry in `core/authMethods/hostRegistry.ts` on the first enabled use.
 
 ```ts
 const wallet = new SeamsWeb({ authMethods: [voiceIdAuthMethod()] });
-await wallet.registration.activateAuthMethod({ walletId, method: 'voiceid' });
+const method = await wallet.registration.activateAuthMethod({ walletId, method: 'voiceid' });
+await wallet.auth.lock();
+await wallet.auth.unlockWithAuthMethod({
+  walletId,
+  walletAuthMethodId: method.walletAuthMethodId,
+  method: 'voiceid',
+});
 ```
 
 The plugin owns activation and unlock UI, native capture, server proof exchange, and the
@@ -29,6 +35,13 @@ The plugin resolves its active local method, requests a challenge, and waits for
 an Unlock click on the Wallet origin. Its capture surface expires with that
 challenge. The proof handoff erases the factor buffer after the installer ends.
 
-The core NEAR installer and app-facing unlock dispatch remain in progress.
-The Wallet must complete custody and signing installation before reporting an
-unlocked session. The plugin hook alone does not mark the wallet authenticated.
+The SDK dispatches `auth.unlockWithAuthMethod` to the enabled plugin. The core
+installer opens the device's seed-encrypted NEAR custody cache with the scoped
+factor. It installs a live Yao client and the fresh server session before it
+marks the exact method unlocked. A lock-generation check prevents an older
+unlock from overriding a later lock.
+
+This installer supports NEAR on the activated device. The custody cache must
+already exist from an owner unlock. Missing custody requires another passkey
+or Email OTP unlock. Reload requires a fresh VoiceID unlock. ECDSA signing and
+key export require their supported owner methods.

@@ -74,6 +74,7 @@ function mutationWallet(
     case 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION':
     case 'PM_REGISTER_WALLET':
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_LAST_WALLET_MOVE_REQUEST':

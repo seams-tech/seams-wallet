@@ -24,11 +24,17 @@ registration, login, and local session material (see
 
 The SDK enables the optional VoiceID plugin by configuration. The wallet iframe
 loads its implementation on first use and calls a loopback service on the device.
-It sends one bounded operation hash and receives a voice result from the native
-host. The wallet iframe owns the approval lifecycle and consumes the result
-before signing. The local service and native host receive no wallet secrets or
-reusable session handles. The native host owns capture, models, and local
-biometric storage. Existing cryptographic workers keep their responsibilities.
+For transaction approval, it sends one bounded operation hash and receives a
+voice result. For Wallet Session unlock, the native host signs a server
+challenge and releases the method's random factor secret. The iframe erases
+that secret after core installation. The native host receives neither the
+wallet custody seed nor the server operation credential. It owns capture,
+models, biometric storage, and its device key and factor secret.
+
+The core opens the seed-encrypted NEAR custody cache in the existing Yao WASM
+runtime on the iframe main thread. The custody worker opens the method envelope
+and retains its existing session-scoped custody handle. JavaScript never
+receives the wallet custody seed. Existing workers keep their responsibilities.
 
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
@@ -63,7 +69,7 @@ Workers that the worker transport creates:
 | Kind | Script | WASM modules and when they load | Secret state it holds |
 | --- | --- | --- | --- |
 | `nearSigner` | [`near-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/near-signer.worker.ts) | `near_signer` at worker start | None. It builds and finalizes NEAR transactions, delegates, and NEP-413 digests. It rejects payloads with PRF, seed, private key, or signing share fields. |
-| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result or the Email OTP factor key) and recovery codes. |
+| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result, the Email OTP factor key, or the VoiceID factor key) and recovery codes. |
 | `ecdsaDerivationClient` | [`ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) | `router_ab_ecdsa_client` at worker start; registration can prewarm it | All ECDSA client secrets: role-local signing state, linked-holder material, registration and export ceremonies, and the opaque presign authority. Rejects PRF and private key fields. |
 | `ecdsaPresignClient` | [`ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) | None | No key bytes. It holds presignature lifecycle state, handles, and public points, and sends all cryptography to the derivation worker. |
 | `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |

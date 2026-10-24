@@ -10,6 +10,7 @@ export function createApplicationSessionCommands(
 ): WalletSessionCommands {
   return {
     unlock: unlock.bind(null, walletIframe),
+    unlockWithAuthMethod: unlockWithAuthMethod.bind(null, walletIframe),
     lock: lock.bind(null, walletIframe),
     getSession: getSession.bind(null, walletIframe),
     getRecentUnlocks: getRecentUnlocks.bind(null, walletIframe),
@@ -48,6 +49,14 @@ async function unlock(
 async function lock(walletIframe: SessionIframe): Promise<void> {
   const router = await walletIframe.requireRouter();
   await router.lock();
+}
+
+async function unlockWithAuthMethod(
+  walletIframe: SessionIframe,
+  input: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
+): ReturnType<WalletSessionCommands['unlockWithAuthMethod']> {
+  const router = await walletIframe.requireRouter();
+  return await router.unlockWithAuthMethod(input);
 }
 
 async function getSession(

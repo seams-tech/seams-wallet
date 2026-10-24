@@ -292,6 +292,7 @@ export async function readPersistedAvailableSigningLanesForTargets(
         const listByAuthMethod = async (
           authMethod: SignerAuthMethod,
         ): Promise<SigningSessionSealedStoreRecord[]> => {
+          if (authMethod === 'voiceid') return [];
           const ed25519Records = await listExactSealedSessionsForWallet({
             walletId: recordWalletId,
             filter: { authMethod, curve: 'ed25519' },

@@ -14,7 +14,7 @@ class StepUpMethodSelectionError extends Error {
 }
 
 type SelectableLane = {
-  authMethod: 'passkey' | 'email_otp';
+  authMethod: 'passkey' | 'email_otp' | 'voiceid';
 };
 
 type WarmSessionStepUpRoute = {
@@ -66,6 +66,7 @@ function methodFromPolicy<TLane extends SelectableLane>(
   policy: StepUpPolicy,
 ): StepUpMethod | 'warm_session' {
   if (policy.kind === 'reuse_warm_session') return 'warm_session';
+  if (selectedLane.authMethod === 'voiceid') throw new Error('Unlock with VoiceID again before signing.');
   if (policy.kind === 'force_method') return policy.method;
   return selectedLane.authMethod;
 }

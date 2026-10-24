@@ -23,6 +23,7 @@ import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthor
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
   walletAuthAuthoritiesMatch,
   walletAuthAuthorityRef,
   type WalletAuthAuthority,
@@ -387,8 +388,11 @@ function directRuntimeAuthBinding(
       emailOtpAuthority: authority,
     };
   }
-  const exhaustive: never = authority;
-  return exhaustive;
+  if (isVoiceIdWalletAuthAuthority(authority)) {
+    throw new Error('VoiceID supports NEAR signing only.');
+  }
+  authority satisfies never;
+  throw new Error('ECDSA authority is unsupported.');
 }
 
 export function buildExactEcdsaDirectCapabilityRuntime(args: {

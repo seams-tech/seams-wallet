@@ -777,6 +777,7 @@ function walletIdFromAuthBinding(binding: WalletAuthMethodBinding): WalletId {
   switch (binding.kind) {
     case 'passkey':
       return binding.scope.wallet.walletId;
+    case 'voiceid':
     case 'email_otp':
       return binding.wallet.walletId;
   }

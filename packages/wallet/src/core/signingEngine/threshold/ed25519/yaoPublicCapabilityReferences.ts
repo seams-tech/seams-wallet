@@ -3,7 +3,9 @@ import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import {
   parseMpcMaterialActivationRef,
   parseThresholdEd25519SessionId,
+  parseWalletAuthMethodId,
 } from '@shared/utils/domainIds';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import type { Ed25519YaoActiveClientIdentityV1 } from './yaoActiveClientRegistry';
 import type { ThresholdEd25519SessionId } from '../../session/operationState/types';
 import { normalizeThresholdRuntimePolicyScope } from '../sessionPolicy';
@@ -45,6 +47,7 @@ export type Ed25519YaoPublicCapabilityLaneReferenceV1 =
           expiresAtMs: number;
         }
       | { auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' }> }
+      | { auth: Extract<SigningLaneAuthBinding, { kind: 'voiceid' }>; remainingUses: number; expiresAtMs: number }
     >;
 
 type Ed25519YaoPublicCapabilityReferencesV1 = {
@@ -136,6 +139,12 @@ function parseSigningLaneAuth(value: unknown, label: string): SigningLaneAuthBin
     'must be a non-empty normalized string',
   );
   switch (kind) {
+    case 'voiceid': {
+      requireExactKeys(record, ['kind', 'walletAuthMethodId', 'deviceKeyId'], label);
+      const method = parseWalletAuthMethodId(record.walletAuthMethodId);
+      if (!method.ok) throw new Error(`${label}.walletAuthMethodId is invalid`);
+      return { kind, walletAuthMethodId: method.value, deviceKeyId: parseDigestB64u(record.deviceKeyId) };
+    }
     case 'passkey': {
       requireExactKeys(record, ['kind', 'rpId', 'credentialIdB64u'], label);
       const rpId = toRpId(
@@ -228,7 +237,7 @@ function parsePublicCapabilityLane(
       'auth',
       'nearEd25519SigningKeyId',
       'signerSlot',
-      ...(auth.kind === 'email_otp' ? ['remainingUses', 'expiresAtMs'] : []),
+      ...(auth.kind === 'email_otp' || auth.kind === 'voiceid' ? ['remainingUses', 'expiresAtMs'] : []),
     ],
     label,
   );
@@ -258,6 +267,12 @@ function parsePublicCapabilityLane(
     signerSlot,
   };
   switch (auth.kind) {
+    case 'voiceid':
+      return {
+        ...common, auth,
+        remainingUses: requireNonNegativeInteger(record.remainingUses, `${label}.remainingUses`),
+        expiresAtMs: requirePositiveInteger(record.expiresAtMs, `${label}.expiresAtMs`),
+      };
     case 'email_otp':
       return {
         ...common,

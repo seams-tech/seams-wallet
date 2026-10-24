@@ -157,6 +157,13 @@ function selectedAuthorityMatchesAuthMethod(args: {
   ) {
     return false;
   }
+  if (selectedAuthMethod.kind === 'voiceid') {
+    return (
+      selectedFactorAuthority.factor.kind === 'voiceid' &&
+      selectedFactorAuthority.factor.deviceKeyId === selectedAuthMethod.deviceKeyId &&
+      selectedFactorAuthority.verifier.kind === 'device_signature'
+    );
+  }
   if (selectedAuthMethod.kind === 'passkey') {
     return (
       selectedFactorAuthority.factor.kind === 'passkey' &&
@@ -259,6 +266,18 @@ function assertAuthorizationMatchesRequirement(args: {
     throw new Error(
       '[SigningEngine][near] Wallet Session authorization does not match material factor',
     );
+  }
+  if (requirement.kind === 'voiceid') {
+    if (
+      authorization.selectedAuthMethod.kind !== 'voiceid' ||
+      requirement.walletAuthMethodId !== authorization.selectedAuthMethod.walletAuthMethodId ||
+      requirement.deviceKeyId !== authorization.selectedAuthMethod.deviceKeyId
+    ) {
+      throw new Error(
+        '[SigningEngine][near] Wallet Session authorization does not match VoiceID factor',
+      );
+    }
+    return;
   }
   if (requirement.kind === 'passkey') {
     if (

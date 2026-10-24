@@ -92,7 +92,7 @@ type Ed25519PasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
 type Ed25519EmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   Ed25519EmailOtpSigningLaneInput;
 type NearTransactionSigningLaneInput =
-  | Ed25519PasskeyTransactionSigningLaneInput
+  | ({ auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }> } & Ed25519PasskeySigningLaneInput)
   | Ed25519EmailOtpTransactionSigningLaneInput;
 
 type EcdsaPasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
@@ -198,13 +198,32 @@ function buildEcdsaEmailOtpSigningLane(
 export function buildNearTransactionSigningLane(
   input: NearTransactionSigningLaneInput,
 ): NearTransactionSigningLane {
+  if (input.auth.kind === 'voiceid') {
+    const selected = selectedEd25519Lane({
+      walletId: input.walletId,
+      nearAccountId: input.nearAccountId,
+      nearEd25519SigningKeyId: input.nearEd25519SigningKeyId,
+      signerSlot: input.signerSlot,
+      auth: input.auth,
+      walletSessionId: input.walletSessionId,
+      quotaId: input.quotaId,
+      thresholdSessionId: input.thresholdSessionId,
+    });
+    return buildSigningLane<NearTransactionSigningLane>({
+      ...selected,
+      keyKind: 'threshold_ed25519',
+      chainFamily: 'near',
+      storageSource: 'login',
+      sessionOrigin: 'login',
+      retention: 'session',
+    });
+  }
   if (isEd25519EmailOtpTransactionSigningLaneInput(input)) {
     return buildEd25519EmailOtpSigningLane(input);
   }
   if (isEd25519PasskeyTransactionSigningLaneInput(input)) {
     return buildEd25519PasskeySigningLane(input);
   }
-  input satisfies never;
   throw new Error('[SigningSession] unsupported NEAR lane auth');
 }
 

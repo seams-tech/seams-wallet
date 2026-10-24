@@ -1,12 +1,21 @@
-import {
-  type WalletAuthMethodPlugin,
-} from '../../packages/wallet/src/core/authMethods/plugins';
+import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
 import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/descriptor';
 import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
 import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
-import type { AuthMethodReviewPolicy, AuthMethodReviewApproval } from '../../packages/wallet/src/core/authMethods/hostPlugin';
-import type { WalletAuthMethodHostPlugin, AuthMethodSessionInstaller } from '../../packages/wallet/src/core/authMethods/hostPlugin';
+import type {
+  AuthMethodReviewPolicy,
+  AuthMethodReviewApproval,
+} from '../../packages/wallet/src/core/authMethods/hostPlugin';
+import type {
+  WalletAuthMethodHostPlugin,
+  AuthMethodSessionInstaller,
+} from '../../packages/wallet/src/core/authMethods/hostPlugin';
 import type { WalletId, WalletAuthMethodId } from '../../packages/shared-ts/src/utils/domainIds';
+import type {
+  SigningLaneAuthBinding,
+  OwnerLaneScope,
+} from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
+import type { ExactEcdsaSigningLaneIdentity } from '@/core/signingEngine/session/identity/exactSigningLaneIdentity';
 
 const enabled: SeamsConfigsInput = { authMethods: [voiceIdAuthMethod()] };
 void enabled;
@@ -36,13 +45,26 @@ declare const walletAuthMethodId: WalletAuthMethodId;
 // @ts-expect-error A plugin unlock cannot omit the core signing installer.
 hostPlugin.unlock({ relayerUrl: 'https://router.example.test', walletId, walletAuthMethodId });
 // @ts-expect-error An installer can return only a successful installed unlock.
-const failedInstaller: AuthMethodSessionInstaller = async () => ({ success: false, error: 'not installed' });
+const failedInstaller: AuthMethodSessionInstaller = async () => ({
+  success: false,
+  error: 'not installed',
+});
 void failedInstaller;
 
-declare const verifiedProofFields: Pick<
-  VerifiedVoiceIdSessionProof,
-  'challenge' | 'deviceKeyId'
->;
+declare const verifiedProofFields: Pick<VerifiedVoiceIdSessionProof, 'challenge' | 'deviceKeyId'>;
 // @ts-expect-error Only the server verifier can construct verified VoiceID proof.
 const forgedProof: VerifiedVoiceIdSessionProof = { ...verifiedProofFields };
 void forgedProof;
+
+declare const voiceIdLane: Extract<SigningLaneAuthBinding, { kind: 'voiceid' }>;
+const voiceWithPasskeyFields = { ...voiceIdLane, rpId: 'wallet.example.test' };
+// @ts-expect-error VoiceID cannot acquire passkey data through a broad spread.
+void (voiceWithPasskeyFields satisfies SigningLaneAuthBinding);
+const voiceWithoutAuthority = { auth: voiceIdLane };
+// @ts-expect-error VoiceID requires its exact selected Wallet authority.
+void (voiceWithoutAuthority satisfies OwnerLaneScope);
+
+declare const ecdsaIdentity: ExactEcdsaSigningLaneIdentity;
+const ecdsaWithVoice = { ...ecdsaIdentity, auth: voiceIdLane };
+// @ts-expect-error The NEAR VoiceID plugin cannot construct an ECDSA signing identity.
+void (ecdsaWithVoice satisfies ExactEcdsaSigningLaneIdentity);

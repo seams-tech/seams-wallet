@@ -70,6 +70,7 @@ export type WalletKeyRecord = Ed25519WalletKeyRecord | EvmFamilyWalletKeyRecord;
 export type SigningLaneKind =
   | 'owner_passkey'
   | 'owner_email_otp'
+  | 'owner_voiceid'
   | 'linked_device'
   | 'delegated_execution'
   | 'recovery'
@@ -158,6 +159,15 @@ export type OwnerEmailOtpSigningLaneRecord = OwnerAuthSigningLaneRecordBase & {
   readonly authorizationBindingDigestB64u?: never;
 };
 
+export type OwnerVoiceIdSigningLaneRecord = OwnerAuthSigningLaneRecordBase & {
+  readonly laneKind: 'owner_voiceid';
+  readonly linkedDeviceId?: never;
+  readonly authorizationId?: never;
+  readonly agentIdentityKeyId?: never;
+  readonly custodyBindingId?: never;
+  readonly authorizationBindingDigestB64u?: never;
+};
+
 export type LinkedDeviceSigningLaneRecord = RotatableSigningLaneRecordBase & {
   readonly laneKind: 'linked_device';
   readonly linkedDeviceId: LinkedDeviceId;
@@ -201,6 +211,7 @@ export type BreakGlassSigningLaneRecord = PrivilegedOwnerSigningLaneRecordBase &
 export type SigningLaneRecord =
   | OwnerPasskeySigningLaneRecord
   | OwnerEmailOtpSigningLaneRecord
+  | OwnerVoiceIdSigningLaneRecord
   | LinkedDeviceSigningLaneRecord
   | DelegatedExecutionSigningLaneRecord
   | RecoverySigningLaneRecord

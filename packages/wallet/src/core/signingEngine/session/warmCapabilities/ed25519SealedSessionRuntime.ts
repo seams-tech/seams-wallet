@@ -326,6 +326,8 @@ export async function ed25519AuthorizationIdentityMatchesRuntime(args: {
 
 function authBindingsEqual(left: SigningLaneAuthBinding, right: SigningLaneAuthBinding): boolean {
   switch (left.kind) {
+    case 'voiceid':
+      return right.kind === 'voiceid' && left.walletAuthMethodId === right.walletAuthMethodId && left.deviceKeyId === right.deviceKeyId;
     case 'passkey':
       return (
         right.kind === 'passkey' &&
@@ -366,6 +368,7 @@ async function resolveExactEd25519SealedSessionRuntimeForLaneWithResolver(
   },
   resolver: Ed25519SealedSessionRuntimeResolver,
 ): Promise<Ed25519WalletSealedSessionRuntimeResolution> {
+  if (args.laneIdentity.auth.kind === 'voiceid') return { kind: 'missing' };
   const records = await resolver.listExactSealedSessionsForWallet({
     walletId: args.walletId,
     filter: {

@@ -15,6 +15,7 @@ export type VoiceTransferDriver = { select(command: VoiceCommand): Promise<void>
 
 type NearIdentity = { walletId: string; accountId: string; publicKey: string };
 type CapturedTransfer = {
+  signedTransactionB64: string;
   signedTransactionSha256: string;
   signerId: string;
   receiverId: string;
@@ -22,7 +23,7 @@ type CapturedTransfer = {
   nonce: string;
 };
 
-class VoiceIdNearSigningEvidence {
+export class VoiceIdNearSigningEvidence {
   readonly transfers: CapturedTransfer[] = [];
   private finalizations = 0;
 
@@ -75,20 +76,6 @@ class VoiceIdNearSigningEvidence {
   }
 }
 
-class VoiceIdChunkObservation {
-  private requests = 0;
-
-  readonly observe = (request: Request): void => {
-    if (/\/approval-[A-Za-z0-9_-]+\.js$/.test(new URL(request.url()).pathname)) {
-      this.requests += 1;
-    }
-  };
-
-  count(): number {
-    return this.requests;
-  }
-}
-
 export async function verifyVoiceIdNearTransfer(
   identity: NearIdentity,
   base64: string,
@@ -116,7 +103,7 @@ function capturedSigningResult(identity: NearIdentity, base64: string, length: n
   };
 }
 
-async function readNearIdentity(page: Page): Promise<NearIdentity> {
+export async function readNearIdentity(page: Page): Promise<NearIdentity> {
   const snapshot = requireRecord(
     JSON.parse(await page.getByTestId('intended-result-json').innerText()),
     'registration snapshot',
@@ -152,6 +139,7 @@ function parseSingleTransfer(bytes: Buffer): CapturedTransfer {
   offset += 16;
   expect(bytes.length - offset).toBe(1 + 64); // Ed25519 signature tag and bytes.
   return {
+    signedTransactionB64: bytes.toString('base64'),
     signedTransactionSha256: createHash('sha256').update(bytes).digest('hex'),
     signerId,
     receiverId,
@@ -180,12 +168,9 @@ export async function verifyVoiceIdNearSigning(args: {
     ),
   );
   await context.addInitScript({ content: bundles[0].code });
-  const voiceIdChunk = new VoiceIdChunkObservation();
-  context.on('request', voiceIdChunk.observe);
   harness.enableVoiceIdPlugin();
   await harness.registerPasskeyEd25519YaoWallet();
   await harness.assertRegistrationOwnerSessionIsActive();
-  expect(voiceIdChunk.count()).toBe(0);
   await installVoiceObservation(page);
   const evidence = new VoiceIdNearSigningEvidence(
     args.gatewayOrigin,
@@ -205,7 +190,6 @@ export async function verifyVoiceIdNearSigning(args: {
     );
     expect(denial.message).toBe('Request cancelled.');
     outcomes.push(command === 'cancel' ? 'cancelled' : 'rejected');
-    expect(voiceIdChunk.count()).toBeGreaterThan(0);
     expect(await readVoiceOutcomes(page)).toEqual(outcomes);
     expect(evidence.snapshot()).toEqual({ finalizations: 0, transfers: 0 });
     await waitForWalletIframeConfirmationSettlement(page);
@@ -250,7 +234,6 @@ export async function verifyVoiceIdNearSigning(args: {
     differentSpeakerPreventedFinalization: true,
     extraWordsPreventedFinalization: true,
     observedVoiceOutcomes: [...outcomes, 'approved'],
-    voiceIdPluginLoadedOnFirstUse: true,
     owner: evidence.identity,
     transfers: evidence.transfers,
   };

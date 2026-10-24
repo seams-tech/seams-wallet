@@ -147,6 +147,8 @@ export function runtimePolicyScopeKey(scope: RuntimePolicyScope): string {
 
 function ed25519AdmissionAuthorityScopeKey(scope: ThresholdEd25519AuthorityScope): string {
   switch (scope.kind) {
+    case 'voiceid':
+      return `voiceid:${scope.deviceKeyId}`;
     case 'passkey_rp':
       return `passkey_rp:${scope.rpId}`;
     case 'email_otp':

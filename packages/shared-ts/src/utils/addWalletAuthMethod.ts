@@ -31,7 +31,7 @@ import type { WalletAuthMethod } from './signerDomain';
  * addition — which family a branch fills in — and the assertion below keeps it
  * from drifting from the canonical record's own discriminant.
  */
-export type WalletAuthMethodFamilyV1 = WalletAuthMethod;
+export type WalletAuthMethodFamilyV1 = Exclude<WalletAuthMethod, 'voiceid'>;
 
 type AddableRecordKind = Exclude<WalletAuthMethodRecordV2['kind'], 'voiceid'>;
 type FamilyMatchesRecordKind = AddableRecordKind extends WalletAuthMethodFamilyV1

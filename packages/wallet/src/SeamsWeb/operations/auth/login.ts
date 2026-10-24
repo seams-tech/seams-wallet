@@ -281,6 +281,7 @@ import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/utils/ecdsaKeyFactsInventory';
 import {
   buildEmailOtpWalletAuthMethodBinding,
+  buildVoiceIdWalletAuthMethodBinding,
   buildPasskeyAuthScope,
   buildPasskeyWalletAuthMethodBinding,
   buildWalletIdentity,
@@ -619,7 +620,11 @@ function walletAuthMethodBindingFromRecord(
         registrationAuthorityId: record.registrationAuthorityId,
       });
     case 'voiceid':
-      return null;
+      return buildVoiceIdWalletAuthMethodBinding({
+        walletAuthMethodId: record.walletAuthMethodId,
+        wallet,
+        deviceKeyId: record.deviceKeyId,
+      });
     default:
       record satisfies never;
       return null;
@@ -6523,11 +6528,19 @@ async function setRestoredWalletAuthenticationIfUnlocked(
   context: {
     readonly signingEngine: Pick<
       WalletSessionWebContext['signingEngine'],
-      'setWalletAuthenticated'
+      'setWalletAuthenticated' | 'readWalletAuthenticationState'
     >;
   },
   state: Extract<WalletAuthenticationState, { readonly kind: 'authenticated' }>,
 ): Promise<boolean> {
+  if (state.authMethod === 'voiceid') {
+    const current = context.signingEngine.readWalletAuthenticationState();
+    if (
+      current.kind !== 'authenticated' ||
+      current.walletId !== state.walletId ||
+      current.authMethod !== 'voiceid'
+    ) return false;
+  }
   let lockedOut = false;
   try {
     const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(state.walletId));
@@ -7984,15 +7997,25 @@ export async function lock(context: LockOperationContext): Promise<void> {
   let failure: unknown;
   let failed = false;
   let authenticationCleared = false;
-  if (authentication.kind === 'authenticated') {
+  let walletIds: readonly WalletId[] = [];
+  try {
+    walletIds =
+      authentication.kind === 'authenticated'
+        ? [authentication.walletId]
+        : await IndexedDBManager.listWalletSelectionWalletIds();
+  } catch (error: unknown) {
+    failure = error;
+    failed = true;
+  }
+  for (const walletId of walletIds) {
     try {
-      await signingEngine.advanceWalletLockGeneration(authentication.walletId);
+      await signingEngine.advanceWalletLockGeneration(walletId);
     } catch (error: unknown) {
       failure = error;
       failed = true;
     }
     try {
-      await signingEngine.retireActiveWalletSessionAuthorizationForLock(authentication.walletId);
+      await signingEngine.retireActiveWalletSessionAuthorizationForLock(walletId);
     } catch (error: unknown) {
       if (!failed) {
         failure = error;

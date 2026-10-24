@@ -828,6 +828,7 @@ export type ParentToChildType =
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_UNLOCK'
+  | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -1625,6 +1626,11 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
+  | RpcEnvelope<'PM_UNLOCK_AUTH_METHOD', {
+      walletId: string;
+      walletAuthMethodId: string;
+      method: WalletAuthMethodPlugin['kind'];
+    }>
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
   | RpcEnvelope<

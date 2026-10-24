@@ -117,6 +117,12 @@ function selectedMethodView(binding: WalletAuthMethodBinding): AuthenticationMet
         walletAuthMethodId: String(binding.walletAuthMethodId),
         presentation: { kind: 'passkey', description: 'Passkey on this device' },
       };
+    case 'voiceid':
+      return {
+        kind: 'voiceid',
+        walletAuthMethodId: String(binding.walletAuthMethodId),
+        presentation: { kind: 'voiceid' },
+      };
     case 'email_otp':
       return {
         kind: 'email_otp',

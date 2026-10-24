@@ -551,6 +551,12 @@ export class UnifiedIndexedDBManager {
     await this.seamsWalletRepositories.markWalletSelectionUnlocked(input);
   }
 
+  async markWalletSelectionUnlockedAtGeneration(
+    input: Parameters<SeamsWalletRepositories['markWalletSelectionUnlockedAtGeneration']>[0],
+  ): Promise<void> {
+    await this.seamsWalletRepositories.markWalletSelectionUnlockedAtGeneration(input);
+  }
+
   async persistRecoveredWalletAuthority(
     input: RecoveredWalletAuthorityProjectionInputV1,
   ): Promise<void> {

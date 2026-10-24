@@ -11,7 +11,7 @@ import type {
 } from './types';
 
 type SelectableLane = {
-  authMethod: 'passkey' | 'email_otp';
+  authMethod: 'passkey' | 'email_otp' | 'voiceid';
 };
 
 type PreparedStepUpAuth<TPasskeyAuthorization, TEmailOtpAuthorization> =

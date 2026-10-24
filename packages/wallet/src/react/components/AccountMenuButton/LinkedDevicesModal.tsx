@@ -69,6 +69,7 @@ function assertRevokeSourceMethod(
         throw new Error('Unlock with the sibling authentication method before removing this one.');
       }
       return;
+    case 'voiceid':
     case 'email_otp':
       if (String(binding.wallet.walletId) !== walletId) {
         throw new Error('Unlock this wallet with a sibling authentication method first.');

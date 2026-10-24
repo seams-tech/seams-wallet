@@ -24,17 +24,25 @@ export async function unlockWithVoiceId(
 ): Promise<AuthMethodUnlockSuccess> {
   const authMethod = await IndexedDBManager.getWalletAuthMethodV2(input.walletAuthMethodId);
   if (
-    !authMethod || authMethod.kind !== 'voiceid' || authMethod.status !== 'active' ||
-    authMethod.walletId !== input.walletId || authMethod.walletAuthMethodId !== input.walletAuthMethodId
+    !authMethod ||
+    authMethod.kind !== 'voiceid' ||
+    authMethod.status !== 'active' ||
+    authMethod.walletId !== input.walletId ||
+    authMethod.walletAuthMethodId !== input.walletAuthMethodId
   ) {
     throw new Error('Activate VoiceID on this device before unlocking this wallet.');
   }
-  const http = new VoiceIdHttpClient(input.relayerUrl, location.origin, fetchWithWalletHomeDiscovery);
+  const http = new VoiceIdHttpClient(
+    input.relayerUrl,
+    location.origin,
+    fetchWithWalletHomeDiscovery,
+  );
   const challenge = await http.challenge({
     walletId: input.walletId,
     walletAuthMethodId: input.walletAuthMethodId,
     signal: AbortSignal.timeout(15_000),
   });
+  input.assertActive();
   const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install: input.install };
   return await showVoiceIdCaptureSurface({
     purpose: 'unlock',
@@ -55,6 +63,7 @@ function installVerifiedSession(
     custodyEnvelope: verified.custodyEnvelope,
     factorSecret32,
     signal,
+    near: verified.near,
   });
 }
 

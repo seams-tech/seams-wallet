@@ -1,4 +1,5 @@
 import {
+  buildVoiceIdWalletAuthAuthority,
   parseEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,
   type EmailOtpWalletAuthAuthority,
@@ -170,7 +171,11 @@ export async function resolveExactWalletAuthAuthority(args: {
     });
   }
   if (args.authMethod.kind === 'voiceid') {
-    throw new OwnerLaneScopeIntegrityError('VoiceID owner lane requires its own custody factor');
+    return buildVoiceIdWalletAuthAuthority({
+      walletId: args.authMethod.walletId,
+      walletAuthMethodId: args.authMethod.walletAuthMethodId,
+      deviceKeyId: args.authMethod.deviceKeyId,
+    });
   }
   return assertExactFactorAuthorityBinding({
     authMethod: args.authMethod,
@@ -264,7 +269,23 @@ export async function resolveExactOwnerLaneScope(args: {
     return await passkeyOwnerLaneScope({ authMethod: args.authMethod, stores: args.stores });
   }
   if (args.authMethod.kind === 'voiceid') {
-    throw new OwnerLaneScopeIntegrityError('VoiceID owner lane requires its own custody factor');
+    const authority = buildVoiceIdWalletAuthAuthority({
+      walletId: args.authMethod.walletId,
+      walletAuthMethodId: args.authMethod.walletAuthMethodId,
+      deviceKeyId: args.authMethod.deviceKeyId,
+    });
+    const ref = await walletAuthAuthorityRef({ authority });
+    return {
+      auth: {
+        kind: 'voiceid',
+        walletAuthMethodId: args.authMethod.walletAuthMethodId,
+        deviceKeyId: args.authMethod.deviceKeyId,
+      },
+      ownerAuthority: {
+        walletAuthMethodId: ref.walletAuthMethodId,
+        authorityDigest: ref.authorityDigest,
+      },
+    };
   }
   const authority = await resolveEmailOtpWalletAuthAuthority({
     authMethod: args.authMethod,

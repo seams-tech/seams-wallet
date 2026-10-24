@@ -244,6 +244,7 @@ export async function resolveEvmFamilyTransactionStepUp(
     emailOtpAuthBridge?: EvmFamilyEmailOtpTransactionSigningBridge;
   }> {
     if (args.ecdsaAuthorization === 'operation_step_up') {
+      if (args.capability.authority.factor.kind === 'voiceid') throw new Error('VoiceID supports NEAR signing only.');
       if (isPasskeyWalletAuthAuthority(args.capability.authority)) {
         return {
           signingAuthPlan: {
@@ -266,7 +267,7 @@ export async function resolveEvmFamilyTransactionStepUp(
           emailOtpAuthBridge,
         };
       }
-      args.capability.authority satisfies never;
+      throw new Error('The EVM authentication method cannot authorize this step-up.');
     }
     const linkedAuthMethods = Array.isArray(args.accountAuth.linkedAuthMethods)
       ? args.accountAuth.linkedAuthMethods

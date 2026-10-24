@@ -46,6 +46,7 @@ import type {
   LinkedDeviceSigningLaneRecord,
   OwnerEmailOtpSigningLaneRecord,
   OwnerPasskeySigningLaneRecord,
+  OwnerVoiceIdSigningLaneRecord,
   RecoverySigningLaneRecord,
   SigningLaneKind,
   SigningLaneLifecycle,
@@ -179,6 +180,7 @@ const ALL_SIGNING_LANE_LIFECYCLE_FIELDS = [
 function signingLaneRecordFields(laneKind: SigningLaneKind): readonly string[] {
   switch (laneKind) {
     case 'owner_passkey':
+    case 'owner_voiceid':
     case 'owner_email_otp':
       return OWNER_AUTH_SIGNING_LANE_FIELDS;
     case 'recovery':
@@ -241,6 +243,7 @@ function parseDelegatedSpendAuthorizationId(
 function parseSigningLaneKind(raw: unknown, label: string): SigningLaneKind {
   switch (raw) {
     case 'owner_passkey':
+    case 'owner_voiceid':
     case 'owner_email_otp':
     case 'linked_device':
     case 'delegated_execution':
@@ -625,6 +628,23 @@ export function buildOwnerEmailOtpSigningLaneRecord(
   };
 }
 
+export function buildOwnerVoiceIdSigningLaneRecord(
+  args: OwnerAuthSigningLaneRecordBuilderArgs,
+): OwnerVoiceIdSigningLaneRecord {
+  return {
+    kind: 'signing_lane_reference_v1',
+    walletId: args.walletId,
+    walletKeyId: args.walletKeyId,
+    laneId: args.laneId,
+    laneKind: 'owner_voiceid',
+    laneShareEpoch: args.laneShareEpoch,
+    participantBindingDigestB64u: args.participantBindingDigestB64u,
+    walletAuthMethodId: args.walletAuthMethodId,
+    ownerParticipantContinuity: args.ownerParticipantContinuity,
+    lifecycle: args.lifecycle,
+  };
+}
+
 export function buildLinkedDeviceSigningLaneRecord(
   args: RotatableSigningLaneRecordBuilderArgs & { readonly linkedDeviceId: LinkedDeviceId },
 ): LinkedDeviceSigningLaneRecord {
@@ -759,6 +779,8 @@ export function parseSigningLaneRecord(
   switch (laneKind) {
     case 'owner_passkey':
       return buildOwnerPasskeySigningLaneRecord(parseOwnerAuthSigningLaneRecordBase(record, label));
+    case 'owner_voiceid':
+      return buildOwnerVoiceIdSigningLaneRecord(parseOwnerAuthSigningLaneRecordBase(record, label));
     case 'owner_email_otp':
       return buildOwnerEmailOtpSigningLaneRecord(
         parseOwnerAuthSigningLaneRecordBase(record, label),

@@ -1,4 +1,5 @@
 import type { WebAuthnRpId } from '../utils/domainIds';
+import type { DigestB64u } from '../utils/canonicalPrimitives';
 
 export const DEFAULT_WALLET_SESSION_TTL_MS = 24 * 60 * 60_000;
 export const DEFAULT_WALLET_SESSION_REMAINING_USES = 3;
@@ -8,6 +9,7 @@ export const MAX_WALLET_SESSION_TTL_MS = 30 * 24 * 60 * 60_000;
 export const MAX_WALLET_SESSION_REMAINING_USES = 1_000_000;
 
 export type Ed25519AuthorityScope =
+  | { kind: 'voiceid'; deviceKeyId: DigestB64u; rpId?: never; provider?: never; providerUserId?: never }
   | {
       kind: 'passkey_rp';
       rpId: WebAuthnRpId;

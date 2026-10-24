@@ -379,6 +379,7 @@ export type SelectedEd25519Lane = BaseSelectedLane & {
 };
 
 export type SelectedEcdsaLane = CommonSelectedLane & {
+  auth: ExactEcdsaSigningLaneIdentity['auth'];
   identity: ExactEcdsaSigningLaneIdentity;
   curve: 'ecdsa';
   chain: 'evm' | 'tempo';
@@ -404,7 +405,7 @@ export type SelectedEcdsaLaneInput = {
   materialActivation: MpcMaterialActivationRef;
   keyHandle: unknown;
   walletId: WalletId;
-  auth: SigningLaneAuthBinding;
+  auth: ExactEcdsaSigningLaneIdentity['auth'];
   authorization: ExactEvmFamilyWalletSessionAuthorization;
   chainTarget: ThresholdEcdsaChainTarget;
 };
@@ -535,6 +536,7 @@ export type Ed25519LaneCandidate = BaseEd25519LaneCandidate &
   );
 
 type BaseEcdsaLaneCandidate = CommonLaneCandidate & {
+  auth: ExactEcdsaSigningLaneIdentity['auth'];
   curve: 'ecdsa';
   chain: 'evm' | 'tempo';
   walletId: WalletId;

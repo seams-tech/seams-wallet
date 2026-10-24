@@ -13,6 +13,8 @@ import {
   type NamedNearAccountId,
 } from './near';
 import { nearEd25519SigningKeyIdFromString, type NearEd25519SigningKeyId } from './registrationIds';
+import { parseDigestB64u, type DigestB64u } from './canonicalPrimitives';
+import { rejectUnknownFields } from './exactRecord';
 
 export type { WebAuthnRpId };
 export type RpId = WebAuthnRpId;
@@ -32,6 +34,7 @@ export type WalletAuthMethodBinding =
       readonly walletAuthMethodId: WalletAuthMethodId;
       readonly scope: PasskeyAuthScope;
       readonly credentialIdB64u: string;
+      readonly deviceKeyId?: never;
     }
   | {
       readonly kind: 'email_otp';
@@ -39,6 +42,18 @@ export type WalletAuthMethodBinding =
       readonly wallet: WalletIdentity;
       readonly emailHashHex: string;
       readonly registrationAuthorityId: string;
+      readonly rpId?: never;
+      readonly deviceKeyId?: never;
+    }
+  | {
+      readonly kind: 'voiceid';
+      readonly walletAuthMethodId: WalletAuthMethodId;
+      readonly wallet: WalletIdentity;
+      readonly deviceKeyId: DigestB64u;
+      readonly scope?: never;
+      readonly credentialIdB64u?: never;
+      readonly emailHashHex?: never;
+      readonly registrationAuthorityId?: never;
       readonly rpId?: never;
     };
 
@@ -194,6 +209,19 @@ export function buildEmailOtpWalletAuthMethodBinding(args: {
   };
 }
 
+export function buildVoiceIdWalletAuthMethodBinding(args: {
+  walletAuthMethodId: WalletAuthMethodId;
+  wallet: WalletIdentity;
+  deviceKeyId: DigestB64u;
+}): Extract<WalletAuthMethodBinding, { kind: 'voiceid' }> {
+  return {
+    kind: 'voiceid',
+    walletAuthMethodId: args.walletAuthMethodId,
+    wallet: args.wallet,
+    deviceKeyId: args.deviceKeyId,
+  };
+}
+
 export function walletAuthMethodBindingFromRaw(
   raw: unknown,
 ): WalletCapabilityBindingParseResult<WalletAuthMethodBinding> {
@@ -203,6 +231,27 @@ export function walletAuthMethodBindingFromRaw(
   const walletAuthMethodId = parseWalletAuthMethodId(record.walletAuthMethodId);
   if (!walletAuthMethodId.ok) {
     return { ok: false, error: walletAuthMethodId.error };
+  }
+  if (kind === 'voiceid') {
+    const wallet = walletIdentityFromRaw(record.wallet);
+    if (!wallet.ok) return wallet;
+    try {
+      rejectUnknownFields(
+        record,
+        ['kind', 'walletAuthMethodId', 'wallet', 'deviceKeyId'],
+        'VoiceID binding',
+      );
+      return {
+        ok: true,
+        value: buildVoiceIdWalletAuthMethodBinding({
+          walletAuthMethodId: walletAuthMethodId.value,
+          wallet: wallet.value,
+          deviceKeyId: parseDigestB64u(record.deviceKeyId),
+        }),
+      };
+    } catch {
+      return { ok: false, error: { code: 'invalid', message: 'VoiceID device key is invalid' } };
+    }
   }
   if (kind === 'passkey') {
     const scope = passkeyAuthScopeFromRaw(record.scope);

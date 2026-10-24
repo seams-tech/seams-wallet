@@ -157,6 +157,8 @@ export function signingAuthPlanForNearMaterialRequirement(
   auth: SigningLaneAuthBinding,
 ): SigningAuthPlan {
   switch (auth.kind) {
+    case 'voiceid':
+      throw new Error('Unlock with VoiceID again before signing.');
     case 'passkey':
       return { kind: 'passkeyReauth', method: 'passkey' };
     case 'email_otp':

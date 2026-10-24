@@ -34,11 +34,10 @@ import {
   type Ed25519WalletSealedSessionRuntimeResolution,
 } from './ed25519SealedSessionRuntime';
 import type { ExactEcdsaSealedRuntimeAuthBinding } from '../material/ecdsaSealedRuntime';
-import type { SigningLaneAuthBinding } from '../identity/signingLaneAuthBinding';
 
 function signingLaneAuthBindingFromEcdsaRuntime(
   authBinding: ExactEcdsaSealedRuntimeAuthBinding,
-): SigningLaneAuthBinding {
+): ExactEcdsaSigningLaneIdentity['auth'] {
   switch (authBinding.kind) {
     case 'passkey':
       return {

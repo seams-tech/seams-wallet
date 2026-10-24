@@ -1647,6 +1647,9 @@ async function signTransactionWithActionsAttempt(
         lane: preparedSigningSession.transactionLane,
         expiresAtMs: preparationAuthorization.authorization.status.expiresAtMs,
       });
+      if (transactionLane.auth.kind === 'voiceid') {
+        throw new Error('Unlock with VoiceID again to renew the NEAR Wallet Session.');
+      }
       const isEmailOtpSession = transactionLane.auth.kind === 'email_otp';
       const ownerStepUpReason =
         ownerDecision?.kind === 'step_up_required' ? ownerDecision.reason : undefined;

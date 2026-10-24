@@ -9,7 +9,10 @@ import {
   type ActiveWalletSessionV1,
   type WalletSessionOperationCredentialV1,
 } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
-import { signingLaneAuthMethod } from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
+import {
+  signingLaneAuthMethod,
+  type SigningLaneAuthBinding,
+} from '@/core/signingEngine/session/identity/signingLaneAuthBinding';
 import {
   requiredSigningSubjectForExactSigningLane,
   resolveExactWalletSessionOperationCredential,
@@ -137,6 +140,27 @@ export function buildEmailOtpRouterAbEd25519WalletSessionState(
 export function buildPasskeyRouterAbEd25519WalletSessionState(
   input: BuildPasskeyRouterAbEd25519WalletSessionStateInput,
 ): ResolvedRouterAbEd25519WalletSessionState {
+  return buildOwnerRouterAbEd25519WalletSessionState({
+    walletId: input.walletId,
+    nearAccountId: input.nearAccountId,
+    nearEd25519SigningKeyId: input.nearEd25519SigningKeyId,
+    signerSlot: input.signerSlot,
+    relayerUrl: input.relayerUrl,
+    authority: input.authority,
+    signingWalletSession: input.signingWalletSession,
+    auth: {
+      kind: 'passkey',
+      rpId: input.rpId,
+      credentialIdB64u: requireNonEmptyStateValue(input.credentialIdB64u, 'credentialIdB64u'),
+    },
+  });
+}
+
+export function buildOwnerRouterAbEd25519WalletSessionState(
+  input: Omit<BuildPasskeyRouterAbEd25519WalletSessionStateInput, 'rpId' | 'credentialIdB64u'> & {
+    auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }>;
+  },
+): ResolvedRouterAbEd25519WalletSessionState {
   const thresholdSessionId = SigningSessionIds.thresholdEd25519Session(
     requireNonEmptyStateValue(input.signingWalletSession.thresholdSessionId, 'thresholdSessionId'),
   );
@@ -145,7 +169,6 @@ export function buildPasskeyRouterAbEd25519WalletSessionState(
     'walletSessionToken',
   );
   const relayerUrl = requireNonEmptyStateValue(input.relayerUrl, 'relayerUrl');
-  const credentialIdB64u = requireNonEmptyStateValue(input.credentialIdB64u, 'credentialIdB64u');
   const signerSlot = requirePositiveStateInteger(input.signerSlot, 'signerSlot');
   return {
     walletSessionAuth: {
@@ -161,11 +184,7 @@ export function buildPasskeyRouterAbEd25519WalletSessionState(
       nearAccountId: input.nearAccountId,
       nearEd25519SigningKeyId: input.nearEd25519SigningKeyId,
       signerSlot,
-      auth: {
-        kind: 'passkey',
-        rpId: input.rpId,
-        credentialIdB64u,
-      },
+      auth: input.auth,
       walletSessionId: input.signingWalletSession.walletSessionId,
       quotaId: input.signingWalletSession.quotaId,
       thresholdSessionId,
@@ -340,6 +359,23 @@ function authorizeRouterAbEd25519WalletSessionState(args: {
   });
   if (!signingWalletSession.ok) return null;
   switch (state.signingLane.auth.kind) {
+    case 'voiceid': {
+      const rebound = buildOwnerRouterAbEd25519WalletSessionState({
+        walletId: signer.account.wallet.walletId,
+        nearAccountId: signer.account.nearAccountId,
+        nearEd25519SigningKeyId: signer.nearEd25519SigningKeyId,
+        signerSlot: signer.signerSlot,
+        auth: state.signingLane.auth,
+        relayerUrl: state.relayerUrl,
+        authority: state.authority,
+        signingWalletSession: signingWalletSession.value,
+      });
+      return {
+        ...rebound,
+        walletSessionAuthorization: authorization,
+        walletSessionOperationCredential: args.operationCredential,
+      };
+    }
     case 'passkey': {
       const rebound = buildPasskeyRouterAbEd25519WalletSessionState({
         walletId: signer.account.wallet.walletId,

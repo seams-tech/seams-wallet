@@ -1725,6 +1725,7 @@ export class AuthMenuSession {
         return;
       }
       case 'login_account_selected':
+        if (intent.authMethod === 'voiceid') throw new Error('Use the VoiceID plugin unlock action.');
         this.selectLoginAccount(intent.walletId, intent.authMethod);
         return;
       case 'submit':

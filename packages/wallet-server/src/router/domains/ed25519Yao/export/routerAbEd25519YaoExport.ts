@@ -1700,6 +1700,8 @@ async function recordFreshExportProof(args: {
   let challengeId: ReturnType<typeof parseEmailOtpChallengeId> | null = null;
   let assertionDigest: DigestB64u | null = null;
   switch (args.authority.factor.kind) {
+    case 'voiceid':
+      return authorizationFailure({ status: 403, code: 'export_authorization_invalid', message: 'Use a passkey or Email OTP to export keys.' });
     case 'passkey':
       factorId = parseAuthFactorId(`passkey:${args.authority.factor.credentialIdB64u}`);
       try {

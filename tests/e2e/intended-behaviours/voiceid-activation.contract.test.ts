@@ -391,6 +391,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       SCOPE.orgId,
     );
     const voiceRoutes = {
+      prepareNear: unavailableNearInstallation,
       issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
       verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
       hostedWalletOrigins: ['https://wallet.example.test'],
@@ -790,4 +791,8 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
   } finally {
     await runtime.close();
   }
+}
+
+async function unavailableNearInstallation(): Promise<{ readonly kind: 'unavailable' }> {
+  return { kind: 'unavailable' };
 }

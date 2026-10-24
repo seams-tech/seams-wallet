@@ -256,7 +256,7 @@ export type WalletFlowEventStatus =
   | 'cancelled'
   | 'skipped';
 
-export type WalletFlowAuthMethod = 'passkey' | 'email_otp' | 'warm_session';
+export type WalletFlowAuthMethod = 'passkey' | 'email_otp' | 'voiceid' | 'warm_session';
 
 type WalletFlowOverlayIntent = 'show' | 'hide' | 'none';
 

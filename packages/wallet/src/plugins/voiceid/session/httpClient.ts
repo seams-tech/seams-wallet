@@ -26,6 +26,9 @@ import {
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
 import { requireRecord } from '@shared/utils/validation';
+import { parseEd25519YaoRecoveryCapabilityV1 } from '@/core/signingEngine/session/passkey/ed25519YaoRecoveryCapability';
+import type { AuthMethodNearInstallation } from '@/core/authMethods/hostPlugin';
+import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import {
   buildRelayerJsonPostRequestInit,
   buildWalletSessionAuthorizationHeaders,
@@ -34,6 +37,7 @@ import {
 export type VoiceIdHttpSend = (request: Request) => Promise<Response>;
 
 export type VoiceIdVerifiedSession = Readonly<{
+  near: AuthMethodNearInstallation;
   walletSession: ActiveWalletSessionV1;
   operationCredential: WalletSessionOperationCredentialV1;
   custodyEnvelope: VoiceIdSeedEnvelope;
@@ -62,7 +66,10 @@ export class VoiceIdHttpClient {
     private readonly send: VoiceIdHttpSend,
   ) {
     const parsed = new URL(walletOrigin);
-    if (parsed.origin !== walletOrigin || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+    if (
+      parsed.origin !== walletOrigin ||
+      (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+    ) {
       throw new Error('VoiceID Wallet origin is invalid.');
     }
     this.walletOrigin = walletOrigin;
@@ -157,7 +164,7 @@ export class VoiceIdHttpClient {
     const body = await requireSuccessfulResponse(await this.send(request));
     rejectUnknownFields(
       body,
-      ['ok', 'walletSession', 'operationCredential', 'custodyEnvelope'],
+      ['ok', 'walletSession', 'operationCredential', 'custodyEnvelope', 'near'],
       'VoiceID verification response',
     );
     const walletSession = parseActiveWalletSessionV1(body.walletSession);
@@ -175,6 +182,50 @@ export class VoiceIdHttpClient {
     ) {
       throw new Error('VoiceID server returned a different Wallet Session or custody envelope.');
     }
-    return { walletSession, operationCredential, custodyEnvelope };
+    const near = parseNearInstallation(body.near);
+    if (
+      near.kind === 'ready' &&
+      (near.capability.applicationBinding.wallet_id !== walletSession.walletId ||
+        !walletSession.capabilitySubjects.some(
+          isMatchingNearSubject.bind(null, near.capability.materialActivation),
+        ))
+    )
+      throw new Error('VoiceID NEAR capability belongs to another Wallet Session.');
+    return { walletSession, operationCredential, custodyEnvelope, near };
   }
+}
+
+function parseNearInstallation(raw: unknown): AuthMethodNearInstallation {
+  const record = requireRecord(raw, 'NEAR installation');
+  switch (record.kind) {
+    case 'unavailable':
+      rejectUnknownFields(record, ['kind'], 'NEAR installation');
+      return { kind: 'unavailable' };
+    case 'ready':
+      rejectUnknownFields(record, ['kind', 'capability', 'remainingUses'], 'NEAR installation');
+      if (
+        typeof record.remainingUses !== 'number' ||
+        !Number.isSafeInteger(record.remainingUses) ||
+        record.remainingUses < 1
+      )
+        throw new Error('NEAR session budget is invalid.');
+      return {
+        kind: 'ready',
+        capability: parseEd25519YaoRecoveryCapabilityV1(record.capability),
+        remainingUses: record.remainingUses,
+      };
+    default:
+      throw new Error('NEAR installation state is invalid.');
+  }
+}
+
+function isMatchingNearSubject(
+  activation: import('@shared/utils/domainIds').MpcMaterialActivationRef,
+  subject: import('@shared/device-linking/contracts').WalletCapabilitySubjectV1,
+): boolean {
+  return (
+    subject.kind === 'sign' &&
+    subject.keyFamily === 'ed25519' &&
+    mpcMaterialActivationRefsEqual(activation, subject.materialActivation)
+  );
 }

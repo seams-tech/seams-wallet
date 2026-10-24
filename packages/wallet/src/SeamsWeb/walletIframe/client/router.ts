@@ -386,6 +386,7 @@ function requestSurfaceKindForMessage(
         ? 'key_export_threshold'
         : 'key_export_near';
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
       return 'unlock';
     case 'PM_SCAN_AND_LINK_DEVICE':
       return 'device_link';
@@ -1081,6 +1082,7 @@ function createTerminalProgressForRequest(args: {
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
+    'PM_UNLOCK_AUTH_METHOD',
     'PM_REQUEST_EMAIL_OTP_CHALLENGE',
   ]);
   const signingRequests = new Set<ParentToChildEnvelope['type']>([
@@ -2538,7 +2540,12 @@ export class WalletIframeRouter {
   }
 
   isReady(): boolean {
-    return this.state.ready && this.state.configured && this.exactSessionState !== null && this.state.initInFlight === null;
+    return (
+      this.state.ready &&
+      this.state.configured &&
+      this.exactSessionState !== null &&
+      this.state.initInFlight === null
+    );
   }
 
   async initializeHostedWalletSeamsSession(source: HostedWalletSeamsSessionSource): Promise<void> {
@@ -2776,7 +2783,8 @@ export class WalletIframeRouter {
     if (
       this.lastPreferencesChangedPayload &&
       payload.revision <= this.lastPreferencesChangedPayload.revision
-    ) return;
+    )
+      return;
     const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
     const selectionChanged = payload.walletId !== previousWalletId;
     if (selectionChanged) this.sessionSelectionGeneration += 1;
@@ -2805,7 +2813,10 @@ export class WalletIframeRouter {
           const previous = this.exactSessionState;
           this.mirrorExpiredSession(event);
           if (this.exactSessionState !== previous) this.sessionObservationRevision = revision;
-          if (previous === null && this.lastPreferencesChangedPayload?.walletId === event.walletId) {
+          if (
+            previous === null &&
+            this.lastPreferencesChangedPayload?.walletId === event.walletId
+          ) {
             this.sessionSelectionGeneration += 1;
           }
         }
@@ -2960,9 +2971,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async registerWallet(
-    payload: WalletRegistrationCommand,
-  ): Promise<RegistrationResult> {
+  async registerWallet(payload: WalletRegistrationCommand): Promise<RegistrationResult> {
     const transport = hostedWalletRegistrationTransport(payload.authMethod);
     await this.ensureHostedWalletSeamsSession(transport.sessionSource);
     const confirmationConfig = payload.options?.confirmationConfig;
@@ -3060,7 +3069,9 @@ export class WalletIframeRouter {
     payload: Parameters<RegistrationCapability['activateAuthMethod']>[0],
   ): ReturnType<RegistrationCapability['activateAuthMethod']> {
     const walletId = parseRequestedWalletId(String(payload.walletId));
-    const response = await this.post<Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>>(
+    const response = await this.post<
+      Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>
+    >(
       { type: 'PM_ACTIVATE_AUTH_METHOD', payload: { walletId, method: payload.method } },
       { timeout: 'interactive' },
     );
@@ -3115,6 +3126,23 @@ export class WalletIframeRouter {
     return res.result;
   }
 
+  async unlockWithAuthMethod(
+    payload: Parameters<AuthCapability['unlockWithAuthMethod']>[0],
+  ): ReturnType<AuthCapability['unlockWithAuthMethod']> {
+    const result = await this.post<LoginAndCreateSessionResult>(
+      {
+        type: 'PM_UNLOCK_AUTH_METHOD',
+        payload: {
+          walletId: String(payload.walletId),
+          walletAuthMethodId: payload.walletAuthMethodId,
+          method: payload.method,
+        },
+      },
+      { timeout: 'interactive' },
+    );
+    return result.result;
+  }
+
   async getWalletSession(walletId?: string): Promise<WalletSession> {
     const expectedWalletId = walletId === undefined ? undefined : parseRequestedWalletId(walletId);
     if (!this.state.ready || !this.state.port) await this.init();
@@ -3163,7 +3191,9 @@ export class WalletIframeRouter {
     payload: Parameters<AuthCapability['requestEmailCode']>[0],
   ): ReturnType<AuthCapability['requestEmailCode']> {
     const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>>({
+    const res = await this.post<
+      PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>
+    >({
       type: 'PM_REQUEST_EMAIL_OTP_CHALLENGE',
       payload: wirePayload,
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
@@ -3661,11 +3691,13 @@ export class WalletIframeRouter {
     return this.requestPreferences({ type: 'PM_GET_CONFIRMATION_CONFIG' });
   }
 
-  private async requestPreferences(request: Variant<
-    ParentToChildEnvelope,
-    'type',
-    'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
-  >): Promise<ConfirmationConfig> {
+  private async requestPreferences(
+    request: Variant<
+      ParentToChildEnvelope,
+      'type',
+      'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
+    >,
+  ): Promise<ConfirmationConfig> {
     if (!this.state.ready || !this.state.port) await this.init();
     const connectionId = this.state.connectionId;
     const res = await this.post<unknown>(request);
@@ -4031,7 +4063,9 @@ export class WalletIframeRouter {
     }
     const payload = walletIframeExportPayload(input, {
       ...messageOptions,
-      variant: messageOptions.variant ?? (this.mirroredConfirmationUiMode === 'drawer' ? 'drawer' : 'modal'),
+      variant:
+        messageOptions.variant ??
+        (this.mirroredConfirmationUiMode === 'drawer' ? 'drawer' : 'modal'),
     });
     await this.post<void>({
       type: 'PM_EXPORT_KEYPAIR_UI',

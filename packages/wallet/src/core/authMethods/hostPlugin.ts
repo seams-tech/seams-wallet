@@ -2,9 +2,21 @@ import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { ConfiguredWalletHost } from '@/SeamsWeb/walletIframe/shared/configuration';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
-import type { ActiveWalletSessionV1, WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
+import type {
+  ActiveWalletSessionV1,
+  WalletSessionOperationCredentialV1,
+} from '@shared/device-linking/contracts';
 import type { ActiveMethodBoundWalletSeedEnvelope } from '@shared/passkey-custody/custodyEnvelope';
 import type { LoginAndCreateSessionResult } from '@/core/types/seams';
+import type { ParsedYaoRecoveryCapabilityV1 } from '@/core/signingEngine/session/passkey/ed25519YaoRecoveryCapability';
+
+export type AuthMethodNearInstallation =
+  | { readonly kind: 'unavailable' }
+  | {
+      readonly kind: 'ready';
+      readonly capability: ParsedYaoRecoveryCapabilityV1;
+      readonly remainingUses: number;
+    };
 
 export type AuthMethodUnlockSuccess = Extract<LoginAndCreateSessionResult, { success: true }>;
 
@@ -15,6 +27,7 @@ export type AuthMethodSessionInstaller = (input: {
   readonly custodyEnvelope: ActiveMethodBoundWalletSeedEnvelope;
   readonly factorSecret32: Uint8Array;
   readonly signal: AbortSignal;
+  readonly near: AuthMethodNearInstallation;
 }) => Promise<AuthMethodUnlockSuccess>;
 
 export type AuthMethodActivationResult = Readonly<{
@@ -44,6 +57,7 @@ export interface WalletAuthMethodHostPlugin {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly install: AuthMethodSessionInstaller;
+    readonly assertActive: () => void;
   }): Promise<AuthMethodUnlockSuccess>;
   activate(input: {
     readonly context: RegistrationWebContext;
