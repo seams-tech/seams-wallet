@@ -165,6 +165,8 @@ custody worker comment states the reason: the seed, the owner root, and the ECDS
 pending blob must never exist as JavaScript values on the main thread. The main
 thread carries only public protocol messages and the final ciphertext.
 
+The Signing keys UI reads public metadata through the existing Wallet-origin session. Its primary operation credential remains inside that origin. Registration and codec imports are deferred until enrollment or a configured ML-DSA operation. Selecting a transaction key runs before nonce reservation and cryptographic approval; it transfers no secret between workers.
+
 ML-DSA export is an explicit exception to secret-free return values. The export
 worker opens an already authenticated seed envelope after fresh owner approval.
 Its optional ML-DSA Wasm handle derives the ordinary FIPS seed and checks the public key.

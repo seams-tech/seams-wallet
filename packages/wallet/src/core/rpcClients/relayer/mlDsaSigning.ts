@@ -28,16 +28,18 @@ import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 import { normalizeAuthenticationCredential } from '@/core/signingEngine/webauthnAuth/credentials/helpers';
 import { resolveWasmUrl } from '@/core/walletRuntimePaths/wasm-loader';
-import initSigner, {
-  ml_dsa65_inspect_near_transaction,
-  ml_dsa65_finalize_near_transaction,
-} from '../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
 import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
 
-export async function initializeMlDsaCodec(): Promise<void> {
-  await initSigner({
+export async function loadMlDsaCodec() {
+  const codec = await import('../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js');
+  await codec.default({
     module_or_path: resolveWasmUrl('ml_dsa_signer_bg.wasm', 'ML-DSA transaction verifier'),
   });
+  return codec;
+}
+
+export async function initializeMlDsaCodec(): Promise<void> {
+  await loadMlDsaCodec();
 }
 /** Serialize an ordinary assertion without requiring or releasing PRF outputs. */
 export function serializeMlDsaWebAuthnApproval(
@@ -71,10 +73,10 @@ export async function prepareMlDsaNearSigning(input: {
   readonly publicKeyB64u: string;
 }): Promise<MlDsaSigningPreparationOutcome> {
   const request = parseMlDsaSigningRequest(input.request);
-  await initializeMlDsaCodec();
+  const codec = await loadMlDsaCodec();
   const transaction = parseMlDsaTransactionInspection(
     JSON.parse(
-      ml_dsa65_inspect_near_transaction(
+      codec.ml_dsa65_inspect_near_transaction(
         JSON.stringify({
           unsignedTransactionBorshB64u: request.unsignedTransactionBorshB64u,
           publicKeyB64u: input.publicKeyB64u,
@@ -130,10 +132,10 @@ export async function executeMlDsaNearSigning(input: {
     case 'signed': {
       const signed = exactRecord(raw, ['kind', 'transaction'], 'ML-DSA signing success');
       const supplied = parseMlDsaSignedTransaction(signed.transaction);
-      await initializeMlDsaCodec();
+      const codec = await loadMlDsaCodec();
       const verified = parseMlDsaSignedTransaction(
         JSON.parse(
-          ml_dsa65_finalize_near_transaction(
+          codec.ml_dsa65_finalize_near_transaction(
             JSON.stringify({
               unsignedTransactionBorshB64u: preparation.request.unsignedTransactionBorshB64u,
               publicKeyB64u: preparation.transaction.publicKeyB64u,
@@ -218,10 +220,10 @@ export async function submitMlDsaNearTransaction(input: {
   readonly preparation: MlDsaSigningPreparation;
   readonly transaction: MlDsaSignedTransaction;
 }) {
-  await initializeMlDsaCodec();
+  const codec = await loadMlDsaCodec();
   const verified = parseMlDsaSignedTransaction(
     JSON.parse(
-      ml_dsa65_finalize_near_transaction(
+      codec.ml_dsa65_finalize_near_transaction(
         JSON.stringify({
           unsignedTransactionBorshB64u: input.preparation.request.unsignedTransactionBorshB64u,
           publicKeyB64u: input.preparation.transaction.publicKeyB64u,

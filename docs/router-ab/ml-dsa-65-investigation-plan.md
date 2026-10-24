@@ -1,7 +1,9 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
-Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+Current priority: complete modular loading, Signing keys settings, and transaction key selection.
+The [Signing keys report](ml-dsa-65-signing-keys-report.md) records this implementation and its browser qualification.
+Hosted latency, sustained refill, and release security qualification remain open. Pool capacity remains unchanged.
 The [direct-sealing screen](ml-dsa-65-direct-sealing-report.md) removes the intermediate committed envelope and duplicate delivery cache.
 Prepared candidate creation/recovery takes 5.453/6.102 seconds, versus the archived batched control 7.222/6.920 seconds.
 Its six signatures verify in 0.900–3.672 seconds. Registration still misses five seconds.

@@ -1,0 +1,44 @@
+.seams-signing-keys {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.seams-signing-keys > p {
+  margin: 0;
+}
+.seams-signing-key-row {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+  min-width: 0;
+}
+.seams-signing-key-row > span,
+.seams-signing-key-row > small {
+  opacity: 0.8;
+}
+.seams-signing-key-account,
+.seams-signing-key-fingerprint {
+  overflow-wrap: anywhere;
+}
+.seams-signing-key-fingerprint {
+  max-height: 10rem;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.seams-signing-key-row summary {
+  cursor: pointer;
+  padding-block: 0.5rem;
+}
+.seams-signing-keys :is(button, summary):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+textarea.seams-signing-key-fingerprint {
+  box-sizing: border-box;
+  width: 100%;
+  color: inherit;
+  background: transparent;
+  resize: vertical;
+}

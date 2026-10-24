@@ -1803,7 +1803,7 @@ Hashed ML-DSA access-key identifiers belong to the separate tag-3 identifier for
 Transaction and action fields that require full public keys reject hashed identifiers and incorrect lengths.
 The signed-transaction builder and its JSON and Borsh decoders require matching key and signature schemes.
 The [offline encoder contract](evidence/ml-dsa-65-threshold-sdk-near-host-20261013.json) verifies these rules through a threshold-signed transaction and independent verification.
-The ML-DSA threshold signer remains experimental. The advanced SDK exposes exact passkey-approved ML-DSA transaction signing. The standard Wallet signing surface uses the admitted Ed25519 flow.
+The ML-DSA threshold signer remains experimental. The standard Wallet transaction API supports admitted Ed25519 and explicit or user-selected ML-DSA signing. Ed25519 remains the initial default.
 The experimental ML-DSA service defaults to preparing four candidates together and consuming independent pairs.
 Its default reserve holds thirty-two candidates per wallet. Admission requires sixteen ready candidates.
 The default wallet cooldown remains sixty seconds. Internal rejection retries belong to the admitted operation.
@@ -3497,6 +3497,23 @@ renders inside it.
 Consumer guide: [Wallet cards as steps of an app dialog](wallet-steps.md).
 Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 `tests/wallet-iframe/auth-menu.host.integration.test.ts`.
+
+## Signing keys settings and optional ML-DSA loading
+
+- Ordinary wallet startup and an empty Signing keys screen load no optional ML-DSA verifier or export assets. Keep public key metadata separate from execution code.
+- Load the ML-DSA registration implementation when the user adds a signer. Load its codec for configured-key enrollment checks or selected ML-DSA operations. Keep export secrets inside the existing Wallet-origin export worker.
+- Read public signer references through an exact current full-owner passkey session. Metadata reads require no new passkey prompt, consume no signing quota, and grant no signing permission. Retired sessions and revoked owners cannot read this inventory.
+- Discover the same published key after recovery and full-owner device linking. Validate metadata responses at the Gateway and iframe boundaries.
+- The settings menu and settings page expose Signing keys. Distinguish a created signer from a finalized full-access NEAR key. Check network support before creating the signer.
+- Signer creation and NEAR key addition require their existing approvals. An interrupted activation retains the published signer. Status checks never generate another signer or automatically resubmit AddKey.
+- The default signing key is a device preference stored in Wallet origin, scoped by wallet, NEAR network, and account. It grants no authority and changes no on-chain permissions.
+- Remember an ML-DSA default by its stable signing key ID. Resolve its current publication and material epoch before using it. An unavailable ML-DSA default fails explicitly and never silently falls back to Ed25519.
+- An explicit transaction signer stays pinned. A transaction with no explicit signer uses the wallet preference and, when review is enabled and multiple keys are active, offers a key selector before nonce reservation and approval.
+- The selector displays transaction details. Continuing from selection grants no cryptographic approval. The existing transaction approval follows with the selected key fixed.
+- A transaction-specific selection does not change the saved default. Changing a default requires an explicit settings action. Ed25519 remains the initial default.
+- Preserve canonical wallet-seed recovery, ordinary FIPS seed/key export, two-at-once candidate consumption, and configured pool capacity.
+
+The ML-DSA browser lifecycle contract covers settings enrollment across reload, authenticated metadata, persisted defaults, the transaction picker, recovery, linking, export, and a finalized threshold transaction. It retains public screenshots and a repeatable evidence artifact.
 
 ## Experimental ML-DSA custody contract
 

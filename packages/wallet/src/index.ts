@@ -371,3 +371,7 @@ export type {
   WalletConnectionResolutionInput,
   WalletConnectionResult,
 } from './SeamsWeb/walletIframe/shared/walletAlternatives';
+export type {
+  NearSignerPreference,
+  NearTransactionSignerRequest,
+} from './core/types/nearSigningKeys';

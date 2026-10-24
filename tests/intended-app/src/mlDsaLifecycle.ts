@@ -23,6 +23,12 @@ type Context = {
 };
 export type MlDsaBrowserCommand =
   | { kind: 'context' }
+  | { kind: 'metadata' }
+  | { kind: 'default_signer' }
+  | {
+      kind: 'normal_sign_default';
+      sessionPolicy: import('@shared/near/mlDsaSigningSession').MlDsaSigningSessionPolicy | null;
+    }
   | { kind: 'publish' }
   | { kind: 'enroll'; signer: AddedMlDsaSignerCapability }
   | {
@@ -68,6 +74,13 @@ export class IntendedMlDsaLifecycle {
     const rpId = parseWebAuthnRpId(location.hostname);
     if (!rpId.ok) throw new Error('Invalid browser relying party');
     switch (command.kind) {
+      case 'metadata':
+        return context.wallet.near.getMlDsaSigners({ walletSession: context.walletId });
+      case 'default_signer':
+        return context.wallet.near.getDefaultSigner({
+          walletSession: context.walletId,
+          nearAccount: context.nearAccountId,
+        });
       case 'enroll':
         return enrollMlDsaNearSigner({
           near: context.wallet.near,
@@ -76,12 +89,13 @@ export class IntendedMlDsaLifecycle {
           nearAccount: nearAccountRefFromAccountId(context.nearAccountId),
           publication: { walletId: toWalletId(context.walletId), signer: command.signer },
         });
+      case 'normal_sign_default':
       case 'normal_sign': {
         const startedAt = performance.now();
         const result = await context.wallet.near.signTransaction({
           walletSession: context.walletId,
           nearAccount: context.nearAccountId,
-          signer: command.signer,
+          signer: command.kind === 'normal_sign' ? command.signer : undefined,
           transaction: {
             receiverId: context.nearAccountId,
             actions: [{ type: ActionType.Transfer, amount: '0' }],

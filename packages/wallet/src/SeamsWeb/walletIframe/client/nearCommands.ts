@@ -18,6 +18,9 @@ export function createApplicationNearCommands(
   const commands = new ApplicationNearCommands(walletIframe, beforeSigning, transactionDispatch);
   return {
     ownerOperation: commands.ownerOperation.bind(commands),
+    getDefaultSigner: commands.getDefaultSigner.bind(commands),
+    setDefaultSigner: commands.setDefaultSigner.bind(commands),
+    getMlDsaSigners: commands.getMlDsaSigners.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -48,6 +51,22 @@ class ApplicationNearCommands {
     return await router.ownerNearOperation(this.transactionDispatch, ...args);
   }
 
+  async getDefaultSigner(input: Parameters<NearCommands['getDefaultSigner']>[0]) {
+    const router = await this.walletIframe.requireRouter();
+    return router.getDefaultNearSigner(input.walletSession.walletId, input.nearAccount.accountId);
+  }
+  async setDefaultSigner(input: Parameters<NearCommands['setDefaultSigner']>[0]) {
+    const router = await this.walletIframe.requireRouter();
+    return router.setDefaultNearSigner(
+      input.walletSession.walletId,
+      input.nearAccount.accountId,
+      input.preference,
+    );
+  }
+  async getMlDsaSigners(input: Parameters<NearCommands['getMlDsaSigners']>[0]) {
+    const router = await this.walletIframe.requireRouter();
+    return router.getMlDsaSigners(input.walletSession.walletId);
+  }
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],
   ): ReturnType<NearCommands['signAndSendTransaction']> {

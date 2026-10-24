@@ -104,6 +104,30 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createSpeakToSignWalletIframeHandlers(deps, browserSpeakToSignPorts),
     PM_OWNER_NEAR_TRANSACTION: handleOwnerNearTransaction.bind(null, deps),
+    PM_GET_DEFAULT_NEAR_SIGNER: async (req: Req<'PM_GET_DEFAULT_NEAR_SIGNER'>) => {
+      if (!req.payload) throw new Error('Signing preferences require a wallet and account');
+      const result = await deps.getWalletRuntime().near.getDefaultSigner({
+        walletSession: req.payload.walletId,
+        nearAccount: req.payload.nearAccountId,
+      });
+      respondOkResult(deps, req.requestId, result);
+    },
+    PM_SET_DEFAULT_NEAR_SIGNER: async (req: Req<'PM_SET_DEFAULT_NEAR_SIGNER'>) => {
+      if (!req.payload) throw new Error('Signing preferences require a wallet and account');
+      await deps.getWalletRuntime().near.setDefaultSigner({
+        walletSession: req.payload.walletId,
+        nearAccount: req.payload.nearAccountId,
+        preference: req.payload.preference,
+      });
+      respondOkResult(deps, req.requestId, null);
+    },
+    PM_GET_ML_DSA_SIGNERS: async (req: Req<'PM_GET_ML_DSA_SIGNERS'>) => {
+      if (!req.payload) throw new Error('Signer metadata requires a wallet');
+      const result = await deps
+        .getWalletRuntime()
+        .near.getMlDsaSigners({ walletSession: toWalletId(req.payload.walletId) });
+      respondOkResult(deps, req.requestId, result);
+    },
     PM_REGISTER_WALLET: async (req: Req<'PM_REGISTER_WALLET'>) => {
       const pm = deps.getWalletRuntime();
       const payload = req.payload!;

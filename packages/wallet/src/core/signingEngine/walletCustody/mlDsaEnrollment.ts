@@ -18,8 +18,7 @@ import {
   type WalletSessionRef,
 } from '../interfaces/ecdsaChainTarget';
 import type { WalletId } from '@shared/utils/domainIds';
-import { initializeMlDsaCodec } from '@/core/rpcClients/relayer/mlDsaSigning';
-import { ml_dsa65_near_key_identifiers } from '../../../../../../wasm/near_signer/pkg-ml-dsa/ml_dsa_signer.js';
+import { loadMlDsaCodec } from '@/core/rpcClients/relayer/mlDsaSigning';
 
 type EnrollmentTarget = {
   readonly walletSession: WalletSessionRef;
@@ -65,9 +64,9 @@ async function enrollmentTarget(input: EnrollmentRequest): Promise<EnrollmentTar
     keyManifestDigestB64u: parseDigestB64u(published.keyManifestDigestB64u),
     materialEpoch: parseMlDsaMaterialEpoch(published.materialEpoch),
   };
-  await initializeMlDsaCodec();
+  const codec = await loadMlDsaCodec();
   const identifiers = exactRecord(
-    JSON.parse(ml_dsa65_near_key_identifiers(signer.publicKeyB64u)),
+    JSON.parse(codec.ml_dsa65_near_key_identifiers(signer.publicKeyB64u)),
     ['publicKey', 'accessKeyHandle'],
     'ML-DSA NEAR key identifiers',
   );
@@ -164,9 +163,7 @@ export async function enrollMlDsaNearSigner(input: {
       break;
   }
   try {
-    const config = await input.nearClient.viewProtocolConfig();
-    // NEP-645 activates PostQuantumSignatures at protocol version 85.
-    if (config.protocolVersion < 85)
+    if (!(await supportsMlDsaNearNetwork(input.nearClient)))
       return { kind: 'refused', reason: 'unsupported_protocol' };
   } catch {
     return { kind: 'unavailable', reason: 'rpc_unavailable' };
@@ -175,6 +172,7 @@ export async function enrollMlDsaNearSigner(input: {
     await input.near.signAndSendTransaction({
       walletSession: target.walletSession,
       nearAccount: target.nearAccount,
+      signer: { kind: 'ed25519' },
       receiverId: target.nearAccount.accountId,
       actions: [
         {
@@ -189,4 +187,11 @@ export async function enrollMlDsaNearSigner(input: {
     // An owner call can fail after dispatch. Finalized chain state decides the result.
   }
   return confirmEnrollment(input.nearClient, target, continuation);
+}
+
+/** NEP-645 activates PostQuantumSignatures at protocol version 85. */
+export async function supportsMlDsaNearNetwork(
+  reader: Pick<NearClient, 'viewProtocolConfig'>,
+): Promise<boolean> {
+  return (await reader.viewProtocolConfig()).protocolVersion >= 85;
 }

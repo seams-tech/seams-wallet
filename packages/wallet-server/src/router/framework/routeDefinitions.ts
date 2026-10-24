@@ -632,7 +632,8 @@ export function createRouterApiRouteDefinitions(
       {
         plane: 'public',
         proof: 'webauthn',
-        rationale: 'Fresh operation-bound owner proof is required after the client displays its locally retained codes.',
+        rationale:
+          'Fresh operation-bound owner proof is required after the client displays its locally retained codes.',
       },
       ['passkeyCustody'],
     ),
@@ -824,6 +825,19 @@ export function createRouterApiRouteDefinitions(
         plane: 'public',
         proof: 'challenge_exchange',
         rationale: 'Only the holder of the exact scoped session credential can retire that grant.',
+      },
+      ROUTER_API_WALLET_REGISTRATION_SERVICES,
+    ),
+    publicRoute(
+      'wallet_ml_dsa_metadata',
+      'POST',
+      '/wallets/:walletId/ml-dsa/metadata',
+      'Read public signer references through an exact owner session',
+      {
+        plane: 'public',
+        proof: 'threshold_protocol_state',
+        rationale:
+          'An existing primary Wallet Session credential resolves current full-owner authority. This read grants no signing permission.',
       },
       ROUTER_API_WALLET_REGISTRATION_SERVICES,
     ),

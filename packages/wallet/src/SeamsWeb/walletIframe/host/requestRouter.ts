@@ -46,6 +46,9 @@ type NearWalletRequestType =
   | 'PM_SET_AUTH_METHOD_ENABLED'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
+  | 'PM_GET_DEFAULT_NEAR_SIGNER'
+  | 'PM_SET_DEFAULT_NEAR_SIGNER'
+  | 'PM_GET_ML_DSA_SIGNERS'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
   | 'PM_SIGN_TX_WITH_ACTIONS'
   | 'PM_SIGN_AND_SEND_TX'
@@ -288,6 +291,9 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_SET_AUTH_METHOD_ENABLED':
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
+    case 'PM_GET_DEFAULT_NEAR_SIGNER':
+    case 'PM_SET_DEFAULT_NEAR_SIGNER':
+    case 'PM_GET_ML_DSA_SIGNERS':
     case 'PM_GET_NEAR_PROVISIONING_STATE':
     case 'PM_SEND_TRANSACTION':
       return { signingPolicy: 'none', kind: 'near', type: request.type, request };

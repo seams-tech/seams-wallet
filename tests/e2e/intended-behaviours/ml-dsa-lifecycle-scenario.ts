@@ -10,7 +10,12 @@ import { base58Encode } from '@shared/utils/base58';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { openReadOnlyGatewayD1 } from './local-gateway-database';
-import type { IntendedBehaviourHarness } from './harness';
+import {
+  autoConfirmWalletIframeUntil,
+  waitForWalletIframeConfirmationSettlement,
+  type IntendedBehaviourHarness,
+} from './harness';
+import type { MlDsaBrowserCommand } from '../../intended-app/src/mlDsaLifecycle';
 import { mlDsaHostedFixture } from '../../helpers/mlDsaHostedFixture';
 import type { AddedMlDsaSignerCapability } from '../../../packages/wallet/src/core/types/seams';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
@@ -21,6 +26,8 @@ export async function runMlDsaBrowserLifecycle(
   testInfo: TestInfo,
 ) {
   testInfo.setTimeout(900_000);
+  const optionalAssets: string[] = [];
+  page.on('request', recordOptionalAsset.bind(null, optionalAssets));
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
   const context = await harness.runMlDsaCommand({ kind: 'context' });
@@ -34,15 +41,67 @@ export async function runMlDsaBrowserLifecycle(
   )
     throw new Error('Missing browser wallet identity');
   const funding = await fundImplicitWallet(context.nearAccountId);
+  await harness.useLiveNearTestnetRpc();
+  const initialWalletFrame = page
+    .locator('iframe[allow*="publickey-credentials-get"]')
+    .last()
+    .contentFrame();
+  await initialWalletFrame.locator('body').evaluate(blockPasskeyPrompts);
+  try {
+    await openSigningKeys(page);
+    await expect(
+      page.getByRole('button', { name: 'Add ML-DSA signer', exact: true }),
+    ).toBeVisible();
+  } finally {
+    await initialWalletFrame.locator('body').evaluate(restorePasskeyPrompts);
+  }
+  await page.keyboard.press('Escape');
+  const ordinarySigning = await harness.runMlDsaCommand({
+    kind: 'normal_sign_default',
+    sessionPolicy: null,
+  });
+  verifyOrdinarySignature(ordinarySigning);
+  const ordinaryOptionalAssets = optionalAssets.slice();
+  expect(ordinaryOptionalAssets).toEqual([]);
+  await page.keyboard.press('Escape');
   await prepareMlDsaPool(context.walletId);
   const signer = await publishAcrossReload(page, harness);
   await harness.useLiveNearTestnetRpc();
-  const enrollment = await harness.runMlDsaCommand({ kind: 'enroll', signer });
-  expect(enrollment).toMatchObject({ kind: 'enrolled' });
-  const original = await signMlDsaTransaction(harness, signer, {
-    maxOperations: 2,
-    durationMs: 600_000,
+  await openSigningKeys(page);
+  await expect(
+    page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }),
+  ).toBeVisible();
+  const activated = expect(page.getByText('Active on NEAR', { exact: true })).toBeVisible({
+    timeout: 120_000,
   });
+  const activating = autoConfirmWalletIframeUntil(page, activated, { timeoutMs: 120_000 });
+  await page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }).click();
+  await activating;
+  await waitForWalletIframeConfirmationSettlement(page);
+  await page.getByRole('button', { name: 'Make default', exact: true }).click({ timeout: 10_000 });
+  await expect(page.getByText('Default signing key', { exact: true })).toBeVisible();
+  await expect
+    .poll(readDefaultSigner.bind(null, harness))
+    .toEqual({ kind: 'near_ml_dsa_65', signingKeyId: signer.signingKeyId });
+  await page.screenshot({ path: testInfo.outputPath('ml-dsa-signing-keys.png') });
+  await page.keyboard.press('Escape');
+  await harness.refreshPagePreservingWalletStorage();
+  await harness.unlockPasskeyWallet();
+  await harness.useLiveNearTestnetRpc();
+  expect(await readDefaultSigner(harness)).toEqual({
+    kind: 'near_ml_dsa_65',
+    signingKeyId: signer.signingKeyId,
+  });
+  await page.route('**/ml-dsa/metadata', hidePublishedSigner);
+  try {
+    await expect(
+      harness.runMlDsaCommand({ kind: 'normal_sign_default', sessionPolicy: null }),
+    ).rejects.toThrow('default ML-DSA signer is unavailable');
+  } finally {
+    await page.unroute('**/ml-dsa/metadata', hidePublishedSigner);
+  }
+  const original = await signFromDefaultPicker(page, harness, signer, testInfo);
+  expect(optionalAssets.some(isOptionalWasm)).toBe(true);
   await pause(60_000);
   const walletFrame = page
     .locator('iframe[allow*="publickey-credentials-get"]')
@@ -90,6 +149,8 @@ export async function runMlDsaBrowserLifecycle(
     credentialIdB64u: linkedActor.credentialIdB64u,
   });
   expect('kind' in revoked && revoked.kind).toBe('refused');
+  const revokedMetadata = await linked.runMlDsaCommand({ kind: 'metadata' });
+  expect('kind' in revokedMetadata && revokedMetadata.kind).toBe('refused');
   await discover(harness, signer, recoveredActor.credentialIdB64u);
   await prepareMlDsaPool(context.walletId);
   const restoration = await harness.runMlDsaCommand({ kind: 'restore', recordedSigner: signer });
@@ -157,8 +218,18 @@ export async function runMlDsaBrowserLifecycle(
       independentCanonicalSeedImport: true,
       publicRestorationFromRecoveredFactor: true,
       distinctOwnerCredentials: true,
+      signingKeysSettingsCreationAndActivation: true,
+      defaultSignerSelection: true,
+      defaultSignerPersistsAfterReload: true,
+      unavailableDefaultRefusedWithoutFallback: true,
+      ordinaryEd25519SignatureVerified: true,
+      revokedOwnerMetadataRefused: true,
+      metadataUsesExistingSession: true,
+      noOptionalAssetsBeforeEnrollment: true,
       restorationOwnerMatchesRecoveredMethod: true,
     },
+    optionalAssetRequests: optionalAssets,
+    ordinaryOptionalAssets,
     policy: {
       candidateGroupSize: 2,
       preparationGroupSize: 4,
@@ -176,18 +247,14 @@ async function publishAcrossReload(
   const pattern = '**/wallets/*/signers/ml-dsa/publish';
   await page.route(pattern, abortPublication);
   const pendingRequest = page.waitForRequest(pattern, { timeout: 120_000 });
-  const publishing = harness.runMlDsaCommand({ kind: 'publish' });
-  const first = await Promise.race([pendingRequest, publishing]);
-  expect('url' in first).toBe(true);
-  void publishing.catch(ignoreInterruptedPublication);
+  await openSigningKeys(page);
+  const publishing = autoConfirmWalletIframeUntil(page, pendingRequest, { timeoutMs: 120_000 });
+  await page.getByRole('button', { name: 'Add ML-DSA signer', exact: true }).click();
+  await publishing;
   await harness.refreshPagePreservingWalletStorage();
   await page.unroute(pattern, abortPublication);
   await harness.unlockPasskeyWallet();
-  const actor = await readActor(harness);
-  const inventory = await harness.runMlDsaCommand({
-    kind: 'inventory',
-    credentialIdB64u: actor.credentialIdB64u,
-  });
+  const inventory = await harness.runMlDsaCommand({ kind: 'metadata' });
   if (
     !('kind' in inventory) ||
     inventory.kind !== 'inventory' ||
@@ -207,7 +274,6 @@ async function publishAcrossReload(
 async function abortPublication(route: Route): Promise<void> {
   await route.abort('failed');
 }
-function ignoreInterruptedPublication(): void {}
 
 async function discover(
   harness: IntendedBehaviourHarness,
@@ -218,6 +284,8 @@ async function discover(
   if (!('kind' in result) || result.kind !== 'inventory')
     throw new Error(`Inventory failed: ${JSON.stringify(result)}`);
   expect(result.entries).toHaveLength(1);
+  const metadata = await harness.runMlDsaCommand({ kind: 'metadata' });
+  expect(metadata).toEqual(result);
   const entry = result.entries[0];
   if (entry.kind !== 'published') throw new Error('Recovered signer is unpublished');
   expect(entry.key.publicKeyB64u).toBe(signer.publicKeyB64u);
@@ -237,6 +305,13 @@ export async function signMlDsaTransaction(
     sessionPolicy,
   });
   const harnessElapsedMs = performance.now() - startedAt;
+  return verifyBrowserSignature(result, signer, harnessElapsedMs);
+}
+function verifyBrowserSignature(
+  result: Awaited<ReturnType<IntendedBehaviourHarness['runMlDsaCommand']>>,
+  signer: AddedMlDsaSignerCapability,
+  harnessElapsedMs: number,
+) {
   if (!('kind' in result) || result.kind !== 'sdk_signed')
     throw new Error(`Browser signature failed: ${JSON.stringify(result)}`);
   const key = createPublicKey({
@@ -356,8 +431,10 @@ async function saveEvidence(testInfo: TestInfo, evidence: Record<string, unknown
       .digest('hex');
   }
   const text = JSON.stringify({ ...evidence, sources }, null, 2) + '\n';
+  const artifact = testInfo.outputPath('ml-dsa-browser-lifecycle.json');
+  await writeFile(artifact, text);
   await testInfo.attach('ml-dsa-browser-lifecycle', {
-    body: text,
+    path: artifact,
     contentType: 'application/json',
   });
   const directory = process.env.SEAMS_INTENDED_TRACE_DIR;
@@ -461,4 +538,81 @@ async function verifyRestorationOwner(walletId: string, walletAuthMethodId: stri
   } finally {
     opened.close();
   }
+}
+
+function recordOptionalAsset(urls: string[], request: import('@playwright/test').Request): void {
+  const url = request.url();
+  if (/ml_dsa_signer|pkg-ml-dsa/.test(url)) urls.push(url);
+}
+function isOptionalWasm(url: string): boolean {
+  return url.includes('ml_dsa_signer_bg.wasm');
+}
+async function openSigningKeys(page: Page): Promise<void> {
+  await page
+    .getByRole('button', { name: 'Show account menu', exact: true })
+    .click({ timeout: 10_000 });
+  const menu = page.getByTestId('intended-account-menu');
+  const trigger = menu.locator('.seams-user-account-button-trigger[aria-expanded]');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  const screen = menu.getByRole('heading', { name: 'Signing keys', exact: true });
+  if (!(await screen.isVisible())) await menu.getByRole('button', { name: /Signing keys/ }).click();
+  await expect(screen).toBeVisible();
+}
+async function readDefaultSigner(harness: IntendedBehaviourHarness) {
+  return harness.runMlDsaCommand({ kind: 'default_signer' });
+}
+async function invokeSettingsSigning(command: MlDsaBrowserCommand) {
+  if (!window.__seamsIntendedMlDsa) throw new Error('ML-DSA test command is unavailable');
+  return window.__seamsIntendedMlDsa(command);
+}
+async function signFromDefaultPicker(
+  page: Page,
+  harness: IntendedBehaviourHarness,
+  signer: AddedMlDsaSignerCapability,
+  testInfo: TestInfo,
+) {
+  const started = performance.now();
+  const command: MlDsaBrowserCommand = {
+    kind: 'normal_sign_default',
+    sessionPolicy: { maxOperations: 2, durationMs: 600_000 },
+  };
+  const resultPromise = page.evaluate(invokeSettingsSigning, command);
+  const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
+  const picker = frame.getByRole('combobox', { name: 'Signing key', exact: true });
+  await expect(picker).toHaveValue(signer.signingKeyId);
+  await picker.selectOption('ed25519');
+  await expect(picker).toHaveValue('ed25519');
+  await picker.selectOption(signer.signingKeyId);
+  await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-picker.png') });
+  const result = await autoConfirmWalletIframeUntil(page, resultPromise, { timeoutMs: 315_000 });
+  await waitForWalletIframeConfirmationSettlement(page);
+  expect(await readDefaultSigner(harness)).toEqual({
+    kind: 'near_ml_dsa_65',
+    signingKeyId: signer.signingKeyId,
+  });
+  return verifyBrowserSignature(result, signer, performance.now() - started);
+}
+
+async function hidePublishedSigner(route: Route): Promise<void> {
+  await route.fulfill({ status: 200, json: { kind: 'inventory', entries: [] } });
+}
+function verifyOrdinarySignature(
+  result: Awaited<ReturnType<IntendedBehaviourHarness['runMlDsaCommand']>>,
+): void {
+  if (!('kind' in result) || result.kind !== 'sdk_signed')
+    throw new Error('Ordinary signing did not return a signature');
+  const signed = Buffer.from(result.signedTransactionBorshB64u, 'base64url');
+  const keyOffset = 4 + signed.readUInt32LE(0);
+  expect(signed[keyOffset]).toBe(0);
+  expect(signed[signed.length - 65]).toBe(0);
+  const key = createPublicKey({
+    key: Buffer.concat([
+      Buffer.from('302a300506032b6570032100', 'hex'),
+      signed.subarray(keyOffset + 1, keyOffset + 33),
+    ]),
+    format: 'der',
+    type: 'spki',
+  });
+  const hash = createHash('sha256').update(signed.subarray(0, -65)).digest();
+  expect(verify(null, hash, key, signed.subarray(-64))).toBe(true);
 }

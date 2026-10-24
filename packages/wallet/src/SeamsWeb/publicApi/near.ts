@@ -7,7 +7,7 @@ import { toError } from '@shared/utils/errors';
 import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
 import type { CurrentWalletResolver } from './currentWallet';
 import type { NearCommands } from './nearCommands';
-import { parseNearTransactionSigner } from '@/core/signingEngine/chains/near/transactionSigner';
+import { parseNearTransactionSignerRequest } from '@/core/signingEngine/chains/near/transactionSigner';
 import { requireBrowserCapabilityOperation } from './capabilitySelection';
 import {
   CAPABILITY_KINDS,
@@ -32,6 +32,9 @@ export function createNearSignerCapability(deps: NearDependencies): NearSignerCa
     prepareOwnerTransaction: prepareOwnerNearTransaction.bind(null, deps.commands.ownerOperation),
     resumeOwnerTransaction: resumeOwnerNearTransaction.bind(null, deps.commands.ownerOperation),
     accountExists: accountExists.bind(null, deps.nearClient),
+    getDefaultSigner: signer.getDefaultSigner.bind(signer),
+    setDefaultSigner: signer.setDefaultSigner.bind(signer),
+    getMlDsaSigners: signer.getMlDsaSigners.bind(signer),
     signAndSendTransaction: signer.signAndSendTransaction.bind(signer),
     signTransaction: signer.signTransaction.bind(signer),
     sendTransaction: signer.sendTransaction.bind(signer),
@@ -47,14 +50,31 @@ function ignoreSigningCompletion(): void {}
 class NearSigner {
   constructor(private readonly deps: NearDependencies) {}
 
+  async getDefaultSigner(input: Parameters<NearSignerCapability['getDefaultSigner']>[0]) {
+    return this.deps.commands.getDefaultSigner(await this.deps.currentWallet.nearSubject(input));
+  }
+  async setDefaultSigner(input: Parameters<NearSignerCapability['setDefaultSigner']>[0]) {
+    const subject = await this.deps.currentWallet.nearSubject(input);
+    const { parseNearSignerPreference } = await import('@/core/types/nearSigningKeys');
+    return this.deps.commands.setDefaultSigner({
+      walletSession: subject.walletSession,
+      nearAccount: subject.nearAccount,
+      preference: parseNearSignerPreference(input.preference),
+    });
+  }
+  async getMlDsaSigners(input: Parameters<NearSignerCapability['getMlDsaSigners']>[0]) {
+    const walletSession = await this.deps.currentWallet.walletSession(input.walletSession);
+    return this.deps.commands.getMlDsaSigners({ walletSession });
+  }
+
   async signAndSendTransaction(
     rawArgs: Parameters<NearSignerCapability['signAndSendTransaction']>[0],
   ): ReturnType<NearSignerCapability['signAndSendTransaction']> {
     let subject: Awaited<ReturnType<CurrentWalletResolver['nearSubject']>>;
-    let signer: ReturnType<typeof parseNearTransactionSigner>;
+    let signer: ReturnType<typeof parseNearTransactionSignerRequest>;
     try {
       subject = await this.deps.currentWallet.nearSubject(rawArgs);
-      signer = parseNearTransactionSigner(rawArgs.signer ?? { kind: 'ed25519' });
+      signer = parseNearTransactionSignerRequest(rawArgs.signer ?? { kind: 'wallet_default' });
       requireBrowserCapabilityOperation(this.deps.configs, {
         capabilityKind:
           signer.kind === 'near_ml_dsa_65'
@@ -80,7 +100,7 @@ class NearSigner {
       ...rawArgs,
       ...(await this.deps.currentWallet.nearSubject(rawArgs)),
       options: rawArgs.options ?? {},
-      signer: parseNearTransactionSigner(rawArgs.signer ?? { kind: 'ed25519' }),
+      signer: parseNearTransactionSignerRequest(rawArgs.signer ?? { kind: 'wallet_default' }),
     };
     requireBrowserCapabilityOperation(this.deps.configs, {
       capabilityKind:

@@ -1307,6 +1307,7 @@ export interface RouterApiWalletAuthMethodService {
   activateVoiceId(
     input: import('../domains/voiceId/voiceIdActivation').VoiceIdActivationCommand,
   ): Promise<import('../domains/voiceId/voiceIdActivation').VoiceIdActivationResult>;
+  readMlDsaSignerMetadata: D1WalletMlDsaSigning['metadata'];
   prepareMlDsaSignerInventory: D1WalletMlDsaSigning['prepareInventory'];
   readMlDsaSignerInventory: D1WalletMlDsaSigning['inventory'];
   prepareMlDsaSigning: D1WalletMlDsaSigning['prepare'];
@@ -1448,7 +1449,8 @@ export interface RouterApiWalletAuthMethodService {
 }
 
 export interface RouterApiWalletRegistrationRouteService
-  extends RouterApiWalletRegistrationService,
+  extends
+    RouterApiWalletRegistrationService,
     RouterApiWalletAuthMethodService,
     RouterApiWalletAuthVerificationService {
   fundImplicitNearAccount(

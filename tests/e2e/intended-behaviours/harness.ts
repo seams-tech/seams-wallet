@@ -1325,7 +1325,8 @@ export class IntendedBehaviourHarness {
   }
 
   async runMlDsaCommand(command: MlDsaBrowserCommand) {
-    const timeoutMs = command.kind === 'normal_sign' ? 315_000 : 180_000;
+    const signing = command.kind === 'normal_sign' || command.kind === 'normal_sign_default';
+    const timeoutMs = signing ? 315_000 : 180_000;
     const deadline = new AbortController();
     try {
       const result = await autoConfirmWalletIframeUntil(
@@ -1336,8 +1337,7 @@ export class IntendedBehaviourHarness {
         ]),
         { timeoutMs },
       );
-      if (command.kind === 'normal_sign')
-        await waitForWalletIframeConfirmationSettlement(this.page);
+      if (signing) await waitForWalletIframeConfirmationSettlement(this.page);
       return result;
     } finally {
       deadline.abort();

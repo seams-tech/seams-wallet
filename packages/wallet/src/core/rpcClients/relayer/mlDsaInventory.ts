@@ -1,3 +1,6 @@
+import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
+import { requireParsed } from '@shared/passkey-custody/primitives';
+import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { requireRecord } from '@shared/utils/validation';
 import {
@@ -16,7 +19,11 @@ import {
   WALLET_MANAGEMENT_PROTOCOL_HEADER,
   WALLET_MANAGEMENT_PROTOCOL_VERSION,
 } from '@shared/utils/walletManagementProtocol';
-import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
+import {
+  buildRelayerJsonPostRequestInit,
+  buildWalletSessionAuthorizationHeaders,
+  normalizeRelayerBaseUrl,
+} from './relayerHttp';
 
 export async function prepareMlDsaSignerInventory(input: {
   readonly relayerUrl: string;
@@ -73,12 +80,26 @@ export async function fetchMlDsaSignerInventory(input: {
       },
     }),
   );
-  const raw = requireRecord(await response.json(), 'ML-DSA signer inventory');
+  return parseMlDsaInventoryResponse(
+    await response.json(),
+    response.ok,
+    input.preparation.walletId,
+  );
+}
+
+export function parseMlDsaInventoryResponse(
+  value: unknown,
+  ok: boolean,
+  walletId: string,
+): MlDsaSignerInventoryOutcome {
+  const raw = requireRecord(value, 'ML-DSA signer inventory');
   if (raw.kind === 'refused') return parseMlDsaSigningFailure(raw);
   const r = exactRecord(raw, ['kind', 'entries'], 'ML-DSA signer inventory');
-  if (!response.ok || r.kind !== 'inventory' || !Array.isArray(r.entries) || r.entries.length > 64)
+  if (!ok || r.kind !== 'inventory' || !Array.isArray(r.entries) || r.entries.length > 64)
     throw new Error('Invalid ML-DSA signer inventory response');
-  const entries = r.entries.map(parseInventoryEntry.bind(undefined, input.preparation));
+  const entries = r.entries.map(
+    parseInventoryEntry.bind(undefined, requireParsed(parseWalletId(walletId), 'walletId')),
+  );
   const seen = new Set<string>();
   for (const entry of entries) {
     const id = entry.kind === 'published' ? entry.key.signingKeyId : entry.signingKeyId;
@@ -87,6 +108,25 @@ export async function fetchMlDsaSignerInventory(input: {
   }
   return { kind: 'inventory', entries };
 }
-function parseInventoryEntry(preparation: MlDsaInventoryPreparation, raw: unknown) {
-  return parseMlDsaSignerInventoryEntry(raw, preparation.walletId);
+function parseInventoryEntry(walletId: WalletId, raw: unknown) {
+  return parseMlDsaSignerInventoryEntry(raw, walletId);
+}
+
+/** Read display metadata without a new passkey assertion or any signing allowance. */
+export async function readMlDsaSignerMetadata(input: {
+  readonly relayerUrl: string;
+  readonly walletId: string;
+  readonly credential: WalletSessionOperationCredentialV1;
+}): Promise<MlDsaSignerInventoryOutcome> {
+  const response = await fetch(
+    `${normalizeRelayerBaseUrl(input.relayerUrl)}/wallets/${encodeURIComponent(input.walletId)}/ml-dsa/metadata`,
+    buildRelayerJsonPostRequestInit({
+      headers: {
+        ...buildWalletSessionAuthorizationHeaders(input.credential),
+        [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+      },
+      body: { walletId: input.walletId },
+    }),
+  );
+  return parseMlDsaInventoryResponse(await response.json(), response.ok, input.walletId);
 }

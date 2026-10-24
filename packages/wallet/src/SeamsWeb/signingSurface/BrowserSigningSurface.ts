@@ -3662,6 +3662,21 @@ export class BrowserSigningSurface {
     }
   }
 
+  async selectNearTransactionSigner(
+    input: import('@/core/signingEngine/flows/signNear/selectNearSigner').NearSignerSelectionInput,
+  ) {
+    const { selectNearTransactionSigner } =
+      await import('@/core/signingEngine/flows/signNear/selectNearSigner');
+    return selectNearTransactionSigner(
+      {
+        configs: this.seamsWebConfigs,
+        nearClient: this.nearClient,
+        ui: this.touchConfirm.getContext(),
+      },
+      input,
+    );
+  }
+
   async signMlDsaNearTransaction(
     input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
   ): Promise<import('@/core/types/seams').SignTransactionResult> {
