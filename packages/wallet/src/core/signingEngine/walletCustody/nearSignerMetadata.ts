@@ -1,5 +1,5 @@
 import { walletSessionAuthorizations } from '@/core/indexedDB';
-import { resolveMlDsaPasskeyOwner } from './mlDsaOwner';
+import { resolveFullWalletOwner } from './walletSigningOwner';
 import { readMlDsaSignerMetadata } from '@/core/rpcClients/relayer/mlDsaInventory';
 import type { WalletId } from '@shared/utils/domainIds';
 import type { MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';
@@ -9,12 +9,12 @@ export async function readNearSignerMetadata(input: {
   readonly walletId: WalletId;
   readonly relayerUrl: string;
 }): Promise<MlDsaSignerInventoryOutcome> {
-  const owner = await resolveMlDsaPasskeyOwner(input.walletId);
+  const owner = await resolveFullWalletOwner(input.walletId);
   if (owner.kind !== 'owner')
     return {
       kind: 'refused',
       code: 'unauthorized',
-      message: 'Unlock a full-owner passkey to manage signing keys.',
+      message: 'Unlock a full-owner method to manage signing keys.',
     };
   const exact = await walletSessionAuthorizations.readExactWithOperationCredential({
     walletId: input.walletId,
@@ -37,7 +37,7 @@ export async function readNearSignerMetadata(input: {
     walletId: input.walletId,
     credential: exact.operationCredential,
   });
-  const current = await resolveMlDsaPasskeyOwner(input.walletId);
+  const current = await resolveFullWalletOwner(input.walletId);
   if (
     current.kind !== 'owner' ||
     current.authority.authorityDigestB64u !== owner.authority.authorityDigestB64u ||

@@ -1392,3 +1392,23 @@ Two hosted signatures verify in 1.54 and 2.21 seconds. Preparation, including fo
 These samples do not establish consistent latency. Complete registration still misses five seconds.
 Next, measure activation and prepared-stock installation, compare bounded table I/O batches, and qualify terminal WebSocket handling and concurrency.
 GPU work stays deferred.
+
+
+## Full-owner signer and export parity — accepted 2026-10-24
+
+Full-owner linked devices must receive the same exact signer set as the source.
+An Ed25519-only source yields Ed25519-only activation. An ML-DSA-only source yields ML-DSA-only activation. A mixed source yields both.
+Each full owner must be able to export the corresponding ML-DSA FIPS seed.
+Signing-only linked devices remain outside this release.
+
+Pending implementation:
+
+1. Add each exact ML-DSA key to the existing signer manifest and authority activation set. Support several ML-DSA slots.
+2. Commit owner activation during publication and recovery. Keep authority digest updates atomic.
+3. Extend the existing device-link plan, package digests, local installation, and acknowledgment for ML-DSA. Remove the Ed25519 activation dependency.
+4. Transfer a key-specific ML-DSA owner root in a recipient-bound encrypted package. Keep the wallet custody seed and participant signing shares at their existing boundaries.
+5. Seal the received root under the target factor before acknowledging installation. Verify that it reproduces the published public key before export.
+6. Verify exact-set linking, further linking, export, restoration, interruption, and revocation for ML-DSA-only and mixed sets.
+
+Use the existing authority and package model. Do not add a parallel ML-DSA permission registry.
+Preserve wallet-seed recovery, standard FIPS export, two-at-once consumption, and pool capacity.

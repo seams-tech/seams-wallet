@@ -317,6 +317,12 @@ interface SignNep413Payload {
 
 export type SignIntentDigestSubject =
   | {
+      kind: 'near_ml_dsa_email_wallet';
+      walletId: string;
+      nearAccountId: string;
+      walletAuthMethodId: string;
+    }
+  | {
       kind: 'near_ml_dsa_wallet';
       walletId: string;
       nearAccountId: string;
@@ -357,11 +363,35 @@ export type SignIntentDigestPayload =
       webauthnChallenge?: never;
     })
   | (SignIntentDigestPayloadBase & {
+      signingSubject: Extract<SignIntentDigestSubject, { kind: 'near_ml_dsa_email_wallet' }>;
+      signingAuthPlan: {
+        kind: 'ml_dsa_session';
+        method: 'email_otp';
+        sessionIdB64u: string;
+        expiresAtMs: number;
+        remainingOperations: number;
+      };
+      webauthnChallenge?: never;
+      emailOtpPrompt?: never;
+    })
+  | (SignIntentDigestPayloadBase & {
+      signingSubject: Extract<SignIntentDigestSubject, { kind: 'near_ml_dsa_email_wallet' }>;
+      signingAuthPlan: Extract<SigningAuthPlan, { kind: 'emailOtpReauth' }> & {
+        emailOtpPrompt: EmailOtpConfirmPrompt;
+      };
+      emailOtpPrompt?: never;
+      webauthnChallenge?: never;
+    })
+  | (SignIntentDigestPayloadBase & {
+      signingSubject: Exclude<SignIntentDigestSubject, { kind: 'near_ml_dsa_email_wallet' }>;
       signingAuthPlan: Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>;
       webauthnChallenge: WebAuthnChallenge;
     })
   | (SignIntentDigestPayloadBase & {
-      signingSubject: Exclude<SignIntentDigestSubject, { kind: 'near_ml_dsa_wallet' }>;
+      signingSubject: Exclude<
+        SignIntentDigestSubject,
+        { kind: 'near_ml_dsa_wallet' | 'near_ml_dsa_email_wallet' }
+      >;
       signingAuthPlan: Exclude<
         SigningAuthPlan,
         Extract<SigningAuthPlan, { kind: 'passkeyReauth' }>

@@ -171,6 +171,8 @@ function buildSignIntentDigestPayload(args: {
   signingAuthPlan: SigningAuthPlan;
   emailOtpPrompt?: OrchestrateIntentDigestSigningConfirmationParams['emailOtpPrompt'];
 }): SignIntentDigestPayload {
+  if (args.signingSubject.kind === 'near_ml_dsa_email_wallet')
+    throw new Error('ML-DSA Email OTP approval requires its exact challenge prompt');
   if (args.signingAuthPlan.kind === SigningAuthPlanKind.PasskeyReauth) {
     return {
       signingSubject: args.signingSubject,

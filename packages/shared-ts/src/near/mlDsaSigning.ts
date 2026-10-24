@@ -1,9 +1,11 @@
 import { base64UrlDecode, base64UrlEncode } from '../utils/base64';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { exactRecord } from '../utils/exactRecord';
-import { requireCanonicalString } from '../utils/validation';
+import { requireCanonicalString, requireRecord } from '../utils/validation';
 import {
   parseWalletId,
+  parseWalletAuthMethodId,
+  type WalletAuthMethodId,
   parseWebAuthnCredentialIdB64u,
   parseWebAuthnRpId,
   type WalletId,
@@ -22,6 +24,14 @@ export type MlDsaTransactionInspection = {
   readonly nonce: string;
   readonly publicKeyB64u: string;
 };
+export type MlDsaSigningActor = ReadonlyExclusiveUnion<
+  | {
+      readonly kind: 'passkey';
+      readonly rpId: WebAuthnRpId;
+      readonly credentialIdB64u: WebAuthnCredentialIdB64u;
+    }
+  | { readonly kind: 'email_otp'; readonly walletAuthMethodId: WalletAuthMethodId }
+>;
 export type MlDsaSigningRequest = {
   readonly materialEpoch?: never;
   readonly publicKeyB64u?: never;
@@ -34,8 +44,7 @@ export type MlDsaSigningRequest = {
   readonly signingKeyId: string;
   readonly operationIdB64u: DigestB64u;
   readonly unsignedTransactionBorshB64u: string;
-  readonly rpId: WebAuthnRpId;
-  readonly credentialIdB64u: WebAuthnCredentialIdB64u;
+  readonly actor: MlDsaSigningActor;
 };
 export type MlDsaSigningPreparation = {
   readonly request: MlDsaSigningRequest;
@@ -87,14 +96,7 @@ function mlDsaSigningBytes(raw: unknown, field: string, minimum: number, maximum
 export function parseMlDsaSigningRequest(raw: unknown): MlDsaSigningRequest {
   const r = exactRecord(
     raw,
-    [
-      'walletId',
-      'signingKeyId',
-      'operationIdB64u',
-      'unsignedTransactionBorshB64u',
-      'rpId',
-      'credentialIdB64u',
-    ],
+    ['walletId', 'signingKeyId', 'operationIdB64u', 'unsignedTransactionBorshB64u', 'actor'],
     'ML-DSA signing request',
   );
   return {
@@ -107,12 +109,36 @@ export function parseMlDsaSigningRequest(raw: unknown): MlDsaSigningRequest {
       1,
       32 * 1024,
     ),
-    rpId: requireParsed(parseWebAuthnRpId(r.rpId), 'rpId'),
-    credentialIdB64u: requireParsed(
-      parseWebAuthnCredentialIdB64u(r.credentialIdB64u),
-      'credentialIdB64u',
-    ),
+    actor: parseMlDsaSigningActor(r.actor),
   };
+}
+function parseMlDsaSigningActor(raw: unknown): MlDsaSigningActor {
+  const record = requireRecord(raw, 'ML-DSA signing actor');
+  switch (record.kind) {
+    case 'passkey': {
+      const actor = exactRecord(raw, ['kind', 'rpId', 'credentialIdB64u'], 'ML-DSA Passkey actor');
+      return {
+        kind: 'passkey',
+        rpId: requireParsed(parseWebAuthnRpId(actor.rpId), 'rpId'),
+        credentialIdB64u: requireParsed(
+          parseWebAuthnCredentialIdB64u(actor.credentialIdB64u),
+          'credentialIdB64u',
+        ),
+      };
+    }
+    case 'email_otp': {
+      const actor = exactRecord(raw, ['kind', 'walletAuthMethodId'], 'ML-DSA Email OTP actor');
+      return {
+        kind: 'email_otp',
+        walletAuthMethodId: requireParsed(
+          parseWalletAuthMethodId(actor.walletAuthMethodId),
+          'walletAuthMethodId',
+        ),
+      };
+    }
+    default:
+      throw new Error('Unsupported ML-DSA signing actor');
+  }
 }
 export function parseMlDsaTransactionInspection(raw: unknown): MlDsaTransactionInspection {
   const r = exactRecord(

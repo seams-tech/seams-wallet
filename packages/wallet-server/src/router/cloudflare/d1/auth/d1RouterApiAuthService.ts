@@ -1436,11 +1436,22 @@ function createCloudflareD1RouterApiAuthAssembly(
     ? new D1WalletMlDsaRegistration({ database:options.database,
         scope:{namespace:options.namespace,orgId:options.orgId,projectId:options.projectId,envId:options.envId},
         proxy:options.mlDsaRegistrationProxy }) : null;
-  const mlDsaSigning = new D1WalletMlDsaSigning({ database:options.database,
-    scope:{namespace:options.namespace,orgId:options.orgId,projectId:options.projectId,envId:options.envId},
-    proxy:options.mlDsaRegistrationProxy ?? null, registration:mlDsaRegistration,
-    walletAuthMethods,webAuthnStore,authorizations:authorizationService,
-    mlDsaSignerWasmModuleOrPath:options.mlDsaSignerWasmModuleOrPath });
+  const mlDsaSigning = new D1WalletMlDsaSigning({
+    database: options.database,
+    scope: {
+      namespace: options.namespace,
+      orgId: options.orgId,
+      projectId: options.projectId,
+      envId: options.envId,
+    },
+    proxy: options.mlDsaRegistrationProxy ?? null,
+    registration: mlDsaRegistration,
+    walletAuthMethods,
+    webAuthnStore,
+    authorizations: authorizationService,
+    emailOtpVerifier: emailOtpChallengeVerifier,
+    mlDsaSignerWasmModuleOrPath: options.mlDsaSignerWasmModuleOrPath,
+  });
   const walletAddSigners = new CloudflareD1WalletAddSignerService({
     mlDsaRegistration:mlDsaRegistration ?? undefined,
     executionAuthority: options.walletExecution,

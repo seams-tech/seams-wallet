@@ -1,3 +1,6 @@
+import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
+import { verifyMlDsaSigningApproval, operationEnvelope } from './mlDsaSigningApproval';
+import type { MlDsaEmailOtpServices } from './mlDsaEmailOtpApproval';
 import {
   parseMlDsaSigningSessionPreparation,
   parseMlDsaSigningSessionRequest as parseMlDsaSessionRequest,
@@ -26,8 +29,6 @@ import type { WebAuthnAuthenticationCredential } from '../../../../core/types';
 import type { D1DatabaseLike, D1PreparedStatementLike } from '../../../../storage/tenantRoute';
 import type { D1TenantScope } from '../../../../core/d1TenantStore';
 import type { CloudflareD1WebAuthnStore } from '../webauthn/d1WebAuthnStore';
-import { verifyWebAuthnAuthenticationLiteWithStore } from '../../../../core/authService/webauthn';
-import { normalizeLogger } from '../../../../core/logger';
 import { D1MlDsaWebAuthnVerification } from './d1MlDsaWebAuthnVerification';
 import { CloudflareD1VersionedJsonRecordStore } from '../versionedJson/d1VersionedJsonRecordStore';
 import type { VersionedJsonObject } from '../../../framework/versionedJsonRecordStore';
@@ -41,7 +42,7 @@ import { base64UrlDecode } from '@shared/utils/base64';
 
 type SessionAuthorization = Exclude<
   MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
-  { kind: 'passkey' }
+  { kind: 'passkey' | 'email_otp' }
 >;
 type TerminalOutcome = Exclude<MlDsaSigningOutcome, { kind: 'retry' }>;
 type Grant = {
@@ -88,8 +89,8 @@ function sameScope(left: MlDsaSigningRecord, right: MlDsaSigningRecord): boolean
     left.origin === right.origin &&
     left.owner.authorityDigestB64u === right.owner.authorityDigestB64u &&
     left.owner.revocationEpoch === right.owner.revocationEpoch &&
-    left.preparation.request.rpId === right.preparation.request.rpId &&
-    left.preparation.request.credentialIdB64u === right.preparation.request.credentialIdB64u
+    alphabetizeStringify(left.preparation.request.actor) ===
+      alphabetizeStringify(right.preparation.request.actor)
   );
 }
 function encodeGrant(grant: Grant): VersionedJsonObject {
@@ -209,6 +210,10 @@ export class D1MlDsaSigningSessions {
       readonly scope: D1TenantScope;
       readonly operations: CloudflareD1VersionedJsonRecordStore<MlDsaSigningRecord>;
       readonly webAuthnStore: CloudflareD1WebAuthnStore;
+      readonly emailOtpVerifier: Pick<
+        CloudflareD1EmailOtpChallengeVerifier,
+        'verifyExistingForBatch'
+      >;
       readonly guard: (
         record: MlDsaSigningRecord,
         allowDraining: boolean,
@@ -274,6 +279,7 @@ export class D1MlDsaSigningSessions {
   }
   async admit(input: {
     readonly authorization: SessionAuthorization;
+    readonly services: MlDsaEmailOtpServices;
     readonly record: MlDsaSigningRecord;
     readonly recordVersion: string;
     readonly origin: SessionOrigin;
@@ -305,7 +311,7 @@ export class D1MlDsaSigningSessions {
       );
     if (Date.now() >= grant.preparation.expiresAtMs)
       return refusal('expired', 'The ML-DSA signing session expired');
-    if (record.phase.kind === 'approved')
+    if (record.phase.kind === 'approved' || record.phase.kind === 'email_otp_approved')
       return refusal('idempotency_conflict', 'The operation already has passkey approval');
     if (record.phase.kind === 'session_approved') {
       if (
@@ -323,34 +329,36 @@ export class D1MlDsaSigningSessions {
       };
     }
     let counter: D1MlDsaWebAuthnVerification | null = null;
+    let consumeInBatch: readonly D1PreparedStatementLike[] = [];
     let assertionDigest: DigestB64u;
     let remainingOperations: number;
     if (grant.phase.kind === 'awaiting_approval') {
       if (
-        authorization.kind !== 'session_start' ||
+        authorization.kind === 'session' ||
         keyForOperation(grant.source) !== keyForOperation(record) ||
         Date.now() >= grant.source.preparation.expiresAtMs
       )
         return refusal('unauthorized', 'The ML-DSA session requires its initial owner approval');
-      const credential = authorization.credential;
-      if (
-        credential.id !== record.preparation.request.credentialIdB64u ||
-        credential.rawId !== credential.id
-      )
-        return refusal('unauthorized', 'The ML-DSA session credential differs');
-      counter = new D1MlDsaWebAuthnVerification(this.options.webAuthnStore);
-      const verified = await verifyWebAuthnAuthenticationLiteWithStore({
-        userId: record.target.identity.walletId,
-        rpId: record.preparation.request.rpId,
-        expectedOrigin: input.origin,
-        expectedChallenge: grant.preparation.challengeB64u,
-        webauthnAuthentication: credential,
-        authenticatorStore: counter,
-        logger: normalizeLogger(),
+      const proof =
+        authorization.kind === 'session_start'
+          ? { kind: 'passkey' as const, credential: authorization.credential }
+          : { kind: 'email_otp' as const, proof: authorization.proof };
+      const approval = await verifyMlDsaSigningApproval({
+        authorization: proof,
+        record,
+        operation: await operationEnvelope(record.target, record.preparation),
+        origin: input.origin,
+        services: input.services,
+        webAuthnStore: this.options.webAuthnStore,
+        challenge: grant.preparation.challengeB64u,
+        verifier: this.options.emailOtpVerifier,
       });
-      if (!verified.success || !verified.verified)
-        return refusal('unauthorized', 'The ML-DSA session approval failed');
-      assertionDigest = await sha256Utf8DigestB64u(alphabetizeStringify(credential));
+      if (approval.kind !== 'approved') return approval;
+      if (approval.persistence.kind !== 'new')
+        return refusal('conflict', 'The signing approval already committed');
+      consumeInBatch = approval.persistence.consumeInBatch;
+      counter = approval.counter;
+      assertionDigest = approval.proofDigest;
       remainingOperations = grant.request.maxOperations - 1;
     } else {
       if (authorization.kind !== 'session' || grant.phase.remainingOperations === 0)
@@ -367,6 +375,7 @@ export class D1MlDsaSigningSessions {
     const approved = approvedRecord(record, authorization.sessionIdB64u);
     const statements = [
       this.options.guard(record, false),
+      ...consumeInBatch,
       ...this.options.operations.prepareMutationStatements([
         { key: keyForOperation(record), value: approved, expectedVersion: input.recordVersion },
       ]),

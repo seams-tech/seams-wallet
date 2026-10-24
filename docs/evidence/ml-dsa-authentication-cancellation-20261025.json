@@ -1,0 +1,128 @@
+{
+  "cases": [
+    {
+      "mode": "confirmation",
+      "cancelledAtMs": 1792851655007,
+      "settledAtMs": 1792851655014,
+      "state": {
+        "reserved": 1,
+        "released": 1,
+        "signed": 0,
+        "responses": 0,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "confirmation"
+        ],
+        "confirming": true
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "retry_control",
+      "cancelledAtMs": 1792851650716,
+      "settledAtMs": 1792851651084,
+      "state": {
+        "reserved": 1,
+        "released": 0,
+        "signed": 1,
+        "responses": 3,
+        "succeeded": 1,
+        "broadcast": 1,
+        "settled": [
+          "retry_control"
+        ],
+        "confirming": false
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "expiry",
+      "cancelledAtMs": 1792851652963,
+      "settledAtMs": 1792851653328,
+      "state": {
+        "reserved": 1,
+        "released": 0,
+        "signed": 0,
+        "responses": 4,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "expiry"
+        ],
+        "confirming": false
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "rpc_timeout",
+      "state": {
+        "reserved": 1,
+        "released": 0,
+        "signed": 0,
+        "responses": 1,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "1792851657012-4"
+        ],
+        "confirming": false
+      },
+      "scope": "Chromium production client timeout sender, host, commands, signing flow and retry loop. A 300ms test RPC timeout replaces the normal 20s setting. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "stock_wait",
+      "cancelledAtMs": 1792851651978,
+      "settledAtMs": 1792851652091,
+      "state": {
+        "reserved": 1,
+        "released": 0,
+        "signed": 0,
+        "responses": 1,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "stock_wait"
+        ],
+        "confirming": false
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "expired_confirmation",
+      "cancelledAtMs": 1792851655789,
+      "settledAtMs": 1792851656254,
+      "state": {
+        "reserved": 1,
+        "released": 1,
+        "signed": 0,
+        "responses": 0,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "expired_confirmation"
+        ],
+        "confirming": true
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    },
+    {
+      "mode": "in_flight",
+      "cancelledAtMs": 1792851654202,
+      "settledAtMs": 1792851654215,
+      "state": {
+        "reserved": 1,
+        "released": 0,
+        "signed": 1,
+        "responses": 1,
+        "succeeded": 0,
+        "broadcast": 0,
+        "settled": [
+          "in_flight"
+        ],
+        "confirming": false
+      },
+      "scope": "Chromium MessageChannel, production host/commands/ML-DSA signing lifecycle and HTTP retries. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification."
+    }
+  ]
+}

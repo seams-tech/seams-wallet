@@ -75,13 +75,17 @@ async function run() {
       const prepared = await prepareMlDsaNearSigning({
         relayerUrl: config.gatewayUrl,
         publicKeyB64u: config.publicKeyB64u,
+        access: { kind: 'public' },
         request: {
           walletId: config.walletId,
           signingKeyId: config.signingKeyId,
           operationIdB64u: operation,
           unsignedTransactionBorshB64u,
-          rpId: 'wallet.example.test',
-          credentialIdB64u: config.credentialIdB64u,
+          actor: {
+            kind: 'passkey',
+            rpId: 'wallet.example.test',
+            credentialIdB64u: config.credentialIdB64u,
+          },
         },
       });
       if (prepared.kind !== 'prepared') throw new Error(JSON.stringify(prepared));

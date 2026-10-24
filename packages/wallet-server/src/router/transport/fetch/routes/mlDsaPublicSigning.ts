@@ -1,3 +1,4 @@
+import { parseMlDsaEmailOtpProof } from '@shared/near/mlDsaEmailOtp';
 import { extractBearerCredential } from '../../../auth/routerApiKeyAuth';
 import type {
   MlDsaSigningExecuteRequest,
@@ -136,10 +137,30 @@ export async function handlePublicMlDsaSigning(
         );
         break;
       case 'prepare':
-        outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(command.request, origin);
+        if (command.request.actor.kind === 'email_otp') {
+          const token = extractBearerCredential(ctx.request.headers);
+          if (!token) return failure(401, 'unauthorized', 'Unlock this wallet to prepare signing');
+          outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(
+            command.request,
+            origin,
+            { kind: 'email_otp', token },
+            ctx.service,
+          );
+        } else {
+          outcome = await ctx.service.walletAuthMethods.prepareMlDsaSigning(
+            command.request,
+            origin,
+            { kind: 'passkey' },
+            ctx.service,
+          );
+        }
         break;
       case 'execute':
-        outcome = await ctx.service.walletAuthMethods.signMlDsaTransaction(command.request, origin);
+        outcome = await ctx.service.walletAuthMethods.signMlDsaTransaction(
+          command.request,
+          origin,
+          ctx.service,
+        );
         break;
       case 'inventory':
         outcome = await ctx.service.walletAuthMethods.readMlDsaSignerInventory(
@@ -213,6 +234,21 @@ function parseSigningAuthorization(raw: unknown): MlDsaSigningExecuteRequest['au
     case 'passkey':
       exactRecord(authorization, ['kind', 'credential'], 'ML-DSA passkey approval');
       return { kind: 'passkey', credential: approvalCredential(authorization.credential) };
+    case 'email_otp':
+      exactRecord(authorization, ['kind', 'proof'], 'ML-DSA Email OTP approval');
+      return { kind: 'email_otp', proof: parseMlDsaEmailOtpProof(authorization.proof) };
+    case 'email_otp_session_start':
+      exactRecord(
+        authorization,
+        ['kind', 'proof', 'sessionIdB64u', 'tokenB64u'],
+        'ML-DSA Email OTP session approval',
+      );
+      return {
+        kind: 'email_otp_session_start',
+        proof: parseMlDsaEmailOtpProof(authorization.proof),
+        sessionIdB64u: parseDigestB64u(authorization.sessionIdB64u),
+        tokenB64u: parseDigestB64u(authorization.tokenB64u),
+      };
     case 'session_start':
       exactRecord(
         authorization,

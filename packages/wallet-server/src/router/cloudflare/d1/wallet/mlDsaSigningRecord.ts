@@ -1,3 +1,5 @@
+import { parseAuthFactorId, type AuthFactorId } from '@shared/authorization';
+import { parseEmailOtpChallengeId, type EmailOtpChallengeId } from '@shared/utils/domainIds';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { parseDigestB64u, type DigestB64u } from '@shared/utils/canonicalPrimitives';
@@ -73,6 +75,15 @@ export type MlDsaSigningRecord = {
   readonly publicationVersion: string;
   readonly origin: SessionOrigin;
   readonly phase: ReadonlyExclusiveUnion<
+    | {
+        readonly kind: 'email_otp_approved';
+        readonly proofDigest: DigestB64u;
+        readonly verifiedAtMs: number;
+        readonly expiresAtMs: number;
+        readonly factorId: AuthFactorId;
+        readonly challengeId: EmailOtpChallengeId;
+        readonly verificationReceiptDigest: DigestB64u;
+      }
     | { readonly kind: 'awaiting_approval' }
     | { readonly kind: 'session_approved'; readonly sessionIdB64u: DigestB64u }
     | {
@@ -84,16 +95,6 @@ export type MlDsaSigningRecord = {
 };
 
 export function encodeMlDsaSigningRecord(record: MlDsaSigningRecord): VersionedJsonObject {
-  const phase: VersionedJsonObject =
-    record.phase.kind === 'session_approved'
-      ? { kind: 'session_approved', sessionIdB64u: record.phase.sessionIdB64u }
-      : record.phase.kind === 'approved'
-        ? {
-            kind: 'approved',
-            verifiedAtMs: record.phase.verifiedAtMs,
-            assertionDigest: record.phase.assertionDigest,
-          }
-        : { kind: 'awaiting_approval' };
   return {
     preparation: {
       request: {
@@ -101,8 +102,17 @@ export function encodeMlDsaSigningRecord(record: MlDsaSigningRecord): VersionedJ
         signingKeyId: record.preparation.request.signingKeyId,
         operationIdB64u: record.preparation.request.operationIdB64u,
         unsignedTransactionBorshB64u: record.preparation.request.unsignedTransactionBorshB64u,
-        rpId: record.preparation.request.rpId,
-        credentialIdB64u: record.preparation.request.credentialIdB64u,
+        actor:
+          record.preparation.request.actor.kind === 'passkey'
+            ? {
+                kind: 'passkey',
+                rpId: record.preparation.request.actor.rpId,
+                credentialIdB64u: record.preparation.request.actor.credentialIdB64u,
+              }
+            : {
+                kind: 'email_otp',
+                walletAuthMethodId: record.preparation.request.actor.walletAuthMethodId,
+              },
       },
       transaction: record.preparation.transaction,
       challengeB64u: record.preparation.challengeB64u,
@@ -112,7 +122,7 @@ export function encodeMlDsaSigningRecord(record: MlDsaSigningRecord): VersionedJ
     ownerJson: JSON.stringify(record.owner),
     publicationVersion: record.publicationVersion,
     origin: record.origin,
-    phase,
+    phase: encodeSigningPhase(record.phase),
   };
 }
 export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null {
@@ -123,7 +133,7 @@ export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null
       'ML-DSA signing journal',
     );
     const p = exactRecord(r.phase, phaseFields(r.phase), 'ML-DSA signing phase');
-    const preparation = parseMlDsaSigningPreparation(r.preparation);
+    const preparation = parseStoredPreparation(r.preparation);
     const target = MlDsaSigningTarget.parse(
       JSON.parse(requireCanonicalString(r.targetJson, 'targetJson')),
     );
@@ -141,6 +151,28 @@ export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null
       return null;
     let phase: MlDsaSigningRecord['phase'];
     switch (p.kind) {
+      case 'email_otp_approved':
+        if (
+          preparation.request.actor.kind !== 'email_otp' ||
+          typeof p.verifiedAtMs !== 'number' ||
+          !Number.isSafeInteger(p.verifiedAtMs) ||
+          p.verifiedAtMs <= 0 ||
+          typeof p.expiresAtMs !== 'number' ||
+          !Number.isSafeInteger(p.expiresAtMs) ||
+          p.expiresAtMs <= p.verifiedAtMs ||
+          p.expiresAtMs > preparation.expiresAtMs
+        )
+          return null;
+        phase = {
+          kind: 'email_otp_approved',
+          proofDigest: parseDigestB64u(p.proofDigest),
+          verifiedAtMs: p.verifiedAtMs,
+          expiresAtMs: p.expiresAtMs,
+          factorId: requireParsed(parseAuthFactorId(p.factorId), 'factorId'),
+          challengeId: requireParsed(parseEmailOtpChallengeId(p.challengeId), 'challengeId'),
+          verificationReceiptDigest: parseDigestB64u(p.verificationReceiptDigest),
+        };
+        break;
       case 'awaiting_approval':
         phase = { kind: 'awaiting_approval' };
         break;
@@ -178,6 +210,16 @@ export function parseMlDsaSigningRecord(raw: unknown): MlDsaSigningRecord | null
 function phaseFields(raw: unknown): readonly string[] {
   const r = requireRecord(raw, 'ML-DSA phase');
   switch (r.kind) {
+    case 'email_otp_approved':
+      return [
+        'kind',
+        'proofDigest',
+        'verifiedAtMs',
+        'expiresAtMs',
+        'factorId',
+        'challengeId',
+        'verificationReceiptDigest',
+      ];
     case 'approved':
       return ['kind', 'verifiedAtMs', 'assertionDigest'];
     case 'session_approved':
@@ -185,4 +227,68 @@ function phaseFields(raw: unknown): readonly string[] {
     default:
       return ['kind'];
   }
+}
+
+function parseStoredPreparation(raw: unknown): MlDsaSigningPreparation {
+  const p = exactRecord(
+    raw,
+    ['request', 'transaction', 'challengeB64u', 'expiresAtMs'],
+    'Stored signing preparation',
+  );
+  const request = requireRecord(p.request, 'Stored signing request');
+  if ('actor' in request) return parseMlDsaSigningPreparation(raw);
+  const previous = exactRecord(
+    request,
+    [
+      'walletId',
+      'signingKeyId',
+      'operationIdB64u',
+      'unsignedTransactionBorshB64u',
+      'rpId',
+      'credentialIdB64u',
+    ],
+    'Stored Passkey request',
+  );
+  return parseMlDsaSigningPreparation({
+    request: {
+      walletId: previous.walletId,
+      signingKeyId: previous.signingKeyId,
+      operationIdB64u: previous.operationIdB64u,
+      unsignedTransactionBorshB64u: previous.unsignedTransactionBorshB64u,
+      actor: { kind: 'passkey', rpId: previous.rpId, credentialIdB64u: previous.credentialIdB64u },
+    },
+    transaction: p.transaction,
+    challengeB64u: p.challengeB64u,
+    expiresAtMs: p.expiresAtMs,
+  });
+}
+
+function encodeSigningPhase(phase: MlDsaSigningRecord['phase']): VersionedJsonObject {
+  switch (phase.kind) {
+    case 'awaiting_approval':
+      return { kind: 'awaiting_approval' };
+    case 'approved':
+      return {
+        kind: 'approved',
+        verifiedAtMs: phase.verifiedAtMs,
+        assertionDigest: phase.assertionDigest,
+      };
+    case 'session_approved':
+      return { kind: 'session_approved', sessionIdB64u: phase.sessionIdB64u };
+    case 'email_otp_approved':
+      return {
+        kind: 'email_otp_approved',
+        proofDigest: phase.proofDigest,
+        verifiedAtMs: phase.verifiedAtMs,
+        expiresAtMs: phase.expiresAtMs,
+        factorId: phase.factorId,
+        challengeId: phase.challengeId,
+        verificationReceiptDigest: phase.verificationReceiptDigest,
+      };
+    default:
+      return assertNever(phase);
+  }
+}
+function assertNever(value: never): never {
+  throw new Error(`Unknown signing phase: ${String(value)}`);
 }

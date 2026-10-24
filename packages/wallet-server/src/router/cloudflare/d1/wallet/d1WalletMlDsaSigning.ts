@@ -1,13 +1,10 @@
+import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
+import { resolveMlDsaEmailOtpOwner, type MlDsaEmailOtpServices } from './mlDsaEmailOtpApproval';
+import { verifyMlDsaSigningApproval, operationEnvelope } from './mlDsaSigningApproval';
 import {
-  buildCapabilityOperationEnvelope,
-  buildNearMlDsa65MpcOperationRef,
   parseTenantId,
-  parsePrincipalId,
-  parseCapabilityId,
-  parseCapabilityOperationId,
   parseAuthorizedOperationId,
   parseAuthorizationAuditEventId,
-  parseAuthFactorId,
   parseAuthorizationEvidenceId,
   parseAuthorizationEvidenceSetId,
 } from '@shared/authorization';
@@ -56,7 +53,6 @@ import type {
   SignerWasmModuleSupplier,
   WebAuthnAuthenticationCredential,
 } from '../../../../core/types';
-import { buildVerifiedWalletOperationPasskeyFactorResult } from '../../../../authorization/factorEvidence';
 import {
   buildAuthorizedOperation,
   parseVerifiedOwnerProofId,
@@ -66,7 +62,6 @@ import type { AuthorizationService } from '../../../../authorization/service';
 import {
   MlDsaSigningTarget,
   MlDsaTransactionIntent,
-  mlDsaOwnerOperationDigests,
   prepareMlDsaOwnerOperation,
   prepareMlDsaSessionOwnerOperation,
 } from '../../../domains/signingOperations/mlDsaOwnerAdmission';
@@ -132,21 +127,6 @@ function requestKey(walletId: WalletId, operationId: DigestB64u): string {
 function inventoryKey(actor: MlDsaInventoryActor, origin: SessionOrigin): string {
   return JSON.stringify([actor.walletId, actor.rpId, actor.credentialIdB64u, origin]);
 }
-function approvedRecord(
-  record: MlDsaSigningRecord,
-  verifiedAtMs: number,
-  assertionDigest: DigestB64u,
-): MlDsaSigningRecord {
-  return {
-    preparation: record.preparation,
-    target: record.target,
-    owner: record.owner,
-    publicationVersion: record.publicationVersion,
-    origin: record.origin,
-    phase: { kind: 'approved', verifiedAtMs, assertionDigest },
-  };
-}
-
 /** Exact transaction approvals and separate key-scoped ML-DSA signing grants. */
 export class D1WalletMlDsaSigning {
   private readonly signingSessions: D1MlDsaSigningSessions;
@@ -164,6 +144,10 @@ export class D1WalletMlDsaSigning {
         'resolveActivePasskeyAuthorityForVerifiedCredential'
       >;
       readonly webAuthnStore: CloudflareD1WebAuthnStore;
+      readonly emailOtpVerifier: Pick<
+        CloudflareD1EmailOtpChallengeVerifier,
+        'verifyExistingForBatch'
+      >;
       readonly authorizations: AuthorizationService;
       readonly mlDsaSignerWasmModuleOrPath?: SignerWasmModuleSupplier;
     },
@@ -180,6 +164,7 @@ export class D1WalletMlDsaSigning {
       scope: options.scope,
       operations: this.records,
       webAuthnStore: options.webAuthnStore,
+      emailOtpVerifier: options.emailOtpVerifier,
       guard: this.guard.bind(this),
     });
     this.inventoryChallenges = new CloudflareD1VersionedJsonRecordStore({
@@ -214,13 +199,9 @@ export class D1WalletMlDsaSigning {
     if (
       !owner ||
       owner.session.walletId !== input.walletId ||
-      owner.authMethod.kind !== 'passkey' ||
       !permitsMlDsaSigning(owner.authority)
     )
-      return refusal(
-        'unauthorized',
-        'Signer metadata requires an unlocked full-owner passkey session',
-      );
+      return refusal('unauthorized', 'Signer metadata requires an unlocked full-owner session');
     if (!this.options.registration)
       return refusal('not_configured', 'ML-DSA is not enabled for this wallet service');
     const entries = await this.options.registration.listForWallet(input.walletId);
@@ -356,9 +337,15 @@ export class D1WalletMlDsaSigning {
   async prepare(
     request: MlDsaSigningRequest,
     origin: SessionOrigin,
+    access: { readonly kind: 'passkey' } | { readonly kind: 'email_otp'; readonly token: string },
+    services: MlDsaEmailOtpServices,
   ): Promise<MlDsaSigningPreparationOutcome> {
     if (!this.options.proxy || !this.options.registration)
       return refusal('not_configured', 'ML-DSA signing is not configured');
+    const resolved = await this.resolveSigningOwner(request, access, services);
+    if (resolved.kind !== 'owner') return resolved;
+    if (!permitsMlDsaSigning(resolved.walletAuthority))
+      return refusal('unauthorized', 'ML-DSA signing requires an active wallet owner');
     const existing = await this.records.read(requestKey(request.walletId, request.operationIdB64u));
     if (existing.kind === 'present') {
       if (
@@ -378,14 +365,6 @@ export class D1WalletMlDsaSigning {
       request.signingKeyId,
     );
     if (!published) return refusal('not_found', 'The ML-DSA key is not published');
-    const resolved =
-      await this.options.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential({
-        walletId: request.walletId,
-        rpId: request.rpId,
-        credentialIdB64u: request.credentialIdB64u,
-      });
-    if (!resolved.ok || !permitsMlDsaSigning(resolved.walletAuthority))
-      return refusal('unauthorized', 'ML-DSA signing requires an active wallet owner');
     await this.initializeCodec();
     let transaction;
     try {
@@ -444,6 +423,60 @@ export class D1WalletMlDsaSigning {
       return refusal('conflict', 'Signing preparation changed; retry the same operation');
     return { kind: 'prepared', preparation: record.preparation };
   }
+  private async resolveSigningOwner(
+    request: MlDsaSigningRequest,
+    access: { readonly kind: 'passkey' } | { readonly kind: 'email_otp'; readonly token: string },
+    services: MlDsaEmailOtpServices,
+  ) {
+    if (request.actor.kind === 'passkey') {
+      if (access.kind !== 'passkey') return refusal('unauthorized', 'The signing method differs');
+      const owner =
+        await this.options.walletAuthMethods.resolveActivePasskeyAuthorityForVerifiedCredential({
+          walletId: request.walletId,
+          rpId: request.actor.rpId,
+          credentialIdB64u: request.actor.credentialIdB64u,
+        });
+      if (!owner.ok) return refusal('unauthorized', 'The signing owner is unavailable');
+      return {
+        kind: 'owner',
+        walletAuthority: owner.walletAuthority,
+        authority: owner.authority,
+      } as const;
+    }
+    if (access.kind !== 'email_otp')
+      return refusal('unauthorized', 'Unlock the Email OTP owner first');
+    const session =
+      await this.options.authorizations.readWalletSessionExactOperationContextByCredential({
+        tenantId: requireParsed(parseTenantId(this.options.scope.orgId), 'tenantId'),
+        token: access.token,
+        nowMs: Date.now(),
+      });
+    if (
+      !session ||
+      session.session.walletId !== request.walletId ||
+      session.authMethod.kind !== 'email_otp' ||
+      session.authMethod.walletAuthMethodId !== request.actor.walletAuthMethodId
+    )
+      return refusal('unauthorized', 'The signing session belongs to a different owner');
+    const owner = await resolveMlDsaEmailOtpOwner({
+      services,
+      walletId: request.walletId,
+      tenantId: requireParsed(parseTenantId(this.options.scope.orgId), 'tenantId'),
+      walletAuthMethodId: request.actor.walletAuthMethodId,
+    });
+    if (owner.kind !== 'owner') return owner;
+    if (
+      owner.owner.authority.authorityId !== session.authority.authorityId ||
+      owner.owner.authority.authorityDigestB64u !== session.authority.authorityDigestB64u ||
+      owner.owner.authority.revocationEpoch !== session.authority.revocationEpoch
+    )
+      return refusal('unauthorized', 'The signing owner changed');
+    return {
+      kind: 'owner',
+      walletAuthority: owner.owner.authority,
+      authority: owner.owner.walletAuthAuthority,
+    } as const;
+  }
   async prepareSigningSession(request: MlDsaSigningSessionRequest, origin: SessionOrigin) {
     const read = await this.records.read(requestKey(request.walletId, request.operationIdB64u));
     if (read.kind !== 'present')
@@ -458,6 +491,7 @@ export class D1WalletMlDsaSigning {
   async sign(
     request: MlDsaSigningExecuteRequest,
     origin: SessionOrigin,
+    services: MlDsaEmailOtpServices,
   ): Promise<MlDsaSigningOutcome> {
     if (!this.options.proxy) return refusal('not_configured', 'ML-DSA signing is not configured');
     const key = requestKey(request.walletId, request.operationIdB64u);
@@ -468,54 +502,23 @@ export class D1WalletMlDsaSigning {
       return refusal('unauthorized', 'The signing approval or published key is no longer valid');
     if (Date.now() >= record.preparation.expiresAtMs)
       return refusal('expired', 'The signing approval expired');
-    if (request.authorization.kind !== 'passkey') {
-      return this.signUsingSession(request.authorization, record, read.version, origin);
+    if (request.authorization.kind !== 'passkey' && request.authorization.kind !== 'email_otp') {
+      return this.signUsingSession(request.authorization, record, read.version, origin, services);
     }
-    if (record.phase.kind === 'session_approved')
-      return refusal('idempotency_conflict', 'The operation already belongs to a signing session');
-    const credential = request.authorization.credential;
-    if (
-      credential.id !== record.preparation.request.credentialIdB64u ||
-      credential.rawId !== credential.id
-    )
-      return refusal('unauthorized', 'The signing credential differs');
-    const assertionDigest = await sha256Utf8DigestB64u(alphabetizeStringify(credential));
-    let counter: D1MlDsaWebAuthnVerification | null = null;
-    if (record.phase.kind === 'approved') {
-      if (record.phase.assertionDigest !== assertionDigest)
-        return refusal('idempotency_conflict', 'The approved assertion changed');
-    } else {
-      counter = new D1MlDsaWebAuthnVerification(this.options.webAuthnStore);
-      const verified = await verifyWebAuthnAuthenticationLiteWithStore({
-        userId: request.walletId,
-        rpId: record.preparation.request.rpId,
-        expectedOrigin: origin,
-        expectedChallenge: record.preparation.challengeB64u,
-        webauthnAuthentication: credential,
-        authenticatorStore: counter,
-        logger: normalizeLogger(),
-      });
-      if (!verified.success || !verified.verified)
-        return refusal('unauthorized', 'ML-DSA signing approval failed');
-      record = approvedRecord(record, Date.now(), assertionDigest);
-    }
-    if (record.phase.kind !== 'approved') throw new Error('ML-DSA operation approval is absent');
     const operation = await operationEnvelope(record.target, record.preparation);
-    const factor = buildVerifiedWalletOperationPasskeyFactorResult({
-      tenantId: record.target.tenantId,
-      principalId: operation.principalId,
-      walletId: request.walletId,
-      authorityRef: record.target.authority,
-      requestOrigin: origin,
-      audience: origin,
-      factorId: requireParsed(parseAuthFactorId(`ml-dsa:${assertionDigest}`), 'factorId'),
+    const approval = await verifyMlDsaSigningApproval({
+      authorization: request.authorization,
+      record,
       operation,
-      credentialIdB64u: record.preparation.request.credentialIdB64u,
-      assertionDigest,
-      verifiedAtMs: record.phase.verifiedAtMs,
-      expiresAtMs: record.preparation.expiresAtMs,
+      origin,
+      services,
+      webAuthnStore: this.options.webAuthnStore,
+      challenge: record.preparation.challengeB64u,
+      verifier: this.options.emailOtpVerifier,
     });
-    const evidenceId = `ml-dsa:${assertionDigest}:${record.phase.verifiedAtMs}`;
+    if (approval.kind !== 'approved') return approval;
+    record = approval.record;
+    const { factor, evidenceId } = approval;
     const evidence =
       await this.options.authorizations.recordVerifiedWalletOperationFactorEvidenceSet({
         operation,
@@ -542,14 +545,15 @@ export class D1WalletMlDsaSigning {
       operation,
       authorization: { kind: 'verified_step_up', evidenceSetDigest: evidence.evidenceSetDigest },
       quota: { kind: 'quota_neutral' },
-      claimedAtMs: record.phase.verifiedAtMs,
+      claimedAtMs: factor.verifiedAtMs,
     });
-    if (counter) {
+    if (approval.persistence.kind === 'new') {
       const saved = await this.records.putManyWithAdditionalStatements(
         [{ key, value: record, expectedVersion: read.version }],
         [
           this.guard(record, false),
-          ...counter.statements(this.options.database, this.options.scope),
+          ...(approval.counter?.statements(this.options.database, this.options.scope) ?? []),
+          ...approval.persistence.consumeInBatch,
           prepareAuthorizedOperationInsert({
             database: this.options.database,
             namespace: this.options.scope.namespace,
@@ -622,11 +626,12 @@ export class D1WalletMlDsaSigning {
   private async signUsingSession(
     authorization: Exclude<
       MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
-      { kind: 'passkey' }
+      { kind: 'passkey' | 'email_otp' }
     >,
     record: MlDsaSigningRecord,
     recordVersion: string,
     origin: SessionOrigin,
+    services: MlDsaEmailOtpServices,
   ): Promise<MlDsaSigningOutcome> {
     if (!this.options.proxy) return refusal('not_configured', 'ML-DSA signing is not configured');
     const approved = await this.signingSessions.admit({
@@ -634,6 +639,7 @@ export class D1WalletMlDsaSigning {
       record,
       recordVersion,
       origin,
+      services,
     });
     if (approved.kind !== 'approved') return approved;
     const cached = await this.signingSessions.result(approved.admission);
@@ -769,28 +775,6 @@ export class D1WalletMlDsaSigning {
   }
 }
 
-async function operationEnvelope(
-  target: MlDsaSigningTarget,
-  preparation: Pick<MlDsaSigningRecord['preparation'], 'request' | 'transaction'>,
-) {
-  return buildCapabilityOperationEnvelope({
-    tenantId: requireParsed(parseTenantId(target.tenantId), 'tenantId'),
-    principalId: requireParsed(parsePrincipalId(target.identity.walletId), 'principalId'),
-    capabilityId: requireParsed(parseCapabilityId(target.capabilityId), 'capabilityId'),
-    operationId: requireParsed(
-      parseCapabilityOperationId(`ml-dsa:${preparation.request.operationIdB64u}`),
-      'operationId',
-    ),
-    operation: buildNearMlDsa65MpcOperationRef('near.sign_transaction'),
-    digests: await mlDsaOwnerOperationDigests(
-      target,
-      MlDsaTransactionIntent.parse({
-        transactionHash: preparation.transaction.transactionHashB64u,
-      }),
-      await sha256Utf8DigestB64u(preparation.transaction.displayJson),
-    ),
-  });
-}
 function parseSigningOutcome(raw: unknown): MlDsaSigningOutcome {
   const r = requireRecord(raw, 'stored ML-DSA signing outcome');
   if (r.kind === 'signed')

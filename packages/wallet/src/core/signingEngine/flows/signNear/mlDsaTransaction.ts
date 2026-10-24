@@ -1,3 +1,10 @@
+import {
+  resolveMlDsaSigningOwner,
+  prepareMlDsaEmailPrompt,
+  mlDsaConfirmationProof,
+} from './mlDsaSigningAuth';
+import { mlDsaConfirmationRequest } from './mlDsaConfirmation';
+import type { EmailOtpWalletSessionCoordinator } from '../../session/emailOtp/EmailOtpWalletSessionCoordinator';
 import { assertSigningNotCancelled } from '../shared/cancellation';
 import { SignedTransaction, type NearClient } from '@/core/rpcClients/near/NearClient';
 import type {
@@ -11,18 +18,11 @@ import { emitNearSigningEvent } from './shared/confirmationProgress';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { NearAccountRef, WalletSessionRef } from '../../interfaces/ecdsaChainTarget';
 import type { UiConfirmRequestConfirmationPort } from '../../uiConfirm/uiConfirm.types';
-import { UserConfirmationType } from '../../stepUpConfirmation/channel/confirmTypes';
-import { buildNearDisplayModel } from '../../chains/near/display';
-import { resolveMlDsaPasskeyOwner } from '../../walletCustody/mlDsaOwner';
 import {
   prepareMlDsaTransactionApproval,
   authorizeMlDsaTransaction,
   forgetMlDsaTransactionApproval,
-  type MlDsaTransactionApproval,
 } from '../../walletCustody/mlDsaSigningSessions';
-import type { MlDsaSigningPreparation } from '@shared/near/mlDsaSigning';
-import type { TransactionInputWasm } from '@/core/types/actions';
-import type { UserConfirmRequest } from '../../stepUpConfirmation/channel/confirmTypes';
 import { buildNearNonceLane, type NonceCoordinator } from '../../nonce/NonceCoordinator';
 import { nonceLeaseToRef } from '../../nonce/nonceLaneKeys';
 import { SigningSessionIds, SigningOperationIntent } from '../../session/operationState/types';
@@ -35,8 +35,6 @@ import { executeMlDsaSigningUntilSettled } from './mlDsaSigningExecution';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { requireRecord, requireCanonicalString } from '@shared/utils/validation';
-import { redactCredentialExtensionOutputs } from '../../webauthnAuth/credentials/credentialExtensions';
-import { normalizeAuthenticationCredential } from '../../webauthnAuth/credentials/helpers';
 import { base64UrlDecode } from '@shared/utils/base64';
 import {
   ml_dsa65_build_near_transaction,
@@ -57,6 +55,10 @@ type Dependencies = {
   readonly nearClient: NearClient;
   readonly nonceCoordinator: NonceCoordinator;
   readonly confirm: UiConfirmRequestConfirmationPort;
+  readonly emailOtpSessions: Pick<
+    EmailOtpWalletSessionCoordinator,
+    'requestTransactionSigningChallenge'
+  >;
 };
 
 type SigningDispatch = { kind: 'approved' | 'dispatched' };
@@ -72,9 +74,7 @@ export async function signMlDsaNearTransaction(
   assertSigningNotCancelled(input.shouldAbort);
   if (input.options.signerSlot !== undefined)
     throw new Error('An ML-DSA signer reference already selects the exact key');
-  const owner = await resolveMlDsaPasskeyOwner(input.walletSession.walletId);
-  if (owner.kind === 'refused')
-    throw new Error('ML-DSA signing requires an unlocked full-owner passkey');
+  const owner = await resolveMlDsaSigningOwner(input.walletSession.walletId);
   emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
     phase: SigningEventPhase.STEP_01_STARTED,
     status: 'running',
@@ -143,13 +143,13 @@ export async function signMlDsaNearTransaction(
     const prepared = await prepareMlDsaNearSigning({
       relayerUrl,
       publicKeyB64u: input.signer.publicKeyB64u,
+      access: owner.access,
       request: {
         walletId: input.walletSession.walletId,
         signingKeyId: input.signer.signingKeyId,
         operationIdB64u,
         unsignedTransactionBorshB64u,
-        rpId: owner.authMethod.rpId,
-        credentialIdB64u: owner.authMethod.credentialIdB64u,
+        actor: owner.actor,
       },
     });
     if (prepared.kind !== 'prepared') throw new Error(prepared.message);
@@ -158,7 +158,7 @@ export async function signMlDsaNearTransaction(
     const approval = await prepareMlDsaTransactionApproval({
       relayerUrl,
       preparation,
-      ownerDigestB64u: owner.authority.authorityDigestB64u,
+      ownerDigestB64u: owner.ownerDigestB64u,
       materialEpoch: input.signer.materialEpoch,
       policy: input.options.mlDsaSigningSession ?? null,
     });
@@ -168,21 +168,30 @@ export async function signMlDsaNearTransaction(
       status: 'running',
       interaction: { kind: 'none', overlay: 'none' },
     });
+    const authPrompt =
+      owner.kind === 'email_otp' && approval.kind !== 'session'
+        ? {
+            kind: 'email_otp' as const,
+            prompt: await prepareMlDsaEmailPrompt(
+              deps.emailOtpSessions,
+              input.walletSession,
+              owner,
+              approval.challengeB64u,
+            ),
+          }
+        : { kind: 'none' as const };
+    assertSigningNotCancelled(input.shouldAbort);
     const decision = await deps.confirm.requestUserConfirmation(
-      mlDsaConfirmationRequest(input, preparation, approval, transactionInput),
+      mlDsaConfirmationRequest(input, preparation, approval, transactionInput, authPrompt),
     );
     if (!decision.confirmed)
       throw new Error(decision.error || 'ML-DSA transaction approval was cancelled');
     assertSigningNotCancelled(input.shouldAbort);
-    const credential = decision.credential
-      ? redactCredentialExtensionOutputs(normalizeAuthenticationCredential(decision.credential))
-      : null;
-    if (credential !== null && credential.id !== owner.authMethod.credentialIdB64u)
-      throw new Error('ML-DSA approval used a different owner');
-    const authorization = authorizeMlDsaTransaction({ approval, credential });
+    const proof = mlDsaConfirmationProof(approval, decision);
+    const authorization = authorizeMlDsaTransaction({ approval, proof });
     const request = { relayerUrl, preparation, authorization };
     const signingDeadline =
-      approval.kind === 'passkey'
+      approval.kind === 'fresh'
         ? preparation.expiresAtMs
         : Math.min(preparation.expiresAtMs, approval.session.expiresAtMs);
     emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
@@ -242,70 +251,4 @@ export async function signMlDsaNearTransaction(
       });
     throw error;
   }
-}
-
-function mlDsaConfirmationRequest(
-  input: MlDsaNearTransactionInput,
-  preparation: MlDsaSigningPreparation,
-  approval: MlDsaTransactionApproval,
-  transactionInput: TransactionInputWasm,
-): UserConfirmRequest {
-  const signingSubject = {
-    kind: 'near_ml_dsa_wallet' as const,
-    walletId: String(input.walletSession.walletId),
-    nearAccountId: String(input.nearAccount.accountId),
-    credentialIdB64u: preparation.request.credentialIdB64u,
-  };
-  const displayModel = buildNearDisplayModel({
-    txSigningRequests: [transactionInput],
-    signerLabel: 'ML-DSA-65',
-    signerAccount: String(input.nearAccount.accountId),
-    intentDigest: approval.challengeB64u,
-  });
-  if (approval.kind === 'session') {
-    return {
-      type: UserConfirmationType.SIGN_INTENT_DIGEST,
-      requestId: `ml-dsa:${preparation.request.operationIdB64u}`,
-      intentDigest: approval.challengeB64u,
-      confirmationConfig: input.options.confirmationConfig,
-      summary: {
-        title: input.options.confirmerText?.title ?? 'Sign NEAR transaction',
-        body:
-          input.options.confirmerText?.body ??
-          'Approve this transaction with your ML-DSA signing session.',
-      },
-      payload: {
-        signingSubject,
-        challengeB64u: approval.challengeB64u,
-        displayModel,
-        signingAuthPlan: {
-          kind: 'ml_dsa_session',
-          method: 'passkey',
-          sessionIdB64u: approval.session.sessionIdB64u,
-          expiresAtMs: approval.session.expiresAtMs,
-          remainingOperations: approval.session.remainingOperations,
-        },
-      },
-    };
-  }
-  return {
-    type: UserConfirmationType.SIGN_INTENT_DIGEST,
-    requestId: `ml-dsa:${preparation.request.operationIdB64u}`,
-    intentDigest: approval.challengeB64u,
-    confirmationConfig: input.options.confirmationConfig,
-    summary: {
-      title: input.options.confirmerText?.title ?? 'Sign NEAR transaction',
-      body:
-        approval.kind === 'session_start'
-          ? `This transaction uses one of ${approval.session.remainingOperations} permitted ML-DSA signing operations. The session expires at ${new Date(approval.session.expiresAtMs).toLocaleString()}. Failed operations consume one use.`
-          : (input.options.confirmerText?.body ?? 'Approve this ML-DSA transaction.'),
-    },
-    payload: {
-      signingSubject,
-      challengeB64u: approval.challengeB64u,
-      webauthnChallenge: { kind: 'intent_digest', challengeB64u: approval.challengeB64u },
-      signingAuthPlan: { kind: 'passkeyReauth', method: 'passkey' },
-      displayModel,
-    },
-  };
 }

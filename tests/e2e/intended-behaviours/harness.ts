@@ -5410,6 +5410,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('ml-dsa.lifecycle.contract.test.ts') ||
+    normalized.endsWith('ml-dsa.authentication.contract.test.ts') ||
     normalized.endsWith('signing-keys.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts')
   ) {
@@ -8373,7 +8374,10 @@ async function clickWalletIframeConfirm(
 
     let intendedAction: string | null = null;
     try {
-      intendedAction = await page.getByTestId('intended-action-status').getAttribute('data-action');
+      const actionStatus = page.getByTestId('intended-action-status');
+      if ((await actionStatus.getAttribute('data-state')) === 'running') {
+        intendedAction = await actionStatus.getAttribute('data-action');
+      }
     } catch {
       intendedAction = null;
     }

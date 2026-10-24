@@ -833,6 +833,7 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
   globalThis.fetch = transport.fetch.bind(transport);
   try {
     const prepared = await input.api.prepareMlDsaNearSigning({
+      access: { kind: 'public' },
       relayerUrl: 'https://gateway.example.test',
       publicKeyB64u: restored.publicKeyB64u,
       request: {
@@ -840,8 +841,11 @@ async function verifyRestoredSigning(input, restored, unsignedTransactionBorshB6
         signingKeyId: restored.signingKeyId,
         operationIdB64u: randomBytes(32).toString('base64url'),
         unsignedTransactionBorshB64u,
-        rpId: 'wallet.example.test',
-        credentialIdB64u: input.key.credentialId,
+        actor: {
+          kind: 'passkey',
+          rpId: 'wallet.example.test',
+          credentialIdB64u: input.key.credentialId,
+        },
       },
     });
     assert.equal(prepared.kind, 'prepared', JSON.stringify(prepared));

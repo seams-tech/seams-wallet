@@ -1,7 +1,7 @@
 import type { PasskeyMpcExportPort } from '../../uiConfirm/uiConfirm.types';
 import type { SigningEngineExportKeypairWithUIInput } from './keyExportFlow';
 import type { Variant } from '@shared/utils/variant';
-import { resolveMlDsaPasskeyOwner } from '../../walletCustody/mlDsaOwner';
+import { resolveFullWalletOwner } from '../../walletCustody/walletSigningOwner';
 import { readPasskeyCustodySessionEnvelope } from '../../session/passkey/passkeyCustodySessionCache';
 import { createExportUiRequestId, emitNearKeyExportViewerLifecycle } from './keyExportFlow';
 
@@ -16,8 +16,8 @@ export async function exportMlDsaKeyWithFreshAuthorization(
     readonly flowId: string;
   },
 ): Promise<{ accountId: string; exportedSchemes: Array<'ml_dsa_65'> }> {
-  const owner = await resolveMlDsaPasskeyOwner(input.walletSession.walletId);
-  if (owner.kind === 'refused')
+  const owner = await resolveFullWalletOwner(input.walletSession.walletId);
+  if (owner.kind === 'refused' || owner.authMethod.kind !== 'passkey')
     throw new Error('ML-DSA export requires an unlocked full-owner passkey');
   const envelope = await readPasskeyCustodySessionEnvelope({
     walletId: String(input.walletSession.walletId),

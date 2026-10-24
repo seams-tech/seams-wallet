@@ -194,13 +194,13 @@ export class IntendedMlDsaLifecycle {
         const prepared = await prepareMlDsaNearSigning({
           relayerUrl: relayerUrl(),
           publicKeyB64u: command.signer.publicKeyB64u,
+          access: { kind: 'public' },
           request: {
             walletId: context.walletId,
             signingKeyId: command.signer.signingKeyId,
             operationIdB64u: randomChallenge(),
             unsignedTransactionBorshB64u: command.unsignedTransactionBorshB64u,
-            rpId: rpId.value,
-            credentialIdB64u,
+            actor: { kind: 'passkey', rpId: rpId.value, credentialIdB64u },
           },
         });
         if (prepared.kind !== 'prepared') return prepared;
