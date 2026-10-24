@@ -1,10 +1,12 @@
 {
   "status": "passed",
   "initialRequestedId": "voiceid-live-20261024",
-  "sdkAllocatedWalletId": "wild-horizon-6n888u",
+  "sdkAllocatedWalletId": "silver-dune-9hrdtc",
   "defaultAllocationUsed": true,
   "pageUrlRetainsAllocatedId": true,
   "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "rejectedActivationVisibleAndRetrySucceeded": true,
   "nativeHost": "fake_device_key_and_factor",
   "microphoneAndKeychainUsed": false,
   "authentication": "voiceid",
@@ -12,16 +14,16 @@
   "signing": "real_ed25519_yao_mpc",
   "chain": "deterministic_near_rpc",
   "identity": {
-    "walletId": "wild-horizon-6n888u",
-    "accountId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
-    "publicKey": "ed25519:815i8BrxNQHqURf8DBEzv2xQP4Du9mwMe86Waw3vWfB7"
+    "walletId": "silver-dune-9hrdtc",
+    "accountId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
+    "publicKey": "ed25519:SgZdjFZoQ5iCtXC74YfWEX9EJCaawqv67RBSp43vEk5"
   },
   "transfers": [
     {
-      "signedTransactionB64": "QAAAADY4MDcyMjBjOWZmMmNiNThlMzk4ZWI3NGU3NDgzNWFiZGRmMWY4YTk4Y2JmZDkzYTMwZTIwMTQ1YTA5MTdhYmEAaAciDJ/yy1jjmOt050g1q93x+KmMv9k6MOIBRaCReroCAAAAAAAAAEAAAAA2ODA3MjIwYzlmZjJjYjU4ZTM5OGViNzRlNzQ4MzVhYmRkZjFmOGE5OGNiZmQ5M2EzMGUyMDE0NWEwOTE3YWJhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA88x5lvgyhOCS6/yGM6Co94CBEWIdUhxjxcqIVbxySIlSza+PwwGj/B4N4NtFtkiw4yWvcg2pNjlNelTGsgRzAw==",
-      "signedTransactionSha256": "89aca117b2f37b90983749f98fe22bf9433f80a47bcfb5576f3052051ae7b583",
-      "signerId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
-      "receiverId": "6807220c9ff2cb58e398eb74e74835abddf1f8a98cbfd93a30e20145a0917aba",
+      "signedTransactionB64": "QAAAADA2OTQ0MGZjNDA4NThiMDY0ODk3Zjg2NmUwODczNGRjNmU5YTBhZGM4MmY0NDVkZjQ4MWRhZDI0YzlmNWQwMWUABpRA/ECFiwZIl/hm4Ic03G6aCtyC9EXfSB2tJMn10B4CAAAAAAAAAEAAAAAwNjk0NDBmYzQwODU4YjA2NDg5N2Y4NjZlMDg3MzRkYzZlOWEwYWRjODJmNDQ1ZGY0ODFkYWQyNGM5ZjVkMDFlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAyqYoaqtSy/dKN4ahdrrEuzkhIwybdQIYbb6PyMS9vjn/ZasmqKX7BYpxWy+STrALrSaSNI87DGxfjEQhO+BSAw==",
+      "signedTransactionSha256": "a703d8d988fd85ac2ed5dbb359c4a57264d50ae740bec2c0dd416fd56a9567f5",
+      "signerId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
+      "receiverId": "069440fc40858b064897f866e08734dc6e9a0adc82f445df481dad24c9f5d01e",
       "amountYocto": "1",
       "nonce": "2"
     }

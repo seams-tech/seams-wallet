@@ -205,14 +205,20 @@ pnpm -C tests exec node scripts/run-wallet-intended-isolated.mjs -- e2e/intended
 The manual page at `/voiceid?authMethod=voiceid` creates a wallet through the
 SDK's default ID allocation. It retains the returned ID in the page URL.
 A `walletId` query selects an existing wallet. Passkey unlock requires that
-wallet's NEAR signer. The separate Save recovery codes action opens the Wallet
-backup dialog after registration. Cancelling backup preserves the created
+wallet's NEAR signer. Before VoiceID activation, a locked page instructs the
+user to unlock with the passkey and activate VoiceID. Voice unlock stays disabled
+until an active method exists. Activation failures appear directly below the
+activation controls. A generic native rejection identifies no specific speaker
+or transcription failure. The separate Save recovery codes action opens the
+Wallet backup dialog after registration. Cancelling backup preserves the created
 wallet and permits another backup attempt. Transfer review uses the displayed
 wallet's signer.
 
 The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
 starts with an unallocated ID, creates the wallet, saves recovery codes through
-clickable controls, activates VoiceID, locks, unlocks, and signs a transfer.
+clickable controls, locks before activation, and recovers through passkey unlock.
+It verifies a visible rejected activation, retries activation, locks, unlocks,
+and signs a transfer.
 Its [recorded run](evidence/voiceid-live-page-20261024.json) contains the public
 allocation and signature evidence. It uses a simulated device and deterministic
 NEAR RPC with real local MPC signing. It does not use the microphone or Keychain.

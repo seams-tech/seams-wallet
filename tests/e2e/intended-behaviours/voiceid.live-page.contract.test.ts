@@ -5,6 +5,7 @@ import { expect, type BrowserContext, type Page, type TestInfo } from '@playwrig
 import { base58Encode } from '@shared/utils/base58';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { startReviewedTransfer, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
+import type {} from '../../fixtures/ui/VoiceIdDeviceCaptureProbe';
 
 test('manual VoiceID page allocates its wallet and signs after voice unlock', verifyLivePage);
 test.use({ video: 'off', trace: 'off', screenshot: 'off' });
@@ -66,6 +67,24 @@ async function verifyLivePage(
     accountId,
     publicKey: `ed25519:${base58Encode(Buffer.from(accountId, 'hex'))}`,
   };
+  await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
+  await expect(page.getByTestId('live-voiceid-method')).toHaveText(
+    'Unlock with passkey, then activate VoiceID',
+  );
+  await expect(page.getByRole('button', { name: 'Unlock with VoiceID', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Lock wallet', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey', { timeout: 60_000 });
+  await wallet.locator('body').evaluate(rejectActivation);
+  await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await expect(status).toHaveAttribute('data-state', 'failed');
+  await expect(status).toContainText('VoiceID could not verify the spoken approval.');
+  await expect(status).toBeInViewport();
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
+  await expect(page.getByRole('button', { name: 'Unlock with VoiceID', exact: true })).toBeDisabled();
+  await wallet.locator('body').evaluate(approveActivation);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
@@ -104,6 +123,8 @@ async function verifyLivePage(
         defaultAllocationUsed: true,
         pageUrlRetainsAllocatedId: true,
         setupRequiredBeforeUnlock: true,
+        ownerLockBeforeActivationRecovered: true,
+        rejectedActivationVisibleAndRetrySucceeded: true,
         nativeHost: 'fake_device_key_and_factor',
         microphoneAndKeychainUsed: false,
         authentication: 'voiceid',
@@ -121,4 +142,12 @@ async function verifyLivePage(
     path: report,
     contentType: 'application/json',
   });
+}
+
+function rejectActivation(): void {
+  window.voiceIdDeviceCaptureProbe.setMode('rejected');
+}
+
+function approveActivation(): void {
+  window.voiceIdDeviceCaptureProbe.setMode('approved');
 }

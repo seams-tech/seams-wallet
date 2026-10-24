@@ -204,7 +204,7 @@ class DeviceExchange {
       if (reply.kind === 'device_rejected') {
         this.fail(new Error(reply.outcome === 'cancelled'
           ? 'VoiceID capture was cancelled.'
-          : 'VoiceID did not recognize this speaker.'));
+          : 'VoiceID could not verify the spoken approval. Say “I approve this operation” clearly, then stay quiet.'));
         return true;
       }
       if (this.state.kind !== 'listening' || Date.now() >= requestDeadline(this.request)) {

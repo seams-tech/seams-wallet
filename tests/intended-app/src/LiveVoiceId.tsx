@@ -41,6 +41,7 @@ export function LiveVoiceId(): React.ReactNode {
   const authentication = session?.authentication ?? { kind: 'signed_out' };
   const ownerUnlocked =
     authentication.kind === 'authenticated' && authentication.authMethod !== 'voiceid';
+  const voiceStatus = voiceStatusMessage(voice !== null, ownerUnlocked);
   const busy = operation.kind === 'running';
   const hasNearSigner = target.kind === 'selected' && identity?.nearAccountId != null;
   const perform = runCommand.bind(null, seams, setTarget, setRead, setOperation);
@@ -74,7 +75,7 @@ export function LiveVoiceId(): React.ReactNode {
           {authentication.kind === 'authenticated' ? authentication.authMethod : 'locked'}
         </dd>
         <dt>VoiceID</dt>
-        <dd>{voice ? 'Activated on this device' : 'Needs activation after owner unlock'}</dd>
+        <dd data-testid="live-voiceid-method">{voiceStatus}</dd>
         <dt>NEAR account</dt>
         <dd data-testid="live-voiceid-account" style={{ overflowWrap: 'anywhere' }}>
           {identity?.nearAccountId ?? 'Create the test wallet first'}
@@ -119,11 +120,20 @@ export function LiveVoiceId(): React.ReactNode {
         >
           Activate VoiceID
         </button>
+        <output
+          role={operation.kind === 'failed' ? 'alert' : 'status'}
+          aria-live={operation.kind === 'failed' ? 'assertive' : 'polite'}
+          data-testid="live-voiceid-operation"
+          data-state={operation.kind}
+          style={{ display: 'block', marginTop: '1rem' }}
+        >
+          {operation.kind === 'idle' ? 'Ready. Start with wallet setup.' : operation.message}
+        </output>
       </section>
       <section aria-label="Voice unlock">
         <h2>2. Lock, then unlock with your voice</h2>
         <button
-          disabled={busy || !hasNearSigner}
+          disabled={busy || !hasNearSigner || authentication.kind !== 'authenticated'}
           onClick={
             target.kind === 'selected'
               ? perform.bind(null, { kind: 'lock', walletId: target.walletId })
@@ -165,16 +175,14 @@ export function LiveVoiceId(): React.ReactNode {
         </p>
         <ReviewedNearTransfer walletId={target.kind === 'selected' ? target.walletId : null} />
       </section>
-      <output
-        role="status"
-        aria-live="polite"
-        data-testid="live-voiceid-operation"
-        data-state={operation.kind}
-      >
-        {operation.kind === 'idle' ? 'Ready. Start with wallet setup.' : operation.message}
-      </output>
     </main>
   );
+}
+
+function voiceStatusMessage(activated: boolean, ownerUnlocked: boolean): string {
+  if (activated) return 'Activated on this device';
+  if (ownerUnlocked) return 'Select Activate VoiceID to finish setup';
+  return 'Unlock with passkey, then activate VoiceID';
 }
 
 function isVoiceMethod(method: AuthMethod): method is Extract<AuthMethod, { kind: 'voiceid' }> {
@@ -363,7 +371,7 @@ function successMessage(command: Command): string {
     case 'voice_unlock':
       return 'VoiceID unlocked the wallet. You can review a NEAR transfer.';
     case 'lock':
-      return 'Wallet locked. Select Unlock with VoiceID.';
+      return 'Wallet locked.';
     case 'refresh':
       return 'Wallet status updated.';
   }
