@@ -13,7 +13,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { intendedTest as test, type IntendedSigningStage } from './harness';
-import { parseSigningServerTiming } from '../../../packages/shared-ts/src/utils/signingServerTiming';
+import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '../../../packages/wallet/src/core/config/presignatures';
 import { parseYaoServerTimingBuckets } from '../../../packages/wallet/src/SeamsWeb/operations/registration/registrationTiming';
@@ -516,7 +516,7 @@ function isCompletePresignCeremony(ceremony: { complete: boolean }): boolean {
 }
 
 async function assertPresignResponseTiming(response: Response): Promise<void> {
-  const timing = parseSigningServerTiming(await response.headerValue('Server-Timing'));
+  const timing = parseEcdsaServerTiming(await response.headerValue('Server-Timing'));
   for (const name of [
     'ecdsa_presign_authenticate',
     'ecdsa_presign_material',
@@ -572,7 +572,7 @@ async function assertChangedPresignOperationRejected(
   }
   const response = await api.fetch(original, { data: body });
   expect(response.status()).toBe(403);
-  const timing = parseSigningServerTiming(response.headers()['server-timing'] ?? null);
+  const timing = parseEcdsaServerTiming(response.headers()['server-timing'] ?? null);
   expect(timing.has('ecdsa_presign_proxy')).toBe(false);
   if (change === 'key_handle') {
     expect(timing.has('ecdsa_presign_material')).toBe(true);

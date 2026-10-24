@@ -1138,7 +1138,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
             Ok(parsed) => parsed,
             Err(response) => return Ok(response),
         };
-        let mut timing = CloudflareBoundaryTimingV1::with_trace_id(trace_id);
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::with_trace_id(trace_id);
         let response =
             handle_cloudflare_router_ab_ecdsa_derivation_activation_authenticated_public_request_v1(
                 &env,
@@ -1152,7 +1152,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                 &mut timing,
             )
             .await;
-        return router_timed_json_cors_response_v1(response, &timing, &request, &env);
+        return router_ecdsa_timed_json_cors_response_v1(response, &timing, &request, &env);
     }
 
     if let Some(registration_purpose) =
@@ -1219,7 +1219,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                         );
                     }
                 };
-                let mut timing = CloudflareBoundaryTimingV1::with_trace_id(trace_id);
+                let mut timing = CloudflareEcdsaBoundaryTimingV1::with_trace_id(trace_id);
                 let response = handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1(
                     &env,
                     &runtime,
@@ -1232,7 +1232,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     &mut timing,
                 )
                 .await;
-                return router_timed_json_cors_response_v1(response, &timing, &request, &env);
+                return router_ecdsa_timed_json_cors_response_v1(response, &timing, &request, &env);
             }
             RouterAbEcdsaDerivationRegistrationPurposeV1::WalletAddSigner => {
                 let (registration_request, identity_digest, custody_lineage) =
@@ -1280,7 +1280,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                         );
                     }
                 };
-                let mut timing = CloudflareBoundaryTimingV1::with_trace_id(trace_id);
+                let mut timing = CloudflareEcdsaBoundaryTimingV1::with_trace_id(trace_id);
                 let response = handle_cloudflare_router_ab_ecdsa_derivation_registration_bootstrap_authenticated_public_request_v1(
                     &env,
                     &runtime,
@@ -1293,7 +1293,7 @@ pub(super) async fn handle_strict_router_fetch_v1(
                     &mut timing,
                 )
                 .await;
-                return router_timed_json_cors_response_v1(response, &timing, &request, &env);
+                return router_ecdsa_timed_json_cors_response_v1(response, &timing, &request, &env);
             }
         }
     }
@@ -1377,7 +1377,7 @@ async fn parse_strict_router_normal_signing_request_v1(
     env: &Env,
     path: &str,
 ) -> worker::Result<Result<StrictRouterNormalSigningRequestV1, Response>> {
-    let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let request_body =
         match read_router_public_body_v1(request, env, "Router A/B strict normal-signing request")
             .await?
@@ -1390,7 +1390,7 @@ async fn parse_strict_router_normal_signing_request_v1(
         CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PREPARE_PUBLIC_REQUEST_PATH
             | CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_SIGNING_PUBLIC_REQUEST_PATH
     ) {
-        let mut timing = CloudflareBoundaryTimingV1::new();
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
         timing.mark("router_request_body", started_at_ms);
         timing.emit_io_diagnostic();
     }
@@ -1707,9 +1707,9 @@ fn router_json_cors_response_v1<T: serde::Serialize>(
 /// untouched — the Gateway reads the header and drops it before the browser.
 /// A failed leg still carries whatever spans completed before it failed.
 #[cfg(feature = "strict-worker-router-entrypoint")]
-fn router_timed_json_cors_response_v1<T: serde::Serialize>(
+fn router_ecdsa_timed_json_cors_response_v1<T: serde::Serialize>(
     result: RouterAbProtocolResult<T>,
-    timing: &CloudflareBoundaryTimingV1,
+    timing: &CloudflareEcdsaBoundaryTimingV1,
     request: &Request,
     env: &Env,
 ) -> worker::Result<Response> {

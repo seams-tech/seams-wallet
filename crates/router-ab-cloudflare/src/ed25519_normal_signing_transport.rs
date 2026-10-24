@@ -11,7 +11,6 @@ pub async fn handle_cloudflare_signing_worker_normal_signing_round1_prepare_priv
     runtime: &CloudflareSigningWorkerRuntimeV1,
     handler: &Handler,
     now_unix_ms: u64,
-    timing: &mut CloudflareBoundaryTimingV1,
 ) -> worker::Result<worker::Response>
 where
     Handler: CloudflareSigningWorkerNormalSigningPrepareHandlerV2,
@@ -57,8 +56,7 @@ where
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
     ) {
         let scope = parsed.wallet_scope.clone();
-        let started = CloudflareBoundaryTimingV1::now_ms();
-        let result = crate::durable_object::call_signing_worker_wallet_do_v1(
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
             env,
             wallet_objects,
             crate::durable_object::SigningWorkerWalletDoRequestV1::PrepareNear {
@@ -66,11 +64,9 @@ where
                 request: parsed,
                 now_unix_ms,
             },
-            timing.trace_id(),
         )
-        .await;
-        timing.mark("wallet_call", started);
-        return result.map_err(|error| worker::Error::RustError(error.to_string()));
+        .await
+        .map_err(|error| worker::Error::RustError(error.to_string()));
     }
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_normal_signing_material_v1(
@@ -151,7 +147,6 @@ pub async fn handle_cloudflare_signing_worker_normal_signing_private_fetch_v1<Ha
     runtime: &CloudflareSigningWorkerRuntimeV1,
     handler: &Handler,
     now_unix_ms: u64,
-    timing: &mut CloudflareBoundaryTimingV1,
 ) -> worker::Result<worker::Response>
 where
     Handler: CloudflareSigningWorkerNormalSigningFinalizeHandlerV2,
@@ -194,8 +189,7 @@ where
         CloudflareSigningWorkerNormalSigningMaterialSourceV1::RegistrationActivation { .. }
     ) {
         let scope = parsed.wallet_scope.clone();
-        let started = CloudflareBoundaryTimingV1::now_ms();
-        let result = crate::durable_object::call_signing_worker_wallet_do_v1(
+        return crate::durable_object::call_signing_worker_wallet_do_v1(
             env,
             wallet_objects,
             crate::durable_object::SigningWorkerWalletDoRequestV1::FinalizeNear {
@@ -203,11 +197,9 @@ where
                 request: parsed,
                 now_unix_ms,
             },
-            timing.trace_id(),
         )
-        .await;
-        timing.mark("wallet_call", started);
-        return result.map_err(|error| worker::Error::RustError(error.to_string()));
+        .await
+        .map_err(|error| worker::Error::RustError(error.to_string()));
     }
     let effect_operation_key = match parsed.effect_operation_key() {
         Ok(value) => value,
@@ -375,7 +367,6 @@ where
 pub async fn execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     peer: &CloudflarePeerBindingV1,
     request: CloudflareSigningWorkerAdmittedNormalSigningFinalizeRequestV2,
 ) -> RouterAbProtocolResult<NormalSigningResponseV1> {
@@ -387,21 +378,18 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_finalize_service_c
         ));
     }
     request.validate()?;
-    let started = CloudflareBoundaryTimingV1::now_ms();
-    let result = post_service_json_with_server_timing::<_, NormalSigningResponseV1>(
+    let response: NormalSigningResponseV1 = post_service_json_with_server_timing(
         env,
         Some(wallet_objects),
         &peer.binding_name,
         &cloudflare_signing_worker_normal_signing_service_url(peer)?,
         "normal-signing v2 finalize",
         &request,
-        timing.trace_id(),
+        None,
         CloudflareServiceAuthModeV1::Shared,
-        Some((&mut *timing, "near_sw")),
     )
-    .await;
-    timing.mark("near_router_service", started);
-    let (response, _) = result?;
+    .await?
+    .0;
     require_signing_worker_normal_signing_finalize_response_v2(&request, response)
 }
 
@@ -428,7 +416,6 @@ pub fn require_signing_worker_normal_signing_finalize_response_v2(
 pub async fn execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     peer: &CloudflarePeerBindingV1,
     request: CloudflareSigningWorkerAdmittedNormalSigningPrepareRequestV2,
 ) -> RouterAbProtocolResult<NormalSigningRound1PrepareResponseV1> {
@@ -440,21 +427,18 @@ pub async fn execute_cloudflare_signing_worker_normal_signing_prepare_service_ca
         ));
     }
     request.validate()?;
-    let started = CloudflareBoundaryTimingV1::now_ms();
-    let result = post_service_json_with_server_timing::<_, NormalSigningRound1PrepareResponseV1>(
+    let response: NormalSigningRound1PrepareResponseV1 = post_service_json_with_server_timing(
         env,
         Some(wallet_objects),
         &peer.binding_name,
         &cloudflare_signing_worker_normal_signing_round1_prepare_service_url(peer)?,
         "normal-signing v2 prepare",
         &request,
-        timing.trace_id(),
+        None,
         CloudflareServiceAuthModeV1::Shared,
-        Some((&mut *timing, "near_sw")),
     )
-    .await;
-    timing.mark("near_router_service", started);
-    let (response, _) = result?;
+    .await?
+    .0;
     require_signing_worker_normal_signing_prepare_response_v2(&request, response)
 }
 

@@ -9,8 +9,8 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    let mut timing = CloudflareBoundaryTimingV1::new();
-    let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error(
             "Router A/B ECDSA derivation prepare route requires POST",
@@ -52,7 +52,6 @@ pub async fn handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_dig
             request: parsed,
             now_unix_ms,
         },
-        None,
     )
     .await;
     timing.mark("worker_prepare_total", started_at_ms);
@@ -80,8 +79,8 @@ where
 {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    let mut timing = CloudflareBoundaryTimingV1::new();
-    let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let result =
         finalize_ecdsa_signing(request, env, wallet_objects, runtime, handler, now_unix_ms, &mut timing).await;
     timing.mark("worker_finalize_total", started_at_ms);
@@ -96,12 +95,12 @@ async fn finalize_ecdsa_signing<Handler>(
     runtime: &CloudflareSigningWorkerRuntimeV1,
     handler: &Handler,
     now_unix_ms: u64,
-    timing: &mut CloudflareBoundaryTimingV1,
+    timing: &mut CloudflareEcdsaBoundaryTimingV1,
 ) -> worker::Result<worker::Response>
 where
     Handler: CloudflareSigningWorkerRouterAbEcdsaDerivationEvmDigestFinalizeHandlerV1,
 {
-    let body_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let body_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error(
             "Router A/B ECDSA derivation finalize route requires POST",
@@ -136,7 +135,7 @@ where
             cloudflare_router_error_status(err.code()),
         );
     }
-    let claim_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let claim_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let claimed = prepare_ecdsa_finalize(env, wallet_objects, runtime, &parsed, now_unix_ms).await;
     timing.mark("worker_finalize_snapshot_claim", claim_started_at_ms);
     let (active_signing_worker, material, server_presignature) = match claimed {
@@ -196,7 +195,7 @@ where
     }
     let expected_request = parsed.request.clone();
     let admitted_for_terminal = parsed.clone();
-    let compute_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let compute_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let signing_result =
         handle_cloudflare_signing_worker_router_ab_ecdsa_derivation_evm_digest_finalize_private_request_v1(
             handler,
@@ -215,7 +214,7 @@ where
                     cloudflare_router_error_status(error.code()),
                 );
             }
-            let terminal_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+            let terminal_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             let committed = commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
                 env,
                 wallet_objects,
@@ -297,7 +296,6 @@ async fn prepare_ecdsa_finalize(
             request: request.clone(),
             now_unix_ms,
         },
-        None,
     )
     .await?;
     let result = parse_cloudflare_signing_worker_wallet_do_json_response_v1(

@@ -818,8 +818,8 @@ async fn handle_strict_deriver_fetch_v1(
         /* Refactor 94B Phase 0. The Router folds this header into its own under
         an `ecdsa_a_`/`ecdsa_b_` prefix, so a cold registration shows whether
         the time went to the root-metadata load or to proof generation. */
-        let mut timing = CloudflareBoundaryTimingV1::new();
-        let total_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+        let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
         let private_request: CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1 =
             match parse_strict_deriver_json_v1(
                 &mut request,
@@ -831,7 +831,7 @@ async fn handle_strict_deriver_fetch_v1(
                 Err(response) => return Ok(response),
             };
         timing.mark("parse", total_started_at_ms);
-        let preload_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+        let preload_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
         let tenant_root_host =
             crate::tenant_root_role_runtime::CloudflareTenantRootDeriverHostV1::new(
                 &env,
@@ -855,7 +855,7 @@ async fn handle_strict_deriver_fetch_v1(
             Err(err) => return cloudflare_protocol_error_response_v1(err),
         };
         timing.mark("preload", preload_started_at_ms);
-        let execute_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+        let execute_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
         let response = match registration.execute_deriver_registration(
             &crate::CloudflareWorkerEnvReaderV1::new(&env),
             &runtime,
@@ -985,7 +985,7 @@ async fn handle_strict_deriver_fetch_v1(
 ))]
 fn strict_deriver_timed_json_response_v1<T: serde::Serialize>(
     body: &T,
-    timing: &CloudflareBoundaryTimingV1,
+    timing: &CloudflareEcdsaBoundaryTimingV1,
 ) -> worker::Result<Response> {
     let response = Response::from_json(body)?;
     timing.apply_to(&response)?;

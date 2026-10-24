@@ -1,8 +1,4 @@
 import { isPlainObject } from '@shared/utils/validation';
-import {
-  createRouterAbTraceContextV1,
-  ROUTER_AB_TRACE_ID_HEADER_V1,
-} from '@shared/utils/routerAbTraceContext';
 import { walletObjectIdentity, walletObjectIdentityHeaders } from '../../../cloudflare/runtime/walletObjectAddresses';
 import { json } from '../../../framework/http';
 import type { RouterAbNormalSigningRouterProxy } from '../../../framework/routerApi';
@@ -34,10 +30,8 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
     );
   }
 
-  const trace = createRouterAbTraceContextV1();
   try {
     const headers = new Headers(input.request.headers);
-    headers.set(ROUTER_AB_TRACE_ID_HEADER_V1, trace.value);
     const envelope = input.body?.authorized_operation;
     if (!isPlainObject(envelope) || !isPlainObject(envelope.binding)) {
       throw new Error('Signing requires an admitted wallet binding');
@@ -66,12 +60,10 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
       : new Request(request, { headers });
     if (input.body) upstreamRequest.headers.set('content-type', 'application/json');
     const upstream = await proxy.fetch(upstreamRequest);
-    const responseHeaders = new Headers(upstream.headers);
-    responseHeaders.set(ROUTER_AB_TRACE_ID_HEADER_V1, trace.value);
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
-      headers: responseHeaders,
+      headers: new Headers(upstream.headers),
     });
   } catch (error: unknown) {
     return json(
@@ -80,7 +72,7 @@ export async function proxyNormalSigningRequestToMpcRouter(input: {
         code: 'router_unreachable',
         message: error instanceof Error ? error.message : 'MPC Router request failed',
       },
-      { status: 502, headers: { [ROUTER_AB_TRACE_ID_HEADER_V1]: trace.value } },
+      { status: 502 },
     );
   }
 }

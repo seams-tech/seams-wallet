@@ -20,7 +20,6 @@ import {
   type IntendedBehaviourHarness,
 } from './harness';
 import { isolatedGatewayDatabasePath } from './local-gateway-database';
-import { GatewayRequestEvidence } from './gateway-request-evidence';
 
 type NearSigningReadStage = 'warm_sequence' | 'exhausted_session' | 'unlock' | 'after_refresh';
 
@@ -369,56 +368,23 @@ test(
 );
 
 async function verifyNearMessageSigningAfterRefresh(
-  { harness, context }: { harness: IntendedBehaviourHarness; context: BrowserContext },
+  { harness }: { harness: IntendedBehaviourHarness },
   testInfo: TestInfo,
 ): Promise<void> {
   await harness.registerPasskeyEd25519YaoWallet();
-  const requests = new GatewayRequestEvidence();
-  requests.start(context);
-  const startedAt = performance.now();
-  const proofs: Awaited<ReturnType<IntendedBehaviourHarness['signNearMessage']>>[] = [];
-  let gateway: Awaited<ReturnType<GatewayRequestEvidence['window']>>;
-  try {
-    proofs.push(await harness.signNearMessage('Approve checkout before refresh', { state: '' }));
-    await harness.refreshPagePreservingWalletStorage();
-    proofs.push(await harness.signNearMessage('Approve checkout after refresh', {
-      callbackUrl: 'https://checkout.example/callback?request=170',
-      state: 'quote-170-after-refresh',
-    }));
-    await harness.signNearTransactionAfterRefresh();
-  } finally {
-    requests.stop(context);
-    gateway = await requests.window(startedAt, performance.now());
-    const artifactPath = testInfo.outputPath('near-message-signatures.json');
-    await writeFile(artifactPath, JSON.stringify({ proofs, gateway }, null, 2), 'utf8');
-    await testInfo.attach('near-message-signatures.json', {
-      path: artifactPath,
-      contentType: 'application/json',
-    });
-  }
-  if (process.env.SEAMS_INTENDED_WALLET_HOST === 'workers') {
-    const signing = gateway.requests.filter(isNearSigningRequest);
-    expect(signing).toHaveLength(6);
-    const traces = new Set<string>();
-    for (const request of signing) {
-      expect(request.status).toBe(200);
-      expect(request.traceId).toMatch(/^[0-9a-f]{32}$/u);
-      traces.add(requireNonEmptyString(request.traceId, 'signing trace ID'));
-      for (const stage of [
-        'near_router_service',
-        'near_sw_wallet_call',
-        'near_sw_handler',
-      ]) {
-        expect(request.stagesMs[stage], stage).toBeGreaterThanOrEqual(0);
-      }
-    }
-    expect(traces.size).toBe(signing.length);
-  }
-}
-
-function isNearSigningRequest(request: { path: string }): boolean {
-  return request.path === '/router-ab/ed25519/sign/prepare'
-    || request.path === '/router-ab/ed25519/sign';
+  const first = await harness.signNearMessage('Approve checkout before refresh', { state: '' });
+  await harness.refreshPagePreservingWalletStorage();
+  const second = await harness.signNearMessage('Approve checkout after refresh', {
+    callbackUrl: 'https://checkout.example/callback?request=170',
+    state: 'quote-170-after-refresh',
+  });
+  await harness.signNearTransactionAfterRefresh();
+  const artifactPath = testInfo.outputPath('near-message-signatures.json');
+  await writeFile(artifactPath, JSON.stringify({ first, second }, null, 2), 'utf8');
+  await testInfo.attach('near-message-signatures.json', {
+    path: artifactPath,
+    contentType: 'application/json',
+  });
 }
 
 test(

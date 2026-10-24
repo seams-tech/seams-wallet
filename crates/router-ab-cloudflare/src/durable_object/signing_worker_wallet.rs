@@ -688,8 +688,7 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             return super::custody_target::observe_location().await;
         }
         let path = request.path();
-        let trace_id = crate::parse_cloudflare_trace_id_from_request_v1(&request).ok().flatten();
-        let observation = self.timing.begin(&self.state, "signing_worker", path, trace_id);
+        let observation = self.timing.begin(&self.state, "signing_worker", path);
         let result = self.fetch_wallet_request(request).await;
         observation.finish(result)
     }

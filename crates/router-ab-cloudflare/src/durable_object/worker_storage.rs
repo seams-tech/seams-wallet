@@ -122,8 +122,8 @@ where
             format!("Durable Object custom request construction failed: {error}"),
         )
     })?;
-    let mut io_timing = crate::CloudflareBoundaryTimingV1::new();
-    let headers_started_at_ms = crate::CloudflareBoundaryTimingV1::now_ms();
+    let mut io_timing = crate::CloudflareEcdsaBoundaryTimingV1::new();
+    let headers_started_at_ms = crate::CloudflareEcdsaBoundaryTimingV1::now_ms();
     let mut response = stub.fetch_with_request(request).await.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::InvalidLocalServiceConfig,
@@ -143,7 +143,7 @@ where
         "do_handler",
         response.headers().get("Server-Timing").ok().flatten(),
     );
-    let body_started_at_ms = crate::CloudflareBoundaryTimingV1::now_ms();
+    let body_started_at_ms = crate::CloudflareEcdsaBoundaryTimingV1::now_ms();
     let value = response.json::<TResponse>().await.map_err(|error| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,

@@ -7,13 +7,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
     ctx: Context,
 ) -> worker::Result<Response> {
     let path = request.path();
-    let trace_normal_signing = matches!(path.as_str(),
-        CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_ROUND1_PREPARE_PATH
-        | CLOUDFLARE_SIGNING_WORKER_NORMAL_SIGNING_PATH);
-    let started = crate::CloudflareBoundaryTimingV1::now_ms();
-    let mut timing = crate::CloudflareBoundaryTimingV1::with_trace_id(
-        crate::parse_cloudflare_trace_id_from_request_v1(&request).ok().flatten(),
-    );
     let auth = if path
         == CLOUDFLARE_SIGNING_WORKER_ROUTER_AB_ECDSA_DERIVATION_PRESIGNATURE_SESSION_INIT_PATH
         || path
@@ -63,7 +56,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
         Ok(runtime) => runtime,
         Err(err) => return cloudflare_protocol_error_response_v1(err),
     };
-    let result = match path.as_str() {
+    match path.as_str() {
         crate::SIGNING_WORKER_RELOCATION_CONTEXT_PATH_V1 => {
             if request.method() != Method::Post {
                 return Response::error("SigningWorker relocation context requires POST", 405);
@@ -94,8 +87,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(error) => return cloudflare_protocol_error_response_v1(error),
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
-                crate::durable_object::SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command),
-    None,).await {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::ListPreparingLinkedPresignSessions(command)).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
@@ -115,8 +107,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(_) => return Response::error("Linked presign inventory request is malformed", 400),
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
-                crate::durable_object::SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command),
-    None,).await {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::ListLinkedPresignSessions(command)).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
@@ -151,7 +142,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 &env,
                 wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::TransferEcdsaSnapshot(command),
-                None,
             ).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
@@ -175,7 +165,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 &env,
                 wallet_objects,
                 crate::durable_object::SigningWorkerWalletDoRequestV1::ExportEcdsaSnapshot(command),
-                None,
             ).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
@@ -196,8 +185,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(_) => return Response::error("Ed25519 snapshot request is malformed", 400),
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
-                crate::durable_object::SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request },
-    None,).await {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::Ed25519Snapshot { request }).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
@@ -221,7 +209,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             } else {
                 crate::durable_object::SigningWorkerWalletDoRequestV1::FenceEd25519(command)
             };
-            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects, request, None).await {
+            match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects, request).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
@@ -241,8 +229,7 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 Err(_) => return Response::error("Pool freeze request is malformed", 400),
             };
             match crate::durable_object::call_signing_worker_wallet_do_v1(&env, wallet_objects,
-                crate::durable_object::SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command),
-    None,).await {
+                crate::durable_object::SigningWorkerWalletDoRequestV1::FreezeEcdsaPool(command)).await {
                 Ok(response) => Ok(response),
                 Err(error) => cloudflare_protocol_error_response_v1(error),
             }
@@ -447,7 +434,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 &runtime,
                 &handler,
                 now_unix_ms,
-                &mut timing,
             )
             .await
         }
@@ -463,7 +449,6 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
                 &runtime,
                 &handler,
                 now_unix_ms,
-                &mut timing,
             )
             .await
         }
@@ -596,14 +581,5 @@ pub(super) async fn handle_strict_signing_worker_fetch_v1(
             ),
             404,
         ),
-    };
-    if trace_normal_signing {
-        timing.mark("handler", started);
-        let response = result?;
-        let headers = response.headers().clone();
-        let response = response.with_headers(headers);
-        timing.apply_to(&response)?;
-        return Ok(response);
     }
-    result
 }

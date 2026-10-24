@@ -1,6 +1,6 @@
 import type { BrowserContext, Request, Response } from '@playwright/test';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import { parseSigningServerTiming } from '../../../packages/shared-ts/src/utils/signingServerTiming';
+import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 
 type RequestOutcome =
   | { kind: 'pending' }
@@ -100,12 +100,10 @@ export class GatewayRequestEvidence {
         outcome: observed.outcome.kind,
         error: observed.outcome.kind === 'failed' ? observed.outcome.error : null,
         status: response?.status() ?? null,
-        cfRay: response ? await response.headerValue('cf-ray') : null,
-        traceId: response ? await response.headerValue('x-seams-trace-id') : null,
         browserRequestElapsedMs: timing.responseEnd < 0 ? null : timing.responseEnd,
         gatewayPlacement: response ? await response.headerValue('X-Benchmark-Placement') : null,
         serverTiming,
-        stagesMs: Object.fromEntries(parseSigningServerTiming(serverTiming)),
+        stagesMs: Object.fromEntries(parseEcdsaServerTiming(serverTiming)),
         d1: header === null ? null : JSON.parse(header),
       });
     }

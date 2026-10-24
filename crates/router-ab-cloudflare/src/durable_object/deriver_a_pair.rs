@@ -381,7 +381,7 @@ impl DurableObject for RouterAbDeriverAWalletDurableObject {
         let path = request.path();
         let observation = self
             .timing
-            .begin(&self.state, "deriver_a", path.clone(), None);
+            .begin(&self.state, "deriver_a", path.clone());
         let result = self.fetch_wallet_request(request).await;
         #[cfg(feature = "strict-worker-deriver-a-entrypoint")]
         let result = match result {

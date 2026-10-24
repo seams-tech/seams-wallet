@@ -721,7 +721,6 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_initial_registration_f
         env,
         lookup.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::LookupRegistration(lookup),
-        None,
     )
     .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
@@ -832,7 +831,6 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_recovery_promote_v1(
         env,
         scoped.wallet_route,
         crate::durable_object::SigningWorkerWalletDoRequestV1::PromoteRecovery(scoped),
-        None,
     )
     .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
@@ -889,7 +887,6 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_reserve_inactive_sourc
         env,
         crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ReserveLinkedEd25519(reservation),
-        None,
     )
     .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
@@ -924,7 +921,6 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_activate_reservation_v
         env,
         crate::WalletObjectRoute::from_gateway_request(&request)?,
         crate::durable_object::SigningWorkerWalletDoRequestV1::ActivateLinkedEd25519(activation),
-        None,
     )
     .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]
@@ -948,7 +944,6 @@ pub async fn handle_cloudflare_signing_worker_ed25519_yao_deactivate_reservation
         crate::durable_object::SigningWorkerWalletDoRequestV1::DeactivateLinkedEd25519(
             deactivation,
         ),
-        None,
     )
     .await;
     #[cfg(not(feature = "strict-worker-signing-worker-entrypoint"))]

@@ -1,12 +1,12 @@
 # NEAR signing trace propagation — October 24, 2026
 
-NEAR signing now retains one request trace through Gateway, Router, SigningWorker, and the SigningWorker wallet object.
-Responses carry the nested timing fields through Gateway completion readback.
-This change supplies diagnostic evidence. It does not establish a latency improvement.
+The temporary candidate retained one request trace through Gateway, Router, SigningWorker, and the SigningWorker wallet object.
+Its responses carried nested timing fields through Gateway completion readback.
+This experiment supplied diagnostic evidence. It established no latency improvement.
 PostgreSQL integration and provisioning remain deferred.
 The [generated evidence](near-signing-trace-propagation-20261024.json) retains the verified joins, public signatures, source hashes, and replay results.
 This record describes the ten-field candidate at `9493c3a1`.
-The later cleanup below removes seven fields after the hosted capture.
+The final cleanup removes all profiling additions after collection, at the user's request.
 
 ## Local verification
 
@@ -55,9 +55,9 @@ The cleanup removes those fields and the temporary `timing` parameter from `fetc
 It also removes their header plumbing, parser entries, and obsolete diagnostic assertions.
 Validation, schema initialization, signing, persistence, response mapping, and trace forwarding keep their existing behavior.
 
-Three measured call spans remain: `near_router_service`, `near_sw_wallet_call`, and `near_sw_handler`.
-The existing object command log still carries the trace ID.
-The [optimization plan](../optimization-11-NEAR.md#p2-reduce-measured-work-in-signing-dispatch-and-finalization) tracks the remaining diagnostic cleanup after the comparison.
+That intermediate cleanup retained `near_router_service`, `near_sw_wallet_call`, `near_sw_handler`, and object trace identifiers.
+The final cleanup removes those additions and restores the pre-existing ECDSA telemetry.
+The [optimization plan](../optimization-11-NEAR.md#p2-reduce-measured-work-in-signing-dispatch-and-finalization) records the remaining performance questions.
 
 All four lifecycle cases above passed again with zero retries.
 All six message/reload/transaction requests matched one object command each and retained the three call spans.
@@ -66,15 +66,20 @@ All five release Worker builds, the server build, intended-test type checking, a
 The complete bloat check passed at 13,737 duplicated Rust lines, below the unchanged 13,754 threshold.
 
 The cleanup artifacts live under `.artifacts/optimization-11-near/20261024-trace-cleanup/`.
-Their analyzer verifies source hashes, build hashes, frozen SDK assets, trace joins, replay evidence, and test results.
+Their retired analyzer verified source hashes, build hashes, frozen SDK assets, trace joins, replay evidence, and test results.
 The private hosted report retains this [separate cleanup evidence](https://github.com/seams-tech/seams-monorepo/blob/dev/docs/evidence/near-hosted-trace-20261024.json).
 These checks establish local behavior and diagnostic preservation.
 The cleanup was not deployed and establishes no hosted latency gain.
 
-```sh
-node .artifacts/optimization-11-near/20261024-trace-cleanup/verify-proofs.mjs
-python3 .artifacts/optimization-11-near/20261024-trace-cleanup/analyze.py
-```
+The final cleanup also removes task-added recorder fields, profiling assertions, capture and analysis scripts, nested inspector copies, and copied profiling bundles.
+Existing behavior tests remain.
+Numeric evidence and public signature proofs remain available for review.
+After complete removal, all four lifecycle cases and all five release Worker builds passed again.
+Public and private type checks, 38 Cargo lock checks, and the complete bloat check passed.
+The duplication count returned to 13,740 Rust lines, below the unchanged threshold.
+The task-artifact audit found no remaining profiling code files.
+It removed 11,769 temporary or copied files, totaling approximately 469 MB.
+The final numeric receipt is `.artifacts/optimization-11-near/20261024-profiling-removal/evidence.json`.
 
 ## Implementation and measurement boundaries
 
@@ -139,25 +144,19 @@ Nested spans overlap. Do not add them or subtract observations from different Wo
 | Object schema calls or duplicate reads dominate | Source inspection alone cannot establish their hosted cost. | Retain the calls until correlated measurements identify a removable dependency. |
 | D1, dispatch, or response delivery dominates | The existing hosted record cannot separate those causes. | No routing or storage change follows from this instrumentation. |
 
-## Next measurement
+## Subsequent measurement
 
-Capture a bounded cohort on the current D1 deployment after the diagnostic build reaches that environment.
-Join each browser request, Router event, SigningWorker event, and object command by trace ID.
-Keep first, warm, reload, step-up, and failed requests separate.
-Compare slow and typical requests within the same workload and deployment.
-Use the measured boundary to choose one optimization and verify it against interleaved controls.
+The hosted capture completed and matched 44 requests through the object.
+A later native profiling attempt failed to identify the functions behind the CPU spikes.
+The linked hosted report records that limit and the next attribution requirement.
 
 ## Reproduction
 
 The task artifacts live under `.artifacts/optimization-11-near/20261024-p2-implementation/`.
-The local runner records its exact commands and rejects an existing output directory.
-Use a fresh artifact directory for a new run.
+The captured receipts retain exact test commands and source hashes.
 The raw logs stay local. The committed JSON contains allowlisted diagnostics and public signature material.
-
-```sh
-node .artifacts/optimization-11-near/20261024-p2-implementation/verify-proofs.mjs
-python3 .artifacts/optimization-11-near/20261024-p2-implementation/analyze.py
-```
+The task's profiling and verification scripts were deliberately removed after review.
+Historical hashes identify those capture inputs and do not imply the files remain present.
 
 The E2E uses `passkey.ed25519-yao-local.contract.test.ts` with the existing Workers configuration.
 The correlation repeat selects `public NEAR message signatures` and sets `WRANGLER_LOG=log`.

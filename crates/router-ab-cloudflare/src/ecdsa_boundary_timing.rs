@@ -6,17 +6,17 @@ use crate::{cloudflare_now_unix_ms_v1, CloudflareTraceIdV1};
 #[cfg(feature = "workers-rs")]
 const MERGED_ROLE_METRIC_LIMIT: usize = 12;
 
-/// Request-local service and storage timings. These observations carry no authority.
+/// ECDSA service and storage timings. These observations carry no authority.
 /// Workers clocks advance across I/O, so synchronous CPU work can measure zero.
 #[cfg(feature = "workers-rs")]
 #[derive(Default)]
-pub struct CloudflareBoundaryTimingV1 {
+pub struct CloudflareEcdsaBoundaryTimingV1 {
     entries: Vec<(String, u64)>,
     trace_id: Option<CloudflareTraceIdV1>,
 }
 
 #[cfg(feature = "workers-rs")]
-impl CloudflareBoundaryTimingV1 {
+impl CloudflareEcdsaBoundaryTimingV1 {
     pub fn new() -> Self {
         Self::default()
     }

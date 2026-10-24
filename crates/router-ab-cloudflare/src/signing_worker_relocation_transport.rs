@@ -174,7 +174,6 @@ where
         &command,
         None,
         crate::CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
-        None,
     )
     .await
     {

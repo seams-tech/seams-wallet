@@ -3,11 +3,12 @@
 Status, October 24, 2026: the original preparation and request-reduction work is
 largely implemented. A current local and hosted baseline now exists.
 One hosted registration failed during protocol execution. Its cause remains unresolved.
-The recorder now retains operation and request IDs for further attribution.
-Request tracing now reaches the SigningWorker wallet object, with 44 verified hosted joins.
+Temporary tracing produced 44 verified hosted joins through the SigningWorker wallet object.
 The hosted capture passed 21 transaction signatures and one separate message signature.
 Captured wallet-object invocations took 7–31 ms for transaction requests.
 Elevated CPU readings in stateless Worker events make entry-path profiling the next priority.
+The native profiler did not attribute those spikes to source functions.
+All profiling additions from this investigation are removed after evidence collection, as requested.
 The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
 PostgreSQL integration and provisioning are deferred at the user's request.
 Storage replacement has no established gain.
@@ -71,7 +72,7 @@ The observations below come from different cohorts and cannot be added together.
 | Console publication | Persisted pending publication before responding, then sent Console completion with durable retry. [Release 0.13.0 evidence](./evidence/release-0130-staging-20261017.md) | Finalize p95 fell from 1,381 to 858 ms in the dated comparison. Registration tail acceptance remained open. |
 | Browser preparation | Preloaded activation modules and the existing NEAR signer during passkey registration. Optimized default development session-sealing builds. [Implementation](./evidence/refactor-155l-near.md), [hosted comparison][hosted-speed-report] | First signing improved by 15.1% in the controlled comparison. Production sealing WASM was already optimized. |
 | PostgreSQL adapter in Workers | Enabled the existing adapter on WASM and used the Workers retry timer. Native lifecycle and local Worker transaction E2Es pass. [October 24 evidence](./evidence/postgres-role-worker-20261024.md) | Deployed Derivers still use D1. Hosted Hyperdrive correctness and latency remain unverified. |
-| Signing trace propagation | Carried one trace through Gateway, Router, SigningWorker, and its wallet object. Preserved timing headers after completion readback. [Local verification](./evidence/near-signing-trace-propagation-20261024.md), [hosted capture][hosted-trace-report] | Four local lifecycle contracts passed. The hosted capture matched 44 requests through the object using a temporary Router wrapper and the existing Gateway. All 14 original versions were restored. |
+| Temporary signing traces | Matched Gateway, Router, SigningWorker, and wallet-object requests. [Local verification](./evidence/near-signing-trace-propagation-20261024.md), [hosted capture][hosted-trace-report] | Four local lifecycle contracts passed. The hosted capture matched 44 requests through the object. All 14 original versions were restored. The added profiling code, scripts, and assertions were subsequently removed. |
 
 The [original local baseline](./optimization-11-NEAR-local-baseline.md),
 [custody profiling](./near-custody-profiling.md), and
@@ -114,7 +115,7 @@ the separate idle case also passed. A later diagnostic case verified seven signa
 and matched all 14 recorded request IDs to Gateway and Router events.
 The [trace follow-up][signing-trace-report] preserves those joins and their clock limits.
 That hosted capture lacks the identifier inside SigningWorker.
-The [follow-up implementation](./evidence/near-signing-trace-propagation-20261024.md) closes the propagation gap locally and returns ten downstream timing fields.
+The [temporary implementation](./evidence/near-signing-trace-propagation-20261024.md) closed the propagation gap and returned ten downstream timing fields during collection.
 The later hosted capture below joins requests through the object.
 Exact persistence and dispatch costs remain unresolved.
 
@@ -157,11 +158,33 @@ The [provider profiling guide](https://developers.cloudflare.com/workers/observa
 This diagnostic run has no matched control without instrumentation and establishes no optimization gain.
 Its three registration samples and successful journeys do not replace the baseline or resolve its failed registration.
 The temporary hosted wrapper stopped serving after capture.
-The follow-up cleanup removes seven zero-only fields and the object request's temporary `timing` parameter.
-The three useful call spans and trace correlation remain for the next comparison.
-Four lifecycle E2Es passed after cleanup, with six verified trace joins and two independently verified message proofs.
-All five release Worker builds and the complete bloat check passed.
-The cleanup remains local and establishes no hosted latency gain.
+The initial cleanup removed seven fields that always reported zero in that capture.
+The final cleanup removes the remaining task-added timers, trace plumbing, recorder fields, profiling assertions, and scripts.
+Existing ECDSA telemetry, coarse Gateway timings, and functional tests remain.
+The cleanup establishes no hosted latency gain.
+After complete removal, all four lifecycle E2Es and all five release Worker builds passed.
+Type checks, Cargo lock checks, and the full bloat check passed.
+Cleanup removed 11,769 temporary or copied files, totaling approximately 469 MB.
+Numeric evidence and public signature proofs remain.
+
+### Native CPU profiling follow-up
+
+Three further hosted workflows passed 21 transaction signatures on unchanged deployed versions.
+All 42 signing requests matched Gateway and Router events.
+The sequence used a control, a profiling run, and another control.
+The first control recorded a 145 ms Router CPU spike without the new timing code or an active profiler.
+Those additions are therefore unnecessary for the observed spike.
+
+The Router profile contained only idle samples.
+During its API call window, three matched requests recorded 127, 104, and 145 ms of CPU time.
+SigningWorker profiles contained only idle and garbage-collection frames, without request or isolate labels.
+These profiles cannot identify the expensive functions or establish garbage collection as the request delay.
+The [follow-up record][hosted-trace-report] retains the failed attribution and its evidence.
+
+The next measurement must identify the execution that the profiler samples.
+Use existing platform tools with a known nonzero control before proposing another implementation change.
+First-use transaction funding remains a separate priority.
+Its existing optimistic execution and short polling backoff already apply, so do not add duplicate retry logic.
 
 ### Controlled browser comparison, October 21
 
@@ -256,7 +279,7 @@ Retain its completed adapter work and evidence. Resume PostgreSQL integration or
 - [ ] Correlate browser timelines, Gateway stages, role calls, D1 trips/statements,
   and object wall/CPU observations with existing operation identifiers.
   Mark unavailable observations as unknown.
-  The recorder now retains operation IDs and Cloudflare request IDs.
+  The retained diagnostic records contain operation IDs and Cloudflare request IDs.
   A seven-signature check matched all 14 requests to Gateway and Router events.
   A later diagnostic capture matched all 44 requests through the SigningWorker object.
   Function-level CPU attribution and exact persistence waits remain incomplete.
@@ -309,7 +332,8 @@ and [client exchange](../packages/wallet/src/core/signingEngine/flows/signNear/s
   Preserve its separation from the baseline and future optimization comparisons.
 - [ ] Profile CPU in the existing Router and SigningWorker entry paths.
   Compare ordinary requests with the captured high-CPU cases and record runtime identity where available.
-  Include a control without the temporary detailed spans and wrapper.
+  The native API attempt did not capture the known Router activity and cannot establish a cause.
+  Require a nonzero control and sampled-execution attribution through existing platform tools.
   Attribute initialization, parsing, allocation, authorization, dispatch, and response assembly before selecting a change.
   A local reproduction must exhibit the hosted signal before it supports a hosted cause.
 - [ ] Isolate remaining operation/material lookup, persistence, and completion waits where they explain a slow request.
@@ -324,16 +348,11 @@ and [client exchange](../packages/wallet/src/core/signingEngine/flows/signNear/s
   Preserve fresh checks after asynchronous work.
 - [ ] Compare complete SDK signing and its finalize span for first, warm, and
   step-up cohorts. Retain the change only with evidence or an independent correctness need.
-- [x] Remove the seven zero-only fields, their parser entries, and obsolete diagnostic assertions.
-  Remove the temporary `timing` parameter from
-  [`fetch_wallet_request`](../crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet/request.rs),
-  along with its detailed object spans and header plumbing.
-  The affected lifecycle E2Es passed after removal.
-- [ ] Remove remaining investigation-only diagnostics after the cause and optimization comparison are recorded.
-  This includes the three retained call spans and any temporary capture code still in use.
-  Preserve the existing shared timing behavior used by other flows.
-  Remove obsolete diagnostic parameters and tests together, then rerun the affected lifecycle E2Es.
-  The temporary hosted wrapper is already out of service, and its capture processes are stopped.
+- [x] Remove all profiling additions from this investigation at the user's request.
+  Remove the task-added timers, trace parameters, header plumbing, recorder fields, and profiling-only assertions.
+  Remove capture, analysis, and inspector scripts, compiled copies, and copied profiling bundles.
+  Preserve pre-existing telemetry and functional behavior tests.
+  Keep findings and numeric evidence, without executable profiling artifacts.
 
 Keep prepare → client share → finalize. Prepare supplies the commitments needed
 for the share. Preserve revocation, exact method/environment binding, quota,

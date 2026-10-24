@@ -188,7 +188,7 @@ impl DurableObject for RouterAbDeriverBWalletDurableObject {
             return super::custody_target::observe_location().await;
         }
         let path = request.path();
-        let observation = self.timing.begin(&self.state, "deriver_b", path, None);
+        let observation = self.timing.begin(&self.state, "deriver_b", path);
         let result = self.fetch_wallet_request(request).await;
         observation.finish(result)
     }

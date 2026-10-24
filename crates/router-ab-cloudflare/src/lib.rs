@@ -462,9 +462,9 @@ mod trace_context;
 mod ed25519_normal_signing_transport;
 pub use ed25519_normal_signing_transport::*;
 #[cfg(feature = "workers-rs")]
-mod boundary_timing;
+mod ecdsa_boundary_timing;
 #[cfg(feature = "workers-rs")]
-pub use boundary_timing::CloudflareBoundaryTimingV1;
+pub use ecdsa_boundary_timing::CloudflareEcdsaBoundaryTimingV1;
 #[cfg(feature = "workers-rs")]
 use paths::{
     cloudflare_router_ab_ecdsa_derivation_deriver_export_service_url,
@@ -4930,12 +4930,12 @@ pub(crate) async fn handle_cloudflare_router_ab_ecdsa_derivation_registration_bo
     authorization: CloudflareRouterBearerAuthorizationV1,
     trusted_source_digest: PublicDigest32,
     verifier: Verifier,
-    timing: &mut CloudflareBoundaryTimingV1,
+    timing: &mut CloudflareEcdsaBoundaryTimingV1,
 ) -> RouterAbProtocolResult<CloudflareRouterAbEcdsaDerivationRegistrationAdmissionResponseV1>
 where
     Verifier: CloudflareRouterJwtVerifierV1,
 {
-    let total_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let admission = admit_cloudflare_router_ab_ecdsa_derivation_registration_v1(
         runtime.admission_bindings(),
         &CloudflareWorkerEnvReaderV1::new(env),
@@ -4954,10 +4954,10 @@ where
             return Ok(response);
         }
     };
-    let derivers_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let derivers_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let (deriver_a_result, deriver_b_result) = futures::join!(
         async {
-            let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+            let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             let result =
                 execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1(
                     env,
@@ -4968,11 +4968,11 @@ where
                 .await;
             (
                 result,
-                CloudflareBoundaryTimingV1::now_ms().saturating_sub(started_at_ms),
+                CloudflareEcdsaBoundaryTimingV1::now_ms().saturating_sub(started_at_ms),
             )
         },
         async {
-            let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+            let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             let result =
                 execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_service_call_v1(
                     env,
@@ -4983,7 +4983,7 @@ where
                 .await;
             (
                 result,
-                CloudflareBoundaryTimingV1::now_ms().saturating_sub(started_at_ms),
+                CloudflareEcdsaBoundaryTimingV1::now_ms().saturating_sub(started_at_ms),
             )
         },
     );
@@ -5029,12 +5029,12 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_activation_authenticat
     authorization: CloudflareRouterBearerAuthorizationV1,
     trusted_source_digest: PublicDigest32,
     verifier: Verifier,
-    timing: &mut CloudflareBoundaryTimingV1,
+    timing: &mut CloudflareEcdsaBoundaryTimingV1,
 ) -> RouterAbProtocolResult<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationReceiptV1>
 where
     Verifier: CloudflareRouterJwtVerifierV1,
 {
-    let total_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let request = admit_cloudflare_router_ab_ecdsa_derivation_activation_v1(
         runtime.admission_bindings(),
         now_unix_ms,
@@ -5044,7 +5044,7 @@ where
         verifier,
     )?;
     timing.mark("ecdsa_rt_act_session", total_started_at_ms);
-    let worker_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let worker_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let call =
         execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation_service_call_v1(
             env,
@@ -5733,7 +5733,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_authenticated_publi
 >(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningPrepareRequestV2,
@@ -5757,7 +5756,6 @@ where
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -5942,7 +5940,6 @@ fn cloudflare_router_ed25519_linked_device_finalize_admission_v2(
 pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_device_request_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningPrepareRequestV2,
@@ -5984,7 +5981,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -5995,7 +5991,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_linked_dev
 pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_device_request_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningFinalizeRequestV2,
@@ -6045,7 +6040,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_linked_de
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -6278,7 +6272,6 @@ fn require_step_up_wallet_scope_v1(
 pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_request_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningPrepareRequestV2,
@@ -6295,7 +6288,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_re
     execute_cloudflare_signing_worker_normal_signing_prepare_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -6306,7 +6298,6 @@ pub async fn handle_cloudflare_router_normal_signing_prepare_internal_step_up_re
 pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_request_v2(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningFinalizeRequestV2,
@@ -6323,7 +6314,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_internal_step_up_r
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -6649,7 +6639,6 @@ pub async fn handle_cloudflare_router_normal_signing_finalize_authenticated_publ
 >(
     env: &worker::Env,
     wallet_objects: crate::WalletObjectRoute,
-    timing: &mut CloudflareBoundaryTimingV1,
     runtime: &CloudflareRouterWorkerRuntimeV1,
     now_unix_ms: u64,
     request: RouterAbEd25519NormalSigningFinalizeRequestV2,
@@ -6673,7 +6662,6 @@ where
     execute_cloudflare_signing_worker_normal_signing_finalize_service_call_v2(
         env,
         wallet_objects,
-        timing,
         runtime.signing_worker_peer(),
         admitted,
     )
@@ -6742,7 +6730,6 @@ pub async fn activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_outpu
                 material: material.clone(),
                 activated_at_ms,
             },
-            None,
         )
         .await?;
         parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -9130,8 +9117,8 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
         );
     }
     /* Refactor 94B Phase 0. Folded into the Router header under `ecdsa_sw_`. */
-    let mut timing = CloudflareBoundaryTimingV1::new();
-    let total_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let total_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let activation = match request
         .json::<CloudflareRouterAbEcdsaDerivationSigningWorkerActivationRequestV1>()
         .await
@@ -9156,7 +9143,7 @@ pub async fn handle_cloudflare_router_ab_ecdsa_derivation_signing_worker_activat
             );
         }
     };
-    let activate_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let activate_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let wallet_scope = activation.pending.wallet_scope.clone();
     let ownership_generation = activation.pending.ownership_generation;
     match activate_cloudflare_router_ab_ecdsa_derivation_signing_worker_output_v1(
@@ -9293,7 +9280,7 @@ async fn load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
                 }
             }
         };
-        let response = durable_object::call_signing_worker_wallet_do_v1(env, wallet_route.objects, command, None).await?;
+        let response = durable_object::call_signing_worker_wallet_do_v1(env, wallet_route.objects, command).await?;
         let loaded: SigningWorkerWalletEcdsaActivationMaterialV1 =
             parse_cloudflare_signing_worker_wallet_do_json_response_v1(
                 response,
@@ -9630,8 +9617,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    let mut timing = CloudflareBoundaryTimingV1::new();
-    let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error("SigningWorker ECDSA presign init requires POST", 405);
     }
@@ -9656,7 +9643,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
-    let material_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let material_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let wallet_scope = Some(SigningWorkerWalletRoute { objects: wallet_objects, scope: parsed.authority.wallet_scope(), ownership_generation: parsed.authority.ownership_generation() });
     let (active_signing_worker, material) =
         match load_cloudflare_signing_worker_active_ecdsa_derivation_material_v1(
@@ -9680,7 +9667,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_init_private
         Ok(value) => value,
         Err(error) => return cloudflare_signing_worker_presign_error_response_v1(error),
     };
-    let session_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let do_response =
         match durable_object::execute_cloudflare_durable_object_custom_json_call_with_timing_v1(
             env,
@@ -10009,8 +9996,8 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
 ) -> worker::Result<worker::Response> {
     let wallet_objects = crate::WalletObjectRoute::from_gateway_request(&request)
         .map_err(|error| worker::Error::RustError(error.to_string()))?;
-    let mut timing = CloudflareBoundaryTimingV1::new();
-    let started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     if request.method() != worker::Method::Post {
         return worker::Response::error("SigningWorker ECDSA presign step requires POST", 405);
     }
@@ -10035,7 +10022,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
     if let Err(error) = parsed.validate_at(now_unix_ms) {
         return cloudflare_signing_worker_presign_error_response_v1(error);
     }
-    let session_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let session_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let do_request =
         CloudflareSigningWorkerEcdsaPresignSessionDoGatewayStepRequestV1 { request: parsed };
     let do_response =
@@ -10081,7 +10068,7 @@ pub async fn handle_cloudflare_signing_worker_ecdsa_presign_session_step_private
             let presign_session_id = do_request.request.presign_session_id;
             let server_presignature_id = pool_put_request.server_presignature_id.clone();
             let server_big_r33_b64u = pool_put_request.server_big_r33_b64u.clone();
-            let admission_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+            let admission_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
             #[cfg(feature = "strict-worker-signing-worker-entrypoint")]
             let admission = publish_cloudflare_wallet_presignature(
                 env,
@@ -10422,7 +10409,6 @@ async fn publish_cloudflare_wallet_presignature(
             completed_at_ms,
             request,
         },
-        None,
     )
     .await?;
     parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -10746,7 +10732,6 @@ async fn execute_cloudflare_signing_worker_ecdsa_pool_mutation_for_wallet_v1(
                     ownership_generation: wallet_route.ownership_generation,
                 mutation: command,
             },
-            None,
         )
         .await?;
         let outcome: CloudflareSigningWorkerEcdsaPoolMutationOutcomeV1 =
@@ -10784,7 +10769,6 @@ async fn commit_cloudflare_signing_worker_ecdsa_terminal_for_wallet_v1(
             response: response.clone(),
             now_unix_ms,
         },
-        None,
     )
     .await?;
     parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -10860,7 +10844,6 @@ where
         request,
         None,
         CloudflareServiceAuthModeV1::Shared,
-        None,
     )
     .await?;
     Ok(response)
@@ -10888,7 +10871,6 @@ where
         request,
         None,
         CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
-        None,
     )
     .await?;
     Ok(response)
@@ -10913,7 +10895,6 @@ async fn post_service_json_with_server_timing<TReq, TResp>(
     request: &TReq,
     trace_id: Option<CloudflareTraceIdV1>,
     auth_mode: CloudflareServiceAuthModeV1,
-    response_timing: Option<(&mut CloudflareBoundaryTimingV1, &str)>,
 ) -> RouterAbProtocolResult<(TResp, Option<String>)>
 where
     TReq: Serialize,
@@ -10959,8 +10940,8 @@ where
             format!("{label} service request construction failed: {err}"),
         )
     })?;
-    let mut io_timing = CloudflareBoundaryTimingV1::new();
-    let headers_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    let mut io_timing = CloudflareEcdsaBoundaryTimingV1::new();
+    let headers_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let mut response = fetcher
         .fetch_request(request_for_fetch)
         .await
@@ -10971,10 +10952,6 @@ where
             )
         })?;
     io_timing.mark("service_response_headers", headers_started_at_ms);
-    let server_timing = response.headers().get("Server-Timing").ok().flatten();
-    if let Some((timing, prefix)) = response_timing {
-        timing.merge_role(prefix, server_timing.clone());
-    }
     let status = response.status_code();
     if !(200..=299).contains(&status) {
         let response_body = response.text().await.map_err(|err| {
@@ -10991,7 +10968,9 @@ where
             ),
         ));
     }
-    let body_started_at_ms = CloudflareBoundaryTimingV1::now_ms();
+    // Read before the body is consumed; a missing header is the normal case.
+    let server_timing = response.headers().get("Server-Timing").ok().flatten();
+    let body_started_at_ms = CloudflareEcdsaBoundaryTimingV1::now_ms();
     let parsed = response.json::<TResp>().await.map_err(|err| {
         RouterAbProtocolError::new(
             RouterAbProtocolErrorCode::MalformedWirePayload,
@@ -11033,7 +11012,6 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_deriver_registration_serv
         private_request,
         trace_id,
         CloudflareServiceAuthModeV1::Shared,
-        None,
     )
     .await
 }
@@ -11133,7 +11111,6 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_activation
         request,
         trace_id,
         CloudflareServiceAuthModeV1::RouterToSigningWorkerEcdsa,
-        None,
     )
     .await?;
     receipt.validate()?;
@@ -11198,7 +11175,6 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_sha
         request,
         None,
         CloudflareServiceAuthModeV1::Shared,
-        None,
     )
     .await?.0;
     validate_cloudflare_signing_worker_ecdsa_export_share_envelope_v1(envelope)
@@ -11233,7 +11209,6 @@ async fn execute_cloudflare_router_ab_ecdsa_derivation_signing_worker_export_pre
         request,
         None,
         CloudflareServiceAuthModeV1::Shared,
-        None,
     )
     .await?.0;
     if !response.ready {
@@ -11311,7 +11286,6 @@ pub async fn execute_cloudflare_signing_worker_linked_device_ecdsa_finalize_serv
             &request,
             None,
             CloudflareServiceAuthModeV1::Shared,
-            None,
         )
         .await?;
     response.validate_for_request(&request.request)?;
@@ -12424,7 +12398,7 @@ mod tests {
     #[cfg(feature = "workers-rs")]
     #[test]
     fn boundary_timing_retains_nested_presign_durable_object_duration() {
-        let mut timing = CloudflareBoundaryTimingV1::new();
+        let mut timing = CloudflareEcdsaBoundaryTimingV1::new();
 
         timing.merge_role(
             "ecdsa_presign_sw",

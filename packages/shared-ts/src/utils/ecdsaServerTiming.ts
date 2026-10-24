@@ -1,12 +1,4 @@
-const SIGNING_TIMING_METRICS = new Set([
-  'ed25519_sign_authorize',
-  'ed25519_sign_admit',
-  'ed25519_sign_proxy',
-  'ed25519_sign_complete',
-  'ed25519_sign_total',
-  'near_router_service',
-  'near_sw_wallet_call',
-  'near_sw_handler',
+const ECDSA_TIMING_METRICS = new Set([
   'wallet_gateway_binding',
   'wallet_gateway_total',
   'wallet_console_binding_d1',
@@ -29,12 +21,12 @@ const SIGNING_TIMING_METRICS = new Set([
   'ecdsa_presign_sw_total',
 ]);
 
-export function parseSigningServerTiming(header: string | null): Map<string, number> {
+export function parseEcdsaServerTiming(header: string | null): Map<string, number> {
   const durations = new Map<string, number>();
   if (!header) return durations;
   for (const metric of header.split(',')) {
     const [name, ...parameters] = metric.trim().split(';');
-    if (!SIGNING_TIMING_METRICS.has(name) || durations.has(name)) continue;
+    if (!ECDSA_TIMING_METRICS.has(name) || durations.has(name)) continue;
     for (const parameter of parameters) {
       const [key, rawValue] = parameter.trim().split('=');
       if (key !== 'dur' || !rawValue?.trim()) continue;

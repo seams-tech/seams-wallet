@@ -18,7 +18,7 @@ import {
 } from './harness';
 import { normalizeRuntimePolicyScope } from '../../../packages/shared-ts/src/threshold/signingRootScope';
 import { isPlainObject } from '../../../packages/shared-ts/src/utils/validation';
-import { parseSigningServerTiming } from '../../../packages/shared-ts/src/utils/signingServerTiming';
+import { parseEcdsaServerTiming } from '../../../packages/shared-ts/src/utils/ecdsaServerTiming';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -242,7 +242,7 @@ class FirstSigningPoolFlow {
       }
       await entry.response.finished();
       const browserTiming = request.timing();
-      const stages = parseSigningServerTiming(await entry.response.headerValue('Server-Timing'));
+      const stages = parseEcdsaServerTiming(await entry.response.headerValue('Server-Timing'));
       const d1Header = await entry.response.headerValue('X-Benchmark-D1');
       if (stages.size === 0 && d1Header === null) continue;
       timings.push({
