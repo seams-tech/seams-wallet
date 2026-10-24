@@ -2,6 +2,9 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [direct-sealing implementation](ml-dsa-65-direct-sealing-report.md) now publishes final participant-pool ciphertext once and reuses it for exact retries.
+Its Worker release builds and retirement/restart campaign pass. Final delivery, Gateway, publication, and hosted checks remain pending.
+This progress commit does not qualify the five-second target or select the experiment for release.
 The [batched-commitment screen](ml-dsa-65-batched-commitments-report.md) validates shared exchanges across independent pairs.
 Eight pairs use 113 AND exchanges instead of 904, with the same 4,866,048 gates and only 448 fewer traffic bytes.
 Its maximum runtime message is 188,416 bytes. Individual two-candidate outputs remain independently consumable.

@@ -15,6 +15,7 @@ export class RegistrationDeliveryBarrier {
     if (path === '/state') {
       return Response.json({
         active: this.active,
+        alteredCiphertextRejected: await this.state.storage.get('altered-ciphertext-rejected') ?? false,
         atomicPairRollback: await this.state.storage.get('atomic-pair-rollback') ?? false,
         oversizedDeliveryRejected: await this.state.storage.get('oversized-delivery-rejected') ?? false,
         maximumActive: await this.state.storage.get('maximum-active') ?? 0,
@@ -64,6 +65,12 @@ export class RegistrationDeliveryBarrier {
       }
       const response = await target.fetch(request);
       if (response.status === 200 && command.claim.request.epoch === 1) {
+        if (batches[0].ordinal === 0 && !(await this.state.storage.get('altered-ciphertext-rejected'))) {
+          const changed = structuredClone(command);
+          changed.delivery.batches[0].sealed.encapsulated_key[0] ^= 1;
+          await requireRefusal(target, request, changed, 'Registration signing ciphertext changed');
+          await this.state.storage.put('altered-ciphertext-rejected', true);
+        }
         if (this.env.STALL_DELIVERY && batches[0].ordinal === 0) {
           await this.state.storage.put('claim', command.claim);
           await this.state.storage.put('held-reply', true);

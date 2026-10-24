@@ -58,6 +58,22 @@ pub(super) async fn activate_values(
     commitments: PreparedGmwBatch<'_>,
     transport: &mut impl BooleanTransport,
 ) -> Result<BatchMetrics> {
+    let inputs = commitment_inputs(values, role, matrix, twiddles)?;
+    let commitment_binding = shake256(&[binding, b"gmw-nonce-commitments"]);
+    let commitments = commitments
+        .run(&inputs, &commitment_binding, transport)
+        .await
+        .map_err(runtime_error)?;
+    apply_commitment_outputs(values, role, &commitments.outputs)?;
+    Ok(commitments.metrics)
+}
+
+pub(super) fn commitment_inputs(
+    values: &mut [Zeroizing<Candidate>],
+    role: SigningRole,
+    matrix: &PublicMatrix,
+    twiddles: &Polynomial,
+) -> Result<Vec<Zeroizing<Vec<bool>>>> {
     let mut inputs = Vec::with_capacity(values.len() * ROWS);
     for value in values.iter_mut() {
         value.w = matrix_product_plus_error(matrix, &value.y, twiddles);
@@ -74,15 +90,21 @@ pub(super) async fn activate_values(
             inputs.push(bits);
         }
     }
-    let commitment_binding = shake256(&[binding, b"gmw-nonce-commitments"]);
-    let commitments = commitments
-        .run(&inputs, &commitment_binding, transport)
-        .await
-        .map_err(runtime_error)?;
+    Ok(inputs)
+}
+
+pub(super) fn apply_commitment_outputs(
+    values: &mut [Zeroizing<Candidate>],
+    role: SigningRole,
+    outputs: &[Zeroizing<Vec<u8>>],
+) -> Result<()> {
+    if outputs.len() != values.len() * ROWS {
+        return Err(SigningError::CircuitOutput);
+    }
     for (candidate, value) in values.iter_mut().enumerate() {
         if role == SigningRole::B {
             for row in 0..ROWS {
-                let output = &commitments.outputs[candidate * ROWS + row];
+                let output = &outputs[candidate * ROWS + row];
                 if output.len() != 864 {
                     return Err(SigningError::CircuitOutput);
                 }
@@ -92,5 +114,5 @@ pub(super) async fn activate_values(
         }
         value.w.zeroize();
     }
-    Ok(commitments.metrics)
+    Ok(())
 }

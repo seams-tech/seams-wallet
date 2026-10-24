@@ -128,3 +128,125 @@ impl<'a> ConsumedGmwPreparation<'a> {
         }
     }
 }
+
+/// Independent key-bound reservations and the complete co-evaluation cost.
+pub struct CommittedGmwGroup<'a> {
+    /// Each reservation remains a separately consumable signing pair.
+    pub reservations: Vec<CommittedGmwReservation<'a>>,
+    /// Aggregate traffic and actual shared AND-layer exchanges.
+    pub metrics: BatchMetrics,
+    /// Largest actual logical message, including output reconstruction.
+    pub maximum_message_bytes: usize,
+}
+
+struct PendingCommitment<'a> {
+    role: SigningRole,
+    id: [u8; 32],
+    binding: [u8; 64],
+    values: Vec<Zeroizing<Candidate>>,
+    hashes: PreparedGmwBatch<'a>,
+    bounds: PreparedGmwBatch<'a>,
+    decisions: PreparedGmwBatch<'a>,
+    masks: BatchMetrics,
+}
+
+/// Commits fresh independent reservations in one ordered private computation.
+/// The caller must durably consume every input before this function starts.
+/// Interruption destroys the entire cohort; successful outputs remain separate.
+pub async fn commit_gmw_reservations<'a>(
+    prepared: Vec<PreparedGmwReservation<'a>>,
+    public_key: &[u8; PUBLIC_KEY_BYTES],
+    epoch: [u8; 32],
+    transport: &mut impl BooleanTransport,
+) -> Result<CommittedGmwGroup<'a>> {
+    let first = prepared.first().ok_or(SigningError::AttemptLimit)?;
+    let role = first.role;
+    let candidates = first.values.len();
+    if candidates == 0 || prepared.len() * candidates > 32 {
+        return Err(SigningError::AttemptLimit);
+    }
+    for (index, reservation) in prepared.iter().enumerate() {
+        if reservation.role != role
+            || reservation.values.len() != candidates
+            || prepared[..index]
+                .iter()
+                .any(|previous| previous.id == reservation.id)
+        {
+            return Err(SigningError::RequestBinding);
+        }
+    }
+    let twiddles = ntt_twiddles();
+    let (matrix, _) = expand_a(&public_key[..32]);
+    let mut pending = Vec::with_capacity(prepared.len());
+    let mut requests = Vec::with_capacity(prepared.len());
+    for prepared in prepared {
+        let PreparedGmwReservation {
+            role,
+            id,
+            mut values,
+            commitments,
+            hashes,
+            bounds,
+            decisions,
+            masks,
+        } = prepared;
+        let reservation = Reservation {
+            id,
+            epoch,
+            candidates: candidates as u16,
+        };
+        let key_binding = reservation_binding(public_key, &reservation, SigningEngine::Gmw);
+        let binding = commitment_binding(&key_binding, &id, candidates);
+        let inputs = nonce::commitment_inputs(&mut values, role, &matrix, &twiddles)?;
+        requests.push(PreparedGmwRequest {
+            batch: commitments,
+            inputs,
+            binding: shake256(&[&binding, b"gmw-nonce-commitments"]),
+        });
+        pending.push(PendingCommitment {
+            role,
+            id,
+            binding,
+            values,
+            hashes,
+            bounds,
+            decisions,
+            masks,
+        });
+    }
+    let result = run_batches(requests, transport)
+        .await
+        .map_err(runtime_error)?;
+    if result.batches.len() != pending.len() {
+        return Err(SigningError::CircuitOutput);
+    }
+    let mut reservations = Vec::with_capacity(pending.len());
+    for (pending, output) in pending.into_iter().zip(result.batches) {
+        let PendingCommitment {
+            role,
+            id,
+            binding,
+            mut values,
+            hashes,
+            bounds,
+            decisions,
+            masks,
+        } = pending;
+        nonce::apply_commitment_outputs(&mut values, role, &output.outputs)?;
+        reservations.push(CommittedGmwReservation {
+            role,
+            id,
+            binding,
+            values,
+            hashes,
+            bounds,
+            decisions,
+            nonce_batches: [masks, output.metrics],
+        });
+    }
+    Ok(CommittedGmwGroup {
+        reservations,
+        metrics: result.metrics,
+        maximum_message_bytes: result.maximum_message_bytes,
+    })
+}

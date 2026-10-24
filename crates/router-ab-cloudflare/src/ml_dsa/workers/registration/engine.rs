@@ -333,9 +333,27 @@ pub(super) async fn connected(
     };
     if let Some(trace) = &trace {
         trace.mark("material_sealed");
+        trace.mark("commitments_started");
     }
+    signing_stock::commit(
+        env,
+        state,
+        claim,
+        &binding,
+        &own.activation.key,
+        &key.public_key,
+        &mut adapter.wire,
+    )
+    .await?;
+    if let Some(trace) = &trace {
+        trace.mark("commitments_completed");
+    }
+    check(env, command).await?;
     let stored_result = own.clone();
+    let active_claim = claim.clone();
+    let expected = binding.clone();
     transaction(state, move |store| async move {
+        require_live_execution(&store, &active_claim, &expected).await?;
         store.put("material", &record).await?;
         store.put("own-result", &stored_result).await
     })

@@ -13,7 +13,10 @@ use ed25519_yao::{
     },
     ml_dsa_signing::{
         OwnSigningShare, SigningRole,
-        prepared_signing::gmw::{ConsumedGmwPreparation, prepare_gmw_reservations},
+        prepared_signing::gmw::{
+            ConsumedGmwPreparation, PreparedGmwReservation, commit_gmw_reservations,
+            prepare_gmw_reservations,
+        },
     },
 };
 use router_ab_cloudflare::ml_dsa::{
@@ -163,9 +166,11 @@ pub(super) fn run(
     let started = Instant::now();
     let mut topologies = Default::default();
     let mut preparation_groups = Vec::new();
-    let mut generic_ids = Vec::new();
+    let generic_id: [u8; 32] = Sha256::digest([group.as_slice(), &[0]].concat()).into();
     let mut committed_storage_checks = Vec::new();
     let epoch = execution::material_epoch(&key)?;
+    let mut pending = Vec::new();
+    let mut commitment_groups = Vec::new();
     for ordinal in 0u8..10 {
         let ids: Vec<[u8; 32]> = [ordinal * 2, ordinal * 2 + 1]
             .into_iter()
@@ -188,25 +193,61 @@ pub(super) fn run(
                 expires_at_ms: 10_000_000,
                 wrapping_key_version: version.clone(),
             };
-            let bytes = if ordinal == 0 {
-                // Registration stock exists before a key; refill can commit earlier.
-                generic_ids.push(id);
-                prepared.into_storage()
+            if id == generic_id {
+                // One isolated negative operation must burn and refuse uncommitted stock.
+                let sealed = sealing::seal(prepared.into_storage(), &binding, &seed)?;
+                tx(&db, pool::put(&db, binding, sealed, 1_000))?;
             } else {
-                let committed = run_ready(prepared.commit(public_key, epoch, transport))??;
-                let bytes = committed.into_storage();
-                if committed_storage_checks.is_empty() {
-                    let record = tx(&db, m::material::get(&db, &key))?;
-                    committed_storage_checks.push(check_committed_storage(
-                        &bytes, &binding, public_key, schedules, &record, &seed, transport,
-                    )?);
-                }
-                bytes
-            };
+                pending.push((binding, prepared));
+            }
+        }
+    }
+    while !pending.is_empty() {
+        let count = if commitment_groups.len() < 8 {
+            1
+        } else {
+            pending.len().min(8)
+        };
+        let (bindings, prepared): (Vec<_>, Vec<_>) = pending.drain(..count).unzip();
+        let group = run_ready(commit_gmw_reservations(
+            prepared, public_key, epoch, transport,
+        ))??;
+        require(
+            group.metrics.and_exchanges == 113,
+            "Commitment cohort did not share its AND exchanges",
+        )?;
+        require(
+            group.maximum_message_bytes <= 1_048_576,
+            "Commitment cohort exceeded the transport limit",
+        )?;
+        commitment_groups.push(json!({
+            "mode": if count == 1 { "sequential" } else { "batched" },
+            "pairs": count, "and_exchanges": group.metrics.and_exchanges,
+            "and_gates": group.metrics.and_gates, "maximum_message_bytes": group.maximum_message_bytes,
+            "sent_bytes": group.metrics.phases[3..].iter().map(|phase| phase.sent).sum::<usize>(),
+            "received_bytes": group.metrics.phases[3..].iter().map(|phase| phase.received).sum::<usize>(),
+        }));
+        for (binding, committed) in bindings.into_iter().zip(group.reservations) {
+            let bytes = committed.into_storage();
+            if committed_storage_checks.is_empty() && count > 1 {
+                let record = tx(&db, m::material::get(&db, &key))?;
+                committed_storage_checks.push(check_committed_storage(
+                    &bytes, &binding, public_key, schedules, &record, &seed, transport,
+                )?);
+            }
             let sealed = sealing::seal(bytes, &binding, &seed)?;
             tx(&db, pool::put(&db, binding, sealed, 1_000))?;
         }
     }
+    let cohort_binding_checks = check_cohort_bindings(
+        role,
+        public_key,
+        epoch,
+        &group,
+        schedules,
+        &mut topologies,
+        transport,
+    )?;
     drop(db);
     drop(topologies);
     sync(role, transport)?;
@@ -227,6 +268,11 @@ pub(super) fn run(
         if inventory.ready.is_empty() {
             break;
         }
+        let batches = if ordinal == 0 {
+            vec![generic_id]
+        } else {
+            inventory.ready
+        };
         let request = SigningRequest {
             key: key.clone(),
             operation: [ordinal + 1; 32],
@@ -253,7 +299,7 @@ pub(super) fn run(
         };
         tx(
             &db,
-            pool::reserve(&db, &request, &inventory.ready, claim.expires_at_ms, now),
+            pool::reserve(&db, &request, &batches, claim.expires_at_ms, now),
         )?;
         sync(role, transport)?;
         if role == SigningRole::A {
@@ -261,7 +307,7 @@ pub(super) fn run(
                 matches!(
                     tx(
                         &router,
-                        admission::admit(&router, &policy, claim, inventory.ready, now)
+                        admission::admit(&router, &policy, claim, batches.clone(), now)
                     )?,
                     Decision::Admitted { .. }
                 ),
@@ -288,6 +334,7 @@ pub(super) fn run(
             context: context.to_vec(),
         };
         let operation_started = Instant::now();
+        let before = transport.counts[1].json();
         let outcome = run_ready(execution::run(
             &execution,
             public_key,
@@ -301,21 +348,70 @@ pub(super) fn run(
             schedules,
             &host,
             transport,
-        ))??;
+        ))?;
         let elapsed_ns = operation_started.elapsed().as_nanos();
-        sync(role, transport)?;
-        let completion = match &outcome {
-            execution::Outcome::Signed { signature, .. } => {
-                reference::verify_signature_rustcrypto(public_key, message, context, signature)?;
-                Completion::Succeeded {
-                    public_key: public_key.to_vec(),
-                    message: message.to_vec(),
-                    context: context.to_vec(),
-                    signature: signature.clone(),
-                }
+        let (outcome, completion, settlement) = if ordinal == 0 {
+            let Err(failure) = outcome else {
+                return Err("Generic stock reached online activation".into());
+            };
+            require(
+                failure.message() == "ML-DSA signing requires prepared key-bound commitments",
+                "Generic stock failed at an unexpected boundary",
+            )?;
+            let after = transport.counts[1].json();
+            for field in ["sent_messages", "received_messages"] {
+                let previous = before[field]
+                    .as_u64()
+                    .ok_or("Missing pre-execution count")?;
+                let current = after[field]
+                    .as_u64()
+                    .ok_or("Missing post-execution count")?;
+                require(
+                    current == previous + 1,
+                    "Generic refusal performed more than the public execution binding",
+                )?;
             }
-            execution::Outcome::Exhausted { .. } => Completion::Failed,
+            for field in ["sent_bytes", "received_bytes"] {
+                let previous = before[field]
+                    .as_u64()
+                    .ok_or("Missing pre-execution count")?;
+                let current = after[field]
+                    .as_u64()
+                    .ok_or("Missing post-execution count")?;
+                require(
+                    current == previous + 32,
+                    "Generic refusal entered private activation",
+                )?;
+            }
+            (
+                json!({"status":"generic-refused", "consumed_batches":1, "evaluated_candidates":0, "burned_candidates":2}),
+                Completion::Failed,
+                pool::Settlement::Failed,
+            )
+        } else {
+            let outcome = outcome?;
+            let completion = match &outcome {
+                execution::Outcome::Signed { signature, .. } => {
+                    reference::verify_signature_rustcrypto(
+                        public_key, message, context, signature,
+                    )?;
+                    Completion::Succeeded {
+                        public_key: public_key.to_vec(),
+                        message: message.to_vec(),
+                        context: context.to_vec(),
+                        signature: signature.clone(),
+                    }
+                }
+                execution::Outcome::Exhausted { .. } => Completion::Failed,
+            };
+            let settlement = if matches!(outcome, execution::Outcome::Signed { .. }) {
+                pool::Settlement::Succeeded
+            } else {
+                pool::Settlement::Failed
+            };
+            (serde_json::to_value(outcome)?, completion, settlement)
         };
+        sync(role, transport)?;
         if role == SigningRole::A {
             tx(
                 &router,
@@ -328,11 +424,12 @@ pub(super) fn run(
             "Terminal execution accepted replay",
         )?;
         let consumed = tx(&db, pool::fence(&db, &request, &permit.batches))?;
-        let settlement = if matches!(outcome, execution::Outcome::Signed { .. }) {
-            pool::Settlement::Succeeded
-        } else {
-            pool::Settlement::Failed
-        };
+        if ordinal == 0 {
+            require(
+                consumed == [generic_id],
+                "Generic refusal did not irreversibly consume its isolated slot",
+            )?;
+        }
         // Both successful peers consumed the same prefix. Check that agreement on the channel.
         let consumed_digest = digest(b"consumed", &consumed)?;
         if role == SigningRole::A {
@@ -369,14 +466,11 @@ pub(super) fn run(
             ),
             "Consumption lost refill demand",
         )?;
-        let generic_groups = consumed
-            .iter()
-            .filter(|id| generic_ids.contains(id))
-            .count();
+        let generic_groups = usize::from(ordinal == 0);
         operations.push(json!({
             "outcome": outcome,
             "consumed_ids": consumed.iter().map(hex::encode).collect::<Vec<_>>(),
-            "generic_groups": generic_groups,
+            "refused_generic_groups": generic_groups,
             "committed_groups": consumed.len() - generic_groups,
             "message_digest": hex::encode(request.message_digest),
             "online_ns": elapsed_ns, "replay_rejected": true, "duplicate_cached": true,
@@ -391,7 +485,7 @@ pub(super) fn run(
         "Durable test did not drain the pool",
     )?;
     Ok(
-        json!({"result":{"status":"durable-execution", "operations":operations, "preparation_groups":preparation_groups, "committed_storage_checks":committed_storage_checks}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
+        json!({"result":{"status":"durable-execution", "operations":operations, "preparation_groups":preparation_groups, "committed_storage_checks":committed_storage_checks, "commitment_groups":commitment_groups, "cohort_binding_checks":cohort_binding_checks}, "offline_ns":preparation_ns, "online_ns":started.elapsed().as_nanos(), "offline":transport.counts[0].json(), "online":transport.counts[1].json()}),
     )
 }
 
@@ -534,4 +628,149 @@ fn persist_material(
     }
     tx(db, m::material::put(db, record))?;
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum CohortFault {
+    Reordered,
+    Duplicate,
+    MixedRole,
+    Key,
+    Epoch,
+}
+impl CohortFault {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Reordered => "reordered",
+            Self::Duplicate => "duplicate",
+            Self::MixedRole => "mixed-role",
+            Self::Key => "key",
+            Self::Epoch => "epoch",
+        }
+    }
+    fn binding_bytes(self) -> u64 {
+        match self {
+            Self::Duplicate | Self::MixedRole => 0,
+            Self::Reordered | Self::Key | Self::Epoch => 32,
+        }
+    }
+}
+
+fn check_cohort_bindings(
+    role: SigningRole,
+    public_key: &[u8; 1952],
+    epoch: [u8; 32],
+    group: &[u8; 32],
+    schedules: &[TrustedMlDsaSchedule<'_>],
+    topologies: &mut ed25519_yao::ml_dsa_runtime::boolean_comparison::prepared::PublicTopologies,
+    transport: &mut HostTransport,
+) -> InvestigationResult<Vec<Value>> {
+    let mut checks = Vec::new();
+    for fault in [
+        CohortFault::Reordered,
+        CohortFault::Duplicate,
+        CohortFault::MixedRole,
+        CohortFault::Key,
+        CohortFault::Epoch,
+    ] {
+        let ids: Vec<[u8; 32]> = [0u8, 1]
+            .into_iter()
+            .map(|index| {
+                Sha256::digest([group.as_slice(), fault.label().as_bytes(), &[index]].concat())
+                    .into()
+            })
+            .collect();
+        let mut prepared = if matches!(fault, CohortFault::MixedRole) {
+            let mut first = run_ready(prepare_gmw_reservations(
+                role,
+                &ids[..1],
+                2,
+                schedules,
+                topologies,
+                transport,
+            ))??;
+            let other = match role {
+                SigningRole::A => SigningRole::B,
+                SigningRole::B => SigningRole::A,
+            };
+            first.extend(run_ready(prepare_gmw_reservations(
+                other,
+                &ids[1..],
+                2,
+                schedules,
+                topologies,
+                transport,
+            ))??);
+            first
+        } else {
+            run_ready(prepare_gmw_reservations(
+                role, &ids, 2, schedules, topologies, transport,
+            ))??
+        };
+        let mut key = *public_key;
+        let mut key_epoch = epoch;
+        match fault {
+            CohortFault::Reordered => {
+                if role == SigningRole::B {
+                    prepared.reverse();
+                }
+            }
+            CohortFault::Duplicate => {
+                let bytes = prepared.remove(0).into_storage();
+                prepared.clear();
+                // These duplicate handles are deliberately invalid and must never enter a gate exchange.
+                prepared.push(PreparedGmwReservation::from_consumed_storage(
+                    role,
+                    ids[0],
+                    2,
+                    schedules,
+                    topologies,
+                    bytes.clone(),
+                )?);
+                prepared.push(PreparedGmwReservation::from_consumed_storage(
+                    role, ids[0], 2, schedules, topologies, bytes,
+                )?);
+            }
+            CohortFault::MixedRole => {}
+            CohortFault::Key => {
+                if role == SigningRole::B {
+                    key[32] ^= 1;
+                }
+            }
+            CohortFault::Epoch => {
+                if role == SigningRole::B {
+                    key_epoch[0] ^= 1;
+                }
+            }
+        }
+        let before = transport.counts[0].json();
+        require(
+            run_ready(commit_gmw_reservations(
+                prepared, &key, key_epoch, transport,
+            ))?
+            .is_err(),
+            "Invalid commitment cohort was accepted",
+        )?;
+        let after = transport.counts[0].json();
+        for field in ["sent_bytes", "received_bytes"] {
+            require(
+                after[field].as_u64().ok_or("Missing cohort count")?
+                    == before[field].as_u64().ok_or("Missing pre-binding count")?
+                        + fault.binding_bytes(),
+                "Invalid cohort entered private evaluation",
+            )?;
+        }
+        for field in ["sent_messages", "received_messages"] {
+            require(
+                after[field].as_u64().ok_or("Missing message count")?
+                    == before[field]
+                        .as_u64()
+                        .ok_or("Missing pre-binding message count")?
+                        + u64::from(fault.binding_bytes() != 0),
+                "Invalid cohort exchanged unexpected messages",
+            )?;
+        }
+        checks.push(json!({"fault":fault.label(),"rejected_before_gates":true,"binding_bytes_per_direction":fault.binding_bytes()}));
+    }
+    Ok(checks)
 }
