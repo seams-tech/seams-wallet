@@ -6,9 +6,11 @@ One hosted registration failed during protocol execution. Its cause remains unre
 Temporary tracing produced 44 verified hosted joins through the SigningWorker wallet object.
 The hosted capture passed 21 transaction signatures and one separate message signature.
 Captured wallet-object invocations took 7–31 ms for transaction requests.
-Elevated CPU readings in stateless Worker events make entry-path profiling the next priority.
+Elevated CPU readings in stateless Worker events remain unexplained.
 The native profiler did not attribute those spikes to source functions.
 All profiling additions from this investigation are removed after evidence collection, as requested.
+This investigation is closed without a verified new performance improvement.
+The remaining proposals below are deferred. They do not require further profiling or implementation now.
 The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
 PostgreSQL integration and provisioning are deferred at the user's request.
 Storage replacement has no established gain.
@@ -249,8 +251,9 @@ Attribute only the boundaries that the instruments can observe.
 
 ## Prioritized implementation plan
 
-P0 is the prerequisite for every comparison. P2 is the next active implementation priority.
-Profile Router and SigningWorker entry paths against the captured high-CPU requests, then remove one demonstrated repeated cost.
+The current work ends with cleanup and retained evidence. No implementation priority is active.
+If performance work resumes, P0 is the prerequisite for every comparison.
+P2 requires function-level attribution before selecting a change.
 P1 is deferred at the user's request on October 24, 2026.
 Retain its completed adapter work and evidence. Resume PostgreSQL integration or provisioning only after the user requests it.
 
@@ -379,6 +382,14 @@ a latency fix. Router removal remains conditional on measured forwarding cost.
 Service bindings normally execute on the same server and thread. [Provider documentation](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
 
 ### P4. Improve transactions when confirmation is immediate
+
+One untested candidate remains in
+[`fetchRelayerTxContext`](../packages/wallet-server/src/core/nearRelayerAccountProvisioning.ts):
+fetch the relayer access key and final block concurrently.
+The helper currently performs these independent reads sequentially for implicit-account funding and sponsored account creation.
+No change or timing comparison was made, and no speedup is established.
+If resumed, preserve nonce handling and exact transaction replay, verify both provisioning paths, and compare complete latency against controls.
+The client nonce coordinator already fetches its access key and block concurrently.
 
 The [existing transaction benchmark](./evidence/refactor-155g-early-delegate-transaction-hosted.md)
 waited for context and early prepare before confirming. Its automated confirmation
