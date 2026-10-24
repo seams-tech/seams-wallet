@@ -5,7 +5,8 @@ largely implemented. A current local and hosted baseline now exists.
 One hosted registration failed during protocol execution. Its cause remains unresolved.
 The recorder now retains operation and request IDs for further attribution.
 The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
-Storage replacement remains an experiment with no established gain.
+PostgreSQL integration and provisioning are deferred at the user's request.
+Storage replacement has no established gain.
 
 The new baseline froze wallet `dev` at `cb7fd391` and private source at `1542df3a`.
 It used SDK/server `0.21.0`. The staging iframe manifest reported `0.21.0`, and all
@@ -175,14 +176,15 @@ Attribute only the boundaries that the instruments can observe.
 
 ## Prioritized implementation plan
 
-P0 is the prerequisite for every comparison. P1 investigates the largest independently
-reproduced storage waits. P2 targets ordinary signing. Work can proceed on
-independent source areas while a hosted experiment awaits its authorized window.
+P0 is the prerequisite for every comparison. P2 is the next active implementation priority.
+Extend signing traces through SigningWorker and its object calls, then address a demonstrated delay on the current D1 path.
+P1 is deferred at the user's request on October 24, 2026.
+Retain its completed adapter work and evidence. Resume PostgreSQL integration or provisioning only after the user requests it.
 
 | Priority | Deliverable | Decision gate |
 | --- | --- | --- |
 | P0 | Current-build baseline and correlated traces | Exact artifacts, complete cohorts, and independently verified signatures |
-| P1 | Bounded role-store comparison through PostgreSQL/Hyperdrive | Preserved lifecycle behavior and repeatable hosted improvement |
+| Deferred (P1) | Bounded role-store comparison through PostgreSQL/Hyperdrive | User requests resumption, followed by lifecycle checks and a controlled comparison |
 | P2 | One demonstrated reduction inside signing finalization | Lower complete signing latency beyond control variation |
 | P3 | One attributed registration dispatch or completion reduction | A removable dependency with validated retry behavior |
 | P4 | Faster immediate-confirm transaction signing | Less exposed context/preparation time with correct nonce ownership |
@@ -212,6 +214,10 @@ Start with 20 interleaved control/candidate pairs for a representative experimen
 Expand only after a signal warrants it. Small-cohort p95 remains descriptive.
 
 ### P1. Compare the role-store path through PostgreSQL
+
+Status: deferred at the user's request on October 24, 2026.
+Do not integrate PostgreSQL into Deriver runtime construction or provision PostgreSQL databases or Hyperdrive resources.
+The remaining checklist applies if the user resumes this work.
 
 Use the existing [storage adapter](./storage-portability.md#cloudflare-workers-with-hyperdrive)
 and [private implementation plan][postgres-plan]. Native PostgreSQL lifecycle tests
