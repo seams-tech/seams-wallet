@@ -1,0 +1,979 @@
+{
+  "schema": "seams.ml-dsa-direct-sealing.v1",
+  "selection": {
+    "status": "retain_for_further_qualification",
+    "implementation": "direct_sealed_batched_commitments",
+    "production_selection": "open",
+    "consistent_five_second_target_met": false,
+    "reason": "Duplicate source cache is removed, atomic lifecycle checks pass, and both observed registration times are lower than archived batched control. Both registrations remain above five seconds. Matched generic-stock comparison and sustained qualification remain required."
+  },
+  "rebase": {
+    "old_parent": "0636154584094350cc86ea1b7b1ba2a1b9feb964",
+    "progress_commit": "108ea338",
+    "rebased_commit": "fe56ffcf35706c04117a1821840742c02ecc5b68",
+    "dev": "b94dddd74c6c070096a664e8f5576f305c3e1605",
+    "compiled_rust_hashes_unchanged": true,
+    "test_hashes_unchanged": true
+  },
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "private_commitments": true,
+    "preparation_on_workers": true,
+    "prepared_candidates": 4,
+    "consumed_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000
+  },
+  "verification": {
+    "captured_evidence_checks_passed": true,
+    "local_complete_lifecycles": {
+      "normal": true,
+      "retirement": true,
+      "publication": true,
+      "delivery": true,
+      "control-delivery": true
+    },
+    "local_fault_checks_passed": true,
+    "same_policy": true,
+    "canonical_recovery_verified": true,
+    "source_storage_audits": {
+      "control-delivery": [
+        {
+          "epoch": 1,
+          "a": {
+            "primary_records": 8,
+            "duplicate_records": 8
+          },
+          "b": {
+            "primary_records": 8,
+            "duplicate_records": 8
+          }
+        },
+        {
+          "epoch": 2,
+          "a": {
+            "primary_records": 8,
+            "duplicate_records": 8
+          },
+          "b": {
+            "primary_records": 8,
+            "duplicate_records": 8
+          }
+        }
+      ],
+      "delivery": [
+        {
+          "epoch": 1,
+          "a": {
+            "primary_records": 8,
+            "duplicate_records": 0
+          },
+          "b": {
+            "primary_records": 8,
+            "duplicate_records": 0
+          }
+        },
+        {
+          "epoch": 2,
+          "a": {
+            "primary_records": 8,
+            "duplicate_records": 0
+          },
+          "b": {
+            "primary_records": 8,
+            "duplicate_records": 0
+          }
+        }
+      ]
+    },
+    "signature_reverification": {
+      "verified": 20,
+      "changed_messages_rejected": 20
+    },
+    "role_capture": {
+      "control": {
+        "requests": 6,
+        "complete_role_capture": 6
+      },
+      "candidate": {
+        "requests": 6,
+        "complete_role_capture": 6
+      }
+    },
+    "generic_online_stock_burned_and_refused": true,
+    "interrupted_commitment_retired": true,
+    "reported_exceptions": [
+      {
+        "arm": "candidate",
+        "record": 76,
+        "categories": [
+          "unclassified"
+        ]
+      }
+    ],
+    "consistent_five_second_target": false
+  },
+  "hosted": {
+    "control": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 78229.935083,
+          "registration_ms": 7221.672416999994,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 5125.9284999999945,
+          "registration_plus_initial_signing_ms": 12347.600916999989
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 78545.99520800001,
+          "registration_ms": 6919.953042000008,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 6126.10720899998,
+          "registration_plus_initial_signing_ms": 13046.060250999988
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 3,
+        "minimum_ms": 1610.1768750000047,
+        "median_ms": 4045.388291499996,
+        "maximum_ms": 6766.695957999997,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 24,
+      "stock_deliveries": [
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 415
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 415
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 153
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 153
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 177
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 177
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 301
+        },
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 301
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 161
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 161
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 454
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 454
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 233
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 233
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 178
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 178
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 280
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 280
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 196
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 196
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 169
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 169
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 237
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 237
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 227
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 227
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 128
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 128
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 153
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 153
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 189
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": 0,
+          "duplicate_persist_ms": 0,
+          "through_ack_ms": 189
+        }
+      ],
+      "commitment_spans": [
+        {
+          "role": "a",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "elapsed_ms": 1132
+        },
+        {
+          "role": "a",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "elapsed_ms": 1804
+        },
+        {
+          "role": "b",
+          "job": "e7e1f9c252e1459ce2dfbccb03bf83a179d76fe9ba25a159b9eee295ca1aa864",
+          "elapsed_ms": 2766
+        },
+        {
+          "role": "b",
+          "job": "a7a77adb0085b0a3f67e1d979bf276ed941747b9f3a08fbe4c6f8b9fd41c1057",
+          "elapsed_ms": 2068
+        }
+      ],
+      "commitment_batches": [
+        {
+          "operation": "697f7c1acab94ad9c5667c3bd27631ca974df7ebdd83cc2318428cb1be6e0761",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 117309440,
+          "provider_cpu_ms": 658,
+          "provider_wall_ms": 5480
+        },
+        {
+          "operation": "5bbe3f2ec93daf7123549f6e785567098d60e7f572f553dd5f5171e303966041",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 117309440,
+          "provider_cpu_ms": 935,
+          "provider_wall_ms": 4418
+        },
+        {
+          "operation": "697f7c1acab94ad9c5667c3bd27631ca974df7ebdd83cc2318428cb1be6e0761",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 94437376,
+          "provider_cpu_ms": 3640,
+          "provider_wall_ms": 5434
+        },
+        {
+          "operation": "5bbe3f2ec93daf7123549f6e785567098d60e7f572f553dd5f5171e303966041",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 93978624,
+          "provider_cpu_ms": 1861,
+          "provider_wall_ms": 4356
+        }
+      ],
+      "exceptions": [],
+      "reported_truncation": 0
+    },
+    "candidate": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 67734.706875,
+          "registration_ms": 5452.950874999995,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 3671.5525840000046,
+          "registration_plus_initial_signing_ms": 9124.503459
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 77500.61408300001,
+          "registration_ms": 6101.852459000016,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 2739.6762499999895,
+          "registration_plus_initial_signing_ms": 8841.528709000006
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 6,
+        "minimum_ms": 899.9664579999808,
+        "median_ms": 2320.0355209999943,
+        "maximum_ms": 3671.5525840000046,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 9,
+      "stock_deliveries": [
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 333
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 333
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 212
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 212
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 239
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 239
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 442
+        },
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 442
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 195
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 195
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 223
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 223
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 198
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 198
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 190
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 190
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 312
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 312
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 148
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 148
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 160
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 160
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 128
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 128
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 0,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 237
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 1,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 237
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 2,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 206
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 3,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 206
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 4,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 190
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 5,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 190
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 6,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 222
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "ordinal": 7,
+          "load_ms": 0,
+          "reseal_ms": null,
+          "duplicate_persist_ms": null,
+          "through_ack_ms": 222
+        }
+      ],
+      "commitment_spans": [
+        {
+          "role": "a",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "elapsed_ms": 603
+        },
+        {
+          "role": "a",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "elapsed_ms": 942
+        },
+        {
+          "role": "b",
+          "job": "d74106953b0228fe18ce77d787d912e3e2b41e6c603017fb07d3069ff1ea2c58",
+          "elapsed_ms": 1858
+        },
+        {
+          "role": "b",
+          "job": "9d7b7a2f6d34aad1f81c68fcc69205910560dcc273b13598bfe9d6e962032681",
+          "elapsed_ms": 1373
+        }
+      ],
+      "commitment_batches": [
+        {
+          "operation": "5ba6aa2450f934c2e2a87c520dc00196644b79335c13552a279c3380f1932201",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 127598592,
+          "provider_cpu_ms": 1033,
+          "provider_wall_ms": 3401
+        },
+        {
+          "operation": "cf157c8a58a2a8e5c66e995c315ae89d346f562f0251c39e6e6a262921e00483",
+          "role": "a",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1704992,
+          "received_bytes": 1622048,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 117309440,
+          "provider_cpu_ms": 653,
+          "provider_wall_ms": 4651
+        },
+        {
+          "operation": "5ba6aa2450f934c2e2a87c520dc00196644b79335c13552a279c3380f1932201",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 94437376,
+          "provider_cpu_ms": 1942,
+          "provider_wall_ms": 3345
+        },
+        {
+          "operation": "cf157c8a58a2a8e5c66e995c315ae89d346f562f0251c39e6e6a262921e00483",
+          "role": "b",
+          "start": 0,
+          "pairs": 8,
+          "candidates_per_pair": 2,
+          "and_exchanges": 113,
+          "and_gates": 4866048,
+          "sent_bytes": 1622048,
+          "received_bytes": 1704992,
+          "maximum_message_bytes": 188416,
+          "wasm_linear_memory_bytes": 94437376,
+          "provider_cpu_ms": 3181,
+          "provider_wall_ms": 4288
+        }
+      ],
+      "exceptions": [
+        {
+          "record": 76,
+          "role": "a",
+          "categories": [
+            "unclassified"
+          ]
+        }
+      ],
+      "reported_truncation": 0
+    }
+  },
+  "qualification": {
+    "same_policy": true,
+    "canonical_keys_match": true,
+    "consistent_five_second_qualification": false,
+    "limits": [
+      "Sequential fresh deployments do not randomize placement, host load, module tiering, caches, or rejection counts.",
+      "Per-pair Worker-clock intervals include CPU and waits. Zero elapsed clocks do not establish zero CPU cost.",
+      "Provider CPU and wall clocks cover whole invocations, not individual traced intervals.",
+      "This bounded lifecycle screen does not qualify sustained refill or multi-wallet capacity."
+    ]
+  },
+  "archive": {
+    "path": "ml-dsa-65-direct-sealing-20261024-data.json.gz",
+    "sha256": "68999cea6f0ffc3212b49cdbecac8707d709a086b1309f84d2e77bfecbf3cd84",
+    "bytes": 593937
+  },
+  "cleanup": {
+    "control_workers_deleted": 6,
+    "candidate_workers_deleted": 6
+  },
+  "credential_scan_passed": true,
+  "account_identifier_scan_passed": true,
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_lines": 13972,
+    "baseline": 13754,
+    "baseline_changed": false
+  }
+}
