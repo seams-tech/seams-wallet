@@ -65,51 +65,73 @@ class WalletHostNearCommands {
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],
   ): ReturnType<NearCommands['signAndSendTransaction']> {
+    const transaction = structuredClone({ receiverId: args.receiverId, actions: args.actions });
+    const walletSession = structuredClone(args.walletSession);
+    const nearAccount = structuredClone(args.nearAccount);
+    const options = {
+      ...args.options,
+      mlDsaSigningSession: args.options.mlDsaSigningSession
+        ? structuredClone(args.options.mlDsaSigningSession)
+        : undefined,
+      confirmationConfig: args.options.confirmationConfig
+        ? { ...args.options.confirmationConfig }
+        : undefined,
+    };
     try {
-      const signer = await this.getContext().signingEngine.selectNearTransactionSigner({
-        walletSession: args.walletSession,
-        nearAccount: args.nearAccount,
+      const selection = await this.getContext().signingEngine.selectNearTransactionSigner({
+        walletSession,
+        nearAccount,
         request: args.signer,
-        transaction: { receiverId: args.receiverId, actions: args.actions },
-        shouldAbort: args.options.shouldAbort ?? neverAbortSigning,
-        confirmationConfig: args.options.confirmationConfig ?? null,
+        transaction,
+        shouldAbort: options.shouldAbort ?? neverAbortSigning,
+        confirmationConfig: options.confirmationConfig ?? null,
+        sessionPolicy: options.mlDsaSigningSession ?? null,
+        signerSlot: options.signerSlot ?? null,
       });
+      const signer = selection.signer;
+      if (selection.kind === 'reviewed') {
+        options.confirmationConfig = selection.review.consume({
+          walletSession,
+          nearAccount,
+          transaction,
+          signer,
+          sessionPolicy: options.mlDsaSigningSession ?? null,
+          signerSlot: options.signerSlot ?? null,
+          confirmationConfig: options.confirmationConfig ?? null,
+        });
+      }
       if (signer.kind === 'near_ml_dsa_65') {
         const context = this.getContext();
-        const shouldAbort = args.options.shouldAbort ?? neverAbortSigning;
+        const shouldAbort = options.shouldAbort ?? neverAbortSigning;
         const signed = await context.signingEngine.signMlDsaNearTransaction({
-          walletSession: args.walletSession,
-          nearAccount: args.nearAccount,
+          walletSession,
+          nearAccount,
           signer,
-          transaction: { receiverId: args.receiverId, actions: args.actions },
+          transaction,
           shouldAbort,
           options: {
-            mlDsaSigningSession: args.options.mlDsaSigningSession,
-            onEvent: args.options.onEvent,
-            confirmationConfig: args.options.confirmationConfig,
-            confirmerText: args.options.confirmerText,
+            mlDsaSigningSession: options.mlDsaSigningSession,
+            onEvent: options.onEvent,
+            confirmationConfig: options.confirmationConfig,
+            confirmerText: options.confirmerText,
           },
         });
         assertSigningNotCancelled(shouldAbort);
         return await sendTransaction({
           context,
-          nearAccountId: args.nearAccount.accountId,
-          walletSession: args.walletSession,
+          nearAccountId: nearAccount.accountId,
+          walletSession,
           signedTransaction: signed.signedTransaction,
-          options: args.options,
+          options,
         });
       }
-      const nearAccountId = args.nearAccount.accountId;
-      const transaction = {
-        receiverId: args.receiverId,
-        actions: args.actions,
-      };
+      const nearAccountId = nearAccount.accountId;
       return await signAndSendTransaction({
         context: this.getContext(),
         nearAccountId,
-        walletSession: args.walletSession,
+        walletSession,
         transactionInput: transaction,
-        options: args.options,
+        options,
       });
     } catch (error: unknown) {
       return nearTransactionFailure(error, 'not_submitted');
@@ -118,37 +140,62 @@ class WalletHostNearCommands {
   async signTransaction(
     args: Parameters<NearCommands['signTransaction']>[0],
   ): ReturnType<NearCommands['signTransaction']> {
+    const transaction = structuredClone(args.transaction);
+    const walletSession = structuredClone(args.walletSession);
+    const nearAccount = structuredClone(args.nearAccount);
+    const options = {
+      ...args.options,
+      mlDsaSigningSession: args.options.mlDsaSigningSession
+        ? structuredClone(args.options.mlDsaSigningSession)
+        : undefined,
+      confirmationConfig: args.options.confirmationConfig
+        ? { ...args.options.confirmationConfig }
+        : undefined,
+    };
     try {
-      const signer = await this.getContext().signingEngine.selectNearTransactionSigner({
-        walletSession: args.walletSession,
-        nearAccount: args.nearAccount,
+      const selection = await this.getContext().signingEngine.selectNearTransactionSigner({
+        walletSession,
+        nearAccount,
         request: args.signer,
-        transaction: args.transaction,
-        shouldAbort: args.options.shouldAbort ?? neverAbortSigning,
-        confirmationConfig: args.options.confirmationConfig ?? null,
+        transaction,
+        shouldAbort: options.shouldAbort ?? neverAbortSigning,
+        confirmationConfig: options.confirmationConfig ?? null,
+        sessionPolicy: options.mlDsaSigningSession ?? null,
+        signerSlot: options.signerSlot ?? null,
       });
-      if (signer.kind === 'near_ml_dsa_65') {
-        return await this.getContext().signingEngine.signMlDsaNearTransaction({
-          walletSession: args.walletSession,
-          nearAccount: args.nearAccount,
+      const signer = selection.signer;
+      if (selection.kind === 'reviewed') {
+        options.confirmationConfig = selection.review.consume({
+          walletSession,
+          nearAccount,
+          transaction,
           signer,
-          transaction: args.transaction,
-          options: args.options,
-          shouldAbort: args.options.shouldAbort ?? neverAbortSigning,
+          sessionPolicy: options.mlDsaSigningSession ?? null,
+          signerSlot: options.signerSlot ?? null,
+          confirmationConfig: options.confirmationConfig ?? null,
         });
       }
-      const nearAccountId = args.nearAccount.accountId;
-      const { transaction, options } = args;
+      if (signer.kind === 'near_ml_dsa_65') {
+        return await this.getContext().signingEngine.signMlDsaNearTransaction({
+          walletSession,
+          nearAccount,
+          signer,
+          transaction,
+          options,
+          shouldAbort: options.shouldAbort ?? neverAbortSigning,
+        });
+      }
+      const nearAccountId = nearAccount.accountId;
       return await signTransaction({
         context: this.getContext(),
         nearAccountId,
-        walletSession: args.walletSession,
+        walletSession,
         transactionInput: transaction,
         options,
       });
     } catch (error: unknown) {
       const e = toError(error);
-      await args.options.afterCall?.(false, undefined, e);
+      await options.afterCall?.(false, undefined, e);
       throw e;
     }
   }

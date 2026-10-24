@@ -26,6 +26,11 @@ export async function runMlDsaBrowserLifecycle(
   testInfo: TestInfo,
 ) {
   testInfo.setTimeout(900_000);
+  const discoveryTrace = new SignerDiscoveryTrace();
+  page.on('request', discoveryTrace.request.bind(discoveryTrace));
+  page.on('response', discoveryTrace.response.bind(discoveryTrace));
+  page.on('requestfinished', discoveryTrace.finished.bind(discoveryTrace));
+  page.on('requestfailed', discoveryTrace.failed.bind(discoveryTrace));
   const optionalAssets: string[] = [];
   page.on('request', recordOptionalAsset.bind(null, optionalAssets));
   await harness.registerPasskeyWallet();
@@ -67,9 +72,13 @@ export async function runMlDsaBrowserLifecycle(
   const signer = await publishAcrossReload(page, harness);
   await harness.useLiveNearTestnetRpc();
   await openSigningKeys(page);
-  await expect(
-    page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }),
-  ).toBeVisible();
+  try {
+    await expect(
+      page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }),
+    ).toBeVisible();
+  } finally {
+    await discoveryTrace.save(testInfo);
+  }
   const activated = expect(
     page
       .getByRole('group', { name: 'ML-DSA-65 signing key', exact: true })
@@ -580,7 +589,7 @@ async function signFromDefaultPicker(
   const started = performance.now();
   const command: MlDsaBrowserCommand = {
     kind: 'normal_sign_default',
-    sessionPolicy: { maxOperations: 2, durationMs: 600_000 },
+    sessionPolicy: { maxOperations: 2, durationMs: 600_001 },
   };
   const resultPromise = page.evaluate(invokeSettingsSigning, command);
   const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
@@ -589,8 +598,14 @@ async function signFromDefaultPicker(
   await picker.selectOption('ed25519');
   await expect(picker).toHaveValue('ed25519');
   await picker.selectOption(signer.signingKeyId);
+  await expect(frame.getByText(/up to 2 operations over up to 601 seconds/)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-picker.png') });
-  const result = await autoConfirmWalletIframeUntil(page, resultPromise, { timeoutMs: 315_000 });
+  await frame.getByRole('button', { name: 'Approve transaction', exact: true }).click();
+  const result = await test.step(
+    'One transaction approval completes signing',
+    returnSigningResult.bind(null, resultPromise),
+    { timeout: 120_000 },
+  );
   await waitForWalletIframeConfirmationSettlement(page);
   expect(await readDefaultSigner(harness)).toEqual({
     kind: 'near_ml_dsa_65',
@@ -621,4 +636,99 @@ function verifyOrdinarySignature(
   });
   const hash = createHash('sha256').update(signed.subarray(0, -65)).digest();
   expect(verify(null, hash, key, signed.subarray(-64))).toBe(true);
+}
+
+function returnSigningResult(
+  result: ReturnType<IntendedBehaviourHarness['runMlDsaCommand']>,
+): ReturnType<IntendedBehaviourHarness['runMlDsaCommand']> {
+  return result;
+}
+
+type DiscoveryRequest = {
+  readonly endpoint: string;
+  readonly startedMs: number;
+  readonly rpcMethod: string | null;
+  readonly requestType: string | null;
+  responseMs: number | null;
+  status: number | null;
+  finishedMs: number | null;
+  failed: boolean;
+};
+class SignerDiscoveryTrace {
+  private readonly startedAt = performance.now();
+  private readonly requests = new Map<import('@playwright/test').Request, DiscoveryRequest>();
+  request(request: import('@playwright/test').Request): void {
+    const url = new URL(request.url());
+    const rpc = /^(rpc.testnet.fastnear.com|rpc.testnet.near.org)$/.test(url.hostname);
+    if (
+      !rpc &&
+      !url.pathname.includes('/ml-dsa/metadata') &&
+      !url.pathname.includes('ml_dsa_signer')
+    )
+      return;
+    let rpcMethod: string | null = null;
+    let requestType: string | null = null;
+    if (rpc) {
+      try {
+        const body = requireRecord(request.postDataJSON(), 'RPC diagnostic body');
+        if (typeof body.method === 'string') rpcMethod = body.method;
+        if (body.params && typeof body.params === 'object') {
+          const value: unknown = Reflect.get(body.params, 'request_type');
+          if (typeof value === 'string') requestType = value;
+        }
+      } catch {
+        /* Request diagnostics must not alter the test. */
+      }
+    }
+    this.requests.set(request, {
+      endpoint: url.origin + url.pathname.replace(/\/wallets\/[^/]+\//, '/wallets/:walletId/'),
+      startedMs: this.elapsed(),
+      rpcMethod,
+      requestType,
+      responseMs: null,
+      status: null,
+      finishedMs: null,
+      failed: false,
+    });
+  }
+  response(response: import('@playwright/test').Response): void {
+    const record = this.requests.get(response.request());
+    if (record) {
+      record.responseMs = this.elapsed();
+      record.status = response.status();
+    }
+  }
+  finished(request: import('@playwright/test').Request): void {
+    const record = this.requests.get(request);
+    if (record) record.finishedMs = this.elapsed();
+  }
+  failed(request: import('@playwright/test').Request): void {
+    const record = this.requests.get(request);
+    if (record) {
+      record.finishedMs = this.elapsed();
+      record.failed = true;
+    }
+  }
+  async save(testInfo: TestInfo): Promise<void> {
+    const file = testInfo.outputPath('signer-discovery-requests.json');
+    await writeFile(
+      file,
+      JSON.stringify(
+        {
+          scope: 'Endpoints, status and timing only. No headers, credentials, or RPC params.',
+          elapsedMs: this.elapsed(),
+          requests: [...this.requests.values()],
+        },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('signer-discovery-requests', {
+      path: file,
+      contentType: 'application/json',
+    });
+  }
+  private elapsed(): number {
+    return Math.round(performance.now() - this.startedAt);
+  }
 }
