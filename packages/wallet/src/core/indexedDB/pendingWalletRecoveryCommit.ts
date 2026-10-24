@@ -1,3 +1,5 @@
+import { encodeWalletSignerActivationSetV1 } from '@shared/authorization/walletAuthority';
+import { base64UrlEncode } from '@shared/utils/base64';
 import { parseDeviceId, type DeviceId } from '@shared/authorization/capabilityKinds';
 import {
   isActiveRecoveredWalletAuthorityV1,
@@ -5,10 +7,6 @@ import {
   type ActiveRecoveredWalletAuthorityV1,
   type WalletSignerActivationSetV1,
 } from '@shared/authorization/walletAuthority';
-import {
-  sameWalletEcdsaSignerActivationV1,
-  sameWalletEd25519SignerActivationV1,
-} from '@shared/authorization/walletSignerActivationEquality';
 import {
   parseWalletAuthMethodId,
   parseWalletAuthorityId,
@@ -803,56 +801,10 @@ function samePendingRecoverySignerActivationSetV1(
   left: WalletSignerActivationSetV1,
   right: WalletSignerActivationSetV1,
 ): boolean {
-  if (
-    left.kind !== right.kind ||
-    left.keyFamilies.length !== right.keyFamilies.length ||
-    left.keyFamilies.some((family, index) => family !== right.keyFamilies[index])
-  ) {
-    return false;
-  }
-  if (left.keyFamilies.length === 1) {
-    const family = left.keyFamilies[0];
-    switch (family) {
-      case 'ed25519':
-        return (
-          right.keyFamilies[0] === 'ed25519' &&
-          left.ed25519 !== undefined &&
-          right.ed25519 !== undefined &&
-          sameWalletEd25519SignerActivationV1(left.ed25519, right.ed25519)
-        );
-      case 'ecdsa_secp256k1':
-        return (
-          right.keyFamilies[0] === 'ecdsa_secp256k1' &&
-          left.ecdsa !== undefined &&
-          right.ecdsa !== undefined &&
-          sameWalletEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
-        );
-      default:
-        return assertNeverPendingRecoverySignerFamily(family);
-    }
-  }
-  if (
-    left.keyFamilies.length !== 2 ||
-    left.keyFamilies[0] !== 'ed25519' ||
-    left.keyFamilies[1] !== 'ecdsa_secp256k1' ||
-    right.keyFamilies.length !== 2 ||
-    right.keyFamilies[0] !== 'ed25519' ||
-    right.keyFamilies[1] !== 'ecdsa_secp256k1' ||
-    left.ed25519 === undefined ||
-    right.ed25519 === undefined ||
-    left.ecdsa === undefined ||
-    right.ecdsa === undefined
-  ) {
-    return false;
-  }
   return (
-    sameWalletEd25519SignerActivationV1(left.ed25519, right.ed25519) &&
-    sameWalletEcdsaSignerActivationV1(left.ecdsa, right.ecdsa)
+    base64UrlEncode(encodeWalletSignerActivationSetV1(left)) ===
+    base64UrlEncode(encodeWalletSignerActivationSetV1(right))
   );
-}
-
-function assertNeverPendingRecoverySignerFamily(value: never): never {
-  throw new Error(`unsupported pending recovery signer family: ${String(value)}`);
 }
 
 function samePendingRecoveryCommitRecordV1(

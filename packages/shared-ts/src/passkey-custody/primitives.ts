@@ -15,6 +15,8 @@ export type EnvelopeCiphertextB64u = string & PasskeyCustodyBrand<'EnvelopeCiphe
 // 32-byte Ed25519 public key. This is public identity, not custody material.
 export type Ed25519PublicKeyB64u = string & PasskeyCustodyBrand<'Ed25519PublicKeyB64u'>;
 
+export type X25519PublicKeyB64u = string & PasskeyCustodyBrand<'X25519PublicKeyB64u'>;
+
 export type MlDsa65PublicKeyB64u = string & PasskeyCustodyBrand<'MlDsa65PublicKeyB64u'>;
 export type MlDsaMaterialEpoch = number & PasskeyCustodyBrand<'MlDsaMaterialEpoch'>;
 
@@ -173,5 +175,18 @@ export function parseUnixMs(value: unknown, label: string): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${label} must be a positive unix-millisecond timestamp`);
   }
+  return value;
+}
+
+function isX25519PublicKeyB64u(value: unknown): value is X25519PublicKeyB64u {
+  if (typeof value !== 'string' || value.length !== 43) return false;
+  const bytes = requireCanonicalBase64Url(value, 'X25519 public key');
+  let combined = 0;
+  for (const byte of bytes) combined |= byte;
+  return bytes.length === 32 && combined !== 0;
+}
+export function parseX25519PublicKeyB64u(value: unknown): X25519PublicKeyB64u {
+  if (!isX25519PublicKeyB64u(value))
+    throw new Error('X25519 public key must be a nonzero 32-byte value in canonical base64url');
   return value;
 }

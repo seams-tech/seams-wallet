@@ -99,7 +99,7 @@ async function recoveredUnlockResult(args: {
   if (!args.requireNear) {
     return {
       success: true,
-      kind: 'ecdsa_wallet_unlocked',
+      kind: 'wallet_unlocked',
       walletId: args.walletId,
       signingSession: args.signingSession,
     };

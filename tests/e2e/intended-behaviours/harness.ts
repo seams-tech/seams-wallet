@@ -1151,7 +1151,7 @@ export class IntendedBehaviourHarness {
 
   private readonly context: BrowserContext;
 
-  private readonly page: Page;
+  readonly page: Page;
 
   private readonly request: IntendedGatewayRequests;
 
@@ -1181,7 +1181,9 @@ export class IntendedBehaviourHarness {
 
   private browserSession:
     | { readonly kind: 'uninitialized' }
-    | { readonly kind: 'ready'; readonly session: CDPSession; readonly authenticatorId: string } = { kind: 'uninitialized' };
+    | { readonly kind: 'ready'; readonly session: CDPSession; readonly authenticatorId: string } = {
+    kind: 'uninitialized',
+  };
 
   private passkeyPromptCount = 0;
 
@@ -1239,6 +1241,8 @@ export class IntendedBehaviourHarness {
     readonly harness: IntendedBehaviourHarness;
     readonly context: BrowserContext;
   } | null = null;
+
+  private linkedIdentity: { readonly deviceId: string; readonly walletAuthMethodId: string } | null = null;
 
   /** This device's place in a device-link contract: Device 1 registered the wallet. */
   private deviceNumber = 1;
@@ -1529,6 +1533,7 @@ export class IntendedBehaviourHarness {
     /* A linked device signs with the wallet's public keys, so its signatures
        are verified against Device 1's registration rather than anything the
        linked device reports about itself. */
+    device2.linkedIdentity = { deviceId: linked.deviceId, walletAuthMethodId: linked.walletAuthMethodId };
     device2.registeredWallet = registration;
     device2.nearSignerSlot = this.nearSignerSlot;
     device2.passkeyPromptCount += 1;
@@ -1672,10 +1677,10 @@ export class IntendedBehaviourHarness {
   async revokeLinkedDeviceWithOwnerPasskey(): Promise<void> {
     this.recordStage('revoke_linked_device_with_owner_passkey');
     const before = await this.readLinkedDeviceInventory();
-    const [linked, ...extra] = before.devices;
-    if (!linked || extra.length > 0) {
-      throw new Error(`revocation expects one linked device, found ${before.devices.length}`);
-    }
+    const target = this.linkedDevice?.harness.linkedIdentity;
+    if (!target) throw new Error('The target linked device has no completed enrollment');
+    const linked = before.devices.find(linkedMethodMatches.bind(undefined, target.walletAuthMethodId));
+    if (!linked || linked.deviceId !== target.deviceId) throw new Error('The intended linked device is absent');
     await this.page.evaluate(
       presentLinkedDeviceRevocationToIntendedPage,
       JSON.stringify({ walletAuthMethodId: linked.walletAuthMethodId }),
@@ -1701,9 +1706,8 @@ export class IntendedBehaviourHarness {
     }
 
     const after = await this.readLinkedDeviceInventory();
-    if (after.devices.length !== 0) {
-      throw new Error(`revoked device is still listed: ${JSON.stringify(after.devices)}`);
-    }
+    const remaining = before.devices.filter(linkedMethodDiffers.bind(undefined, target.walletAuthMethodId));
+    if (JSON.stringify(after.devices) !== JSON.stringify(remaining)) throw new Error('Revocation changed another linked device or retained its target');
     assertOwnerDevicesUnchanged(before, after, 'Linked-device revocation');
     this.recordService(
       `linked device revoked method=${result.walletAuthMethodId} authority=${result.authorityId} epoch=${result.revocationEpoch}`,
@@ -5567,6 +5571,8 @@ function parseJsonRpcRequest(body: string): { id: unknown; method: string; param
 
 function nearRpcStubResult(request: { method: string; params: unknown }): unknown {
   switch (request.method) {
+    case 'EXPERIMENTAL_protocol_config':
+      return { chain_id: 'testnet', protocol_version: 85 };
     case 'query':
       return nearRpcQueryStubResult(request.params);
     case 'block':
@@ -8723,4 +8729,11 @@ async function failMlDsaCommandDeadline(
     throw new Error(`ML-DSA transaction approval exceeded ${timeoutMs} ms. Wallet UI: ${state}`);
   }
   throw new Error(`ML-DSA ${kind} exceeded ${timeoutMs} ms`);
+}
+
+function linkedMethodMatches(methodId: string, device: { readonly walletAuthMethodId: string }): boolean {
+  return device.walletAuthMethodId === methodId;
+}
+function linkedMethodDiffers(methodId: string, device: { readonly walletAuthMethodId: string }): boolean {
+  return device.walletAuthMethodId !== methodId;
 }

@@ -4,6 +4,8 @@ mod encoders;
 mod logger;
 #[cfg(feature = "ml-dsa")]
 mod ml_dsa_transaction;
+#[cfg(feature = "ml-dsa")]
+mod ml_dsa_link_wasm;
 mod passkey_custody_wasm;
 #[cfg(test)]
 mod tests;

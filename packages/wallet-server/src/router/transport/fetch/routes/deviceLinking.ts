@@ -51,7 +51,7 @@ import {
   parseLinkedDeviceTargetPreparationRequestV1,
   parseQrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking/parsers';
-import { parseActiveWalletSessionV1 } from '@shared/device-linking/activeWalletSession';
+import { projectActiveWalletSession } from '../../../../authorization/domain';
 import {
   parseLocalAuthorityActivationFinalAckV1,
   parseLocalAuthorityInstallationReceiptV1,
@@ -1296,38 +1296,7 @@ type D1IssuedWalletSessionV1 = Extract<
 >['walletSession'];
 
 function activeWalletSessionWireV1(issued: D1IssuedWalletSessionV1): ActiveWalletSessionV1 {
-  const session = issued.session;
-  const capabilitySubjects = session.capabilitySubjects.map((subject) => {
-    switch (subject.kind) {
-      case 'sign':
-      case 'export_keys':
-        return {
-          kind: subject.kind,
-          keyFamily: subject.keyFamily,
-          materialActivation: subject.materialActivation,
-        };
-      case 'link_devices':
-      case 'revoke_devices':
-        return { kind: subject.kind };
-      default:
-        return assertNever(subject);
-    }
-  });
-  const first = capabilitySubjects[0];
-  if (!first) throw new Error('issued Wallet Session has no capability subjects');
-  return parseActiveWalletSessionV1({
-    kind: 'active_wallet_session_v1',
-    walletId: session.walletId,
-    authorityId: session.authorityId,
-    authMethodId: session.walletAuthMethodId,
-    authorizationId: session.authorizationId,
-    quotaId: issued.quota.quotaId,
-    authorityDigestB64u: session.authorityDigestB64u,
-    authorityRevocationEpoch: session.authorityRevocationEpoch,
-    capabilitySubjects: [first, ...capabilitySubjects.slice(1)],
-    issuedAtMs: session.createdAtMs,
-    expiresAtMs: session.expiresAtMs,
-  });
+  return projectActiveWalletSession(issued);
 }
 
 async function handleCancel(
@@ -1580,6 +1549,10 @@ function requireSourceContributionApproval(
   return approval;
 }
 
+function isEd25519ContributionPreparation(preparation: import('@shared/device-linking/sourceContribution').LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1): preparation is LinkedDeviceEd25519SourceContributionPreparationV1 {
+  return 'kind' in preparation && preparation.kind === 'linked_device_ed25519_source_contribution_preparation_v1';
+}
+
 function requireEd25519SourceContributionPreparation(
   session: LinkedDeviceSessionRecordV1,
 ): LinkedDeviceEd25519SourceContributionPreparationV1 {
@@ -1591,17 +1564,15 @@ function requireEd25519SourceContributionPreparation(
       session.sourceContributionPreparation,
     ),
   );
-  const ed25519 = preparations.find(
-    (preparation): preparation is LinkedDeviceEd25519SourceContributionPreparationV1 =>
-      'kind' in preparation,
-  );
+  const ed25519Preparations = preparations.filter(isEd25519ContributionPreparation);
+  const ed25519 = ed25519Preparations[0];
   if (!ed25519) {
     throw new DeviceLinkingInputError(
       'link session has no Ed25519 source contribution preparation',
     );
   }
   if (
-    preparations.filter((preparation) => 'kind' in preparation).length !== 1 ||
+    ed25519Preparations.length !== 1 ||
     ed25519.linkSessionId !== session.linkSessionId
   ) {
     throw new DeviceLinkingInputError(

@@ -215,9 +215,7 @@ export class LinkedDeviceManagementServiceV1 {
            linked authority holds one method, so this loop is the same single
            entry it always produced. */
         for (const activeMethod of activeMethods) {
-          devices.push(
-            await this.buildLinkedDeviceSummaryV1(authority, activeMethod),
-          );
+          devices.push(await this.buildLinkedDeviceSummaryV1(authority, activeMethod));
         }
       } else if (request.cursor === null) {
         /* One entry per active method, not per authority. A founding authority
@@ -227,9 +225,7 @@ export class LinkedDeviceManagementServiceV1 {
            projection that stopped at the first method made the second
            invisible and unremovable. */
         for (const activeMethod of activeMethods) {
-          ownerDevices.push(
-            await this.buildOwnerDeviceSummaryV1(authority, activeMethod),
-          );
+          ownerDevices.push(await this.buildOwnerDeviceSummaryV1(authority, activeMethod));
         }
       }
     }
@@ -534,40 +530,27 @@ async function credentialMetadataV1(
 }
 
 function walletKeysFromAuthority(authority: ActiveWalletAuthorityV1): readonly WalletKeyId[] {
+  const keys: WalletKeyId[] = [];
   const signers = authority.signerActivations;
-  if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ed25519') {
-    if (!signers.ed25519) throw new Error('Ed25519 signer activation is missing');
-    return [signers.ed25519.signer.walletKeyId];
-  }
-  if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!signers.ecdsa) throw new Error('ECDSA signer activation is missing');
-    return [signers.ecdsa.signer.walletKeyId];
-  }
-  if (!signers.ed25519 || !signers.ecdsa) {
-    throw new Error('dual-family signer activation is incomplete');
-  }
-  return [signers.ed25519.signer.walletKeyId, signers.ecdsa.signer.walletKeyId];
+  if (signers.ed25519) keys.push(signers.ed25519.signer.walletKeyId);
+  if (signers.ecdsa) keys.push(signers.ecdsa.signer.walletKeyId);
+  for (const key of signers.mlDsa ?? []) keys.push(key.signer.walletKeyId);
+  return keys;
 }
 
 function activationRefsFromAuthority(
   authority: RevokedWalletAuthorityV1,
 ): readonly AuthorityMaterialActivationV1[] {
+  const result: AuthorityMaterialActivationV1[] = [];
   const signers = authority.signerActivations;
-  if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ed25519') {
-    if (!signers.ed25519) throw new Error('Ed25519 signer activation is missing');
-    return [{ keyFamily: 'ed25519', materialActivation: signers.ed25519.materialActivation }];
-  }
-  if (signers.keyFamilies.length === 1 && signers.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!signers.ecdsa) throw new Error('ECDSA signer activation is missing');
-    return [{ keyFamily: 'ecdsa_secp256k1', materialActivation: signers.ecdsa.materialActivation }];
-  }
-  if (!signers.ed25519 || !signers.ecdsa) {
-    throw new Error('dual-family signer activation is incomplete');
-  }
-  return [
-    { keyFamily: 'ed25519', materialActivation: signers.ed25519.materialActivation },
-    { keyFamily: 'ecdsa_secp256k1', materialActivation: signers.ecdsa.materialActivation },
-  ];
+  if (signers.ed25519)
+    result.push({ keyFamily: 'ed25519', materialActivation: signers.ed25519.materialActivation });
+  if (signers.ecdsa)
+    result.push({
+      keyFamily: 'ecdsa_secp256k1',
+      materialActivation: signers.ecdsa.materialActivation,
+    });
+  return result;
 }
 
 type AuthorityMaterialActivationV1 =

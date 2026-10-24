@@ -882,6 +882,8 @@ async function exactWalletSessionCapabilitySubjectsResolveMaterial(
     switch (subject.kind) {
       case 'sign':
       case 'export_keys': {
+        // ML-DSA has no client share. Its signing route checks the current publication.
+        if (subject.keyFamily === 'ml_dsa_65') break;
         const alreadyRead = materials.some(
           (material) =>
             material.keyFamily === subject.keyFamily &&

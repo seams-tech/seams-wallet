@@ -1,3 +1,4 @@
+import { projectActiveWalletSession } from '../../../../authorization/domain';
 import type {
   RegistrationActivationWrite,
   WalletRegistrationHomeAuthority,
@@ -11,7 +12,10 @@ import {
   buildVerifiedWalletSessionPasskeyFactorResult,
   type VerifiedOwnerProof,
 } from '../../../../authorization/factorEvidence';
-import type { AuthorizationGrantPort, AuthorizationService } from '../../../../authorization/service';
+import type {
+  AuthorizationGrantPort,
+  AuthorizationService,
+} from '../../../../authorization/service';
 import type {
   DirectV2IssueResult,
   IssuedWalletSessionAuthorizationV2,
@@ -60,7 +64,6 @@ import type {
 } from '@shared/utils/registrationEstablishedSession';
 import type {
   ActiveWalletSessionV1,
-  WalletCapabilitySubjectV1,
   WalletSessionOperationCredentialV1,
 } from '@shared/device-linking/contracts';
 import {
@@ -89,7 +92,9 @@ export type RegistrationInitialSessionCommit =
   | { readonly kind: 'uncommitted'; readonly value?: never }
   | {
       readonly kind: 'committed';
-      readonly value: Awaited<ReturnType<AuthorizationService['commitDirectWalletSessionAuthorizationV2']>>;
+      readonly value: Awaited<
+        ReturnType<AuthorizationService['commitDirectWalletSessionAuthorizationV2']>
+      >;
     };
 
 type InitialEd25519RegistrationSessionInput = {
@@ -287,49 +292,10 @@ async function readDirectRegistrationAuthorization(input: {
   return persisted;
 }
 
-function walletSessionSubjectForClient(
-  subject: import('../../../../authorization/domain').WalletSessionCapabilitySubjectV1,
-): WalletCapabilitySubjectV1 {
-  switch (subject.kind) {
-    case 'sign':
-    case 'export_keys':
-      return {
-        kind: subject.kind,
-        keyFamily: subject.keyFamily,
-        materialActivation: subject.materialActivation,
-      };
-    case 'link_devices':
-    case 'revoke_devices':
-      return { kind: subject.kind };
-    default:
-      return assertNeverRegistrationCapabilitySubject(subject);
-  }
-}
-
-function assertNeverRegistrationCapabilitySubject(value: never): never {
-  throw new Error(`Unsupported registration Wallet Session capability subject: ${String(value)}`);
-}
-
 function activeWalletSessionFromAuthorization(
   issued: IssuedWalletSessionAuthorizationV2 | LiveWalletSessionAuthorizationProjectionV2,
 ): ActiveWalletSessionV1 {
-  const authorization = issued.session;
-  const subjects = authorization.capabilitySubjects.map(walletSessionSubjectForClient);
-  const [first, ...remaining] = subjects;
-  if (!first) throw new Error('Direct registration Wallet Session has no capability subjects');
-  return {
-    kind: 'active_wallet_session_v1',
-    walletId: authorization.walletId,
-    authorityId: authorization.authorityId,
-    authMethodId: authorization.walletAuthMethodId,
-    authorizationId: authorization.authorizationId,
-    quotaId: issued.quota.quotaId,
-    authorityDigestB64u: authorization.authorityDigestB64u,
-    authorityRevocationEpoch: authorization.authorityRevocationEpoch,
-    capabilitySubjects: [first, ...remaining],
-    issuedAtMs: authorization.createdAtMs,
-    expiresAtMs: authorization.expiresAtMs,
-  };
+  return projectActiveWalletSession(issued);
 }
 
 function registrationSignMaterialActivation(
@@ -339,7 +305,7 @@ function registrationSignMaterialActivation(
   const subject = authorization.capabilitySubjects.find(
     (candidate) => candidate.kind === 'sign' && candidate.keyFamily === keyFamily,
   );
-  if (!subject || subject.kind !== 'sign') {
+  if (!subject || subject.kind !== 'sign' || subject.keyFamily === 'ml_dsa_65') {
     throw new Error(
       `Direct registration Wallet Session is missing ${keyFamily} signing capability`,
     );

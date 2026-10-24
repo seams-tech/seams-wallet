@@ -1,3 +1,4 @@
+import { IndexedDBManager } from '@/core/indexedDB';
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { exactRecord } from '@shared/utils/exactRecord';
 import { requireBytes32 } from '@shared/utils/routerAbEd25519YaoDigests';
@@ -143,6 +144,7 @@ export async function addPasskeyMlDsaWalletSigner(input: {
           await waitForRetry(round, published);
           continue;
         }
+        await IndexedDBManager.adoptAddedMlDsaSignerAuthority(published.authority);
         await clearMlDsaPublication({ relayerUrl: input.relayerUrl, commit });
         return {
           success: true,

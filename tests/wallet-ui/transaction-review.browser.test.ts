@@ -161,7 +161,7 @@ const hostScript = `
         adoptedPort.postMessage({ type: 'SESSION_CHANGED', payload: reviewSessionObservation() });
         postResult(message.requestId, {
           success: true,
-          kind: 'ecdsa_wallet_unlocked',
+          kind: 'wallet_unlocked',
           walletId: 'review.testnet',
         });
         return;
@@ -526,7 +526,7 @@ test('one hook locks, unlocks, provisions NEAR, and replaces disposed review own
   const unlockResult = await page.evaluate(async () => {
     return (window as any).reviewContext.unlock('review.testnet');
   });
-  expect(unlockResult).toMatchObject({ success: true, kind: 'ecdsa_wallet_unlocked' });
+  expect(unlockResult).toMatchObject({ success: true, kind: 'wallet_unlocked' });
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewWallet?.walletId))
     .toBe(walletId);

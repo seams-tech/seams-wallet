@@ -1,3 +1,4 @@
+import { assertMlDsaContributionMatchesPreparationV1 } from '@shared/device-linking/sourceContribution';
 // Checks that an owner's claim, approval or source-contribution re-approval stays within the
 // owner's authority and matches the session and target preparation it names.
 import {
@@ -102,6 +103,15 @@ export function validateSourceContributionPreparationMatchesApproval(
     }
     if (preparation.enrollmentId !== approval.enrollmentId) {
       throw new Error('source contribution preparation enrollment differs from approval');
+    }
+    if (
+      'kind' in preparation &&
+      preparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+    ) {
+      if (contribution.keyFamily !== 'ml_dsa_65')
+        throw new Error('The ML-DSA contribution is missing');
+      assertMlDsaContributionMatchesPreparationV1(contribution, preparation);
+      return;
     }
     if ('kind' in preparation) {
       if (contribution.keyFamily !== 'ed25519') {

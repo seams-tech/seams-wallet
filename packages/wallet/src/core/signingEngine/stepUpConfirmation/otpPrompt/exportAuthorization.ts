@@ -110,7 +110,7 @@ export async function requestEmailOtpExportAuthorization(args: {
   identity: EmailOtpExportAuthorizationIdentity;
   chain: EmailOtpExportAuthorizationChain;
   publicKey: string;
-  curve: WalletAuthCurve;
+  curve: WalletAuthCurve | 'ml_dsa_65';
   challengeSource: EmailOtpExportAuthorizationChallengeSource;
   confirmer: EmailOtpExportAuthorizationConfirmer;
   onChallenge?: (challenge: EmailOtpExportAuthorizationChallenge) => void;

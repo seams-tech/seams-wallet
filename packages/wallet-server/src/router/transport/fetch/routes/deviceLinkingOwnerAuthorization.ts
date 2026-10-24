@@ -1,3 +1,5 @@
+import type { ActiveWalletAuthorityV1 } from '@shared/authorization/walletAuthority';
+import type { WalletAuthMethodId } from '@shared/utils/domainIds';
 import type {
   LinkedDeviceOwnerAuthorizationRequestV1,
   LinkedDeviceOwnerAuthorizationSourceV1,
@@ -63,6 +65,17 @@ export type DeviceLinkingOwnerAuthorizationResponseV1 = {
 };
 
 export type DeviceLinkingOwnerWalletSessionContextV1 = ReadonlyExclusiveUnion<
+  | {
+      readonly walletId: WalletId;
+      readonly walletSessionId: WalletSessionId;
+      readonly authorizationId: WalletSessionAuthorizationId;
+      readonly expiresAtMs: number;
+      readonly permission: DelegatedWalletAuthorityV1;
+      readonly keyManifestDigestB64u: DigestB64u;
+      readonly curve: 'ml_dsa_65';
+      readonly walletAuthority: ActiveWalletAuthorityV1;
+      readonly walletAuthMethodId: WalletAuthMethodId;
+    }
   | {
       readonly walletId: WalletId;
       readonly walletSessionId: WalletSessionId;
@@ -379,6 +392,19 @@ async function ownerContextFromExactV2AuthorizationV1(input: {
       curve: 'ed25519',
       authority: authData.authority,
       authorityScope: thresholdEd25519AuthorityScopeFromWalletAuthAuthority(authData.authority),
+    };
+  }
+  if (authority.signerActivations.keyFamilies[0] === 'ml_dsa_65') {
+    return {
+      walletId: session.walletId,
+      walletSessionId: session.walletSessionId,
+      authorizationId: session.authorizationId,
+      expiresAtMs: session.expiresAtMs,
+      permission,
+      keyManifestDigestB64u: authority.signerActivationSetDigestB64u,
+      curve: 'ml_dsa_65',
+      walletAuthority: authority,
+      walletAuthMethodId: authMethod.walletAuthMethodId,
     };
   }
   return {

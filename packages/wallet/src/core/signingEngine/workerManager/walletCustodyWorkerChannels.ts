@@ -58,7 +58,15 @@ type UnlockedLinkedDeviceEd25519ClientRootCapabilityV1 = {
 /** The unlocked capability a device approving a link seals the export root from. */
 export type UnlockedEd25519ExportRootLinkingCapabilityV1 =
   | UnlockedWalletEd25519ExportRootCapabilityV1
-  | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1;
+  | UnlockedLinkedDeviceEd25519ClientRootCapabilityV1
+  | {
+      readonly kind: 'unlocked_linked_device_ml_dsa_roots_capability_v1';
+      readonly capabilityHandleId: string;
+      readonly walletId: string;
+      readonly walletAuthMethodId: string;
+      readonly walletSessionId: string;
+      readonly expiresAtMs: number;
+    };
 
 /**
  * What a destroy call invalidates. Lock destroys by wallet, session
@@ -313,9 +321,24 @@ export interface WalletCustodyCeremonyWorkerOperationMap {
    * At most one capability exists per wallet and owner Wallet Session;
    * establishing a new one destroys the previous handle first.
    */
+  readMlDsaExportEnvelope: {
+    payload: {
+      capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
+      signingKeyId: string;
+      publicKeyB64u: string;
+    };
+    result: PasskeyCustodyEnvelopeRecord;
+  };
+  sealMlDsaExportRootForLinkedDevice: {
+    payload: {
+      capability: UnlockedEd25519ExportRootLinkingCapabilityV1;
+      binding: import('@shared/device-linking/mlDsaExportRoot').MlDsaRootTransferBindingV1;
+    };
+    result: import('@shared/device-linking/mlDsaExportRoot').SealedMlDsaRootTransferV1;
+  };
   establishUnlockedWalletEd25519ExportRootCapability: {
     payload: {
-      existingEnvelope: PasskeyCustodyEnvelopeRecord;
+      existingEnvelopes: readonly PasskeyCustodyEnvelopeRecord[];
       existingFactorSecret: ArrayBuffer;
       walletId: string;
       walletAuthMethodId: string;

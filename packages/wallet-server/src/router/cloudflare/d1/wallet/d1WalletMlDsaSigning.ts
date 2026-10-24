@@ -1,3 +1,4 @@
+import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import type { CloudflareD1EmailOtpChallengeVerifier } from '../emailOtp/d1EmailOtpChallengeVerifier';
 import { resolveMlDsaEmailOtpOwner, type MlDsaEmailOtpServices } from './mlDsaEmailOtpApproval';
 import { verifyMlDsaSigningApproval, operationEnvelope } from './mlDsaSigningApproval';
@@ -112,12 +113,38 @@ function permitsMlDsaSigning(authority: ActiveWalletAuthorityV1): boolean {
     case 'wallet_recovery':
       return true;
     case 'device_link':
-      // Linked owners use the server signer through their installed NEAR authority.
-      return authority.signerActivations.ed25519 !== undefined;
+      return authority.signerActivations.mlDsa !== undefined;
     default:
       return assertNever(authority.provenance);
   }
 }
+function visibleMlDsaSigners(
+  authority: ActiveWalletAuthorityV1,
+  entries: readonly MlDsaSignerInventoryEntry[],
+): readonly MlDsaSignerInventoryEntry[] {
+  if (authority.provenance.kind !== 'device_link') return entries;
+  const visible: MlDsaSignerInventoryEntry[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'unpublished') continue;
+    const keyId = entry.kind === 'published' ? entry.key.signingKeyId : entry.signingKeyId;
+    const publicKey =
+      entry.kind === 'published' ? entry.key.publicKeyB64u : entry.recordedKey.publicKeyB64u;
+    const manifest =
+      entry.kind === 'published'
+        ? entry.key.keyManifestDigestB64u
+        : entry.recordedKey.keyManifestDigestB64u;
+    for (const activation of authority.signerActivations.mlDsa ?? []) {
+      if (
+        activation.signer.mlDsaSigningKeyId === keyId &&
+        activation.signer.registeredPublicKeyB64u === publicKey &&
+        activation.signer.keyManifestDigestB64u === manifest
+      )
+        visible.push(entry);
+    }
+  }
+  return visible;
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unknown ML-DSA authority provenance: ${String(value)}`);
 }
@@ -219,7 +246,7 @@ export class D1WalletMlDsaSigning {
       current.authMethod.walletAuthMethodId !== owner.authMethod.walletAuthMethodId
     )
       return refusal('unauthorized', 'The signer metadata session changed');
-    return { kind: 'inventory', entries };
+    return { kind: 'inventory', entries: visibleMlDsaSigners(owner.authority, entries) };
   }
 
   /** Read retained server signers after recovery or full-owner device activation. */
@@ -332,7 +359,7 @@ export class D1WalletMlDsaSigning {
       Date.now() >= preparation.expiresAtMs
     )
       return refusal('unauthorized', 'The ML-DSA inventory owner changed');
-    return { kind: 'inventory', entries };
+    return { kind: 'inventory', entries: visibleMlDsaSigners(current.walletAuthority, entries) };
   }
   async prepare(
     request: MlDsaSigningRequest,
@@ -365,6 +392,19 @@ export class D1WalletMlDsaSigning {
       request.signingKeyId,
     );
     if (!published) return refusal('not_found', 'The ML-DSA key is not published');
+    let activated = false;
+    for (const entry of resolved.walletAuthority.signerActivations.mlDsa ?? []) {
+      const signer = entry.signer;
+      if (
+        signer.walletKeyId === published.key.walletKeyId &&
+        signer.mlDsaSigningKeyId === request.signingKeyId &&
+        signer.registeredPublicKeyB64u === published.key.registeredPublicKeyB64u &&
+        signer.keyManifestDigestB64u === published.key.keyManifestDigestB64u
+      )
+        activated = true;
+    }
+    if (!activated)
+      return refusal('unauthorized', 'This owner has no activation for the selected ML-DSA signer');
     await this.initializeCodec();
     let transaction;
     try {

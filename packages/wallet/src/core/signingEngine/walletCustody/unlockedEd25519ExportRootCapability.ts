@@ -145,7 +145,10 @@ function parseCapabilityReference(
   value: unknown,
 ): UnlockedEd25519ExportRootLinkingCapabilityV1 | null {
   if (!isPlainObject(value)) return null;
-  if (value.kind === 'unlocked_linked_device_ed25519_client_root_capability_v1') {
+  if (
+    value.kind === 'unlocked_linked_device_ed25519_client_root_capability_v1' ||
+    value.kind === 'unlocked_linked_device_ml_dsa_roots_capability_v1'
+  ) {
     return parseLinkedDeviceClientRootCapabilityReference(value);
   }
   const fields = Object.keys(value);
@@ -244,7 +247,10 @@ function parseLinkedDeviceClientRootCapabilityReference(
     return null;
   }
   return {
-    kind: 'unlocked_linked_device_ed25519_client_root_capability_v1',
+    kind:
+      value.kind === 'unlocked_linked_device_ml_dsa_roots_capability_v1'
+        ? value.kind
+        : 'unlocked_linked_device_ed25519_client_root_capability_v1',
     capabilityHandleId: capabilityHandleId.value,
     walletId: walletId.value,
     walletAuthMethodId: walletAuthMethodId.value,
@@ -268,7 +274,7 @@ function parseLinkedDeviceClientRootCapabilityReference(
 export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
   transport: WalletCustodyCeremonyTransportPort,
   input: {
-    readonly existingEnvelope: PasskeyCustodyEnvelopeRecord;
+    readonly existingEnvelopes: readonly PasskeyCustodyEnvelopeRecord[];
     readonly existingFactorSecret: Uint8Array;
     readonly walletId: string;
     readonly walletAuthMethodId: string;
@@ -276,9 +282,15 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
     readonly expiresAtMs: number;
   },
 ): Promise<UnlockedEd25519ExportRootLinkingCapabilityV1 | undefined> {
-  const binding = input.existingEnvelope.binding;
-  if (!isWalletCustodySeedBinding(binding) && binding.kind !== 'ed25519_yao_client_root_v1') {
-    return undefined;
+  if (input.existingEnvelopes.length === 0) return undefined;
+  for (const envelope of input.existingEnvelopes) {
+    const binding = envelope.binding;
+    if (
+      !isWalletCustodySeedBinding(binding) &&
+      binding.kind !== 'ed25519_yao_client_root_v1' &&
+      binding.kind !== 'ml_dsa_65_owner_root_v1'
+    )
+      throw new Error('Unsupported export-root envelope');
   }
   // The worker transfers this buffer, so it gets a copy and we wipe it.
   const workerFactorSecret = input.existingFactorSecret.slice();
@@ -289,7 +301,7 @@ export async function establishUnlockedWalletEd25519ExportRootCapabilityV1(
       request: {
         type: 'establishUnlockedWalletEd25519ExportRootCapability',
         payload: {
-          existingEnvelope: input.existingEnvelope,
+          existingEnvelopes: input.existingEnvelopes,
           existingFactorSecret: workerFactorSecret.buffer,
           walletId: input.walletId,
           walletAuthMethodId: input.walletAuthMethodId,

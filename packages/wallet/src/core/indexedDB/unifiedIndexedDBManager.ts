@@ -632,6 +632,12 @@ export class UnifiedIndexedDBManager {
     return this.seamsWalletRepositories.publishPendingWalletRegistrationCommitAndRetain(input);
   }
 
+  async adoptAddedMlDsaSignerAuthority(
+    input: Parameters<SeamsWalletRepositories['adoptAddedMlDsaSignerAuthority']>[0],
+  ): Promise<void> {
+    await this.seamsWalletRepositories.adoptAddedMlDsaSignerAuthority(input);
+  }
+
   async adoptAddedEcdsaSignerAuthority(
     input: Parameters<SeamsWalletRepositories['adoptAddedEcdsaSignerAuthority']>[0],
   ): Promise<void> {

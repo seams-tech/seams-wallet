@@ -1,3 +1,4 @@
+import type { WalletAuthorityExportRootRecordV1 } from '@/core/indexedDB';
 import {
   encodeLinkedDeviceRequestProofV1,
   LINKED_DEVICE_REQUEST_PROOF_SIGNATURE_BYTES_V1,
@@ -129,7 +130,16 @@ function requireKeySlot(handleId: string): DeviceLinkingKeySlotV1 {
   return slot;
 }
 
+async function discardMlDsaRecipient(recipientHandleId: string): Promise<void> {
+  const module = await import('./device-linking-key/mlDsaRootInstallation');
+  module.discardMlDsaRootRecipient(recipientHandleId);
+}
+
 function destroyKeySlot(slot: DeviceLinkingKeySlotV1): void {
+  for (const recipient of slot.ordinaryMaterialRecipientPreparation?.recipientInputs ?? []) {
+    if (recipient.keyFamily === 'ml_dsa_65')
+      void discardMlDsaRecipient(recipient.recipientHandleId);
+  }
   destroyOrdinaryRecipientPreparation(slot);
   destroyOrdinaryMaterial(slot);
 }
@@ -143,8 +153,33 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
       committed: input.committed,
       resealedExportRoot: input.resealedExportRoot,
     });
+    const exportRoots: WalletAuthorityExportRootRecordV1[] = exportRoot ? [exportRoot] : [];
     const signerMaterials: WalletAuthoritySignerMaterialRecordV1[] = [];
     for (const preparation of input.preparations) {
+      if (
+        'kind' in preparation &&
+        preparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+      ) {
+        const packageValue = input.committed.signerPackages.mlDsa?.find(
+          matchesMlDsaPreparation.bind(undefined, preparation.walletKeyId),
+        );
+        const recipient = input.recipientInputs.find(
+          matchesMlDsaRecipient.bind(undefined, preparation.walletKeyId),
+        );
+        if (!packageValue || !recipient || recipient.keyFamily !== 'ml_dsa_65')
+          throw new Error('The ML-DSA root package or recipient is missing');
+        const module = await import('./device-linking-key/mlDsaRootInstallation');
+        exportRoots.push(
+          await module.installMlDsaRoot({
+            recipientHandleId: recipient.recipientHandleId,
+            packageValue,
+            committed: input.committed,
+            factor: input.rootFactor,
+            factorSecret: input.factorSecret,
+          }),
+        );
+        continue;
+      }
       const packageValue = ordinarySignerPackageForPreparation(input.committed, preparation);
       const recipientInput = ordinaryRecipientInputForPreparation(
         input.preparations,
@@ -184,18 +219,16 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
         material.fill(0);
       }
     }
-    const firstSignerMaterial = signerMaterials[0];
-    if (!firstSignerMaterial) throw new Error('ordinary signer material set is empty');
     const installedRecordSetDigestB64u = await sha256Utf8DigestB64u(
       alphabetizeStringify({
         domain: 'seams/wallet/ordinary-authority-material-set/v1',
         signerMaterials,
-        exportRoot,
+        exportRoots,
       }),
     );
     return {
-      signerMaterials: [firstSignerMaterial, ...signerMaterials.slice(1)],
-      exportRoot,
+      signerMaterials,
+      exportRoots,
       installedRecordSetDigestB64u,
     };
   },
@@ -203,7 +236,10 @@ const productionOrdinaryMaterialSealer: DeviceLinkingOrdinaryMaterialSealerV1 = 
 
 function ordinarySignerPackageForPreparation(
   committed: CommittedAuthorityPackagesV1,
-  preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
+  preparation: Exclude<
+    DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
+    { readonly kind: 'linked_device_ml_dsa_65_source_contribution_preparation_v1' }
+  >,
 ): LinkedSignerPackageForMaterialV1 {
   if ('kind' in preparation) {
     if (!committed.signerPackages.ed25519) {
@@ -249,7 +285,10 @@ function ordinaryRecipientInputForPreparation(
 }
 
 async function openOrdinarySignerMaterial(input: {
-  readonly preparation: DeviceLinkingOrdinarySignerMaterialReservationPreparationV1;
+  readonly preparation: Exclude<
+    DeviceLinkingOrdinarySignerMaterialReservationPreparationV1,
+    { readonly kind: 'linked_device_ml_dsa_65_source_contribution_preparation_v1' }
+  >;
   readonly packageValue: LinkedSignerPackageForMaterialV1;
   readonly recipientInput: DeviceLinkingOrdinarySignerMaterialRecipientInputV1;
 }): Promise<Uint8Array<ArrayBuffer>> {
@@ -429,11 +468,12 @@ function responseTransferables(
     'kind' in result &&
     result.kind === 'device_linking_ordinary_signer_material_recipient_preparation_v1'
   ) {
-    return result.recipientInputs.map((input) =>
-      input.kind === 'ordinary_ed25519_signer_material_recipient_input_v1'
-        ? input.recipientPrivateKey
-        : input.clientEphemeralPrivateKey,
-    );
+    const transfers: Transferable[] = [];
+    for (const input of result.recipientInputs) {
+      if (input.keyFamily === 'ed25519') transfers.push(input.recipientPrivateKey);
+      if (input.keyFamily === 'ecdsa_secp256k1') transfers.push(input.clientEphemeralPrivateKey);
+    }
+    return transfers;
   }
   if (
     result &&
@@ -607,6 +647,23 @@ async function createOrdinarySignerMaterialRecipientPreparation(
   const recipientInputs: DeviceLinkingOrdinarySignerMaterialRecipientInputV1[] = [];
   try {
     for (const requirement of request.requirements) {
+      if (requirement.keyFamily === 'ml_dsa_65') {
+        const module = await import('./device-linking-key/mlDsaRootInstallation');
+        const recipient = await module.createMlDsaRootRecipient(requirement.walletKeyId);
+        recipientRequests.push({
+          kind: 'ordinary_ml_dsa_65_signer_material_recipient_request_v1',
+          keyFamily: 'ml_dsa_65',
+          walletKeyId: requirement.walletKeyId,
+          recipientPublicKeyB64u: recipient.recipientPublicKeyB64u,
+        });
+        recipientInputs.push({
+          kind: 'ordinary_ml_dsa_65_signer_material_recipient_input_v1',
+          keyFamily: 'ml_dsa_65',
+          walletKeyId: requirement.walletKeyId,
+          recipientHandleId: recipient.recipientHandleId,
+        });
+        continue;
+      }
       const pair = await createX25519RecipientPair();
       const privateKey = pair.privateKey.buffer.slice(0);
       if (requirement.keyFamily === 'ed25519') {
@@ -650,6 +707,9 @@ async function createOrdinarySignerMaterialRecipientPreparation(
     slot.ordinaryMaterialRecipientPreparation = state;
     return cloneOrdinaryRecipientPreparation(state);
   } catch (error) {
+    for (const recipient of recipientInputs)
+      if (recipient.keyFamily === 'ml_dsa_65')
+        await discardMlDsaRecipient(recipient.recipientHandleId);
     destroyOrdinaryRecipientInputs(recipientInputs);
     throw error;
   }
@@ -709,6 +769,8 @@ async function prepareOrdinarySignerMaterial(
           'ordinary signer material preparation conflicts with the existing activation reference',
         );
       }
+      if (alphabetizeStringify(request.rootFactor) !== alphabetizeStringify(existing.rootFactor))
+        throw new Error('The export-root factor changed');
       if (!sameBytes(factorSecret, existing.factorSecret)) {
         throw new Error(
           'ordinary signer material preparation conflicts with the existing factor secret',
@@ -725,6 +787,7 @@ async function prepareOrdinarySignerMaterial(
       recipientPreparation.recipientInputs,
     );
     slot.ordinaryMaterial = {
+      rootFactor: request.rootFactor,
       targetFactor: request.targetFactor,
       preparations: request.preparations,
       recipientInputs: clonedRecipientInputs,
@@ -759,14 +822,30 @@ function assertOrdinaryRecipientPreparationMatchesRequest(
       (input) =>
         input.keyFamily === expected.keyFamily && input.walletKeyId === expected.walletKeyId,
     );
-    if (!actual || !sameBytes(recipientPrivateBytes(expected), recipientPrivateBytes(actual))) {
+    if (expected.keyFamily === 'ml_dsa_65') {
+      if (
+        !actual ||
+        actual.keyFamily !== 'ml_dsa_65' ||
+        actual.recipientHandleId !== expected.recipientHandleId
+      )
+        throw new Error('The ML-DSA recipient changed');
+      continue;
+    }
+    if (
+      !actual ||
+      actual.keyFamily === 'ml_dsa_65' ||
+      !sameBytes(recipientPrivateBytes(expected), recipientPrivateBytes(actual))
+    ) {
       throw new Error('ordinary signer material recipient input changed before preparation');
     }
   }
 }
 
 function recipientPrivateBytes(
-  input: DeviceLinkingOrdinarySignerMaterialRecipientInputV1,
+  input: Exclude<
+    DeviceLinkingOrdinarySignerMaterialRecipientInputV1,
+    { readonly keyFamily: 'ml_dsa_65' }
+  >,
 ): Uint8Array {
   return new Uint8Array(
     input.kind === 'ordinary_ed25519_signer_material_recipient_input_v1'
@@ -821,6 +900,7 @@ async function sealCommittedOrdinarySignerMaterial(
     resealedExportRoot: request.resealedExportRoot,
     preparations: prepared.preparations,
     recipientInputs: prepared.recipientInputs,
+    rootFactor: prepared.rootFactor,
     factorSecret: prepared.factorSecret,
   });
   slot.ordinaryMaterialSeal = {
@@ -847,17 +927,36 @@ function assertOrdinaryMaterialCommitMatchesPreparation(input: {
   if (input.committed.authMethod.walletAuthMethodId !== input.targetFactor.walletAuthMethodId) {
     throw new Error('ordinary signer material auth method binding changed');
   }
-  if (input.preparations.length !== input.committed.signerPackages.keyFamilies.length) {
-    throw new Error('ordinary signer material family count changed before commit');
-  }
-  for (let index = 0; index < input.committed.signerPackages.keyFamilies.length; index += 1) {
-    const family = input.committed.signerPackages.keyFamilies[index];
-    const preparation = input.preparations[index];
-    if (!preparation) {
-      throw new Error(`ordinary signer material ${family} preparation is missing`);
+  const packages = input.committed.signerPackages;
+  const expectedCount =
+    Number(Boolean(packages.ed25519)) +
+    Number(Boolean(packages.ecdsa)) +
+    (packages.mlDsa?.length ?? 0);
+  if (input.preparations.length !== expectedCount)
+    throw new Error('The committed signer count differs from preparation');
+  for (const preparation of input.preparations) {
+    if (
+      'kind' in preparation &&
+      preparation.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1'
+    ) {
+      const entry = packages.mlDsa?.find(
+        matchesMlDsaPreparation.bind(undefined, preparation.walletKeyId),
+      );
+      if (
+        !entry ||
+        alphabetizeStringify(entry.exportRoot.binding) !==
+          alphabetizeStringify(preparation.rootBinding)
+      )
+        throw new Error('The committed ML-DSA root differs from preparation');
+      continue;
     }
+    const family = 'kind' in preparation ? 'ed25519' : 'ecdsa_secp256k1';
     if (family === 'ed25519') {
-      if (!('kind' in preparation) || !input.committed.signerPackages.ed25519) {
+      if (
+        !('kind' in preparation) ||
+        preparation.kind !== 'linked_device_ed25519_source_contribution_preparation_v1' ||
+        !input.committed.signerPackages.ed25519
+      ) {
         throw new Error('ordinary Ed25519 signer material package family changed');
       }
       const packageValue = input.committed.signerPackages.ed25519;
@@ -911,6 +1010,13 @@ function destroyOrdinaryRecipientPreparation(slot: DeviceLinkingKeySlotV1): void
 function cloneOrdinaryRecipientInput(
   input: DeviceLinkingOrdinarySignerMaterialRecipientInputV1,
 ): DeviceLinkingOrdinarySignerMaterialRecipientInputV1 {
+  if (input.keyFamily === 'ml_dsa_65')
+    return {
+      kind: input.kind,
+      keyFamily: input.keyFamily,
+      walletKeyId: input.walletKeyId,
+      recipientHandleId: input.recipientHandleId,
+    };
   if (input.kind === 'ordinary_ed25519_signer_material_recipient_input_v1') {
     return {
       kind: input.kind,
@@ -940,6 +1046,7 @@ function destroyOrdinaryRecipientInputs(
   inputs: readonly DeviceLinkingOrdinarySignerMaterialRecipientInputV1[],
 ): void {
   for (const input of inputs) {
+    if (input.keyFamily === 'ml_dsa_65') continue;
     if (input.kind === 'ordinary_ed25519_signer_material_recipient_input_v1') {
       new Uint8Array(input.recipientPrivateKey).fill(0);
     } else {
@@ -1195,4 +1302,17 @@ function installDeviceLinkingKeyWorkerV1(
 
 if (typeof self !== 'undefined') {
   installDeviceLinkingKeyWorkerV1(self);
+}
+
+function matchesMlDsaPreparation(
+  walletKeyId: string,
+  entry: import('@shared/device-linking/committedSignerPackages').CommittedMlDsaSignerPackageV1,
+): boolean {
+  return entry.signer.walletKeyId === walletKeyId;
+}
+function matchesMlDsaRecipient(
+  walletKeyId: string,
+  entry: DeviceLinkingOrdinarySignerMaterialRecipientInputV1,
+): boolean {
+  return entry.walletKeyId === walletKeyId && entry.keyFamily === 'ml_dsa_65';
 }

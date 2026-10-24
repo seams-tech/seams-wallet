@@ -470,11 +470,13 @@ async function establishPasskeyRegistrationEd25519ExportRootCapability(args: {
   readonly expiresAtMs: number;
 }): Promise<void> {
   await args.signingEngine.establishUnlockedWalletEd25519ExportRootCapabilityV1({
-    existingEnvelope: custodyEnvelopeFromRegistrationCommit({
-      commit: args.commit,
-      walletId: args.walletId,
-      activatedAtMs: Date.now(),
-    }),
+    existingEnvelopes: [
+      custodyEnvelopeFromRegistrationCommit({
+        commit: args.commit,
+        walletId: args.walletId,
+        activatedAtMs: Date.now(),
+      }),
+    ],
     passkeyPrfFirstB64u: args.passkeyPrfFirstB64u,
     walletId: args.walletId,
     walletAuthMethodId: args.walletAuthMethodId,
@@ -498,11 +500,13 @@ async function establishEmailOtpRegistrationEd25519ExportRootCapability(args: {
         args.context.signingEngine.getSignerWorkerContext(),
       ),
       {
-        existingEnvelope: custodyEnvelopeFromRegistrationCommit({
-          commit: args.commit,
-          walletId: args.walletId,
-          activatedAtMs: Date.now(),
-        }),
+        existingEnvelopes: [
+          custodyEnvelopeFromRegistrationCommit({
+            commit: args.commit,
+            walletId: args.walletId,
+            activatedAtMs: Date.now(),
+          }),
+        ],
         existingFactorSecret: args.factorSecret32,
         walletId: args.walletId,
         walletAuthMethodId: String(args.emailOtpAuthContext.authority.bindingId),

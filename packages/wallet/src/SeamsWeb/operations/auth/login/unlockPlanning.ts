@@ -1094,7 +1094,7 @@ export function buildSuccessfulLoginResult(args: {
       }
       return {
         success: true,
-        kind: 'ecdsa_wallet_unlocked',
+        kind: 'wallet_unlocked',
         walletId: args.identity.walletId,
       };
   }

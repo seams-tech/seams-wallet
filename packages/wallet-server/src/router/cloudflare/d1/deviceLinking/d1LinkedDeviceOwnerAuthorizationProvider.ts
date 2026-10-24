@@ -76,7 +76,10 @@ import type {
   LinkedDeviceSourceKeyManifestDigestsV1,
   LinkedDeviceSessionRecordV1,
 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
-import { sourceKeyManifestDigestForFamilyV1 } from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
+import {
+  sourceKeyManifestDigestForFamilyV1,
+  parseSourceKeyManifestDigestsV1,
+} from '../../../../core/deviceLinking/linkedDeviceSessionRecord';
 import type {
   DeviceLinkingOwnerAuthorizationResponseV1,
   DeviceLinkingOwnerAuthorizationRouteServiceV1,
@@ -384,6 +387,7 @@ function projectionMatchesExactSignerV1(
   ) {
     return false;
   }
+  if (signer.keyFamily === 'ml_dsa_65') return false;
   if (signer.keyFamily === 'ed25519') {
     return (
       projection.walletKey.keyFamily === 'ed25519' &&
@@ -402,6 +406,8 @@ async function ownerWalletAuthMethodIdV1(input: {
   readonly authMethods: readonly WalletAuthMethodRecordV2[];
 }): Promise<WalletAuthMethodId | null> {
   switch (input.owner.curve) {
+    case 'ml_dsa_65':
+      return input.owner.walletAuthMethodId;
     case 'ed25519':
       return input.owner.authority.bindingId;
     case 'ecdsa':
@@ -419,7 +425,10 @@ async function ownerWalletAuthMethodIdV1(input: {
 async function sourceChildResolutionFromSignerV1(input: {
   readonly signer: WalletEd25519SignerRecord | WalletEcdsaSignerRecord;
   readonly projection: ActiveOwnerWalletExecutionLaneProjection;
-}): Promise<LinkedDeviceOwnerSourceChildResolutionV1 | null> {
+}): Promise<Exclude<
+  LinkedDeviceOwnerSourceChildResolutionV1,
+  { readonly keyFamily: 'ml_dsa_65' }
+> | null> {
   const source = ownerLaneProtocolSourceV1(input.projection);
   if (input.signer.version === 'wallet_signer_ed25519_v1') {
     if (input.projection.walletKey.keyFamily !== 'ed25519') return null;
@@ -522,26 +531,29 @@ async function readVerifiedOwnerSourceFactsV1(
     readonly requestedAtMs: number;
   },
 ): Promise<D1LinkedDeviceVerifiedOwnerSourceFactsV1> {
-  const readFamily = async (
-    keyFamily: ExactAdministeredSignerV1['keyFamily'],
-  ): Promise<VerifiedLinkSourceReadV1> =>
-    await readVerifiedSourceV1({
-      ...input,
-      keyFamily,
-    });
-  let first: VerifiedLinkSourceReadV1;
-  let firstFamily: ExactAdministeredSignerV1['keyFamily'];
-  try {
-    first = await readFamily('ed25519');
-    firstFamily = 'ed25519';
-  } catch (error: unknown) {
-    /* Only "this authority owns no Ed25519 signer" selects the ECDSA-only
-       shape. Any other failure - session, identity, storage - would produce a
-       falsely narrowed manifest that the approval then pins, so it surfaces. */
-    if (!(error instanceof LinkedDeviceSourceFamilyUnavailableErrorV1)) throw error;
-    first = await readFamily('ecdsa_secp256k1');
-    firstFamily = 'ecdsa_secp256k1';
+  let first: VerifiedLinkSourceReadV1 | null = null;
+  let firstFamily: ExactAdministeredSignerV1['keyFamily'] = 'ed25519';
+  const families: readonly ExactAdministeredSignerV1['keyFamily'][] = [
+    'ed25519',
+    'ecdsa_secp256k1',
+    'ml_dsa_65',
+  ];
+  for (const keyFamily of families) {
+    try {
+      first = await readVerifiedSourceV1({
+        walletId: input.walletId,
+        walletSessionId: input.walletSessionId,
+        authorizationId: input.authorizationId,
+        requestedAtMs: input.requestedAtMs,
+        keyFamily,
+      });
+      firstFamily = keyFamily;
+      break;
+    } catch (error) {
+      if (!(error instanceof LinkedDeviceSourceFamilyUnavailableErrorV1)) throw error;
+    }
   }
+  if (!first) throw new Error('The source authority has no available signer');
   const manifest = first.signerManifest;
   const sourceAuthorityDigestB64u = parseDigestB64u(first.authority.authorityDigestB64u);
   const digests: Partial<Record<ExactAdministeredSignerV1['keyFamily'], DigestB64u>> = {
@@ -549,7 +561,13 @@ async function readVerifiedOwnerSourceFactsV1(
   };
   for (const keyFamily of manifest.keyFamilies) {
     if (keyFamily === firstFamily) continue;
-    const source = await readFamily(keyFamily);
+    const source = await readVerifiedSourceV1({
+      walletId: input.walletId,
+      walletSessionId: input.walletSessionId,
+      authorizationId: input.authorizationId,
+      requestedAtMs: input.requestedAtMs,
+      keyFamily,
+    });
     if (
       source.authority.authorityId !== first.authority.authorityId ||
       source.authority.authorityDigestB64u !== first.authority.authorityDigestB64u ||
@@ -560,31 +578,9 @@ async function readVerifiedOwnerSourceFactsV1(
     }
     digests[keyFamily] = source.keyManifestDigestB64u;
   }
-  if (manifest.keyFamilies.length === 1 && manifest.keyFamilies[0] === 'ed25519') {
-    if (!digests.ed25519) throw new Error('verified Ed25519 source digest is missing');
-    return {
-      signerManifest: manifest,
-      keyManifestDigestsB64u: { ed25519: digests.ed25519 },
-      sourceAuthorityDigestB64u,
-    };
-  }
-  if (manifest.keyFamilies.length === 1 && manifest.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!digests.ecdsa_secp256k1) throw new Error('verified ECDSA source digest is missing');
-    return {
-      signerManifest: manifest,
-      keyManifestDigestsB64u: { ecdsa_secp256k1: digests.ecdsa_secp256k1 },
-      sourceAuthorityDigestB64u,
-    };
-  }
-  if (!digests.ed25519 || !digests.ecdsa_secp256k1) {
-    throw new Error('verified combined source digests are incomplete');
-  }
   return {
     signerManifest: manifest,
-    keyManifestDigestsB64u: {
-      ed25519: digests.ed25519,
-      ecdsa_secp256k1: digests.ecdsa_secp256k1,
-    },
+    keyManifestDigestsB64u: parseSourceKeyManifestDigestsV1(digests, 'source key manifests'),
     sourceAuthorityDigestB64u,
   };
 }
@@ -654,7 +650,7 @@ export function createD1LinkedDeviceOwnerAuthorizationMetadataSourceV1(
         walletId: input.walletId,
         ownerAuthorization: approval.ownerAuthorization,
         keyManifestDigestB64u: source.keyManifestDigestB64u,
-        curve: input.keyFamily === 'ecdsa_secp256k1' ? 'ecdsa' : 'ed25519',
+        curve: input.keyFamily === 'ecdsa_secp256k1' ? 'ecdsa' : input.keyFamily,
         expiresAtMs: Math.min(approval.expiresAtMs, source.expiresAtMs),
         nowMs,
       });
@@ -671,7 +667,7 @@ async function ownerContextFromVerifiedSourceV1(input: {
     { readonly kind: 'wallet_session' }
   >;
   readonly keyManifestDigestB64u: DigestB64u;
-  readonly curve: 'ed25519' | 'ecdsa';
+  readonly curve: 'ed25519' | 'ecdsa' | 'ml_dsa_65';
   readonly expiresAtMs: number;
   readonly nowMs: number;
 }): Promise<DeviceLinkingOwnerWalletSessionContextV1 | null> {
@@ -698,6 +694,18 @@ async function ownerContextFromVerifiedSourceV1(input: {
     keyManifestDigestB64u: input.keyManifestDigestB64u,
   } as const;
   switch (input.curve) {
+    case 'ml_dsa_65':
+      return {
+        walletId: input.walletId,
+        walletSessionId: input.ownerAuthorization.walletSessionId,
+        authorizationId: input.ownerAuthorization.authorizationId,
+        expiresAtMs: input.expiresAtMs,
+        permission: buildFullOwnerDelegatedWalletAuthorityV1(),
+        keyManifestDigestB64u: input.keyManifestDigestB64u,
+        curve: 'ml_dsa_65',
+        walletAuthority: input.source.authority,
+        walletAuthMethodId: input.source.authMethod.walletAuthMethodId,
+      };
     case 'ed25519':
       return {
         ...base,
@@ -976,8 +984,32 @@ function createD1LinkedDeviceOwnerSourceResolverV1(input: {
     resolveOwnerSourceChildV1: async (request) => {
       const owner = await resolveApprovedOwnerContextV1(input.metadata, request);
       assertApprovedOwnerContext(request, owner, input.nowV1());
+      if (request.sourceSigner.keyFamily === 'ml_dsa_65') {
+        if (owner.curve !== 'ml_dsa_65') throw new Error('ML-DSA source authority is unavailable');
+        for (const activation of owner.walletAuthority.signerActivations.mlDsa ?? []) {
+          const signer = activation.signer;
+          if (signer.walletKeyId !== request.sourceSigner.walletKeyId) continue;
+          if (
+            signer.mlDsaSigningKeyId !== request.sourceSigner.mlDsaSigningKeyId ||
+            signer.registeredPublicKeyB64u !== request.sourceSigner.registeredPublicKeyB64u ||
+            signer.keyManifestDigestB64u !== request.sourceSigner.keyManifestDigestB64u
+          ) {
+            throw new Error('The approved ML-DSA signer differs from the active signer');
+          }
+          return {
+            keyFamily: 'ml_dsa_65',
+            walletKeyId: signer.walletKeyId,
+            signer,
+            sourceAuthorityId: owner.walletAuthority.authorityId,
+          };
+        }
+        throw new Error('The approved ML-DSA signer is inactive');
+      }
+      if (owner.curve === 'ml_dsa_65') throw new Error('The source signer family differs');
       const resolution = await input.metadata.readOwnerSourceChildV1({ owner, request });
       if (!resolution) throw new Error('authoritative linked-device source facts are unavailable');
+      if (resolution.keyFamily === 'ml_dsa_65')
+        throw new Error('Unexpected ML-DSA lane resolution');
       const projection = await projectOwnerLaneV1(input.walletRegistration, owner, resolution);
       assertResolutionMatchesOwnerProjectionV1(resolution, projection);
       if (
@@ -1049,8 +1081,11 @@ async function projectOwnerLaneV1(
     RouterApiWalletRegistrationService,
     'resolveActiveOwnerWalletExecutionLane'
   >,
-  owner: DeviceLinkingOwnerWalletSessionContextV1,
-  resolution: LinkedDeviceOwnerSourceChildResolutionV1,
+  owner: Exclude<DeviceLinkingOwnerWalletSessionContextV1, { readonly curve: 'ml_dsa_65' }>,
+  resolution: Exclude<
+    LinkedDeviceOwnerSourceChildResolutionV1,
+    { readonly keyFamily: 'ml_dsa_65' }
+  >,
 ): Promise<ActiveOwnerWalletExecutionLaneProjection> {
   const authorization =
     owner.curve === 'ed25519'
@@ -1073,7 +1108,10 @@ async function projectOwnerLaneV1(
 }
 
 function assertResolutionMatchesOwnerProjectionV1(
-  resolution: LinkedDeviceOwnerSourceChildResolutionV1,
+  resolution: Exclude<
+    LinkedDeviceOwnerSourceChildResolutionV1,
+    { readonly keyFamily: 'ml_dsa_65' }
+  >,
   projection: ActiveOwnerWalletExecutionLaneProjection,
 ): void {
   const lane = projection.lane;

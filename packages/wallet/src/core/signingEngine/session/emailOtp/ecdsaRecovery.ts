@@ -268,7 +268,7 @@ async function requireSelectedEmailOtpWalletAuthority(
     authMethod: selected.authMethod,
     authority: selected.authority,
     signerMaterials: selected.signerMaterials,
-    exportRoot: selected.exportRoot,
+    exportRoots: selected.exportRoots,
   };
 }
 

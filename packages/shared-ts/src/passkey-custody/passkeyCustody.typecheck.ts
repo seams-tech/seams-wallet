@@ -53,10 +53,10 @@ void walletSeed;
 // The seed names no key set. Key sets are provisioned independently and each
 // records its own manifest on its own registration state, so a seed that named
 // them would have to be resealed every time one arrived.
+// @ts-expect-error The seed does not name the key sets it can derive.
 const seedNamingAKeySet: PasskeyCustodySecretBinding = {
   kind: 'wallet_custody_seed_v1',
   derivationScheme: 'wallet_seed_parallel_hkdf_sha256_v1',
-  // @ts-expect-error The seed does not name the key sets it can derive.
   keyManifestDigestB64u: digest,
 };
 void seedNamingAKeySet;
@@ -101,6 +101,7 @@ const seedWithLane: PasskeyCustodySecretBinding = {
 };
 void seedWithLane;
 
+// @ts-expect-error A key manifest digest is not a custody binding field.
 const laneShareWithManifest: PasskeyCustodySecretBinding = {
   kind: 'ed25519_lane_holder_share_v1',
   walletKeyId,
@@ -109,7 +110,6 @@ const laneShareWithManifest: PasskeyCustodySecretBinding = {
   nearEd25519SigningKeyId,
   registeredPublicKeyB64u: ed25519PublicKey,
   participantBindingDigestB64u: digest,
-  // @ts-expect-error A key manifest digest is not a custody binding field.
   keyManifestDigestB64u: digest,
 };
 void laneShareWithManifest;

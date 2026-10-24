@@ -1,3 +1,7 @@
+import {
+  parseMlDsaRootTransferBindingV1,
+  parseSealedMlDsaRootTransferV1,
+} from '@shared/device-linking/mlDsaExportRoot';
 import { assertString } from '@shared/utils/validation';
 import type { Variant } from '@shared/utils/variant';
 import { parseMlDsaCustodyCommit } from '@shared/passkey-custody/mlDsaCustody';
@@ -136,11 +140,14 @@ const ed25519ExportRootRecipients = new Map<string, WasmEd25519YaoClientRootTran
  * surfacing.
  */
 const MAX_ACTIVE_UNLOCKED_EXPORT_ROOT_CAPABILITIES = 4;
-type UnlockedExportRootCapabilityRecordV1 = {
-  /* A linked device's root links further devices only; the WASM handle
-     refuses it every seed or factor write. */
-  readonly source: 'wallet_custody_seed' | 'linked_device_client_root';
-  readonly handle: WasmPasskeyCustodyHandleV1;
+type UnlockedExportRootCapabilityRecordV1 = (
+  | {
+      readonly source: 'wallet_custody_seed' | 'linked_device_client_root';
+      readonly handle: WasmPasskeyCustodyHandleV1;
+    }
+  | { readonly source: 'linked_device_ml_dsa_roots'; readonly handle: null }
+) & {
+  readonly mlDsaRootEnvelopes: readonly PasskeyCustodyEnvelopeRecord[];
   readonly envelope: PasskeyCustodyEnvelopeRecord;
   readonly factorSecret: Uint8Array;
   readonly walletId: string;
@@ -155,8 +162,8 @@ function destroyUnlockedExportRootCapabilityEntry(capabilityHandleId: string): b
   unlockedExportRootCapabilities.delete(capabilityHandleId);
   if (!record) return false;
   record.factorSecret.fill(0);
-  record.handle.destroy();
-  record.handle.free();
+  record.handle?.destroy();
+  record.handle?.free();
   return true;
 }
 
@@ -190,6 +197,8 @@ type PrepareEd25519YaoSourcePreservingRegistrationRequest =
 type DiscardEd25519YaoLaneSourceRequest = WorkerRequest<'discardEd25519YaoLaneSource'>;
 
 type WalletCustodyCeremonyWorkerRequest =
+  | WorkerRequest<'readMlDsaExportEnvelope'>
+  | WorkerRequest<'sealMlDsaExportRootForLinkedDevice'>
   | WorkerRequest<'checkpointNearRegistration'>
   | WorkerRequest<'restoreNearRegistration'>
   | BeginRequest
@@ -353,9 +362,59 @@ function requireUnlockedExportRootCapabilityRecord(
   return record;
 }
 
+function isClassicalRootEnvelope(envelope: PasskeyCustodyEnvelopeRecord): boolean {
+  return (
+    envelope.binding.kind === 'wallet_custody_seed_v1' ||
+    envelope.binding.kind === 'ed25519_yao_client_root_v1'
+  );
+}
+
+function readMlDsaExportEnvelope(
+  request: WorkerRequest<'readMlDsaExportEnvelope'>,
+): PasskeyCustodyEnvelopeRecord {
+  const record = requireUnlockedExportRootCapabilityRecord(request.payload.capability);
+  if (record.source === 'wallet_custody_seed') return record.envelope;
+  for (const envelope of record.mlDsaRootEnvelopes) {
+    const binding = envelope.binding;
+    if (
+      binding.kind === 'ml_dsa_65_owner_root_v1' &&
+      binding.mlDsaSigningKeyId === request.payload.signingKeyId &&
+      binding.registeredPublicKeyB64u === request.payload.publicKeyB64u
+    )
+      return envelope;
+  }
+  throw new Error('This device has no root for the selected ML-DSA signer');
+}
+
+async function sealMlDsaExportRootForLinkedDevice(
+  request: WorkerRequest<'sealMlDsaExportRootForLinkedDevice'>,
+) {
+  const binding = parseMlDsaRootTransferBindingV1(request.payload.binding);
+  const record = requireUnlockedExportRootCapabilityRecord(request.payload.capability);
+  if (binding.walletId !== record.walletId)
+    throw new Error('The ML-DSA transfer names another wallet');
+  const module = await import('./mlDsaRootLinking');
+  const envelope =
+    record.source === 'wallet_custody_seed'
+      ? record.envelope
+      : record.mlDsaRootEnvelopes.find(matchesMlDsaRoot.bind(undefined, binding.root.walletKeyId));
+  if (!envelope) throw new Error('This device has no export root for the requested ML-DSA signer');
+  return parseSealedMlDsaRootTransferV1(
+    await module.sealLinkedRoot(envelope, record.factorSecret, binding),
+  );
+}
+function matchesMlDsaRoot(walletKeyId: string, envelope: PasskeyCustodyEnvelopeRecord): boolean {
+  return (
+    envelope.binding.kind === 'ml_dsa_65_owner_root_v1' &&
+    envelope.binding.walletKeyId === walletKeyId
+  );
+}
+
 function capabilitySourceForKind(
   kind: UnlockedEd25519ExportRootLinkingCapabilityV1['kind'],
 ): UnlockedExportRootCapabilityRecordV1['source'] {
+  if (kind === 'unlocked_linked_device_ml_dsa_roots_capability_v1')
+    return 'linked_device_ml_dsa_roots';
   return kind === 'unlocked_linked_device_ed25519_client_root_capability_v1'
     ? 'linked_device_client_root'
     : 'wallet_custody_seed';
@@ -369,6 +428,8 @@ function openedCustodyCapabilityLaneSourceInput(
   readonly factorSecret: Uint8Array;
 } {
   const record = requireUnlockedExportRootCapabilityRecord(capability);
+  if (record.source === 'linked_device_ml_dsa_roots')
+    throw new Error('This capability has no Ed25519 root');
   return {
     source: record.source,
     envelope: record.envelope,
@@ -979,7 +1040,9 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
   request: EstablishUnlockedCustodyCapabilityRequest,
 ): Promise<unknown> {
   await initializeNearSignerWasm();
-  const envelope = parsePasskeyCustodyEnvelopeRecord(request.payload.existingEnvelope);
+  const envelopes = request.payload.existingEnvelopes.map(parseRootEnvelope);
+  const envelope = envelopes.find(isClassicalRootEnvelope) ?? envelopes[0];
+  if (!envelope || envelopes.length > 65) throw new Error('Invalid export-root collection');
   const existingFactorSecret = toBytes(request.payload.existingFactorSecret);
   let factorSecretStored = false;
   try {
@@ -1020,33 +1083,73 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
     /* A linked device holds its own Client root, not the seed. Opening it here
        is the only way its capability exists, and the handle it yields may only
        seal that root to a further approved link. */
+    const mlDsaRootEnvelopes: PasskeyCustodyEnvelopeRecord[] = [];
+    const rootKeys = new Set<string>();
+    for (const item of envelopes) {
+      if (
+        item.walletId !== walletId ||
+        (item.ownership.kind === 'method_bound' &&
+          item.ownership.walletAuthMethodId !== walletAuthMethodId)
+      )
+        throw new Error('Export roots belong to different owners');
+      if (item.binding.kind === 'ml_dsa_65_owner_root_v1') {
+        if (rootKeys.has(item.binding.walletKeyId)) throw new Error('Duplicate ML-DSA export root');
+        rootKeys.add(item.binding.walletKeyId);
+        const module = await import('./mlDsaRootLinking');
+        await module.verifyLinkedRoot(item, existingFactorSecret);
+        mlDsaRootEnvelopes.push(item);
+      } else if (item !== envelope) throw new Error('Multiple custody or Ed25519 root envelopes');
+    }
     const source: UnlockedExportRootCapabilityRecordV1['source'] =
-      envelope.binding.kind === 'ed25519_yao_client_root_v1'
-        ? 'linked_device_client_root'
-        : 'wallet_custody_seed';
+      envelope.binding.kind === 'ml_dsa_65_owner_root_v1'
+        ? 'linked_device_ml_dsa_roots'
+        : envelope.binding.kind === 'ed25519_yao_client_root_v1'
+          ? 'linked_device_client_root'
+          : 'wallet_custody_seed';
+    if (source === 'wallet_custody_seed' && envelopes.length !== 1)
+      throw new Error('A seed capability cannot contain linked roots');
     const openEnvelope =
       source === 'linked_device_client_root'
         ? passkey_custody_open_ed25519_yao_client_root_envelope_v1
         : passkey_custody_open_wallet_seed_v1;
-    const handle = openEnvelope(
-      existingFactorSecret,
-      custodyEnvelopeBindingJson(envelope),
-      base64UrlDecode(envelope.nonceB64u),
-      envelope.sealedCustodySecretB64u,
-      envelope.aadHashB64u,
-      envelope.ciphertextDigestB64u,
-    );
+    const handle =
+      source === 'linked_device_ml_dsa_roots'
+        ? null
+        : openEnvelope(
+            existingFactorSecret,
+            custodyEnvelopeBindingJson(envelope),
+            base64UrlDecode(envelope.nonceB64u),
+            envelope.sealedCustodySecretB64u,
+            envelope.aadHashB64u,
+            envelope.ciphertextDigestB64u,
+          );
     const capabilityHandleId = createUnlockedExportRootCapabilityHandleId();
-    unlockedExportRootCapabilities.set(capabilityHandleId, {
-      source,
-      handle,
-      envelope,
-      factorSecret: existingFactorSecret,
-      walletId,
-      walletAuthMethodId,
-      walletSessionId,
-      expiresAtMs,
-    });
+    if (source === 'linked_device_ml_dsa_roots') {
+      unlockedExportRootCapabilities.set(capabilityHandleId, {
+        source,
+        handle: null,
+        mlDsaRootEnvelopes,
+        envelope,
+        factorSecret: existingFactorSecret,
+        walletId,
+        walletAuthMethodId,
+        walletSessionId,
+        expiresAtMs,
+      });
+    } else {
+      if (!handle) throw new Error('The opened custody handle is unavailable');
+      unlockedExportRootCapabilities.set(capabilityHandleId, {
+        source,
+        handle,
+        mlDsaRootEnvelopes,
+        envelope,
+        factorSecret: existingFactorSecret,
+        walletId,
+        walletAuthMethodId,
+        walletSessionId,
+        expiresAtMs,
+      });
+    }
     factorSecretStored = true;
     /* A V2 envelope opened under its original AAD is immediately resealed as
        V3 under the method that just authenticated. This is the only place the
@@ -1054,6 +1157,16 @@ async function establishUnlockedWalletEd25519ExportRootCapability(
        method at the same instant, which is precisely what an unlock has and a
        migration never does. The caller persists what comes back; until it
        does, the V2 row stands and the next unlock retries. */
+    if (source === 'linked_device_ml_dsa_roots')
+      return {
+        kind: 'unlocked_linked_device_ml_dsa_roots_capability_v1',
+        capabilityHandleId,
+        walletId,
+        walletAuthMethodId,
+        walletSessionId,
+        expiresAtMs,
+      };
+    if (!handle) throw new Error('The custody handle is unavailable');
     if (source === 'linked_device_client_root') {
       return {
         kind: 'unlocked_linked_device_ed25519_client_root_capability_v1',
@@ -1199,6 +1312,7 @@ async function sealEd25519ExportRootForLinkedDevice(
   await initializeNearSignerWasm();
   const capability = request.payload.capability;
   const record = requireUnlockedExportRootCapabilityRecord(capability);
+  if (!record.handle) throw new Error('This capability has no Ed25519 root');
   const sealed = passkey_custody_seal_ed25519_yao_client_root_for_linked_device_v1(
     record.handle,
     request.payload.transferBindingJson,
@@ -1229,7 +1343,7 @@ async function resealWalletCustodyFromUnlockedCapability(
 ): Promise<unknown> {
   await initializeNearSignerWasm();
   const record = requireUnlockedExportRootCapabilityRecord(request.payload.capability);
-  if (record.source !== 'wallet_custody_seed') {
+  if (record.source !== 'wallet_custody_seed' || !record.handle) {
     new Uint8Array(request.payload.replacementFactorSecret).fill(0);
     throw new Error('only a wallet custody seed capability reseals the seed');
   }
@@ -1383,6 +1497,12 @@ async function handleRequest(request: WalletCustodyCeremonyWorkerRequest): Promi
     case 'linkWalletCustodyPasskey':
       postSucceeded(request.id, await linkWalletCustodyPasskey(request));
       return;
+    case 'readMlDsaExportEnvelope':
+      postSucceeded(request.id, readMlDsaExportEnvelope(request));
+      return;
+    case 'sealMlDsaExportRootForLinkedDevice':
+      postSucceeded(request.id, await sealMlDsaExportRootForLinkedDevice(request));
+      return;
     case 'createLinkedDeviceEd25519ExportRootRecipient':
       postSucceeded(request.id, await createLinkedDeviceEd25519ExportRootRecipient(request));
       return;
@@ -1448,3 +1568,7 @@ self.onerror = (message, filename, lineno, colno, error) => {
     error: error ? errorLogSummary(error) : undefined,
   });
 };
+
+function parseRootEnvelope(raw: unknown): PasskeyCustodyEnvelopeRecord {
+  return parsePasskeyCustodyEnvelopeRecord(raw);
+}

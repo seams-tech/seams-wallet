@@ -83,9 +83,12 @@ export async function resumePendingMlDsaPublications(relayerUrl: string): Promis
         },
         pending.commit,
       );
-      if (outcome.ok)
+      if (outcome.ok) {
+        await IndexedDBManager.adoptAddedMlDsaSignerAuthority(outcome.authority);
         await clearMlDsaPublication({ relayerUrl: expectedUrl, commit: pending.commit });
-    } catch {
+      }
+    } catch (error: unknown) {
+      console.warn('[ML-DSA] Verified publication remains pending locally:', error instanceof Error ? error.message : 'Unknown publication recovery failure');
       // Keep the exact completion for the next startup or unlock.
     }
   }

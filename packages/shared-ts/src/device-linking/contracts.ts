@@ -1,3 +1,5 @@
+import type { X25519PublicKeyB64u } from '../passkey-custody/primitives';
+import type { MlDsaSigningKeyId } from '../signing-lanes/records';
 import type { DelegatedWalletAuthorityV1 } from '../authorization/delegatedAuthority';
 import type {
   DeviceId,
@@ -351,12 +353,18 @@ export type OrdinarySignerMaterialReservationPreparationV1 =
  */
 export type OrdinarySignerMaterialRecipientRequirementV1 = {
   readonly kind: 'ordinary_signer_material_recipient_requirement_v1';
-  readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+  readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1' | 'ml_dsa_65';
   readonly walletKeyId: WalletKeyId;
 };
 
 /** Public recipient requests returned by the browser after local key creation. */
 export type OrdinarySignerMaterialRecipientRequestV1 =
+  | {
+      readonly kind: 'ordinary_ml_dsa_65_signer_material_recipient_request_v1';
+      readonly keyFamily: 'ml_dsa_65';
+      readonly walletKeyId: WalletKeyId;
+      readonly recipientPublicKeyB64u: X25519PublicKeyB64u;
+    }
   | {
       readonly kind: 'ordinary_ed25519_signer_material_recipient_request_v1';
       readonly keyFamily: 'ed25519';
@@ -775,15 +783,36 @@ export type LinkedDeviceTargetCredentialRegistrationResultV1 = {
 export type WalletCapabilitySubjectV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'sign';
-      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+      readonly keyFamily: 'ed25519';
+      readonly materialActivation: MpcMaterialActivationRef;
+    }
+  | {
+      readonly kind: 'sign';
+      readonly keyFamily: 'ecdsa_secp256k1';
+      readonly materialActivation: MpcMaterialActivationRef;
+    }
+  | {
+      readonly kind: 'sign';
+      readonly keyFamily: 'ml_dsa_65';
+      readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+    }
+  | {
+      readonly kind: 'export_keys';
+      readonly keyFamily: 'ed25519';
       readonly materialActivation: MpcMaterialActivationRef;
     }
   | {
       readonly kind: 'export_keys';
-      readonly keyFamily: 'ed25519' | 'ecdsa_secp256k1';
+      readonly keyFamily: 'ecdsa_secp256k1';
       readonly materialActivation: MpcMaterialActivationRef;
     }
-  | { readonly kind: 'link_devices' | 'revoke_devices' }
+  | {
+      readonly kind: 'export_keys';
+      readonly keyFamily: 'ml_dsa_65';
+      readonly mlDsaSigningKeyId: MlDsaSigningKeyId;
+    }
+  | { readonly kind: 'link_devices' }
+  | { readonly kind: 'revoke_devices' }
 >;
 
 export type ActiveWalletSessionV1 = {

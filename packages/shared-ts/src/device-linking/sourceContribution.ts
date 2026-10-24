@@ -1,3 +1,10 @@
+import { alphabetizeStringify } from '../utils/digests';
+import {
+  parseMlDsaRootTransferBindingV1,
+  parseLinkedDeviceMlDsaExportRootPackageV1,
+  type MlDsaRootTransferBindingV1,
+  type LinkedDeviceMlDsaExportRootPackageV1,
+} from './mlDsaExportRoot';
 import { parseDeviceId, type DeviceId } from '../authorization/capabilityKinds';
 import {
   parseLinkedDeviceEnrollmentId,
@@ -195,11 +202,35 @@ type LinkedDeviceEd25519SourcePreservingReservationV1 = {
   readonly deriver_b_client_package: RouterAbEd25519YaoActivationClientPackageV1<'deriver_b'>;
 };
 
+export type LinkedDeviceMlDsaSourceContributionPreparationV1 = {
+  readonly kind: 'linked_device_ml_dsa_65_source_contribution_preparation_v1';
+  readonly linkSessionId: LinkDeviceSessionId;
+  readonly enrollmentId: LinkedDeviceEnrollmentId;
+  readonly walletKeyId: WalletKeyId;
+  readonly targetDeviceId: DeviceId;
+  readonly sourceAuthorityId: WalletAuthorityId;
+  readonly targetFactorVerificationDigestB64u: DigestB64u;
+  readonly rootBinding: MlDsaRootTransferBindingV1;
+};
+export type LinkedDeviceMlDsaSourceContributionV1 = {
+  readonly kind: 'linked_device_ml_dsa_65_source_contribution_v1';
+  readonly keyFamily: 'ml_dsa_65';
+  readonly linkSessionId: LinkDeviceSessionId;
+  readonly enrollmentId: LinkedDeviceEnrollmentId;
+  readonly sourceAuthorityId: WalletAuthorityId;
+  readonly walletKeyId: WalletKeyId;
+  readonly targetDeviceId: DeviceId;
+  readonly targetFactorVerificationDigestB64u: DigestB64u;
+  readonly rootPackage: LinkedDeviceMlDsaExportRootPackageV1;
+};
+
 export type LinkedDeviceOrdinaryMaterialSourceContributionV1 =
+  | LinkedDeviceMlDsaSourceContributionV1
   | LinkedDeviceEd25519SourceContributionV1
   | LinkedDeviceEcdsaSourceContributionV1;
 
 export type LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1 =
+  | LinkedDeviceMlDsaSourceContributionPreparationV1
   | LinkedDeviceEd25519SourceContributionPreparationV1
   | LinkedDeviceEcdsaSourceContributionPreparationV1;
 
@@ -219,6 +250,8 @@ export function parseLinkedDeviceOrdinaryMaterialSourceContributionV1(
 ): LinkedDeviceOrdinaryMaterialSourceContributionV1 {
   const record = requireRecordCopy(raw, 'linked-device ordinary source contribution');
   switch (record.kind) {
+    case 'linked_device_ml_dsa_65_source_contribution_v1':
+      return parseMlDsaContribution(record);
     case 'linked_device_ed25519_source_contribution_v1':
       return parseEd25519Contribution(record);
     case 'linked_device_ecdsa_source_contribution_v1':
@@ -250,14 +283,8 @@ export function parseLinkedDeviceEd25519SourcePreservingReservationV1(
     record.activation_receipt,
   );
   const participantIds = parseRouterAbEd25519YaoParticipantIdsV1(record.participant_ids);
-  const deriverA = parseEd25519ClientPackage(
-    record.deriver_a_client_package,
-    'deriver_a',
-  );
-  const deriverB = parseEd25519ClientPackage(
-    record.deriver_b_client_package,
-    'deriver_b',
-  );
+  const deriverA = parseEd25519ClientPackage(record.deriver_a_client_package, 'deriver_a');
+  const deriverB = parseEd25519ClientPackage(record.deriver_b_client_package, 'deriver_b');
   if (
     !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
     !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
@@ -277,20 +304,17 @@ export function parseLinkedDeviceEd25519SourcePreservingReservationV1(
 export function parseLinkedDeviceOrdinaryMaterialSourceContributionTupleV1(
   raw: unknown,
 ): LinkedDeviceOrdinaryMaterialSourceContributionTupleV1 {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2) {
-    throw new Error('linked-device ordinary source contributions must contain one or two entries');
-  }
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 66)
+    throw new Error('The link requires one to 66 signer contributions');
   const contributions = raw.map(parseLinkedDeviceOrdinaryMaterialSourceContributionV1);
-  const families = contributions.map((entry) => entry.keyFamily);
-  if (new Set(families).size !== families.length) {
-    throw new Error('linked-device ordinary source contributions repeat a key family');
-  }
-  if (
-    contributions.length === 2 &&
-    (contributions[0]?.keyFamily !== 'ed25519' ||
-      contributions[1]?.keyFamily !== 'ecdsa_secp256k1')
-  ) {
-    throw new Error('linked-device ordinary source contributions must be Ed25519 then ECDSA');
+  let previous = '';
+  const keys = new Set<WalletKeyId>();
+  for (const entry of contributions) {
+    const order = contributionOrder(entry);
+    if (order <= previous || keys.has(entry.walletKeyId))
+      throw new Error('Signer contributions must be unique and canonically ordered');
+    previous = order;
+    keys.add(entry.walletKeyId);
   }
   const first = contributions[0];
   if (!first) throw new Error('linked-device ordinary source contributions are empty');
@@ -302,13 +326,7 @@ export function parseLinkedDeviceEcdsaSourceContributionPreparationV1(
 ): LinkedDeviceEcdsaSourceContributionPreparationV1 {
   const record = exactRecord(
     raw,
-    [
-      'linkSessionId',
-      'enrollmentId',
-      'sourceAuthorityId',
-      'source',
-      'target',
-    ],
+    ['linkSessionId', 'enrollmentId', 'sourceAuthorityId', 'source', 'target'],
     'linked-device ECDSA source contribution preparation',
   );
   const source = parseEcdsaSourceSigner(record.source);
@@ -327,6 +345,46 @@ export function parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1
   raw: unknown,
 ): LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1 {
   const record = requireRecordCopy(raw, 'linked-device ordinary source contribution preparation');
+  if (record.kind === 'linked_device_ml_dsa_65_source_contribution_preparation_v1') {
+    exactRecord(
+      record,
+      [
+        'kind',
+        'linkSessionId',
+        'enrollmentId',
+        'walletKeyId',
+        'targetDeviceId',
+        'sourceAuthorityId',
+        'targetFactorVerificationDigestB64u',
+        'rootBinding',
+      ],
+      'ML-DSA contribution preparation',
+    );
+    const rootBinding = parseMlDsaRootTransferBindingV1(record.rootBinding);
+    const linkSessionId = parseSessionId(record.linkSessionId);
+    const enrollmentId = parseEnrollmentId(record.enrollmentId);
+    const walletKeyId = parseWalletKeyIdField(record.walletKeyId);
+    const targetDeviceId = parseDeviceIdField(record.targetDeviceId);
+    if (
+      rootBinding.root.linkSessionId !== linkSessionId ||
+      rootBinding.root.enrollmentId !== enrollmentId ||
+      rootBinding.root.walletKeyId !== walletKeyId ||
+      String(rootBinding.root.deviceId) !== String(targetDeviceId)
+    )
+      throw new Error('ML-DSA preparation and root identities differ');
+    return {
+      kind: 'linked_device_ml_dsa_65_source_contribution_preparation_v1',
+      linkSessionId,
+      enrollmentId,
+      walletKeyId,
+      targetDeviceId,
+      sourceAuthorityId: parseAuthorityId(record.sourceAuthorityId),
+      targetFactorVerificationDigestB64u: parseDigestB64u(
+        record.targetFactorVerificationDigestB64u,
+      ),
+      rootBinding,
+    };
+  }
   if (record.kind === 'linked_device_ed25519_source_contribution_preparation_v1') {
     return parseEd25519SourceContributionPreparation(record);
   }
@@ -343,25 +401,15 @@ export function parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1
 export function parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1(
   raw: unknown,
 ): LinkedDeviceOrdinaryMaterialSourceContributionPreparationTupleV1 {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2) {
-    throw new Error(
-      'linked-device ordinary source contribution preparations must contain one or two entries',
-    );
-  }
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 66)
+    throw new Error('The link requires one to 66 signer preparations');
   const preparations = raw.map(parseLinkedDeviceOrdinaryMaterialSourceContributionPreparationV1);
-  const families = preparations.map((entry) =>
-    'kind' in entry ? 'ed25519' : 'ecdsa_secp256k1',
-  );
-  if (new Set(families).size !== families.length) {
-    throw new Error('linked-device ordinary source contribution preparations repeat a key family');
-  }
-  if (
-    preparations.length === 2 &&
-    (families[0] !== 'ed25519' || families[1] !== 'ecdsa_secp256k1')
-  ) {
-    throw new Error(
-      'linked-device ordinary source contribution preparations must be ordered Ed25519 then ECDSA',
-    );
+  let previous = '';
+  for (const entry of preparations) {
+    const order = preparationOrder(entry);
+    if (order <= previous)
+      throw new Error('Signer preparations must be unique and canonically ordered');
+    previous = order;
   }
   const first = preparations[0];
   if (!first) throw new Error('linked-device ordinary source contribution preparation is empty');
@@ -453,10 +501,7 @@ function parseEd25519SourceContributionPreparation(
   if (!sameEdStableIdentity(sourceBinding, targetAdmission.binding)) {
     throw new Error('source and target Ed25519 contribution bindings differ');
   }
-  if (
-    sourceBinding.material_activation.activation_id ===
-    targetMaterialActivation.activationId
-  ) {
+  if (sourceBinding.material_activation.activation_id === targetMaterialActivation.activationId) {
     throw new Error('source and target Ed25519 contribution activations must differ');
   }
   return {
@@ -483,7 +528,10 @@ function parseEd25519SourceContributionPreparation(
 }
 
 export function assertLinkedDeviceOrdinaryMaterialSourceContributionMatchesContextV1(input: {
-  readonly contribution: LinkedDeviceOrdinaryMaterialSourceContributionV1;
+  readonly contribution: Exclude<
+    LinkedDeviceOrdinaryMaterialSourceContributionV1,
+    { keyFamily: 'ml_dsa_65' }
+  >;
   readonly linkSessionId: LinkDeviceSessionId;
   readonly enrollmentId: LinkedDeviceEnrollmentId;
   readonly sourceAuthorityId: WalletAuthorityId;
@@ -521,12 +569,14 @@ export function assertLinkedDeviceOrdinaryMaterialSourceContributionMatchesConte
   ) {
     throw new Error('linked-device ordinary source contribution signer family or key differs');
   }
-  const targetActivation = contribution.keyFamily === 'ed25519'
-    ? contribution.targetMaterialActivation
-    : contribution.target.activation;
-  const sourceActivation = contribution.keyFamily === 'ed25519'
-    ? routerAbMpcMaterialActivationRefFromWire(contribution.sourceBinding.material_activation)
-    : contribution.sourceSigner.activation;
+  const targetActivation =
+    contribution.keyFamily === 'ed25519'
+      ? contribution.targetMaterialActivation
+      : contribution.target.activation;
+  const sourceActivation =
+    contribution.keyFamily === 'ed25519'
+      ? routerAbMpcMaterialActivationRefFromWire(contribution.sourceBinding.material_activation)
+      : contribution.sourceSigner.activation;
   if (!mpcMaterialActivationRefsEqual(sourceActivation, input.sourceMaterialActivation)) {
     throw new Error('linked-device ordinary source contribution source activation differs');
   }
@@ -545,7 +595,10 @@ export function assertLinkedDeviceOrdinaryMaterialSourceContributionMatchesConte
   if (input.sourceSigner.keyFamily !== 'ecdsa_secp256k1') {
     throw new Error('linked-device ECDSA source contribution signer family differs');
   }
-  if (contribution.sourceSigner.thresholdPublicKey33B64u !== input.sourceSigner.thresholdPublicKey33B64u) {
+  if (
+    contribution.sourceSigner.thresholdPublicKey33B64u !==
+    input.sourceSigner.thresholdPublicKey33B64u
+  ) {
     throw new Error('linked-device ECDSA source contribution public key differs');
   }
 }
@@ -642,14 +695,8 @@ function parseEd25519Contribution(
   ) {
     throw new Error('linked-device Ed25519 source contribution receipt public key differs');
   }
-  const deriverA = parseEd25519ClientPackage(
-    record.deriver_a_client_package,
-    'deriver_a',
-  );
-  const deriverB = parseEd25519ClientPackage(
-    record.deriver_b_client_package,
-    'deriver_b',
-  );
+  const deriverA = parseEd25519ClientPackage(record.deriver_a_client_package, 'deriver_a');
+  const deriverB = parseEd25519ClientPackage(record.deriver_b_client_package, 'deriver_b');
   if (
     !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverA.transcript) ||
     !sameRouterAbEd25519YaoByteSequence(activationReceipt.transcript, deriverB.transcript)
@@ -783,9 +830,7 @@ export function parseLinkedDeviceEcdsaSourceDerivationV1(
   const sourceNormalSigning = requireRouterAbEcdsaDerivationNormalSigningStateV1(
     record.sourceNormalSigning,
   );
-  const ecdsaThresholdKeyId = parseSdkEcdsaDerivationThresholdKeyId(
-    record.ecdsaThresholdKeyId,
-  );
+  const ecdsaThresholdKeyId = parseSdkEcdsaDerivationThresholdKeyId(record.ecdsaThresholdKeyId);
   if (
     sourceNormalSigning.scope.context.application_binding_digest_b64u !==
       applicationBindingDigestB64u ||
@@ -837,9 +882,7 @@ export function parseLinkedDeviceEcdsaSourcePreservingActivationReceiptV1(
     20,
     'thresholdEthereumAddress20B64u',
   );
-  const normalSigning = requireRouterAbEcdsaDerivationNormalSigningStateV1(
-    record.normalSigning,
-  );
+  const normalSigning = requireRouterAbEcdsaDerivationNormalSigningStateV1(record.normalSigning);
   assertLinkedDeviceEcdsaNormalSigningReceipt({
     binding,
     sourceDerivation,
@@ -898,8 +941,7 @@ function assertLinkedDeviceEcdsaNormalSigningReceipt(input: {
     target.public_identity.context_binding_b64u !== source.public_identity.context_binding_b64u ||
     target.public_identity.derivation_client_share_public_key33_b64u !==
       input.binding.targetClientPublicKey33B64u ||
-    target.public_identity.server_public_key33_b64u !==
-      input.targetRelayerPublicKey33B64u ||
+    target.public_identity.server_public_key33_b64u !== input.targetRelayerPublicKey33B64u ||
     target.public_identity.threshold_public_key33_b64u !== input.thresholdPublicKey33B64u ||
     target.public_identity.ethereum_address20_b64u !== input.thresholdEthereumAddress20B64u ||
     target.public_identity.client_share_retry_counter !==
@@ -909,9 +951,7 @@ function assertLinkedDeviceEcdsaNormalSigningReceipt(input: {
     target.signing_worker.server_id !== input.binding.target.activation.signingWorker ||
     target.signing_worker.key_epoch !== source.signing_worker.key_epoch ||
     target.signing_worker.recipient_encryption_key !==
-      routerAbX25519PublicKeyFromB64u(
-        input.binding.target.signingWorkerRecipientPublicKeyB64u,
-      )
+      routerAbX25519PublicKeyFromB64u(input.binding.target.signingWorkerRecipientPublicKeyB64u)
   ) {
     throw new Error('linked-device ECDSA normal signing state differs from its activation receipt');
   }
@@ -994,7 +1034,8 @@ export function parseLinkedDeviceEcdsaSourceContributionPackageV1(
   }
   if (
     encryptedDelta.recipientPublicKeyB64u !== binding.target.signingWorkerRecipientPublicKeyB64u ||
-    encryptedTargetClientShare.recipientPublicKeyB64u !== binding.target.clientRecipientPublicKeyB64u
+    encryptedTargetClientShare.recipientPublicKeyB64u !==
+      binding.target.clientRecipientPublicKeyB64u
   ) {
     throw new Error('linked-device ECDSA source contribution envelope recipients differ');
   }
@@ -1006,7 +1047,14 @@ export function parseLinkedDeviceEcdsaSourceContributionBindingV1(
 ): LinkedDeviceEcdsaSourceContributionBindingV1 {
   const record = exactRecord(
     raw,
-    ['linkSessionId', 'enrollmentId', 'sourceAuthorityId', 'source', 'target', 'targetClientPublicKey33B64u'],
+    [
+      'linkSessionId',
+      'enrollmentId',
+      'sourceAuthorityId',
+      'source',
+      'target',
+      'targetClientPublicKey33B64u',
+    ],
     'linked-device ECDSA source contribution binding',
   );
   const source = parseEcdsaSourceSigner(record.source);
@@ -1110,7 +1158,11 @@ export function parseLinkedDeviceEcdsaEncryptedSourceContributionV1(
   }
   return {
     kind: LINKED_DEVICE_ECDSA_SOURCE_CONTRIBUTION_ENVELOPE_KIND_V1,
-    recipientPublicKeyB64u: parseFixedBase64(record.recipientPublicKeyB64u, 32, `${label}.recipientPublicKeyB64u`),
+    recipientPublicKeyB64u: parseFixedBase64(
+      record.recipientPublicKeyB64u,
+      32,
+      `${label}.recipientPublicKeyB64u`,
+    ),
     bindingDigestB64u: parseDigestField(record.bindingDigestB64u, `${label}.bindingDigestB64u`),
     encappedKeyB64u: parseFixedBase64(record.encappedKeyB64u, 32, `${label}.encappedKeyB64u`),
     ciphertextB64u: parseEnvelopeCiphertextB64u(record.ciphertextB64u, `${label}.ciphertextB64u`),
@@ -1308,4 +1360,81 @@ function exactRecord(
     throw new Error(`${label} contains unknown or missing fields`);
   }
   return record;
+}
+
+function contributionOrder(entry: LinkedDeviceOrdinaryMaterialSourceContributionV1): string {
+  switch (entry.keyFamily) {
+    case 'ed25519':
+      return '0';
+    case 'ecdsa_secp256k1':
+      return '1';
+    case 'ml_dsa_65':
+      return `2:${entry.walletKeyId}`;
+  }
+}
+function preparationOrder(
+  entry: LinkedDeviceOrdinaryMaterialSourceContributionPreparationV1,
+): string {
+  if (!('kind' in entry)) return '1';
+  switch (entry.kind) {
+    case 'linked_device_ed25519_source_contribution_preparation_v1':
+      return '0';
+    case 'linked_device_ml_dsa_65_source_contribution_preparation_v1':
+      return `2:${entry.rootBinding.root.walletKeyId}`;
+  }
+}
+function parseMlDsaContribution(
+  record: Record<string, unknown>,
+): LinkedDeviceMlDsaSourceContributionV1 {
+  exactRecord(
+    record,
+    [
+      'kind',
+      'keyFamily',
+      'linkSessionId',
+      'enrollmentId',
+      'sourceAuthorityId',
+      'walletKeyId',
+      'targetDeviceId',
+      'targetFactorVerificationDigestB64u',
+      'rootPackage',
+    ],
+    'ML-DSA source contribution',
+  );
+  if (record.keyFamily !== 'ml_dsa_65')
+    throw new Error('ML-DSA contribution has a different key family');
+  const rootPackage = parseLinkedDeviceMlDsaExportRootPackageV1(record.rootPackage);
+  const contribution: LinkedDeviceMlDsaSourceContributionV1 = {
+    kind: 'linked_device_ml_dsa_65_source_contribution_v1',
+    keyFamily: 'ml_dsa_65',
+    linkSessionId: parseSessionId(record.linkSessionId),
+    enrollmentId: parseEnrollmentId(record.enrollmentId),
+    sourceAuthorityId: parseAuthorityId(record.sourceAuthorityId),
+    walletKeyId: parseWalletKeyIdField(record.walletKeyId),
+    targetDeviceId: parseDeviceIdField(record.targetDeviceId),
+    targetFactorVerificationDigestB64u: parseDigestB64u(record.targetFactorVerificationDigestB64u),
+    rootPackage,
+  };
+  const root = rootPackage.binding.root;
+  if (
+    root.linkSessionId !== contribution.linkSessionId ||
+    root.enrollmentId !== contribution.enrollmentId ||
+    root.walletKeyId !== contribution.walletKeyId ||
+    String(root.deviceId) !== String(contribution.targetDeviceId)
+  )
+    throw new Error('ML-DSA root package and contribution identities differ');
+  return contribution;
+}
+export function assertMlDsaContributionMatchesPreparationV1(
+  contribution: LinkedDeviceMlDsaSourceContributionV1,
+  preparation: LinkedDeviceMlDsaSourceContributionPreparationV1,
+): void {
+  if (
+    contribution.sourceAuthorityId !== preparation.sourceAuthorityId ||
+    contribution.targetFactorVerificationDigestB64u !==
+      preparation.targetFactorVerificationDigestB64u ||
+    alphabetizeStringify(contribution.rootPackage.binding) !==
+      alphabetizeStringify(preparation.rootBinding)
+  )
+    throw new Error('ML-DSA root contribution differs from the approved preparation');
 }

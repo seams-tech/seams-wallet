@@ -1,3 +1,10 @@
+import type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
+import { assertWalletAuthorityExportRoots } from '../walletAuthorityExportRoots';
+import {
+  isMlDsaExtensionOfWalletAuthorityV1,
+  walletSignerCapabilitySubjectsV1,
+} from '@shared/authorization/walletAuthority';
+import { walletCapabilitySubjectsEqual } from '@shared/device-linking/activeWalletSession';
 import { parseNearSignerPreference } from '@/core/types/nearSigningKeys';
 import { walletSessionPreservesCapabilities } from '@shared/device-linking/activeWalletSession';
 import { parseEd25519PublicKeyB64u } from '@shared/passkey-custody/primitives';
@@ -21,7 +28,6 @@ import {
   type WalletAuthMethodId,
   type WalletAuthorityId,
   type WalletId,
-  type WalletKeyId,
   type WebAuthnRpId,
 } from '@shared/utils/domainIds';
 import { sameDelegatedWalletAuthorityV1 } from '@shared/authorization/delegatedAuthority';
@@ -185,32 +191,6 @@ import {
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled wallet auth method branch: ${String(value)}`);
-}
-
-function exportRootEnvelopeMatchesAuthMethod(
-  authMethod: WalletAuthMethodRecordV2,
-  envelope: PasskeyCustodyEnvelopeRecord,
-): boolean {
-  if (envelope.binding.kind !== 'ed25519_yao_client_root_v1') {
-    return false;
-  }
-  switch (authMethod.kind) {
-    case 'passkey':
-      return (
-        envelope.factor.kind === 'passkey' &&
-        envelope.factor.rpId === authMethod.rpId &&
-        envelope.factor.credentialIdB64u === authMethod.credentialIdB64u &&
-        envelope.binding.targetFactor.kind === 'passkey_prf'
-      );
-    case 'email_otp':
-      return (
-        envelope.factor.kind === 'email_otp' && envelope.binding.targetFactor.kind === 'email_otp'
-      );
-    case 'voiceid':
-      return false;
-    default:
-      return assertNever(authMethod);
-  }
 }
 
 type AppStateRow<T = unknown> = {
@@ -380,7 +360,7 @@ export type LocalAuthorityInstallationInputV1 = {
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
-  readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+  readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
   readonly receipt: LocalAuthorityInstallationReceiptV1;
   readonly expectedLockGeneration: number;
 };
@@ -457,7 +437,7 @@ export type ResolveSelectedWalletAuthorityResultV1 =
       readonly authMethod: WalletAuthMethodRecordV2;
       readonly authority: WalletAuthorityV1;
       readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
-      readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+      readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
     }
   | { readonly kind: 'missing_selection' }
   | {
@@ -487,7 +467,7 @@ type ValidatedLocalAuthorityInstallationInput = {
   readonly authenticator: ProfileAuthenticatorRecord | null;
   readonly localAuthMethod: Extract<LocalWalletAuthMethodRecord, { kind: 'email_otp' }> | null;
   readonly signerMaterials: readonly WalletAuthoritySignerMaterialRecordV1[];
-  readonly exportRoot: WalletAuthorityExportRootRecordV1 | null;
+  readonly exportRoots: readonly WalletAuthorityExportRootRecordV1[];
   readonly receipt: LocalAuthorityInstallationReceiptV1;
   readonly expectedLockGeneration: number;
 };
@@ -2590,7 +2570,8 @@ function parseWalletAuthorityExportRootRecord(value: unknown): WalletAuthorityEx
   );
   const envelope = parsePasskeyCustodyEnvelopeRecord(Reflect.get(value, 'envelope'));
   if (
-    envelope.binding.kind !== 'ed25519_yao_client_root_v1' ||
+    (envelope.binding.kind !== 'ed25519_yao_client_root_v1' &&
+      envelope.binding.kind !== 'ml_dsa_65_owner_root_v1') ||
     envelope.binding.walletKeyId !== walletKeyId
   ) {
     throw new Error('export root envelope does not match walletKeyId');
@@ -2773,39 +2754,15 @@ function walletSelectionStorageRow(record: WalletSelectionRecordV1): WalletSelec
 function signerMaterialExpectations(
   value: WalletSignerActivationSetV1,
 ): readonly SignerMaterialExpectation[] {
-  if (value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ed25519') {
-    if (value.ed25519) {
-      return [{ keyFamily: 'ed25519', materialActivation: value.ed25519.materialActivation }];
-    }
-  }
-  if (value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (value.ecdsa) {
-      return [{ keyFamily: 'ecdsa_secp256k1', materialActivation: value.ecdsa.materialActivation }];
-    }
-  }
-  if (value.keyFamilies.length === 2) {
-    if (value.ed25519 && value.ecdsa) {
-      return [
-        { keyFamily: 'ed25519', materialActivation: value.ed25519.materialActivation },
-        { keyFamily: 'ecdsa_secp256k1', materialActivation: value.ecdsa.materialActivation },
-      ];
-    }
-  }
-  throw new Error('wallet signer activation families are invalid');
-}
-
-function ed25519WalletKeyId(value: WalletSignerActivationSetV1): WalletKeyId | null {
-  if (value.keyFamilies.length === 1 && value.keyFamilies[0] === 'ed25519') {
-    return value.ed25519 ? value.ed25519.signer.walletKeyId : null;
-  }
-  if (value.keyFamilies.length === 2) {
-    return value.ed25519 ? value.ed25519.signer.walletKeyId : null;
-  }
-  throw new Error('wallet signer activation families are invalid');
-}
-
-function hasEd25519SignerFamily(value: WalletSignerActivationSetV1): boolean {
-  return value.keyFamilies.length === 2 || value.keyFamilies[0] === 'ed25519';
+  const result: SignerMaterialExpectation[] = [];
+  if (value.ed25519)
+    result.push({ keyFamily: 'ed25519', materialActivation: value.ed25519.materialActivation });
+  if (value.ecdsa)
+    result.push({
+      keyFamily: 'ecdsa_secp256k1',
+      materialActivation: value.ecdsa.materialActivation,
+    });
+  return result;
 }
 
 function canonicalBytesMatch(left: Uint8Array, right: Uint8Array): boolean {
@@ -3258,11 +3215,7 @@ function walletSessionRecordsMatch(
     }
     if (
       rightSubject.kind !== leftSubject.kind ||
-      leftSubject.keyFamily !== rightSubject.keyFamily ||
-      !mpcMaterialActivationRefsEqual(
-        leftSubject.materialActivation,
-        rightSubject.materialActivation,
-      )
+      !walletCapabilitySubjectsEqual(leftSubject, rightSubject)
     ) {
       return false;
     }
@@ -3380,8 +3333,8 @@ function parseLocalAuthorityInstallationInput(
     for (const rawMaterial of input.signerMaterials) {
       signerMaterials.push(parseWalletAuthoritySignerMaterialRecord(rawMaterial));
     }
-    const exportRoot =
-      input.exportRoot === null ? null : parseWalletAuthorityExportRootRecord(input.exportRoot);
+    if (!Array.isArray(input.exportRoots)) throw new Error('Export roots must be an array');
+    const exportRoots = input.exportRoots.map(parseWalletAuthorityExportRootRecord);
     const receipt = parseLocalAuthorityInstallationReceiptV1(input.receipt);
     const expectedLockGeneration = parseNonNegativeSafeInteger(
       input.expectedLockGeneration,
@@ -3419,32 +3372,7 @@ function parseLocalAuthorityInstallationInput(
         throw new Error('signer material record does not match authority activation');
       }
     }
-    const requiredExportRoot =
-      hasEd25519SignerFamily(authority.signerActivations) &&
-      authority.permissions.includes('export_keys');
-    if (requiredExportRoot !== (exportRoot !== null)) {
-      throw new Error('Ed25519 export root presence does not match authority permissions');
-    }
-    if (exportRoot) {
-      const expectedWalletKeyId = ed25519WalletKeyId(authority.signerActivations);
-      if (
-        expectedWalletKeyId === null ||
-        exportRoot.authorityId !== authority.authorityId ||
-        exportRoot.walletAuthMethodId !== authMethod.walletAuthMethodId ||
-        exportRoot.walletKeyId !== expectedWalletKeyId ||
-        exportRoot.envelope.walletId !== authority.walletId ||
-        exportRoot.envelope.binding.kind !== 'ed25519_yao_client_root_v1' ||
-        exportRoot.envelope.binding.walletKeyId !== expectedWalletKeyId ||
-        exportRoot.envelope.binding.registeredPublicKeyB64u !==
-          authority.signerActivations.ed25519?.signer.registeredPublicKeyB64u ||
-        authority.principal.kind !== 'owner_device' ||
-        String(exportRoot.envelope.binding.deviceId) !== String(authority.principal.deviceId) ||
-        exportRoot.envelope.lifecycle.state !== 'active' ||
-        !exportRootEnvelopeMatchesAuthMethod(authMethod, exportRoot.envelope)
-      ) {
-        throw new Error('export root does not match the Ed25519 authority activation');
-      }
-    }
+    assertWalletAuthorityExportRoots(authority, authMethod, exportRoots);
     return {
       ok: true,
       value: {
@@ -3454,7 +3382,7 @@ function parseLocalAuthorityInstallationInput(
         authenticator,
         localAuthMethod,
         signerMaterials,
-        exportRoot,
+        exportRoots,
         receipt,
         expectedLockGeneration,
       },
@@ -4787,13 +4715,9 @@ export class SeamsWalletRepositories {
         ]),
       );
     }
-    const exportRootRaw = input.exportRoot
-      ? await exportRootStore.get([
-          input.exportRoot.authorityId,
-          input.exportRoot.walletAuthMethodId,
-          input.exportRoot.walletKeyId,
-        ])
-      : undefined;
+    const exportRootRaws: unknown[] = await exportRootStore
+      .index(SEAMS_WALLET_INDEXES.walletAuthorityAuthMethodId)
+      .getAll([input.authority.authorityId, input.authMethod.walletAuthMethodId]);
     const receiptRaw = await receiptStore.get(input.receipt.authorityId);
     const existingAuthority =
       authorityRaw === undefined ? null : parseWalletAuthorityStorageRow(authorityRaw);
@@ -4808,10 +4732,7 @@ export class SeamsWalletRepositories {
           : parseWalletAuthoritySignerMaterialStorageRow(raw)?.record || null,
       );
     }
-    const existingExportRoot =
-      exportRootRaw === undefined
-        ? null
-        : parseWalletAuthorityExportRootStorageRow(exportRootRaw)?.record || null;
+    const existingExportRoots = exportRootRaws.map(parseWalletAuthorityExportRootStorageRow);
     const existingReceipt =
       receiptRaw === undefined
         ? null
@@ -4829,14 +4750,14 @@ export class SeamsWalletRepositories {
       authorityRaw !== undefined ||
       authMethodRaw !== undefined ||
       signerMaterialRaws.some(rawValueIsPresent) ||
-      exportRootRaw !== undefined ||
+      exportRootRaws.length > 0 ||
       receiptRaw !== undefined ||
       profileProjectionRaw !== undefined;
     const allInstallationRecords =
       authorityRaw !== undefined &&
       authMethodRaw !== undefined &&
       signerMaterialRaws.every(rawValueIsPresent) &&
-      (input.exportRoot === null ? exportRootRaw === undefined : exportRootRaw !== undefined) &&
+      exportRootRaws.length === input.exportRoots.length &&
       receiptRaw !== undefined;
     if (installationStateExists) {
       if (
@@ -4896,13 +4817,13 @@ export class SeamsWalletRepositories {
           };
         }
       }
-      if (input.exportRoot) {
-        if (
-          !existingExportRoot ||
-          !walletAuthorityExportRootsMatch(existingExportRoot, input.exportRoot)
-        ) {
-          return { kind: 'integrity_error', reason: 'stored export root conflicts with replay' };
+      for (const root of input.exportRoots) {
+        let matched = false;
+        for (const existing of existingExportRoots) {
+          if (existing && walletAuthorityExportRootsMatch(existing.record, root)) matched = true;
         }
+        if (!matched)
+          return { kind: 'integrity_error', reason: 'Stored export roots conflict with replay' };
       }
       await selectionStore.put(
         walletSelectionStorageRow(walletSelectionForInstalledAuthority(input, selection)),
@@ -4918,9 +4839,8 @@ export class SeamsWalletRepositories {
     for (const material of input.signerMaterials) {
       await signerMaterialStore.put(walletAuthoritySignerMaterialStorageRow(material));
     }
-    if (input.exportRoot) {
-      await exportRootStore.put(walletAuthorityExportRootStorageRow(input.exportRoot));
-    }
+    for (const root of input.exportRoots)
+      await exportRootStore.put(walletAuthorityExportRootStorageRow(root));
     await receiptStore.put(localAuthorityInstallationReceiptStorageRow(input.receipt));
     await selectionStore.put(
       walletSelectionStorageRow(walletSelectionForInstalledAuthority(input, selection)),
@@ -5247,7 +5167,7 @@ export class SeamsWalletRepositories {
         authMethod: authMethod.record,
         authority: authority.record,
         signerMaterials: [],
-        exportRoot: null,
+        exportRoots: [],
       };
     }
     const signerMaterialStore = ctx.store(SEAMS_WALLET_STORES.walletAuthoritySignerMaterials);
@@ -5296,39 +5216,16 @@ export class SeamsWalletRepositories {
       .store(SEAMS_WALLET_STORES.walletAuthorityExportRoots)
       .index(SEAMS_WALLET_INDEXES.walletAuthorityAuthMethodId)
       .getAll([authority.record.authorityId, authMethod.record.walletAuthMethodId])) as unknown[];
-    const requiresExportRoot =
-      hasEd25519SignerFamily(authority.record.signerActivations) &&
-      authority.record.permissions.includes('export_keys');
-    if (exportRootRaws.length !== (requiresExportRoot ? 1 : 0)) {
-      return {
-        kind: 'integrity_error',
-        reason: 'selected authority export-root cardinality is invalid',
-      };
+    const exportRoots: WalletAuthorityExportRootRecordV1[] = [];
+    for (const raw of exportRootRaws) {
+      const row = parseWalletAuthorityExportRootStorageRow(raw);
+      if (!row) return { kind: 'integrity_error', reason: 'Selected export root is malformed' };
+      exportRoots.push(row.record);
     }
-    let exportRoot: WalletAuthorityExportRootRecordV1 | null = null;
-    if (requiresExportRoot) {
-      const row = parseWalletAuthorityExportRootStorageRow(exportRootRaws[0]);
-      const expectedWalletKeyId = ed25519WalletKeyId(authority.record.signerActivations);
-      if (
-        !row ||
-        expectedWalletKeyId === null ||
-        row.wallet_authority_id !== authority.record.authorityId ||
-        row.wallet_auth_method_id !== authMethod.record.walletAuthMethodId ||
-        row.record.walletKeyId !== expectedWalletKeyId ||
-        row.record.envelope.walletId !== walletId ||
-        row.record.envelope.binding.kind !== 'ed25519_yao_client_root_v1' ||
-        row.record.envelope.binding.walletKeyId !== expectedWalletKeyId ||
-        row.record.envelope.binding.registeredPublicKeyB64u !==
-          authority.record.signerActivations.ed25519?.signer.registeredPublicKeyB64u ||
-        authority.record.principal.kind !== 'owner_device' ||
-        String(row.record.envelope.binding.deviceId) !==
-          String(authority.record.principal.deviceId) ||
-        row.record.envelope.lifecycle.state !== 'active' ||
-        !exportRootEnvelopeMatchesAuthMethod(authMethod.record, row.record.envelope)
-      ) {
-        return { kind: 'integrity_error', reason: 'selected authority export root is invalid' };
-      }
-      exportRoot = row.record;
+    try {
+      assertWalletAuthorityExportRoots(authority.record, authMethod.record, exportRoots);
+    } catch {
+      return { kind: 'integrity_error', reason: 'Selected export roots differ from the authority' };
     }
     if (!(await walletAuthorityDigestsMatchV1(authority.record))) {
       return { kind: 'integrity_error', reason: 'selected wallet authority digest is invalid' };
@@ -5339,7 +5236,7 @@ export class SeamsWalletRepositories {
       authMethod: authMethod.record,
       authority: authority.record,
       signerMaterials,
-      exportRoot,
+      exportRoots,
     };
   }
 
@@ -5532,6 +5429,87 @@ export class SeamsWalletRepositories {
    * Wallet Sessions to it; the next exact status read carries that promotion
    * into the local session, which keeps its operation credential.
    */
+  async adoptAddedMlDsaSignerAuthority(authority: ActiveWalletAuthorityV1): Promise<void> {
+    const current = await this.getWalletAuthority(authority.authorityId);
+    if (
+      !current ||
+      current.state !== 'active' ||
+      !(await isMlDsaExtensionOfWalletAuthorityV1(current, authority))
+    )
+      throw new Error('ML-DSA publication changed an existing authority permission');
+    await this.manager.runTransaction(
+      [
+        SEAMS_WALLET_STORES.walletAuthorities,
+        SEAMS_WALLET_STORES.walletSelections,
+        SEAMS_WALLET_STORES.walletSessionAuthorizations,
+        SEAMS_WALLET_STORES.appState,
+        SEAMS_WALLET_STORES.ecdsaClientPresignatures,
+      ],
+      'readwrite',
+      this.adoptAddedMlDsaSignerAuthorityInTransaction.bind(this, {
+        next: authority,
+        expected: current,
+      }),
+    );
+  }
+
+  private async adoptAddedMlDsaSignerAuthorityInTransaction(
+    input: { readonly next: ActiveWalletAuthorityV1; readonly expected: ActiveWalletAuthorityV1 },
+    ctx: SeamsWalletTransactionContext,
+  ): Promise<void> {
+    const { next, expected } = input;
+    const store = ctx.store(SEAMS_WALLET_STORES.walletAuthorities);
+    const current = parseWalletAuthorityStorageRow(await store.get(next.authorityId));
+    if (
+      !current ||
+      current.record.state !== 'active' ||
+      current.record.authorityDigestB64u !== expected.authorityDigestB64u ||
+      current.record.updatedAtMs !== expected.updatedAtMs
+    )
+      throw new Error('ML-DSA publication was superseded locally');
+    await store.put(walletAuthorityStorageRow(next));
+    const selected = parseWalletSelectionStorageRow(
+      await ctx.store(SEAMS_WALLET_STORES.walletSelections).get(next.walletId),
+    );
+    if (!selected) return;
+    const session = await readExactActiveWalletSessionForScopeInTransaction({
+      ctx,
+      walletId: next.walletId,
+      authorityId: next.authorityId,
+      authMethodId: selected.record.walletAuthMethodId,
+    });
+    if (session.kind !== 'found') return;
+    if (session.record.authorityRevocationEpoch !== next.revocationEpoch)
+      throw new Error('The owner session revocation epoch changed');
+    const subjects: WalletCapabilitySubjectV1[] = [];
+    if (next.permissions.includes('sign'))
+      subjects.push(...walletSignerCapabilitySubjectsV1(next.signerActivations, 'sign'));
+    if (next.permissions.includes('export_keys'))
+      subjects.push(...walletSignerCapabilitySubjectsV1(next.signerActivations, 'export_keys'));
+    if (next.permissions.includes('link_devices')) subjects.push({ kind: 'link_devices' });
+    if (next.permissions.includes('revoke_devices')) subjects.push({ kind: 'revoke_devices' });
+    const first = subjects[0];
+    if (!first) throw new Error('The published authority has no capabilities');
+    const active: ActiveWalletSessionV1 = {
+      kind: 'active_wallet_session_v1',
+      walletId: session.record.walletId,
+      authorityId: session.record.authorityId,
+      authMethodId: session.record.authMethodId,
+      authorizationId: session.record.authorizationId,
+      quotaId: session.record.quotaId,
+      authorityDigestB64u: next.authorityDigestB64u,
+      authorityRevocationEpoch: next.revocationEpoch,
+      capabilitySubjects: [first, ...subjects.slice(1)],
+      issuedAtMs: session.record.issuedAtMs,
+      expiresAtMs: session.record.expiresAtMs,
+    };
+    await replaceExactActiveWalletSessionAuthorizationInTransaction({
+      ctx,
+      active,
+      operationCredential: session.operationCredential,
+    });
+  }
+
   async adoptAddedEcdsaSignerAuthority(input: {
     readonly authority: WalletAuthorityV1;
     readonly materialActivation: MpcMaterialActivationRef;

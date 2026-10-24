@@ -412,7 +412,6 @@ import {
 } from '@shared/device-linking';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import {
-  isWalletCustodySeedBinding,
   type PasskeyCustodyEnvelopeRecord,
 } from '@shared/passkey-custody';
 import { buildThresholdEd25519Participants2pV1 } from '@shared/threshold/participants';
@@ -1220,7 +1219,8 @@ function resolveSelectedEmailOtpEd25519ExportRootV1(args: {
     return null;
   }
 
-  const { selection, authMethod, authority, signerMaterials, exportRoot } = selected;
+  const { selection, authMethod, authority, signerMaterials } = selected;
+  const exportRoot = selected.exportRoots.find(isEd25519ExportRootRecord) ?? null;
   const signer = args.subject.signer;
   const ed25519Activation = authority.signerActivations.ed25519;
   if (
@@ -3322,7 +3322,7 @@ export class BrowserSigningSurface {
    * until the next unlock.
    */
   async establishUnlockedWalletEd25519ExportRootCapabilityV1(input: {
-    readonly existingEnvelope: PasskeyCustodyEnvelopeRecord;
+    readonly existingEnvelopes: readonly PasskeyCustodyEnvelopeRecord[];
     readonly passkeyPrfFirstB64u: string;
     readonly walletId: string;
     readonly walletAuthMethodId: string;
@@ -3332,20 +3332,16 @@ export class BrowserSigningSurface {
     try {
       /* A linked device parks its own Client root the same way; only linking
          accepts that capability. */
-      const binding = input.existingEnvelope.binding;
-      if (!isWalletCustodySeedBinding(binding) && binding.kind !== 'ed25519_yao_client_root_v1') {
-        return;
-      }
-      const factor = input.existingEnvelope.factor;
-      if (factor.kind !== 'passkey') {
-        throw new Error('unlocked export-root capability requires a passkey envelope factor');
+      for (const envelope of input.existingEnvelopes) {
+        if (envelope.factor.kind !== 'passkey')
+          throw new Error('The export roots require the selected passkey factor');
       }
       const existingFactorSecret = base64UrlDecode(input.passkeyPrfFirstB64u);
       try {
         await establishUnlockedExportRootCapabilityWithWorkerV1(
           this.walletCustodyCeremonyTransportV1(),
           {
-            existingEnvelope: input.existingEnvelope,
+            existingEnvelopes: input.existingEnvelopes,
             existingFactorSecret,
             walletId: input.walletId,
             walletAuthMethodId: input.walletAuthMethodId,
@@ -3705,9 +3701,8 @@ export class BrowserSigningSurface {
   async signMlDsaNearTransaction(
     input: import('@/core/signingEngine/flows/signNear/mlDsaTransaction').MlDsaNearTransactionInput,
   ): Promise<import('@/core/types/seams').SignTransactionResult> {
-    const { signMlDsaNearTransaction } = await import(
-      '@/core/signingEngine/flows/signNear/mlDsaTransaction'
-    );
+    const { signMlDsaNearTransaction } =
+      await import('@/core/signingEngine/flows/signNear/mlDsaTransaction');
     return await signMlDsaNearTransaction(
       {
         configs: this.seamsWebConfigs,
@@ -5378,7 +5373,8 @@ export class BrowserSigningSurface {
         `[SigningEngine][ed25519-export] selected Wallet Authority is ${selected.kind}${detail}`,
       );
     }
-    const { selection, authMethod, authority, signerMaterials, exportRoot } = selected;
+    const { selection, authMethod, authority, signerMaterials } = selected;
+    const exportRoot = selected.exportRoots.find(isEd25519ExportRootRecord) ?? null;
     if (
       selection.lockState !== 'unlocked' ||
       authMethod.kind !== WALLET_AUTH_METHODS.passkey ||
@@ -6875,7 +6871,7 @@ export class BrowserSigningSurface {
       await establishUnlockedExportRootCapabilityWithWorkerV1(
         this.walletCustodyCeremonyTransportV1(),
         {
-          existingEnvelope: unlock.ed25519ExportRootCustody.existingEnvelope,
+          existingEnvelopes: [unlock.ed25519ExportRootCustody.existingEnvelope],
           existingFactorSecret: unlock.ed25519ExportRootCustody.factorSecret32,
           walletId: String(args.walletSession.walletId),
           walletAuthMethodId: String(unlock.walletSessionAuthorization.record.authMethodId),
@@ -7070,4 +7066,10 @@ export class BrowserSigningSurface {
     }
     if (firstError !== undefined) throw firstError;
   }
+}
+
+function isEd25519ExportRootRecord(
+  root: import('@/core/indexedDB').WalletAuthorityExportRootRecordV1,
+): boolean {
+  return root.envelope.binding.kind === 'ed25519_yao_client_root_v1';
 }

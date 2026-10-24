@@ -345,6 +345,7 @@ type D1LinkedDeviceCompositionAssembly = Pick<
 >;
 
 function createD1LinkedDeviceComposition(input: {
+  readonly mlDsaRegistration: D1WalletMlDsaRegistration | null;
   readonly options: NormalizedCloudflareD1RouterApiAuthServiceOptions;
   readonly authorizationSessions: RouterApiServiceBag['authorizationSessions'];
   readonly authorizationService: AuthorizationService;
@@ -530,6 +531,7 @@ function createD1LinkedDeviceComposition(input: {
       now: nowV1,
     });
     const verifiedLinkSourceReader = createD1LinkedDeviceVerifiedLinkSourceReaderV1({
+      mlDsaRegistration: input.mlDsaRegistration,
       authorizationService: input.authorizationService,
       authorityStore,
       authMethodStore: input.walletAuthMethodStore,
@@ -1525,6 +1527,7 @@ function createCloudflareD1RouterApiAuthAssembly(
   // target factor reuses this deployment's exact issuer, verifier, enrollment
   // store, and server-seal runtime — never a second OTP implementation.
   const linkedDeviceComposition = createD1LinkedDeviceComposition({
+    mlDsaRegistration,
     emailOtpLinkedDevice: {
       issuer: emailOtpChallengeIssuer,
       verifier: emailOtpChallengeVerifier,

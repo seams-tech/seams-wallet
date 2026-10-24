@@ -403,16 +403,16 @@ fn seal_input(
         ciphertext,
     })
 }
-fn random_secret() -> CoreResult<Zeroizing<[u8; 32]>> {
+pub(crate) fn random_secret() -> CoreResult<Zeroizing<[u8; 32]>> {
     let mut bytes = Zeroizing::new([0; 32]);
     getrandom::getrandom(bytes.as_mut())
         .map_err(|_| SignerCoreError::crypto_error("ML-DSA custody randomness unavailable"))?;
     Ok(bytes)
 }
-fn fresh_rng() -> CoreResult<ChaCha20Rng> {
+pub(crate) fn fresh_rng() -> CoreResult<ChaCha20Rng> {
     Ok(ChaCha20Rng::from_seed(*random_secret()?))
 }
-fn hpke_error(_: hpke_ng::HpkeError) -> SignerCoreError {
+pub(crate) fn hpke_error(_: hpke_ng::HpkeError) -> SignerCoreError {
     SignerCoreError::crypto_error("ML-DSA custody HPKE authentication failed")
 }
 fn shape_error() -> SignerCoreError {

@@ -1,3 +1,4 @@
+import { parseX25519PublicKeyB64u } from '../passkey-custody/primitives';
 import {
   delegatedWalletPermissionNamesV1,
   type DelegatedWalletAuthorityV1,
@@ -177,9 +178,7 @@ const P256_FIELD_PRIME = BigInt(
   '0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff',
 );
 const P256_CURVE_A = P256_FIELD_PRIME - 3n;
-const P256_CURVE_B = BigInt(
-  '0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b',
-);
+const P256_CURVE_B = BigInt('0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b');
 
 function bigEndianBytesToBigInt(bytes: Uint8Array): bigint {
   let value = 0n;
@@ -193,9 +192,7 @@ function isP256Point(decoded: Uint8Array): boolean {
   if (x >= P256_FIELD_PRIME || y >= P256_FIELD_PRIME) return false;
   const left = (y * y) % P256_FIELD_PRIME;
   const right =
-    ((x * x * x) % P256_FIELD_PRIME +
-      (P256_CURVE_A * x) % P256_FIELD_PRIME +
-      P256_CURVE_B) %
+    (((x * x * x) % P256_FIELD_PRIME) + ((P256_CURVE_A * x) % P256_FIELD_PRIME) + P256_CURVE_B) %
     P256_FIELD_PRIME;
   return left === right;
 }
@@ -227,8 +224,8 @@ function parseCredential(raw: unknown, label: string): WebAuthnCredentialIdB64u 
   return credentialId(parseCanonicalBase64UrlBytes(raw, label), label);
 }
 
-function parseKeyFamily(raw: unknown, label: string): 'ed25519' | 'ecdsa_secp256k1' {
-  if (raw !== 'ed25519' && raw !== 'ecdsa_secp256k1') {
+function parseKeyFamily(raw: unknown, label: string): 'ed25519' | 'ecdsa_secp256k1' | 'ml_dsa_65' {
+  if (raw !== 'ed25519' && raw !== 'ecdsa_secp256k1' && raw !== 'ml_dsa_65') {
     throw new Error(`${label} must identify a supported key family`);
   }
   return raw;
@@ -980,21 +977,32 @@ function ed25519ExportRootPreparationV1() {
 function parseKeyFamilyEntries<
   T extends { readonly keyFamily: string; readonly walletKeyId: WalletKeyId },
 >(raw: unknown, item: WireParser<T>, label: string): T[] {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2) {
-    throw new Error(`${label} must contain one or two entries`);
-  }
-  const entries = raw.map((entry, index) => item(entry, `${label}[${index}]`));
-  if (new Set(entries.map((entry) => entry.keyFamily)).size !== entries.length) {
-    throw new Error(`${label} repeats a key family`);
-  }
-  if (new Set(entries.map((entry) => String(entry.walletKeyId))).size !== entries.length) {
-    throw new Error(`${label} repeats a wallet key`);
-  }
-  if (
-    entries.length === 2 &&
-    (entries[0]?.keyFamily !== 'ed25519' || entries[1]?.keyFamily !== 'ecdsa_secp256k1')
-  ) {
-    throw new Error(`${label} must be ordered Ed25519 then ECDSA`);
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 66)
+    throw new Error(`${label} must contain one to 66 keys`);
+  const entries: T[] = [];
+  let previous = '';
+  const keys = new Set<WalletKeyId>();
+  for (let index = 0; index < raw.length; index += 1) {
+    const entry = item(raw[index], `${label}[${index}]`);
+    let order: string;
+    switch (entry.keyFamily) {
+      case 'ed25519':
+        order = '0';
+        break;
+      case 'ecdsa_secp256k1':
+        order = '1';
+        break;
+      case 'ml_dsa_65':
+        order = `2:${entry.walletKeyId}`;
+        break;
+      default:
+        throw new Error(`${label} has an unsupported signer family`);
+    }
+    if (order <= previous || keys.has(entry.walletKeyId))
+      throw new Error(`${label} must contain unique keys in canonical order`);
+    previous = order;
+    keys.add(entry.walletKeyId);
+    entries.push(entry);
   }
   return entries;
 }
@@ -1058,22 +1066,22 @@ function linkedDeviceWebAuthnRegistrationV1() {
 }
 
 function recipientRequestV1() {
-  const keyFamily =
-    <F extends 'ed25519' | 'ecdsa_secp256k1'>(family: F): WireParser<F> =>
-    (raw, label) => {
-      if (raw !== family) throw new Error(`${label} does not match its kind`);
-      return family;
-    };
   return wireUnion('kind', [
     wireObject({
+      kind: wireLiteral('ordinary_ml_dsa_65_signer_material_recipient_request_v1'),
+      keyFamily: wireLiteral('ml_dsa_65'),
+      walletKeyId,
+      recipientPublicKeyB64u: parseX25519PublicKeyB64u,
+    }),
+    wireObject({
       kind: wireLiteral('ordinary_ed25519_signer_material_recipient_request_v1'),
-      keyFamily: keyFamily('ed25519'),
+      keyFamily: wireLiteral('ed25519'),
       walletKeyId,
       recipientPublicKeyB64u: (raw, label) => parseCanonicalFixedBase64UrlBytes(raw, 32, label),
     }),
     wireObject({
       kind: wireLiteral('ordinary_ecdsa_signer_material_recipient_request_v1'),
-      keyFamily: keyFamily('ecdsa_secp256k1'),
+      keyFamily: wireLiteral('ecdsa_secp256k1'),
       walletKeyId,
       clientEphemeralPublicKey: requireRouterAbX25519PublicKey,
     }),

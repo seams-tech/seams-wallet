@@ -1,3 +1,12 @@
+import { exactRecord } from '../utils/exactRecord';
+import {
+  parseLinkedDeviceMlDsaExportRootPackageV1,
+  type LinkedDeviceMlDsaExportRootPackageV1,
+} from './mlDsaExportRoot';
+import {
+  parseExactAdministeredMlDsa65SignerV1,
+  type ExactAdministeredMlDsa65SignerV1,
+} from './delegatedActivationPlan';
 import type { DeviceId } from '../authorization/capabilityKinds';
 import type { CanonicalDelegatedWalletPermissionSetV1 } from '../authorization/delegatedAuthority';
 import type { PendingWalletAuthorityV1 } from '../authorization/walletAuthority';
@@ -69,6 +78,12 @@ export type CommittedEcdsaSignerPackageV1 = {
   readonly activationReceipt: LinkedDeviceEcdsaSourcePreservingActivationReceiptV1;
 };
 
+export type CommittedMlDsaSignerPackageV1 = {
+  readonly kind: 'committed_ml_dsa_65_signer_package_v1';
+  readonly signer: ExactAdministeredMlDsa65SignerV1;
+  readonly exportRoot: LinkedDeviceMlDsaExportRootPackageV1;
+};
+
 export type CommittedSignerPackageSetV1 = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'committed_signer_package_set_v1';
@@ -85,6 +100,30 @@ export type CommittedSignerPackageSetV1 = ReadonlyExclusiveUnion<
       readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1'];
       readonly ed25519: CommittedEd25519SignerPackageV1;
       readonly ecdsa: CommittedEcdsaSignerPackageV1;
+    }
+  | {
+      readonly kind: 'committed_signer_package_set_v1';
+      readonly keyFamilies: readonly ['ml_dsa_65'];
+      readonly mlDsa: readonly [CommittedMlDsaSignerPackageV1, ...CommittedMlDsaSignerPackageV1[]];
+    }
+  | {
+      readonly kind: 'committed_signer_package_set_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ml_dsa_65'];
+      readonly ed25519: CommittedEd25519SignerPackageV1;
+      readonly mlDsa: readonly [CommittedMlDsaSignerPackageV1, ...CommittedMlDsaSignerPackageV1[]];
+    }
+  | {
+      readonly kind: 'committed_signer_package_set_v1';
+      readonly keyFamilies: readonly ['ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly ecdsa: CommittedEcdsaSignerPackageV1;
+      readonly mlDsa: readonly [CommittedMlDsaSignerPackageV1, ...CommittedMlDsaSignerPackageV1[]];
+    }
+  | {
+      readonly kind: 'committed_signer_package_set_v1';
+      readonly keyFamilies: readonly ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'];
+      readonly ed25519: CommittedEd25519SignerPackageV1;
+      readonly ecdsa: CommittedEcdsaSignerPackageV1;
+      readonly mlDsa: readonly [CommittedMlDsaSignerPackageV1, ...CommittedMlDsaSignerPackageV1[]];
     }
 >;
 
@@ -105,18 +144,6 @@ type CommittedAuthorityPackagesWireV1 = {
   readonly ed25519ExportRootPackage: unknown;
   readonly packageSetDigestB64u: unknown;
 };
-
-type CommittedSignerPackageSetWireV1 = ReadonlyExclusiveUnion<
-  | { readonly kind: unknown; readonly keyFamilies: unknown }
-  | { readonly kind: unknown; readonly keyFamilies: unknown; readonly ed25519: unknown }
-  | { readonly kind: unknown; readonly keyFamilies: unknown; readonly ecdsa: unknown }
-  | {
-      readonly kind: unknown;
-      readonly keyFamilies: unknown;
-      readonly ed25519: unknown;
-      readonly ecdsa: unknown;
-    }
->;
 
 type CommittedEd25519SignerPackageWireV1 = {
   readonly kind: unknown;
@@ -177,6 +204,23 @@ export function parseCommittedAuthorityPackagesV1(raw: unknown): CommittedAuthor
       throw new Error('CommittedAuthorityPackagesV1 export root identity does not match authority');
     }
   }
+  for (const entry of signerPackages.mlDsa ?? []) {
+    const binding = entry.exportRoot.binding;
+    const root = binding.root;
+    const target = authority.value;
+    if (
+      !target.permissions.includes('export_keys') ||
+      target.provenance.kind !== 'device_link' ||
+      binding.walletId !== target.walletId ||
+      binding.walletAuthMethodId !== authMethod.walletAuthMethodId ||
+      root.targetFactor.kind !== (authMethod.kind === 'passkey' ? 'passkey_prf' : 'email_otp') ||
+      root.revocationEpoch !== target.revocationEpoch ||
+      root.linkSessionId !== target.provenance.linkSessionId ||
+      root.enrollmentId !== target.provenance.enrollmentId ||
+      String(root.deviceId) !== String(target.principal.deviceId)
+    )
+      throw new Error('ML-DSA export root differs from the target authority');
+  }
   return {
     kind: 'committed_authority_packages_v1',
     authority: authority.value,
@@ -199,32 +243,30 @@ function assertSignerPackagesMatchAuthority(
       throw new Error('CommittedAuthorityPackagesV1 signer family order does not match authority');
     }
   }
-  if (packages.keyFamilies.length === 1 && packages.keyFamilies[0] === 'ed25519') {
-    if (!activations.ed25519 || !packages.ed25519) {
-      throw new Error('CommittedAuthorityPackagesV1 Ed25519 activation is missing');
-    }
-    if (!mpcMaterialActivationRefsEqual(packages.ed25519.materialActivation, activations.ed25519.materialActivation)) {
-      throw new Error('CommittedAuthorityPackagesV1 Ed25519 activation does not match authority');
-    }
-    return;
-  }
-  if (packages.keyFamilies.length === 1 && packages.keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!activations.ecdsa || !packages.ecdsa) {
-      throw new Error('CommittedAuthorityPackagesV1 ECDSA activation is missing');
-    }
-    if (!mpcMaterialActivationRefsEqual(packages.ecdsa.materialActivation, activations.ecdsa.materialActivation)) {
-      throw new Error('CommittedAuthorityPackagesV1 ECDSA activation does not match authority');
-    }
-    return;
-  }
-  if (!activations.ed25519 || !activations.ecdsa || !packages.ed25519 || !packages.ecdsa) {
-    throw new Error('CommittedAuthorityPackagesV1 combined activations are incomplete');
-  }
   if (
-    !mpcMaterialActivationRefsEqual(packages.ed25519.materialActivation, activations.ed25519.materialActivation) ||
-    !mpcMaterialActivationRefsEqual(packages.ecdsa.materialActivation, activations.ecdsa.materialActivation)
-  ) {
-    throw new Error('CommittedAuthorityPackagesV1 activation references do not match authority');
+    packages.ed25519 &&
+    (!activations.ed25519 ||
+      !mpcMaterialActivationRefsEqual(
+        packages.ed25519.materialActivation,
+        activations.ed25519.materialActivation,
+      ))
+  )
+    throw new Error('Ed25519 package activation differs');
+  if (
+    packages.ecdsa &&
+    (!activations.ecdsa ||
+      !mpcMaterialActivationRefsEqual(
+        packages.ecdsa.materialActivation,
+        activations.ecdsa.materialActivation,
+      ))
+  )
+    throw new Error('ECDSA package activation differs');
+  const roots = packages.mlDsa ?? [];
+  const keys = activations.mlDsa ?? [];
+  if (roots.length !== keys.length) throw new Error('ML-DSA packages do not cover the authority');
+  for (let index = 0; index < roots.length; index += 1) {
+    if (alphabetizeStringify(roots[index]?.signer) !== alphabetizeStringify(keys[index]?.signer))
+      throw new Error('ML-DSA package activation differs');
   }
 }
 
@@ -242,46 +284,91 @@ export type CommittedSignerPackageSetDigestInputV1 = {
   readonly targetFactorVerificationDigestB64u: DigestB64u;
 };
 
+export function buildCommittedSignerPackageSetV1(
+  ed25519: CommittedEd25519SignerPackageV1 | null,
+  ecdsa: CommittedEcdsaSignerPackageV1 | null,
+  mlDsaPackages: readonly CommittedMlDsaSignerPackageV1[],
+): CommittedSignerPackageSetV1 {
+  const first = mlDsaPackages[0];
+  const kind = 'committed_signer_package_set_v1';
+  if (first) {
+    const mlDsa: readonly [CommittedMlDsaSignerPackageV1, ...CommittedMlDsaSignerPackageV1[]] = [
+      first,
+      ...mlDsaPackages.slice(1),
+    ];
+    let previous = '';
+    for (const entry of mlDsa) {
+      if (entry.signer.walletKeyId <= previous)
+        throw new Error('ML-DSA packages must have unique keys in canonical order');
+      previous = entry.signer.walletKeyId;
+    }
+    if (ed25519 && ecdsa)
+      return {
+        kind,
+        keyFamilies: ['ed25519', 'ecdsa_secp256k1', 'ml_dsa_65'],
+        ed25519,
+        ecdsa,
+        mlDsa,
+      };
+    if (ed25519) return { kind, keyFamilies: ['ed25519', 'ml_dsa_65'], ed25519, mlDsa };
+    if (ecdsa) return { kind, keyFamilies: ['ecdsa_secp256k1', 'ml_dsa_65'], ecdsa, mlDsa };
+    return { kind, keyFamilies: ['ml_dsa_65'], mlDsa };
+  }
+  if (ed25519 && ecdsa)
+    return { kind, keyFamilies: ['ed25519', 'ecdsa_secp256k1'], ed25519, ecdsa };
+  if (ed25519) return { kind, keyFamilies: ['ed25519'], ed25519 };
+  if (ecdsa) return { kind, keyFamilies: ['ecdsa_secp256k1'], ecdsa };
+  throw new Error('Committed signer packages cannot be empty');
+}
+
 export function parseCommittedSignerPackageSetV1(raw: unknown): CommittedSignerPackageSetV1 {
-  const record = parseCommittedSignerPackageSetWireV1(raw);
-  if (record.kind !== 'committed_signer_package_set_v1') {
-    throw new Error('CommittedSignerPackageSetV1.kind is invalid');
+  const object = inspectRawObject(raw);
+  if (!object) throw new Error('Committed signer packages must be an object');
+  const fields = ['kind', 'keyFamilies'];
+  for (const name of ['ed25519', 'ecdsa', 'mlDsa']) {
+    if (Object.prototype.hasOwnProperty.call(object, name)) fields.push(name);
   }
-  const keyFamilies = parseKeyFamilies(record.keyFamilies);
-  if (keyFamilies.length === 1 && keyFamilies[0] === 'ed25519') {
-    if (!('ed25519' in record)) {
-      throw new Error('CommittedSignerPackageSetV1 fields are invalid');
-    }
-    return {
-      kind: 'committed_signer_package_set_v1',
-      keyFamilies,
-      ed25519: parseEd25519Package(record.ed25519),
-    };
+  const record = exactRecord(raw, fields, 'Committed signer packages');
+  if (record.kind !== 'committed_signer_package_set_v1')
+    throw new Error('Invalid committed signer package kind');
+  const mlDsa: CommittedMlDsaSignerPackageV1[] = [];
+  if ('mlDsa' in record) {
+    if (!Array.isArray(record.mlDsa) || record.mlDsa.length === 0 || record.mlDsa.length > 64)
+      throw new Error('Invalid ML-DSA package count');
+    for (const value of record.mlDsa) mlDsa.push(parseMlDsaPackage(value));
   }
-  if (keyFamilies.length === 1 && keyFamilies[0] === 'ecdsa_secp256k1') {
-    if (!('ecdsa' in record)) {
-      throw new Error('CommittedSignerPackageSetV1 fields are invalid');
-    }
-    return {
-      kind: 'committed_signer_package_set_v1',
-      keyFamilies,
-      ecdsa: parseEcdsaPackage(record.ecdsa),
-    };
-  }
-  if (!('ed25519' in record) || !('ecdsa' in record)) {
-    throw new Error('CommittedSignerPackageSetV1 fields are invalid');
-  }
-  const ed25519 = parseEd25519Package(record.ed25519);
-  const ecdsa = parseEcdsaPackage(record.ecdsa);
-  if (ed25519.materialActivation.activationId === ecdsa.materialActivation.activationId) {
-    throw new Error('CommittedSignerPackageSetV1 activation references must be distinct');
-  }
-  return {
-    kind: 'committed_signer_package_set_v1',
-    keyFamilies,
-    ed25519,
-    ecdsa,
-  };
+  const result = buildCommittedSignerPackageSetV1(
+    'ed25519' in record ? parseEd25519Package(record.ed25519) : null,
+    'ecdsa' in record ? parseEcdsaPackage(record.ecdsa) : null,
+    mlDsa,
+  );
+  if (JSON.stringify(record.keyFamilies) !== JSON.stringify(result.keyFamilies))
+    throw new Error('Signer package families differ');
+  if (
+    result.ed25519 &&
+    result.ecdsa &&
+    result.ed25519.materialActivation.activationId === result.ecdsa.materialActivation.activationId
+  )
+    throw new Error('Activation identities must be distinct');
+  return result;
+}
+
+function parseMlDsaPackage(raw: unknown): CommittedMlDsaSignerPackageV1 {
+  const record = exactRecord(raw, ['kind', 'signer', 'exportRoot'], 'ML-DSA signer package');
+  if (record.kind !== 'committed_ml_dsa_65_signer_package_v1')
+    throw new Error('Invalid ML-DSA package kind');
+  const signer = parseExactAdministeredMlDsa65SignerV1(record.signer);
+  const exportRoot = parseLinkedDeviceMlDsaExportRootPackageV1(record.exportRoot);
+  const binding = exportRoot.binding;
+  if (
+    binding.walletId !== signer.walletId ||
+    binding.root.walletKeyId !== signer.walletKeyId ||
+    binding.root.mlDsaSigningKeyId !== signer.mlDsaSigningKeyId ||
+    binding.root.registeredPublicKeyB64u !== signer.registeredPublicKeyB64u ||
+    binding.root.keyManifestDigestB64u !== signer.keyManifestDigestB64u
+  )
+    throw new Error('The ML-DSA export root differs from its signer');
+  return { kind: 'committed_ml_dsa_65_signer_package_v1', signer, exportRoot };
 }
 
 export function parseCommittedSignerPackageSetDigestB64u(raw: unknown): DigestB64u {
@@ -289,7 +376,10 @@ export function parseCommittedSignerPackageSetDigestB64u(raw: unknown): DigestB6
 }
 
 export async function computeCommittedSignerPackageDigestB64u(
-  value: CommittedEd25519SignerPackageV1 | CommittedEcdsaSignerPackageV1,
+  value:
+    | CommittedEd25519SignerPackageV1
+    | CommittedEcdsaSignerPackageV1
+    | CommittedMlDsaSignerPackageV1,
 ): Promise<DigestB64u> {
   return sha256Utf8DigestB64u(
     alphabetizeStringify({ domain: COMMITTED_SIGNER_PACKAGE_DOMAIN_V1, package: value }),
@@ -393,7 +483,7 @@ function parseEcdsaPackage(raw: unknown): CommittedEcdsaSignerPackageV1 {
   );
   if (
     encryptedTargetClientShare.recipientPublicKeyB64u !==
-      activationReceipt.binding.target.clientRecipientPublicKeyB64u
+    activationReceipt.binding.target.clientRecipientPublicKeyB64u
   ) {
     throw new Error('CommittedEcdsaSignerPackageV1 client share recipient does not match receipt');
   }
@@ -431,17 +521,6 @@ function parseActivation(raw: unknown, label: string): MpcMaterialActivationRef 
   return parsed.value;
 }
 
-function parseKeyFamilies(raw: unknown): CommittedSignerPackageSetV1['keyFamilies'] {
-  if (!Array.isArray(raw))
-    throw new Error('CommittedSignerPackageSetV1.keyFamilies must be an array');
-  if (raw.length === 1 && raw[0] === 'ed25519') return ['ed25519'];
-  if (raw.length === 1 && raw[0] === 'ecdsa_secp256k1') return ['ecdsa_secp256k1'];
-  if (raw.length === 2 && raw[0] === 'ed25519' && raw[1] === 'ecdsa_secp256k1') {
-    return ['ed25519', 'ecdsa_secp256k1'];
-  }
-  throw new Error('CommittedSignerPackageSetV1.keyFamilies must use canonical family order');
-}
-
 function parseCommittedAuthorityPackagesWireV1(raw: unknown): CommittedAuthorityPackagesWireV1 {
   const record = inspectRawObject(raw);
   if (record === null) {
@@ -466,50 +545,6 @@ function parseCommittedAuthorityPackagesWireV1(raw: unknown): CommittedAuthority
     signerPackages: Reflect.get(record, 'signerPackages'),
     ed25519ExportRootPackage: Reflect.get(record, 'ed25519ExportRootPackage'),
     packageSetDigestB64u: Reflect.get(record, 'packageSetDigestB64u'),
-  };
-}
-
-function parseCommittedSignerPackageSetWireV1(raw: unknown): CommittedSignerPackageSetWireV1 {
-  const record = inspectRawObject(raw);
-  if (record === null) {
-    throw new Error('CommittedSignerPackageSetV1 must be an object');
-  }
-  const actual = Object.keys(record);
-  const hasEd25519 = actual.includes('ed25519');
-  const hasEcdsa = actual.includes('ecdsa');
-  if (hasEd25519 && hasEcdsa) {
-    requireExactWireFields(
-      record,
-      ['kind', 'keyFamilies', 'ed25519', 'ecdsa'],
-      'CommittedSignerPackageSetV1',
-    );
-    return {
-      kind: Reflect.get(record, 'kind'),
-      keyFamilies: Reflect.get(record, 'keyFamilies'),
-      ed25519: Reflect.get(record, 'ed25519'),
-      ecdsa: Reflect.get(record, 'ecdsa'),
-    };
-  }
-  if (hasEd25519) {
-    requireExactWireFields(record, ['kind', 'keyFamilies', 'ed25519'], 'CommittedSignerPackageSetV1');
-    return {
-      kind: Reflect.get(record, 'kind'),
-      keyFamilies: Reflect.get(record, 'keyFamilies'),
-      ed25519: Reflect.get(record, 'ed25519'),
-    };
-  }
-  if (hasEcdsa) {
-    requireExactWireFields(record, ['kind', 'keyFamilies', 'ecdsa'], 'CommittedSignerPackageSetV1');
-    return {
-      kind: Reflect.get(record, 'kind'),
-      keyFamilies: Reflect.get(record, 'keyFamilies'),
-      ecdsa: Reflect.get(record, 'ecdsa'),
-    };
-  }
-  requireExactWireFields(record, ['kind', 'keyFamilies'], 'CommittedSignerPackageSetV1');
-  return {
-    kind: Reflect.get(record, 'kind'),
-    keyFamilies: Reflect.get(record, 'keyFamilies'),
   };
 }
 
@@ -546,9 +581,7 @@ function parseCommittedEd25519SignerPackageWireV1(
   };
 }
 
-function parseCommittedEcdsaSignerPackageWireV1(
-  raw: unknown,
-): CommittedEcdsaSignerPackageWireV1 {
+function parseCommittedEcdsaSignerPackageWireV1(raw: unknown): CommittedEcdsaSignerPackageWireV1 {
   const record = inspectRawObject(raw);
   if (record === null) {
     throw new Error('CommittedEcdsaSignerPackageV1 must be an object');
@@ -589,38 +622,18 @@ function requireExactWireFields(record: object, keys: readonly string[], label: 
 async function committedSignerPackageSetCanonicalValue(
   value: CommittedSignerPackageSetV1,
 ): Promise<readonly unknown[]> {
-  switch (value.keyFamilies.length) {
-    case 1:
-      if (value.keyFamilies[0] === 'ed25519') {
-        if (!value.ed25519)
-          throw new Error('CommittedSignerPackageSetV1 Ed25519 package is required');
-        return [
-          value.kind,
-          value.keyFamilies,
-          value.ed25519.materialActivation,
-          await computeCommittedSignerPackageDigestB64u(value.ed25519),
-        ];
-      }
-      if (!value.ecdsa) throw new Error('CommittedSignerPackageSetV1 ECDSA package is required');
-      return [
-        value.kind,
-        value.keyFamilies,
-        value.ecdsa.materialActivation,
-        await computeCommittedSignerPackageDigestB64u(value.ecdsa),
-      ];
-    case 2:
-      if (!value.ed25519 || !value.ecdsa) {
-        throw new Error('CommittedSignerPackageSetV1 packages are incomplete');
-      }
-      return [
-        value.kind,
-        value.keyFamilies,
-        value.ed25519.materialActivation,
-        await computeCommittedSignerPackageDigestB64u(value.ed25519),
-        value.ecdsa.materialActivation,
-        await computeCommittedSignerPackageDigestB64u(value.ecdsa),
-      ];
-    default:
-      throw new Error('CommittedSignerPackageSetV1 keyFamilies is invalid');
-  }
+  const entries: unknown[] = [value.kind, value.keyFamilies];
+  if (value.ed25519)
+    entries.push(
+      value.ed25519.materialActivation,
+      await computeCommittedSignerPackageDigestB64u(value.ed25519),
+    );
+  if (value.ecdsa)
+    entries.push(
+      value.ecdsa.materialActivation,
+      await computeCommittedSignerPackageDigestB64u(value.ecdsa),
+    );
+  for (const key of value.mlDsa ?? [])
+    entries.push(key.signer.walletKeyId, await computeCommittedSignerPackageDigestB64u(key));
+  return entries;
 }
