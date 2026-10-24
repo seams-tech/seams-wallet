@@ -1,7 +1,9 @@
 //! One-use GMW batches. Independent instances occupy lanes of u32 words.
 //! Each layer exchanges masked openings in a fixed public order.
 
+mod batched;
 pub(crate) mod storage;
+pub(crate) use batched::{run_batches, PreparedGmwRequest};
 
 use super::silent::CorrelationStream;
 use super::*;
@@ -414,11 +416,7 @@ impl PreparedGmwBatch<'_> {
                     .map(|group| group.lanes * group.topology.and_gates.len())
                     .sum(),
                 and_exchanges: exchanges,
-                topology_allocation_bytes: self
-                    .groups
-                    .iter()
-                    .map(|group| group.topology.allocation_bytes())
-                    .sum(),
+                topology_allocation_bytes: topology_allocation_bytes(&self.groups),
                 private_state_allocation_bytes: private_bytes,
             },
         })
@@ -589,4 +587,18 @@ async fn outputs(
             Ok(outputs)
         }
     }
+}
+
+fn topology_allocation_bytes(groups: &[Group<'_>]) -> usize {
+    let mut bytes = 0;
+    for (index, group) in groups.iter().enumerate() {
+        if groups[..index]
+            .iter()
+            .any(|previous| Rc::ptr_eq(&previous.topology, &group.topology))
+        {
+            continue;
+        }
+        bytes += group.topology.allocation_bytes();
+    }
+    bytes
 }

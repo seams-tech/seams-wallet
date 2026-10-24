@@ -176,6 +176,11 @@ pub async fn run<T: Transport + BooleanTransport>(
             bytes,
         )
         .map_err(protocol_failure)?;
+        let ConsumedGmwPreparation::Committed(reservation) = reservation else {
+            return Err(invalid(
+                "ML-DSA signing requires prepared key-bound commitments",
+            ));
+        };
         host.retain_public_topologies(&topologies);
         let (topology_builds, topology_hits) = topologies.cache_statistics();
         host.note_stage(ExecutionStage::Restored {

@@ -10,11 +10,15 @@ use std::rc::Rc;
 
 use super::*;
 use crate::passive::ml_dsa_runtime::boolean_comparison::{
-    prepared::{prepare_batch, BatchMetrics, PreparedGmwBatch, PublicTopologies},
+    prepared::{
+        prepare_batch, run_batches, BatchMetrics, PreparedGmwBatch, PreparedGmwRequest,
+        PublicTopologies,
+    },
     silent::CorrelationStream,
     Transport as BooleanTransport,
 };
 use commitment::commitment_binding;
+pub use commitment::{commit_gmw_reservations, CommittedGmwGroup};
 
 /// One-use candidate batch bound to a key and epoch.
 pub struct PreparedGmwSigner<'a> {

@@ -155,6 +155,22 @@ def public_router_trace(value, timestamp):
             "status": status, "milestones": clean, "log_timestamp_ms": timestamp}
 
 
+def public_commitment_batch(value):
+    if value.get("event") != "ml_dsa_commitment_batch_v1":
+        return None
+    if not public_id(value.get("operation")) or value.get("role") not in ("a", "b"):
+        return None
+    fields = ("start", "pairs", "candidates_per_pair", "and_exchanges", "and_gates",
+              "sent_bytes", "received_bytes", "maximum_message_bytes")
+    if not all(public_counter(value.get(field)) for field in fields):
+        return None
+    memory = value.get("wasm_linear_memory_bytes")
+    if memory is not None and not public_counter(memory):
+        return None
+    return {"operation": value["operation"], "role": value["role"],
+            **{field: value[field] for field in fields}, "wasm_linear_memory_bytes": memory}
+
+
 def public_stage_trace(value, timestamp):
     if value.get("event") != "ml_dsa_stage_trace_v1" or not public_time(timestamp):
         return None
@@ -186,6 +202,7 @@ def public_stage_trace(value, timestamp):
         "schedules_loaded", "execution_reserved", "adapter_ready", "input_opened",
         "prepared_consumed", "prepared_opened", "prepared_restored", "keygen_completed",
         "material_sealed", "material_persisted", "result_exchanged", "installation_checked",
+        "commitments_started", "commitments_completed",
         "material_loaded", "material_installed", "stock_installed", "stock_loaded",
         "stock_resealed", "delivery_persisted", "delivery_acknowledged",
     }
@@ -551,6 +568,7 @@ def records(path, role):
         retirements = []
         commit_probes = []
         stage_traces = []
+        commitment_batches = []
         socket_completion = []
         peer_close = []
         refill = []
@@ -587,6 +605,9 @@ def records(path, role):
                 wait_trace = public_wait_trace(value, log.get("timestamp"))
                 if wait_trace is not None:
                     wait_traces.append(wait_trace)
+                commitment = public_commitment_batch(value)
+                if commitment is not None:
+                    commitment_batches.append(commitment)
                 stage_trace = public_stage_trace(value, log.get("timestamp"))
                 if stage_trace is not None:
                     stage_traces.append(stage_trace)
@@ -745,6 +766,7 @@ def records(path, role):
             "signing_traces": signing_traces,
             "router_traces": router_traces,
             "stage_traces": stage_traces,
+            "commitment_batches": commitment_batches,
             "socket_completion": socket_completion,
             "peer_close": peer_close,
             "refill": refill,

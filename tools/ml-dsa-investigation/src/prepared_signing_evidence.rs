@@ -454,10 +454,20 @@ pub(super) fn run_operation(
                 let ids = operation["consumed_ids"]
                     .as_array()
                     .ok_or("Missing consumed pairs")?;
-                require(
-                    operation["outcome"]["evaluated_candidates"] == ids.len() * 2,
-                    "Candidate accounting differs",
-                )?;
+                if operation["outcome"]["status"] == "generic-refused" {
+                    require(
+                        index == 0
+                            && ids.len() == 1
+                            && operation["outcome"]["evaluated_candidates"] == 0
+                            && operation["outcome"]["burned_candidates"] == 2,
+                        "Uncommitted-stock refusal accounting differs",
+                    )?;
+                } else {
+                    require(
+                        operation["outcome"]["evaluated_candidates"] == ids.len() * 2,
+                        "Candidate accounting differs",
+                    )?;
+                }
                 for id in ids {
                     let id = id.as_str().ok_or("Invalid pair identity")?;
                     require(

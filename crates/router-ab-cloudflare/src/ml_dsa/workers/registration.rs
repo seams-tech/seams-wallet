@@ -591,6 +591,18 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
     }
 }
 
+async fn require_live_execution(
+    store: &impl Store,
+    claim: &core::Claim,
+    binding: &registration_preparation::Binding,
+) -> Result<()> {
+    let now = crate::cloudflare_now_unix_ms_v1()?;
+    if now >= claim.deadline {
+        return Err(invalid("Registration signing commitment deadline expired"));
+    }
+    registration_preparation::require_consumed(store, binding, claim.request.operation, now).await
+}
+
 async fn execute_with_storage_initialization(
     env: &Env,
     claim: &core::Claim,

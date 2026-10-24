@@ -6,6 +6,7 @@ import { readFile, writeFile, mkdir, mkdtemp, rm, cp } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
+import { setTimeout as waitFor } from 'node:timers/promises';
 import { Miniflare } from 'miniflare';
 import { build } from 'esbuild';
 import { pathToFileURL } from 'node:url';
@@ -78,6 +79,9 @@ const losePreparation = process.env.ML_DSA_REGISTRATION_LOSE_PREPARATION_REPLY =
 assert.ok(!(hostedUrl && (commitProbe || losePreparation)), 'Probe setup and fault injection are local-only');
 const calibrateWaits = process.env.ML_DSA_REGISTRATION_CALIBRATE_WAITS === '1';
 const failStorage = process.env.ML_DSA_REGISTRATION_FAIL_STORAGE === '1';
+const commitmentFault = process.env.ML_DSA_REGISTRATION_FAIL_COMMITMENT ?? 'none';
+assert.ok(['none', 'retirement', 'publication'].includes(commitmentFault));
+const failCommitment = commitmentFault !== 'none';
 assert.ok(!failStorage || calibrateWaits, 'Storage failure requires local wait calibration');
 assert.ok(!(hostedUrl && calibrateWaits), 'Wait calibration is local-only');
 const profilePrefix = process.env.ML_DSA_REGISTRATION_CPU_PROFILE;
@@ -94,6 +98,7 @@ assert.ok(!(loseDeliveryReply && stallDelivery), 'Select one delivery fault');
 const deliveryFault = loseDeliveryReply || stallDelivery;
 assert.ok(preparationRace === 'none' || !(losePreparation || calibrateWaits || commitProbe || stallInitialization || stallExecution || deliveryFault || profilePrefix), 'Use a separate retirement ordering campaign');
 assert.ok(!(hostedUrl && profilePrefix), 'Inspector profiling requires local workerd');
+assert.ok(!failCommitment || !(hostedUrl || calibrateWaits || failStorage || commitProbe || losePreparation || deliveryFault || stallExecution || stallInitialization || profilePrefix || preparationRace !== 'none'), 'Commitment failure needs a separate local lifecycle run');
 const gatewayAuth = process.env.ML_DSA_GATEWAY_TOKEN_FILE
   ? (await readFile(process.env.ML_DSA_GATEWAY_TOKEN_FILE, 'utf8')).trim()
   : randomBytes(32).toString('hex');
@@ -150,6 +155,8 @@ const observations = {
   retirements: [],
   registrationLinks: [],
   waitCalibration: [],
+  commitmentBatches: [],
+  stockStorageAudits: [],
   functionalPassed: false,
   latencyTargetMet: false,
 };
@@ -194,7 +201,14 @@ class RegistrationRouterProxy {
   }
 }
 const waitCalibrationPath = join(buildRoot, 'ml-dsa-wait-calibration.e2e.mjs');
-if (calibrateWaits) await writeFile(waitCalibrationPath, waitCalibrationScript.replace('__FAIL_STORAGE__', String(failStorage)));
+if (calibrateWaits || failCommitment || deliveryFault) {
+  const fixture = waitCalibrationScript
+    .replace('__FAIL_STORAGE__', String(failStorage))
+    .replace('__CALIBRATE__', String(calibrateWaits))
+    .replace('__COMMITMENT_FAULT__', JSON.stringify(commitmentFault));
+  await writeFile(waitCalibrationPath, fixture);
+  if (failCommitment || deliveryFault) await writeFile(join(buildRoot, 'ml-dsa-commitment-a.e2e.mjs'), fixture.replaceAll('./deriver-b/worker/shim.mjs', './ml-dsa-material-loss.e2e.mjs'));
+}
 const readinessDelayPath = join(buildRoot, 'ml-dsa-readiness-delay.mjs');
 const commitProbePaths = ['a', 'b'].map(commitProbePath);
 if (commitProbe) {
@@ -230,6 +244,7 @@ if (preparationRace !== 'none' && !hostedUrl) {
   await writeFile(racePaths.front, preparationRaceFrontScript);
 }
 let runtime;
+let commitmentFaultArmed = failCommitment;
 let keks;
 let executionFaultArmed = stallExecution;
 let preparationFaultArmed = losePreparation;
@@ -312,6 +327,20 @@ try {
       assert.notDeepEqual(ready.job.id, consumedJob);
       observations.executionDeadline.freshPreparation = true;
     }
+    if (failCommitment && epoch === 1) {
+      observations.commitmentFailure = await checkCommitmentFailure(payload.request, ready.job);
+      observations.commitmentFailure.failedPreparationMs = preparationMs;
+      client.process.kill();
+      client = await startClient();
+      payload = await registrationInput(client, epoch, continuity);
+      firstRequest = payload.request;
+      const replacementStarted = performance.now();
+      ready = await post('/router-ab/ml-dsa/registration/prepare', { wallet });
+      preparationMs = performance.now() - replacementStarted;
+      assert.equal(ready.ready, true);
+      assert.notDeepEqual(ready.job.id, observations.commitmentFailure.failedJob);
+      observations.commitmentFailure.freshJobDistinct = true;
+    }
     if (stallDelivery && epoch === 1) {
       observations.deliveryDeadline = await checkDeliveryDeadline(payload.request);
       break;
@@ -363,6 +392,13 @@ try {
       initialStockSign: { state: 'pending' },
       publicKeyHex: Buffer.from(result.a.public_key).toString('hex'),
     };
+    if (deliveryFault) {
+      observations.stockStorageAudits.push({
+        epoch,
+        a: await commitmentProbe('a', ready.job, 'state'),
+        b: await commitmentProbe('b', ready.job, 'state'),
+      });
+    }
     observations.cases.push(measurement);
     measurement.initialStockSign = await sign(result);
     previous = result;
@@ -379,7 +415,7 @@ try {
       observations.registrationSurvivesRestart = true;
     }
   }
-  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits && !commitProbe && !losePreparation && preparationRace === 'none') {
+  if (!hostedUrl && !profilePrefix && !stallInitialization && !stallExecution && !deliveryFault && !calibrateWaits && !commitProbe && !losePreparation && !failCommitment && preparationRace === 'none') {
     const { verifyMlDsaGatewayRegistration } = await import(
       '../helpers/mlDsaGatewayRegistration.e2e.mjs'
     );
@@ -422,7 +458,8 @@ try {
   if (!hostedUrl && preparationRace !== 'none') {
     for (const path of Object.values(racePaths)) await rm(path, { force: true });
   }
-  if (calibrateWaits) await rm(waitCalibrationPath, { force: true });
+  if (calibrateWaits || failCommitment || deliveryFault) await rm(waitCalibrationPath, { force: true });
+  if (failCommitment || deliveryFault) await rm(join(buildRoot, 'ml-dsa-commitment-a.e2e.mjs'), { force: true });
   if (commitProbe) {
     for (const path of commitProbePaths) await rm(path, { force: true });
     await rm(readinessDelayPath, { force: true });
@@ -616,6 +653,7 @@ function role(name, index) {
   const worker = {
     ...base(name, `deriver-${name}`, {
       DERIVER_ROLE_PRIVATE_D1_ROLE: `deriver_${name}`,
+      COMMITMENT_FAILURE_ARMED: commitmentFaultArmed && name === 'b',
       DERIVER_ROLE_PRIVATE_D1_KEK_BINDING: 'ROLE_KEK',
       ROLE_KEK: discoveryFault === 'shared-key' ? keks[0] : keks[index],
       DERIVER_ROLE_PRIVATE_D1_KEK_VERSION: 'registration-e2e',
@@ -633,13 +671,14 @@ function role(name, index) {
     },
     serviceBindings: { DERIVER_B: 'b' },
   };
-  if (calibrateWaits && name === 'b') worker.scriptPath = waitCalibrationPath;
+  if ((calibrateWaits || failCommitment || deliveryFault) && name === 'b') worker.scriptPath = waitCalibrationPath;
   if (name === 'a') {
     worker.scriptPath = materialLossPath;
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
     };
   }
+  if ((failCommitment || deliveryFault) && name === 'a') worker.scriptPath = join(buildRoot, 'ml-dsa-commitment-a.e2e.mjs');
   if (deliveryFault && name === 'a') {
     worker.durableObjects.ML_DSA_POOL_DO = {
       className: 'RegistrationDeliveryBarrier', scriptName: 'delivery-barrier',
@@ -737,6 +776,7 @@ async function checkDeliveryRecovery(input) {
   const before = await deliveryState();
   assert.equal(before.lostReplies, 1);
   assert.equal(before.atomicPairRollback, true);
+  assert.equal(before.alteredCiphertextRejected, true);
   assert.equal(before.oversizedDeliveryRejected, true);
   assert.equal(before.active, 0, 'The peer delivery was not drained');
   assert.equal(before.maximumActive, 2, 'The delivery exceeded its two-batch bound');
@@ -786,8 +826,84 @@ function recordStageTrace(line) {
   if (event.event === 'ml_dsa_registration_retirement_v1') observations.retirements.push(event);
   if (event.event.startsWith('ml_dsa_wait_')) observations.waitDiagnostics.push(event);
   if (event.event === 'ml_dsa_wait_calibration_v1') observations.waitCalibration.push(event);
+  if (event.event === 'ml_dsa_commitment_batch_v1') observations.commitmentBatches.push(event);
   if (event.event === 'ml_dsa_stage_trace_v1') observations.stageTraces.push(event);
   if (event.event === 'ml_dsa_registration_execution_v1') observations.registrationExecutions.push(event);
+}
+
+async function commitmentProbe(role, job, action) {
+  const worker = await runtime.getWorker(role);
+  const response = await worker.fetch('https://probe.internal/test/commitment-' + action, {
+    method: 'POST', headers: { 'x-router-ab-internal-service-auth': serviceAuth, 'content-type': 'application/json' },
+    body: JSON.stringify(job),
+  });
+  assert.equal(response.status, 200, await response.clone().text());
+  return response.json();
+}
+function committedStock(stock) { return stock.state === 'committed'; }
+function consumedStock(stock) { return ['committing', 'missing'].includes(stock.state) && !stock.inputChunkPresent; }
+function registrationResponse(response) { return { kind: 'response', response }; }
+function registrationFailure(error) { return { kind: 'failure', error }; }
+async function checkCommitmentFailure(request, job) {
+  const executing = raw('/router-ab/ml-dsa/register', request, gatewayAuth).then(registrationResponse, registrationFailure);
+  const until = Date.now() + 25000;
+  let before;
+  while (Date.now() < until) {
+    const b = await commitmentProbe('b', job, 'state');
+    const a = await commitmentProbe('a', job, 'state');
+    const faultObserved = commitmentFault === 'retirement' ? b.publicationHeld : b.publicationFailed && b.publicationRollback !== null;
+    if (faultObserved && (commitmentFault === 'publication' || a.stocks.every(committedStock))) {
+      before = { a, b };
+      break;
+    }
+    await waitFor(50);
+  }
+  assert.ok(before, 'The fixture did not reach the consumed cohort fault');
+  assert.equal(before.b.stocks.length, job.signing_batches);
+  assert.ok(before.b.stocks.every(consumedStock));
+  assert.equal(before.b.ownResultPublished, false);
+  assert.equal(before.b.pairResultPublished, false);
+  assert.equal(before.a.pairResultPublished, false);
+  if (before.a.ownResultPublished) assert.ok(before.a.stocks.every(committedStock));
+  const duplicate = await post('/router-ab/ml-dsa/register', request);
+  assert.equal(duplicate.operation.state, 'running');
+  const deadline = duplicate.operation.claim.deadline;
+  assert.ok(Date.now() < deadline, 'The fault must occur while admission remains live');
+  let fault;
+  if (commitmentFault === 'retirement') {
+    const retired = await commitmentProbe('b', job, 'retire');
+    assert.equal(retired.preparationRetired, true);
+    fault = { kind: 'retirement', retiredWhileClaimLive: true };
+  } else {
+    const rollback = before.b.publicationRollback;
+    assert.ok(rollback && rollback.stocks.every(consumedStock));
+    assert.equal(rollback.ownResultPublished, false);
+    assert.equal(rollback.pairResultPublished, false);
+    fault = { kind: 'publication', atomicRollbackVerified: true };
+  }
+  const execution = await executing;
+  if (execution.kind === 'failure') throw execution.error;
+  const failed = execution.response;
+  await failed.text();
+  assert.notEqual(failed.status, 200, 'Failed cohort produced a complete registration');
+  const after = await commitmentProbe('b', job, 'state');
+  assert.ok(after.stocks.every(consumedStock));
+  assert.equal(after.ownResultPublished, false);
+  assert.equal(after.materialPublished, false);
+  assert.equal(after.pairResultPublished, false);
+  commitmentFaultArmed = false;
+  await runtime.dispose();
+  runtime = new Miniflare({ handleRuntimeStdio, workers: workers(), durableObjectsPersist: persistence });
+  await runtime.ready;
+  const restarted = await commitmentProbe('b', job, 'state');
+  assert.ok(restarted.stocks.every(consumedStock));
+  assert.equal(restarted.ownResultPublished, false);
+  assert.equal(restarted.pairResultPublished, false);
+  await waitFor(Math.max(0, deadline - Date.now() + 100));
+  assert.equal((await post('/router-ab/ml-dsa/register', request)).operation.state, 'failed');
+  return { failedJob: job.id, fault, before, after, restarted, failedStatus: failed.status,
+    allSelectedInputsBurned: true, outputNotPublished: true,
+    ownResultNotPublished: true, failureSurvivesRestart: true };
 }
 
 function peerCalibrationScope(injection, role, event) {
