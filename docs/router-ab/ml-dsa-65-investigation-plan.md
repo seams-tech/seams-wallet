@@ -2,6 +2,18 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [GMW CPU screen](ml-dsa-65-gmw-cpu-report.md) leaves the production runtime unchanged.
+A shared synchronous helper improves a fixed native workload by about 7–8%, but establishes no useful complete hosted signing gain.
+The unchanged-control repeat signs in 2.331–6.656 seconds, with five of six signatures below five seconds.
+The candidate signs in 1.892–9.155 seconds, with four of six below five seconds and fewer consumed pairs overall.
+Prepared candidate creation/recovery takes 4.120/5.330 seconds. Standard FIPS keys match the control across recovery.
+The original control recovery preparation fails at an inactive Durable Object connection and retires durably. Its unchanged repeat passes.
+A candidate pool call also rejects an inactive preprocessing lease. Its exact command and cause remain unresolved.
+All nineteen stored local and hosted signatures verify again. Altered messages fail. All six temporary Workers are deleted.
+Recovery, FIPS export, private commitments, two-at-once consumption, and thirty-two-candidate capacity remain unchanged.
+Next, prototype execution in the existing participant pool actor to remove repeated material RPCs, then measure the actual gain.
+Keep network and cryptographic work outside storage transactions. Preserve atomic consumption, deadlines, refill fairness, and recovery alarms.
+Then close intermittent preparation failures, sustained refill capacity, cold/warm qualification, and release security review.
 The [per-pair activation screen](ml-dsa-65-receive-deadline-report.md) leaves the production runtime unchanged.
 Native operation-scoped key expansion costs 0.074 ms median; its reuse prototype is archived.
 A shared receive-deadline prototype passes correctness but establishes no useful hosted gain. It is also archived and removed.
