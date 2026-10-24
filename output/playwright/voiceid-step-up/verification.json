@@ -1,0 +1,28 @@
+{
+  "kind": "voiceid_step_up_ui_preview",
+  "uses": "Existing voice-glow VoiceBeam primitive",
+  "scope": "Simulated presentation only; no microphone, model, wallet, or signing calls",
+  "desktopViewport": {
+    "width": 1240,
+    "height": 1000
+  },
+  "mobileViewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "verified": [
+    "Ready to listening to verifying to approved",
+    "Retry phrase remains visible after approval",
+    "Cancel stays cancelled after the original timer would have completed",
+    "Desktop and mobile visual inspection",
+    "Production preview build",
+    "TypeScript check",
+    "Prettier check"
+  ],
+  "screenshots": [
+    "desktop.png",
+    "listening.png",
+    "mobile.png"
+  ],
+  "repeat": "Start the Vite preview using examples/voiceid-step-up-mock/README.md. Select Try again, press the primary Try again button, and check that I can hear the music remains through approval. Start Listening, select Cancel, then wait eleven seconds; it must remain cancelled."
+}
