@@ -2,6 +2,7 @@ import { WalletText } from '@/react/context/WalletLocale';
 import React from 'react';
 import type { TransactionSettingsSectionProps } from './types';
 import { SegmentedControl } from './SegmentedControl';
+import TouchIcon from './icons/TouchIcon';
 
 const TRANSACTION_SETTINGS_ACTIVE_BACKGROUND =
   'var(--seams-colors-buttonBackground, var(--seams-colors-primary))';
@@ -58,7 +59,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
               <WalletText message="Choose whether to click Continue before authentication starts." />
             )}
           </p>
-          <div className="seams-transaction-choices seams-transaction-choices--two">
+          <div className="seams-transaction-choices">
             {BEHAVIOR_CHOICES.map(
               renderBehaviorChoice.bind(null, currentConfirmConfig, onSetDelay, onToggleSkipClick),
             )}
@@ -194,6 +195,41 @@ const BEHAVIOR_CHOICES: BehaviorChoice[] = [
   },
 ];
 
+// A small drawing of what each choice shows before authentication: the page,
+// then a dialog, a drawer or the passkey prompt on top of it.
+function ChoicePreview({
+  kind,
+}: {
+  kind: UiChoice['value'] | BehaviorChoice['value'];
+}): React.ReactElement {
+  const prompt = (
+    <span className="seams-tp-prompt">
+      <TouchIcon width={18} height={18} strokeWidth={1.5} />
+    </span>
+  );
+  return (
+    <span className="seams-transaction-preview" data-preview={kind} aria-hidden="true">
+      <span className="seams-tp-page">
+        <i />
+        <i />
+        <i />
+      </span>
+      {kind === 'none' ? (
+        prompt
+      ) : (
+        <>
+          <span className="seams-tp-scrim" />
+          <span className="seams-tp-panel">
+            <i />
+            <i />
+            {kind === 'skipClick' ? prompt : <b />}
+          </span>
+        </>
+      )}
+    </span>
+  );
+}
+
 function renderUiChoice(
   selected: UiChoice['value'],
   onSelect: TransactionSettingsSectionProps['onSetUiMode'],
@@ -207,12 +243,17 @@ function renderUiChoice(
       aria-pressed={selected === choice.value}
       onClick={onSelect?.bind(null, choice.value)}
     >
-      <span className="seams-transaction-choice-indicator" aria-hidden="true" />
-      <strong>
-        <WalletText copy={choice.label} />
-      </strong>
-      <span>
-        <WalletText copy={choice.description} />
+      <ChoicePreview kind={choice.value} />
+      <span className="seams-transaction-choice-text">
+        <span className="seams-transaction-choice-head">
+          <strong>
+            <WalletText copy={choice.label} />
+          </strong>
+          <span className="seams-transaction-choice-indicator" aria-hidden="true" />
+        </span>
+        <span className="seams-transaction-choice-description">
+          <WalletText copy={choice.description} />
+        </span>
       </span>
     </button>
   );
@@ -243,12 +284,17 @@ function renderBehaviorChoice(
       aria-pressed={selected === choice.value}
       onClick={setBehavior.bind(null, config, setDelay, toggle, choice.value)}
     >
-      <span className="seams-transaction-choice-indicator" aria-hidden="true" />
-      <strong>
-        <WalletText copy={choice.label} />
-      </strong>
-      <span>
-        <WalletText copy={choice.description} />
+      <ChoicePreview kind={choice.value} />
+      <span className="seams-transaction-choice-text">
+        <span className="seams-transaction-choice-head">
+          <strong>
+            <WalletText copy={choice.label} />
+          </strong>
+          <span className="seams-transaction-choice-indicator" aria-hidden="true" />
+        </span>
+        <span className="seams-transaction-choice-description">
+          <WalletText copy={choice.description} />
+        </span>
       </span>
     </button>
   );
