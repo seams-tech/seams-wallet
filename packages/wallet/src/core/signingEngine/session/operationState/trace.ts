@@ -1,5 +1,5 @@
 import type { SelectedSigningSessionPlanningLane, SigningLaneSummary } from './types';
-import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
+import { parseSigningServerTiming } from '@shared/utils/signingServerTiming';
 import { summarizeSigningLane } from './types';
 import type { SigningPlannerDecisionTraceEvent } from '../planning/planner';
 
@@ -11,7 +11,7 @@ export function emitEcdsaServerTiming(
   header: string | null,
 ): void {
   if (!header || !isSigningSessionTraceEnabled()) return;
-  for (const [stage, durationMs] of parseEcdsaServerTiming(header)) {
+  for (const [stage, durationMs] of parseSigningServerTiming(header)) {
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_server_timing',
       operationId,
@@ -28,7 +28,7 @@ export function emitEcdsaPresignServerTiming(
   header: string | null,
 ): void {
   if (!header || !isSigningSessionTraceEnabled()) return;
-  for (const [stage, durationMs] of parseEcdsaServerTiming(header)) {
+  for (const [stage, durationMs] of parseSigningServerTiming(header)) {
     emitSigningSessionFlowTrace('evm-family', {
       event: 'ecdsa_presign_server_timing',
       presignSessionId,

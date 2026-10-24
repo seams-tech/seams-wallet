@@ -195,6 +195,7 @@ pub(super) async fn record_wallet_freeze(
         super::super::SigningWorkerWalletDoRequestV1::RecordLinkedPresignFreeze {
             receipt: receipt.clone(),
         },
+        None,
     )
     .await?;
     crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -572,6 +573,7 @@ pub(super) async fn registered_initialization(
             server_presignature_id: command.server_presignature_id.clone(),
             request: command.request.clone(),
         },
+        None,
     )
     .await?;
     let request_digest_hex = crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(

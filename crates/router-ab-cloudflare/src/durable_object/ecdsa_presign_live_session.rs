@@ -232,6 +232,7 @@ async fn claim_wallet_presign_authority(
         env,
             wallet_objects,
         super::SigningWorkerWalletDoRequestV1::ClaimEcdsaPresignAuthority(request.clone()),
+        None,
     )
     .await?;
     crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -251,6 +252,7 @@ async fn admit_wallet_presign_step(
         env,
             wallet_objects,
         super::SigningWorkerWalletDoRequestV1::AdmitEcdsaPresignStep(request.clone()),
+        None,
     )
     .await?;
     crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -270,6 +272,7 @@ async fn register_wallet_linked_presign_session(
         env,
             wallet_objects,
         super::SigningWorkerWalletDoRequestV1::RegisterLinkedPresignSession(request.clone()),
+        None,
     )
     .await?;
     crate::parse_cloudflare_signing_worker_wallet_do_json_response_v1(
@@ -293,6 +296,7 @@ async fn require_pool_admission(
             ownership_generation,
             scope: scope.clone(),
         },
+        None,
     )
     .await?;
     let admission: crate::SigningWorkerPoolAdmissionV1 =

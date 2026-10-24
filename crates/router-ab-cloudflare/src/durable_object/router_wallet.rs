@@ -57,7 +57,7 @@ impl DurableObject for RouterAbRouterWalletDurableObject {
     }
 
     async fn fetch(&self, request: Request) -> worker::Result<Response> {
-        let observation = self.timing.begin(&self.state, "router", request.path());
+        let observation = self.timing.begin(&self.state, "router", request.path(), None);
         observation.finish(self.handle_request(request).await)
     }
 }

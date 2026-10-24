@@ -22,6 +22,7 @@ impl WalletCommandTiming {
         state: &worker::State,
         role: &'static str,
         path: String,
+        trace_id: Option<crate::CloudflareTraceIdV1>,
     ) -> CommandObservation {
         let started_ms = worker::Date::now().as_millis();
         let ordinal = self.received.get().saturating_add(1);
@@ -34,6 +35,7 @@ impl WalletCommandTiming {
             object_id: self.object_id.clone(),
             role,
             path,
+            trace_id,
             ordinal,
             started_ms,
             since_previous_start_ms: previous_start_ms
@@ -42,9 +44,9 @@ impl WalletCommandTiming {
     }
 }
 
-/// Logs once per instance which colo and host run it. The platform stops confirming durable
-/// writes on a cycle of each host, so a stalled command can be explained only beside the host of
-/// its object. The read runs beside the first command and holds no response.
+/// Logs the observed colo and host once per instance for correlation with slow commands.
+/// Host identity alone does not establish the cause of a delay.
+/// The read runs beside the first command and holds no response.
 async fn log_host(role: &'static str, object_id: String) {
     let Some((colo, host)) = super::custody_target::observe_host().await else {
         return;
@@ -63,6 +65,7 @@ pub(super) struct CommandObservation {
     object_id: String,
     role: &'static str,
     path: String,
+    trace_id: Option<crate::CloudflareTraceIdV1>,
     ordinal: u64,
     started_ms: u64,
     since_previous_start_ms: Option<u64>,
@@ -81,6 +84,7 @@ impl CommandObservation {
             "role": self.role,
             "object_id": self.object_id,
             "path": self.path,
+            "trace_id": self.trace_id.map(crate::CloudflareTraceIdV1::as_hex),
             "instance_command": self.ordinal,
             "first_command_after_constructor": self.ordinal == 1,
             "since_previous_start_ms": self.since_previous_start_ms,

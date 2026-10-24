@@ -1,3 +1,7 @@
+mod request;
+mod transport;
+pub(crate) use transport::call_signing_worker_wallet_do_v1;
+
 mod ed25519_settlement;
 mod ed25519_snapshot;
 mod linked_ed25519;
@@ -658,30 +662,6 @@ impl crate::SigningWorkerWalletSqlV1 for DurableObjectWalletSqlV1<'_> {
     }
 }
 
-pub(crate) async fn call_signing_worker_wallet_do_v1(
-    env: &Env,
-    wallet_objects: crate::WalletObjectRoute,
-    command: SigningWorkerWalletDoRequestV1,
-) -> Result<Response, RouterAbProtocolError> {
-    command.validate()?;
-    let namespace = env.durable_object(BINDING).map_err(|error| {
-        wallet_error(format!("SigningWorker wallet binding is missing: {error}"))
-    })?;
-    let stub = wallet_objects.addresses.signing_worker.stub(&namespace, wallet_objects.home)
-    .map_err(|error| wallet_error(format!("SigningWorker wallet identity is invalid: {error}")))?;
-    let body = serde_json::to_string(&command).map_err(|error| {
-        wallet_error(format!("SigningWorker wallet command is invalid: {error}"))
-    })?;
-    let mut init = worker::RequestInit::new();
-    init.with_method(worker::Method::Post)
-        .with_body(Some(worker::wasm_bindgen::JsValue::from_str(&body)));
-    let request = Request::new_with_init(&format!("https://router-ab-do.internal{PATH}"), &init)
-        .map_err(|error| wallet_error(format!("SigningWorker wallet request failed: {error}")))?;
-    stub.fetch_with_request(request)
-        .await
-        .map_err(|error| wallet_error(format!("SigningWorker wallet call failed: {error}")))
-}
-
 #[worker::durable_object]
 pub struct RouterAbSigningWorkerWalletDurableObject {
     state: Rc<State>,
@@ -708,68 +688,20 @@ impl DurableObject for RouterAbSigningWorkerWalletDurableObject {
             return super::custody_target::observe_location().await;
         }
         let path = request.path();
-        let observation = self.timing.begin(&self.state, "signing_worker", path);
-        let result = self.fetch_wallet_request(request).await;
+        let trace_id = crate::parse_cloudflare_trace_id_from_request_v1(&request).ok().flatten();
+        let observation = self.timing.begin(&self.state, "signing_worker", path, trace_id);
+        let mut timing = crate::CloudflareBoundaryTimingV1::with_trace_id(trace_id);
+        let started = crate::CloudflareBoundaryTimingV1::now_ms();
+        let result = self.fetch_wallet_request(request, &mut timing).await;
+        timing.mark("handler", started);
+        if let Ok(response) = &result {
+            timing.apply_to(response)?;
+        }
         observation.finish(result)
     }
 }
 
 impl RouterAbSigningWorkerWalletDurableObject {
-    async fn fetch_wallet_request(&self, mut request: Request) -> worker::Result<Response> {
-        if request.path() == crate::CLOUDFLARE_SIGNING_WORKER_ED25519_YAO_PACKAGES_PATH {
-            return self.receive_package_delivery(request).await;
-        }
-
-        if request.method() == worker::Method::Post && request.path() == super::wallet_startup::PATH
-        {
-            self.initialize_schema()?;
-            return Response::from_json(&true);
-        }
-        #[cfg(debug_assertions)]
-        if request.method() == worker::Method::Post && request.path() == HARNESS_FAULT_PATH {
-            return self.record_harness_activation_fault(request.json().await?);
-        }
-        if request.method() != worker::Method::Post || request.path() != PATH {
-            return Response::error("Unknown SigningWorker wallet object request", 404);
-        }
-        let command: SigningWorkerWalletDoRequestV1 = request.json().await?;
-        if let Err(error) = command.validate() {
-            return Response::error(error.message(), 400);
-        }
-        self.initialize_schema()?;
-        match self.execute(command).await {
-            Ok(response) => Ok(response),
-            Err(error) => Response::error(
-                format!("{:?}: {}", error.code(), error.message()),
-                crate::cloudflare_router_error_status(error.code()),
-            ),
-        }
-    }
-
-    fn initialize_schema(&self) -> worker::Result<()> {
-        self.sql
-            .exec(crate::SIGNING_WORKER_WALLET_OWNER_SCHEMA_V1, None)?;
-        self.sql.exec(REGISTRATION_SCHEMA, None)?;
-        self.sql.exec(RETIRED_ACTIVATION_SCHEMA, None)?;
-        self.sql.exec(LINKED_ED25519_SCHEMA, None)?;
-        self.sql.exec(ROUND1_SCHEMA, None)?;
-        self.sql
-            .exec(crate::SIGNING_WORKER_ED25519_EXECUTION_SCHEMA_V1, None)?;
-        self.sql
-            .exec(crate::SIGNING_WORKER_ED25519_FENCE_SCHEMA_V1, None)?;
-        self.sql
-            .exec(crate::SIGNING_WORKER_ED25519_SETTLEMENT_SCHEMA_V1, None)?;
-        self.sql.exec(ed25519_snapshot::STATE_SCHEMA, None)?;
-        self.sql.exec(ed25519_snapshot::SEGMENT_SCHEMA, None)?;
-        self.sql.exec(ed25519_snapshot::IMPORT_SCHEMA, None)?;
-        self.sql
-            .exec(ed25519_snapshot::IMPORT_SEGMENT_SCHEMA, None)?;
-        for schema in crate::SIGNING_WORKER_WALLET_ECDSA_SCHEMA_V1 {
-            self.sql.exec(schema, None)?;
-        }
-        Ok(())
-    }
-
     async fn execute(
         &self,
         command: SigningWorkerWalletDoRequestV1,

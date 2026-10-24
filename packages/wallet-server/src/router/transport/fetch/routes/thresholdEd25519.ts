@@ -1452,6 +1452,7 @@ async function proxyEd25519OwnerLaneExecution(input: {
 }
 
 type Ed25519SigningGatewayTiming = {
+  upstreamHeaders: Headers | null;
   authorize: number | null;
   admit: number | null;
   proxy: number | null;
@@ -1466,6 +1467,7 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
 }): Promise<Response> {
   const startedAt = performance.now();
   const timing: Ed25519SigningGatewayTiming = {
+    upstreamHeaders: null,
     authorize: null,
     admit: null,
     proxy: null,
@@ -1475,8 +1477,12 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
   const response = await executeRouterAbEd25519NormalSigningRoute(input, timing);
   timing.total = performance.now() - startedAt;
   const headers = new Headers(response.headers);
+  for (const name of ['Server-Timing', 'x-seams-trace-id']) {
+    const value = timing.upstreamHeaders?.get(name);
+    if (value) headers.set(name, value);
+  }
   for (const [stage, duration] of Object.entries(timing)) {
-    if (duration !== null) {
+    if (typeof duration === 'number') {
       headers.append(
         'Server-Timing',
         `ed25519_sign_${stage};dur=${Math.max(0, duration).toFixed(1)}`,
@@ -1492,13 +1498,17 @@ async function handleRouterAbEd25519NormalSigningRoute(input: {
 
 async function timeEd25519SigningStage<T>(
   timing: Ed25519SigningGatewayTiming,
-  stage: Exclude<keyof Ed25519SigningGatewayTiming, 'total'>,
+  stage: Exclude<keyof Ed25519SigningGatewayTiming, 'total' | 'upstreamHeaders'>,
   pending: Promise<T>,
 ): Promise<T> {
   // Worker clocks move only at I/O, so the call's synchronous start adds nothing.
   const startedAt = performance.now();
   try {
-    return await pending;
+    const result = await pending;
+    if (stage === 'proxy' && result instanceof Response) {
+      timing.upstreamHeaders = result.headers;
+    }
+    return result;
   } finally {
     timing[stage] = performance.now() - startedAt;
   }

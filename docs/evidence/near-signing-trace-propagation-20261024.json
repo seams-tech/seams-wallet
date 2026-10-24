@@ -1,0 +1,510 @@
+{
+  "kind": "near_signing_trace_propagation_local_v1",
+  "environment": "Local release Workers, D1, wallet Durable Objects, Chromium, automated passkeys, stubbed chain RPC",
+  "stats": {
+    "startTime": "2026-10-24T01:05:18.870Z",
+    "duration": 70248.572,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "correlationStats": {
+    "startTime": "2026-10-24T01:11:28.633Z",
+    "duration": 38024.627,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "joins": 6,
+  "signedMessages": [
+    {
+      "message": "Approve checkout before refresh",
+      "recipient": "checkout.example",
+      "state": "",
+      "success": true,
+      "accountId": "80078911364ae627157b9c6d871b1ef55c675310d8e9e43cc46cbb4205fc8581",
+      "publicKey": "ed25519:9cmrHK1DAZeioyLBh9vAQyThfc4RCcmRuKfC8JomVDYk",
+      "signature": "cDjqgm1uugtUniXrlDgxZUwbOC4Hd5XqpTcvilFhWW4W33V8GL9B+a7Urhb3zYKfg1pZN6a4o/86zPZDv6HxDQ==",
+      "nonce": "YFWCNGGaXb03vEzY9uePgOC24EMokvMOLpmiUWe33l4=",
+      "digestHex": "e8ff37e2300269972ef2a64a7be6b2c1d6fe7173386d25f83d626f75add2a082",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    },
+    {
+      "message": "Approve checkout after refresh",
+      "recipient": "checkout.example",
+      "callbackUrl": "https://checkout.example/callback?request=170",
+      "state": "quote-170-after-refresh",
+      "success": true,
+      "accountId": "80078911364ae627157b9c6d871b1ef55c675310d8e9e43cc46cbb4205fc8581",
+      "publicKey": "ed25519:9cmrHK1DAZeioyLBh9vAQyThfc4RCcmRuKfC8JomVDYk",
+      "signature": "fAb7HMoV9rd579iZUdEIXCv3gRY915GU0zTXICWj4Ycd3RoE24jNIqelfvjzTMLF5mpjVrMrTKoyLOP0RHrOAQ==",
+      "nonce": "j83QWHIMFtHjlzJ312JhKE3EiHGAZmpHtZvBA3HIreI=",
+      "digestHex": "d912fbc21d10eb81163e5304d2472622241109c4539c183c1d09807e28264d52",
+      "verification": {
+        "standardPayload": true,
+        "changedMessageRejected": true,
+        "changedRecipientRejected": true,
+        "changedNonceRejected": true,
+        "changedCallbackUrlRejected": true,
+        "stateExcludedFromPayload": true,
+        "stateReturnedUnchanged": true
+      }
+    }
+  ],
+  "independentSignatureVerification": {
+    "verifier": "Node.js crypto Ed25519 with independent NEP-413 Borsh encoding",
+    "results": [
+      {
+        "name": "before_reload",
+        "publicKey": "ed25519:9cmrHK1DAZeioyLBh9vAQyThfc4RCcmRuKfC8JomVDYk",
+        "digestHex": "e8ff37e2300269972ef2a64a7be6b2c1d6fe7173386d25f83d626f75add2a082",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      },
+      {
+        "name": "after_reload",
+        "publicKey": "ed25519:9cmrHK1DAZeioyLBh9vAQyThfc4RCcmRuKfC8JomVDYk",
+        "digestHex": "d912fbc21d10eb81163e5304d2472622241109c4539c183c1d09807e28264d52",
+        "verified": true,
+        "tamperRejections": [
+          "message",
+          "recipient",
+          "nonce",
+          "callbackUrl"
+        ],
+        "stateExcludedFromSignedPayload": true
+      }
+    ]
+  },
+  "traceSamples": [
+    {
+      "traceId": "2fb23ee648bf79eca5fabe7456088c98",
+      "phase": "prepare",
+      "browserMs": 46.088,
+      "serverTiming": "near_router_admission;dur=1, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=3, near_sw_wallet_call;dur=13, near_sw_do_decode_validate;dur=2, near_sw_do_schema;dur=0, near_sw_do_execute;dur=8, near_sw_do_handler;dur=10, near_sw_handler;dur=17, near_router_service;dur=19, ed25519_sign_authorize;dur=3.0, ed25519_sign_admit;dur=9.0, ed25519_sign_proxy;dur=27.0, ed25519_sign_total;dur=42.0",
+      "stagesMs": {
+        "near_router_admission": 1,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 3,
+        "near_sw_wallet_call": 13,
+        "near_sw_do_decode_validate": 2,
+        "near_sw_do_schema": 0,
+        "near_sw_do_execute": 8,
+        "near_sw_do_handler": 10,
+        "near_sw_handler": 17,
+        "near_router_service": 19,
+        "ed25519_sign_authorize": 3,
+        "ed25519_sign_admit": 9,
+        "ed25519_sign_proxy": 27,
+        "ed25519_sign_total": 42
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 3,
+        "firstAfterConstructor": false,
+        "handlerMs": 10,
+        "status": 200
+      }
+    },
+    {
+      "traceId": "8f1e778160655706ff44cf38d3a68a56",
+      "phase": "finalize",
+      "browserMs": 26.886,
+      "serverTiming": "near_router_admission;dur=1, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=1, near_sw_wallet_call;dur=13, near_sw_do_decode_validate;dur=1, near_sw_do_schema;dur=0, near_sw_do_execute;dur=11, near_sw_do_handler;dur=12, near_sw_handler;dur=14, near_router_service;dur=16, ed25519_sign_authorize;dur=2.0, ed25519_sign_admit;dur=0.0, ed25519_sign_proxy;dur=19.0, ed25519_sign_complete;dur=1.0, ed25519_sign_total;dur=23.0",
+      "stagesMs": {
+        "near_router_admission": 1,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 1,
+        "near_sw_wallet_call": 13,
+        "near_sw_do_decode_validate": 1,
+        "near_sw_do_schema": 0,
+        "near_sw_do_execute": 11,
+        "near_sw_do_handler": 12,
+        "near_sw_handler": 14,
+        "near_router_service": 16,
+        "ed25519_sign_authorize": 2,
+        "ed25519_sign_admit": 0,
+        "ed25519_sign_proxy": 19,
+        "ed25519_sign_complete": 1,
+        "ed25519_sign_total": 23
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 4,
+        "firstAfterConstructor": false,
+        "handlerMs": 12,
+        "status": 200
+      }
+    },
+    {
+      "traceId": "a78201ab1a114d1c1877212e81b6d2f5",
+      "phase": "prepare",
+      "browserMs": 15.136,
+      "serverTiming": "near_router_admission;dur=0, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=0, near_sw_wallet_call;dur=3, near_sw_do_decode_validate;dur=0, near_sw_do_schema;dur=1, near_sw_do_execute;dur=2, near_sw_do_handler;dur=3, near_sw_handler;dur=3, near_router_service;dur=4, ed25519_sign_authorize;dur=2.0, ed25519_sign_admit;dur=1.0, ed25519_sign_proxy;dur=7.0, ed25519_sign_total;dur=10.0",
+      "stagesMs": {
+        "near_router_admission": 0,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 0,
+        "near_sw_wallet_call": 3,
+        "near_sw_do_decode_validate": 0,
+        "near_sw_do_schema": 1,
+        "near_sw_do_execute": 2,
+        "near_sw_do_handler": 3,
+        "near_sw_handler": 3,
+        "near_router_service": 4,
+        "ed25519_sign_authorize": 2,
+        "ed25519_sign_admit": 1,
+        "ed25519_sign_proxy": 7,
+        "ed25519_sign_total": 10
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 5,
+        "firstAfterConstructor": false,
+        "handlerMs": 3,
+        "status": 200
+      }
+    },
+    {
+      "traceId": "4111b88210341c112a2aa7c23cd9c075",
+      "phase": "finalize",
+      "browserMs": 14.97,
+      "serverTiming": "near_router_admission;dur=0, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=1, near_sw_wallet_call;dur=4, near_sw_do_decode_validate;dur=0, near_sw_do_schema;dur=0, near_sw_do_execute;dur=3, near_sw_do_handler;dur=3, near_sw_handler;dur=5, near_router_service;dur=6, ed25519_sign_authorize;dur=1.0, ed25519_sign_admit;dur=1.0, ed25519_sign_proxy;dur=8.0, ed25519_sign_complete;dur=1.0, ed25519_sign_total;dur=11.0",
+      "stagesMs": {
+        "near_router_admission": 0,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 1,
+        "near_sw_wallet_call": 4,
+        "near_sw_do_decode_validate": 0,
+        "near_sw_do_schema": 0,
+        "near_sw_do_execute": 3,
+        "near_sw_do_handler": 3,
+        "near_sw_handler": 5,
+        "near_router_service": 6,
+        "ed25519_sign_authorize": 1,
+        "ed25519_sign_admit": 1,
+        "ed25519_sign_proxy": 8,
+        "ed25519_sign_complete": 1,
+        "ed25519_sign_total": 11
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 6,
+        "firstAfterConstructor": false,
+        "handlerMs": 3,
+        "status": 200
+      }
+    },
+    {
+      "traceId": "f61f07781fc7be39c12a875281041bff",
+      "phase": "prepare",
+      "browserMs": 14.341,
+      "serverTiming": "near_router_admission;dur=0, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=0, near_sw_wallet_call;dur=2, near_sw_do_decode_validate;dur=1, near_sw_do_schema;dur=0, near_sw_do_execute;dur=1, near_sw_do_handler;dur=2, near_sw_handler;dur=2, near_router_service;dur=4, ed25519_sign_authorize;dur=1.0, ed25519_sign_admit;dur=1.0, ed25519_sign_proxy;dur=7.0, ed25519_sign_total;dur=10.0",
+      "stagesMs": {
+        "near_router_admission": 0,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 0,
+        "near_sw_wallet_call": 2,
+        "near_sw_do_decode_validate": 1,
+        "near_sw_do_schema": 0,
+        "near_sw_do_execute": 1,
+        "near_sw_do_handler": 2,
+        "near_sw_handler": 2,
+        "near_router_service": 4,
+        "ed25519_sign_authorize": 1,
+        "ed25519_sign_admit": 1,
+        "ed25519_sign_proxy": 7,
+        "ed25519_sign_total": 10
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 7,
+        "firstAfterConstructor": false,
+        "handlerMs": 2,
+        "status": 200
+      }
+    },
+    {
+      "traceId": "fcd7e0b6bb5ccf536116b3c0d7a25254",
+      "phase": "finalize",
+      "browserMs": 16.911,
+      "serverTiming": "near_router_admission;dur=0, near_sw_dispatch_setup;dur=0, near_sw_decode_validate;dur=1, near_sw_wallet_call;dur=4, near_sw_do_decode_validate;dur=0, near_sw_do_schema;dur=0, near_sw_do_execute;dur=3, near_sw_do_handler;dur=3, near_sw_handler;dur=5, near_router_service;dur=7, ed25519_sign_authorize;dur=2.0, ed25519_sign_admit;dur=1.0, ed25519_sign_proxy;dur=9.0, ed25519_sign_complete;dur=1.0, ed25519_sign_total;dur=13.0",
+      "stagesMs": {
+        "near_router_admission": 0,
+        "near_sw_dispatch_setup": 0,
+        "near_sw_decode_validate": 1,
+        "near_sw_wallet_call": 4,
+        "near_sw_do_decode_validate": 0,
+        "near_sw_do_schema": 0,
+        "near_sw_do_execute": 3,
+        "near_sw_do_handler": 3,
+        "near_sw_handler": 5,
+        "near_router_service": 7,
+        "ed25519_sign_authorize": 2,
+        "ed25519_sign_admit": 1,
+        "ed25519_sign_proxy": 9,
+        "ed25519_sign_complete": 1,
+        "ed25519_sign_total": 13
+      },
+      "object": {
+        "id": "528a28dfe6be10c469304e76f43917f0cf4c24fa876aea0a6f8801d0a958ace9",
+        "command": 8,
+        "firstAfterConstructor": false,
+        "handlerMs": 3,
+        "status": 200
+      }
+    }
+  ],
+  "localDiagnosticMedians": {
+    "prepare": {
+      "count": 3,
+      "routerServiceMedianMs": 4,
+      "workerWalletCallMedianMs": 3,
+      "objectExecuteMedianMs": 2
+    },
+    "finalize": {
+      "count": 3,
+      "routerServiceMedianMs": 7,
+      "workerWalletCallMedianMs": 4,
+      "objectExecuteMedianMs": 3
+    }
+  },
+  "exactFinalizeReplay": {
+    "statuses": [
+      {
+        "scenario": "missing_operation",
+        "status": 409
+      },
+      {
+        "scenario": "changed_receipt",
+        "status": 400
+      },
+      {
+        "scenario": "first_finalize_reply_discarded",
+        "status": 200
+      },
+      {
+        "scenario": "exact_retry_after_quota_exhaustion",
+        "status": 200
+      },
+      {
+        "scenario": "retired_session_retry",
+        "status": 401
+      }
+    ],
+    "persistence": {
+      "remainingUses": 0,
+      "claims": 1,
+      "auditEvents": 1
+    }
+  },
+  "sourceProvenance": {
+    "baseCommit": "e3c77153770d95b5f14222c549a491aece1c1470",
+    "sources": [
+      {
+        "path": "crates/router-ab-cloudflare/src/boundary_timing.rs",
+        "sha256": "9718aeff4a3751bbbb708166e16fff7928076324fc641f52349dc6de454cc395"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/command_timing.rs",
+        "sha256": "94b25db072349050e090d2f912fe00eb8896639d33607c11ff00c68a99686a7e"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/deriver_a_pair.rs",
+        "sha256": "7dae007158703a81b278b5faedb41e1e3184068f98b1eccb9b5f91db6495c7a4"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/deriver_b_pair.rs",
+        "sha256": "8f53a6d6f251fcd2ba5f39e31abe3143f696da07f8902ec030014b23dadca13d"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/ecdsa_presign_live_session.rs",
+        "sha256": "a6341455cb4df3b0e6c06006f2a1b0fbbf7f9479ef2feb6a8feff4cfea942114"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/presign_session_relocation/owner.rs",
+        "sha256": "ca042c18e10676281d4842cae4513d5742607d5d3f65e9c7a9e88c8c6dd7696e"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/router_wallet.rs",
+        "sha256": "cc2d6114588b3aaf929d49f642f2bd3e72be2eb725401fe0817c6699f20a178b"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet.rs",
+        "sha256": "b1b19fee199def8400b7eb78feb5f8efadc41a458b3a5d3540fdd153a9de386d"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet/request.rs",
+        "sha256": "15a8224c347170b1b5f9ed2dc30920bee858235c9a67b5d13cdf761280998ae4"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/signing_worker_wallet/transport.rs",
+        "sha256": "e67619c868ec42f937e569e7b847f4d7a32d65516b99f80026cc7ef47dcc9d63"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/durable_object/worker_storage.rs",
+        "sha256": "1f52dee54ebbf338f4db7186fa2ce6a3244b5d3199a2e5800fa3b7976da14e27"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ecdsa_signing_fetch.rs",
+        "sha256": "9eff6f288a2720f6fcb1e65927558e41dc5671d8d6d06bd416a31069a641e6fb"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_normal_signing_transport.rs",
+        "sha256": "4e2f15fb0d67aca08cea5ae3fff2d75e73d115a748fe8018ae42d1da79b717c4"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ed25519_yao_signing_worker.rs",
+        "sha256": "5398e09e2903764a234574a8618b47a97cb313e164b8b89d6fb4f66ab4a2ce1c"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/lib.rs",
+        "sha256": "90b94fe6463a51b101ba99926297f4b6c51a03475d6f7cf4ae5d8b45576895b6"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/ordinary_inactive_signer_material.rs",
+        "sha256": "0521cc03a4ee3c3c745321c4544ab1fd67fec66d9f3ad791b7a96661874594a6"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/signing_worker_relocation_transport.rs",
+        "sha256": "bd7da037b9dffa76f5adb88eb4c14f519a6fd3b33b0c57a7839012695d2ccea7"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/strict_worker/deriver.rs",
+        "sha256": "58dd30caf6a1fc6eac4a879e30043898ed5241537564c18b99834e80635bb8f1"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/strict_worker/mod.rs",
+        "sha256": "1384e4f422a9922a466d400233d662d31d23a0d31461bdca832246d1d9f1fddd"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/strict_worker/router.rs",
+        "sha256": "ddabf8c8e0a3239a66e090a5f91d6eec4bfc575dd060dfc03de7132dc774240f"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/strict_worker/router/normal_signing.rs",
+        "sha256": "9e576359ee806faf741c0a6aab62a8b0532ab37077ec9cbbf92d8f18c544d78f"
+      },
+      {
+        "path": "crates/router-ab-cloudflare/src/strict_worker/signing_worker.rs",
+        "sha256": "6ecb950ecddfb81e2d387a052af3ad8f9b0420be0137fc58ac926d24417bbf8b"
+      },
+      {
+        "path": "packages/shared-ts/src/utils/signingServerTiming.ts",
+        "sha256": "93d375abada23b16189073c618dba51b2c88280ed2be154cc35715af64b41f74"
+      },
+      {
+        "path": "packages/wallet-server/src/router/transport/fetch/routes/normalSigningRouterProxy.ts",
+        "sha256": "85f3cc2a5970084e46babc206fee2cddb93b0373dc63c6b8cf8678bc7d7ebd07"
+      },
+      {
+        "path": "packages/wallet-server/src/router/transport/fetch/routes/thresholdEcdsa.ts",
+        "sha256": "dfc86052390b787e1c185da803a95f9f93d3fd3ded1bd000487a62a2bc3a1e58"
+      },
+      {
+        "path": "packages/wallet-server/src/router/transport/fetch/routes/thresholdEd25519.ts",
+        "sha256": "77ac716ce68bf70b794466bf38aa7755f6cf34924d2dc1bf44f169e45f2c0a14"
+      },
+      {
+        "path": "packages/wallet/src/core/signingEngine/session/operationState/trace.ts",
+        "sha256": "778b9eef5593db5ef093fadde67b3b3a66a8355eae3dc838b6b07d640826a372"
+      },
+      {
+        "path": "tests/e2e/intended-behaviours/gateway-request-evidence.ts",
+        "sha256": "6819e07a8cc24f5a6b02dcf76f9aa488ed52891ac4442aea719874472ec4f2ce"
+      },
+      {
+        "path": "tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts",
+        "sha256": "1dfb5ce05e686060b70ed4c294b90087acc8229762580fc8cb7be0886e557835"
+      },
+      {
+        "path": "tests/e2e/intended-behaviours/passkey.presign-pool.contract.test.ts",
+        "sha256": "ef9b0b080977630564d80ee5d629108d244d709695a33267875cd5b12e7a0b88"
+      },
+      {
+        "path": "tests/e2e/intended-behaviours/passkey.registration.contract.test.ts",
+        "sha256": "853062d662b5917497b603c7e940b3b29ebf6b6d5edfaf6b343fb3bf823393ba"
+      }
+    ],
+    "scope": "Trace implementation sources. Browser assets use the saved SDK manifest. Concurrent auth-menu edits remain outside this change.",
+    "sdkManifestBeforeFreezeSha256": "9c4fb67fc4b0955b2a2c59e68eb58a3afc33a51bbd6157fb411f57b450478cd4",
+    "sdkManifestSha256": "cd2aafb80cdf1fa2c902d81adbe67f39b0d34e4630c0c911a8293546013c0690",
+    "sdkFreezeNote": "Concurrent auth-menu work changed the shared SDK output. This run uses a saved copy and the unchanged static-assets emitter with its local test origin.",
+    "sdkFilesSha256": "cb32e59c4bb193e3b2fa55ddfae4388cb654e55f24cc99e8a5f64a2f548ae1c0"
+  },
+  "artifacts": [
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/local-correlation-logs/browser/e2e-intended-behaviours-pa-6cc61-gistered-key-across-refresh-chromium/near-message-signatures.json",
+      "sha256": "8e124b56b0a8ce99a782f71c26d02f0404289981e669125d6572f4c48d34ac71"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/local-contracts/browser/e2e-intended-behaviours-pa-d915f-uota-and-rejects-retirement-chromium/near-finalize-replay.json",
+      "sha256": "efe1e3a9740d0aebf7ba9f98595f46e96a71e0c1a5edf694ff217cb76d78e9a3"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/local-correlation-logs/browser.log",
+      "sha256": "0b922e392ce67b8e04c8fb245daab10aad1830e74c7978608f202c692e6bf99c"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/local-correlation-logs/playwright.json",
+      "sha256": "bc77129c19f435305ae2100d8da537b7dc7680b7d0dac75fd7da604026adf574"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/local-contracts/playwright.json",
+      "sha256": "d82a16c5d122fec0631b8fdaa0dd84ac5103a59af92d8eff1870611cf4ddd5d2"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/run-local.py",
+      "sha256": "f7397b0321d556d709850c16125e71f229c829591f2c86d4690de2224ec12185"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/verify-proofs.mjs",
+      "sha256": "c6a5f941996b5b33590b8f78bacb4e747fa3e8bafbfa55793c28e4bbd110052f"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/proof-verification.json",
+      "sha256": "a14f42eb78f801932fb4c0b30482b1860867f98640e814de0708cc694dddf0fc"
+    },
+    {
+      "path": ".artifacts/optimization-11-near/20261024-p2-implementation/analyze.py",
+      "sha256": "8c408b9ab51924d0a902e3ea6a01699ce224049bb53dde06474734609093f54a"
+    }
+  ],
+  "buildFailures": [
+    {
+      "classification": "production_regression",
+      "scope": "uncommitted implementation compile",
+      "cause": "A timing parameter was initially inserted before two function bodies; a Deriver A observation call initially lacked its new optional diagnostic argument.",
+      "resolution": "Corrected before final release builds. No failing build was deployed."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "scope": "local server build",
+      "cause": "The server build overlapped SDK WASM regeneration and read generated files while they were absent.",
+      "resolution": "SDK build completed; server build and intended-test type checking then passed in sequence."
+    }
+  ],
+  "limits": [
+    "This is correctness and correlation evidence, not a controlled latency comparison.",
+    "Clock clamping can hide synchronous work. Nested stages overlap.",
+    "No hosted deployment or performance gain is established.",
+    "Unexpected exceptions escaping the Gateway handler can still bypass diagnostic response headers.",
+    "The initial four-case run and first diagnostic repeat passed but did not capture object console logs. The final repeat enabled normal Wrangler logging and supplied the six trace joins."
+  ]
+}

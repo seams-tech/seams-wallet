@@ -42,7 +42,7 @@ use crate::{
     parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_finalize_request_v1_json,
     parse_cloudflare_router_authorized_router_ab_ecdsa_derivation_prepare_request_v1_json,
     parse_cloudflare_router_bearer_authorization_from_request_v1,
-    parse_cloudflare_trace_id_from_request_v1, CloudflareEcdsaBoundaryTimingV1,
+    parse_cloudflare_trace_id_from_request_v1, CloudflareBoundaryTimingV1,
     CloudflareRouterWorkerRuntimeV1, CloudflareTraceIdV1, CloudflareWorkerEnvReaderV1,
     CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ACTIVATION_PUBLIC_REQUEST_PATH,
     CLOUDFLARE_ROUTER_AB_ECDSA_DERIVATION_ADD_SIGNER_PUBLIC_REQUEST_PATH,
@@ -165,7 +165,7 @@ use crate::{
 ))]
 use crate::{
     decrypt_and_handle_cloudflare_router_ab_ecdsa_derivation_activation_refresh_signer_private_request_v1,
-    CloudflareEcdsaBoundaryTimingV1, CloudflarePreloadedSignerHostV1,
+    CloudflareBoundaryTimingV1, CloudflarePreloadedSignerHostV1,
     CloudflareRouterAbEcdsaDerivationDeriverActivationRefreshPrivateRequestV1,
     CloudflareRouterAbEcdsaDerivationDeriverExportPrivateRequestV1,
     CloudflareRouterAbEcdsaDerivationDeriverRegistrationPrivateRequestV1,

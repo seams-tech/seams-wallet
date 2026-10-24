@@ -13,7 +13,7 @@ import {
   type OperationStepUpBinding,
 } from '../../../domains/signingOperations/authorizedOperationWire';
 import type { FetchRouterApiContext } from '../createFetchRouter';
-import { parseEcdsaServerTiming } from '@shared/utils/ecdsaServerTiming';
+import { parseSigningServerTiming } from '@shared/utils/signingServerTiming';
 import { json, readJson } from '../../../framework/http';
 import { thresholdEcdsaStatusCode } from '../../../../threshold/statusCodes';
 import {
@@ -1211,7 +1211,7 @@ function collectEcdsaPresignWorkerTiming(
   durations: Map<string, number>,
   header: string | null,
 ): void {
-  for (const [name, duration] of parseEcdsaServerTiming(header)) {
+  for (const [name, duration] of parseSigningServerTiming(header)) {
     if (name.startsWith('ecdsa_presign_sw_')) durations.set(name, duration);
   }
 }

@@ -4,6 +4,7 @@ Status, October 24, 2026: the original preparation and request-reduction work is
 largely implemented. A current local and hosted baseline now exists.
 One hosted registration failed during protocol execution. Its cause remains unresolved.
 The recorder now retains operation and request IDs for further attribution.
+Request tracing now reaches the SigningWorker wallet object, with six verified local joins.
 The PostgreSQL role adapter now supports Workers and passes a local transaction E2E.
 PostgreSQL integration and provisioning are deferred at the user's request.
 Storage replacement has no established gain.
@@ -67,6 +68,7 @@ The observations below come from different cohorts and cannot be added together.
 | Console publication | Persisted pending publication before responding, then sent Console completion with durable retry. [Release 0.13.0 evidence](./evidence/release-0130-staging-20261017.md) | Finalize p95 fell from 1,381 to 858 ms in the dated comparison. Registration tail acceptance remained open. |
 | Browser preparation | Preloaded activation modules and the existing NEAR signer during passkey registration. Optimized default development session-sealing builds. [Implementation](./evidence/refactor-155l-near.md), [hosted comparison][hosted-speed-report] | First signing improved by 15.1% in the controlled comparison. Production sealing WASM was already optimized. |
 | PostgreSQL adapter in Workers | Enabled the existing adapter on WASM and used the Workers retry timer. Native lifecycle and local Worker transaction E2Es pass. [October 24 evidence](./evidence/postgres-role-worker-20261024.md) | Deployed Derivers still use D1. Hosted Hyperdrive correctness and latency remain unverified. |
+| Signing trace propagation | Carried one trace through Gateway, Router, SigningWorker, and its wallet object. Preserved timing headers after completion readback. [Local verification](./evidence/near-signing-trace-propagation-20261024.md) | Four lifecycle contracts passed. Six requests matched object commands. The diagnostic build still needs hosted measurement. |
 
 The [original local baseline](./optimization-11-NEAR-local-baseline.md),
 [custody profiling](./near-custody-profiling.md), and
@@ -108,7 +110,9 @@ test-token helper repaired its environment. Reviewed transactions, delegates, an
 the separate idle case also passed. A later diagnostic case verified seven signatures
 and matched all 14 recorded request IDs to Gateway and Router events.
 The [trace follow-up][signing-trace-report] preserves those joins and their clock limits.
-SigningWorker requests lack that identifier. Their persistence and dispatch costs remain unresolved.
+That hosted capture lacks the identifier inside SigningWorker.
+The [follow-up implementation](./evidence/near-signing-trace-propagation-20261024.md) closes the propagation gap locally and returns ten downstream timing fields.
+Hosted persistence and dispatch costs remain unresolved.
 
 P0 remains open for warm-message distributions, dedicated step-up latency,
 bounded NEAR concurrency, and broader factor/device/geographic coverage.
@@ -177,7 +181,7 @@ Attribute only the boundaries that the instruments can observe.
 ## Prioritized implementation plan
 
 P0 is the prerequisite for every comparison. P2 is the next active implementation priority.
-Extend signing traces through SigningWorker and its object calls, then address a demonstrated delay on the current D1 path.
+Capture hosted signing traces with the new downstream diagnostics, then address a demonstrated delay on the current D1 path.
 P1 is deferred at the user's request on October 24, 2026.
 Retain its completed adapter work and evidence. Resume PostgreSQL integration or provisioning only after the user requests it.
 
@@ -254,9 +258,11 @@ and [client exchange](../packages/wallet/src/core/signingEngine/flows/signNear/s
 
 - [ ] Split the observed finalize exchange into authorization, operation/material
   lookup, role dispatch, SigningWorker persistence, and Gateway durable completion.
-  Fourteen diagnostic requests now join through the Router. Downstream correlation remains missing.
+  Fourteen historical diagnostic requests join through the Router.
+  The new implementation joins six local requests through the SigningWorker object and preserves timings after Gateway completion.
+  Collect hosted traces before assigning a cause to the earlier slow requests.
   Worker timestamps and wall durations do not form an additive timeline.
-  Extend existing operation identifiers before assigning the remaining delay or changing routing.
+  Object execution includes signing and storage. Its duration does not isolate SQL or commit acknowledgement.
 - [ ] Identify repeated immutable facts or compatible reads within one consistent
   snapshot. Check existing snapshot reuse before adding any helper or cache.
 - [ ] Remove one demonstrated duplicate read or batch compatible writes within
