@@ -2,22 +2,27 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
-The [direct-sealing implementation](ml-dsa-65-direct-sealing-report.md) now publishes final participant-pool ciphertext once and reuses it for exact retries.
-Its Worker release builds and retirement/restart campaign pass. Final delivery, Gateway, publication, and hosted checks remain pending.
-This progress commit does not qualify the five-second target or select the experiment for release.
+The [direct-sealing screen](ml-dsa-65-direct-sealing-report.md) removes the intermediate committed envelope and duplicate delivery cache.
+Prepared candidate creation/recovery takes 5.453/6.102 seconds, versus the archived batched control 7.222/6.920 seconds.
+Its six signatures verify in 0.900–3.672 seconds. Registration still misses five seconds.
+The candidate retains eight primary source records per participant and zero duplicate delivery records, versus eight duplicates on control.
+All four candidate lifecycle campaigns pass. Exact replay, rollback, restart, canonical recovery, and Gateway restoration remain intact.
+The implementation remains on `ml-dsa` for further qualification. Production selection remains open, including a matched generic-stock comparison.
+This comparison uses the same signing algorithm in both arms. Runtime conditions and rejection counts confound its signing ranges.
+Both arms' six temporary Workers are deleted. Capacity, recovery, FIPS export, and two-at-once consumption remain unchanged.
 The [batched-commitment screen](ml-dsa-65-batched-commitments-report.md) validates shared exchanges across independent pairs.
 Eight pairs use 113 AND exchanges instead of 904, with the same 4,866,048 gates and only 448 fewer traffic bytes.
 Its maximum runtime message is 188,416 bytes. Individual two-candidate outputs remain independently consumable.
 Prepared candidate creation/recovery takes 6.213/6.954 seconds, versus matched control 5.224/5.201 seconds.
 Six candidate signatures verify in 1.660–3.079 seconds. They consume twelve pairs, versus nineteen on control, so the latency comparison is confounded.
 The batched commitment phase takes 0.966–2.627 seconds, versus 4.357–11.130 seconds in the separate earlier sequential screen.
-Complete registration plus first signing establishes no useful gain. The current runtime remains selected and all prototype changes are archived and removed.
+That screen establishes no useful registration-plus-first-signing gain. It keeps the prior runtime selected and archives its prototype. The direct-sealing screen above reapplies that prototype with one final envelope.
 Native cohort-binding checks and real-Worker eight-record retirement/publication rollback checks pass.
 The publication campaign's later signature exhausts sixteen candidates, so its complete lifecycle result stays failed. Normal Gateway/restoration and delivery campaigns pass.
 All eighteen retained HTTP/transaction signatures verify again, and all twelve hosted operations have complete A/B traces.
 A control pool call rejects an inactive preprocessing lease; its exact command and trigger remain unresolved. No candidate exception is reported.
 Both arms' six temporary Workers are deleted. Recovery, FIPS export, private commitments, two-at-once consumption, and capacity remain unchanged.
-Next, test direct sealing for the final participant storage binding, while preserving exact replay, authorization, and atomic installation.
+The direct-sealing screen above completes that implementation. Matched generic-stock qualification remains required.
 Measure full registration and first signing. Cold/warm tails, sustained refill, multi-wallet memory, lease failures, and release security review remain open.
 The [earlier-commitment screen](ml-dsa-65-early-commitments-report.md) keeps the current runtime selected.
 Sequentially committing all eight initial pairs moves 904 private AND layers per participant into registration.
