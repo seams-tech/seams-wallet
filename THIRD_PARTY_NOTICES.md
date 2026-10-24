@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 451 dependency records (42 npm, 409 Cargo).
+Inventory: 469 dependency records (60 npm, 409 Cargo).
 
 ## Dependency inventory
 
@@ -439,26 +439,44 @@ Inventory: 451 dependency records (42 npm, 409 Cargo).
 | npm | @peculiar/asn1-x509-attr | 2.6.0 | MIT | PeculiarVentures, LLC |
 | npm | @peculiar/asn1-x509 | 2.6.0 | MIT | PeculiarVentures, LLC |
 | npm | @peculiar/x509 | 1.14.3 | MIT | Miroshin Stepan<microshine@mail.ru>; Peculiar Ventures LLC |
+| npm | @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/base64 | 1.1.2 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/codegen | 2.0.5 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/eventemitter | 1.1.1 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/fetch | 1.1.1 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/float | 1.0.2 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/path | 1.1.2 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/pool | 1.1.0 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
+| npm | @protobufjs/utf8 | 1.1.2 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
 | npm | @scure/base | 1.2.6 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip32 | 1.7.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip39 | 1.6.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @simplewebauthn/server | 13.2.2 | MIT | Matthew Miller <matthew@millerti.me> |
+| npm | @types/node | 24.2.0 | MIT | Alberto Schiabel; Andrew Makarov; Anna Henningsen; Benjamin Toueg; David Junger; Dmitry Semigradsky; ExE Boss; Ilia Baryshnikov; Junxiao Shi; Linus Unnebäck; Marcin Kopacz; Matteo Collina; Microsoft TypeScript; Mohsen Azimi; Nikita Galkin; NodeJS Contributors; Piotr Błażejewicz; René; Sebastian Silbermann; Trivikram Kamat; Victor Perin; Wilco Bakker; Yagiz Nizipli; wafuwafu13 |
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
 | npm | asn1js | 3.0.7 | BSD-3-Clause | Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
 | npm | base-x | 5.0.1 | MIT | Daniel Cousens |
 | npm | borsh | 1.0.0 | Apache-2.0 | Near Inc |
 | npm | bs58 | 6.0.0 | MIT |  |
 | npm | eventemitter3 | 5.0.1 | MIT | Arnout Kazemier |
+| npm | flatbuffers | 25.9.23 | Apache-2.0 | The FlatBuffers project |
+| npm | guid-typescript | 1.0.9 | ISC | nicolas |
 | npm | idb | 8.0.3 | ISC | Jake Archibald |
 | npm | isows | 1.0.7 | MIT |  |
+| npm | long | 5.3.2 | Apache-2.0 | Daniel Wirtz <dcode@dcode.io> |
+| npm | onnxruntime-common | 1.30.0 | MIT | fs-eire |
+| npm | onnxruntime-web | 1.30.0 | MIT | fs-eire |
 | npm | ox | 0.12.1 | MIT |  |
+| npm | platform | 1.3.6 | MIT | Benjamin Tan <demoneaux@gmail.com>; John-David Dalton <john.david.dalton@gmail.com>; Mathias Bynens <mathias@qiwi.be> |
 | npm | preact | 10.29.8 | MIT |  |
+| npm | protobufjs | 7.6.6 | BSD-3-Clause | Daniel Wirtz <dcode+protobufjs@dcode.io> |
 | npm | pvtsutils | 1.3.6 | MIT | Miroshin Stepan<microshine@mail.ru>; PeculiarVentures |
 | npm | pvutils | 1.1.5 | MIT | Miroshin Stepan microshine@mail.ru; Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
 | npm | reflect-metadata | 0.2.2 | Apache-2.0 | Ron Buckton ron.buckton@microsoft.com |
 | npm | tslib | 1.14.1 | 0BSD | Microsoft Corp. |
 | npm | tslib | 2.8.1 | 0BSD | Microsoft Corp. |
 | npm | tsyringe | 4.10.0 | MIT | Steven Hobson-Campbell |
+| npm | undici-types | 7.10.0 | MIT | Daniele Belardi; Ethan Arrowood; Matteo Collina; Matthew Aitken; Robert Nagy; Szymon Marczak; Tomas Della Vedova |
 | npm | viem | 2.46.0 | MIT |  |
 | npm | voice-glow | 0.2.1 | MIT | Jakub Antalik |
 | npm | ws | 8.18.3 | MIT | Einar Otto Stangvik <einaros@gmail.com> (http://2x.io) |
@@ -480,6 +498,9 @@ but do not include a top-level license or notice file in the distributed package
 - cargo:rustls-platform-verifier-android@0.1.1 — MIT OR Apache-2.0
 - cargo:ts-rs-macros@12.0.1 — MIT
 - cargo:ts-rs@12.0.1 — MIT
+- npm:guid-typescript@1.0.9 — ISC
+- npm:onnxruntime-common@1.30.0 — MIT
+- npm:onnxruntime-web@1.30.0 — MIT
 
 ## Packaged license and notice texts
 
@@ -1862,6 +1883,50 @@ Applies to:
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
     THE SOFTWARE.
+
+
+### 1033ec013241782e
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:@protobufjs/aspromise@1.1.2
+- npm:@protobufjs/base64@1.1.2
+- npm:@protobufjs/codegen@2.0.5
+- npm:@protobufjs/eventemitter@1.1.1
+- npm:@protobufjs/fetch@1.1.1
+- npm:@protobufjs/float@1.0.2
+- npm:@protobufjs/path@1.1.2
+- npm:@protobufjs/pool@1.1.0
+- npm:@protobufjs/utf8@1.1.2
+
+    Copyright (c) 2016, Daniel Wirtz  All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of its author, nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ### 123a331b5dbf04c3
@@ -5054,6 +5119,86 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### 49d6a1c9a623784c
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:protobufjs@7.6.6
+
+    This license applies to all parts of protobuf.js except those files
+    either explicitly including or referencing a different license or
+    located in a directory containing a different LICENSE file.
+
+    ---
+
+    Copyright (c) 2016, Daniel Wirtz  All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of its author, nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    ---
+
+    Code generated by the command line utilities is owned by the owner
+    of the input file used when generating it. This code is not
+    standalone and requires a support library to be linked with it. This
+    support library is itself covered by the above license.
+
+
+### 4a161ebed4f1ef93
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:platform@1.3.6
+
+    Copyright 2014-2020 Benjamin Tan
+    Copyright 2011-2013 John-David Dalton
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 4a883ecc3bb1010f
@@ -10100,6 +10245,37 @@ Applies to:
        END OF TERMS AND CONDITIONS
 
 
+### a6db8096b2707bc0
+
+Packaged as: LICENSE
+
+Applies to:
+
+- npm:undici-types@7.10.0
+
+    MIT License
+
+    Copyright (c) Matteo Collina and Undici contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
 ### a825bd853ab71619
 
 Packaged as: LICENSE-MIT
@@ -11918,7 +12094,7 @@ Applies to:
 
 ### c2cfccb812fe4821
 
-Packaged as: license-mit
+Packaged as: LICENSE, license-mit
 
 Applies to:
 
@@ -11934,6 +12110,7 @@ Applies to:
 - cargo:windows_x86_64_gnu@0.52.6
 - cargo:windows_x86_64_gnullvm@0.52.6
 - cargo:windows_x86_64_msvc@0.52.6
+- npm:@types/node@24.2.0
 
         MIT License
 
@@ -12447,7 +12624,7 @@ Applies to:
 
 ### cfc7749b96f63bd3
 
-Packaged as: LICENSE-APACHE, LICENSE-APACHE.md, LICENSE-APACHE.txt
+Packaged as: LICENSE, LICENSE-APACHE, LICENSE-APACHE.md, LICENSE-APACHE.txt
 
 Applies to:
 
@@ -12464,6 +12641,8 @@ Applies to:
 - cargo:zeroize@1.9.0
 - cargo:zeroize_derive@1.4.3
 - cargo:zeroize_derive@1.5.0
+- npm:flatbuffers@25.9.23
+- npm:long@5.3.2
 
 
                                      Apache License

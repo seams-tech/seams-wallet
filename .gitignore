@@ -75,3 +75,6 @@ crates/*/formal-verification/lean-boundary/tools/
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# Optional VoiceID model deployment asset (verified by the plugin).
+/packages/wallet/assets/voiceid/*.onnx

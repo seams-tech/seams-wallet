@@ -56,14 +56,14 @@ export function LiveVoiceId(): React.ReactNode {
       }}
     >
       <title>VoiceID live wallet</title>
-      <p>NEAR testnet · live microphone</p>
+      <p>NEAR testnet · browser microphone</p>
       <h1>Unlock and sign with your voice</h1>
       <p>
-        Use your existing voice enrollment on this Mac. Recording starts only after you select the
-        button inside the Wallet.
+        Enroll your voice in this browser after a passkey unlock. Recording starts only when you select
+        Record inside the Wallet. No native host or system settings are required.
       </p>
       <p>
-        When the Wallet says it is listening, say <strong>“I approve this operation.”</strong>
+        When the Wallet is listening, speak for about three seconds. VoiceID verifies your voice; the approval button confirms your intent.
       </p>
       <dl>
         <dt>Wallet</dt>

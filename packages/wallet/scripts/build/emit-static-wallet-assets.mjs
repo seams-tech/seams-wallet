@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -39,6 +40,10 @@ const FORBIDDEN_DEFAULT_ASSET_HEADERS = [
 ];
 
 const ROUTE_CLASS_HEADERS = {
+  binary: {
+    cachePolicy: 'public, max-age=300, must-revalidate',
+    contentType: 'application/octet-stream',
+  },
   javascript: {
     cachePolicy: 'public, max-age=300, must-revalidate',
     contentType: 'text/javascript; charset=utf-8',
@@ -81,7 +86,7 @@ function routeForSourceFile(sourceFile) {
 
 function routeClassForSourceFile(sourceFile) {
   if (sourceFile.endsWith('.wasm')) return 'wasm';
-  if (sourceFile.endsWith('.js')) return 'javascript';
+  if (sourceFile.endsWith('.js') || sourceFile.endsWith('.mjs')) return 'javascript';
   if (sourceFile.endsWith('.css')) return 'css';
   if (sourceFile.endsWith('.html')) return 'htmlDocument';
   if (sourceFile.endsWith('.json')) return 'json';
@@ -314,12 +319,27 @@ function buildAssetsManifest(assets, walletProtocolVersion) {
   };
 }
 
+async function copyVoiceIdAssets() {
+  const model = path.join(SDK_ROOT, 'assets/voiceid/ecapa.onnx');
+  try { await fs.access(model); } catch { return; }
+  const destination = path.join(PUBLIC_SDK, 'voiceid');
+  await fs.mkdir(destination, { recursive: true });
+  await fs.copyFile(model, path.join(destination, 'ecapa.onnx'));
+  await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/NOTICE.txt'), path.join(destination, 'NOTICE.txt'));
+  const require = createRequire(import.meta.url);
+  const runtime = path.dirname(require.resolve('onnxruntime-web/wasm'));
+  for (const file of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
+    await fs.copyFile(path.join(runtime, file), path.join(PUBLIC_SDK, file));
+  }
+}
+
 async function emitStaticWalletAssets() {
   await assertDirectoryExists(DIST_ESM_SDK, 'SDK browser asset output');
   await assertDirectoryExists(DIST_WORKERS, 'SDK worker output');
   await fs.rm(DIST_PUBLIC, { recursive: true, force: true });
   await copyDirectory(DIST_ESM_SDK, PUBLIC_SDK);
   await copyDirectory(DIST_WORKERS, PUBLIC_WORKERS);
+  await copyVoiceIdAssets();
   await writeHtmlDocuments();
   await writePagesHeaders();
   await fs.writeFile(HEADERS_MANIFEST, `${JSON.stringify(buildHeadersManifest(), null, 2)}\n`);

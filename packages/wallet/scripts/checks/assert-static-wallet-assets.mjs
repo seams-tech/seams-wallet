@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs/promises';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readModuleImports } from './browser-module-graph.mjs';
@@ -30,6 +31,7 @@ const REQUIRED_BASE_ROUTES = [
 const EXPECTED_CONTENT_TYPES = [
   { suffix: '.wasm', contentType: 'application/wasm' },
   { suffix: '.js', contentType: 'text/javascript; charset=utf-8' },
+  { suffix: '.mjs', contentType: 'text/javascript; charset=utf-8' },
   { suffix: '.css', contentType: 'text/css; charset=utf-8' },
   { suffix: '.html', contentType: 'text/html; charset=utf-8' },
   { suffix: '.json', contentType: 'application/json; charset=utf-8' },
@@ -129,6 +131,8 @@ function isWalletWorkerWasmRoute(route) {
 function isIgnoredReference(specifier) {
   const trimmed = String(specifier || '').trim();
   if (!trimmed) return true;
+  // Node-only branches in portable runtimes reference builtins, not hosted files.
+  if (isBuiltin(trimmed)) return true;
   if (trimmed.startsWith('#')) return true;
   if (trimmed.startsWith('data:')) return true;
   if (trimmed.startsWith('blob:')) return true;

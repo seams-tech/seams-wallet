@@ -83,7 +83,7 @@ class VoiceIdCaptureSurface<T> {
     this.element.appendChild(title);
     const description = document.createElement('p');
     description.textContent =
-      'Keep this device open and nearby. Select the button to record your voice on this device.';
+      'Select the button to verify your voice in this browser. Audio stays on this device. First activation enrolls three samples.';
     this.element.appendChild(description);
     this.status = document.createElement('p');
     this.status.setAttribute('role', 'status');
@@ -140,7 +140,7 @@ class VoiceIdCaptureSurface<T> {
   }
 
   private readonly listening = (): void => {
-    this.status.textContent = 'Listening on this device…';
+    this.status.textContent = 'Listening for five seconds. Speak clearly…';
   };
 
   private readonly cancel = (): void => {

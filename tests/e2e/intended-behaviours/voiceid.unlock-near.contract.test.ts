@@ -1,6 +1,5 @@
-import { execFileSync } from 'node:child_process';
+import { voiceIdBrowserAudio, allowBrowserMicrophone, enrollBrowserMicrophone } from './voiceid-browser-audio';
 import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
@@ -10,11 +9,11 @@ import {
   VoiceIdNearSigningEvidence,
 } from './voiceid-near-signing';
 import type {} from '../../intended-app/src/voiceIdHelpers';
-import type {} from '../../fixtures/ui/VoiceIdDeviceCaptureProbe';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import type { Route } from '@playwright/test';
 
 test('VoiceID issues a fresh Wallet Session and signs a reviewed NEAR transfer', verifyUnlock);
+test.use(voiceIdBrowserAudio);
 test.use({ video: 'off', trace: 'off' });
 test.setTimeout(180_000);
 
@@ -30,17 +29,7 @@ async function verifyUnlock(
   },
   testInfo: TestInfo,
 ): Promise<void> {
-  const chunks = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        path.resolve(import.meta.dirname, '../../scripts/build-preact-probe.mjs'),
-        'VoiceIdDeviceCaptureProbe.ts',
-      ],
-      { encoding: 'utf8' },
-    ),
-  );
-  await context.addInitScript({ content: chunks[0].code });
+  await allowBrowserMicrophone(context);
   harness.enableVoiceIdPlugin();
   await harness.registerPasskeyEd25519YaoWallet();
   await harness.assertRegistrationOwnerSessionIsActive();
@@ -49,6 +38,7 @@ async function verifyUnlock(
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   const activation = page.evaluate(activate);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await enrollBrowserMicrophone(page);
   const method = await activation;
   expect(method.walletId).toBe(identity.walletId);
 
@@ -109,8 +99,10 @@ async function verifyUnlock(
     JSON.stringify(
       {
         status: 'passed',
-        nativeHost: 'fake_device_key_and_factor',
-        microphoneAndKeychainUsed: false,
+        nativeHost: 'none',
+        microphone: 'synthetic_wav_through_browser_mediarecorder',
+        keychainUsed: false,
+        speakerInference: 'real_ecapa_onnx_webassembly',
         priorAuthentication: ownerSession.authentication,
         voiceIdMethodId: method.walletAuthMethodId,
         freshSessionId,

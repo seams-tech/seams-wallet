@@ -1,0 +1,10 @@
+VoiceID speaker model
+
+This deployment uses an ONNX export of SpeechBrain spkrec-ecapa-voxceleb.
+Upstream: https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb
+Revision: 0f99f2d0ebe89ac095bcc5903c4dd8f72b367286
+License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+
+The model was converted to accept complete 16 kHz mono waveforms and emit
+192-dimensional speaker embeddings. Preprocessing and model weights are local.
+No model training or user recordings are included in this asset directory.

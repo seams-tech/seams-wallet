@@ -19,7 +19,7 @@ export function trackIframeLoad(iframe: HTMLIFrameElement): void {
 }
 
 function buildAllowAttr(walletOrigin: string): string {
-  return `publickey-credentials-get 'self' ${walletOrigin}; publickey-credentials-create 'self' ${walletOrigin}; clipboard-read; clipboard-write`;
+  return `publickey-credentials-get 'self' ${walletOrigin}; publickey-credentials-create 'self' ${walletOrigin}; clipboard-read; clipboard-write; microphone ${walletOrigin}`;
 }
 
 function isOverlayForOrigin(el: HTMLIFrameElement, walletOrigin: string): boolean {
@@ -93,7 +93,7 @@ export function createWalletIframe(opts: {
   } catch {
     iframe.setAttribute(
       'allow',
-      "publickey-credentials-get 'self'; publickey-credentials-create 'self'; clipboard-read; clipboard-write",
+      "publickey-credentials-get 'self'; publickey-credentials-create 'self'; clipboard-read; clipboard-write; microphone 'self'",
     );
   }
 

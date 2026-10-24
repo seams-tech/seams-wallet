@@ -14,6 +14,7 @@ verifyDepsBeforeRun: false
 allowBuilds:
   bufferutil: true
   esbuild: true
+  protobufjs: false
   sharp: true
   utf-8-validate: true
   workerd: true

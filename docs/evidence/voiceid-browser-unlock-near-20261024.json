@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_ecapa_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "scarlet-star-kwhca8",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:d314d5c1-5880-4524-8ca6-4d7d99586309",
+  "freshSessionId": "wls_6Ix8MQlzHiPrdQJ9f8O8w7PDgLVQO9hzpGavZHA57_Q",
+  "concurrentLockRejectedStaleUnlock": true,
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "scarlet-star-kwhca8",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "scarlet-star-kwhca8",
+    "accountId": "f0875689adb1d064aaa368faacc040a6306ef25b26bf5b88bf1b173984eb5831",
+    "publicKey": "ed25519:HBvYPJ2YjThZvtM6jevjeTAA9rvxSbp9XZdP51rrh3ur"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGYwODc1Njg5YWRiMWQwNjRhYWEzNjhmYWFjYzA0MGE2MzA2ZWYyNWIyNmJmNWI4OGJmMWIxNzM5ODRlYjU4MzEA8IdWia2x0GSqo2j6rMBApjBu8lsmv1uIvxsXOYTrWDECAAAAAAAAAEAAAABmMDg3NTY4OWFkYjFkMDY0YWFhMzY4ZmFhY2MwNDBhNjMwNmVmMjViMjZiZjViODhiZjFiMTczOTg0ZWI1ODMxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXEx3ewr2cRoz8mTrG24l1g7Af7chN5bODM7veXhNgh2CLMwN7QDRa2eN1Lm/H/6qa6+ycnQ0Sum4xsYxMqR0Cg==",
+      "signedTransactionSha256": "c0db8f2d0bf8ba5ace038093d2e81ce26e2f846f919354060db4c0ccfeefd884",
+      "signerId": "f0875689adb1d064aaa368faacc040a6306ef25b26bf5b88bf1b173984eb5831",
+      "receiverId": "f0875689adb1d064aaa368faacc040a6306ef25b26bf5b88bf1b173984eb5831",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

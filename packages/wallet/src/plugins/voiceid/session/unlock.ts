@@ -7,6 +7,7 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
+import { prepareVoiceModel } from '../browser/model';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
 import { showVoiceIdCaptureSurface } from '../capture/surface';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
@@ -37,6 +38,8 @@ export async function unlockWithVoiceId(
     location.origin,
     fetchWithWalletHomeDiscovery,
   );
+  await prepareVoiceModel();
+  input.assertActive();
   const challenge = await http.challenge({
     walletId: input.walletId,
     walletAuthMethodId: input.walletAuthMethodId,

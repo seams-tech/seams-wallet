@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "fair-quartz-jcgr62",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/ecapa.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_ecapa_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "fair-quartz-jcgr62",
+    "accountId": "c92b6861189a40d2391cfeff4834f7100c9a23fbdc7bed45f74ce43087a55c70",
+    "publicKey": "ed25519:EYHLZa1Q3aic2oqwHpsumktJV996WsYM4JPsPpsAVHdR"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGM5MmI2ODYxMTg5YTQwZDIzOTFjZmVmZjQ4MzRmNzEwMGM5YTIzZmJkYzdiZWQ0NWY3NGNlNDMwODdhNTVjNzAAyStoYRiaQNI5HP7/SDT3EAyaI/vce+1F90zkMIelXHACAAAAAAAAAEAAAABjOTJiNjg2MTE4OWE0MGQyMzkxY2ZlZmY0ODM0ZjcxMDBjOWEyM2ZiZGM3YmVkNDVmNzRjZTQzMDg3YTU1YzcwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAABUY8ono3iF7MpLU2pHjdj9Wpq8kYz6l/ph9uvUreLJ/ftgTdMYuz3J21hFQs8LQD1GNMPNsuC5Txu0gfeNfYCg==",
+      "signedTransactionSha256": "5ed170fd1f210a9841cf9a577fd8bff6e58fb224d7b3d94815ebdd2f3c2925a8",
+      "signerId": "c92b6861189a40d2391cfeff4834f7100c9a23fbdc7bed45f74ce43087a55c70",
+      "receiverId": "c92b6861189a40d2391cfeff4834f7100c9a23fbdc7bed45f74ce43087a55c70",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

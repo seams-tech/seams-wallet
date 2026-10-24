@@ -72,195 +72,113 @@ An appearance change preserves that work. Invalid configuration remains rejected
 
 Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
 
-## Local VoiceID approval (prototype)
+## Browser VoiceID (prototype)
 
-The SDK enables the VoiceID plugin with `authMethods: [voiceIdAuthMethod()]`.
-The wallet iframe loads its implementation only for an enabled request.
-This prototype supports one reviewed NEAR testnet transfer per request.
-Other signing routes and reviews without an expiry fail while the plugin is
-enabled. The local native host requires an enrolled voice before capture.
+The SDK enables VoiceID with `authMethods: [voiceIdAuthMethod()]`. The descriptor
+imports no inference or capture code. The Wallet origin loads the plugin on its
+first enabled operation. Model and inference-runtime downloads start only when
+voice enrollment or verification needs them. No native host, loopback request,
+Chrome extension, Keychain access, or system-settings change is part of this flow.
 
-The wallet freezes and hashes the complete request and execution configuration.
-The hash includes the wallet, transaction, request, connection, surface, review
-generation, network, and expiry. Selecting Confirm starts one native voice check.
-The wallet iframe sends its bounded request to a loopback service on the device.
-That service accepts only the pinned Wallet origins and keeps one native session
-open for later checks. A failed native host requires a deliberate service restart.
-The result must match its attempt, operation hash, and exclusive deadline.
-The existing signing boundary consumes the approval once. The existing wallet
-session, authorization, quota, and MPC checks still apply.
+The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
+Wallet's browser enrollment UI. Each of three samples requires a separate Record
+click. The browser requests microphone permission. Enrollment allows eight seconds
+per sample and requires at least two seconds of voiced audio. Verification allows
+five seconds. All enrollment samples use the displayed sentence.
+Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
+after local ECAPA inference. Three consistent samples form one normalized
+speaker template. The template stays in Wallet-origin IndexedDB.
 
-Cancellation, lock, execution changes, settlement, expiry, and a changed SDK
-plugin selection invalidate pending approval. Another request requires its own approval.
-VoiceID failure cannot choose an automatic approval path. Audio, transcripts,
-speaker embeddings, templates, and wallet secrets do not cross this bridge.
-The native result grants no server authentication or signing authority.
+The first model download is approximately 80 MB. The exact model digest is
+checked before inference. The inference runtime and model are hosted with the
+Wallet's static assets. Missing or changed assets fail enrollment and unlock.
+The model deployment instructions live in
+[`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
-This local approval profile does not issue a fresh Wallet Session. The
-`voiceIdAuthMethod()` descriptor currently selects this on-demand prototype.
-Fresh-session VoiceID requires an activated device credential, server-verified
-assertion, and method-bound custody envelope before it can be offered as an
-unlock method.
+The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
+Confirm click. It does not transcribe or require particular words. Cancel is a
+UI action. The MVP assumes the authorized user possesses and controls the open
+device. Spoof detection, replay detection, and camera input are outside scope.
 
-The MVP assumes a user-controlled device and OS. Spoof detection, camera input,
-and standalone voice authentication remain outside this profile.
+### Device credentials and fresh sessions
 
-The public browser contract is
-[`voiceid-approval.browser.test.ts`](../tests/wallet-ui/voiceid-approval.browser.test.ts).
-It uses a deterministic perception boundary and writes a JSON evidence attachment.
-The composed Wallet contract is
-[`passkey.voiceid-near.contract.test.ts`](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts).
-It uses real owner registration, passkey unlock, and Ed25519 Yao signing.
-The test verifies the signed transfer against the registered public key.
-Its NEAR RPC response is deterministic and does not confirm an on-chain transfer.
-Denied preparations retain their spent quota use. Owner unlock replenishes the
-session before the approved retry.
+Activation requires an existing full-owner Wallet Session. The browser generates
+one nonextractable Ed25519 private key and a separate random 32-byte custody
+factor for the wallet method. It encrypts the factor with a nonextractable AES-GCM
+key before storing it in IndexedDB. Encryption binds the Wallet origin, wallet,
+method, and device-key digest. Creation for the same method is serialized across
+tabs. A voice sample never derives a wallet key or custody factor.
 
-## VoiceID Wallet Session unlock
+These are browser-origin credentials, not hardware-attested credentials.
+Nonextractability prevents key export through WebCrypto. Trusted code executing
+in the Wallet origin can use these keys. The server verifies possession of the
+device key; speaker verification is enforced by trusted Wallet code. The embedding
+application cannot access the Wallet origin's storage. Clearing that storage
+removes enrollment and device credentials. Restoring access then requires an
+owner unlock and fresh browser enrollment.
 
-The user first activates VoiceID through an existing Passkey or Email OTP owner
-unlock. The user then controls the open device and its OS. The MVP does not
-evaluate spoofed or replayed recordings. The server still rejects a reused
-device assertion, a changed origin, a changed wallet, or an expired challenge.
+The custody worker opens an existing wallet seed envelope and reseals that seed
+under the VoiceID method. The envelope binds its device key, wallet, method,
+and custody purpose. JavaScript never receives the wallet custody seed.
+The server activates the method and envelope atomically under the existing owner
+session. Lost activation responses can retry the same pending ciphertext.
 
-The native device creates one random signing key and a separate random factor
-secret for the wallet method. The private key remains on the device. A voice
-match permits the host to sign one server challenge and release the scoped
-factor secret to the Wallet custody worker.
+For unlock, the plugin loads the model before requesting a short-lived challenge.
+The challenge binds the wallet, method, device key, origin, and audience. A user
+click starts browser voice verification. A match permits signing that exact
+challenge. The server rechecks the active method, authority, and custody envelope,
+consumes the challenge once, and issues a fresh Wallet Session. Expired or reused
+assertions fail. Revocation retires the method's sessions and envelope.
 
-The custody worker opens an existing wallet seed envelope before it reseals
-that seed under VoiceID. The new envelope binds the device key ID, wallet,
-auth method, and custody purpose. A changed key ID, wallet, method, or factor
-secret cannot open it. JavaScript never receives the custody seed.
+The core installer opens the same-device NEAR custody cache in WASM with the
+method envelope and scoped factor. It installs the live Yao client and exact
+server credential before marking the method unlocked. A concurrent lock prevents
+an older unlock from committing. Failure leaves the wallet locked and clears
+volatile signing state. The plugin erases its factor buffer after installation.
 
-The server issues a fresh Wallet Session only after it verifies an active
-VoiceID method, its active authority, the exact challenge, and the device
-signature. It consumes the challenge once. Revoking the method retires its
-sessions and custody envelope. A missing native host, lost key, failed voice
-check, or unavailable server leaves the wallet locked.
+Missing custody requires another owner unlock. Reload requires a fresh VoiceID
+unlock. ECDSA signing and key export retain their supported owner methods.
 
-The activation route requires an active full-owner Wallet Session issued by a
-Passkey or Email OTP method and a configured hosted wallet origin. It checks
-the device public-key digest against the envelope's key ID. The server inserts
-the active method and its exact seed envelope in one D1 transaction. The
-source method, authority, session, and quota must still be active at commit.
-A duplicate device key or retired source session leaves neither new record.
+### Reviewed NEAR transfers
 
-The server now issues a fresh Wallet Session after a registered device
-signs one short-lived challenge. The challenge binds the wallet, method,
-device key, and hosted wallet origin. The server checks the active method,
-full-owner authority, and seed envelope before it issues the challenge and
-again before it consumes the signed proof. Session issuance rechecks the
-method and authority in its D1 transaction. A replay cannot mint a second
-session.
+This prototype supports one reviewed NEAR testnet transfer per request. Other
+signing routes and reviews without an expiry fail while VoiceID is enabled.
+The Wallet freezes and hashes the complete request and execution configuration.
+Confirm starts a browser speaker check for that review. Cancellation, lock,
+expiry, execution changes, and plugin changes invalidate pending approval.
+The signing boundary consumes the approval once. Existing authorization, session,
+quota, and MPC checks still apply.
 
-The browser has typed native capture and HTTP clients. Applications call
-`registration.activateAuthMethod({ walletId, method: 'voiceid' })` after an owner unlock while the
-`voiceIdAuthMethod()` plugin is enabled. The Wallet host loads the activation
-code on demand. It checks the exact owner session and shows a Wallet-origin
-Activate button. Selecting that button starts native capture while browser
-user activation is present. The operation uses the worker-held seed to seal a
-VoiceID envelope. It saves only public pending data before the server request.
-A lost response can retry the same method and ciphertext without another
-reseal. A browser operation now checks the selected device method, captures
-its signed server challenge, verifies the fresh session, and passes the factor
-secret to a custody installer. It erases that secret when the installer ends or
-fails. Cancellation before server verification leaves the challenge unused
-and erases the secret. Applications call
-`auth.unlockWithAuthMethod({ walletId, walletAuthMethodId, method: 'voiceid' })`.
-The enabled plugin fetches a challenge before it shows the Wallet-origin Unlock
-button. An expired challenge closes that surface and cannot start capture.
-Cancellation during challenge fetch cannot open a capture surface later.
+A broadcast failure retries identical signed bytes without another MPC signature.
+A subsequent review requires fresh approval. Cancelling it prevents another
+signature or broadcast. Unavailable broadcast replies establish no on-chain result.
 
-The server returns the exact NEAR capability authorized by the fresh session.
-The core installer opens the same-device custody cache in WASM with the method's
-envelope and factor. It registers the live Yao client and the exact operation
-credential, publishes the NEAR lane, and establishes the worker custody handle.
-It marks the method unlocked only after installation succeeds. A concurrent
-lock changes the lock generation and prevents the older unlock from committing.
-Installation failure clears volatile signing material and local authorization.
-The native host never receives the wallet seed or the operation credential.
-
-This installer supports NEAR on the activated device. Its custody cache must
-exist from a previous owner unlock. Missing custody requires an owner unlock
-before VoiceID can resume. Reload requires a new VoiceID unlock. ECDSA signing
-and key export require their supported owner methods.
-
-The composed contract is
-[`voiceid.unlock-near.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts).
-It activates a generated device key after passkey registration, locks the owner
-session, unlocks through the public plugin API, and signs a reviewed transfer.
-It checks the signature against the registered NEAR key and writes public JSON
-evidence. The device host and NEAR RPC are deterministic test fixtures. The MPC
-signing protocol runs in the local Wallet system.
-
-The [recorded run](evidence/voiceid-unlock-near-20261024.json) contains the public
-signed transaction and registered public key. Run the contract in a fresh local
-Wallet system with:
-
-```sh
-pnpm -C tests exec node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts
-```
-
-The manual page at `/voiceid?authMethod=voiceid` creates a wallet through the
-SDK's default ID allocation. It retains the returned ID in the page URL.
-A `walletId` query selects an existing wallet. Passkey unlock requires that
-wallet's NEAR signer. Before VoiceID activation, a locked page instructs the
-user to unlock with the passkey and activate VoiceID. Voice unlock stays disabled
-until an active method exists. Activation failures appear directly below the
-activation controls. A generic native rejection identifies no specific speaker
-or transcription failure. A native Keychain denial reports a device-setup error.
-It preserves passkey access and cannot activate VoiceID. The separate Save recovery codes action opens the
-Wallet backup dialog after registration. Cancelling backup preserves the created
-wallet and permits another backup attempt. Transfer review uses the displayed
-wallet's signer.
+### Repeatable evidence
 
 The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
-starts with an unallocated ID, creates the wallet, saves recovery codes through
-clickable controls, locks before activation, and recovers through passkey unlock.
-It verifies visible Keychain denial and rejected activation, retries activation, locks, unlocks,
-and signs a transfer.
-Its [recorded run](evidence/voiceid-live-page-20261024.json) contains the public
-allocation and signature evidence. It uses a simulated device and deterministic
-NEAR RPC with real local MPC signing. It does not use the microphone or Keychain.
+creates a wallet, saves recovery codes, enrolls three browser microphone samples,
+activates VoiceID, locks, unlocks, and signs a transfer. Cancellation stops microphone
+tracks before decoding. Cancelling the final enrollment write aborts that transaction. It verifies that inference
+assets load only after activation and that no native-service requests occur.
 
-The activation contract is
-[`voiceid-activation.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts).
-It sends typed browser-client HTTP requests to a real local D1 database
-and opens the stored envelope in browser WASM. It also verifies rollback for
-a duplicate device key and a retired owner session. After that session is
-retired, it signs a VoiceID challenge and reads a fresh server Wallet Session.
-A changed origin and replayed assertion fail. The same journey loses an
-activation response, reads its pending record, and retries the exact ciphertext.
-The stored result opens in WASM. The test writes a JSON report with public
-identities and no private key or factor secret. It also revokes the VoiceID
-method, then proves a pending challenge and a new challenge cannot issue a
-session. The original owner method and shared authority remain active.
+The [unlock contract](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts)
+checks fresh session issuance and a concurrent lock during unlock. The
+[broadcast contract](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts)
+checks signature reuse for broadcast retries and cancellation of a new review.
+These journeys use synthetic microphone WAV input, real browser ECAPA inference,
+WebCrypto device keys, and local MPC signing. NEAR RPC is deterministic; these
+runs do not establish live-microphone accuracy or an on-chain transfer.
 
-The browser bridge contract is
-[`voiceid-device-bridge.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-device-bridge.contract.test.ts).
-It exercises the browser with a fake local host. It verifies activation,
-challenge signing, transfer approval, origin rejection, and cancellation. It
-also clicks Activate inside an embedded Wallet iframe to verify browser user
-activation reaches native capture. It writes a JSON report and accesses no
-microphone or Keychain.
+The [activation contract](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts)
+retains server admission, rollback, response-loss recovery, revocation, and
+origin/replay checks against real local D1. The
+[custody contract](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts)
+retains Rust-to-browser envelope checks and wrong-factor rejection.
 
-The custody boundary contract is
-[`voiceid-custody-factor.contract.test.ts`](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts).
-It reseals a generated seed from Passkey to VoiceID in Rust. The Wallet parser
-must accept the exact Rust envelope binding. The rebuilt browser WASM must
-open the same ciphertext with the VoiceID secret and reject another secret.
-The test writes a JSON report.
-
-The same contract makes every broadcast reply unavailable after signing.
-The SDK retries the identical signed bytes without another MPC signature.
-The final broadcast error rejects the send promise and preserves spent quota.
-A subsequent review requires fresh voice approval. Cancelling that voice check
-prevents another signature and broadcast. The unavailable replies establish no
-on-chain outcome.
-
-The private repository owns the native models, capture, and composed
-native/browser evaluation.
+The manual page is `/voiceid?authMethod=voiceid`. New wallets use the SDK's ID
+allocation and retain that ID in the page URL. A `walletId` query selects an
+existing wallet. Save recovery codes opens the existing Wallet backup dialog.
+Transfer review always uses the wallet displayed on the page.
 
 ## Optional authentication plugins
 

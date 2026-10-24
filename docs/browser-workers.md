@@ -22,14 +22,17 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
-The SDK enables the optional VoiceID plugin by configuration. The wallet iframe
-loads its implementation on first use and calls a loopback service on the device.
-For transaction approval, it sends one bounded operation hash and receives a
-voice result. For Wallet Session unlock, the native host signs a server
-challenge and releases the method's random factor secret. The iframe erases
-that secret after core installation. The native host receives neither the
-wallet custody seed nor the server operation credential. It owns capture,
-models, biometric storage, and its device key and factor secret.
+The SDK enables the optional VoiceID plugin by configuration. The Wallet iframe
+loads its implementation on first use. Browser MediaRecorder captures deliberate
+samples, and local ONNX Runtime Web inference verifies the speaker. Inference
+uses one WebAssembly thread. This adds no worker with signing or custody authority.
+Audio is discarded after inference. The Wallet origin stores its template and
+nonextractable WebCrypto device keys in IndexedDB. A separate nonextractable
+AES-GCM key encrypts the random method factor at rest. The factor is decrypted
+only along the voice verification flow and erased after core installation.
+The server verifies the device signature; the trusted Wallet code enforces
+speaker matching. These keys provide browser-origin isolation, without a
+hardware-attestation claim. No native host or Keychain is involved.
 
 The core opens the seed-encrypted NEAR custody cache in the existing Yao WASM
 runtime on the iframe main thread. The custody worker opens the method envelope
