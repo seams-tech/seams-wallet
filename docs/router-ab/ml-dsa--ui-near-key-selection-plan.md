@@ -4,6 +4,36 @@ Status: broader account-grouping proposal, updated 2026-10-24.
 The [Signing keys implementation](ml-dsa-65-signing-keys-report.md) adds authenticated metadata, per-device defaults, settings enrollment, and transaction selection.
 Login-menu account grouping and per-key device projections below remain proposed. This release uses algorithm labels and does not assign primary/backup roles.
 
+## Signer parity requirement — October 24, 2026
+
+Ed25519, ECDSA, and ML-DSA are peer signer types in the Wallet SDK.
+Use the same navigation, lifecycle actions, approval patterns, and status vocabulary for each supported signer.
+Algorithm-specific protocol code and key formats stay behind those shared interactions.
+Lazy loading applies to optional signer implementations through their existing module boundaries.
+
+The current Signing keys implementation is an intermediate state.
+It lists Ed25519 and ML-DSA for NEAR, exposes an ML-DSA-specific add action, and places ML-DSA export inside key details.
+ECDSA and Ed25519 exports still use the existing Export keys screen.
+Multi-key transactions currently add a selection step before approval.
+These differences need consolidation before treating the UI as the common signer experience.
+
+Prioritize these implementation tasks:
+
+1. Extend the existing signer inventory with precise algorithm variants and supported lifecycle actions. Reuse authoritative key and permission records. Keep protocol-specific transport behind the shared view.
+2. Use one Signing keys screen for managed signers, grouped by network and account. Use consistent actions: Add signer, Make default, Key details, and Export key. Show the algorithm as a key property. Offer only types supported by the selected chain and account.
+3. Put key selection in the shared transaction review. Keep the selected key fixed once cryptographic approval starts. Preserve explicit application selections and require an explicit choice after an unavailable default. Avoid an extra approval step solely because ML-DSA is available.
+4. Complete lifecycle parity for registration, signing, recovery, device linking, and export. Track unsupported authentication methods and device permissions as implementation gaps. Expose actual restrictions through the same capability states across signers.
+5. Extend the existing browser lifecycle contracts to verify these shared actions for each supported algorithm and mixed-key account. Include reload, cancellation, unavailable keys, and device permissions. Retain independently verifiable signing and recovery evidence.
+
+Parity does not make every algorithm valid on every chain.
+Chain support, permissions, and native export formats can differ. Describe those differences at the relevant action.
+Use Export key as the shared action label; explain the canonical FIPS seed inside ML-DSA export details.
+Use the same preparing, awaiting approval, signing, retry, and unavailable states across algorithms.
+Keep pool details internal unless a wait or retry affects the user's next action.
+
+Wallet-seed recovery, standard FIPS export, two-at-once consumption, and pool capacity remain required.
+This section records the product requirement. It does not claim that these parity tasks are implemented.
+
 ## Outcome
 
 Keep the current single-key account experience simple. When an account has two

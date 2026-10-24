@@ -1,7 +1,8 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
-Current priority: complete modular loading, Signing keys settings, and transaction key selection.
+Current priority: consolidate the implemented settings and selection into a shared signer experience.
+The [signer parity requirement](ml-dsa--ui-near-key-selection-plan.md#signer-parity-requirement--october-24-2026) applies to Ed25519, ECDSA, and ML-DSA lifecycle features.
 The [Signing keys report](ml-dsa-65-signing-keys-report.md) records this implementation and its browser qualification.
 Hosted latency, sustained refill, and release security qualification remain open. Pool capacity remains unchanged.
 The [direct-sealing screen](ml-dsa-65-direct-sealing-report.md) removes the intermediate committed envelope and duplicate delivery cache.
