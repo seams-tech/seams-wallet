@@ -1,14 +1,13 @@
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { WalletId } from '@shared/utils/domainIds';
 
-export async function resolveMlDsaPasskeyOwner(walletId: WalletId) {
+export async function resolveFullWalletOwner(walletId: WalletId) {
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(walletId));
   if (selected.kind !== 'resolved') return { kind: 'refused', reason: 'locked' } as const;
   const { selection, authMethod, authority } = selected;
   if (
     selection.lockState !== 'unlocked' ||
     selection.walletId !== walletId ||
-    authMethod.kind !== 'passkey' ||
     authMethod.status !== 'active' ||
     authMethod.walletId !== walletId ||
     selection.walletAuthMethodId !== authMethod.walletAuthMethodId ||

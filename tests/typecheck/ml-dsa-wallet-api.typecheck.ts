@@ -56,14 +56,27 @@ const wrongFactor: SignIntentDigestPayload = {
 };
 void wrongFactor;
 
-declare const passkeyApproval: Extract<MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>, { kind: 'passkey' }>;
-declare const sessionCredential: Extract<MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>, { kind: 'session' }>;
+declare const passkeyApproval: Extract<
+  MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
+  { kind: 'passkey' }
+>;
+declare const sessionCredential: Extract<
+  MlDsaSigningAuthorization<WebAuthnAuthenticationCredential>,
+  { kind: 'session' }
+>;
 // @ts-expect-error A session credential cannot retain a passkey assertion through a spread.
-const mixedApproval: MlDsaSigningAuthorization<WebAuthnAuthenticationCredential> = { ...sessionCredential, credential: passkeyApproval.credential };
+const mixedApproval: MlDsaSigningAuthorization<WebAuthnAuthenticationCredential> = {
+  ...sessionCredential,
+  credential: passkeyApproval.credential,
+};
 void mixedApproval;
 declare const approved: ApprovedMlDsaSessionOperation;
 // @ts-expect-error Raw records cannot mint the verified durable session-admission proof.
-const forgedAdmission: ApprovedMlDsaSessionOperation = { record: approved.record, sessionIdB64u: approved.sessionIdB64u, expiresAtMs: approved.expiresAtMs };
+const forgedAdmission: ApprovedMlDsaSessionOperation = {
+  record: approved.record,
+  sessionIdB64u: approved.sessionIdB64u,
+  expiresAtMs: approved.expiresAtMs,
+};
 void forgedAdmission;
 
 import type {
@@ -96,5 +109,39 @@ void forgedReview;
 declare const unreviewedSelection: Variant<NearSignerSelectionResult, 'kind', 'unreviewed'>;
 declare const reviewedSelection: Variant<NearSignerSelectionResult, 'kind', 'reviewed'>;
 // @ts-expect-error An unreviewed selection cannot retain a review receipt through a spread.
-const mixedReview: NearSignerSelectionResult = { ...unreviewedSelection, review: reviewedSelection.review };
+const mixedReview: NearSignerSelectionResult = {
+  ...unreviewedSelection,
+  review: reviewedSelection.review,
+};
 void mixedReview;
+
+import type { MlDsaSigningActor } from '../../packages/shared-ts/src/near/mlDsaSigning';
+declare const emailActor: Extract<MlDsaSigningActor, { kind: 'email_otp' }>;
+declare const passkeyActor: Extract<MlDsaSigningActor, { kind: 'passkey' }>;
+// @ts-expect-error An Email OTP actor cannot retain a Passkey identity through a spread.
+const mixedActor: MlDsaSigningActor = {
+  ...emailActor,
+  credentialIdB64u: passkeyActor.credentialIdB64u,
+};
+void mixedActor;
+const emailSubject = {
+  kind: 'near_ml_dsa_email_wallet' as const,
+  walletId: 'wallet-1',
+  nearAccountId: 'wallet-1.testnet',
+  walletAuthMethodId: 'method-1',
+};
+// @ts-expect-error An Email OTP subject cannot request a Passkey assertion.
+const emailWithPasskey: SignIntentDigestPayload = {
+  signingSubject: emailSubject,
+  challengeB64u: challenge,
+  signingAuthPlan: { kind: 'passkeyReauth', method: 'passkey' },
+  webauthnChallenge: { kind: 'intent_digest', challengeB64u: challenge },
+};
+void emailWithPasskey;
+// @ts-expect-error An Email OTP subject requires its exact OTP prompt.
+const missingEmailPrompt: SignIntentDigestPayload = {
+  signingSubject: emailSubject,
+  challengeB64u: challenge,
+  signingAuthPlan: { kind: 'emailOtpReauth', method: 'email_otp' },
+};
+void missingEmailPrompt;

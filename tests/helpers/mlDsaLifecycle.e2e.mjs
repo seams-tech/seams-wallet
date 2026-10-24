@@ -43,6 +43,7 @@ async function inventory(input, key, counter = 1) {
 }
 async function signRetainedKey(input, key) {
   const prepared = await input.api.prepareMlDsaNearSigning({
+    access: { kind: 'public' },
     relayerUrl,
     publicKeyB64u: input.publicKeyB64u,
     request: {
@@ -50,8 +51,7 @@ async function signRetainedKey(input, key) {
       signingKeyId: input.signingKeyId,
       operationIdB64u: randomBytes(32).toString('base64url'),
       unsignedTransactionBorshB64u: input.unsignedTransactionBorshB64u,
-      rpId: 'wallet.example.test',
-      credentialIdB64u: key.credentialId,
+      actor: { kind: 'passkey', rpId: 'wallet.example.test', credentialIdB64u: key.credentialId },
     },
   });
   assert.equal(prepared.kind, 'prepared', JSON.stringify(prepared));
@@ -135,6 +135,7 @@ function publishedIdentity(entry) {
 }
 async function rejectSigning(input, key) {
   const result = await input.api.prepareMlDsaNearSigning({
+    access: { kind: 'public' },
     relayerUrl,
     publicKeyB64u: input.publicKeyB64u,
     request: {
@@ -142,8 +143,7 @@ async function rejectSigning(input, key) {
       signingKeyId: input.signingKeyId,
       operationIdB64u: randomBytes(32).toString('base64url'),
       unsignedTransactionBorshB64u: input.unsignedTransactionBorshB64u,
-      rpId: 'wallet.example.test',
-      credentialIdB64u: key.credentialId,
+      actor: { kind: 'passkey', rpId: 'wallet.example.test', credentialIdB64u: key.credentialId },
     },
   });
   assert.equal(result.kind, 'refused');

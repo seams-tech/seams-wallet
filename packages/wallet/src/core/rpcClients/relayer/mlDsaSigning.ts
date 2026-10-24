@@ -52,11 +52,15 @@ async function post(
   walletId: string,
   path: 'sign/prepare' | 'sign' | 'session/prepare' | 'session/revoke',
   body: unknown,
+  access: { readonly kind: 'public' } | { readonly kind: 'wallet_session'; readonly token: string },
 ): Promise<unknown> {
   const response = await fetch(
     `${normalizeRelayerBaseUrl(relayerUrl)}/wallets/${encodeURIComponent(walletId)}/ml-dsa/${path}`,
     buildRelayerJsonPostRequestInit({
-      headers: { [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION },
+      headers: {
+        [WALLET_MANAGEMENT_PROTOCOL_HEADER]: WALLET_MANAGEMENT_PROTOCOL_VERSION,
+        ...(access.kind === 'wallet_session' ? { authorization: `Bearer ${access.token}` } : {}),
+      },
       body,
     }),
   );
@@ -70,6 +74,9 @@ async function post(
 export async function prepareMlDsaNearSigning(input: {
   readonly relayerUrl: string;
   readonly request: unknown;
+  readonly access:
+    | { readonly kind: 'public' }
+    | { readonly kind: 'wallet_session'; readonly token: string };
   readonly publicKeyB64u: string;
 }): Promise<MlDsaSigningPreparationOutcome> {
   const request = parseMlDsaSigningRequest(input.request);
@@ -85,7 +92,7 @@ export async function prepareMlDsaNearSigning(input: {
     ),
   );
   const raw = requireRecord(
-    await post(input.relayerUrl, request.walletId, 'sign/prepare', request),
+    await post(input.relayerUrl, request.walletId, 'sign/prepare', request, input.access),
     'ML-DSA approval preparation',
   );
   if (raw.kind === 'refused') return parseMlDsaSigningFailure(raw);
@@ -108,11 +115,17 @@ export async function executeMlDsaNearSigning(input: {
 }): Promise<MlDsaSigningOutcome> {
   const preparation = input.preparation;
   const raw = requireRecord(
-    await post(input.relayerUrl, preparation.request.walletId, 'sign', {
-      walletId: preparation.request.walletId,
-      operationIdB64u: preparation.request.operationIdB64u,
-      authorization: encodedAuthorization(input.authorization),
-    }),
+    await post(
+      input.relayerUrl,
+      preparation.request.walletId,
+      'sign',
+      {
+        walletId: preparation.request.walletId,
+        operationIdB64u: preparation.request.operationIdB64u,
+        authorization: encodedAuthorization(input.authorization),
+      },
+      { kind: 'public' },
+    ),
     'ML-DSA signing outcome',
   );
   switch (raw.kind) {
@@ -162,6 +175,15 @@ function encodedAuthorization(
         kind: 'passkey',
         credential: redactCredentialExtensionOutputs(authorization.credential),
       };
+    case 'email_otp':
+      return { kind: 'email_otp', proof: authorization.proof };
+    case 'email_otp_session_start':
+      return {
+        kind: 'email_otp_session_start',
+        proof: authorization.proof,
+        sessionIdB64u: authorization.sessionIdB64u,
+        tokenB64u: authorization.tokenB64u,
+      };
     case 'session_start':
       return {
         kind: 'session_start',
@@ -188,7 +210,9 @@ export async function prepareMlDsaSigningSession(input: {
   readonly request: MlDsaSigningSessionRequest;
 }) {
   const response = requireRecord(
-    await post(input.relayerUrl, input.request.walletId, 'session/prepare', input.request),
+    await post(input.relayerUrl, input.request.walletId, 'session/prepare', input.request, {
+      kind: 'public',
+    }),
     'ML-DSA session preparation',
   );
   if (response.kind === 'refused') return parseMlDsaSigningFailure(response);
@@ -205,7 +229,9 @@ export async function revokeMlDsaSigningSession(input: {
   readonly credential: MlDsaSigningSessionCredential;
 }) {
   const response = requireRecord(
-    await post(input.relayerUrl, input.credential.walletId, 'session/revoke', input.credential),
+    await post(input.relayerUrl, input.credential.walletId, 'session/revoke', input.credential, {
+      kind: 'public',
+    }),
     'ML-DSA session revocation',
   );
   if (response.kind === 'refused') return parseMlDsaSigningFailure(response);

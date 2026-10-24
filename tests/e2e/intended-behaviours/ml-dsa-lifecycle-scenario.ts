@@ -1,3 +1,4 @@
+import { MlDsaEmailProofProbe } from './ml-dsa-email-proof-probe';
 import { test, expect, type TestInfo, type Page, type Route, type Browser } from '@playwright/test';
 import {
   createHash,
@@ -131,6 +132,42 @@ export async function runMlDsaBrowserLifecycle(
     await walletFrame.locator('body').evaluate(restorePasskeyPrompts);
   }
 
+  await harness.addEmailOtpAuthMethod();
+  await harness.unlockWithAddedEmailOtp();
+  await harness.useLiveNearTestnetRpc();
+  const emailMetadata = await harness.runMlDsaCommand({ kind: 'metadata' });
+  expect('kind' in emailMetadata && emailMetadata.kind).toBe('inventory');
+  expect(await readDefaultSigner(harness)).toEqual({
+    kind: 'near_ml_dsa_65',
+    signingKeyId: signer.signingKeyId,
+  });
+  await pause(60_000);
+  const emailFrame = page
+    .locator('iframe[allow*="publickey-credentials-get"]')
+    .last()
+    .contentFrame();
+  await emailFrame.locator('body').evaluate(blockPasskeyPrompts);
+  const emailProofProbe = new MlDsaEmailProofProbe();
+  await emailProofProbe.install(page);
+  let emailFresh;
+  let emailGrant;
+  let emailWarm;
+  try {
+    emailFresh = await signMlDsaTransaction(harness, signer);
+    await pause(60_000);
+    emailGrant = await signMlDsaTransaction(harness, signer, {
+      maxOperations: 2,
+      durationMs: 600_000,
+    });
+    await pause(60_000);
+    emailWarm = await signMlDsaTransaction(harness, signer);
+  } finally {
+    await emailFrame.locator('body').evaluate(restorePasskeyPrompts);
+    await emailProofProbe.remove(page);
+  }
+  await harness.unlockPasskeyWallet();
+  await harness.useLiveNearTestnetRpc();
+
   const linked = await harness.openLinkedDevice(browser);
   await harness.linkDeviceWithPasskey(linked);
   await linked.useLiveNearTestnetRpc();
@@ -210,7 +247,16 @@ export async function runMlDsaBrowserLifecycle(
       transaction: onChainTransaction,
       finalStatus: final.status,
     },
-    signatures: { original, warm, recovered, linked: device, restored },
+    signatures: {
+      original,
+      warm,
+      emailFresh,
+      emailGrant,
+      emailWarm,
+      recovered,
+      linked: device,
+      restored,
+    },
     restoredSigner: restoration.signer,
     actors: {
       original: context.credentialIdB64u,
@@ -218,6 +264,9 @@ export async function runMlDsaBrowserLifecycle(
       recovered: recoveredActor.credentialIdB64u,
     },
     checks: {
+      emailProof: emailProofProbe.evidence(),
+      emailOtpSigningAndWarmGrant: true,
+      emailOtpMetadataAndDefaultSigner: true,
       samePublicKeyAfterRecovery: true,
       samePublicKeyAfterQrLink: true,
       sourceAuthorityRetained: true,

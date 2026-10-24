@@ -67,7 +67,7 @@ function accountIdForEmailOtpExportUi(identity: EmailOtpExportAuthorizationIdent
 
 function signingSubjectForEmailOtpExportUi(
   identity: EmailOtpExportAuthorizationIdentity,
-): Exclude<SignIntentDigestSubject, { kind: 'near_ml_dsa_wallet' }> {
+): Exclude<SignIntentDigestSubject, { kind: 'near_ml_dsa_wallet' | 'near_ml_dsa_email_wallet' }> {
   switch (identity.kind) {
     case 'near_account':
       if (!String(identity.walletId || '').trim()) {

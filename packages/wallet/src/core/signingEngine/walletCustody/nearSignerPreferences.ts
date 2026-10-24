@@ -5,7 +5,7 @@ import type { WalletId } from '@shared/utils/domainIds';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { requirePrimaryChainByFamily } from '@/core/config/chains';
 import { readNearSignerMetadata } from './nearSignerMetadata';
-import { resolveMlDsaPasskeyOwner } from './mlDsaOwner';
+import { resolveFullWalletOwner } from './walletSigningOwner';
 
 type PreferenceScope = {
   readonly walletId: WalletId;
@@ -25,9 +25,9 @@ export async function readDefaultNearSigner(input: PreferenceScope): Promise<Nea
 export async function setDefaultNearSigner(
   input: PreferenceScope & { readonly preference: NearSignerPreference },
 ): Promise<void> {
-  const owner = await resolveMlDsaPasskeyOwner(input.walletId);
+  const owner = await resolveFullWalletOwner(input.walletId);
   if (owner.kind !== 'owner')
-    throw new Error('Unlock a full-owner passkey to change the default signing key.');
+    throw new Error('Unlock a full-owner method to change the default signing key.');
   const preference = input.preference;
   if (preference.kind === 'near_ml_dsa_65') {
     const inventory = await readNearSignerMetadata({

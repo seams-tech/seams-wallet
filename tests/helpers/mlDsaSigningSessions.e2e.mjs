@@ -117,6 +117,7 @@ function refused(outcome) {
 }
 async function prepareOperation(input) {
   const prepared = await input.api.prepareMlDsaNearSigning({
+    access: { kind: 'public' },
     relayerUrl: input.relayerUrl,
     publicKeyB64u: input.publicKeyB64u,
     request: { ...input.signingRequest, operationIdB64u: randomBytes(32).toString('base64url') },

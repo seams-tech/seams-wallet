@@ -3714,6 +3714,7 @@ export class BrowserSigningSurface {
         nearClient: this.nearClient,
         nonceCoordinator: this.nonceCoordinator,
         confirm: this.touchConfirm,
+        emailOtpSessions: this.emailOtpSessions,
       },
       input,
     );

@@ -1,3 +1,4 @@
+import type { MlDsaEmailOtpProof } from './mlDsaEmailOtp';
 import { exactRecord } from '../utils/exactRecord';
 import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { parseWalletId, type WalletId } from '../utils/domainIds';
@@ -6,6 +7,13 @@ import type { ReadonlyExclusiveUnion } from '../utils/variant';
 
 export type MlDsaSigningAuthorization<Credential> = ReadonlyExclusiveUnion<
   | { readonly kind: 'passkey'; readonly credential: Credential }
+  | { readonly kind: 'email_otp'; readonly proof: MlDsaEmailOtpProof }
+  | {
+      readonly kind: 'email_otp_session_start';
+      readonly proof: MlDsaEmailOtpProof;
+      readonly sessionIdB64u: DigestB64u;
+      readonly tokenB64u: DigestB64u;
+    }
   | {
       readonly kind: 'session_start';
       readonly credential: Credential;

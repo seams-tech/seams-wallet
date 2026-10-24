@@ -39,9 +39,7 @@ if (listCasesOnly) listCases(cases);
 else runCases(cases);
 
 function isSelectionArgument(argument) {
-  return (
-    argument !== '--' && argument !== '--list-cases' && argument !== '--require-google-token'
-  );
+  return argument !== '--' && argument !== '--list-cases' && argument !== '--require-google-token';
 }
 
 function listCases(casesToList) {
@@ -77,7 +75,11 @@ function runCase(testCase, index, total) {
   const caseRoot = path.join(tmpdir(), `seams-wallet-intended-${process.pid}-${caseNumber}`);
   const environment = {
     ...refreshedEnvironment,
-    SEAMS_INTENDED_ML_DSA: testCase.file.endsWith('ml-dsa.lifecycle.contract.test.ts') ? '1' : '0',
+    SEAMS_INTENDED_ML_DSA: /ml-dsa\.(lifecycle|authentication)\.contract\.test\.ts$/.test(
+      testCase.file,
+    )
+      ? '1'
+      : '0',
     SEAMS_INTENDED_APP_URL: 'http://localhost:4201',
     SEAMS_INTENDED_ROUTER_URL: 'http://127.0.0.1:4100',
     SEAMS_INTENDED_WALLET_ORIGIN: 'http://localhost:4202',

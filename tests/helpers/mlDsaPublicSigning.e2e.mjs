@@ -123,10 +123,10 @@ export async function verifyMlDsaPublicSigning({
       signingKeyId,
       operationIdB64u: randomBytes(32).toString('base64url'),
       unsignedTransactionBorshB64u,
-      rpId: 'wallet.example.test',
-      credentialIdB64u: key.credentialId,
+      actor: { kind: 'passkey', rpId: 'wallet.example.test', credentialIdB64u: key.credentialId },
     };
     const prepared = await api.prepareMlDsaNearSigning({
+      access: { kind: 'public' },
       relayerUrl: base,
       request: signingRequest,
       publicKeyB64u,
@@ -136,6 +136,7 @@ export async function verifyMlDsaPublicSigning({
     assert.equal(preparation.transaction.nonce, '9007199254740993');
     assert.deepEqual(
       await api.prepareMlDsaNearSigning({
+        access: { kind: 'public' },
         relayerUrl: base,
         request: signingRequest,
         publicKeyB64u,
@@ -297,6 +298,7 @@ export async function verifyMlDsaPublicSigning({
     checks.counterAndClaimCommitTogether = true;
     const second = { ...signingRequest, operationIdB64u: randomBytes(32).toString('base64url') };
     const next = await api.prepareMlDsaNearSigning({
+      access: { kind: 'public' },
       relayerUrl: base,
       request: second,
       publicKeyB64u,

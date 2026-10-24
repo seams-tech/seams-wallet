@@ -3,7 +3,8 @@ import type {
   MlDsaSigningAuthorization,
 } from '@shared/near/mlDsaSigningSession';
 import { parseMlDsaSigningSessionPolicy } from '@shared/near/mlDsaSigningSession';
-import type { MlDsaSigningPreparation } from '@shared/near/mlDsaSigning';
+import type { MlDsaEmailOtpProof } from '@shared/near/mlDsaEmailOtp';
+import type { MlDsaSigningPreparation, MlDsaSigningActor } from '@shared/near/mlDsaSigning';
 import {
   parseDigestB64u,
   sha256Utf8DigestB64u,
@@ -23,8 +24,10 @@ type CachedSession = {
   readonly remainingOperations: number;
   readonly policy: MlDsaSigningSessionPolicy;
 };
-export type MlDsaTransactionApproval = ReadonlyExclusiveUnion<
-  | { readonly kind: 'passkey'; readonly challengeB64u: DigestB64u }
+export type MlDsaTransactionApproval = {
+  readonly actor: MlDsaSigningActor;
+} & ReadonlyExclusiveUnion<
+  | { readonly kind: 'fresh'; readonly challengeB64u: DigestB64u }
   | {
       readonly kind: 'session_start';
       readonly scope: string;
@@ -77,7 +80,7 @@ async function revokeCachedSession(session: CachedSession): Promise<void> {
 }
 
 export function forgetMlDsaTransactionApproval(approval: MlDsaTransactionApproval): void {
-  if (approval.kind === 'passkey') return;
+  if (approval.kind === 'fresh') return;
   const current = sessions.get(approval.scope);
   if (!current || current.sessionIdB64u !== approval.session.sessionIdB64u) return;
   sessions.delete(approval.scope);
@@ -98,6 +101,7 @@ export async function prepareMlDsaTransactionApproval(input: {
     p.request.signingKeyId,
     input.materialEpoch,
     input.ownerDigestB64u,
+    p.request.actor,
   ]);
   const cached = sessions.get(scope);
   const policy = input.policy === null ? null : parseMlDsaSigningSessionPolicy(input.policy);
@@ -111,11 +115,18 @@ export async function prepareMlDsaTransactionApproval(input: {
     cached.remainingOperations > 0 &&
     matchingPolicy
   ) {
-    return { kind: 'session', scope, session: cached, challengeB64u: p.challengeB64u };
+    return {
+      kind: 'session',
+      actor: p.request.actor,
+      scope,
+      session: cached,
+      challengeB64u: p.challengeB64u,
+    };
   }
   sessions.delete(scope);
   if (cached && !matchingPolicy) await revokeCachedSession(cached);
-  if (policy === null) return { kind: 'passkey', challengeB64u: p.challengeB64u };
+  if (policy === null)
+    return { kind: 'fresh', actor: p.request.actor, challengeB64u: p.challengeB64u };
   const tokenB64u = parseDigestB64u(secureRandomBase64Url(32, 'ML-DSA signing session credential'));
   const { prepareMlDsaSigningSession } = await import('@/core/rpcClients/relayer/mlDsaSigning');
   const startedAtMs = Date.now();
@@ -138,6 +149,7 @@ export async function prepareMlDsaTransactionApproval(input: {
     throw new Error('The Gateway changed the ML-DSA signing session budget or expiry');
   return {
     kind: 'session_start',
+    actor: p.request.actor,
     scope,
     challengeB64u: prepared.preparation.challengeB64u,
     session: {
@@ -152,22 +164,44 @@ export async function prepareMlDsaTransactionApproval(input: {
   };
 }
 
+export type MlDsaConfirmationProof = ReadonlyExclusiveUnion<
+  | { readonly kind: 'passkey'; readonly credential: WebAuthnAuthenticationCredential }
+  | { readonly kind: 'email_otp'; readonly proof: MlDsaEmailOtpProof }
+  | { readonly kind: 'session' }
+>;
+
 export function authorizeMlDsaTransaction(input: {
   readonly approval: MlDsaTransactionApproval;
-  readonly credential: WebAuthnAuthenticationCredential | null;
+  readonly proof: MlDsaConfirmationProof;
 }): MlDsaSigningAuthorization<WebAuthnAuthenticationCredential> {
-  const approval = input.approval;
+  const { approval, proof } = input;
+  if (approval.kind === 'session') {
+    if (proof.kind !== 'session') throw new Error('A warm session must use its existing approval');
+  } else if (proof.kind === 'session' || approval.actor.kind !== proof.kind) {
+    throw new Error('The approval method differs from the selected owner');
+  }
+  if (
+    proof.kind === 'passkey' &&
+    (approval.actor.kind !== 'passkey' || proof.credential.id !== approval.actor.credentialIdB64u)
+  )
+    throw new Error('The signing approval used a different owner');
   switch (approval.kind) {
-    case 'passkey':
-      if (input.credential === null) throw new Error('ML-DSA signing requires its owner assertion');
-      return { kind: 'passkey', credential: input.credential };
+    case 'fresh':
+      switch (proof.kind) {
+        case 'passkey':
+          return { kind: 'passkey', credential: proof.credential };
+        case 'email_otp':
+          return { kind: 'email_otp', proof: proof.proof };
+        case 'session':
+          throw new Error('Fresh signing requires owner approval');
+        default:
+          return assertNever(proof);
+      }
     case 'session_start':
     case 'session': {
       const session = approval.session;
       if (session.expiresAtMs <= Date.now() || session.remainingOperations <= 0)
-        throw new Error('The ML-DSA signing session is expired or exhausted');
-      if (approval.kind === 'session_start' && input.credential === null)
-        throw new Error('The ML-DSA signing session requires owner approval');
+        throw new Error('The signing session is expired or exhausted');
       sessions.set(approval.scope, {
         walletId: session.walletId,
         relayerUrl: session.relayerUrl,
@@ -177,25 +211,35 @@ export function authorizeMlDsaTransaction(input: {
         remainingOperations: session.remainingOperations - 1,
         policy: session.policy,
       });
-      if (approval.kind === 'session')
-        return {
-          kind: 'session',
-          sessionIdB64u: session.sessionIdB64u,
-          tokenB64u: session.tokenB64u,
-        };
-      if (input.credential === null)
-        throw new Error('The ML-DSA signing session requires owner approval');
-      return {
-        kind: 'session_start',
-        sessionIdB64u: session.sessionIdB64u,
-        tokenB64u: session.tokenB64u,
-        credential: input.credential,
-      };
+      switch (proof.kind) {
+        case 'session':
+          return {
+            kind: 'session',
+            sessionIdB64u: session.sessionIdB64u,
+            tokenB64u: session.tokenB64u,
+          };
+        case 'passkey':
+          return {
+            kind: 'session_start',
+            credential: proof.credential,
+            sessionIdB64u: session.sessionIdB64u,
+            tokenB64u: session.tokenB64u,
+          };
+        case 'email_otp':
+          return {
+            kind: 'email_otp_session_start',
+            proof: proof.proof,
+            sessionIdB64u: session.sessionIdB64u,
+            tokenB64u: session.tokenB64u,
+          };
+        default:
+          return assertNever(proof);
+      }
     }
     default:
       return assertNever(approval);
   }
 }
 function assertNever(value: never): never {
-  throw new Error(`Unknown ML-DSA transaction approval: ${String(value)}`);
+  throw new Error(`Unknown signing approval: ${String(value)}`);
 }

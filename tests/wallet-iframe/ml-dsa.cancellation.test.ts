@@ -58,6 +58,10 @@ function postProgress(input, requestId, payload) {
   if (payload.phase === 'signing.transaction.signed') probe.succeeded++;
   input.post({ type: 'PROGRESS', requestId, payload });
 }
+async function selectNearTransactionSigner(input) {
+  if (input.request.kind !== 'near_ml_dsa_65') throw new Error('Unexpected signer selection');
+  return { kind: 'unreviewed', signer: input.request };
+}
 async function handleWalletHostRuntimeRequest(input) {
   const config = input.state.configuration.config;
   const deps = {
@@ -69,6 +73,7 @@ async function handleWalletHostRuntimeRequest(input) {
   const context = {
     configs: config,
     signingEngine: {
+      selectNearTransactionSigner,
       signMlDsaNearTransaction: signMlDsaNearTransaction.bind(null, deps),
     },
   };
@@ -100,15 +105,13 @@ export function preloadWalletHostRuntime() {}
 `;
 
 const custodySource = `
-export async function resolveMlDsaPasskeyOwner() {
-  return {
-    kind: 'owner',
-    authMethod: { rpId: 'example.localhost', credentialIdB64u: 'AQ' },
-    authority: { authorityDigestB64u: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
-  };
+export async function resolveMlDsaSigningOwner() {
+  return { kind: 'passkey', ownerDigestB64u: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', actor: { kind: 'passkey', rpId: 'example.localhost', credentialIdB64u: 'AQ' }, access: { kind: 'public' } };
 }
+export async function prepareMlDsaEmailPrompt() { throw new Error('Unexpected Email OTP owner'); }
+export function mlDsaConfirmationProof() { return { kind: 'passkey', credential: {} }; }
 export async function prepareMlDsaTransactionApproval(input) {
-  return { kind: 'passkey', challengeB64u: input.preparation.challengeB64u };
+  return { kind: 'fresh', actor: input.preparation.request.actor, challengeB64u: input.preparation.challengeB64u };
 }
 export function authorizeMlDsaTransaction() {
   return { kind: 'passkey', credential: {} };
@@ -175,7 +178,7 @@ function loadFixture(args: OnLoadArgs) {
 function resolveControl(args: { path: string; importer: string }) {
   const importer = args.importer;
   if (/\/mlDsaTransaction\.ts$/.test(importer)) {
-    if (args.path.endsWith('/mlDsaOwner') || args.path.endsWith('/mlDsaSigningSessions'))
+    if (args.path.endsWith('/mlDsaSigningAuth') || args.path.endsWith('/mlDsaSigningSessions'))
       return { path: 'custody', namespace: 'ml-dsa-control' };
     if (args.path.endsWith('/ml_dsa_signer.js'))
       return { path: 'codec', namespace: 'ml-dsa-control' };
@@ -382,10 +385,15 @@ for (const mode of [
     await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
     const gateway: Gateway = { mode, executions: [], held: null };
     await page.context().route('**/__ml-dsa-execute', executeGateway.bind(null, gateway));
-    await page.route('**/sdk/wallet-iframe-host-runtime.js', serveBundle.bind(null, bundle.outputFiles[0]!.text));
+    await page.route(
+      '**/sdk/wallet-iframe-host-runtime.js',
+      serveBundle.bind(null, bundle.outputFiles[0]!.text),
+    );
     await registerWalletServiceRoute(
       page,
-      buildWalletServiceHtml('/sdk', undefined, 'runtime', [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin]),
+      buildWalletServiceHtml('/sdk', undefined, 'runtime', [
+        new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin,
+      ]),
       '**://wallet.example.localhost/wallet-service*',
     );
     if (mode === 'rpc_timeout') {
@@ -578,7 +586,7 @@ async function runClientTimeoutCampaign(
         executions: gateway.executions,
         error: await page.evaluate(readClientTimeout),
         scope:
-            'Chromium production client timeout sender, host, commands, signing flow and retry loop. A 300ms test RPC timeout replaces the normal 20s setting. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification.',
+          'Chromium production client timeout sender, host, commands, signing flow and retry loop. A 300ms test RPC timeout replaces the normal 20s setting. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification.',
       },
       null,
       2,
