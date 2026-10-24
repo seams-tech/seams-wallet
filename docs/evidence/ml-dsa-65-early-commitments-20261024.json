@@ -1,0 +1,182 @@
+{
+  "schema": "seams.ml-dsa-early-commitments.v1",
+  "source_parent": "31cf137909dd7868cc32cfefee7faa7d926cfd59",
+  "selection": {
+    "selected": "current role-Worker execution and generic initial registration stock",
+    "prototype_retained": false,
+    "reason": "Sequential early commitments move initial private work into registration: 9.968 and 15.992 seconds. Six signatures verify in 2.272\u20138.640 seconds, four below five seconds. Both five-second targets remain unmet; the tested runtime and format changes are removed.",
+    "no_new_crypto_primitive": true,
+    "pool_capacity_unchanged": true
+  },
+  "cryptographic_primitive_change": false,
+  "public_sdk_wire_change": false,
+  "prototype_private_changes": [
+    "Earlier commitment messages in the registration transcript.",
+    "Tagged generic/committing/committed stock and v3 sealing domain.",
+    "Committed-only signing boundary."
+  ],
+  "preserved": {
+    "wallet_seed_recovery": true,
+    "fips_seed_key_export": true,
+    "private_commitments": true,
+    "preparation_on_workers": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "pool_candidates": 32,
+    "admission_ready_candidates": 16,
+    "cooldown_ms": 60000,
+    "active_signing_capacity": 1
+  },
+  "verification": {
+    "functional_checks_passed": true,
+    "same_policy": true,
+    "canonical_recovery_verified": true,
+    "signature_reverification": {
+      "verified": 22,
+      "changed_messages_rejected": 22
+    },
+    "role_capture": {
+      "control": {
+        "requests": 6,
+        "complete_role_capture": 6
+      },
+      "candidate": {
+        "requests": 6,
+        "complete_role_capture": 6
+      }
+    },
+    "generic_online_stock_burned_and_refused": true,
+    "interrupted_commitment_retired": true,
+    "reported_exceptions": [],
+    "consistent_five_second_target": false
+  },
+  "hosted": {
+    "control": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 65888.951291,
+          "registration_ms": 4915.575417,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 6790.213124999995,
+          "registration_plus_initial_signing_ms": 11705.788541999995
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 97346.467084,
+          "registration_ms": 5818.444167000009,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 4767.589458999981,
+          "registration_plus_initial_signing_ms": 10586.03362599999
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 4,
+        "minimum_ms": 2383.374416000006,
+        "median_ms": 4465.65852099999,
+        "maximum_ms": 6790.213124999995,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 17,
+      "commitment_spans": [],
+      "provider_invocations": 1128,
+      "reported_truncation": 0,
+      "exceptions": []
+    },
+    "candidate": {
+      "registration_functional_passed": true,
+      "canonical_recovery": true,
+      "ceremonies": [
+        {
+          "epoch": 1,
+          "preparation_ms": 97708.917958,
+          "registration_ms": 9968.191082999998,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 4531.8404579999915,
+          "registration_plus_initial_signing_ms": 14500.03154099999
+        },
+        {
+          "epoch": 2,
+          "preparation_ms": 94397.397833,
+          "registration_ms": 15991.985916000005,
+          "canonical_key_verified": true,
+          "initial_signing_ms": 3765.7997920000053,
+          "registration_plus_initial_signing_ms": 19757.78570800001
+        }
+      ],
+      "signing_summary": {
+        "requests": 6,
+        "verified": 6,
+        "below_5000_ms": 4,
+        "minimum_ms": 2272.232625000004,
+        "median_ms": 4227.956145999997,
+        "maximum_ms": 8640.244041999977,
+        "supplemental_present": true,
+        "supplemental_all_verified": true,
+        "admitted_outcomes": 6,
+        "exhausted_operations": 0
+      },
+      "total_consumed_pairs": 17,
+      "commitment_spans": [
+        {
+          "role": "a",
+          "job": "6223d7c4eaa9837db0eb483832a2982a531b2b17b970fb6367bcf14cd224cef2",
+          "elapsed_ms": 4357
+        },
+        {
+          "role": "a",
+          "job": "87ddf6ebef51ddb4bf6101ea4ac1867b307754ed7ee5b93e2ef9c040d15427f2",
+          "elapsed_ms": 10491
+        },
+        {
+          "role": "b",
+          "job": "6223d7c4eaa9837db0eb483832a2982a531b2b17b970fb6367bcf14cd224cef2",
+          "elapsed_ms": 4900
+        },
+        {
+          "role": "b",
+          "job": "87ddf6ebef51ddb4bf6101ea4ac1867b307754ed7ee5b93e2ef9c040d15427f2",
+          "elapsed_ms": 11130
+        }
+      ],
+      "provider_invocations": 1023,
+      "reported_truncation": 0,
+      "exceptions": []
+    }
+  },
+  "qualification": {
+    "same_policy": true,
+    "canonical_keys_match": true,
+    "consistent_five_second_qualification": false,
+    "limits": [
+      "Sequential fresh deployments do not randomize placement, host load, module tiering, caches, or rejection counts.",
+      "Per-pair Worker-clock intervals include CPU and waits. Zero elapsed clocks do not establish zero CPU cost.",
+      "Provider CPU and wall clocks cover whole invocations, not individual traced intervals.",
+      "This bounded lifecycle screen does not qualify sustained refill or multi-wallet capacity."
+    ]
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_failure",
+    "rust_duplicate_baseline": 13754,
+    "rust_duplicate_current": 13972,
+    "baseline_changed": false
+  },
+  "cleanup": {
+    "worker_destinations": 6,
+    "control_deleted": true,
+    "candidate_deleted": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-early-commitments-20261024-data.json.gz",
+    "bytes": 658750,
+    "sha256": "6b70e8a5db32ecfe2b570160c93a8e4f197b3fb59a44c9b07becb3506fe303da"
+  }
+}
