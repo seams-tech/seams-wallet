@@ -63,7 +63,7 @@ export function LiveVoiceId(): React.ReactNode {
         Record inside the Wallet. No native host or system settings are required.
       </p>
       <p>
-        When Listening appears, read the displayed sentence. Each recording allows eight seconds. VoiceID verifies your voice; the approval button confirms your intent.
+        When Listening appears, read the displayed sentence. Each recording allows eight seconds. VoiceID checks your voice and the displayed phrase. The approval button confirms your intent.
       </p>
       <dl>
         <dt>Wallet</dt>

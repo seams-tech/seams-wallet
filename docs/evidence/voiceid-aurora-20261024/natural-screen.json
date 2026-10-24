@@ -1,0 +1,530 @@
+[
+  {
+    "index": 0,
+    "voice": "Samantha",
+    "expected": "i like to read books",
+    "actual": "i like to read books",
+    "matched": true,
+    "seconds": 1.718375
+  },
+  {
+    "index": 0,
+    "voice": "Daniel",
+    "expected": "i like to read books",
+    "actual": "i like to rean boxs",
+    "matched": false,
+    "seconds": 1.8729375
+  },
+  {
+    "index": 1,
+    "voice": "Samantha",
+    "expected": "i want to go home",
+    "actual": "i want to go home",
+    "matched": true,
+    "seconds": 1.64875
+  },
+  {
+    "index": 1,
+    "voice": "Daniel",
+    "expected": "i want to go home",
+    "actual": "i want to go home",
+    "matched": true,
+    "seconds": 1.7916875
+  },
+  {
+    "index": 2,
+    "voice": "Samantha",
+    "expected": "we are here together",
+    "actual": "we are here together",
+    "matched": true,
+    "seconds": 1.4918125
+  },
+  {
+    "index": 2,
+    "voice": "Daniel",
+    "expected": "we are here together",
+    "actual": "we are head again the",
+    "matched": false,
+    "seconds": 1.471125
+  },
+  {
+    "index": 3,
+    "voice": "Samantha",
+    "expected": "today is a good day",
+    "actual": "to day as the good day",
+    "matched": false,
+    "seconds": 1.6225625
+  },
+  {
+    "index": 3,
+    "voice": "Daniel",
+    "expected": "today is a good day",
+    "actual": "to day is a good day",
+    "matched": false,
+    "seconds": 1.72875
+  },
+  {
+    "index": 4,
+    "voice": "Samantha",
+    "expected": "the sky is blue today",
+    "actual": "the sky is blue to day",
+    "matched": false,
+    "seconds": 1.8326875
+  },
+  {
+    "index": 4,
+    "voice": "Daniel",
+    "expected": "the sky is blue today",
+    "actual": "the ski is blute to day",
+    "matched": false,
+    "seconds": 1.9335625
+  },
+  {
+    "index": 5,
+    "voice": "Samantha",
+    "expected": "the sun is shining today",
+    "actual": "the sun is shining to day",
+    "matched": false,
+    "seconds": 1.8675625
+  },
+  {
+    "index": 5,
+    "voice": "Daniel",
+    "expected": "the sun is shining today",
+    "actual": "the sun is shining to day",
+    "matched": false,
+    "seconds": 2.0380625
+  },
+  {
+    "index": 6,
+    "voice": "Samantha",
+    "expected": "i can hear the music",
+    "actual": "i can hear the music",
+    "matched": true,
+    "seconds": 1.660625
+  },
+  {
+    "index": 6,
+    "voice": "Daniel",
+    "expected": "i can hear the music",
+    "actual": "i can hear the music",
+    "matched": true,
+    "seconds": 1.836
+  },
+  {
+    "index": 7,
+    "voice": "Samantha",
+    "expected": "i am ready to begin",
+    "actual": "i am ready to begin",
+    "matched": true,
+    "seconds": 1.672375
+  },
+  {
+    "index": 7,
+    "voice": "Daniel",
+    "expected": "i am ready to begin",
+    "actual": "i am ready to thegain",
+    "matched": false,
+    "seconds": 1.777625
+  },
+  {
+    "index": 8,
+    "voice": "Samantha",
+    "expected": "this is my own voice",
+    "actual": "this is my own voice",
+    "matched": true,
+    "seconds": 1.659625
+  },
+  {
+    "index": 8,
+    "voice": "Daniel",
+    "expected": "this is my own voice",
+    "actual": "this is my own voice",
+    "matched": true,
+    "seconds": 2.0381875
+  },
+  {
+    "index": 9,
+    "voice": "Samantha",
+    "expected": "i will open my wallet",
+    "actual": "i will open my wall it",
+    "matched": false,
+    "seconds": 1.695125
+  },
+  {
+    "index": 9,
+    "voice": "Daniel",
+    "expected": "i will open my wallet",
+    "actual": "i will open my wallet",
+    "matched": true,
+    "seconds": 1.836
+  },
+  {
+    "index": 10,
+    "voice": "Samantha",
+    "expected": "please open my wallet now",
+    "actual": "please sopened my walled now",
+    "matched": false,
+    "seconds": 2.2043125
+  },
+  {
+    "index": 10,
+    "voice": "Daniel",
+    "expected": "please open my wallet now",
+    "actual": "pleas open my walled now",
+    "matched": false,
+    "seconds": 2.2755625
+  },
+  {
+    "index": 11,
+    "voice": "Samantha",
+    "expected": "i can see the garden",
+    "actual": "i can see the garden",
+    "matched": true,
+    "seconds": 1.6490625
+  },
+  {
+    "index": 11,
+    "voice": "Daniel",
+    "expected": "i can see the garden",
+    "actual": "i can see the goden",
+    "matched": false,
+    "seconds": 1.870875
+  },
+  {
+    "index": 12,
+    "voice": "Samantha",
+    "expected": "the children are playing outside",
+    "actual": "the children are playing outside",
+    "matched": true,
+    "seconds": 2.378375
+  },
+  {
+    "index": 12,
+    "voice": "Daniel",
+    "expected": "the children are playing outside",
+    "actual": "the children not playing outside",
+    "matched": false,
+    "seconds": 2.4213125
+  },
+  {
+    "index": 13,
+    "voice": "Samantha",
+    "expected": "we are going home now",
+    "actual": "we are going home now",
+    "matched": true,
+    "seconds": 1.8516875
+  },
+  {
+    "index": 13,
+    "voice": "Daniel",
+    "expected": "we are going home now",
+    "actual": "we are going home now",
+    "matched": true,
+    "seconds": 1.9123125
+  },
+  {
+    "index": 14,
+    "voice": "Samantha",
+    "expected": "please bring me some water",
+    "actual": "please bring me some water",
+    "matched": true,
+    "seconds": 1.8444375
+  },
+  {
+    "index": 14,
+    "voice": "Daniel",
+    "expected": "please bring me some water",
+    "actual": "pleas bring me some water",
+    "matched": false,
+    "seconds": 2.147875
+  },
+  {
+    "index": 15,
+    "voice": "Samantha",
+    "expected": "my brother likes to read",
+    "actual": "my brother likes to read",
+    "matched": true,
+    "seconds": 1.86525
+  },
+  {
+    "index": 15,
+    "voice": "Daniel",
+    "expected": "my brother likes to read",
+    "actual": "my brother likes to rid",
+    "matched": false,
+    "seconds": 2.065125
+  },
+  {
+    "index": 16,
+    "voice": "Samantha",
+    "expected": "the little dog is sleeping",
+    "actual": "the little dog is sleeping",
+    "matched": true,
+    "seconds": 1.89075
+  },
+  {
+    "index": 16,
+    "voice": "Daniel",
+    "expected": "the little dog is sleeping",
+    "actual": "the little dog is sleeping",
+    "matched": true,
+    "seconds": 2.0495625
+  },
+  {
+    "index": 17,
+    "voice": "Samantha",
+    "expected": "the river is running slowly",
+    "actual": "the river is running slowly",
+    "matched": true,
+    "seconds": 1.99525
+  },
+  {
+    "index": 17,
+    "voice": "Daniel",
+    "expected": "the river is running slowly",
+    "actual": "the river is running slowly",
+    "matched": true,
+    "seconds": 2.10775
+  },
+  {
+    "index": 18,
+    "voice": "Samantha",
+    "expected": "i want a glass of water",
+    "actual": "i want a glass of water",
+    "matched": true,
+    "seconds": 1.8228125
+  },
+  {
+    "index": 18,
+    "voice": "Daniel",
+    "expected": "i want a glass of water",
+    "actual": "i want a glass of water",
+    "matched": true,
+    "seconds": 2.161125
+  },
+  {
+    "index": 19,
+    "voice": "Samantha",
+    "expected": "can you open the window",
+    "actual": "can you open the window",
+    "matched": true,
+    "seconds": 1.680625
+  },
+  {
+    "index": 19,
+    "voice": "Daniel",
+    "expected": "can you open the window",
+    "actual": "can you open the window",
+    "matched": true,
+    "seconds": 1.729875
+  },
+  {
+    "index": 20,
+    "voice": "Samantha",
+    "expected": "they walked along the road",
+    "actual": "they walked along the road",
+    "matched": true,
+    "seconds": 1.683
+  },
+  {
+    "index": 20,
+    "voice": "Daniel",
+    "expected": "they walked along the road",
+    "actual": "they walked along the rad",
+    "matched": false,
+    "seconds": 1.8639375
+  },
+  {
+    "index": 21,
+    "voice": "Samantha",
+    "expected": "the stars are shining tonight",
+    "actual": "the stars are shining to night",
+    "matched": false,
+    "seconds": 2.111375
+  },
+  {
+    "index": 21,
+    "voice": "Daniel",
+    "expected": "the stars are shining tonight",
+    "actual": "the stars are shining to night",
+    "matched": false,
+    "seconds": 2.258625
+  },
+  {
+    "index": 22,
+    "voice": "Samantha",
+    "expected": "i like the sound of rain",
+    "actual": "i liked the sound of rain",
+    "matched": false,
+    "seconds": 1.8231875
+  },
+  {
+    "index": 22,
+    "voice": "Daniel",
+    "expected": "i like the sound of rain",
+    "actual": "i like the sound of rain",
+    "matched": true,
+    "seconds": 2.242375
+  },
+  {
+    "index": 23,
+    "voice": "Samantha",
+    "expected": "we sat beside the river",
+    "actual": "we sat beside the river",
+    "matched": true,
+    "seconds": 1.816875
+  },
+  {
+    "index": 23,
+    "voice": "Daniel",
+    "expected": "we sat beside the river",
+    "actual": "we sat beside the river",
+    "matched": true,
+    "seconds": 1.8890625
+  },
+  {
+    "index": 24,
+    "voice": "Samantha",
+    "expected": "they are waiting for us",
+    "actual": "they are waiting for us",
+    "matched": true,
+    "seconds": 1.6713125
+  },
+  {
+    "index": 24,
+    "voice": "Daniel",
+    "expected": "they are waiting for us",
+    "actual": "they are waiting for us",
+    "matched": true,
+    "seconds": 1.933625
+  },
+  {
+    "index": 25,
+    "voice": "Samantha",
+    "expected": "she is reading a book",
+    "actual": "she is reading a book",
+    "matched": true,
+    "seconds": 1.5825625
+  },
+  {
+    "index": 25,
+    "voice": "Daniel",
+    "expected": "she is reading a book",
+    "actual": "she is reading a book",
+    "matched": true,
+    "seconds": 1.7136875
+  },
+  {
+    "index": 26,
+    "voice": "Samantha",
+    "expected": "he is looking at me",
+    "actual": "he is looking at me",
+    "matched": true,
+    "seconds": 1.5049375
+  },
+  {
+    "index": 26,
+    "voice": "Daniel",
+    "expected": "he is looking at me",
+    "actual": "he is looking at me",
+    "matched": true,
+    "seconds": 1.7464375
+  },
+  {
+    "index": 27,
+    "voice": "Samantha",
+    "expected": "please take a seat here",
+    "actual": "cleas take a seat here",
+    "matched": false,
+    "seconds": 1.7166875
+  },
+  {
+    "index": 27,
+    "voice": "Daniel",
+    "expected": "please take a seat here",
+    "actual": "crees take a seat here",
+    "matched": false,
+    "seconds": 2.0085625
+  },
+  {
+    "index": 28,
+    "voice": "Samantha",
+    "expected": "i will see you tomorrow",
+    "actual": "i will see you to morrow",
+    "matched": false,
+    "seconds": 1.7531875
+  },
+  {
+    "index": 28,
+    "voice": "Daniel",
+    "expected": "i will see you tomorrow",
+    "actual": "i will see you to morrow",
+    "matched": false,
+    "seconds": 1.9056875
+  },
+  {
+    "index": 29,
+    "voice": "Samantha",
+    "expected": "the door is open now",
+    "actual": "the door is open now",
+    "matched": true,
+    "seconds": 1.6701875
+  },
+  {
+    "index": 29,
+    "voice": "Daniel",
+    "expected": "the door is open now",
+    "actual": "the door is open now",
+    "matched": true,
+    "seconds": 1.8405625
+  },
+  {
+    "index": 30,
+    "voice": "Samantha",
+    "expected": "let us go home now",
+    "actual": "let us go home now",
+    "matched": true,
+    "seconds": 1.7495625
+  },
+  {
+    "index": 30,
+    "voice": "Daniel",
+    "expected": "let us go home now",
+    "actual": "let us go home now",
+    "matched": true,
+    "seconds": 1.90275
+  },
+  {
+    "index": 31,
+    "voice": "Samantha",
+    "expected": "that is a good idea",
+    "actual": "that is a good idea",
+    "matched": true,
+    "seconds": 1.4969375
+  },
+  {
+    "index": 31,
+    "voice": "Daniel",
+    "expected": "that is a good idea",
+    "actual": "that is a good idea",
+    "matched": true,
+    "seconds": 1.5965
+  },
+  {
+    "index": 32,
+    "voice": "Samantha",
+    "expected": "come and sit with me",
+    "actual": "come and sit with me",
+    "matched": true,
+    "seconds": 1.5414375
+  },
+  {
+    "index": 32,
+    "voice": "Daniel",
+    "expected": "come and sit with me",
+    "actual": "come and sit with me",
+    "matched": true,
+    "seconds": 1.66025
+  }
+]

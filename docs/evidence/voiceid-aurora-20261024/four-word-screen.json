@@ -1,0 +1,514 @@
+[
+  {
+    "index": 0,
+    "voice": "Samantha",
+    "expected": "the birds sing softly",
+    "actual": "the bird sened softly",
+    "matched": false,
+    "seconds": 1.705
+  },
+  {
+    "index": 0,
+    "voice": "Daniel",
+    "expected": "the birds sing softly",
+    "actual": "the bed sing softly",
+    "matched": false,
+    "seconds": 1.9338125
+  },
+  {
+    "index": 1,
+    "voice": "Samantha",
+    "expected": "the river runs slowly",
+    "actual": "the river run slowly",
+    "matched": false,
+    "seconds": 1.612125
+  },
+  {
+    "index": 1,
+    "voice": "Daniel",
+    "expected": "the river runs slowly",
+    "actual": "the river run slowly",
+    "matched": false,
+    "seconds": 1.7594375
+  },
+  {
+    "index": 2,
+    "voice": "Samantha",
+    "expected": "the sun shines brightly",
+    "actual": "the sunhines bridly",
+    "matched": false,
+    "seconds": 1.914
+  },
+  {
+    "index": 2,
+    "voice": "Daniel",
+    "expected": "the sun shines brightly",
+    "actual": "the sunhines bridly",
+    "matched": false,
+    "seconds": 2.073125
+  },
+  {
+    "index": 3,
+    "voice": "Samantha",
+    "expected": "the children play outside",
+    "actual": "the children play outsidghe",
+    "matched": false,
+    "seconds": 2.0416875
+  },
+  {
+    "index": 3,
+    "voice": "Daniel",
+    "expected": "the children play outside",
+    "actual": "the children play outside",
+    "matched": true,
+    "seconds": 2.1423125
+  },
+  {
+    "index": 4,
+    "voice": "Samantha",
+    "expected": "the flowers smell sweet",
+    "actual": "the flow smell sweed",
+    "matched": false,
+    "seconds": 1.8675625
+  },
+  {
+    "index": 4,
+    "voice": "Daniel",
+    "expected": "the flowers smell sweet",
+    "actual": "the flowers smell swed",
+    "matched": false,
+    "seconds": 2.015125
+  },
+  {
+    "index": 5,
+    "voice": "Samantha",
+    "expected": "the dog sleeps here",
+    "actual": "the dog sleeps here",
+    "matched": true,
+    "seconds": 1.5424375
+  },
+  {
+    "index": 5,
+    "voice": "Daniel",
+    "expected": "the dog sleeps here",
+    "actual": "the dun sleeps here",
+    "matched": false,
+    "seconds": 1.7131875
+  },
+  {
+    "index": 6,
+    "voice": "Samantha",
+    "expected": "the music sounds beautiful",
+    "actual": "the music sounds beautiful",
+    "matched": true,
+    "seconds": 2.0185
+  },
+  {
+    "index": 6,
+    "voice": "Daniel",
+    "expected": "the music sounds beautiful",
+    "actual": "the music sounds beautififul",
+    "matched": false,
+    "seconds": 2.281875
+  },
+  {
+    "index": 7,
+    "voice": "Samantha",
+    "expected": "the garden looks beautiful",
+    "actual": "the garden looks beautiful",
+    "matched": true,
+    "seconds": 1.8675625
+  },
+  {
+    "index": 7,
+    "voice": "Daniel",
+    "expected": "the garden looks beautiful",
+    "actual": "the garden looks beuts of thor",
+    "matched": false,
+    "seconds": 2.07275
+  },
+  {
+    "index": 8,
+    "voice": "Samantha",
+    "expected": "the water feels cold",
+    "actual": "the water fields cold",
+    "matched": false,
+    "seconds": 1.6701875
+  },
+  {
+    "index": 8,
+    "voice": "Daniel",
+    "expected": "the water feels cold",
+    "actual": "the water fields cold",
+    "matched": false,
+    "seconds": 1.9454375
+  },
+  {
+    "index": 9,
+    "voice": "Samantha",
+    "expected": "the sky looks blue",
+    "actual": "his sky looks blow",
+    "matched": false,
+    "seconds": 1.51925
+  },
+  {
+    "index": 9,
+    "voice": "Daniel",
+    "expected": "the sky looks blue",
+    "actual": "the sky looks bloon",
+    "matched": false,
+    "seconds": 1.7480625
+  },
+  {
+    "index": 10,
+    "voice": "Samantha",
+    "expected": "the road goes north",
+    "actual": "the road goes north",
+    "matched": true,
+    "seconds": 1.5540625
+  },
+  {
+    "index": 10,
+    "voice": "Daniel",
+    "expected": "the road goes north",
+    "actual": "the road gth",
+    "matched": false,
+    "seconds": 1.7480625
+  },
+  {
+    "index": 11,
+    "voice": "Samantha",
+    "expected": "the wind blows softly",
+    "actual": "the windlows softly",
+    "matched": false,
+    "seconds": 1.6701875
+  },
+  {
+    "index": 11,
+    "voice": "Daniel",
+    "expected": "the wind blows softly",
+    "actual": "the wind glows softlame",
+    "matched": false,
+    "seconds": 1.899
+  },
+  {
+    "index": 12,
+    "voice": "Samantha",
+    "expected": "the stars shine tonight",
+    "actual": "the starshine to night",
+    "matched": false,
+    "seconds": 1.7630625
+  },
+  {
+    "index": 12,
+    "voice": "Daniel",
+    "expected": "the stars shine tonight",
+    "actual": "the stars shin to night",
+    "matched": false,
+    "seconds": 1.9105625
+  },
+  {
+    "index": 13,
+    "voice": "Samantha",
+    "expected": "the little dog sleeps",
+    "actual": "the little dog sleepes",
+    "matched": false,
+    "seconds": 1.78625
+  },
+  {
+    "index": 13,
+    "voice": "Daniel",
+    "expected": "the little dog sleeps",
+    "actual": "the little dog sleepes",
+    "matched": false,
+    "seconds": 1.88725
+  },
+  {
+    "index": 14,
+    "voice": "Samantha",
+    "expected": "the small bird sings",
+    "actual": "the small bird sings",
+    "matched": true,
+    "seconds": 1.705
+  },
+  {
+    "index": 14,
+    "voice": "Daniel",
+    "expected": "the small bird sings",
+    "actual": "the small bd sings",
+    "matched": false,
+    "seconds": 1.968625
+  },
+  {
+    "index": 15,
+    "voice": "Samantha",
+    "expected": "the green grass grows",
+    "actual": "the green grass groows",
+    "matched": false,
+    "seconds": 1.7398125
+  },
+  {
+    "index": 15,
+    "voice": "Daniel",
+    "expected": "the green grass grows",
+    "actual": "the green grass grows",
+    "matched": true,
+    "seconds": 2.08475
+  },
+  {
+    "index": 16,
+    "voice": "Samantha",
+    "expected": "my sister likes music",
+    "actual": "my sister lik' music",
+    "matched": false,
+    "seconds": 1.981375
+  },
+  {
+    "index": 16,
+    "voice": "Daniel",
+    "expected": "my sister likes music",
+    "actual": "my sister likees music",
+    "matched": false,
+    "seconds": 2.192875
+  },
+  {
+    "index": 17,
+    "voice": "Samantha",
+    "expected": "my brother reads books",
+    "actual": "my brother reeds books",
+    "matched": false,
+    "seconds": 1.8305625
+  },
+  {
+    "index": 17,
+    "voice": "Daniel",
+    "expected": "my brother reads books",
+    "actual": "my brother reeds books",
+    "matched": false,
+    "seconds": 1.972375
+  },
+  {
+    "index": 18,
+    "voice": "Samantha",
+    "expected": "we walk home together",
+    "actual": "we walk home together",
+    "matched": true,
+    "seconds": 1.6195
+  },
+  {
+    "index": 18,
+    "voice": "Daniel",
+    "expected": "we walk home together",
+    "actual": "we walked home together",
+    "matched": false,
+    "seconds": 1.865875
+  },
+  {
+    "index": 19,
+    "voice": "Samantha",
+    "expected": "we read books together",
+    "actual": "we read books together",
+    "matched": true,
+    "seconds": 1.6195
+  },
+  {
+    "index": 19,
+    "voice": "Daniel",
+    "expected": "we read books together",
+    "actual": "we read books together",
+    "matched": true,
+    "seconds": 1.74975
+  },
+  {
+    "index": 20,
+    "voice": "Samantha",
+    "expected": "she likes fresh flowers",
+    "actual": "she likes fresh flowers",
+    "matched": true,
+    "seconds": 1.9540625
+  },
+  {
+    "index": 20,
+    "voice": "Daniel",
+    "expected": "she likes fresh flowers",
+    "actual": "she liked freshlars",
+    "matched": false,
+    "seconds": 2.1670625
+  },
+  {
+    "index": 21,
+    "voice": "Samantha",
+    "expected": "he drinks cold water",
+    "actual": "he drinks cold water",
+    "matched": true,
+    "seconds": 1.7371875
+  },
+  {
+    "index": 21,
+    "voice": "Daniel",
+    "expected": "he drinks cold water",
+    "actual": "he drinks held water",
+    "matched": false,
+    "seconds": 1.792875
+  },
+  {
+    "index": 22,
+    "voice": "Samantha",
+    "expected": "please open the window",
+    "actual": "please open the window",
+    "matched": true,
+    "seconds": 1.6470625
+  },
+  {
+    "index": 22,
+    "voice": "Daniel",
+    "expected": "please open the window",
+    "actual": "cleas open the window",
+    "matched": false,
+    "seconds": 1.7183125
+  },
+  {
+    "index": 23,
+    "voice": "Samantha",
+    "expected": "please close the door",
+    "actual": "please cloos the door",
+    "matched": false,
+    "seconds": 1.56575
+  },
+  {
+    "index": 23,
+    "voice": "Daniel",
+    "expected": "please close the door",
+    "actual": "prez clse the door",
+    "matched": false,
+    "seconds": 1.7183125
+  },
+  {
+    "index": 24,
+    "voice": "Samantha",
+    "expected": "bring me some water",
+    "actual": "gring me some water",
+    "matched": false,
+    "seconds": 1.362125
+  },
+  {
+    "index": 24,
+    "voice": "Daniel",
+    "expected": "bring me some water",
+    "actual": "bring me some water",
+    "matched": true,
+    "seconds": 1.7048125
+  },
+  {
+    "index": 25,
+    "voice": "Samantha",
+    "expected": "show me the garden",
+    "actual": "show me the garden",
+    "matched": true,
+    "seconds": 1.408
+  },
+  {
+    "index": 25,
+    "voice": "Daniel",
+    "expected": "show me the garden",
+    "actual": "shw me the goden",
+    "matched": false,
+    "seconds": 1.5630625
+  },
+  {
+    "index": 26,
+    "voice": "Samantha",
+    "expected": "we watch the stars",
+    "actual": "we watche the stars",
+    "matched": false,
+    "seconds": 1.53825
+  },
+  {
+    "index": 26,
+    "voice": "Daniel",
+    "expected": "we watch the stars",
+    "actual": "we want to the stars",
+    "matched": false,
+    "seconds": 1.669875
+  },
+  {
+    "index": 27,
+    "voice": "Samantha",
+    "expected": "we enjoy warm weather",
+    "actual": "we enjoy warm whether",
+    "matched": false,
+    "seconds": 1.74725
+  },
+  {
+    "index": 27,
+    "voice": "Daniel",
+    "expected": "we enjoy warm weather",
+    "actual": "we enjoy warm whether",
+    "matched": false,
+    "seconds": 1.842625
+  },
+  {
+    "index": 28,
+    "voice": "Samantha",
+    "expected": "the apples taste sweet",
+    "actual": "the apple's taste swee",
+    "matched": false,
+    "seconds": 1.9963125
+  },
+  {
+    "index": 28,
+    "voice": "Daniel",
+    "expected": "the apples taste sweet",
+    "actual": "the ales taste swet",
+    "matched": false,
+    "seconds": 2.0269375
+  },
+  {
+    "index": 29,
+    "voice": "Samantha",
+    "expected": "the horse runs fast",
+    "actual": "the horse runs fast",
+    "matched": true,
+    "seconds": 1.72825
+  },
+  {
+    "index": 29,
+    "voice": "Daniel",
+    "expected": "the horse runs fast",
+    "actual": "their horse runs firast",
+    "matched": false,
+    "seconds": 2.015
+  },
+  {
+    "index": 30,
+    "voice": "Samantha",
+    "expected": "the light shines brightly",
+    "actual": "the light shines bridly",
+    "matched": false,
+    "seconds": 1.879125
+  },
+  {
+    "index": 30,
+    "voice": "Daniel",
+    "expected": "the light shines brightly",
+    "actual": "the light shines bridly",
+    "matched": false,
+    "seconds": 2.0265625
+  },
+  {
+    "index": 31,
+    "voice": "Samantha",
+    "expected": "the bells ring loudly",
+    "actual": "the bells ring loudly",
+    "matched": true,
+    "seconds": 1.5424375
+  },
+  {
+    "index": 31,
+    "voice": "Daniel",
+    "expected": "the bells ring loudly",
+    "actual": "the bells ring louly",
+    "matched": false,
+    "seconds": 1.7364375
+  }
+]

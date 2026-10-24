@@ -1,0 +1,1460 @@
+[
+  {
+    "dataset": "calibration",
+    "expected": "i like to read books",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 77.67786407470703,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i like to read books",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 68.17543029785156,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i want to go home",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "i want to go home",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i want to go home",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "i want to go home",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we are here together",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 111.98251342773438,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we are here together",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 63.701255798339844,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "today is a good day",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 62.451812744140625,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "today is a good day",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 50.35517883300781,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the sky is blue today",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 93.40847778320312,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the sky is blue today",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 86.27674102783203,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the sun is shining today",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 107.86358642578125,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the sun is shining today",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 119.16541290283203,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i can hear the music",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i can hear the music",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i am ready to begin",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 104.03294372558594,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i am ready to begin",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 81.12266540527344,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "this is my own voice",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "this is my own voice",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "this is my own voice",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "this is my own voice",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i will open my wallet",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 83.97811126708984,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i will open my wallet",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 70.72023010253906,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please open my wallet now",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 79.99085235595703,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please open my wallet now",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 60.32984924316406,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i can see the garden",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 83.31219482421875,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i can see the garden",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 57.88554763793945,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the children are playing outside",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 157.43067932128906,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the children are playing outside",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 147.52101135253906,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we are going home now",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "we are going home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we are going home now",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "we are going home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please bring me some water",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 131.31826782226562,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please bring me some water",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 99.11128234863281,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "my brother likes to read",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 121.45050048828125,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "my brother likes to read",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 121.12288665771484,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the little dog is sleeping",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the little dog is sleeping",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the river is running slowly",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the river is running slowly",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i want a glass of water",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i want a glass of water",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "can you open the window",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "can you open the window",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "can you open the window",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "can you open the window",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "they walked along the road",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 117.70033264160156,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "they walked along the road",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 93.92748260498047,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the stars are shining tonight",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 102.7661361694336,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the stars are shining tonight",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 84.53460693359375,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i like the sound of rain",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 123.83267974853516,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i like the sound of rain",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 112.91863250732422,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we sat beside the river",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "we sat beside the river",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "they are waiting for us",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "they are waiting for us",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "she is reading a book",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "she is reading a book",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "he is looking at me",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "he is looking at me",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please take a seat here",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 87.2899398803711,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "please take a seat here",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 76.63583374023438,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i will see you tomorrow",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 137.42459106445312,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "i will see you tomorrow",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 99.37718200683594,
+    "correct": false
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the door is open now",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "the door is open now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "the door is open now",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "the door is open now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "let us go home now",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "let us go home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "let us go home now",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "let us go home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "that is a good idea",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "that is a good idea",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "come and sit with me",
+    "voice": "Samantha",
+    "inside": true,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "calibration",
+    "expected": "come and sit with me",
+    "voice": "Daniel",
+    "inside": true,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i want to go home",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "i want to go home",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i want to go home",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "i want to go home",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i can hear the music",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i can hear the music",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "this is my own voice",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "this is my own voice",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "this is my own voice",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "this is my own voice",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "we are going home now",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "we are going home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "we are going home now",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "we are going home now",
+    "gapToGreedy": 0.1052619218826294,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the little dog is sleeping",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the little dog is sleeping",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the river is running slowly",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 2.4557607173919678,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the river is running slowly",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i want a glass of water",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "i want a glass of water",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 1.7270087003707886,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "can you open the window",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "can you open the window",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "can you open the window",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "can you open the window",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "we sat beside the river",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "we sat beside the river",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "they are waiting for us",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 19.440481185913086,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "they are waiting for us",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 0.27822375297546387,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "she is reading a book",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 0.7377099990844727,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "she is reading a book",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "he is looking at me",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 3.403641700744629,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "he is looking at me",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 2.2593023777008057,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the door is open now",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "the door is open now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "the door is open now",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "the door is open now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "let us go home now",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "let us go home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "let us go home now",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "let us go home now",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "that is a good idea",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 0.0,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "that is a good idea",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 4.929051876068115,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "come and sit with me",
+    "voice": "Karen",
+    "inside": true,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 4.255793571472168,
+    "correct": true
+  },
+  {
+    "dataset": "evaluation",
+    "expected": "come and sit with me",
+    "voice": "Moira",
+    "inside": true,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 21.031917572021484,
+    "correct": true
+  },
+  {
+    "dataset": "outside",
+    "expected": "the birds sing softly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 136.9561004638672,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the birds sing softly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 107.44585418701172,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the river runs slowly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 33.655399322509766,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the river runs slowly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 33.404232025146484,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the sun shines brightly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 114.2179183959961,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the sun shines brightly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 112.94454193115234,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the children play outside",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 161.94187927246094,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the children play outside",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 162.52267456054688,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the flowers smell sweet",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 116.7903823852539,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the flowers smell sweet",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 118.7073974609375,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the dog sleeps here",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 95.38407897949219,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the dog sleeps here",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 98.69915008544922,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the music sounds beautiful",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 165.13113403320312,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the music sounds beautiful",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 126.81404113769531,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the garden looks beautiful",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 158.15843200683594,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the garden looks beautiful",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 94.53730773925781,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the water feels cold",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 99.22711944580078,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the water feels cold",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 87.78511810302734,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the sky looks blue",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 79.48452758789062,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the sky looks blue",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 97.35038757324219,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the road goes north",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "we are going home now",
+    "gapToGreedy": 68.93730163574219,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the road goes north",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 64.10242462158203,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the wind blows softly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 110.36196899414062,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the wind blows softly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 91.28645324707031,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the stars shine tonight",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 86.30059814453125,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the stars shine tonight",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 69.991455078125,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the little dog sleeps",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 27.773880004882812,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the little dog sleeps",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 29.206247329711914,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the small bird sings",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 116.04949951171875,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the small bird sings",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 100.57603454589844,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the green grass grows",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 119.65422058105469,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the green grass grows",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 111.13532257080078,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "my sister likes music",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 65.22498321533203,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "my sister likes music",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 46.31795883178711,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "my brother reads books",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 90.95402526855469,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "my brother reads books",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 100.12368774414062,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we walk home together",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 112.94635009765625,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we walk home together",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "we are going home now",
+    "gapToGreedy": 98.23070526123047,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we read books together",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 108.84559631347656,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we read books together",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 95.73648071289062,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "she likes fresh flowers",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 147.54800415039062,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "she likes fresh flowers",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "he is looking at me",
+    "gapToGreedy": 114.43563079833984,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "he drinks cold water",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 150.0268096923828,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "he drinks cold water",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i can hear the music",
+    "gapToGreedy": 117.980712890625,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "please open the window",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 33.21072769165039,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "please open the window",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "can you open the window",
+    "gapToGreedy": 21.833351135253906,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "please close the door",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 123.06388854980469,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "please close the door",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "she is reading a book",
+    "gapToGreedy": 84.89930725097656,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "bring me some water",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 115.82831573486328,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "bring me some water",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "we are going home now",
+    "gapToGreedy": 91.3152084350586,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "show me the garden",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 106.43547058105469,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "show me the garden",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 69.1578369140625,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we watch the stars",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 107.01383209228516,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we watch the stars",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "i want to go home",
+    "gapToGreedy": 49.1939582824707,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we enjoy warm weather",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "we are going home now",
+    "gapToGreedy": 97.10103607177734,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "we enjoy warm weather",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "we are going home now",
+    "gapToGreedy": 85.40412139892578,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the apples taste sweet",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 83.40258026123047,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the apples taste sweet",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 91.73819732666016,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the horse runs fast",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "the door is open now",
+    "gapToGreedy": 91.27286529541016,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the horse runs fast",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 82.19176483154297,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the light shines brightly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 100.98281860351562,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the light shines brightly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "come and sit with me",
+    "gapToGreedy": 113.4251708984375,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the bells ring loudly",
+    "voice": "Samantha",
+    "inside": false,
+    "recognized": "that is a good idea",
+    "gapToGreedy": 106.9816665649414,
+    "correct": false
+  },
+  {
+    "dataset": "outside",
+    "expected": "the bells ring loudly",
+    "voice": "Daniel",
+    "inside": false,
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 106.36119842529297,
+    "correct": false
+  }
+]

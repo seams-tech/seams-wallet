@@ -1,4 +1,4 @@
-import { VOICE_SAMPLE_PHRASE } from '../browser/microphone';
+import { newSpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
@@ -109,12 +109,15 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 }
 
 export class VoiceIdApproval {
-  readonly messages = {
-    prompt: `Review the transfer, select Confirm, then slowly say: “${VOICE_SAMPLE_PHRASE}”`,
-    starting: 'Starting VoiceID. Wait for the microphone to be ready.',
-    listening: `Listening for eight seconds. Slowly say: “${VOICE_SAMPLE_PHRASE}” Speak for about three seconds.`,
-    approved: 'Voice approved this operation.',
-  };
+  private phrase = newSpokenPhrase(null);
+  get messages() {
+    return {
+      prompt: `Review the transfer, select Confirm, then slowly say: “${this.phrase}”`,
+      starting: `Starting VoiceID. Wait for Listening, then read: “${this.phrase}”`,
+      listening: `Listening for eight seconds. Slowly say: “${this.phrase}” Speak for about three seconds.`,
+      approved: 'Voice approved this operation.',
+    };
+  }
   private state: ApprovalState = { kind: 'pending' };
 
   private constructor(
@@ -162,7 +165,7 @@ export class VoiceIdApproval {
     const deadline = performance.now() + remaining;
     this.state = { kind: 'listening', binding, deadline, signal };
     try {
-      const outcome = await listenForVoiceApproval(binding, remaining, signal, onListening);
+      const outcome = await listenForVoiceApproval(binding, remaining, signal, onListening, this.phrase);
       this.assertListening(binding);
       if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {
         throw new Error('Voice approval expired or closed.');
@@ -172,8 +175,12 @@ export class VoiceIdApproval {
           this.state = { kind: 'approved', binding, deadline, signal };
           return outcome;
         case 'retry':
+          this.phrase = newSpokenPhrase(this.phrase);
           this.state = { kind: 'pending' };
-          return outcome;
+          return {
+            kind: 'retry',
+            message: `${outcome.message} Select Confirm, then slowly say: “${this.phrase}”`,
+          };
         default:
           return assertNever(outcome);
       }

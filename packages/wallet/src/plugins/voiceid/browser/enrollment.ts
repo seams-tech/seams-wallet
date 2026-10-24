@@ -1,9 +1,10 @@
+import { newSpokenPhrase, spokenPhraseMatches, type SpokenPhrase } from './phrase';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { requireRecord } from '@shared/utils/validation';
 import { prepareVoiceModelWithProgress } from './progress';
-import { recordVoice, requireVoiceUserAction, VOICE_SAMPLE_PHRASE } from './microphone';
+import { recordVoice, requireVoiceUserAction } from './microphone';
 import {
   normalizeVoiceVector,
   voiceEmbedding,
@@ -86,6 +87,8 @@ class VoiceEnrollmentSurface {
   private readonly completion = new WorkerDeferred<void>();
   readonly result = this.completion.promise;
   private readonly status = document.createElement('p');
+  private readonly prompt = document.createElement('p');
+  private phrase = newSpokenPhrase(null);
   private readonly record = document.createElement('button');
   private readonly cancel = document.createElement('button');
   private readonly samples: number[][] = [];
@@ -103,14 +106,17 @@ class VoiceEnrollmentSurface {
     title.textContent = 'Enroll your voice in this browser';
     const description = document.createElement('p');
     description.textContent =
-      `Record three samples in your normal voice. After Listening appears, slowly say: “${VOICE_SAMPLE_PHRASE}” Speak for about three seconds. Each sample allows eight seconds. Audio stays local and is discarded.`;
+      `Record three samples in your normal voice. After Listening appears, read the phrase below slowly for about three seconds. Each sample allows eight seconds. Audio stays local and is discarded.`;
+    this.prompt.dataset.voiceidPhrase = '';
+    this.prompt.setAttribute('aria-live', 'polite');
+    this.prompt.textContent = this.phrase;
     this.status.setAttribute('role', 'status');
     this.record.textContent = 'Record sample 1';
     this.record.className = 'seams-voiceid-primary';
     this.record.addEventListener('click', this.capture);
     this.cancel.textContent = 'Cancel enrollment';
     this.cancel.addEventListener('click', this.cancelled);
-    parent.replaceChildren(title, description, this.status, this.record, this.cancel);
+    parent.replaceChildren(title, description, this.prompt, this.status, this.record, this.cancel);
     signal.addEventListener('abort', this.cancelled, { once: true });
     if (signal.aborted) this.cancelled();
     else this.record.focus();
@@ -133,6 +139,9 @@ class VoiceEnrollmentSurface {
       let embedding: number[];
       try {
         this.status.textContent = 'Checking your voice…';
+        if (!(await spokenPhraseMatches(pcm.samples, this.phrase))) {
+          throw new Error('The words did not match. Record the new phrase.');
+        }
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
         pcm.samples.fill(0);
@@ -183,6 +192,8 @@ class VoiceEnrollmentSurface {
           error instanceof Error ? error.message : 'VoiceID enrollment failed.';
     } finally {
       if (!this.closed) {
+        this.phrase = newSpokenPhrase(this.phrase);
+        this.prompt.textContent = this.phrase;
         this.phase = 'ready';
         this.record.disabled = false;
       }
@@ -207,12 +218,14 @@ class VoiceEnrollmentSurface {
 export async function verifyBrowserVoice(
   signal: AbortSignal,
   onListening: () => void,
-): Promise<{ kind: 'matched' } | { kind: 'mismatch' }> {
+  phrase: SpokenPhrase,
+): Promise<{ kind: 'matched' } | { kind: 'mismatch' } | { kind: 'phrase_mismatch' }> {
   const enrollment = await readVoiceEnrollment();
   if (!enrollment)
     throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
   const pcm = await recordVoice(signal, onListening);
   try {
+    const phraseMatched = await spokenPhraseMatches(pcm.samples, phrase);
     const embedding = await voiceEmbedding(pcm.samples);
     if (signal.aborted) throw new Error('VoiceID verification was cancelled.');
     const similarity = voiceSimilarity(embedding, enrollment.template);
@@ -222,9 +235,11 @@ export async function verifyBrowserVoice(
       microphone: pcm.microphone,
       similarity,
       threshold: VOICE_MATCH_THRESHOLD,
+      phraseMatched,
     });
     embedding.fill(0);
-    return similarity < VOICE_MATCH_THRESHOLD ? { kind: 'mismatch' } : { kind: 'matched' };
+    if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch' };
+    return phraseMatched ? { kind: 'matched' } : { kind: 'phrase_mismatch' };
   } finally {
     pcm.samples.fill(0);
   }

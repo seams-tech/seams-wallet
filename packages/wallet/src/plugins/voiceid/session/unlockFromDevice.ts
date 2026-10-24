@@ -1,3 +1,4 @@
+import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
@@ -12,6 +13,7 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   readonly install: (verified: VoiceIdVerifiedSession, factorSecret32: Uint8Array) => Promise<T>;
   readonly signal: AbortSignal;
   readonly onListening: () => void;
+  readonly phrase: SpokenPhrase;
 }): Promise<T> {
   const { authMethod, challenge } = input;
   if (
@@ -26,6 +28,7 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
     challenge,
     signal: input.signal,
     onListening: input.onListening,
+    phrase: input.phrase,
   });
   try {
     if (input.signal.aborted) throw new Error('VoiceID unlock was cancelled.');

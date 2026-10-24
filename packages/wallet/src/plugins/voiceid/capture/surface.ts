@@ -3,7 +3,7 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
-import { VOICE_SAMPLE_PHRASE } from '../browser/microphone';
+import { newSpokenPhrase, type SpokenPhrase } from '../browser/phrase';
 import { toError } from '@shared/utils/errors';
 
 const SURFACE_CSS = `
@@ -35,7 +35,7 @@ const SURFACE_CSS = `
 }
 `;
 
-type CaptureAction<T> = (signal: AbortSignal, onListening: () => void) => Promise<T>;
+type CaptureAction<T> = (signal: AbortSignal, onListening: () => void, phrase: SpokenPhrase) => Promise<T>;
 export type PreparedVoiceCapture<T> = Readonly<{
   action: CaptureAction<T>;
   expiresAtMs: number | null;
@@ -72,6 +72,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly activateButton: HTMLButtonElement;
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
+  private readonly phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -93,8 +94,8 @@ class VoiceIdCaptureSurface<T> {
     this.element.appendChild(title);
     const description = document.createElement('p');
     description.textContent = purpose === 'unlock'
-      ? `Select Unlock with VoiceID. When Listening appears, slowly say: “${VOICE_SAMPLE_PHRASE}” Audio stays on this device.`
-      : 'Select Activate VoiceID to enroll or verify your voice. Audio stays on this device.';
+      ? `Select Unlock with VoiceID. When Listening appears, slowly say: “${this.phrase}” Read these words exactly. Audio stays on this device.`
+      : `Select Activate VoiceID to enroll or verify your voice. If Listening appears, slowly say: “${this.phrase}” Audio stays on this device.`;
     this.element.appendChild(description);
     this.status = document.createElement('p');
     this.status.textContent = 'Preparing VoiceID…';
@@ -163,7 +164,7 @@ class VoiceIdCaptureSurface<T> {
     this.status.textContent = 'Opening microphone…';
     try {
       // Start in the button event so capture retains browser user activation.
-      const result = await activate(this.controller.signal, this.listening);
+      const result = await activate(this.controller.signal, this.listening, this.phrase);
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
@@ -175,7 +176,7 @@ class VoiceIdCaptureSurface<T> {
   }
 
   private readonly listening = (): void => {
-    this.status.textContent = `Listening for eight seconds. Slowly say: “${VOICE_SAMPLE_PHRASE}” Speak for about three seconds.`;
+    this.status.textContent = `Listening for eight seconds. Slowly say: “${this.phrase}” Speak for about three seconds.`;
   };
 
   private readonly cancel = (): void => {

@@ -85,18 +85,19 @@ Wallet's browser enrollment UI. Each of three samples requires a separate Record
 click. The browser requests microphone permission. Enrollment allows eight seconds
 per sample and requires at least two seconds of voiced audio. Verification uses
 the same duration and minimum speech length.
-Enrollment and verification display “My voice unlocks my wallet.” The user speaks
-slowly for about three seconds. The minimum voiced-audio requirement is unchanged.
+Each enrollment, unlock, and signing attempt displays a randomly selected short
+English phrase from a bank of 16. The phrase remains fixed during capture. A retry
+selects a different phrase. The user reads it slowly for about three seconds.
 Activation and unlock show a cancellable modal before asynchronous preparation.
 Recording stays disabled until preparation finishes. A delayed server response
 cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
-after local ReDimNet B1 inference. An enrollment from a different model requires
+after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires
 an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
 envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB.
 
-The first model download is approximately 8.9 MB. The exact model digest is
-checked before inference. A progress bar shows downloaded bytes and percentage.
+The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
+Both share the inference runtime. Each exact model digest is checked before inference. A progress bar shows downloaded bytes and percentage.
 Verified bytes are saved in Wallet-origin Cache Storage and reused after reload.
 Storage failure allows session-only inference with a visible explanation. Browser
 eviction or clearing site data can require another download. The inference runtime
@@ -105,9 +106,12 @@ The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
-Confirm click. It does not transcribe or require particular words. Cancel is a
-UI action. The MVP assumes the authorized user possesses and controls the open
-device. Spoof detection, replay detection, and camera input are outside scope.
+Confirm click. Aurora must recognize the displayed phrase from the same recording.
+The decoder scores all bank phrases independently of the expected phrase and rejects
+results too far from unconstrained recognition. A failed phrase check cannot add an
+enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open
+device. The finite phrase bank does not establish replay resistance or liveness.
+Spoof detection and camera input are outside scope.
 
 ### Device credentials and fresh sessions
 
@@ -121,7 +125,7 @@ tabs. A voice sample never derives a wallet key or custody factor.
 These are browser-origin credentials, not hardware-attested credentials.
 Nonextractability prevents key export through WebCrypto. Trusted code executing
 in the Wallet origin can use these keys. The server verifies possession of the
-device key; speaker verification is enforced by trusted Wallet code. The embedding
+device key; speaker and phrase verification are enforced by trusted Wallet code. The embedding
 application cannot access the Wallet origin's storage. Clearing that storage
 removes enrollment and device credentials. Restoring access then requires an
 owner unlock and fresh browser enrollment.
@@ -153,8 +157,9 @@ unlock. ECDSA signing and key export retain their supported owner methods.
 This prototype supports one reviewed NEAR testnet transfer per request. Other
 signing routes and reviews without an expiry fail while VoiceID is enabled.
 The Wallet freezes and hashes the complete request and execution configuration.
-Confirm starts a browser speaker check for that review. A speaker mismatch keeps
-the review open, shows the failure, and requires another Confirm click to retry.
+Confirm starts browser speaker and phrase checks for that review. Either mismatch
+keeps the review open, shows the failure, and requires another Confirm click.
+A retry displays a new phrase while retaining the original review and deadline.
 No signature or broadcast occurs for a mismatch. Each retry checks the original
 review deadline. Cancellation, lock,
 expiry, execution changes, and plugin changes invalidate pending approval.
@@ -166,6 +171,12 @@ A subsequent review requires fresh approval. Cancelling it prevents another
 signature or broadcast. Unavailable broadcast replies establish no on-chain result.
 
 ### Repeatable evidence
+
+The [Aurora evidence](evidence/voiceid-aurora-20261024/README.md) records export parity,
+synthetic phrase screening, and browser contracts. The contracts reject a wrong
+phrase during enrollment and a previous attempt's phrase during signing. They also
+check cache reuse, fresh sessions, and broadcast retry behavior. Synthetic screening
+does not establish human recognition accuracy or production authentication accuracy.
 
 The [B1 integration evidence](evidence/voiceid-b1-live-page-20261024.json) also
 checks visible model download progress, one model fetch across page reload, and

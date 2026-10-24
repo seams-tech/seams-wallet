@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import phrases from '../../fixtures/audio/aurora/phrases.json' with { type: 'json' };
 import path from 'node:path';
 import type {} from '../../fixtures/ui/VoiceIdMicrophoneObservation';
 import {
@@ -34,17 +34,6 @@ async function verifyLivePage(
   testInfo: TestInfo,
 ): Promise<void> {
   await allowBrowserMicrophone(context);
-  const observation = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        path.resolve(import.meta.dirname, '../../scripts/build-preact-probe.mjs'),
-        'VoiceIdMicrophoneObservation.ts',
-      ],
-      { encoding: 'utf8' },
-    ),
-  );
-  await context.addInitScript({ content: observation[0].code });
   const download = new ModelDownloadGate();
   await context.route('**/sdk/voiceid/redimnet-b1.onnx', download.hold);
   const assets = new VoiceAssetRequests();
@@ -111,6 +100,7 @@ async function verifyLivePage(
   await expect(status).toHaveAttribute('data-state', 'failed');
   expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
   expect(assets.models).toBe(1);
+  expect(assets.phraseModels).toBe(1);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Unlock with passkey', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
@@ -127,6 +117,16 @@ async function verifyLivePage(
   await wallet.locator('body').evaluate(retireNextEnrollmentModel);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
+  const enrollmentPhrase = await wallet.locator('[data-voiceid-phrase]').innerText();
+  const wrongEnrollmentIndex = (phrases.indexOf(enrollmentPhrase) + 1) % phrases.length;
+  const wrongEnrollment = await readFile(path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${wrongEnrollmentIndex}.wav`));
+  await wallet.locator('body').evaluate(useOtherSpeaker, wrongEnrollment.toString('base64'));
+  await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
+  await expect(wallet.getByText('The words did not match.', { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
+  await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveText(enrollmentPhrase);
+  expect(assets.activations).toBe(0);
   await enrollBrowserMicrophone(page);
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
   expect(assets.activations).toBe(1);
@@ -143,6 +143,7 @@ async function verifyLivePage(
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
   expect(assets.activations).toBe(1);
   expect(assets.models).toBe(1);
+  expect(assets.phraseModels).toBe(1);
   await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
@@ -155,6 +156,9 @@ async function verifyLivePage(
   );
   await evidence.observe(context);
   await startReviewedTransfer(page);
+  const originalPrompt = await wallet.locator('.seams-voiceid-instructions').innerText();
+  const originalPhrase = originalPrompt.match(/“([^”]+)”/)?.[1];
+  if (!originalPhrase || !phrases.includes(originalPhrase)) throw new Error('Review phrase is unavailable');
   const otherSpeaker = await readFile(
     path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'),
   );
@@ -170,6 +174,11 @@ async function verifyLivePage(
   if (mismatchCapture === null) throw new Error('Voice verification measurement is missing');
   const mismatch = JSON.parse(mismatchCapture);
   expect(mismatch.similarity).toBeLessThan(mismatch.threshold);
+  const stalePhrase = await readFile(path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${phrases.indexOf(originalPhrase)}.wav`));
+  await wallet.locator('body').evaluate(useOtherSpeaker, stalePhrase.toString('base64'));
+  await wallet.locator('button.confirm').click();
+  await expect(wallet.getByText('The spoken words did not match.', { exact: false })).toBeVisible({ timeout: 20_000 });
+  expect(evidence.snapshot()).toEqual(beforeMismatch);
   await wallet.locator('button.confirm').click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
@@ -201,6 +210,10 @@ async function verifyLivePage(
         inferenceLoadedOnlyAfterActivation: true,
         modelDownloadProgressVisible: true,
         modelFetchedOnceAcrossReload: true,
+        phraseModelFetchedOnceAcrossReload: true,
+        incorrectEnrollmentPhraseRejected: true,
+        previousAttemptPhraseRejectedBeforeSigning: true,
+        phraseRecognition: 'real_aurora_int8_constrained_ctc',
         ownerReenrollmentReusesDeviceCredential: true,
         mismatchCapture: mismatch,
         mismatchPreventsSigning: true,
@@ -232,13 +245,16 @@ class VoiceAssetRequests {
   readonly inference: string[] = [];
   readonly native: string[] = [];
   models = 0;
+  phraseModels = 0;
   activations = 0;
   readonly observe = (request: Request): void => {
     const url = new URL(request.url());
+    if (url.pathname.endsWith('aurora-int8.onnx')) this.phraseModels += 1;
     if (url.pathname.endsWith('redimnet-b1.onnx')) this.models += 1;
     if (url.pathname === '/wallet/voiceid/activate' && request.method() === 'POST') this.activations += 1;
     if (url.port === '4318') this.native.push(url.pathname);
-    if (url.pathname.includes('ort-wasm') || url.pathname.endsWith('redimnet-b1.onnx')) {
+    if (url.pathname.includes('ort-wasm') || url.pathname.endsWith('redimnet-b1.onnx') ||
+        url.pathname.endsWith('aurora-int8.onnx')) {
       this.inference.push(url.pathname);
     }
   };

@@ -1,3 +1,4 @@
+import type { SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import { verifyBrowserVoice } from '../browser/enrollment';
 
@@ -20,19 +21,26 @@ export async function listenForVoiceApproval(
   timeoutMs: number,
   signal: AbortSignal,
   onListening: () => void,
+  phrase: SpokenPhrase,
 ): Promise<AuthMethodApprovalResult> {
   const deadline = Math.min(binding.expiresAtMs, Date.now() + timeoutMs);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
-  const result = await verifyBrowserVoice(signal, onListening);
+  const result = await verifyBrowserVoice(signal, onListening, phrase);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
-  if (result.kind === 'mismatch') {
-    return {
-      kind: 'retry',
-      message:
-        'VoiceID did not match the enrolled voice. Select Confirm to try again. Read the displayed sentence in your normal voice.',
-    };
+  switch (result.kind) {
+    case 'matched':
+      return { kind: 'approved' };
+    case 'mismatch':
+      return { kind: 'retry', message: 'VoiceID did not match the enrolled voice.' };
+    case 'phrase_mismatch':
+      return { kind: 'retry', message: 'The spoken words did not match.' };
+    default:
+      return assertNever(result);
   }
-  return { kind: 'approved' };
+}
+
+function assertNever(result: never): never {
+  throw new Error(`Unexpected voice result: ${String(result)}`);
 }

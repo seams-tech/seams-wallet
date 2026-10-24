@@ -33,3 +33,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+AuroraASR-1M spoken phrase model
+
+Source: https://huggingface.co/AuroraAI-Research/AuroraASR-1M
+Revision: cd307b54b4d666d6ad7dc982a7a58a96d6e7f942
+Publisher: AuroraAI Research
+License: Apache-2.0; see AURORA_LICENSE.txt.
+ONNX SHA-256: 83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6
+
+Changes: exported the publisher's INT8-weight checkpoint to ONNX, with
+full-waveform log-mel preprocessing. The complex STFT is represented by ONNX
+STFT and power reduction. Constant folding is disabled to retain INT8 weights
+in the downloaded file. Execution dequantizes weights to floating point.
+A 16-phrase token vocabulary is generated from the publisher's SentencePiece
+tokenizer. No retraining or user recordings are included.

@@ -1,3 +1,4 @@
+import { newSpokenPhrase } from '../../../packages/wallet/src/plugins/voiceid/browser/phrase';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -509,6 +510,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       http: lostReply,
       signal,
       onListening: onVoiceListening,
+      phrase: newSpokenPhrase(null),
       capture: retriedCapture.capture.bind(retriedCapture),
       persistPending: pendingStore.persistPending.bind(pendingStore),
       persistActive: pendingStore.persistActive.bind(pendingStore),
@@ -683,6 +685,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       install: installer.install.bind(installer),
       signal,
       onListening: onVoiceListening,
+      phrase: newSpokenPhrase(null),
     });
     expect(verifiedFromDevice.walletSession.authMethodId).toBe(methodId);
     expect(verifiedFromDevice.custodyEnvelope.envelopeId).toBe(envelopeId);
@@ -702,6 +705,7 @@ async function runJourney({ page }: { page: unknown }, testInfo: TestInfo): Prom
       install: installer.install.bind(installer),
       signal: cancelledController.signal,
       onListening: onVoiceListening,
+      phrase: newSpokenPhrase(null),
     })).rejects.toThrow('cancelled');
     expect(cancelledCapture.factorSecret32?.every((value) => value === 0)).toBe(true);
     const afterCancelSignature = await crypto.subtle.sign(

@@ -1,3 +1,4 @@
+import type { SpokenPhrase } from '../browser/phrase';
 import type {
   AuthMethodSessionInstaller,
   AuthMethodUnlockSuccess,
@@ -87,6 +88,7 @@ async function captureAndInstall(
   prepared: PreparedVoiceIdUnlock,
   signal: AbortSignal,
   onListening: () => void,
+  phrase: SpokenPhrase,
 ): Promise<AuthMethodUnlockSuccess> {
   return await verifyVoiceIdChallengeWithDevice({
     authMethod: prepared.authMethod,
@@ -96,5 +98,6 @@ async function captureAndInstall(
     install: installVerifiedSession.bind(null, prepared.install, signal),
     signal,
     onListening,
+    phrase,
   });
 }

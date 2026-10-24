@@ -1,0 +1,82 @@
+[
+  {
+    "precision": "fp32",
+    "sample": 0,
+    "reference": "the bird sened softly",
+    "export": "the bird sened softly",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.0004787445068359375
+  },
+  {
+    "precision": "fp32",
+    "sample": 3,
+    "reference": "the children play outsidghe",
+    "export": "the children play outsidghe",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.00036716461181640625
+  },
+  {
+    "precision": "fp32",
+    "sample": 5,
+    "reference": "the dog sleeps here",
+    "export": "the dog sleeps here",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.0002428293228149414
+  },
+  {
+    "precision": "fp32",
+    "sample": 19,
+    "reference": "we read books together",
+    "export": "we read books together",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.00020611286163330078
+  },
+  {
+    "precision": "fp32",
+    "sample": 31,
+    "reference": "the bells ring loudly",
+    "export": "the bells ring loudly",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.0004074573516845703
+  },
+  {
+    "precision": "int8",
+    "sample": 0,
+    "reference": "the bird sened softly",
+    "export": "the bird sened softly",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.000461578369140625
+  },
+  {
+    "precision": "int8",
+    "sample": 3,
+    "reference": "the children play outsidghe",
+    "export": "the children play outsidghe",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.00035572052001953125
+  },
+  {
+    "precision": "int8",
+    "sample": 5,
+    "reference": "the dog sleeps here",
+    "export": "the dog sleeps here",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.0002548694610595703
+  },
+  {
+    "precision": "int8",
+    "sample": 19,
+    "reference": "we read books together",
+    "export": "we read books together",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.00017786026000976562
+  },
+  {
+    "precision": "int8",
+    "sample": 31,
+    "reference": "the bells ring loudly",
+    "export": "the bells ring loudly",
+    "wrapperMaxError": 0.0,
+    "onnxMaxError": 0.00040215253829956055
+  }
+]

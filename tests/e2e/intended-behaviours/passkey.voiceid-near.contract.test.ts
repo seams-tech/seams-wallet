@@ -45,6 +45,9 @@ async function verifyTransfer(
   await evidence.observe(context);
   await startReviewedTransfer(page);
   await wallet.locator('button.confirm').click();
+  await expect(wallet.locator('body')).toHaveAttribute('data-voice-verification', /phraseMatched/, { timeout: 20_000 });
+  const verification = JSON.parse(await wallet.locator('body').getAttribute('data-voice-verification') || '{}');
+  expect(verification.phraseMatched).toBe(true);
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed', {
     timeout: 60_000,
   });

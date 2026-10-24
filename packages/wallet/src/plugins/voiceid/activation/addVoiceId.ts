@@ -8,6 +8,7 @@ import { VoiceIdHttpClient } from '../session/httpClient';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
+import type { SpokenPhrase } from '../browser/phrase';
 import { enrollBrowserVoice } from '../browser/enrollment';
 import { readBrowserVoiceDevice } from '../browser/deviceStore';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
@@ -171,6 +172,7 @@ async function activatePreparedVoiceId(
   prepared: PreparedVoiceIdActivation,
   signal: AbortSignal,
   onListening: () => void,
+  phrase: SpokenPhrase,
 ): Promise<AddVoiceIdResult> {
   if (prepared.kind === 'enroll_existing') {
     await enrollBrowserVoice(signal);
@@ -183,6 +185,7 @@ async function activatePreparedVoiceId(
     http: prepared.http,
     signal,
     onListening,
+    phrase,
     capture: captureVoiceIdActivation,
     persistPending: prepared.store.persistPending.bind(prepared.store),
     persistActive: prepared.store.persistActive.bind(prepared.store),

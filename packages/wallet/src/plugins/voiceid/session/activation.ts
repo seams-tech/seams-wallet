@@ -1,3 +1,4 @@
+import type { SpokenPhrase } from '../browser/phrase';
 import {
   buildMethodBoundEnvelopeOwnership,
   buildWalletCustodySeedBinding,
@@ -195,6 +196,7 @@ export async function activateVoiceIdForUnlockedWallet(input: {
   readonly http: Pick<VoiceIdHttpClient, 'activate'>;
   readonly signal: AbortSignal;
   readonly onListening: () => void;
+  readonly phrase: SpokenPhrase;
   readonly capture: typeof captureVoiceIdActivation;
   readonly persistPending: (pending: PendingVoiceIdActivation) => Promise<void>;
   readonly persistActive: (
@@ -221,6 +223,7 @@ export async function activateVoiceIdForUnlockedWallet(input: {
     walletAuthMethodId,
     signal: input.signal,
     onListening: input.onListening,
+    phrase: input.phrase,
   });
   let pending: PendingVoiceIdActivation;
   try {

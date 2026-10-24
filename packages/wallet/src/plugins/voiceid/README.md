@@ -3,7 +3,7 @@
 Enable with `authMethods: [voiceIdAuthMethod()]`. The descriptor is small and
 loads no model code. The trusted Wallet registry loads `host.ts` on first use.
 The plugin owns browser microphone capture, three-sample enrollment, ReDimNet B1
-speaker matching, WebCrypto device credentials, and the existing server proof
+speaker matching, AuroraASR phrase recognition, WebCrypto device credentials, and the existing server proof
 exchange. SDK core owns custody installation, quotas, and NEAR MPC signing.
 
 After a passkey or Email OTP owner unlock, call
@@ -11,7 +11,7 @@ After a passkey or Email OTP owner unlock, call
 The Wallet requests microphone permission and enrolls this browser through three
 Record clicks. Later use `auth.unlockWithAuthMethod` with that wallet and method
 ID. A reviewed NEAR testnet transfer requires Confirm and a fresh voice match.
-The button confirms intent. Words are not transcribed; use Cancel to cancel.
+The button confirms intent. Read the displayed phrase slowly. Use Cancel to cancel.
 
 `browser/` contains capture, model inference, enrollment, and device storage.
 No native service, extension, Keychain, or OS settings are required. The model
@@ -20,16 +20,16 @@ discarded after processing. Browser storage retains the template, nonextractable
 Ed25519 and AES-GCM keys, and encrypted random factor. Clearing Wallet-origin
 storage requires owner unlock and enrollment again. Nonextractability does not
 prevent trusted Wallet-origin code from using a key; server verification proves
-device-key possession, and the Wallet code enforces speaker matching.
+device-key possession, and the Wallet code enforces speaker and phrase matching.
 
 ## Hosted model asset
 
-Place the approved full-waveform ECAPA export at
-`packages/wallet/assets/voiceid/redimnet-b1.onnx` before building the SDK. The existing
+Place the approved exports at `packages/wallet/assets/voiceid/redimnet-b1.onnx`
+and `packages/wallet/assets/voiceid/aurora-int8.onnx` before building the SDK. The existing
 static-asset build includes it and the matching ONNX Runtime Web WASM files.
 If the optional model is absent, ordinary Wallet builds still work, and enabling
 VoiceID reports that its model is unavailable. Release builds offering VoiceID
-must provision this asset. It is not fetched from a third party during capture.
+must provision both assets. It is not fetched from a third party during capture.
 
 Current model: ReDimNet B1, VoxCeleb2 large-margin fine-tuned, MIT license.
 Source revision: `ce039a624cb99fe127702ceb94c6080090e5032f`.
@@ -46,10 +46,17 @@ calibration cohort's maximum impostor score (0.4417). The separate evaluation
 cohort had 0/728 false accepts and 2/56 false rejects at this threshold. This small
 clean-speech experiment does not qualify production authentication accuracy.
 
+AuroraASR-1M checks the spoken phrase. Its INT8 full-waveform ONNX export is
+1,342,384 bytes and shares the existing WASM runtime. It accepts 16 kHz mono PCM.
+Source revision: `cd307b54b4d666d6ad7dc982a7a58a96d6e7f942`.
+SHA-256: `83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6`.
+The deployment includes its Apache-2.0 license and export details.
+See [export and screening instructions](../../../../../tests/scripts/voiceid-aurora/README.md).
+
 ## Download progress and browser cache
 
 First activation shows an accessible progress bar with bytes and percentage while
-the model downloads. Enrollment recording becomes available after preparation.
+each model downloads. Enrollment recording becomes available after preparation.
 The trusted Wallet origin stores only hash-verified model bytes in Cache Storage,
 under a key containing the model digest. A reload reads and verifies that cached
 copy before loading inference. The normal HTTP cache also applies to runtime assets.
@@ -77,14 +84,27 @@ and optional assets. Omitting the descriptor prevents runtime use and downloads.
 
 See the [model candidate evaluation plan](../../../../../docs/voiceid-model-candidates.md)
 for verified download sizes, speaker-verification and STT shortlists, licensing,
-and qualification criteria. The current prototype uses the pinned B1 model. Spoken-phrase transcription
-remains unimplemented.
+and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 
 ## Prompt and preparation
 
-Enrollment, unlock, and transfer approval use “My voice unlocks my wallet.”
-Speak slowly for about three seconds. This text is a recording aid; words are
-not transcribed. Existing B1 enrollment remains valid after this wording change.
+Enrollment, unlock, and transfer approval randomly select one of 16 short English
+phrases. Each attempt holds its displayed phrase until recording ends. Retries
+select another phrase. Speak slowly for about three seconds within the eight-second
+recording window. Both speaker and phrase checks use the same recording.
+Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
+
+The decoder scores all 16 phrases before comparing its result with the displayed
+phrase. It also compares the best phrase score against unconstrained recognition.
+The prototype accepts a log-likelihood gap of at most 5. This is a development
+cutoff, with synthetic screening evidence. It needs human accuracy qualification.
+A wrong phrase prevents enrollment, device-key use, or signing. A signing retry
+keeps the original transaction review and deadline and requires another Confirm.
+No audio or transcript leaves the browser or enters persistent storage.
+
+The finite phrase bank does not establish replay resistance or liveness. The MVP
+still assumes physical possession of an open, active device. Spoof detection stays
+outside scope. See [screening results](../../../../../docs/evidence/voiceid-aurora-20261024/README.md).
 
 The capture modal mounts before plugin preparation. It shows Preparing VoiceID
 and allows cancellation while its recording button is disabled. Unlock then checks

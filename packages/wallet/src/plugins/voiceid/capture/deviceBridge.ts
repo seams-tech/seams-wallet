@@ -1,3 +1,4 @@
+import type { SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
   parseVoiceIdDeviceAssertion,
@@ -23,6 +24,7 @@ export async function captureVoiceIdActivation(input: {
   readonly walletAuthMethodId: WalletAuthMethodId;
   readonly signal: AbortSignal;
   readonly onListening: () => void;
+  readonly phrase: SpokenPhrase;
 }): Promise<{
   kind: 'activated';
   publicKeyB64u: VoiceIdDevicePublicKeyB64u;
@@ -30,7 +32,7 @@ export async function captureVoiceIdActivation(input: {
   factorSecret32: Uint8Array;
 }> {
   requireVoiceUserAction();
-  if (await readVoiceEnrollment()) await requireVoiceMatch(input.signal, input.onListening);
+  if (await readVoiceEnrollment()) await requireVoiceMatch(input.signal, input.onListening, input.phrase);
   else await enrollBrowserVoice(input.signal);
   input.signal.throwIfAborted();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
@@ -51,6 +53,7 @@ export async function captureVoiceIdUnlock(input: {
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly signal: AbortSignal;
   readonly onListening: () => void;
+  readonly phrase: SpokenPhrase;
 }): Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }> {
   requireVoiceUserAction();
   const { challenge } = input;
@@ -59,7 +62,7 @@ export async function captureVoiceIdUnlock(input: {
   const device = await readBrowserVoiceDevice(challenge.walletId, challenge.walletAuthMethodId);
   if (!device || device.deviceKeyId !== challenge.deviceKeyId)
     throw new Error('VoiceID device key is unavailable in this browser.');
-  await requireVoiceMatch(input.signal, input.onListening);
+  await requireVoiceMatch(input.signal, input.onListening, input.phrase);
   input.signal.throwIfAborted();
   if (challenge.expiresAtMs <= Date.now())
     throw new Error('VoiceID challenge expired. Start unlock again.');
@@ -84,8 +87,24 @@ export async function captureVoiceIdUnlock(input: {
   };
 }
 
-async function requireVoiceMatch(signal: AbortSignal, onListening: () => void): Promise<void> {
-  const result = await verifyBrowserVoice(signal, onListening);
-  if (result.kind === 'mismatch')
-    throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
+async function requireVoiceMatch(
+  signal: AbortSignal,
+  onListening: () => void,
+  phrase: SpokenPhrase,
+): Promise<void> {
+  const result = await verifyBrowserVoice(signal, onListening, phrase);
+  switch (result.kind) {
+    case 'matched':
+      return;
+    case 'mismatch':
+      throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
+    case 'phrase_mismatch':
+      throw new Error('The spoken words did not match. Start again and read the new phrase.');
+    default:
+      return assertNever(result);
+  }
+}
+
+function assertNever(result: never): never {
+  throw new Error(`Unexpected voice result: ${String(result)}`);
 }

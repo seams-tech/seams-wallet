@@ -1,4 +1,6 @@
-import { prepareVoiceModel, type VoiceModelProgress } from './model';
+import { prepareVoiceModel } from './model';
+import { preparePhraseModel } from './phrase';
+import type { VoiceModelProgress } from './inference';
 
 class VoiceModelDownload {
   readonly element = document.createElement('section');
@@ -21,20 +23,20 @@ class VoiceModelDownload {
     this.meter.removeAttribute('value');
     switch (state.kind) {
       case 'checking_cache':
-        this.status.textContent = 'Checking this browser for VoiceID…';
+        this.status.textContent = `Checking this browser for ${state.label.toLowerCase()}…`;
         return;
       case 'downloading':
         this.meter.max = state.total;
         this.meter.value = state.received;
-        this.status.textContent = `Downloading VoiceID: ${(state.received / 1_000_000).toFixed(1)} of ${(state.total / 1_000_000).toFixed(1)} MB (${Math.floor(state.received / state.total * 100)}%). This browser will save the model for next time.`;
+        this.status.textContent = `Downloading ${state.label.toLowerCase()}: ${(state.received / 1_000_000).toFixed(1)} of ${(state.total / 1_000_000).toFixed(1)} MB (${Math.floor(state.received / state.total * 100)}%). This browser will save the model for next time.`;
         return;
       case 'preparing':
-        this.status.textContent = 'Preparing VoiceID on this device…';
+        this.status.textContent = `Preparing ${state.label.toLowerCase()} on this device…`;
         return;
       case 'ready':
         this.status.textContent = state.storage === 'browser'
-          ? 'VoiceID is ready. The model is saved in this browser.'
-          : 'VoiceID is ready for this session. This browser could not save the model.';
+          ? `${state.label} is ready. The model is saved in this browser.`
+          : `${state.label} is ready for this session. This browser could not save the model.`;
         return;
     }
     state satisfies never;
@@ -44,4 +46,5 @@ class VoiceModelDownload {
 export async function prepareVoiceModelWithProgress(parent: HTMLElement): Promise<void> {
   const component = new VoiceModelDownload(parent);
   await prepareVoiceModel(component.update);
+  await preparePhraseModel(component.update);
 }

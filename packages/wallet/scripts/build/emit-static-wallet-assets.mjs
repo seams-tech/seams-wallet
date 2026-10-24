@@ -325,7 +325,10 @@ async function copyVoiceIdAssets() {
   const destination = path.join(PUBLIC_SDK, 'voiceid');
   await fs.mkdir(destination, { recursive: true });
   await fs.copyFile(model, path.join(destination, 'redimnet-b1.onnx'));
-  await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/NOTICE.txt'), path.join(destination, 'NOTICE.txt'));
+  await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/aurora-int8.onnx'), path.join(destination, 'aurora-int8.onnx'));
+  for (const file of ['NOTICE.txt', 'AURORA_LICENSE.txt']) {
+    await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid', file), path.join(destination, file));
+  }
   const require = createRequire(import.meta.url);
   const runtime = path.dirname(require.resolve('onnxruntime-web/wasm'));
   for (const file of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {

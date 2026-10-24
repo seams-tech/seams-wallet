@@ -1,11 +1,11 @@
 # VoiceID model candidates
 
-Research date: 2026-10-24. Status: shortlist with initial browser evaluation. The browser prototype now uses ReDimNet B1. Broader production accuracy
+Research date: 2026-10-24. Status: browser prototype uses ReDimNet B1 and AuroraASR-1M. Broader production accuracy
 qualification remains open.
 
-Evaluate ReDimNet B0 and B1 first for speaker verification. Evaluate AuroraASR-1M
-for optional spoken-phrase checking, with Moonshine Tiny as the browser baseline.
-Select a replacement only after browser compatibility and accuracy checks.
+Use B1 for speaker verification and AuroraASR for the prototype phrase bank.
+Broader human phrase recognition and microphone qualification remain necessary.
+See the [Aurora implementation and evidence](evidence/voiceid-aurora-20261024/README.md).
 
 The [B0/B1 browser evaluation](evidence/voiceid-redimnet-20261024/README.md) is complete
 on Chromium and desktop WebKit using 29 public-corpus speakers. Full-waveform
@@ -19,19 +19,18 @@ Broader accuracy qualification remains open.
 
 | Task | Question answered | Current implementation |
 | --- | --- | --- |
-| Speaker verification | Does this voice match the enrolled user? | Local SpeechBrain ECAPA inference and cosine comparison |
-| Speech-to-text (STT) | Which words did the user say? | Not implemented; needed for randomized spoken phrases |
+| Speaker verification | Does this voice match the enrolled user? | Local ReDimNet B1 inference and cosine comparison |
+| Speech-to-text (STT) | Which words did the user say? | Local AuroraASR with constrained recognition of 16 randomized phrases |
 
 STT is also called automatic speech recognition (ASR). An STT model does not
-replace the speaker-verification model. The current displayed sentence helps
-recording consistency. The current plugin does not check its words.
+replace the speaker-verification model. The plugin requires the displayed phrase and a speaker match from the same recording.
 
 Both tasks must remain local to the browser and load only when enabled and needed.
 No native host, browser extension, or system-settings change is part of this plan.
 The MVP assumes the user physically possesses an open, active device. This work
 covers speaker and phrase matching; spoof detection remains outside its scope.
 
-## Current download baseline
+## Historical ECAPA download baseline
 
 Sizes were measured from the local prototype assets. MB means 1,000,000 bytes.
 
@@ -47,8 +46,8 @@ This is a compression measurement, not an observed production network transfer.
 Hosting headers and browser caching determine actual transfer size. Cache eviction
 can require another download. Ordinary Wallet SDK assets are excluded above.
 
-The current model uses 16 kHz mono audio and a normalized 192-number speaker
-representation. Its match threshold is 0.6. The live prototype completed enrollment,
+The earlier ECAPA model used 16 kHz mono audio and a normalized 192-number speaker
+representation. Its match threshold was 0.6. The live prototype completed enrollment,
 voice unlock, and a NEAR testnet transfer. That single-user result does not measure
 population accuracy. See the [live receipt](evidence/voiceid-live-transfer-20261024.json)
 and [plugin deployment notes](../packages/wallet/src/plugins/voiceid/README.md).
@@ -61,7 +60,7 @@ and hashes when creating evaluation artifacts.
 
 | Candidate | Published assets | License listed | Browser work and assessment |
 | --- | --- | --- | --- |
-| [AuroraASR-1M](https://huggingface.co/AuroraAI-Research/AuroraASR-1M) | INT8 weights: 1,056,232 bytes; tokenizer: 243,353 bytes. Approximately 1.30 MB together. FP32 weights: 3,807,868 bytes. | Apache-2.0 | First size-focused candidate. English-only. Custom Python implementation requires browser export, feature extraction, and decoding. |
+| [AuroraASR-1M](https://huggingface.co/AuroraAI-Research/AuroraASR-1M) | INT8 weights: 1,056,232 bytes; tokenizer: 243,353 bytes. Approximately 1.30 MB together. FP32 weights: 3,807,868 bytes. | Apache-2.0 | Integrated prototype. English-only. Our full-waveform INT8 ONNX export is 1,342,384 bytes. Token sequences for the phrase bank are embedded in code; no tokenizer file is downloaded. |
 | [Femto-ASR](https://huggingface.co/igorktech/femto-asr) | Published FP32 weights: 9,603,384 bytes. The card advertises about 2.5 MB INT8, but that artifact was absent from the checked file listing. | Apache-2.0 | Secondary candidate. English-only. Requires browser integration and a reproducible quantized export if using INT8. |
 | [Moonshine Tiny ONNX](https://huggingface.co/onnx-community/moonshine-tiny-ONNX) | UINT8 encoder: 7,919,857 bytes; merged decoder: 20,189,543 bytes; tokenizer/config files: about 3.90 MB. Approximately 32.0 MB total. | MIT | Browser baseline. Existing Transformers.js integration reduces initial integration work. |
 

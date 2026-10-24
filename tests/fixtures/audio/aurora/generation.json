@@ -1,0 +1,130 @@
+[
+  {
+    "phrase": "i want to go home",
+    "file": "0.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "33b8ba9a409f1f9d78d4dcc23244776d29569e27042d0c75bc1329f9143140bb"
+  },
+  {
+    "phrase": "i can hear the music",
+    "file": "1.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "646ecfc0327dc12f902136a76bbaf30a1eb265c9a003270312355ecb8ead7a2c"
+  },
+  {
+    "phrase": "this is my own voice",
+    "file": "2.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "6396733f61e8ad621cad5695c70222e9dde52bdcc5e5b4d73880003dc4ecc305"
+  },
+  {
+    "phrase": "we are going home now",
+    "file": "3.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "fef5dd459b7991e33185269c3a40389b12ac7d32f9ef6bc22d9bff343c843d3c"
+  },
+  {
+    "phrase": "the little dog is sleeping",
+    "file": "4.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "7d6b6cd71f30b3c468c054dadce02a3c68be143008c7c2deb00bf065f0dccee4"
+  },
+  {
+    "phrase": "the river is running slowly",
+    "file": "5.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.85,
+    "sha256": "978d5bdaef8c3f7af0710cdb72a23fb447b6e83ee22efc22881d2983a7b1d42e"
+  },
+  {
+    "phrase": "i want a glass of water",
+    "file": "6.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "65cf74595fdafbcd2893b35392c1b3bc2442e37696c28ae91c933f3fcf31bd32"
+  },
+  {
+    "phrase": "can you open the window",
+    "file": "7.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.7,
+    "sha256": "6d5db3a7132a166584d0d49312788a2066fcf24d38dd4ca8fdbce2cf45517ad8"
+  },
+  {
+    "phrase": "we sat beside the river",
+    "file": "8.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.7,
+    "sha256": "b7a7e79ada21ba3066ea6ca0067ae1cfbe844fe3bd4ce155264c0b36089a177a"
+  },
+  {
+    "phrase": "they are waiting for us",
+    "file": "9.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.7,
+    "sha256": "be104a85e70320697a280ab54cb47ac395ce05d6cea31267206ada025d62d91c"
+  },
+  {
+    "phrase": "she is reading a book",
+    "file": "10.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.65,
+    "sha256": "c3c4a39c3082838e1f826b4d62b5c80985b95066a9a4309d8a80ad5f706d8e69"
+  },
+  {
+    "phrase": "he is looking at me",
+    "file": "11.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "73b5dcf18485b16657cb0456e8629317334c2c238b955287ddf88e628882103c"
+  },
+  {
+    "phrase": "the door is open now",
+    "file": "12.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.7,
+    "sha256": "172de4b638a135e34fde88900b654e1cf1479b50f208ed8b5764abe9eb63d90c"
+  },
+  {
+    "phrase": "let us go home now",
+    "file": "13.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "a0ccc67da3793a879c035c2c79969fffeec75aee570f34d9ac877bb08becf95e"
+  },
+  {
+    "phrase": "that is a good idea",
+    "file": "14.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "b9a080c12364570534de6e10bafe591c09a36af1f6edf768fa47b173553e1d19"
+  },
+  {
+    "phrase": "come and sit with me",
+    "file": "15.wav",
+    "voice": "Samantha",
+    "rate": 95,
+    "tempo": 0.55,
+    "sha256": "90ec261e8706c583da9a698e43d1049b158d334abd7868cd39dc5ec8eb7ab9b4"
+  }
+]
