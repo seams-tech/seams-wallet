@@ -2,6 +2,18 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
 Current priority: qualify hosted signing latency and sustained refill without increasing pool capacity.
+The [earlier-commitment screen](ml-dsa-65-early-commitments-report.md) keeps the current runtime selected.
+Sequentially committing all eight initial pairs moves 904 private AND layers per participant into registration.
+Prototype prepared creation/recovery takes 9.968/15.992 seconds, versus control 4.916/5.818 seconds.
+Its six signatures verify in 2.272–8.640 seconds. Four finish below five seconds, matching the control count.
+Both arms consume seventeen pairs in total, but request-level rejection counts and runtime conditions differ.
+All twenty-two retained HTTP/transaction signatures verify again. Both participant traces appear for all twelve hosted operations.
+Canonical keys match across both arms and recovery. The prototype retirement, restart, delivery, Gateway, and restoration checks pass.
+An original local run fails Gateway migration after copying an initialized fixture database. Its preserved failure and fresh key-only repeat are documented.
+The patch and sanitized evidence remain archived. Runtime, storage-format, native-fixture, and fault-flag changes are removed.
+All six temporary Workers are deleted after each arm. Recovery, FIPS export, private commitments, two-at-once consumption, and capacity remain unchanged.
+Next, assess batching commitment exchanges across independently consumable pairs, and profile private checks and binary material delivery in the current Workers.
+Measure full registration plus first signing. Cold/warm, sustained refill, storage-failure, and release security qualification remain open.
 The [pool-actor signing screen](ml-dsa-65-pool-actor-report.md) keeps execution in the current role Workers.
 The actor prototype verifies six signatures in 2.254–8.214 seconds, with only three below five seconds.
 The control verifies five signatures in 1.205–4.850 seconds. Its recovery request preserves the existing cooldown.
@@ -12,7 +24,7 @@ Only eight of twelve candidate role traces appear. Some A signing logs appear un
 All seventeen stored signatures verify again, and altered messages fail. All six temporary Workers are deleted after each arm.
 The prototype is archived and removed. The retained E2E verifies committed retirement while the peer remains network-stalled.
 Recovery, FIPS export, private commitments, two-at-once consumption, and thirty-two-candidate capacity remain unchanged.
-Next, investigate earlier key-bound commitments through the existing preparation flow, then assess binary material delivery while keeping current Worker execution.
+The earlier-commitment screen above completes and rejects the sequential scheduling experiment. Binary material delivery remains open.
 Measure registration/refill cost and complete cold/warm, sustained-demand, and security qualification before release.
 The [GMW CPU screen](ml-dsa-65-gmw-cpu-report.md) leaves the production runtime unchanged.
 A shared synchronous helper improves a fixed native workload by about 7–8%, but establishes no useful complete hosted signing gain.
