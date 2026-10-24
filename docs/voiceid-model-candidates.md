@@ -11,7 +11,9 @@ The [B0/B1 browser evaluation](evidence/voiceid-redimnet-20261024/README.md) is 
 on Chromium and desktop WebKit using 29 public-corpus speakers. Full-waveform
 exports measured 4.41 MB and 8.86 MB. B1 is integrated into the prototype. The [Wallet E2E evidence](evidence/voiceid-b1-live-page-20261024.json)
 covers model download progress, cache reuse, owner re-enrollment, unlock, and signing.
-Live enrollment with the new model and broader accuracy qualification remain open.
+The [live B1 receipt](evidence/voiceid-b1-live-transfer-20261024.json) confirms
+real enrollment, voice unlock, and a final successful NEAR testnet transfer.
+Broader accuracy qualification remains open.
 
 ## Two separate tasks
 
@@ -171,4 +173,5 @@ An illustrative B0 + Aurora INT8 + current runtime budget is about 20 MB before
 export and preprocessing overhead. This is not a measured browser bundle.
 A product acceptance threshold for accuracy loss remains to be selected before
 qualification. B1 passed the browser Wallet E2E with synthetic microphone audio. Other candidates
-have not passed this flow. The live B1 microphone test remains open.
+have not passed this flow. B1 also completed a live microphone enrollment,
+voice unlock, and independently verified NEAR testnet transfer on 2026-10-24.

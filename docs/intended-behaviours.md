@@ -190,6 +190,12 @@ NEAR testnet RPC verification returned FINAL and SuccessValue for transaction
 `3Cqshca4q7RU1xdeUg4NZWEh4SjQqzLzgaAAEz2io7ka`. This establishes one live
 end-to-end run on one device. It does not calibrate speaker accuracy across users.
 
+The subsequent [B1 live receipt](evidence/voiceid-b1-live-transfer-20261024.json)
+records re-enrollment with ReDimNet B1, voice unlock, and another one-yoctoNEAR
+self-transfer. Independent testnet RPC verification returned FINAL and SuccessValue
+for `7FbtVoCLVKLJZDK3xFmWJzFj8PtFTfh2sHsjjrrcZpfF`. This is one live B1 result;
+production accuracy across users and devices remains unqualified.
+
 The [activation contract](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts)
 retains server admission, rollback, response-loss recovery, revocation, and
 origin/replay checks against real local D1. The
