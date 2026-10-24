@@ -174,6 +174,13 @@ These journeys use synthetic microphone WAV input, real browser ECAPA inference,
 WebCrypto device keys, and local MPC signing. NEAR RPC is deterministic; these
 runs do not establish live-microphone accuracy or an on-chain transfer.
 
+A separate [live receipt](evidence/voiceid-live-transfer-20261024.json) records the
+2026-10-24 browser-only prototype test. The user enrolled three samples, locked
+and unlocked with VoiceID, and approved a one-yoctoNEAR self-transfer. Independent
+NEAR testnet RPC verification returned FINAL and SuccessValue for transaction
+`3Cqshca4q7RU1xdeUg4NZWEh4SjQqzLzgaAAEz2io7ka`. This establishes one live
+end-to-end run on one device. It does not calibrate speaker accuracy across users.
+
 The [activation contract](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts)
 retains server admission, rollback, response-loss recovery, revocation, and
 origin/replay checks against real local D1. The
