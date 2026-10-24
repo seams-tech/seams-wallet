@@ -541,6 +541,14 @@ try {
   const [secondMessage] = await secondReply;
   checkProtocolReply(secondMessage, activationBinding, 1, 2);
   observations.stalledValidExchanges = 2;
+  const inspectStarted = performance.now();
+  const activePool = await post('b', '/router-ab/ml-dsa/role', {
+    command: 'inspect', key: stalled.key, batches: [admitted.permit.batches[0]],
+  });
+  observations.stalledPoolResponsiveMs = performance.now() - inspectStarted;
+  assert.deepEqual(activePool, ['retired'], 'Pending signing did not commit single-use material');
+  assert.ok(Date.now() < admitted.permit.expires_at_ms, 'Pool inspection waited for signing to end');
+  observations.stalledPairRetiredBeforeClose = true;
   const [closeEvent] = await closed;
   assert.equal(closeEvent.code, 1011, 'The stalled peer did not signal an execution failure');
   observations.stalledPeerCloseCode = closeEvent.code;
