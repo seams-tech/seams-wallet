@@ -1,4 +1,3 @@
-import { ensureVoiceIdStyles } from '../capture/surface';
 import { prepareVoiceModel, type VoiceModelProgress } from './model';
 
 class VoiceModelDownload {
@@ -6,11 +5,8 @@ class VoiceModelDownload {
   private readonly status = document.createElement('p');
   private readonly meter = document.createElement('progress');
 
-  constructor(parent: HTMLElement, standalone: boolean) {
-    ensureVoiceIdStyles(document);
-    this.element.className = standalone
-      ? 'seams-wallet-ui seams-auth-method-activation-surface seams-voiceid-activation-surface seams-voiceid-model-download'
-      : 'seams-voiceid-model-download';
+  constructor(parent: HTMLElement) {
+    this.element.className = 'seams-voiceid-model-download';
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
     this.meter.setAttribute('aria-label', 'VoiceID model download');
@@ -45,12 +41,7 @@ class VoiceModelDownload {
   };
 }
 
-export async function prepareVoiceModelWithProgress(parent?: HTMLElement): Promise<void> {
-  const mount = parent ?? document.getElementById('root') ?? document.body;
-  const component = new VoiceModelDownload(mount, parent === undefined);
-  try {
-    await prepareVoiceModel(component.update);
-  } finally {
-    if (!parent) component.element.remove();
-  }
+export async function prepareVoiceModelWithProgress(parent: HTMLElement): Promise<void> {
+  const component = new VoiceModelDownload(parent);
+  await prepareVoiceModel(component.update);
 }

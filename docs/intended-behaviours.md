@@ -85,7 +85,11 @@ Wallet's browser enrollment UI. Each of three samples requires a separate Record
 click. The browser requests microphone permission. Enrollment allows eight seconds
 per sample and requires at least two seconds of voiced audio. Verification uses
 the same duration and minimum speech length.
-Enrollment and verification display the same sentence.
+Enrollment and verification display “My voice unlocks my wallet.” The user speaks
+slowly for about three seconds. The minimum voiced-audio requirement is unchanged.
+Activation and unlock show a cancellable modal before asynchronous preparation.
+Recording stays disabled until preparation finishes. A delayed server response
+cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
 after local ReDimNet B1 inference. An enrollment from a different model requires
 an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody

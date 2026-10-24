@@ -1,3 +1,4 @@
+import { VOICE_SAMPLE_PHRASE } from '../browser/microphone';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
@@ -109,9 +110,9 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 
 export class VoiceIdApproval {
   readonly messages = {
-    prompt: 'Review the transfer, select Confirm, then read: “My voice helps me open this wallet on my device.”',
+    prompt: `Review the transfer, select Confirm, then slowly say: “${VOICE_SAMPLE_PHRASE}”`,
     starting: 'Starting VoiceID. Wait for the microphone to be ready.',
-    listening: 'Listening for eight seconds. Read: “My voice helps me open this wallet on my device.”',
+    listening: `Listening for eight seconds. Slowly say: “${VOICE_SAMPLE_PHRASE}” Speak for about three seconds.`,
     approved: 'Voice approved this operation.',
   };
   private state: ApprovalState = { kind: 'pending' };

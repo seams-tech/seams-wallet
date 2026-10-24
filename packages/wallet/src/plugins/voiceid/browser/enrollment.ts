@@ -3,7 +3,7 @@ import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { requireRecord } from '@shared/utils/validation';
 import { prepareVoiceModelWithProgress } from './progress';
-import { recordVoice, requireVoiceUserAction } from './microphone';
+import { recordVoice, requireVoiceUserAction, VOICE_SAMPLE_PHRASE } from './microphone';
 import {
   normalizeVoiceVector,
   voiceEmbedding,
@@ -103,7 +103,7 @@ class VoiceEnrollmentSurface {
     title.textContent = 'Enroll your voice in this browser';
     const description = document.createElement('p');
     description.textContent =
-      'Record three samples in your normal voice. After Listening appears, read: “My voice helps me open this wallet on my device.” Each sample allows eight seconds. Audio stays local and is discarded.';
+      `Record three samples in your normal voice. After Listening appears, slowly say: “${VOICE_SAMPLE_PHRASE}” Speak for about three seconds. Each sample allows eight seconds. Audio stays local and is discarded.`;
     this.status.setAttribute('role', 'status');
     this.record.textContent = 'Record sample 1';
     this.record.className = 'seams-voiceid-primary';

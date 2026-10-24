@@ -36,7 +36,10 @@ async function verifyUnlock(
   const identity = await readNearIdentity(page);
   const ownerSession = await page.evaluate(readSession);
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const activationStarted = performance.now();
   const activation = page.evaluate(activate);
+  await expect(wallet.getByRole('heading', { name: 'Activate VoiceID', exact: true })).toBeVisible();
+  const activationDialogMs = performance.now() - activationStarted;
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   const method = await activation;
@@ -44,6 +47,7 @@ async function verifyUnlock(
 
   await page.evaluate(lock);
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
+  const preparation = await verifyPreparationCancellation(context, page, method.walletAuthMethodId);
   await verifyLockDuringUnlock(context, page, method.walletAuthMethodId);
   const verifiedResponse = page.waitForResponse(isVerifyResponse);
   const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
@@ -107,6 +111,8 @@ async function verifyUnlock(
         voiceIdMethodId: method.walletAuthMethodId,
         freshSessionId,
         concurrentLockRejectedStaleUnlock: true,
+        preparation,
+        activationDialogMs,
         authentication: session.authentication,
         signing: 'real_ed25519_yao_mpc',
         signatureVerification: 'registered_wallet_public_key',
@@ -124,6 +130,52 @@ async function verifyUnlock(
     path: report,
     contentType: 'application/json',
   });
+}
+
+class DelayedChallenge {
+  readonly requested = new WorkerDeferred<void>();
+  readonly finished = new WorkerDeferred<void>();
+  readonly serve = async (route: Route): Promise<void> => {
+    const response = await route.fetch();
+    this.requested.resolve();
+    await new Promise(waitFiveSeconds);
+    try {
+      await route.fulfill({ response });
+    } finally {
+      this.finished.resolve();
+    }
+  };
+}
+
+function waitFiveSeconds(resolve: (value: void) => void): void {
+  setTimeout(resolve, 5_000);
+}
+
+async function verifyPreparationCancellation(
+  context: BrowserContext,
+  page: Page,
+  methodId: string,
+): Promise<{ dialogVisibleMs: number; delayedChallengeMs: number; cancelDuringPreparation: boolean }> {
+  const challenge = new DelayedChallenge();
+  await context.route('**/wallet/voiceid/challenge', challenge.serve);
+  const started = performance.now();
+  const operation = page.evaluate(unlock, methodId).then(unexpectedUnlock, rejectedUnlock);
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  await expect(wallet.getByRole('heading', { name: 'Unlock with VoiceID', exact: true })).toBeVisible({ timeout: 10_000 });
+  const dialogVisibleMs = performance.now() - started;
+  await challenge.requested.promise;
+  const disabledWhilePreparing = !(await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).isEnabled());
+  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  const cancelled = await operation;
+  await challenge.finished.promise;
+  await context.unroute('**/wallet/voiceid/challenge', challenge.serve);
+  await expect(wallet.getByRole('heading', { name: 'Unlock with VoiceID', exact: true })).toHaveCount(0);
+  expect(cancelled.kind).toBe('rejected');
+  expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
+  console.log(JSON.stringify({ dialogVisibleMs, delayedChallengeMs: 5000, disabledWhilePreparing }));
+  expect(dialogVisibleMs).toBeLessThan(2_000);
+  expect(disabledWhilePreparing).toBe(true);
+  return { dialogVisibleMs, delayedChallengeMs: 5000, cancelDuringPreparation: true };
 }
 
 class HeldVerification {

@@ -1,6 +1,7 @@
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 
 const SAMPLE_RATE = 16_000;
+export const VOICE_SAMPLE_PHRASE = 'My voice unlocks my wallet.';
 
 export function requireVoiceUserAction(): void {
   if (

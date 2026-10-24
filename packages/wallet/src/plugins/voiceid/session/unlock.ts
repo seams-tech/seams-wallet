@@ -10,7 +10,7 @@ import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceI
 import { prepareVoiceModelWithProgress } from '../browser/progress';
 import { readVoiceEnrollment } from '../browser/enrollment';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
-import { showVoiceIdCaptureSurface } from '../capture/surface';
+import { showVoiceIdCaptureSurface, type PreparedVoiceCapture } from '../capture/surface';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
 import { verifyVoiceIdChallengeWithDevice } from './unlockFromDevice';
 
@@ -24,6 +24,17 @@ type PreparedVoiceIdUnlock = Readonly<{
 export async function unlockWithVoiceId(
   input: Parameters<WalletAuthMethodHostPlugin['unlock']>[0],
 ): Promise<AuthMethodUnlockSuccess> {
+  return await showVoiceIdCaptureSurface({
+    purpose: 'unlock',
+    prepare: prepareUnlockSurface.bind(null, input),
+  });
+}
+
+async function prepareUnlockSurface(
+  input: Parameters<WalletAuthMethodHostPlugin['unlock']>[0],
+  signal: AbortSignal,
+  parent: HTMLElement,
+): Promise<PreparedVoiceCapture<AuthMethodUnlockSuccess>> {
   const authMethod = await IndexedDBManager.getWalletAuthMethodV2(input.walletAuthMethodId);
   if (
     !authMethod ||
@@ -42,20 +53,18 @@ export async function unlockWithVoiceId(
   if (!(await readVoiceEnrollment())) {
     throw new Error('Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.');
   }
-  await prepareVoiceModelWithProgress();
+  await prepareVoiceModelWithProgress(parent);
+  signal.throwIfAborted();
   input.assertActive();
   const challenge = await http.challenge({
     walletId: input.walletId,
     walletAuthMethodId: input.walletAuthMethodId,
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
   input.assertActive();
   const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install: input.install };
-  return await showVoiceIdCaptureSurface({
-    purpose: 'unlock',
-    expiresAtMs: challenge.expiresAtMs,
-    action: captureAndInstall.bind(null, prepared),
-  });
+  signal.throwIfAborted();
+  return { expiresAtMs: challenge.expiresAtMs, action: captureAndInstall.bind(null, prepared) };
 }
 
 function installVerifiedSession(

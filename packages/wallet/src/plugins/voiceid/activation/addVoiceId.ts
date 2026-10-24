@@ -11,7 +11,7 @@ import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerH
 import { enrollBrowserVoice } from '../browser/enrollment';
 import { readBrowserVoiceDevice } from '../browser/deviceStore';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
-import { showVoiceIdCaptureSurface } from '../capture/surface';
+import { showVoiceIdCaptureSurface, type PreparedVoiceCapture } from '../capture/surface';
 import {
   readUnlockedWalletEd25519ExportRootCapabilityV1,
   walletCustodyCeremonyTransportFromWorkerContextV1,
@@ -151,12 +151,20 @@ export async function addVoiceIdWalletAuthMethod(input: {
 }): Promise<AddVoiceIdResult> {
   const parsedWalletId = parseWalletId(input.walletId);
   if (!parsedWalletId.ok) throw new Error('VoiceID activation wallet ID is invalid.');
-  const prepared = await prepareActivation(input.context, parsedWalletId.value);
   return await showVoiceIdCaptureSurface({
-    action: activatePreparedVoiceId.bind(null, prepared),
+    prepare: prepareActivationSurface.bind(null, input.context, parsedWalletId.value),
     purpose: 'activation',
-    expiresAtMs: null,
   });
+}
+
+async function prepareActivationSurface(
+  context: RegistrationWebContext,
+  walletId: WalletId,
+  signal: AbortSignal,
+): Promise<PreparedVoiceCapture<AddVoiceIdResult>> {
+  const prepared = await prepareActivation(context, walletId);
+  signal.throwIfAborted();
+  return { action: activatePreparedVoiceId.bind(null, prepared), expiresAtMs: null };
 }
 
 async function activatePreparedVoiceId(

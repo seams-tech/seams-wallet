@@ -79,3 +79,15 @@ See the [model candidate evaluation plan](../../../../../docs/voiceid-model-cand
 for verified download sizes, speaker-verification and STT shortlists, licensing,
 and qualification criteria. The current prototype uses the pinned B1 model. Spoken-phrase transcription
 remains unimplemented.
+
+## Prompt and preparation
+
+Enrollment, unlock, and transfer approval use “My voice unlocks my wallet.”
+Speak slowly for about three seconds. This text is a recording aid; words are
+not transcribed. Existing B1 enrollment remains valid after this wording change.
+
+The capture modal mounts before plugin preparation. It shows Preparing VoiceID
+and allows cancellation while its recording button is disabled. Unlock then checks
+local state, loads the cached model if needed, and requests its server challenge.
+Cancellation aborts the challenge request and prevents late UI or recording.
+Shared model loading can finish and populate the cache after cancellation.
