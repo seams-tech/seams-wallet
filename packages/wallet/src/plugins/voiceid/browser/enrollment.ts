@@ -243,7 +243,7 @@ export async function verifyBrowserVoice(
   phrase: SpokenPhrase,
 ): Promise<
   | { kind: 'matched' }
-  | { kind: 'mismatch'; similarity: number; threshold: number; quality: VoiceCaptureQuality; phraseMatched: boolean }
+  | { kind: 'mismatch'; similarity: number; threshold: number; quality: VoiceCaptureQuality; phraseMatched: boolean; modelInputMs: number }
   | { kind: 'phrase_mismatch'; message: string }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
 > {
@@ -262,6 +262,7 @@ export async function verifyBrowserVoice(
     signal.throwIfAborted();
     const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase);
     const phraseMatched = phraseCheck.kind === 'matched';
+    const modelInputMs = pcm.samples.length / 16;
     const embedding = await voiceEmbedding(pcm.samples);
     if (signal.aborted) throw new Error('VoiceID verification was cancelled.');
     const similarity = voiceSimilarity(embedding, enrollment.template);
@@ -278,6 +279,7 @@ export async function verifyBrowserVoice(
       speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
       noise: pcm.quality.noise,
       similarity,
+      modelInputMs,
       threshold: VOICE_MATCH_THRESHOLD,
       phraseMatched,
       phraseRecognition: phraseCheck.recognition,
@@ -285,7 +287,7 @@ export async function verifyBrowserVoice(
     });
     embedding.fill(0);
     if (similarity < VOICE_MATCH_THRESHOLD)
-      return { kind: 'mismatch', similarity, threshold: VOICE_MATCH_THRESHOLD, quality: pcm.quality, phraseMatched };
+      return { kind: 'mismatch', similarity, threshold: VOICE_MATCH_THRESHOLD, quality: pcm.quality, phraseMatched, modelInputMs };
     return phraseCheck.kind === 'matched'
       ? { kind: 'matched' }
       : { kind: 'phrase_mismatch', message: phraseCheck.message };

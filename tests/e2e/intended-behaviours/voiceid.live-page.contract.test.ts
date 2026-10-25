@@ -190,6 +190,7 @@ async function verifyLivePage(
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await wallet.getByText('Recording details', { exact: true }).click();
   await expect(wallet.getByText('Speaker similarity', { exact: false })).toBeVisible();
+  await expect(wallet.getByText('Speaker input', { exact: false })).toBeVisible();
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('speaker-mismatch-details.png') });
   await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening');
@@ -246,7 +247,7 @@ async function verifyLivePage(
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
   await expect(
-    wallet.getByText('VoiceID did not match the enrolled voice.', { exact: false }),
+    wallet.getByText('Your voice did not match.', { exact: false }),
   ).toBeVisible({ timeout: 30_000 });
   await expect(wallet.locator('button.confirm')).toBeEnabled();
   expect(evidence.snapshot()).toEqual(beforeMismatch);

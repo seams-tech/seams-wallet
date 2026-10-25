@@ -1,3 +1,4 @@
+import { VoiceSpeakerMismatchError } from '../browser/verificationError';
 import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
@@ -36,7 +37,16 @@ export async function listenForVoiceApproval(
     case 'insufficient_audio':
       return { kind: 'retry', message: voiceQualityMessage(result.quality) };
     case 'mismatch':
-      return { kind: 'retry', message: 'VoiceID did not match the enrolled voice.' };
+      return {
+        kind: 'retry',
+        message: new VoiceSpeakerMismatchError(
+          result.similarity,
+          result.threshold,
+          result.quality,
+          result.phraseMatched,
+          result.modelInputMs,
+        ).message,
+      };
     case 'phrase_mismatch':
       return { kind: 'retry', message: new VoicePhraseMismatchError(result.message).message };
     default:
