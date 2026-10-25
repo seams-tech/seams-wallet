@@ -233,7 +233,7 @@ export async function verifyMlDsaPublicSigning({
           authorization: { kind: 'passkey', credential: altered },
         })
       ).body.code,
-      'idempotency_conflict',
+      'unauthorized',
     );
     checks.changedAssertionCannotReplaceApproval = true;
     transport.corruptSignature = true;
