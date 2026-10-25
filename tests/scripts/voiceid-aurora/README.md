@@ -33,7 +33,8 @@ notices and licenses beside the models. Model files stay outside Git.
 These are development cases, including cases used to choose phrases and the cutoff.
 They do not provide independent human accuracy estimates. The saved near-miss report
 contains `acceptedExpected` at the exploratory cutoff of 6. Evaluate its scores at
-the shipped cutoff of 5. The repeat script uses 5.
+the shipped cutoff of 8. The repeat script uses 8. This permits minor wording
+differences, including two saved cases that omit the article “a”.
 
 On macOS with the named system voices installed:
 

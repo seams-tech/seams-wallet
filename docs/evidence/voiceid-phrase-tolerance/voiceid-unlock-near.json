@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "tranquil-voyage-uj27s8",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:dccc6814-1330-47b5-bd35-dd443f715807",
+  "freshSessionId": "wls_ZCCvj3RGpGC_3jeY1vtTqSZ_5mORsoobomxyYYAsAZ8",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 114.15762499999983,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 381.69245800000135,
+    "runtimeVisibleMs": 110.88254199999938,
+    "loadingCardHeight": 546.625,
+    "readyCardHeight": 546.625,
+    "cancellationMs": 38.24929200000042,
+    "readyMs": 4445.177707999999,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 116.517292,
+  "naturalCapture": {
+    "voicedMs": 1120,
+    "recordingMs": 4651.200000047684,
+    "endedBy": "pause",
+    "similarity": 0.6510860284369304,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1250,
+    "recordingMs": 3027.899999976158,
+    "endedBy": "pause",
+    "similarity": 0.6872055313997127,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "a2e34f8b-87f0-4006-9510-4109a6b4bec8",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2077.899999976158,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "ac74f251-83a6-4f90-85bc-bdd1b5118461",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8002.899999976158,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "tranquil-voyage-uj27s8",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "tranquil-voyage-uj27s8",
+    "accountId": "970b3ad130abe0034c146b6c0a471cfd98e0bf3593f0c0aac115bc2ea5fbdf09",
+    "publicKey": "ed25519:BAcVes1aMnREhiCx1YwmyLwug29kYjEMhwNcZuNmjo5z"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADk3MGIzYWQxMzBhYmUwMDM0YzE0NmI2YzBhNDcxY2ZkOThlMGJmMzU5M2YwYzBhYWMxMTViYzJlYTVmYmRmMDkAlws60TCr4ANMFGtsCkcc/ZjgvzWT8MCqwRW8LqX73wkCAAAAAAAAAEAAAAA5NzBiM2FkMTMwYWJlMDAzNGMxNDZiNmMwYTQ3MWNmZDk4ZTBiZjM1OTNmMGMwYWFjMTE1YmMyZWE1ZmJkZjA5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAArDUpsOJYAC+i8UdiA1RJc9qrbWUAX65Yips1ikRlEPchBs2GuMMh4eFvjGjjDy34L6Fg6i1rypzWlg/Ni4ZbDg==",
+      "signedTransactionSha256": "476ba9d295de926807a06c96a95a62c7b8ef674d7f309008d8ee01fc2bfd6482",
+      "signerId": "970b3ad130abe0034c146b6c0a471cfd98e0bf3593f0c0aac115bc2ea5fbdf09",
+      "receiverId": "970b3ad130abe0034c146b6c0a471cfd98e0bf3593f0c0aac115bc2ea5fbdf09",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

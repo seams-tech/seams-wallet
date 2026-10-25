@@ -8,8 +8,8 @@ const model = new BrowserInferenceModel({
   bytes: 1_342_384,
   label: 'Phrase recognition',
 });
-// Prototype development cutoff; see the synthetic phrase screening evidence.
-const MAX_GREEDY_LOG_GAP = 5;
+// Allows minor wording differences; see the natural-phrase calibration evidence.
+const MAX_GREEDY_LOG_GAP = 8;
 const TOKEN_COUNT = 257;
 let lastIssuedPhrase: SpokenPhrase | null = null;
 

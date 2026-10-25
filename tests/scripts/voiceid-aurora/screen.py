@@ -65,7 +65,7 @@ def main():
         gap = float(likelihoods[-1] - likelihoods[best])
         results.append({'expected': case['expected'], 'spoken': spoken, 'voice': voice,
                         'recognized': phrases[best], 'gapToGreedy': gap,
-                        'acceptedExpected': bool(greedy) and gap <= 5 and phrases[best] == case['expected']})
+                        'acceptedExpected': bool(greedy) and gap <= 8 and phrases[best] == case['expected']})
     (args.output / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
 
 

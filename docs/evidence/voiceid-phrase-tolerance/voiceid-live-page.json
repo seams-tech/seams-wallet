@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "serene-phoenix-zxwsks",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "78c87bb9-bb1e-4d21-bed1-c8752ff30083",
+    "capturedAtMs": 1792902748039,
+    "durationMs": 3420,
+    "recordingMs": 5003.099999904633,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.14750080661815235,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "can you open the window",
+      "gap": 214.70079807282116
+    },
+    "expectedPhrase": "he is looking at me"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "serene-phoenix-zxwsks",
+    "accountId": "e54d1082f48d078155fdff68d092eaea59ddf834ce77e1f0bf0c5e68278fec2a",
+    "publicKey": "ed25519:GS6X6z5F4TKX2j81Jzu2pT7tnwzkh997s9hitFejAbQ5"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGU1NGQxMDgyZjQ4ZDA3ODE1NWZkZmY2OGQwOTJlYWVhNTlkZGY4MzRjZTc3ZTFmMGJmMGM1ZTY4Mjc4ZmVjMmEA5U0QgvSNB4FV/f9o0JLq6lnd+DTOd+HwvwxeaCeP7CoCAAAAAAAAAEAAAABlNTRkMTA4MmY0OGQwNzgxNTVmZGZmNjhkMDkyZWFlYTU5ZGRmODM0Y2U3N2UxZjBiZjBjNWU2ODI3OGZlYzJhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAWf7jYUHB4RS/SlHQSiv6IiaUTm7jzZyz79Hj/F9PTNIdvGlKqdcHY0v2O3CaBzwMFk+tBH/wh+e1F2E3If3hCQ==",
+      "signedTransactionSha256": "cca26e9ebd814957e361e3a2466a3aa95c1237b8823ac54d415e149221841163",
+      "signerId": "e54d1082f48d078155fdff68d092eaea59ddf834ce77e1f0bf0c5e68278fec2a",
+      "receiverId": "e54d1082f48d078155fdff68d092eaea59ddf834ce77e1f0bf0c5e68278fec2a",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

@@ -109,9 +109,11 @@ Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
 
 The decoder scores all 16 phrases before comparing its result with the displayed
 phrase. It also compares the best phrase score against unconstrained recognition.
-The prototype accepts a log-likelihood gap of at most 5. This is a development
+The prototype accepts a log-likelihood gap of at most 8. This is a development
 cutoff, with synthetic screening evidence. It needs human accuracy qualification.
-A wrong phrase prevents enrollment, device-key use, or signing. A signing retry
+Minor wording differences can pass, including an omitted article. This is not an
+exact-word check. A different recognized phrase or a gap above 8 prevents
+enrollment, device-key use, or signing. The speaker threshold remains 0.5. A signing retry
 keeps the original transaction review and deadline and requires another Confirm.
 No audio or transcript leaves the browser or enters persistent storage.
 

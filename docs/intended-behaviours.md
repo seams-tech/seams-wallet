@@ -162,7 +162,10 @@ The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
-Confirm click. Aurora must recognize the displayed phrase from the same recording.
+Confirm click. Aurora must select the displayed phrase from the same recording,
+with a log-likelihood gap of at most 8. Minor wording differences, such as an
+omitted article, can pass. A different selected phrase still fails. Speaker
+verification retains its independent similarity threshold of 0.5.
 The decoder scores all bank phrases independently of the expected phrase and rejects
 results too far from unconstrained recognition. A failed phrase check cannot add an
 enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open
