@@ -47,7 +47,7 @@ const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
-    { text: 'Release 0.19.0', link: '/releases' },
+    { text: 'Release 0.22.0', link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {
