@@ -44,6 +44,7 @@ impl From<CandidateGroupSize> for u16 {
 pub struct Policy {
     pub(crate) wallet_cooldown: WalletCooldown,
     pub(crate) max_active_operations: usize,
+    pub(crate) max_active_preparations: usize,
     pub(crate) operation_timeout_ms: u64,
     candidate_group_size: CandidateGroupSize,
     preparation_group_size: CandidateGroupSize,
@@ -55,12 +56,18 @@ pub struct Policy {
 struct PolicyWire {
     wallet_cooldown: WalletCooldown,
     max_active_operations: usize,
+    #[serde(default = "serial_preparation")]
+    max_active_preparations: usize,
     operation_timeout_ms: u64,
     candidate_group_size: CandidateGroupSize,
     preparation_group_size: CandidateGroupSize,
     minimum_ready_batches: usize,
     refill_target_batches: usize,
 }
+const fn serial_preparation() -> usize {
+    1
+}
+
 impl TryFrom<PolicyWire> for Policy {
     type Error = RouterAbProtocolError;
     fn try_from(value: PolicyWire) -> Result<Self> {
@@ -71,6 +78,7 @@ impl TryFrom<PolicyWire> for Policy {
             WalletCooldown::Enabled { interval_ms: 0 }
         ) || value.max_active_operations == 0
             || value.max_active_operations > 64
+            || !(1..=2).contains(&value.max_active_preparations)
             || !(1_000..=300_000).contains(&value.operation_timeout_ms)
             || value.minimum_ready_batches == 0
             || value.minimum_ready_batches > value.refill_target_batches
@@ -82,6 +90,7 @@ impl TryFrom<PolicyWire> for Policy {
         Ok(Self {
             wallet_cooldown: value.wallet_cooldown,
             max_active_operations: value.max_active_operations,
+            max_active_preparations: value.max_active_preparations,
             operation_timeout_ms: value.operation_timeout_ms,
             candidate_group_size: value.candidate_group_size,
             preparation_group_size: value.preparation_group_size,
@@ -97,6 +106,7 @@ impl Default for Policy {
                 interval_ms: 60_000,
             },
             max_active_operations: 1,
+            max_active_preparations: serial_preparation(),
             operation_timeout_ms: 30_000,
             candidate_group_size: CandidateGroupSize::Two,
             preparation_group_size: CandidateGroupSize::Four,

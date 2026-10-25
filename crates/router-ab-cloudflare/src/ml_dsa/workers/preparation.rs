@@ -7,6 +7,38 @@ use worker::{Context, WebSocket, WebSocketPair};
 pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
+static ACTIVE_CRYPTO: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+struct CryptoActivity;
+impl CryptoActivity {
+    fn enter() -> Self {
+        ACTIVE_CRYPTO.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Self
+    }
+}
+impl Drop for CryptoActivity {
+    fn drop(&mut self) {
+        ACTIVE_CRYPTO.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+fn log_cache(
+    job: &refill::Job,
+    role: Participant,
+    stage: &str,
+    topologies: &ml_dsa_threshold::runtime::boolean_mpc::prepared::PublicTopologies,
+) {
+    let (builds, hits) = topologies.cache_statistics();
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event":"ml_dsa_preparation_cache_v1", "job":hex(&job.batch), "role":role,
+            "producer_slot":job.producer_slot, "stage":stage,
+            "topology_builds":builds, "topology_hits":hits, "public_topology_bytes":topologies.allocation_bytes(),
+            "active_crypto":ACTIVE_CRYPTO.load(std::sync::atomic::Ordering::Relaxed),
+            "module_instance":signing_trace::module_identity(),
+            "at_ms":crate::cloudflare_now_unix_ms_v1().ok(),
+        })
+    );
+}
 
 pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
     match command {
@@ -267,7 +299,9 @@ async fn prepare(
     if signing_schedule_digest(env)? != job.key.schedule_digest {
         return Err(invalid("ML-DSA preprocessing schedule changed"));
     }
+    let _activity = CryptoActivity::enter();
     let mut topologies = schedules::public_topologies();
+    log_cache(job, participant, "started", &topologies);
     log_stage(job, participant, job.batch, "crypto_started");
     let prepared = prepare_gmw_reservations(
         role,
@@ -280,6 +314,7 @@ async fn prepare(
     .await
     .map_err(|_| invalid("ML-DSA preprocessing protocol failed"))?;
     log_stage(job, participant, job.batch, "correlations_completed");
+    log_cache(job, participant, "prepared", &topologies);
     let epoch = execution::material_epoch(&job.key)?;
     let mut committed = Vec::with_capacity(prepared.len());
     for (batch, prepared) in job.batch_ids().into_iter().zip(prepared) {
