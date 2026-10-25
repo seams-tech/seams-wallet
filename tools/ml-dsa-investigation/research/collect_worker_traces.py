@@ -69,6 +69,10 @@ def refill_job(request, path):
             if type(data) is not int or data < 0:
                 return None
             result[name] = data
+        slot = value.get("producer_slot", "primary")
+        if slot not in ("primary", "secondary"):
+            return None
+        result["producer_slot"] = slot
         result["batches"] = preparation_ids(result["batch"], value.get("groups", "one"))
         return result
     except (ValueError, TypeError, KeyError):
@@ -598,6 +602,7 @@ def records(path, role):
         material_stages = []
         preparation_stages = []
         preparation_transport = []
+        preparation_cache = []
         for log in item.get("logs", []):
             for message in log.get("message", []):
                 try:
@@ -671,6 +676,15 @@ def records(path, role):
                     if (public_id(value.get("operation")) and value.get("role") in ("a", "b")
                             and stage is not None and "material_id" in stage and stage["stage"] in ("taken", "checked")):
                         material_stages.append({"operation": value["operation"], "role": value["role"], "value": stage, "log_timestamp_ms": log.get("timestamp")})
+                if value.get("event") == "ml_dsa_preparation_cache_v1":
+                    if (public_id(value.get("job")) and value.get("role") in ("a", "b")
+                            and value.get("producer_slot") in ("primary", "secondary")
+                            and value.get("stage") in ("started", "prepared")
+                            and public_time(value.get("at_ms"))
+                            and isinstance(value.get("module_instance"), str)
+                            and re.fullmatch("[0-9a-f]{32}", value["module_instance"])
+                            and all(public_counter(value.get(key)) for key in ("topology_builds", "topology_hits", "public_topology_bytes", "active_crypto"))):
+                        preparation_cache.append({**{key: value[key] for key in ("job", "role", "producer_slot", "stage", "topology_builds", "topology_hits", "public_topology_bytes", "active_crypto", "module_instance", "at_ms")}, "log_timestamp_ms": log.get("timestamp")})
                 if value.get("event") == "ml_dsa_preparation_stage_v1":
                     if (public_id(value.get("job")) and public_id(value.get("batch")) and value.get("role") in ("a", "b")
                             and value.get("stage") in ("controller_selected", "activation_checked", "local_inventory_checked", "peer_inventory_checked",
@@ -801,6 +815,8 @@ def records(path, role):
             "material_stages": material_stages,
             "preparation_stages": preparation_stages,
             "preparation_transport": preparation_transport,
+            "preparation_cache": preparation_cache,
+            "request_colo": request.get("cf", {}).get("colo") if re.fullmatch("[A-Z]{3}", str(request.get("cf", {}).get("colo", ""))) else None,
         })
     return result
 
@@ -814,11 +830,13 @@ def main():
     parser.add_argument("--preparer-a", type=pathlib.Path)
     parser.add_argument("--preparer-b", type=pathlib.Path)
     parser.add_argument("--front", type=pathlib.Path)
+    parser.add_argument("--preparer-a-secondary", type=pathlib.Path)
+    parser.add_argument("--preparer-b-secondary", type=pathlib.Path)
     args = parser.parse_args()
     retained = records(args.role_a, "a") + records(args.role_b, "b")
     if args.router:
         retained += records(args.router, "router")
-    for role, path in [("preparer-a", args.preparer_a), ("preparer-b", args.preparer_b), ("front", args.front)]:
+    for role, path in [("preparer-a", args.preparer_a), ("preparer-b", args.preparer_b), ("front", args.front), ("preparer-a-secondary", args.preparer_a_secondary), ("preparer-b-secondary", args.preparer_b_secondary)]:
         if path:
             retained += records(path, role)
     report = {

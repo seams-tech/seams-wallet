@@ -544,14 +544,16 @@ async fn execute_admission(
             if groups.count() > policy.preparation_groups(2).count() {
                 return Err(invalid("Preparation exceeds configured group size"));
             }
-            json(refill::claim(store, key, groups, now).await?)
+            json(refill::claim(store, policy, key, groups, now).await?)
         }
         AdmissionCommand::WithdrawRefill { key } => {
             refill::withdraw(store, &key).await?;
             json(true)
         }
         AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
-        AdmissionCommand::FinishRefill { job } => json(refill::finish(store, &job, now).await?),
+        AdmissionCommand::FinishRefill { job } => {
+            json(refill::finish(store, policy, &job, now).await?)
+        }
         AdmissionCommand::AuthorizeKey { activation } => {
             admission::authorize_key(store, activation).await?;
             json(true)

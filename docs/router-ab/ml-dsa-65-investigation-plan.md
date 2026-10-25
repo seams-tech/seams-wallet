@@ -1,12 +1,17 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-25.
-Current priority: sustained preparation capacity, material expiry waste, and admission contention.
+Current priority: producer runtime diagnosis and a controlled parallel-refill comparison.
+The [parallel refill report](ml-dsa-65-parallel-refill-report.md) records the two-slot prototype and local E2E evidence.
+Two wallets preserve canonical recovery, verify twelve signatures, and restore sixteen pairs each. Two cross-wallet preparation overlaps publish successfully.
+The native lifecycle checks cover restart, FIFO grants, recovery fencing, stale completion, and a switch back to one slot.
+Cloudflare testing awaits approval for eight new benchmark credential uploads. The default remains one preparation slot; per-wallet capacity remains unchanged.
 The [expiry and admission campaign](ml-dsa-65-expiry-admission-report.md) verifies 137 hosted signatures with unchanged capacity; 136 successful calls finish below five seconds.
 No empty-pool response claims signing capacity, and no newly refilled paired stock is unaccounted for in these windows.
 Finite load-and-restoration cycles reach 3.640 and 3.352 signatures/minute. The eight-wallet post-starting-stock interval reaches 2.849/minute, with long waits still present.
 Twelve preparation attempts encounter B `loadShed`. Unexplained producer CPU variation prevents assigning the full gain to policy changes.
-Next, isolate those runtime failures and variation before a controlled parallel-refill comparison. All six temporary Workers are deleted.
+The failure burst spans 34.532 seconds. Recorded Wasm memory sizes also occur in successful jobs; the cause remains unknown.
+The six Workers from that completed campaign are deleted. The new comparison has eight temporary shells awaiting credential approval.
 The [sustained capacity report](ml-dsa-65-sustained-capacity-report.md) records unchanged-capacity four- and eight-wallet Cloudflare loads.
 Their post-stock rates are 2.545 and 1.417 signatures/minute. Complete demand latency reaches 767.428 seconds.
 Successful cloud calls take 0.452–5.182 seconds. Thirty newly prepared pairs leave ready inventory without use in the eight-wallet screen.

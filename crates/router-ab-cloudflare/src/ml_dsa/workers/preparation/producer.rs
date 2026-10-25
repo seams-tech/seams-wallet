@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 const PENDING: &str = "producer-pending";
 const PRODUCER_NAME: &str = "ml-dsa-producer-v1";
 const MAX_PENDING: usize = 2;
-const NAMESPACE: &str = "ML_DSA_PRODUCER_DO";
 const RECOVERY_CHECK_MS: u64 = 5_000;
 static CONSTRUCTIONS: AtomicU32 = AtomicU32::new(0);
 
@@ -39,7 +38,7 @@ enum AlarmWork {
 
 pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     let stub = env
-        .durable_object(NAMESPACE)
+        .durable_object(job.producer_slot.namespace())
         .map_err(storage_error)?
         .id_from_name(PRODUCER_NAME)
         .map_err(storage_error)?

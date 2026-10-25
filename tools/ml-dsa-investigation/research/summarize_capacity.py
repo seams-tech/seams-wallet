@@ -81,7 +81,7 @@ def producer_profiles(client, records, start, end):
     lifecycle = []
     for row in records:
         at = row['event_timestamp_ms']
-        if row['role'] != 'preparer-a' or not row['producer_alarm'] or at is None or not start <= at <= end:
+        if row['role'] not in ('preparer-a', 'preparer-a-secondary') or not row['producer_alarm'] or at is None or not start <= at <= end:
             continue
         identities = {(item['batch'], tuple(item['batches']), item['key'], item['epoch']) for item in row['producer_jobs']}
         if len(identities) != 1:
@@ -95,11 +95,11 @@ def producer_profiles(client, records, start, end):
                               'wall_ms': row['wall_ms'], 'outcome': row['outcome'],
                               'stages': sorted({item['stage'] for item in row['producer_jobs']})})
             continue
-        peers = [peer for peer in records if peer['role'] == 'preparer-b'
+        peers = [peer for peer in records if peer['role'] == row['role'].replace('preparer-a', 'preparer-b')
                  and peer['refill_job'] is not None and peer['refill_job']['batch'] == batch]
         peer = peers[0] if len(peers) == 1 else None
         completed = [item for item in row['refill'] if item['batch'] == batch and item['published'] is True]
-        jobs.append({'batch': batch, 'batches': list(batches), 'key': key, 'epoch': epoch,
+        jobs.append({'worker_role': row['role'], 'batch': batch, 'batches': list(batches), 'key': key, 'epoch': epoch,
                      'active_wallet': (key, epoch) in active, 'candidates': 2 * len(batches),
                      'started_at_ms': at, 'published_at_ms': min(timestamp(row, item) for item in completed) if completed else None,
                      'a_cpu_ms': row['cpu_ms'], 'a_wall_ms': row['wall_ms'],

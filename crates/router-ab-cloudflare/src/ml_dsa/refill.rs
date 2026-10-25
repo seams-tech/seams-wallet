@@ -1,4 +1,4 @@
-//! One service-wide preprocessing lease with independently consumed reservations.
+//! Bounded service-wide preprocessing leases with one active producer per key.
 use super::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -14,9 +14,37 @@ impl Groups {
         }
     }
 }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProducerSlot {
+    #[default]
+    Primary,
+    Secondary,
+}
+impl ProducerSlot {
+    const ALL: [Self; 2] = [Self::Primary, Self::Secondary];
+
+    fn storage_key(self) -> &'static str {
+        match self {
+            Self::Primary => "preprocessing-active",
+            Self::Secondary => "preprocessing-active-secondary",
+        }
+    }
+
+    pub fn namespace(self) -> &'static str {
+        match self {
+            Self::Primary => "ML_DSA_PRODUCER_DO",
+            Self::Secondary => "ML_DSA_SECONDARY_PRODUCER_DO",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Job {
+    // Stored jobs and requests predating multiple slots belong to the primary slot.
+    #[serde(default)]
+    pub producer_slot: ProducerSlot,
     pub key: KeyScope,
     pub batch: [u8; 32],
     pub groups: Groups,
@@ -41,7 +69,6 @@ pub enum Claim {
     Acquired { job: Job },
     Busy { retry_at_ms: u64 },
 }
-const ACTIVE: &str = "preprocessing-active";
 const WAITING: &str = "preprocessing-waiting";
 const MAX_WAITING_KEYS: usize = 64;
 const DEMAND_LIFETIME_MS: u64 = 30_000;
@@ -54,7 +81,13 @@ struct Waiting {
     key: KeyScope,
     expires_at_ms: u64,
 }
-pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) -> Result<Claim> {
+pub async fn claim(
+    store: &impl Store,
+    policy: &policy::Policy,
+    key: KeyScope,
+    groups: Groups,
+    now: u64,
+) -> Result<Claim> {
     if admission::active_key(store, &key)
         .await?
         .map(|value| value.key)
@@ -63,13 +96,11 @@ pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) 
     {
         return Err(invalid("ML-DSA preprocessing key is inactive"));
     }
-    let active = store.get::<Job>(ACTIVE).await?;
-    if let Some(job) = &active {
-        if job.key == key && job.expires_at_ms > now {
-            return Ok(Claim::Busy {
-                retry_at_ms: job.expires_at_ms.min(now.saturating_add(5_000)),
-            });
-        }
+    let active = active_jobs(store, now).await?;
+    if let Some(job) = active.iter().find(|job| job.key == key) {
+        return Ok(Claim::Busy {
+            retry_at_ms: job.expires_at_ms.min(now.saturating_add(5_000)),
+        });
     }
     let original: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
     let mut waiting = Vec::new();
@@ -113,18 +144,20 @@ pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) 
             retry_at_ms: retry_at_ms.min(now.saturating_add(5_000)),
         });
     }
-    if let Some(active) = active {
-        if active.expires_at_ms > now {
-            persist_waiting(store, &original, &waiting).await?;
-            return Ok(Claim::Busy {
-                retry_at_ms: active.expires_at_ms.min(now.saturating_add(5_000)),
-            });
-        }
+    if active.len() >= policy.max_active_preparations {
+        persist_waiting(store, &original, &waiting).await?;
+        return Ok(busy);
     }
+    let producer_slot = ProducerSlot::ALL[..policy.max_active_preparations]
+        .iter()
+        .copied()
+        .find(|slot| !active.iter().any(|job| job.producer_slot == *slot))
+        .ok_or_else(|| invalid("ML-DSA preprocessing capacity is inconsistent"))?;
     let mut batch = [0; 32];
     getrandom::getrandom(&mut batch)
         .map_err(|_| invalid("ML-DSA refill randomness unavailable"))?;
     let job = Job {
+        producer_slot,
         key,
         batch,
         groups,
@@ -133,8 +166,25 @@ pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) 
     };
     waiting.remove(0);
     persist_waiting(store, &original, &waiting).await?;
-    store.put(ACTIVE, &job).await?;
+    store.put(producer_slot.storage_key(), &job).await?;
     Ok(Claim::Acquired { job })
+}
+
+async fn active_jobs(store: &impl Store, now: u64) -> Result<Vec<Job>> {
+    let mut active = Vec::with_capacity(ProducerSlot::ALL.len());
+    for slot in ProducerSlot::ALL {
+        if let Some(job) = store.get::<Job>(slot.storage_key()).await? {
+            if job.producer_slot != slot {
+                return Err(invalid(
+                    "ML-DSA producer slot differs from its stored lease",
+                ));
+            }
+            if job.expires_at_ms > now {
+                active.push(job);
+            }
+        }
+    }
+    Ok(active)
 }
 
 async fn persist_waiting(
@@ -161,7 +211,11 @@ pub async fn withdraw(store: &impl Store, key: &KeyScope) -> Result<()> {
 }
 pub async fn check(store: &impl Store, job: &Job, now: u64) -> Result<bool> {
     Ok(now < job.expires_at_ms
-        && store.get::<Job>(ACTIVE).await?.as_ref() == Some(job)
+        && store
+            .get::<Job>(job.producer_slot.storage_key())
+            .await?
+            .as_ref()
+            == Some(job)
         && admission::active_key(store, &job.key)
             .await?
             .map(|value| value.key)
@@ -170,18 +224,30 @@ pub async fn check(store: &impl Store, job: &Job, now: u64) -> Result<bool> {
 }
 /// Release only this lease and return bounded wake hints in queue order.
 /// An idle replay recomputes hints after a lost reply. A newer lease wins.
-pub async fn finish(store: &impl Store, job: &Job, now: u64) -> Result<Vec<KeyScope>> {
-    match store.get::<Job>(ACTIVE).await? {
+pub async fn finish(
+    store: &impl Store,
+    policy: &policy::Policy,
+    job: &Job,
+    now: u64,
+) -> Result<Vec<KeyScope>> {
+    match store.get::<Job>(job.producer_slot.storage_key()).await? {
         Some(active) if active != *job => return Ok(Vec::new()),
-        Some(_) => store.delete(ACTIVE).await?,
+        Some(_) => store.delete(job.producer_slot.storage_key()).await?,
         None => {}
     }
     let waiting: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
-    let mut wake = Vec::with_capacity(2);
+    let active = active_jobs(store, now).await?;
+    let available = policy.max_active_preparations.saturating_sub(active.len());
+    let mut wake = Vec::with_capacity(available + 1);
     for entry in waiting {
-        if entry.expires_at_ms > now && key_is_active(store, &entry.key).await? {
-            wake.push(entry.key);
+        if wake.len() >= available {
             break;
+        }
+        if entry.expires_at_ms > now
+            && key_is_active(store, &entry.key).await?
+            && !active.iter().any(|job| job.key == entry.key)
+        {
+            wake.push(entry.key);
         }
     }
     if !wake.contains(&job.key) && key_is_active(store, &job.key).await? {

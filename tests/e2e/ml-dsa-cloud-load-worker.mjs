@@ -2,6 +2,10 @@ import { DurableObject } from 'cloudflare:workers';
 
 const AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const PUBLIC_LOG_FIELDS = {
+  ml_dsa_preparation_cache_v1: [
+    'job', 'role', 'producer_slot', 'stage', 'topology_builds', 'topology_hits',
+    'public_topology_bytes', 'active_crypto', 'module_instance', 'at_ms',
+  ],
   ml_dsa_admission_stock_v1: ['operation', 'paired', 'minimum', 'stage'],
   ml_dsa_inventory_v1: ['key', 'epoch', 'ready_a', 'ready_b', 'reserved_a', 'reserved_b'],
   ml_dsa_signing_outcome_v1: ['operation', 'outcome'],
@@ -77,7 +81,10 @@ export async function routeLoadRequest(request, env) {
 export async function archiveTail(events, env) {
   for (const event of events) {
     const role = event.scriptName?.slice(env.TEST_WORKER_PREFIX.length + 1);
-    if (!['router', 'a', 'b', 'preparer-a', 'preparer-b'].includes(role)) continue;
+    if (![
+      'router', 'a', 'b', 'preparer-a', 'preparer-b',
+      'preparer-a-secondary', 'preparer-b-secondary',
+    ].includes(role)) continue;
     const clean = sanitizeTrace(event);
     await env.TEST_TRACES.get(env.TEST_TRACES.idFromName(role)).append(clean);
   }
@@ -427,7 +434,15 @@ function sanitizeTrace(event) {
     event.event?.scheduledTime !== undefined
       ? { scheduledTime: event.event.scheduledTime }
       : request
-        ? { request: { url: new URL(request.url).origin + new URL(request.url).pathname, headers } }
+        ? {
+            request: {
+              url: new URL(request.url).origin + new URL(request.url).pathname,
+              headers,
+              cf: typeof request.cf?.colo === 'string' && /^[A-Z]{3}$/.test(request.cf.colo)
+                ? { colo: request.cf.colo }
+                : {},
+            },
+          }
         : {};
   return {
     scriptName: event.scriptName,
@@ -506,7 +521,8 @@ function publicRefillHeader(request) {
       !Number.isSafeInteger(decoded.key.epoch) ||
       !Number.isSafeInteger(decoded.expires_at_ms) ||
       !Number.isSafeInteger(decoded.material_expires_at_ms) ||
-      !['one', 'two'].includes(decoded.groups)
+      !['one', 'two'].includes(decoded.groups) ||
+      !['primary', 'secondary'].includes(decoded.producer_slot ?? 'primary')
     )
       return null;
     return btoa(
@@ -514,6 +530,7 @@ function publicRefillHeader(request) {
         batch: decoded.batch,
         key: { public_key_digest: decoded.key.public_key_digest, epoch: decoded.key.epoch },
         groups: decoded.groups,
+        producer_slot: decoded.producer_slot ?? 'primary',
         expires_at_ms: decoded.expires_at_ms,
         material_expires_at_ms: decoded.material_expires_at_ms,
       }),

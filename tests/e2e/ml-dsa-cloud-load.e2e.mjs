@@ -63,7 +63,7 @@ async function registrations(count) {
     const registration = JSON.parse(await readFile(join(base, `registration-${i}.json`), 'utf8'));
     assert.equal(registration.registrationChecksPassed, true);
     assert.equal(registration.recoveryPreservesCanonicalKey, true);
-    assert.deepEqual(registration.policy, scope.policy);
+    assertWalletPolicy(registration.policy, scope.policy);
     const latest = registration.cases.at(-1);
     assert.equal(latest.canonicalKeyVerified, true);
     results.push({ index: i - 1, key: latest.key, publicKeyHex: latest.publicKeyHex });
@@ -287,7 +287,8 @@ function succeededRequest(row) {
 async function traces() {
   await mkdir(folder, { recursive: true });
   let count = 0;
-  for (const role of ['router', 'a', 'b', 'preparer-a', 'preparer-b']) {
+  const roles = scope.workers.map(workerRole).filter(capturedRole);
+  for (const role of roles) {
     let cursor = null;
     const rows = [];
     do {
@@ -311,6 +312,9 @@ async function traces() {
     '--preparer-b',
     join(folder, 'preparer-b-raw.jsonl'),
   ];
+  for (const role of ['preparer-a-secondary', 'preparer-b-secondary']) {
+    if (roles.includes(role)) args.push('--' + role, join(folder, role + '-raw.jsonl'));
+  }
   const result = spawnSync('python3', args, { cwd: root, encoding: 'utf8' });
   await writeFile(join(folder, 'collection.log'), result.stdout + result.stderr);
   assert.equal(result.status, 0, 'Public trace collection failed; inspect collection.log');
@@ -426,4 +430,22 @@ function requestIdentity(row) {
 }
 function numeric(left, right) {
   return left - right;
+}
+
+function workerRole(worker) {
+  return worker.role;
+}
+
+function capturedRole(role) {
+  return role !== 'front';
+}
+
+function assertWalletPolicy(registered, current) {
+  for (const key of [
+    'wallet_cooldown', 'max_active_operations', 'operation_timeout_ms',
+    'candidate_group_size', 'preparation_group_size', 'minimum_ready_batches', 'refill_target_batches',
+  ]) {
+    assert.deepEqual(registered[key], current[key], `Wallet policy changed: ${key}`);
+  }
+  assert.ok([1, 2].includes(current.max_active_preparations ?? 1));
 }

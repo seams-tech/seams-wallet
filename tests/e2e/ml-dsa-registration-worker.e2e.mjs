@@ -123,6 +123,7 @@ assert.ok(preparationGroupSize === candidateGroupSize || (preparationGroupSize =
 const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
   max_active_operations: 1,
+  max_active_preparations: Number(process.env.ML_DSA_TEST_PREPARATION_JOBS ?? 1),
   operation_timeout_ms: 30000,
   candidate_group_size: candidateGroupSize,
   preparation_group_size: preparationGroupSize,

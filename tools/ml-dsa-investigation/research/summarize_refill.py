@@ -169,12 +169,12 @@ def summarize(client, traces, versions, target_groups):
     inferred_publications = paired_observed - initial_ids
     role_cpu = {}
     queued_dispatch = any(record.get("producer_alarm") for record in traces)
-    for role in ["a", "b", "preparer-a", "preparer-b"]:
+    for role in ["a", "b", "preparer-a", "preparer-b", "preparer-a-secondary", "preparer-b-secondary"]:
         invocations = [record for record in traces if record["role"] == role
                        and record["event_timestamp_ms"] is not None
                        and start <= record["event_timestamp_ms"] <= horizon
                        and record["cpu_ms"] is not None]
-        if role == "preparer-a" and queued_dispatch:
+        if role in ("preparer-a", "preparer-a-secondary") and queued_dispatch:
             values = [record["cpu_ms"] for record in invocations if record.get("producer_alarm")
                       and any(item["batch"] in observed_batch_ids for item in record.get("refill", []))]
         else:
@@ -213,7 +213,7 @@ def summarize(client, traces, versions, target_groups):
         "preparation_job_clock_delta_ms": distribution([item["elapsed_ms"] for item in publications if item["published"]]),
         "matched_producer_invocation_cpu_ms": role_cpu,
         "producer_queue_invocation_cpu_ms": distribution([record["cpu_ms"] for record in traces
-            if queued_dispatch and record["role"] == "preparer-a" and record["path"] == "/router-ab/ml-dsa/prepare"
+            if queued_dispatch and record["role"] in ("preparer-a", "preparer-a-secondary") and record["path"] == "/router-ab/ml-dsa/prepare"
             and record["event_timestamp_ms"] is not None and start <= record["event_timestamp_ms"] <= horizon
             and record["cpu_ms"] is not None]),
         "unmatched_producer_alarm_cpu_ms": distribution([record["cpu_ms"] for record in traces
