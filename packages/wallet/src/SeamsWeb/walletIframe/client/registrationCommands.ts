@@ -23,6 +23,8 @@ export function createApplicationRegistrationCommands(
     addSigner: addSigner.bind(null, walletIframe),
     addPasskey: addPasskey.bind(null, walletIframe),
     activateAuthMethod: activateAuthMethod.bind(null, walletIframe),
+    getAuthMethodAvailability: getAuthMethodAvailability.bind(null, walletIframe),
+    setAuthMethodEnabled: setAuthMethodEnabled.bind(null, walletIframe),
     removeAuthMethod: removeAuthMethod.bind(null, walletIframe),
     addEmail: addEmail.bind(null, walletIframe),
   };
@@ -145,4 +147,17 @@ function emitTransportTiming(
     transportKind,
     ...timings,
   });
+}
+
+async function getAuthMethodAvailability(
+  walletIframe: RegistrationIframe,
+  args: Parameters<RegistrationCapability['getAuthMethodAvailability']>[0],
+): ReturnType<RegistrationCapability['getAuthMethodAvailability']> {
+  return (await walletIframe.requireRouter()).getAuthMethodAvailability(args);
+}
+async function setAuthMethodEnabled(
+  walletIframe: RegistrationIframe,
+  args: Parameters<RegistrationCapability['setAuthMethodEnabled']>[0],
+): ReturnType<RegistrationCapability['setAuthMethodEnabled']> {
+  return (await walletIframe.requireRouter()).setAuthMethodEnabled(args);
 }

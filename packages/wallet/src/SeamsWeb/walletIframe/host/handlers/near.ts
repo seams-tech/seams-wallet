@@ -1,7 +1,4 @@
-import {
-  type PMRegistrationAuthMethodInput,
-  type PMSendTxPayload,
-} from '../../shared/messages';
+import { type PMRegistrationAuthMethodInput, type PMSendTxPayload } from '../../shared/messages';
 import {
   nearAccountRefFromAccountId,
   toWalletId,
@@ -155,6 +152,19 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
 
+    PM_GET_AUTH_METHOD_AVAILABILITY: async (req: Req<'PM_GET_AUTH_METHOD_AVAILABILITY'>) => {
+      if (!req.payload) throw new Error('Authentication method request is missing.');
+      const result = await deps
+        .getWalletRuntime()
+        .registration.getAuthMethodAvailability(req.payload);
+      if (!deps.respondIfCancelled(req.requestId)) respondOkResult(deps, req.requestId, result);
+    },
+    PM_SET_AUTH_METHOD_ENABLED: async (req: Req<'PM_SET_AUTH_METHOD_ENABLED'>) => {
+      if (!req.payload) throw new Error('Authentication method request is missing.');
+      const result = await deps.getWalletRuntime().registration.setAuthMethodEnabled(req.payload);
+      await deps.publishCurrentSession();
+      if (!deps.respondIfCancelled(req.requestId)) respondOkResult(deps, req.requestId, result);
+    },
     PM_ACTIVATE_AUTH_METHOD: async (req: Req<'PM_ACTIVATE_AUTH_METHOD'>) => {
       const pm = deps.getWalletRuntime();
       if (deps.respondIfCancelled(req.requestId)) return;

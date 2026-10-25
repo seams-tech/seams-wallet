@@ -44,11 +44,7 @@ import type {
   SigningFlowEvent,
   WalletRecoveryCodeBackupRequestV1,
 } from '@/core/types/sdkSentEvents';
-import type {
-  AppearanceConfig,
-  AppearanceConfigInput,
-  ThemeMode,
-} from '@/core/types/seams';
+import type { AppearanceConfig, AppearanceConfigInput, ThemeMode } from '@/core/types/seams';
 import type { ConfirmationConfig } from '@/core/types/signer-worker';
 import { createBrowserSigningRuntime } from '@/SeamsWeb/assembly/createBrowserSigningRuntime';
 import { createBrowserSigningStores } from '@/SeamsWeb/assembly/createBrowserSigningStores';
@@ -186,7 +182,9 @@ export class WalletHostRuntime {
       this.signingEngine.setAppearance(this.appearance);
     } catch {}
     const userPreferences = this.signingEngine.getUserPreferences();
-    const platform = createBrowserHostPlatformRuntime(browserSigningSurface.getSignerWorkerContext());
+    const platform = createBrowserHostPlatformRuntime(
+      browserSigningSurface.getSignerWorkerContext(),
+    );
     const ownerAuthorities = createWalletHostOwnerAuthoritiesV1({
       http: platform.http,
       relayerUrl: String(this.configs.network.relayer?.url || '').trim(),
@@ -213,8 +211,11 @@ export class WalletHostRuntime {
     });
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
-    const registrationCommands = createWalletHostRegistrationCommands(this.getContext.bind(this));
     const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this));
+    const registrationCommands = createWalletHostRegistrationCommands(
+      this.getContext.bind(this),
+      sessionCommands,
+    );
     this.prefillRestoredSession = prefillWalletHostPresignatures.bind(
       null,
       this.getContext.bind(this),
@@ -260,8 +261,7 @@ export class WalletHostRuntime {
       recovery: {
         syncAccount: this.syncAccountDomain.bind(this),
         getCodeStatus: this.getCodeStatusDomain.bind(this),
-        confirmBackup:
-          this.confirmBackupDomain.bind(this),
+        confirmBackup: this.confirmBackupDomain.bind(this),
         requestWalletCustodyEmailOtpChallenge:
           this.requestWalletCustodyEmailOtpChallengeDomain.bind(this),
         rotateCodes: this.rotateCodesDomain.bind(this),
@@ -488,7 +488,9 @@ export class WalletHostRuntime {
     const pending = await pendingWalletRecoveryCodeBackupRepository.read(walletId);
     if (!pending) return null;
     if (pending.kind !== 'ready') {
-      throw new Error('Recovery codes are awaiting a verified server issuance. Retry registration.');
+      throw new Error(
+        'Recovery codes are awaiting a verified server issuance. Retry registration.',
+      );
     }
     return {
       kind: 'wallet_recovery_code_backup_request_v1',
@@ -504,9 +506,7 @@ export class WalletHostRuntime {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     return await requestWalletCustodyEmailOtpChallenge({ relayUrl, ...args });
   }
-  private async rotateCodesDomain(
-    args: Parameters<RecoveryCapability['rotateCodes']>[0],
-  ) {
+  private async rotateCodesDomain(args: Parameters<RecoveryCapability['rotateCodes']>[0]) {
     const relayUrl = String(this.configs.network.relayer.url || '').trim();
     return await rotateWalletRecoveryCodes({
       context: this.getContext(),

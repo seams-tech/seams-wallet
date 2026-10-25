@@ -124,7 +124,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
   private previousLinkDeviceStateKind: AuthMenuLinkDeviceState['kind'] | null = null;
   private previousRecoveryStage: AuthMenuRecoveryStage | null = null;
   // The method the person last chose, which the footer's retry repeats.
-  private lastMethod: 'passkey' | 'google' = 'passkey';
+  private lastMethod: 'passkey' | 'google' | 'voiceid' = 'passkey';
   // Whether the unlock view first painted without its saved-wallet row. A row
   // that arrives later in the same view opens with an animation.
   private walletRowEntry: {
@@ -444,12 +444,21 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     this.emitIntent({ kind: 'google_registration_reroll' });
   };
 
+  private onVoiceClick = (): void => {
+    this.lastMethod = 'voiceid';
+    this.emitIntent({ kind: 'voiceid_selected' });
+  };
+
   private onGoogleClick = (): void => {
     this.lastMethod = 'google';
     this.emitIntent({ kind: 'external_auth', provider: 'google' });
   };
 
   private onNoticeRetry = (): void => {
+    if (this.lastMethod === 'voiceid') {
+      this.onVoiceClick();
+      return;
+    }
     if (this.lastMethod === 'google' && isAuthMenuGoogleActionReady(this.viewModel)) {
       this.onGoogleClick();
     } else {
@@ -843,7 +852,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                       role="listbox"
                     >
                       {groups.map((group) => {
-                        const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.authMethod}`;
+                        const groupLabelId = `${AUTH_MENU_ACCOUNT_LIST_ID}-${group.id}`;
                         return (
                           <>
                             <div
@@ -855,13 +864,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
                                 <WalletText copy={group.label} />
                               </div>
                               {group.accounts.map((account) => {
-                                const isSelected =
-                                  account.walletId === listSelected.walletId &&
-                                  account.authMethod === listSelected.authMethod;
+                                const isSelected = account.walletId === listSelected.walletId;
                                 const isChosen =
-                                  !isSelected &&
-                                  account.walletId === choice?.chosen.walletId &&
-                                  account.authMethod === choice.chosen.authMethod;
+                                  !isSelected && account.walletId === choice?.chosen.walletId;
                                 const secondaryText = accountSecondaryText(account);
                                 return (
                                   <>
@@ -984,8 +989,22 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             >
               {googleIcon()}
               <span>
-                <WalletText message="Continue with Google" />
+                <WalletText copy={viewModel.mode === 'login' ? 'Email code (Google)' : 'Continue with Google'} />
               </span>
+            </button>
+          ) : null}
+          {viewModel.mode === 'login' &&
+          viewModel.accountOptions.some(
+            voiceAvailableForWallet.bind(null, selectedLoginAccount(viewModel)?.walletId),
+          ) ? (
+            <button
+              type="button"
+              class="seams-auth-method-btn"
+              data-auth-menu-voiceid
+              onClick={this.onVoiceClick}
+            >
+              {voiceMethodIcon()}
+              <span>Unlock with VoiceID</span>
             </button>
           ) : null}
         </div>
@@ -1963,3 +1982,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     );
   }
 }
+
+function voiceAvailableForWallet(
+  walletId: string | undefined,
+  account: import('../../auth-menu/domain').AuthMenuAccountOption,
+): boolean {
+  return account.walletId === walletId && account.authMethod === 'voiceid';
+}
+
+function voiceMethodIcon(): ComponentChildren { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" /></svg>; }

@@ -1,3 +1,4 @@
+import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import {
   createWalletIframeSurfaceMeasurementReporter,
@@ -36,6 +37,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
+  private readonly unmountCapture: (() => void) | null;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
@@ -45,6 +47,7 @@ class VoiceIdCaptureSurface<T> {
     prepare: CapturePreparation<T>,
     purpose: 'activation' | 'unlock',
     binding: UiConfirmSurfaceMeasurementBinding,
+    mountCapture?: AuthMethodCaptureMount,
   ) {
     const actionLabel = purpose === 'activation' ? 'Activate VoiceID' : 'Unlock with VoiceID';
     const parent = document.getElementById('root') ?? document.body;
@@ -68,9 +71,10 @@ class VoiceIdCaptureSurface<T> {
     this.cancelButton = this.prompt.cancel;
     this.cancelButton.addEventListener('click', this.cancel);
     this.element.addEventListener('cancel', this.cancel);
-    parent.appendChild(this.element);
+    this.unmountCapture = mountCapture ? mountCapture(this.element) : null;
+    if (!mountCapture) parent.appendChild(this.element);
     this.measurement =
-      binding.kind === 'wallet_iframe'
+      !mountCapture && binding.kind === 'wallet_iframe'
         ? createWalletIframeSurfaceMeasurementReporter({
             kind: 'request_surface',
             element: this.element,
@@ -91,6 +95,7 @@ class VoiceIdCaptureSurface<T> {
     this.cancelButton.removeEventListener('click', this.cancel);
     this.prompt.dispose();
     this.element.remove();
+    this.unmountCapture?.();
   }
 
   private async initialize(prepare: CapturePreparation<T>): Promise<void> {
@@ -174,8 +179,14 @@ export async function showVoiceIdCaptureSurface<T>(input: {
   readonly prepare: CapturePreparation<T>;
   readonly purpose: 'activation' | 'unlock';
   readonly measurement: UiConfirmSurfaceMeasurementBinding;
+  readonly mountCapture?: AuthMethodCaptureMount;
 }): Promise<T> {
-  const surface = new VoiceIdCaptureSurface(input.prepare, input.purpose, input.measurement);
+  const surface = new VoiceIdCaptureSurface(
+    input.prepare,
+    input.purpose,
+    input.measurement,
+    input.mountCapture,
+  );
   try {
     return await surface.result;
   } finally {

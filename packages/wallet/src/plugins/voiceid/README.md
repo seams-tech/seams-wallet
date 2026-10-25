@@ -165,3 +165,21 @@ level threshold is 0.006. The quality precheck requires 600 ms of qualifying aud
 Aurora phrase and B1 speaker thresholds are unchanged. This energy proxy cannot generally separate
 short speech from quiet or suppressed speech. Each measurement has an attempt ID
 and timestamp. No audio or transcript is saved or sent by these diagnostics.
+
+
+## Settings and SeamsAuthMenu
+
+Settings exposes an enable/disable switch and owner-only re-enrollment. Use
+`registration.getAuthMethodAvailability({ walletId, method: 'voiceid' })` to read
+`not_enrolled`, `enabled`, or `disabled`. Use
+`registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled })`
+to change the browser preference. It preserves enrollment. Enable requires an
+owner passkey or Email OTP session. Disable requires another active method and
+locks a current VoiceID session. Existing enrollments without a preference start
+enabled at the persistence boundary. Removal is a separate revocation action.
+
+The login menu lists a wallet once, with its available methods below. Discovery
+reads local metadata without loading the voice models. Voice login uses the menu's
+measurement and cancellation channel; the old menu is hidden and inert during
+capture. Cancel restores it. The minimal signing prompt is unchanged, with an
+explicit “Confirm with VoiceID” review button. Capture remains click initiated.

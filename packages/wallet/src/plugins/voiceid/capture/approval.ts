@@ -115,7 +115,8 @@ export class VoiceIdApproval {
   readonly surface: HTMLElement;
   get messages() {
     return {
-      prompt: 'Confirm to approve this transfer with your voice.',
+      prompt: 'Read one short phrase to approve this transfer.',
+      confirm: 'Confirm with VoiceID',
       approved: 'Voice approved this operation.',
     };
   }

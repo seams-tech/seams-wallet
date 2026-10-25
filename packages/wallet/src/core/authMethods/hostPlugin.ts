@@ -31,6 +31,8 @@ export type AuthMethodSessionInstaller = (input: {
   readonly near: AuthMethodNearInstallation;
 }) => Promise<AuthMethodUnlockSuccess>;
 
+export type AuthMethodCaptureMount = (element: HTMLElement) => () => void;
+
 export type AuthMethodActivationResult = Readonly<{
   walletId: WalletId;
   walletAuthMethodId: WalletAuthMethodId;
@@ -44,6 +46,7 @@ export interface AuthMethodReviewApproval {
   readonly messages: Readonly<{
     prompt: string;
     approved: string;
+    confirm?: string;
   }>;
   readonly surface: HTMLElement;
   approve(signal: AbortSignal): Promise<AuthMethodApprovalResult>;
@@ -61,6 +64,7 @@ export interface WalletAuthMethodHostPlugin {
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
     readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+    readonly mountCapture?: AuthMethodCaptureMount;
     readonly prepareSession: (signal: AbortSignal) => Promise<AuthMethodSessionInstaller>;
     readonly assertActive: () => void;
   }): Promise<AuthMethodUnlockSuccess>;

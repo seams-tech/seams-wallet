@@ -74,6 +74,28 @@ Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
 
 ## Browser VoiceID (prototype)
 
+The Authentication methods settings screen offers VoiceID when the SDK enables it.
+Enable uses the existing owner session. First enrollment records three samples;
+an existing browser enrollment can be reused. Availability
+is stored in Wallet-origin IndexedDB for the wallet's current device authority and
+method ID. Turning it off preserves enrollment and blocks voice unlock and signing.
+Disabling an active VoiceID session locks it. Another active method must remain.
+Re-enabling requires a passkey or Email OTP owner session. Removal remains the
+separate authentication-method revocation operation. Owners can record their voice
+again without changing the availability switch or device method ID.
+
+SeamsAuthMenu shows each saved wallet once. Method choices appear under that wallet.
+VoiceID appears only for an enabled local method and configured plugin. The menu
+hands presentation and size reporting to the minimal voice prompt during capture.
+Cancel restores the menu, and retry retains the chosen voice method. Closing the
+menu cancels capture. Successful voice unlock reports `method: 'voiceid'` through
+the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
+
+Voice-selected transfers show “Confirm with VoiceID” before replacing the review
+with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
+retain their own approval paths. The iframe protocol is version 17 for these APIs
+and the additional authenticated outcome.
+
 The SDK enables VoiceID with `authMethods: [voiceIdAuthMethod()]`. The descriptor
 imports no inference or capture code. The Wallet origin loads the plugin on its
 first enabled operation. Model and inference-runtime downloads start only when

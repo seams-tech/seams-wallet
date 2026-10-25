@@ -45,7 +45,14 @@ export type WalletRegistrationCommand = Omit<
 
 export type WalletRegistrationCommands = Pick<
   RegistrationCapability,
-  'getNearAccountState' | 'addSigner' | 'addPasskey' | 'activateAuthMethod' | 'removeAuthMethod' | 'addEmail'
+  | 'getAuthMethodAvailability'
+  | 'setAuthMethodEnabled'
+  | 'getNearAccountState'
+  | 'addSigner'
+  | 'addPasskey'
+  | 'activateAuthMethod'
+  | 'removeAuthMethod'
+  | 'addEmail'
 > & {
   registerWallet(
     args: WalletRegistrationCommand,
@@ -111,6 +118,8 @@ export function createPublicApi(
       addSigner: deps.registration.addSigner,
       addPasskey: deps.registration.addPasskey,
       activateAuthMethod: deps.registration.activateAuthMethod,
+      getAuthMethodAvailability: deps.registration.getAuthMethodAvailability,
+      setAuthMethodEnabled: deps.registration.setAuthMethodEnabled,
       addEmail: deps.registration.addEmail,
       removeAuthMethod: deps.registration.removeAuthMethod,
       registerWallet: registerWallet.bind(null, deps.registration, deps.configs),

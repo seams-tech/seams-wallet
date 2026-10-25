@@ -1,8 +1,6 @@
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
-import type {
-  SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput,
-} from '@/core/signingEngine/flows/recovery/public';
+import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
 import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
@@ -69,7 +67,10 @@ import {
   type WalletIframeRequestId,
 } from '@/core/types/walletIframeIdentity';
 import { isPlainObject } from '@shared/utils/validation';
-import type { WalletIframeExactSessionIdentity, WalletIframeExactSessionSnapshot } from './exactSessionState';
+import type {
+  WalletIframeExactSessionIdentity,
+  WalletIframeExactSessionSnapshot,
+} from './exactSessionState';
 export type {
   LoginUnlockRequest,
   PMUnlockOptions,
@@ -110,8 +111,7 @@ export type HostedAuthMenuExternalAuthRequestId = string & {
 export type HostedAuthMenuMode = 'login' | 'register';
 
 export type HostedAuthMenuRegistrationAccountInput =
-  | 'implicit_wallet'
-  | 'sponsored_named_near_account';
+  'implicit_wallet' | 'sponsored_named_near_account';
 
 export type HostedAuthMenuExternalProvider = 'google';
 
@@ -174,9 +174,7 @@ type HostedAuthMenuErrorEvent = {
 };
 
 type HostedAuthMenuExternalAuthFailureCode =
-  | 'provider_unavailable'
-  | 'provider_error'
-  | 'invalid_evidence';
+  'provider_unavailable' | 'provider_error' | 'invalid_evidence';
 
 export type HostedAuthMenuExternalAuthEvidence =
   | {
@@ -233,7 +231,7 @@ export type HostedAuthMenuOutcome =
       kind: 'authenticated';
       authMenuSessionId: HostedAuthMenuSessionId;
       walletId: WalletId;
-      method: 'passkey' | 'google_email_otp';
+      method: 'passkey' | 'google_email_otp' | 'voiceid';
     }
   | {
       kind: 'registered';
@@ -772,6 +770,16 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
     case 'registered': {
       if (!hasOnlyKeys(record, ['kind', 'authMenuSessionId', 'walletId', 'method'])) return null;
       const walletId = parseWalletId(record.walletId);
+      if (record.kind === 'authenticated' && record.method === 'voiceid') {
+        return walletId.ok
+          ? {
+              kind: 'authenticated',
+              authMenuSessionId,
+              walletId: walletId.value,
+              method: 'voiceid',
+            }
+          : null;
+      }
       const method =
         record.method === 'passkey' || record.method === 'google_email_otp' ? record.method : null;
       return walletId.ok && method
@@ -801,7 +809,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '16.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '17.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -825,6 +833,8 @@ export type ParentToChildType =
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
   | 'PM_ACTIVATE_AUTH_METHOD'
+  | 'PM_GET_AUTH_METHOD_AVAILABILITY'
+  | 'PM_SET_AUTH_METHOD_ENABLED'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_UNLOCK'
@@ -1047,7 +1057,6 @@ interface PMRegisterWalletPayload {
   options?: Record<string, unknown>;
 }
 
-
 interface PMAddWalletSignerPayload {
   walletId: WalletId | string;
   rpId: string;
@@ -1140,12 +1149,10 @@ type PMGoogleEmailOtpWalletAuthLoginWireFlow = {
 };
 
 export type PMGoogleEmailOtpWalletAuthWireFlow =
-  | PMGoogleEmailOtpWalletAuthRegistrationWireFlow
-  | PMGoogleEmailOtpWalletAuthLoginWireFlow;
+  PMGoogleEmailOtpWalletAuthRegistrationWireFlow | PMGoogleEmailOtpWalletAuthLoginWireFlow;
 
 export type PMGoogleEmailOtpWalletAuthWireResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: GoogleEmailOtpWalletAuthFailure };
+  { ok: true; value: T } | { ok: false; error: GoogleEmailOtpWalletAuthFailure };
 
 export type PMGoogleEmailOtpWalletAuthRegistrationWireResult =
   PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthRegistrationWireFlow>;
@@ -1176,12 +1183,7 @@ interface PMSignAndSendTxPayload {
     signerSlot?: number;
     // Keep only serializable fields; functions are bridged via PROGRESS
     waitUntil?:
-      | 'NONE'
-      | 'INCLUDED'
-      | 'INCLUDED_FINAL'
-      | 'EXECUTED'
-      | 'FINAL'
-      | 'EXECUTED_OPTIMISTIC';
+      'NONE' | 'INCLUDED' | 'INCLUDED_FINAL' | 'EXECUTED' | 'FINAL' | 'EXECUTED_OPTIMISTIC';
     confirmationConfig?: Partial<ConfirmationConfig>;
     confirmerText?: { title?: string; body?: string };
     [key: string]: unknown;
@@ -1315,8 +1317,7 @@ export type PMGetExactWalletSessionStatePayload =
   | {
       readonly authenticationRead: 'current';
       readonly wallet:
-        | { readonly kind: 'current' }
-        | { readonly kind: 'exact'; readonly walletId: string };
+        { readonly kind: 'current' } | { readonly kind: 'exact'; readonly walletId: string };
     };
 
 type PMEmailOtpChallengePayload =
@@ -1623,14 +1624,19 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
   | RpcEnvelope<'PM_ADD_PASSKEY', PMAddPasskeyPayload>
   | RpcEnvelope<'PM_ACTIVATE_AUTH_METHOD', PMActivateAuthMethodPayload>
+  | RpcEnvelope<'PM_GET_AUTH_METHOD_AVAILABILITY', PMActivateAuthMethodPayload>
+  | RpcEnvelope<'PM_SET_AUTH_METHOD_ENABLED', PMActivateAuthMethodPayload & { enabled: boolean }>
   | RpcEnvelope<'PM_ADD_EMAIL_OTP', PMAddEmailOtpPayload>
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
-  | RpcEnvelope<'PM_UNLOCK_AUTH_METHOD', {
-      walletId: string;
-      walletAuthMethodId: string;
-      method: WalletAuthMethodPlugin['kind'];
-    }>
+  | RpcEnvelope<
+      'PM_UNLOCK_AUTH_METHOD',
+      {
+        walletId: string;
+        walletAuthMethodId: string;
+        method: WalletAuthMethodPlugin['kind'];
+      }
+    >
   | RpcEnvelope<'PM_LOCK'>
   | RpcEnvelope<'PM_LOCK_EXACT_WALLET_SESSION', WalletIframeExactSessionIdentity>
   | RpcEnvelope<
@@ -1729,7 +1735,10 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'READY', ReadyPayload>
   | RpcEnvelope<'PONG'>
   | RpcEnvelope<'PROGRESS', ProgressPayload>
-  | RpcEnvelope<'SDK_LIFECYCLE_EVENT', { readonly revision: number; readonly event: SdkLifecycleEvent }>
+  | RpcEnvelope<
+      'SDK_LIFECYCLE_EVENT',
+      { readonly revision: number; readonly event: SdkLifecycleEvent }
+    >
   | RpcEnvelope<'SESSION_CHANGED', WalletIframeExactSessionSnapshot>
   | RpcEnvelope<'PREFERENCES_CHANGED', PreferencesChangedPayload>
   | RpcEnvelope<'AUTH_MENU_EXTERNAL_AUTH_REQUEST', HostedAuthMenuExternalAuthRequest>

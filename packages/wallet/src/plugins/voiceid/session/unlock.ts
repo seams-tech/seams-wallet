@@ -1,3 +1,4 @@
+import { readAuthMethodEnabled } from '@/core/authMethods/availability';
 import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type {
@@ -28,6 +29,8 @@ export async function prepareUnlockSurface(
   signal: AbortSignal,
   parent: HTMLElement,
 ): Promise<PreparedVoiceCapture<AuthMethodUnlockSuccess>> {
+  if (!(await readAuthMethodEnabled(input.walletId, input.walletAuthMethodId)))
+    throw new Error('VoiceID is turned off in this browser. Enable it in Authentication methods.');
   const install = await input.prepareSession(signal);
   const authMethod = await IndexedDBManager.getWalletAuthMethodV2(input.walletAuthMethodId);
   if (

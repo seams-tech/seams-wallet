@@ -1,3 +1,4 @@
+import { VoiceIdAvailabilityControl } from './VoiceIdAvailabilityControl';
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletText, walletDisplayText } from '@/core/ui/messages';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
@@ -381,6 +382,8 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const methods = inventory?.methods ?? [];
   const hasPasskey = methods.some((method) => method.kind === 'passkey');
   const hasEmailOtp = methods.some((method) => method.kind === 'email_otp');
+  const hasVoiceId = methods.some((method) => method.kind === 'voiceid');
+  const voiceIdConfigured = seams.configs.authMethods.some(isVoiceIdPlugin);
   const canManageMethods =
     loadState.kind === 'loaded' && loadState.inventory.kind !== 'local_selection';
   const actionInProgress =
@@ -442,23 +445,36 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                       key={method.walletAuthMethodId}
                       kind={method.kind}
                       title={walletDisplayText(locale, methodTitle(method))}
+                      status={method.kind === 'voiceid' ? 'Enrolled' : 'Active'}
                       description={walletDisplayText(locale, methodDescription(method))}
                       action={
-                        !confirming && canManageMethods && methods.length > 1 ? (
-                          <button
-                            type="button"
-                            className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
-                            disabled={actionInProgress}
-                            aria-label={walletDisplayText(locale, `Remove ${methodTitle(method)}`)}
-                            onClick={() => setActionState({ kind: 'confirming_revoke', method })}
-                          >
-                            {revoking ? (
-                              <WalletText message="Removing…" />
-                            ) : (
-                              <WalletText message="Remove" />
-                            )}
-                          </button>
-                        ) : null
+                        <div className="seams-auth-method-actions">
+                          {method.kind === 'voiceid' && voiceIdConfigured && walletId ? (
+                            <VoiceIdAvailabilityControl
+                              walletId={walletId}
+                              onChanged={loadInventory}
+                              disabled={actionInProgress}
+                            />
+                          ) : null}
+                          {!confirming && canManageMethods && methods.length > 1 ? (
+                            <button
+                              type="button"
+                              className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
+                              disabled={actionInProgress}
+                              aria-label={walletDisplayText(
+                                locale,
+                                `Remove ${methodTitle(method)}`,
+                              )}
+                              onClick={() => setActionState({ kind: 'confirming_revoke', method })}
+                            >
+                              {revoking ? (
+                                <WalletText message="Removing…" />
+                              ) : (
+                                <WalletText message="Remove" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                       }
                     >
                       {confirming ? (
@@ -498,7 +514,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
             </section>
           ) : null}
 
-          {inventory && (!hasPasskey || !hasEmailOtp) ? (
+          {inventory && (!hasPasskey || !hasEmailOtp || (voiceIdConfigured && !hasVoiceId)) ? (
             <section
               className="seams-account-menu-section"
               aria-labelledby="seams-auth-methods-add"
@@ -506,6 +522,14 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
               <h3 id="seams-auth-methods-add" className="seams-account-menu-section-label">
                 <WalletText message="Add a method" />
               </h3>
+              {voiceIdConfigured && !hasVoiceId && walletId ? (
+                <VoiceIdAvailabilityControl
+                  walletId={walletId}
+                  onChanged={loadInventory}
+                  disabled={actionInProgress || !canManageMethods}
+                  setup
+                />
+              ) : null}
               {!hasPasskey ? (
                 <div className="seams-linked-devices-modal-add-method">
                   <button
@@ -608,3 +632,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
 };
 
 export default AuthenticationMethodsModal;
+
+function isVoiceIdPlugin(plugin: { kind: string }): boolean {
+  return plugin.kind === 'voiceid';
+}

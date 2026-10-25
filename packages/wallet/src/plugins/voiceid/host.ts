@@ -14,6 +14,7 @@ function unlock(input: UnlockInput): ReturnType<WalletAuthMethodHostPlugin['unlo
   return showVoiceIdCaptureSurface({
     purpose: 'unlock',
     measurement: input.surfaceMeasurementBinding,
+    mountCapture: input.mountCapture,
     prepare: prepareUnlock.bind(null, input),
   });
 }

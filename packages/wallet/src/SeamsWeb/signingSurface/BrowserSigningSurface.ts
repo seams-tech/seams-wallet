@@ -1,3 +1,4 @@
+import { readAuthMethodEnabled } from '@/core/authMethods/availability';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { isActiveEd25519WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { EmailOtpWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
@@ -6293,6 +6294,7 @@ export class BrowserSigningSurface {
         signerSlot: cap.applicationBinding.key_creation_signer_slot,
         nearClient: this.nearClient,
       });
+      if (!(await readAuthMethodEnabled(walletId, unlocked.walletSession.authMethodId))) throw new Error('VoiceID is turned off in this browser.');
       if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
       await IndexedDBManager.markWalletSelectionUnlockedAtGeneration({
         walletId,
@@ -6300,6 +6302,7 @@ export class BrowserSigningSurface {
         unlockedAtMs: Date.now(),
         expectedLockGeneration,
       });
+      if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
       this.voiceIdNearSessions.set(walletId, prepared.state);
       this.setWalletAuthenticated({ kind: 'authenticated', walletId, authMethod: 'voiceid' });
       return {

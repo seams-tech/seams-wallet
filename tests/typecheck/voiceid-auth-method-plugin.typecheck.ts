@@ -116,13 +116,40 @@ void (registrationWithCapture satisfies ConfirmationContentModel);
 const missingCaptureMetrics: VoiceCaptureEvent = { kind: 'measured' };
 void missingCaptureMetrics;
 
-type RecordingResult = Awaited<ReturnType<typeof import('../../packages/wallet/src/plugins/voiceid/browser/microphone').recordVoice>>;
+type RecordingResult = Awaited<
+  ReturnType<
+    typeof import('../../packages/wallet/src/plugins/voiceid/browser/microphone').recordVoice
+  >
+>;
 declare const captureQuality: import('../../packages/wallet/src/plugins/voiceid/browser/microphone').VoiceCaptureQuality;
 declare const capturedSamples: Float32Array;
 const capturedAudioFields = { samples: capturedSamples };
 // @ts-expect-error Rejected audio cannot carry a captured sample buffer through a spread.
-const rejectedAudioWithSamples: RecordingResult = { kind: 'insufficient_audio', quality: captureQuality, ...capturedAudioFields };
+const rejectedAudioWithSamples: RecordingResult = {
+  kind: 'insufficient_audio',
+  quality: captureQuality,
+  ...capturedAudioFields,
+};
 // @ts-expect-error Successful capture requires the actual sample buffer.
 const captureWithoutSamples: RecordingResult = { kind: 'captured', quality: captureQuality };
 void rejectedAudioWithSamples;
 void captureWithoutSamples;
+
+import type { AuthMethodAvailability } from '../../packages/wallet/src/core/authMethods/availabilityTypes';
+import type {
+  HostedAuthMenuOutcome,
+  HostedAuthMenuSessionId,
+} from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+declare const authMenuSessionId: HostedAuthMenuSessionId;
+const existingMethod = { walletAuthMethodId };
+// @ts-expect-error An unenrolled method cannot retain an enrolled identity through a spread.
+const unenrolledWithIdentity: AuthMethodAvailability = { kind: 'not_enrolled', ...existingMethod };
+const voiceRegistration: HostedAuthMenuOutcome = {
+  kind: 'registered',
+  authMenuSessionId,
+  walletId,
+  // @ts-expect-error VoiceID unlocks an existing wallet; it cannot create a wallet.
+  method: 'voiceid',
+};
+void unenrolledWithIdentity;
+void voiceRegistration;

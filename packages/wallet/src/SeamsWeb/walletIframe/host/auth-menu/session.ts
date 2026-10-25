@@ -1,3 +1,4 @@
+import type { WalletHostSessionCommands } from '../createSessionCommands';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { RegistrationResult } from '@/core/types/seams';
 import {
@@ -18,7 +19,10 @@ import {
   passkeyCeremonyHeadline,
   resolveAuthMenuLoginAccount,
 } from './domain';
-import { mountAuthMenuSurface, type AuthMenuSurfaceHandle } from '../ui/auth-menu/mountAuthMenuSurface';
+import {
+  mountAuthMenuSurface,
+  type AuthMenuSurfaceHandle,
+} from '../ui/auth-menu/mountAuthMenuSurface';
 import {
   hostedAuthMenuExternalAuthRequestIdFromBoundary,
   parseHostedAuthMenuErrorEvent,
@@ -98,8 +102,7 @@ type HostedPasskeyMenuPrepared = HostedPasskeyRegistrationPrepared | HostedPassk
  * still structured, so no stage has to guess from an error message.
  */
 type AuthMenuFailure =
-  | { readonly kind: 'dismissed' }
-  | { readonly kind: 'error'; readonly error: unknown };
+  { readonly kind: 'dismissed' } | { readonly kind: 'error'; readonly error: unknown };
 
 type PresentedAuthMenuError = {
   readonly mode: HostedAuthMenuMode;
@@ -821,6 +824,107 @@ function recoveryPasskeyCreationFailureStatus(
 }
 
 export class AuthMenuSession {
+  private voiceLogin:
+    | { kind: 'unavailable' }
+    | { kind: 'ready' | 'running'; unlock: WalletHostSessionCommands['unlockWithAuthMethod'] } = {
+    kind: 'unavailable',
+  };
+  private voiceCapture: HTMLElement | null = null;
+
+  setVoiceLogin(unlock: WalletHostSessionCommands['unlockWithAuthMethod']): void {
+    if (this.voiceLogin.kind === 'running') return;
+    this.voiceLogin = { kind: 'ready', unlock };
+  }
+
+  private readonly assertVoiceLoginActive = (): void => {
+    if (this.stateValue.kind === 'complete' || this.voiceLogin.kind !== 'running')
+      throw new Error('VoiceID login was cancelled.');
+  };
+
+  private readonly mountVoiceCapture = (element: HTMLElement): (() => void) => {
+    this.assertVoiceLoginActive();
+    this.measurementReporter?.disconnect();
+    if (this.surface) {
+      this.surface.element.hidden = true;
+      this.surface.element.inert = true;
+    }
+    document.body.append(element);
+    this.voiceCapture = element;
+    this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
+      kind: 'auth_menu_surface',
+      element,
+      requestId: this.identity.requestId,
+      authMenuSessionId: this.identity.authMenuSessionId,
+      postMeasurement: this.postSurfaceMeasurement,
+    });
+    return this.restoreVoiceCapture.bind(this, element);
+  };
+
+  private restoreVoiceCapture(element: HTMLElement): void {
+    element.remove();
+    this.voiceCapture = null;
+    this.measurementReporter?.disconnect();
+    if (this.stateValue.kind === 'complete' || !this.surface) return;
+    this.surface.element.hidden = false;
+    this.surface.element.inert = false;
+    this.surface.element.querySelector<HTMLElement>('[data-auth-menu-voiceid]')?.focus();
+    this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
+      kind: 'auth_menu_surface',
+      element: this.surface.element,
+      requestId: this.identity.requestId,
+      authMenuSessionId: this.identity.authMenuSessionId,
+      postMeasurement: this.postSurfaceMeasurement,
+    });
+  }
+
+  private async unlockWithVoice(): Promise<void> {
+    if (
+      this.voiceLogin.kind !== 'ready' ||
+      (this.stateValue.kind !== 'ready' && this.stateValue.kind !== 'preparing')
+    )
+      return;
+    const viewModel = this.currentViewModel();
+    if (viewModel.kind !== 'passkey' || viewModel.mode !== 'login') return;
+    const walletId = resolveAuthMenuLoginAccount(
+      this.loginAccountOptions,
+      this.selectedLoginAccount,
+    ).selectedAccount?.walletId;
+    const account = this.loginAccountOptions.find(voiceAccountForWallet.bind(null, walletId));
+    if (!account || account.authMethod !== 'voiceid') return;
+    const login = this.voiceLogin.unlock;
+    this.invalidatePreparation();
+    this.voiceLogin = { kind: 'running', unlock: login };
+    try {
+      const result = await login(
+        {
+          walletId: account.walletId,
+          walletAuthMethodId: account.walletAuthMethodId,
+          method: 'voiceid',
+        },
+        this.assertVoiceLoginActive,
+        this.mountVoiceCapture,
+      );
+      this.assertVoiceLoginActive();
+      if (!result.success) throw new Error(result.error);
+      this.complete({
+        kind: 'authenticated',
+        authMenuSessionId: this.identity.authMenuSessionId,
+        walletId: result.walletId,
+        method: 'voiceid',
+      });
+    } catch (error) {
+      if (this.state.kind !== 'complete') {
+        this.stateValue = {
+          kind: 'preparing',
+          viewModel: { ...viewModel, status: authMenuFailureStatus(errorMessage(error)) },
+        };
+        this.updateElement();
+      }
+    } finally {
+      this.voiceLogin = { kind: 'ready', unlock: login };
+    }
+  }
+
   readonly identity: AuthMenuSessionIdentity;
   readonly request: HostedAuthMenuOpenRequest;
 
@@ -1116,7 +1220,11 @@ export class AuthMenuSession {
     this.schedulePreparationDeadline(generation, cancellationController);
     const preparation = Promise.resolve().then(() =>
       registrationPreparation
-        ? registrationPreparation(this.registrationValue(), cancellation, this.showRegistrationDelay)
+        ? registrationPreparation(
+            this.registrationValue(),
+            cancellation,
+            this.showRegistrationDelay,
+          )
         : prepare!(cancellation),
     );
     void preparation.then(
@@ -1577,6 +1685,7 @@ export class AuthMenuSession {
   }
 
   cleanup(): void {
+    this.voiceCapture?.dispatchEvent(new Event('cancel', { cancelable: true }));
     if (this.cleanedUp) return;
     this.cleanedUp = true;
     for (const timer of this.successTimers) clearTimeout(timer);
@@ -1636,6 +1745,7 @@ export class AuthMenuSession {
 
   private onIntent = (intent: AuthMenuIntent): void => {
     if (this.stateValue.kind === 'complete') return;
+    if (this.voiceLogin.kind === 'running' && intent.kind !== 'close') return;
     switch (intent.kind) {
       case 'mode_selected':
         this.selectMode(intent.mode);
@@ -1724,8 +1834,10 @@ export class AuthMenuSession {
         }
         return;
       }
+      case 'voiceid_selected':
+        void this.unlockWithVoice();
+        return;
       case 'login_account_selected':
-        if (intent.authMethod === 'voiceid') throw new Error('Use the VoiceID plugin unlock action.');
         this.selectLoginAccount(intent.walletId, intent.authMethod);
         return;
       case 'submit':
@@ -3795,4 +3907,11 @@ function assertNeverHostedPasskeyPrepared(value: never): never {
 
 function assertNeverHostedExternalAuthEvidence(value: never): never {
   throw new Error(`Unhandled hosted external-auth evidence: ${String(value)}`);
+}
+
+function voiceAccountForWallet(
+  walletId: string | undefined,
+  account: AuthMenuAccountOption,
+): boolean {
+  return account.walletId === walletId && account.authMethod === 'voiceid';
 }

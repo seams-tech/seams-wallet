@@ -836,6 +836,8 @@ function mountHostElement({
       body: summary?.body,
       authMethodApprovalMessage: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
         ?.authMethodApprovalMessages?.prompt,
+      confirmText: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
+        ?.authMethodApprovalMessages?.confirm,
       signingAuthMode,
       emailOtpPrompt,
       nearExplorerUrl: ctx.nearExplorerUrl ?? explorerOverrides.nearExplorerUrl,

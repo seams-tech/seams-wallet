@@ -4,6 +4,8 @@ import type { WalletSession } from '@seams/wallet';
 import type { WalletId } from '@seams/wallet/advanced';
 import { parseWebAuthnRpId, toWalletId } from '@seams/wallet/advanced';
 import { ReviewedNearTransfer } from './ReviewedNearTransfer';
+import { AccountMenu } from './AccountMenu';
+import { AssetMenu } from './AssetMenu';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type WalletTarget = { kind: 'new' } | { kind: 'selected'; walletId: WalletId };
@@ -24,13 +26,19 @@ type AuthMethod = Extract<
 >['authMethods'][number];
 
 export function LiveVoiceId(): React.ReactNode {
-  const { seams } = useSeams();
+  const { seams, loginState } = useSeams();
+  const selectedMethodId =
+    loginState.isLoggedIn && loginState.currentAuthMethod.kind === 'selected'
+      ? loginState.currentAuthMethod.binding.walletAuthMethodId
+      : null;
   const [target, setTarget] = React.useState<WalletTarget>(initialWalletTarget);
   const [read, setRead] = React.useState<SessionRead>({ kind: 'new' });
   const [operation, setOperation] = React.useState<Operation>({ kind: 'idle' });
   React.useEffect(startSessionRead.bind(null, seams, target, setRead, setOperation), [
     seams,
     target,
+    loginState.isLoggedIn,
+    selectedMethodId,
   ]);
   const session =
     read.kind === 'loaded' && target.kind === 'selected' && read.walletId === target.walletId
@@ -58,6 +66,8 @@ export function LiveVoiceId(): React.ReactNode {
       <title>VoiceID live wallet</title>
       <p>NEAR testnet · browser microphone</p>
       <h1>Unlock and sign with your voice</h1>
+      <AccountMenu />
+      <AssetMenu />
       <p>
         Enroll your voice in this browser after a passkey unlock. Recording starts only when you
         select Record inside the Wallet. No native host or system settings are required.
@@ -182,7 +192,7 @@ export function LiveVoiceId(): React.ReactNode {
 }
 
 function voiceStatusMessage(activated: boolean, ownerUnlocked: boolean): string {
-  if (activated) return 'Activated on this device';
+  if (activated) return 'Enrolled in this browser';
   if (ownerUnlocked) return 'Select Activate VoiceID to finish setup';
   return 'Unlock with passkey, then activate VoiceID';
 }

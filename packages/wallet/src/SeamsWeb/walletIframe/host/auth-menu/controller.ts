@@ -1,3 +1,5 @@
+import type { AuthMenuAccountOption } from './domain';
+import { IndexedDBManager } from '@/core/indexedDB';
 import type { AppearanceConfig, GetRecentUnlocksResult } from '@/core/types/seams';
 import type { WalletHostRuntime } from '@/SeamsWeb/walletIframe/host/WalletHostRuntime';
 import type {
@@ -54,7 +56,9 @@ import type { WalletRecoveryTargetV1 } from '@shared/wallet-recovery/walletRecov
 
 type GetWalletRuntime = () => WalletHostRuntime;
 
-async function loadHostedRecoveryPort(getWalletRuntime: GetWalletRuntime): Promise<HostedRecoveryPort> {
+async function loadHostedRecoveryPort(
+  getWalletRuntime: GetWalletRuntime,
+): Promise<HostedRecoveryPort> {
   const recoveryEntrypoint = await import('../recovery-entrypoint');
   const walletRuntime = getWalletRuntime();
   return recoveryEntrypoint.createHostedRecoveryPort({
@@ -173,6 +177,7 @@ const LOGIN_ACCOUNTS_FIRST_PAINT_WAIT_MS = 50;
 type LocalLoginAccounts = {
   readonly recentUnlocks: GetRecentUnlocksResult | null;
   readonly localAuthMethods: readonly LocalLoginAuthMethod[];
+  readonly voiceAccounts: readonly AuthMenuAccountOption[];
 };
 
 /** The value, if the promise fulfils within `ms`; null if it rejects or is late. */
@@ -301,7 +306,31 @@ export class AuthMenuController {
         .catch(() => null),
       listLocalLoginAuthMethods().catch(() => []),
     ]);
-    return { recentUnlocks, localAuthMethods };
+    const voiceAccounts: AuthMenuAccountOption[] = [];
+    const runtime = this.deps.getWalletRuntime();
+    if (runtime.configs.authMethods.some(voiceIdConfigured)) {
+      try {
+        for (const walletId of await IndexedDBManager.listWalletSelectionWalletIds()) {
+          try {
+            const availability = await runtime.registration.getAuthMethodAvailability({
+              walletId,
+              method: 'voiceid',
+            });
+            if (availability.kind === 'enabled')
+              voiceAccounts.push({
+                walletId,
+                authMethod: 'voiceid',
+                walletAuthMethodId: availability.walletAuthMethodId,
+              });
+          } catch {
+            // An unreadable optional method must not hide built-in login methods.
+          }
+        }
+      } catch {
+        // Keep discoverable passkey and email login when local discovery is unavailable.
+      }
+    }
+    return { recentUnlocks, localAuthMethods, voiceAccounts };
   }
 
   private async bootstrapLoginAccounts(
@@ -317,11 +346,14 @@ export class AuthMenuController {
     session: AuthMenuSession,
     requestId: WalletIframeRequestId,
     loginTarget: HostedAuthMenuLoginTarget,
-    { recentUnlocks, localAuthMethods }: LocalLoginAccounts,
+    { recentUnlocks, localAuthMethods, voiceAccounts }: LocalLoginAccounts,
   ): void {
     if (session.state.kind === 'complete') return;
     const requestedWalletId = requestedWalletIdForLoginTarget(loginTarget);
-    const discoveredOptions = loginAccountOptions(recentUnlocks, localAuthMethods);
+    const discoveredOptions = [
+      ...loginAccountOptions(recentUnlocks, localAuthMethods),
+      ...voiceAccounts,
+    ];
     const accountOptions = requestedWalletId
       ? discoveredOptions.filter((option) => option.walletId === requestedWalletId)
       : discoveredOptions;
@@ -334,6 +366,7 @@ export class AuthMenuController {
               authMethod: WALLET_AUTH_METHODS.passkey,
             },
           ];
+    session.setVoiceLogin(this.deps.getWalletRuntime().auth.unlockWithAuthMethod);
     session.setLoginPreparation({
       accountOptions: resolvedAccountOptions,
       selectedAccount: requestedWalletId
@@ -509,4 +542,8 @@ export class AuthMenuController {
     if (!session || session.identity.requestId !== resolution.requestId) return false;
     return session.acceptExternalAuthResolution(resolution);
   }
+}
+
+function voiceIdConfigured(plugin: { kind: string }): boolean {
+  return plugin.kind === 'voiceid';
 }

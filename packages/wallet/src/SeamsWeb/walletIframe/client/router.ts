@@ -1,3 +1,4 @@
+import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import { createIframePlacementCommands } from './placementCommands';
 import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
@@ -3063,6 +3064,27 @@ export class WalletIframeRouter {
       },
     });
     return res.result;
+  }
+
+  async getAuthMethodAvailability(
+    payload: Parameters<RegistrationCapability['getAuthMethodAvailability']>[0],
+  ): ReturnType<RegistrationCapability['getAuthMethodAvailability']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<unknown>({
+      type: 'PM_GET_AUTH_METHOD_AVAILABILITY',
+      payload: { walletId, method: payload.method },
+    });
+    return parseAuthMethodAvailability(response.result);
+  }
+  async setAuthMethodEnabled(
+    payload: Parameters<RegistrationCapability['setAuthMethodEnabled']>[0],
+  ): ReturnType<RegistrationCapability['setAuthMethodEnabled']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<unknown>({
+      type: 'PM_SET_AUTH_METHOD_ENABLED',
+      payload: { walletId, method: payload.method, enabled: payload.enabled },
+    });
+    return parseAuthMethodAvailability(response.result);
   }
 
   async activateAuthMethod(

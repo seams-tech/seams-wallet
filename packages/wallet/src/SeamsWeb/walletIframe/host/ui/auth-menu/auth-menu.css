@@ -1,3 +1,4 @@
+.seams-auth-menu-surface[hidden] { display: none !important; }
 .seams-auth-menu-surface {
   display: block;
   inline-size: 100dvw;

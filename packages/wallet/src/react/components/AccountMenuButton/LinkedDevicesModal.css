@@ -619,3 +619,14 @@
 .seams-linked-devices-modal-body::-webkit-scrollbar {
   display: none;
 }
+
+.seams-voiceid-availability { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+.seams-voiceid-availability [role="status"] { font-size: 0.7rem; max-width: 12rem; }
+.seams-voiceid-availability[data-setup="true"] { align-items: flex-start; padding-block: 0.75rem; }
+
+.seams-auth-method-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+
+.seams-auth-method-actions > .seams-linked-devices-modal-remove { align-self: flex-end; }
+.seams-auth-methods-modal-content .seams-linked-devices-modal-item-content { align-self: start; padding-block-start: 0.25rem; }
+.seams-voiceid-reenroll { border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.75rem; padding: 0.25rem 0; cursor: pointer; }
+.seams-voiceid-reenroll:disabled { opacity: 0.5; cursor: default; }

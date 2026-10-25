@@ -25,7 +25,10 @@ import {
   lock as lockCore,
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
-import type { AuthMethodSessionInstaller } from '@/core/authMethods/hostPlugin';
+import type {
+  AuthMethodSessionInstaller,
+  AuthMethodCaptureMount,
+} from '@/core/authMethods/hostPlugin';
 import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
 import type {
@@ -57,6 +60,7 @@ export type WalletHostSessionCommands = Omit<WalletSessionCommands, 'unlockWithA
   unlockWithAuthMethod(
     args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
     assertActive?: () => void,
+    mountCapture?: AuthMethodCaptureMount,
   ): ReturnType<WalletSessionCommands['unlockWithAuthMethod']>;
 };
 
@@ -81,6 +85,7 @@ async function unlockWithAuthMethod(
   getContext: () => WalletHostAuthContext,
   args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
   assertActive: () => void = allowActiveRequest,
+  mountCapture?: AuthMethodCaptureMount,
 ): ReturnType<WalletSessionCommands['unlockWithAuthMethod']> {
   const context = getContext();
   const walletId = toWalletId(args.walletId);
@@ -93,6 +98,7 @@ async function unlockWithAuthMethod(
     walletAuthMethodId: methodId.value,
     relayerUrl: context.configs.network.relayer.url,
     assertActive,
+    mountCapture,
     surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
     prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
   });
