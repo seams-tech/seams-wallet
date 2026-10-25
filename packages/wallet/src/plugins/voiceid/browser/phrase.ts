@@ -68,6 +68,14 @@ type PhraseRecognition =
   | { kind: 'uncertain'; candidate: SpokenPhrase; gap: number }
   | { kind: 'empty' };
 
+/** A local phrase rejection can retry while the original server challenge is valid. */
+export class VoicePhraseMismatchError extends Error {
+  constructor(readonly details: string) {
+    super('The phrase was not clear. Try the new phrase at your normal pace.');
+    this.name = 'VoicePhraseMismatchError';
+  }
+}
+
 export type PhraseCheck =
   | { kind: 'matched'; recognition: PhraseRecognition }
   | { kind: 'mismatch'; recognition: PhraseRecognition; message: string };

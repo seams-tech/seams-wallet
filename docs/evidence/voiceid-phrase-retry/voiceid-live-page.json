@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "wild-raven-2rvdkf",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "3629d835-f195-4c34-8efc-d437c2886127",
+    "capturedAtMs": 1792905140134,
+    "durationMs": 3420,
+    "recordingMs": 4976.100000023842,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.20770530490572517,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "can you open the window",
+      "gap": 214.70079807282116
+    },
+    "expectedPhrase": "i want to go home"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "wild-raven-2rvdkf",
+    "accountId": "752bc6f62c67f93236e44d62b869d4b39afb11d6c00d7a15373fc38084588e92",
+    "publicKey": "ed25519:8tPRDAjnnX7q18MqQTxHvmP2kCKafUDDDCQzpafwzpKT"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADc1MmJjNmY2MmM2N2Y5MzIzNmU0NGQ2MmI4NjlkNGIzOWFmYjExZDZjMDBkN2ExNTM3M2ZjMzgwODQ1ODhlOTIAdSvG9ixn+TI25E1iuGnUs5r7EdbADXoVNz/DgIRYjpICAAAAAAAAAEAAAAA3NTJiYzZmNjJjNjdmOTMyMzZlNDRkNjJiODY5ZDRiMzlhZmIxMWQ2YzAwZDdhMTUzNzNmYzM4MDg0NTg4ZTkyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAC5hmklwGnIIIVaYFdVwNlPVIFgXOyB+1pl08MEMDmL7gxPChVxjh5rq3QjGwAm10kRzPEmcXm3o3j4f6UYZhBQ==",
+      "signedTransactionSha256": "886d9e88be2f1e10e92b37c4e2e045a2073f567582162963d1507d40d63be919",
+      "signerId": "752bc6f62c67f93236e44d62b869d4b39afb11d6c00d7a15373fc38084588e92",
+      "receiverId": "752bc6f62c67f93236e44d62b869d4b39afb11d6c00d7a15373fc38084588e92",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

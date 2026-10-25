@@ -166,6 +166,10 @@ Confirm click. Aurora must select the displayed phrase from the same recording,
 with a log-likelihood gap of at most 8. Minor wording differences, such as an
 omitted article, can pass. A different selected phrase still fails. Speaker
 verification retains its independent similarity threshold of 0.5.
+A local phrase rejection during unlock keeps the prompt open with a fresh phrase
+and an explicit Try again action. The original challenge deadline still applies.
+Recording details expose the recognition diagnostic without crowding the prompt.
+A failed phrase check cannot unlock the wallet or authorize a transfer.
 The decoder scores all bank phrases independently of the expected phrase and rejects
 results too far from unconstrained recognition. A failed phrase check cannot add an
 enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open

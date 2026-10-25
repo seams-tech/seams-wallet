@@ -231,6 +231,12 @@ export class VoicePrompt {
     }
   };
 
+  showDetails(message: string): void {
+    this.details.hidden = false;
+    this.details.open = false;
+    this.detailText.textContent = message;
+  }
+
   ready(message: string): void {
     this.waveform.stop();
     this.element.dataset.capture = 'ready';

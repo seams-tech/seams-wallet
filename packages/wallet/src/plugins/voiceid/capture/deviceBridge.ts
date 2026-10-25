@@ -1,5 +1,5 @@
 import type { VoiceCaptureObserver } from '../browser/microphone';
-import type { SpokenPhrase } from '../browser/phrase';
+import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
   voiceIdWalletSessionChallengeBytes,
   parseVoiceIdDeviceAssertion,
@@ -103,7 +103,7 @@ async function requireVoiceMatch(
     case 'mismatch':
       throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
     case 'phrase_mismatch':
-      throw new Error(result.message);
+      throw new VoicePhraseMismatchError(result.message);
     default:
       return assertNever(result);
   }

@@ -138,7 +138,7 @@ async function verifyLivePage(
   );
   await wallet.locator('body').evaluate(useOtherSpeaker, wrongEnrollment.toString('base64'));
   await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
-  await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible({
+  await expect(wallet.getByText('The phrase was not clear.', { exact: false })).toBeVisible({
     timeout: 20_000,
   });
   await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
@@ -169,7 +169,21 @@ async function verifyLivePage(
   await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  const unlockPhrase = await wallet.locator('[data-voiceid-phrase]').getAttribute('data-voiceid-phrase');
+  if (!unlockPhrase) throw new Error('Unlock phrase is unavailable');
+  const wrongUnlockIndex = (phrases.indexOf(unlockPhrase) + 1) % phrases.length;
+  const wrongUnlock = await readFile(
+    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${wrongUnlockIndex}.wav`),
+  );
+  await wallet.locator('body').evaluate(useOtherSpeaker, wrongUnlock.toString('base64'));
   await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
+  await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute('data-voiceid-phrase', unlockPhrase);
+  await wallet.getByText('Recording details', { exact: true }).click();
+  await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible();
+  await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('voiceid-phrase-retry.png') });
+  await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening');
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('minimal-voice-unlock.png') });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('voiceid');
@@ -242,7 +256,7 @@ async function verifyLivePage(
   );
   await wallet.locator('body').evaluate(useOtherSpeaker, stalePhrase.toString('base64'));
   await wallet.locator('button.confirm').click();
-  await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible({
+  await expect(wallet.getByText('The phrase was not clear.', { exact: false })).toBeVisible({
     timeout: 20_000,
   });
   expect(evidence.snapshot()).toEqual(beforeMismatch);

@@ -5,7 +5,7 @@ import {
   type WalletIframeSurfaceMeasurementReporter,
 } from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
-import { newSpokenPhrase, type SpokenPhrase } from '../browser/phrase';
+import { newSpokenPhrase, VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePrompt } from './prompt';
 import { toError } from '@shared/utils/errors';
@@ -142,7 +142,7 @@ class VoiceIdCaptureSurface<T> {
       this.completion.resolve(result);
     } catch (error: unknown) {
       if (this.state.kind === 'closed') return;
-      if (error instanceof InsufficientVoiceAudioError) {
+      if (error instanceof InsufficientVoiceAudioError || error instanceof VoicePhraseMismatchError) {
         if (capture.expiresAtMs !== null && Date.now() >= capture.expiresAtMs) {
           this.expire();
           return;
@@ -152,6 +152,7 @@ class VoiceIdCaptureSurface<T> {
         this.state = { kind: 'ready', capture };
         this.activateButton.textContent = 'Try again';
         this.prompt.ready(error.message);
+        if (error instanceof VoicePhraseMismatchError) this.prompt.showDetails(error.details);
         this.activateButton.focus();
         return;
       }

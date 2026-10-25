@@ -1,4 +1,4 @@
-import { newSpokenPhrase, checkSpokenPhrase, type SpokenPhrase } from './phrase';
+import { newSpokenPhrase, checkSpokenPhrase, VoicePhraseMismatchError, type SpokenPhrase } from './phrase';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
@@ -148,7 +148,7 @@ class VoiceEnrollmentSurface {
       try {
         this.status.textContent = 'Checking your voice…';
         const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase);
-        if (phraseCheck.kind === 'mismatch') throw new Error(phraseCheck.message);
+        if (phraseCheck.kind === 'mismatch') throw new VoicePhraseMismatchError(phraseCheck.message);
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
         pcm.samples.fill(0);
@@ -197,6 +197,8 @@ class VoiceEnrollmentSurface {
       this.status.textContent = 'Voice enrolled. Activating this wallet…';
       this.completion.resolve();
     } catch (error) {
+      if (!this.closed && error instanceof VoicePhraseMismatchError)
+        this.prompt.showDetails(error.details);
       if (!this.closed && this.samples.length === 3) this.samples.pop()?.fill(0);
       if (!this.closed)
         this.status.textContent =
