@@ -188,8 +188,9 @@ and an explicit Try again action. The original challenge deadline still applies.
 Recording details expose the recognition diagnostic without crowding the prompt.
 A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.
 Speaker rejection during unlock also stays in the prompt, with the unchanged
-challenge deadline. Recording details show similarity, threshold, detected speech,
-microphone processing, and the phrase result. This does not alter the enrollment.
+challenge deadline. Recording details open automatically for speaker and phrase rejections. They
+identify the attempted sentence separately from the next retry sentence and show
+similarity, threshold, detected speech, microphone processing, and the phrase result. This does not alter the enrollment.
 The decoder scores all bank phrases independently of the expected phrase and rejects
 results too far from unconstrained recognition. A failed phrase check cannot add an
 enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open

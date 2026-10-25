@@ -204,7 +204,7 @@ class VoiceEnrollmentSurface {
       this.completion.resolve();
     } catch (error) {
       if (!this.closed && error instanceof VoicePhraseMismatchError)
-        this.prompt.showDetails(error.details);
+        this.prompt.showDetails(error.details, this.phrase);
       if (!this.closed && this.samples.length === 3) this.samples.pop()?.fill(0);
       if (!this.closed)
         this.status.textContent =

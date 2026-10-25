@@ -275,10 +275,10 @@ export class VoicePrompt {
     }
   };
 
-  showDetails(message: string): void {
+  showDetails(message: string, attemptedPhrase: SpokenPhrase): void {
     this.details.hidden = false;
-    this.details.open = false;
-    this.detailText.textContent = message;
+    this.details.open = true;
+    this.detailText.textContent = `Attempted sentence: “${attemptedPhrase}”. ${message}`;
   }
 
   /** Settle the visual when an enrollment sample is accepted. */

@@ -148,13 +148,14 @@ class VoiceIdCaptureSurface<T> {
           this.expire();
           return;
         }
-        this.phrase = newSpokenPhrase(this.phrase);
+        const attemptedPhrase = this.phrase;
+        this.phrase = newSpokenPhrase(attemptedPhrase);
         this.prompt.setPhrase(this.phrase);
         this.state = { kind: 'ready', capture };
         this.activateButton.textContent = 'Try again';
         this.prompt.ready(error.message);
         if (error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError)
-          this.prompt.showDetails(error.details);
+          this.prompt.showDetails(error.details, attemptedPhrase);
         this.activateButton.focus();
         return;
       }

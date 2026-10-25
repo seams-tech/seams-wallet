@@ -180,15 +180,16 @@ async function verifyLivePage(
   await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute('data-voiceid-phrase', unlockPhrase);
-  await wallet.getByText('Recording details', { exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toHaveJSProperty('open', true);
   await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText(`Attempted sentence: “${unlockPhrase}”.`);
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('voiceid-phrase-retry.png') });
   const wrongUnlockSpeaker = await readFile(path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'));
   await wallet.locator('body').evaluate(useOtherSpeaker, wrongUnlockSpeaker.toString('base64'));
   await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(wallet.getByText('Your voice did not match.', { exact: false })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
-  await wallet.getByText('Recording details', { exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toHaveJSProperty('open', true);
   await expect(wallet.getByText('Speaker similarity', { exact: false })).toBeVisible();
   await expect(wallet.getByText('Speaker input', { exact: false })).toBeVisible();
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('speaker-mismatch-details.png') });
