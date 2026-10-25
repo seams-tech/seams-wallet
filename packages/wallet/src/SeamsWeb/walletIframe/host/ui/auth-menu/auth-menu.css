@@ -1380,15 +1380,15 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-factor-options label:has(input:checked) {
-  border-color: var(--seams-colors-textPrimary, #1e293b);
+  border-color: var(--seams-colors-primary, #1e293b);
   background: var(--seams-colors-surface2, #f1f5f9);
 }
 
-/* On a dark card a full-strength text border glares; half strength still marks the choice. */
+/* On a dark card a full-strength light accent border glares; half strength still marks the choice. */
 :where(.seams-auth-menu-surface[data-theme='dark'])
   .seams-link-device-factor-options
   label:has(input:checked) {
-  border-color: color-mix(in srgb, var(--seams-colors-textPrimary, #f4f5f6), transparent 60%);
+  border-color: color-mix(in srgb, var(--seams-colors-primary, #f4f5f6), transparent 60%);
 }
 
 :where(.seams-auth-menu-surface)
@@ -1402,7 +1402,7 @@
   flex: 1;
 }
 
-/* The radio is drawn from the theme's text colours: the browser's own control
+/* The radio is drawn from the theme's primary colour: the browser's own control
    brings its accent blue and, on dark cards, a white disc. */
 :where(.seams-auth-menu-surface) .seams-link-device-factor-options input {
   flex: 0 0 auto;
@@ -1425,13 +1425,13 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: var(--seams-colors-textPrimary, #1e293b);
+  background: var(--seams-colors-primary, #1e293b);
   transform: scale(0);
   transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-factor-options input:checked {
-  border-color: var(--seams-colors-textPrimary, #1e293b);
+  border-color: var(--seams-colors-primary, #1e293b);
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-factor-options input:checked::before {
@@ -2085,7 +2085,8 @@
 
 :where(.seams-auth-menu-surface) .seams-link-device-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-primary), transparent 72%);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--seams-colors-focus, var(--seams-colors-primary)), transparent 60%);
 }
 
 :where(.seams-auth-menu-surface) .seams-link-device-btn-primary {
@@ -2126,55 +2127,6 @@
 
 :where(.seams-auth-menu-surface) .seams-auth-method-choice-icon svg {
   display: block;
-}
-
-/* The link-device confirmations commit in ink, not in brand blue: these views
-   are the end of a flow the user is already inside, so the one control reads
-   as "the next step" rather than as an offer. Derived from the text colour so
-   it inverts with the theme — near-black on light, near-white on dark — which
-   is what "black button" has to mean on a card that is itself near-black. */
-:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary {
-  background: color-mix(in srgb, var(--seams-colors-textPrimary, #1e293b), #000000 25%) !important;
-  border-color: transparent;
-  color: var(--seams-colors-colorBackground, #ffffff);
-}
-
-:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:hover:not(:disabled),
-:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
-  background: color-mix(
-    in srgb,
-    var(--seams-colors-textPrimary, #1e293b),
-    var(--seams-colors-colorBackground, #ffffff) 14%
-  ) !important;
-  color: var(--seams-colors-colorBackground, #ffffff);
-}
-
-:where(.seams-auth-menu-surface) .seams-link-device-confirmation .seams-link-device-btn-primary:focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seams-colors-textPrimary), transparent 78%);
-}
-
-/* On a dark card the ink mix turns near-white text into mid grey, which reads
-   as a disabled control. Dark themes keep the call to action they chose for
-   their other screens: Carbon lifts a slate slab, Pastel Dark and the stock
-   dark theme invert to a light button. */
-:where(.seams-auth-menu-surface[data-theme='dark'])
-  .seams-link-device-confirmation
-  .seams-link-device-btn-primary {
-  background: var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary)) !important;
-  color: var(--seams-colors-textButton, var(--seams-colors-colorBackground));
-}
-
-:where(.seams-auth-menu-surface[data-theme='dark'])
-  .seams-link-device-confirmation
-  .seams-link-device-btn-primary:hover:not(:disabled),
-:where(.seams-auth-menu-surface[data-theme='dark'])
-  .seams-link-device-confirmation
-  .seams-link-device-btn-primary:focus-visible {
-  background: var(
-    --seams-colors-buttonHoverBackground,
-    var(--seams-colors-buttonBackground, var(--seams-colors-textPrimary))
-  ) !important;
-  color: var(--seams-colors-textButton, var(--seams-colors-colorBackground));
 }
 
 :where(.seams-auth-menu-surface) .seams-signup-menu-root {
