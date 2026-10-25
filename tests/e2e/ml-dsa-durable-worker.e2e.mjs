@@ -65,6 +65,7 @@ const bindings = {
 const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
 function delayAuthorization(resolve) { setTimeout(resolve, 200); }
+function waitForFailureRelease(resolve) { setTimeout(resolve, 50); }
 function finalPublication(command) {
   switch (command.job.groups) {
     case 'one': return true;
@@ -81,6 +82,16 @@ export class PublicationBarrier {
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
+    if (path === '/fail-publication-once') {
+      await this.state.storage.put('fail_publication_once', true);
+      await this.state.storage.put('failure_released', false);
+      await this.state.storage.delete('failed_publication');
+      return new Response('Armed');
+    }
+    if (path === '/release-failed-publication') {
+      await this.state.storage.put('failure_released', true);
+      return new Response('Released');
+    }
     if (path === '/arm-before' || path === '/arm-after') {
       const stage = path === '/arm-before' ? 'before' : 'after';
       await this.state.storage.put('hold_stage', stage);
@@ -94,13 +105,23 @@ export class PublicationBarrier {
     }
     if (path === '/state') {
       return Response.json({ wakeReplyFailures: await this.state.storage.get('wake_reply_failures') ?? 0, held: await this.state.storage.get('held') ?? null,
-        inspectionFailures: await this.state.storage.get('inspection_failures') ?? 0 });
+        inspectionFailures: await this.state.storage.get('inspection_failures') ?? 0,
+        failedPublication: await this.state.storage.get('failed_publication') ?? null });
     }
     const command = await request.clone().json();
     if (command.command === 'inspect' && await this.state.storage.get('fail_inspection')) {
       await this.state.storage.put('fail_inspection', false);
       await this.state.storage.put('inspection_failures', 1);
       return new Response('Injected inventory failure', {status:503});
+    }
+    if (command.command === 'put' && await this.state.storage.get('fail_publication_once')) {
+      await this.state.storage.delete('fail_publication_once');
+      await this.state.storage.put('failed_publication', command.job);
+      const deadline = Date.now() + 60000;
+      while (!await this.state.storage.get('failure_released') && Date.now() < deadline) {
+        await new Promise(waitForFailureRelease);
+      }
+      return new Response('Injected publication failure', { status: 503 });
     }
     const stage = await this.state.storage.get('hold_stage');
     if (command.command === 'put' && stage === 'before') {
@@ -201,15 +222,11 @@ observations.provenance = {
     'crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs',
     'crates/router-ab-cloudflare/Cargo.lock',
     'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/workers.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/refill.rs',
   ].map(fileDigest))),
-  workerJsSha256: Object.fromEntries(await Promise.all([
-    'crates/router-ab-cloudflare/build/router/worker/shim.mjs',
-    'crates/router-ab-cloudflare/build/deriver-a/worker/shim.mjs',
-    'crates/router-ab-cloudflare/build/deriver-b/worker/shim.mjs',
-    'crates/router-ab-cloudflare/build/router/index.js',
-    'crates/router-ab-cloudflare/build/deriver-a/index.js',
-    'crates/router-ab-cloudflare/build/deriver-b/index.js',
-  ].map(fileDigest))),
+  workerJsSha256: Object.fromEntries(await Promise.all(['router', 'deriver-a', 'deriver-b'].map(workerJsDigest))),
 };
 observations.workerWasmSha256 = Object.fromEntries(await Promise.all(["router", "deriver-a", "deriver-b"].map(wasmDigest)));
 
@@ -308,7 +325,11 @@ try {
       });
       assert.equal(armed.status, 200);
     }
-    const initialStarts = await preprocessingStarts();
+    let initialStarts = await preprocessingStarts();
+    if (index === 0) {
+      const barrier = await publicationBarrier();
+      assert.equal((await barrier.fetch('https://fault.internal/fail-publication-once')).status, 200);
+    }
     if (profileSigning) profileConnections = await startProfiles(runtime, signingTarget, 1000);
     const started = performance.now();
     const router = await runtime.getWorker('router');
@@ -336,6 +357,39 @@ try {
       profileConnections = [];
     }
     assert.equal(result.status, 'existing');
+    if (index === 0) {
+      await waitForPreprocessingStart(initialStarts);
+      observations.responseToRefillStartedMs = performance.now() - responseAt;
+      assert.ok(observations.responseToRefillStartedMs < 3000, 'Settled consumption did not wake refill within three seconds');
+      const barrier = await publicationBarrier();
+      assert.equal((await barrier.fetch('https://fault.internal/release-failed-publication')).status, 200);
+      const failed = await waitForFailedPreparation(barrier);
+      const beforeRetry = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+      assert.equal(beforeRetry.status, 'busy');
+      assert.ok(beforeRetry.retry_at_ms > Date.now(), 'A failed producer retried without a delay');
+      initialStarts = await preprocessingStarts();
+      const [failedA, failedB] = await inventories();
+      const readyA = new Set(failedA.ready.map(batchId));
+      const readyB = new Set(failedB.ready.map(batchId));
+      for (const material of preparationBatches(failed)) {
+        assert.ok(!(readyA.has(material) && readyB.has(material)), 'Failed preparation entered paired stock');
+      }
+      observations.preparationFailure = {
+        batch: failed.batch, retryAtMs: beforeRetry.retry_at_ms,
+        observedAtMs: Date.now(), startsBeforeRetry: initialStarts,
+        terminalState: await producerState(failed), pairedStockObserved: false,
+      };
+      // Capture the first replacement even if this signing operation exhausts candidates.
+      await waitForPreprocessingStart(initialStarts);
+      const replacements = await rolePreprocessingJobs('a');
+      replacements.sort(newestJobFirst);
+      const replacement = replacements[0];
+      assert.notDeepEqual(replacement.batch, failed.batch);
+      assert.ok(replacement.expires_at_ms - 90000 >= beforeRetry.retry_at_ms,
+        'Replacement preparation was admitted before the retry deadline');
+      observations.preparationFailure.replacementBatch = replacement.batch;
+      observations.preparationFailure.replacementAdmittedAtMs = replacement.expires_at_ms - 90000;
+    }
     if (result.operation.state === 'failed') {
       observations.failedOperations.push({ operationHex: Buffer.from(input.request.operation).toString('hex'), elapsedMs });
       assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
@@ -365,8 +419,6 @@ try {
       const barrier = await publicationBarrier();
       assert.equal((await barrier.fetch('https://fault.internal/arm-after')).status, 200);
       await waitForPreprocessingStart(initialStarts);
-      observations.responseToRefillStartedMs = performance.now() - responseAt;
-      assert.ok(observations.responseToRefillStartedMs < 3000, 'Settled consumption did not wake refill within three seconds');
       const jobs = await rolePreprocessingJobs('a');
       jobs.sort(newestJobFirst);
       const job = jobs[0];
@@ -420,7 +472,7 @@ try {
       await runtime.dispose();
       runtime = createRuntime();
       await runtime.ready;
-      await waitForInterruptedProducer(job);
+      await waitForRecoveredPublication(job);
       observations.interruptedProducer.terminalStateMs = performance.now() - resetStarted;
       observations.interruptedProducer.afterResetState = await producerState(job);
       await waitForLeaseRelease(job);
@@ -823,13 +875,25 @@ async function waitForHeldPublication(barrier) {
   throw new Error('The producer did not reach the paired-publication barrier');
 }
 
-async function waitForInterruptedProducer(job) {
-  const deadline = performance.now() + 15000;
-  while (performance.now() < deadline) {
-    if (await producerState(job) === 'interrupted') return;
+async function waitForFailedPreparation(barrier) {
+  const deadline = Date.now() + 60000;
+  while (Date.now() < deadline) {
+    const state = await (await barrier.fetch('https://fault.internal/state')).json();
+    const job = state.failedPublication;
+    if (job && await producerState(job) === 'failed'
+      && !await admissionCheck({ command: 'check_refill', job })) return job;
     await new Promise(waitForMarker);
   }
-  throw new Error('Paired publication did not persist interrupted state before its deadline');
+  throw new Error('Injected publication failure did not settle durably');
+}
+
+async function waitForRecoveredPublication(job) {
+  const deadline = performance.now() + 15000;
+  while (performance.now() < deadline) {
+    if (await producerState(job) === 'published') return;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('Paired publication was not confirmed after restart before its deadline');
 }
 
 async function admissionBarrier() {
@@ -887,7 +951,7 @@ async function checkPrepublicationFallback() {
   assert.notDeepEqual(fresh.batch, job.batch);
   assert.equal(await producerState(job), 'interrupted');
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
-  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job }), []);
+  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job, outcome: 'interrupted' }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: fresh }), true);
   await assert.rejects(producerReceipt(job, serviceAuth), /ML-DSA preprocessing lease is inactive/);
   return { batch: job.batch, freshBatch: fresh.batch, beforeReset, retainedLeaseMs, elapsedMs: performance.now() - started,
@@ -1039,7 +1103,7 @@ async function checkProducerHandoff(restart) {
     await runtime.ready;
   }
   await assert.rejects(producerReceipt(held, serviceAuth), /ML-DSA preprocessing lease is inactive/);
-  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: held }), []);
+  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: held, outcome: 'interrupted' }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: next.job }), true);
   const releaseDeadline = performance.now() + 15000;
   while ((await producerSnapshot(held.batch)).pending && performance.now() < releaseDeadline) {
@@ -1105,6 +1169,11 @@ function waitSixSeconds(resolve) {
 }
 function waitOneSecond(resolve) {
   setTimeout(resolve, 1000);
+}
+
+async function workerJsDigest(role) {
+  const bytes = await readFile(join(buildRoot, role, 'index.js'));
+  return [role, createHash('sha256').update(bytes).digest('hex')];
 }
 
 async function wasmDigest(role) {

@@ -167,9 +167,13 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
             "claim": &claim,
         })
     );
-    let refill::Claim::Acquired { job } = claim else {
-        schedule_refill_alarm(state, 5_000).await?;
-        return Response::from_json(&false);
+    let job = match claim {
+        refill::Claim::Acquired { job } => job,
+        refill::Claim::Busy { retry_at_ms } => {
+            let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+            schedule_refill_alarm(state, retry_at_ms.saturating_sub(now).max(1)).await?;
+            return Response::from_json(&false);
+        }
     };
     for (stage, at) in [
         ("controller_selected", selected_at),

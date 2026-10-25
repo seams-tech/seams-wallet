@@ -83,6 +83,7 @@ pub enum AdmissionCommand {
     },
     FinishRefill {
         job: refill::Job,
+        outcome: refill::Outcome,
     },
     AuthorizeKey {
         activation: admission::KeyActivation,
@@ -551,8 +552,8 @@ async fn execute_admission(
             json(true)
         }
         AdmissionCommand::CheckRefill { job } => json(refill::check(store, &job, now).await?),
-        AdmissionCommand::FinishRefill { job } => {
-            json(refill::finish(store, policy, &job, now).await?)
+        AdmissionCommand::FinishRefill { job, outcome } => {
+            json(refill::finish(store, policy, &job, outcome, now).await?)
         }
         AdmissionCommand::AuthorizeKey { activation } => {
             admission::authorize_key(store, activation).await?;
