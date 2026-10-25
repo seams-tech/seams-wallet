@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "copper-raven-28p7kw",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:d86fbd5f-0697-4206-971a-d729ee32daeb",
+  "freshSessionId": "wls_YjMYpKjgoD0QWT5HgKLJu3Cw5LyI_fIZjglKwudPedQ",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 111.70979100000113,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 383.6421249999985,
+    "runtimeVisibleMs": 112.72779199999786,
+    "loadingCardHeight": 435.03125,
+    "readyCardHeight": 435.03125,
+    "cancellationMs": 43.450000000004366,
+    "readyMs": 4556.014999999999,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 112.36495800000557,
+  "naturalCapture": {
+    "voicedMs": 1280,
+    "recordingMs": 4888.399999976158,
+    "endedBy": "pause",
+    "similarity": 0.6861267655127221,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1248,
+    "recordingMs": 3007.6999999284744,
+    "endedBy": "pause",
+    "similarity": 0.7583434603703275,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "52fd7b71-b413-41c0-97ff-823dc8229d4b",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.20689774188643464,
+      "levelThreshold": 0.006,
+      "recordingMs": 2065.5,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "803ad7d1-98f9-4171-aedb-03c7193ce4a5",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.00022627490222548862,
+      "levelThreshold": 0.006,
+      "recordingMs": 8007.5,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "copper-raven-28p7kw",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "copper-raven-28p7kw",
+    "accountId": "0d717edc89d3ca83640e878de66764d56580d907c495b1a02517499d28df57c9",
+    "publicKey": "ed25519:uUgDSmBbqudkWnviaXRKJBh8ZpEnhARLECq6ujphkX2"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADBkNzE3ZWRjODlkM2NhODM2NDBlODc4ZGU2Njc2NGQ1NjU4MGQ5MDdjNDk1YjFhMDI1MTc0OTlkMjhkZjU3YzkADXF+3InTyoNkDoeN5mdk1WWA2QfElbGgJRdJnSjfV8kCAAAAAAAAAEAAAAAwZDcxN2VkYzg5ZDNjYTgzNjQwZTg3OGRlNjY3NjRkNTY1ODBkOTA3YzQ5NWIxYTAyNTE3NDk5ZDI4ZGY1N2M5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAdlXSYZSTgrKH7BZTfkd36ZYWpvlFDVQ+MhvZrff1I9MoCZLACKm/kPixJtHs8hvflC4thRAankXxl8VZiOjkBA==",
+      "signedTransactionSha256": "242daa8ac36884520f85661bfa83cf24d5252692c4fb8b67c58e39a09673267d",
+      "signerId": "0d717edc89d3ca83640e878de66764d56580d907c495b1a02517499d28df57c9",
+      "receiverId": "0d717edc89d3ca83640e878de66764d56580d907c495b1a02517499d28df57c9",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}
