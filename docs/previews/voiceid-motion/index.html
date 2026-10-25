@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceID · Motion comparison</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eef2f3;background:#0b1012;font-synthesis:none;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}body{margin:0;padding:48px 28px}main{max-width:1280px;margin:auto}header{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:28px}h1{font-size:28px;letter-spacing:-1px;margin:8px 0 12px;font-weight:600}p{color:#9cabb3;line-height:1.6;margin:0;font-size:14px}.eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#8b9aa3}.badge{font-size:12px;border:1px solid #303b41;border-radius:20px;padding:8px 12px;white-space:nowrap;color:#b7c4ca}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:18px 0 24px}button,select{font:inherit;font-size:13px;color:inherit;background:#192329;border:1px solid #344149;border-radius:10px;padding:11px 16px;cursor:pointer}button.primary{background:#edf1f3;color:#11181c;border-color:transparent;font-weight:550}button:disabled{opacity:.45;cursor:default}button[aria-pressed=true]{background:#dce5e9;color:#11181c}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #b7dce9;outline-offset:4px}.right{margin-left:auto;display:flex;gap:10px;align-items:center}.right label{font-size:12px;color:#9cabb3}input{width:90px;accent-color:#dce5e9}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.panel{min-width:0}.caption{display:flex;align-items:center;gap:12px;margin:0 0 14px;font-size:14px;font-weight:550}.index{color:#81939e;font-size:11px;font-variant-numeric:tabular-nums}.card{height:425px;background:#11181c;border:1px solid #303b41;border-radius:22px;padding:40px 24px 32px;display:flex;flex-direction:column;align-items:center;box-shadow:0 18px 60px #0002}.card .label{font-size:13px;color:#9cabb3}.phrase{font-size:clamp(25px,3vw,34px);font-weight:600;letter-spacing:-1.1px;line-height:1.2;text-align:center;max-width:310px;min-height:100px;display:grid;place-items:center;margin:24px 0 12px}.visual{width:100%;height:96px;max-width:320px}canvas{display:block;width:100%;height:100%}.state{font-size:13px;color:#9cabb3;margin-top:16px;min-height:24px}.note{font-size:13px;color:#8d9fa9;line-height:1.6;margin-top:16px;max-width:440px}.footer{margin-top:32px;border-top:1px solid #263138;padding-top:20px;display:flex;justify-content:space-between;gap:20px}.footer p{font-size:12px}#message{min-height:24px;color:#c6d4da;font-size:13px;margin:0 0 16px}#message[data-error=true]{color:#ffb9ac}
+@media(hover:hover){button:not(:disabled):hover{filter:brightness(1.12)}}@media(max-width:720px){body{padding:28px 16px}header{align-items:start;flex-direction:column;gap:12px}.grid{grid-template-columns:1fr}.right{margin-left:0}.card{height:390px}.footer{flex-direction:column}.phrase{font-size:30px}}
+.beam-options{display:flex;align-items:center;gap:8px;margin:0 0 24px}.beam-options span{font-size:12px;color:#9cabb3;margin-right:8px}.beam-options button{padding:8px 12px;font-size:12px}.sdk-voice-beam{width:100%;border-radius:22px}.beam-card{position:relative;z-index:5;box-shadow:none;background:transparent}.bars-hidden{visibility:hidden}.beam-card .visual{position:relative}.hairline-voice{position:absolute;inset:0;width:100%;height:100%;color:#deeaf0}.beam-options{flex-wrap:wrap}.beam-panel #beam-root{background:#11181c;border-radius:22px}.beam-panel .note{margin-top:16px}@media(max-width:950px) and (min-width:721px){.phrase{font-size:26px}.card{padding-inline:16px}.grid{gap:14px}}
+.beam-card{padding:22px 22px 52px}.beam-top{width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.beam-top .beam-pill:first-child{background:none;border-color:transparent;padding-inline:2px 0}.beam-pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;line-height:1;color:#a9b7bf;background:#172026;border:1px solid #2b363d;border-radius:999px;padding:6px 10px}.beam-pill .state{font-size:12px;color:inherit;margin:0;min-height:0}.beam-dot{width:6px;height:6px;border-radius:50%;background:#5d6a72}.beam-card[data-mode=live] .beam-dot,.beam-card[data-mode=demo] .beam-dot{background:#8fd8c4}.beam-card[data-mode=processing] .beam-dot{background:#9fb4ff}
+.beam-phrase{margin:auto 0 0;min-height:0}.beam-card .visual{margin:-6px 0}.beam-word{border-radius:6px;transition:color .16s,background-color .16s,box-shadow .16s}.beam-word[data-progress=next]{color:#56636b}.beam-word[data-progress=now]{color:#fff;background:#24323a;box-shadow:0 0 0 3px #24323a}.beam-ribbon{-webkit-mask-image:linear-gradient(90deg,transparent,#000 24%,#000 76%,transparent);mask-image:linear-gradient(90deg,transparent,#000 24%,#000 76%,transparent)}
+.beam-actions{margin:6px 0 auto;display:flex;align-items:center;gap:14px}.beam-actions .beam-icon{width:36px;height:36px;padding:0;border-radius:50%;display:grid;place-items:center;background:#172026;border-color:#2b363d;color:#dce5e9}.beam-actions .beam-mic{width:44px;height:44px;background:#edf1f3;color:#11181c;border-color:transparent}.beam-time{min-width:36px;font-size:12px;color:#8d9fa9;font-variant-numeric:tabular-nums}@media(prefers-reduced-motion:reduce){.beam-word{transition:none}}
+
+:root[data-theme="light"]{color-scheme:light;color:#172025;background:#f4f6f5}
+[data-theme="light"] p,[data-theme="light"] .eyebrow,[data-theme="light"] .right label,[data-theme="light"] .beam-options span,[data-theme="light"] .note,[data-theme="light"] .state,[data-theme="light"] .card .label,[data-theme="light"] .index{color:#63727a}
+[data-theme="light"] .badge{color:#53636b;border-color:#d7dfdf;background:#fff}
+[data-theme="light"] button,[data-theme="light"] select{background:#fff;border-color:#d4dddd;color:#27353b}
+[data-theme="light"] button.primary,[data-theme="light"] button[aria-pressed="true"]{background:#17252c;border-color:#17252c;color:#fff}
+[data-theme="light"] input{accent-color:#354f5d}
+[data-theme="light"] .card{background:#fff;border-color:#dce3e3;box-shadow:0 8px 28px #17252c08}
+[data-theme="light"] .beam-panel #beam-root{background:#fff}
+[data-theme="light"] .beam-card{background:transparent;box-shadow:none}
+[data-theme="light"] .beam-pill{color:#61717a;background:#f4f7f7;border-color:#e2e8e8}
+[data-theme="light"] .beam-word[data-progress="next"]{color:#8a989e}
+[data-theme="light"] .beam-word[data-progress="now"]{color:#142830;background:#e9f0f2;box-shadow:0 0 0 3px #e9f0f2}
+[data-theme="light"] .beam-actions .beam-icon{background:#f0f4f4;border-color:#dce4e4;color:#52656f}
+[data-theme="light"] .beam-actions .beam-mic{background:#17252c;border-color:#17252c;color:#fff}
+[data-theme="light"] .beam-time{color:#63727a}
+[data-theme="light"] .hairline-voice{color:#354f5d}
+[data-theme="light"] #message{color:#53636b}
+[data-theme="light"] #message[data-error="true"]{color:#a13e32}
+[data-theme="light"] .footer{border-color:#dce3e3}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">Seams / VoiceID exploration</div><h1>One voice. Three expressions.</h1><p>Compare all three treatments with the same live audio. The phrase stays in focus.</p></div><span class="badge" id="source">Demo audio · simulated</span></header>
+<div class="controls"><button id="microphone" class="primary">Use microphone</button><button id="demo" aria-pressed="true">Demo</button><button id="quiet" aria-pressed="false">Silence</button><button id="processing" aria-pressed="false">Checking</button><div class="right"><label for="sensitivity">Visual sensitivity</label><input id="sensitivity" type="range" min="0.5" max="2" step="0.1" value="1"><label for="theme">Theme</label><select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select><label for="motion">Motion</label><select id="motion"><option value="system">System</option><option value="reduced">Reduced</option><option value="full">Full</option></select></div></div>
+<p id="message" role="status">Demo mode uses generated levels. Select Use microphone for real speech feedback.</p>
+<div class="beam-options"><span>SDK VoiceBeam</span><button id="glow-only" aria-pressed="false">Glow only</button><button id="glow-with-bars" aria-pressed="false">Glow + bars</button><button id="glow-ribbon-choice" aria-pressed="true">Glow + ribbon</button><button id="glow-hairline-choice" aria-pressed="false">Glow + Hairline</button></div>
+<section class="grid"><article class="panel"><h2 class="caption"><span class="index">01</span> Centered bars</h2><div class="card"><span class="label">Read aloud</span><div class="phrase">This is my<br>own voice.</div><div class="visual"><canvas id="bars" aria-label="Centered bars audio visualization" role="img"></canvas></div><span class="state">Demo · simulated speech</span></div><p class="note">A centered silhouette with independent frequency bands. Clear, tactile feedback that fits the wallet’s existing design.</p></article><article class="panel"><h2 class="caption"><span class="index">02</span> Flowing ribbon</h2><div class="card"><span class="label">Read aloud</span><div class="phrase">This is my<br>own voice.</div><div class="visual"><canvas id="ribbon" aria-label="Flowing ribbon audio visualization" role="img"></canvas></div><span class="state">Demo · simulated speech</span></div><p class="note">Layered curves respond to volume and frequency balance. Softer motion; an expressive indicator rather than a literal waveform.</p></article><article class="panel beam-panel"><h2 class="caption"><span class="index">03</span> SDK VoiceBeam</h2><div id="beam-root"></div><p class="note">Our existing SDK component, using voice-glow 0.2.1. Compare glow alone, the flowing ribbon, centered bars, or Hairline lines. The ribbon here matches preview 02 and fades at its side edges. The phrase highlights each word as the voice reaches it. Reduced motion freezes the glow.</p></article></section>
+<div class="footer"><p>Local preview only. No enrollment, voice verification, recording, or transaction signing.<br>Microphone audio is analyzed in this tab and is never uploaded or saved.</p><p>One shared audio stream · existing SDK VoiceBeam<br>Switching modes stops the microphone.</p></div>
+</main>
+<script src="./hairline-kernel.js"></script>
+<script type="module">
+import { mountVoiceBeam } from "./voicebeam.js";
+import { mountHairlineVoice } from "./hairline-voice.js";
+const microphone = document.querySelector('#microphone');
+const demo = document.querySelector('#demo');
+const quiet = document.querySelector('#quiet');
+const processing = document.querySelector('#processing');
+const source = document.querySelector('#source');
+const message = document.querySelector('#message');
+const sensitivity = document.querySelector('#sensitivity');
+const motion = document.querySelector('#motion');
+const theme = document.querySelector('#theme');
+const glowOnly = document.querySelector('#glow-only');
+const glowWithBars = document.querySelector('#glow-with-bars');
+let showGlowBars = false;
+let showGlowRibbon = true;
+const glowRibbonChoice = document.querySelector('#glow-ribbon-choice');
+let showHairline = false;
+let hairline = null;
+const hairlineChoice = document.querySelector('#glow-hairline-choice');
+const mediaPreference = matchMedia('(prefers-reduced-motion: reduce)');
+const bars = document.querySelector('#bars');
+const ribbon = document.querySelector('#ribbon');
+const barContext = bars.getContext('2d');
+const ribbonContext = ribbon.getContext('2d');
+const frequencies = new Uint8Array(512);
+const samples = new Float32Array(1024);
+const levels = new Float32Array(28);
+let mode = 'demo';
+let stream = null;
+let context = null;
+let analyser = null;
+let requestId = 0;
+let lastTime = 0;
+let envelope = 0;
+let phase = 0;
+let ribbonLevel = 0;
+const beam = mountVoiceBeam(document.querySelector('#beam-root'), readGlowLevel);
+function readGlowLevel() { return envelope; }
+function updateBeam() {
+  const caption = mode === 'live' ? 'Listening' : mode === 'demo' ? 'Demo · simulated speech' : mode === 'processing' ? 'Checking your voice…' : 'Ready when you are';
+  beam.update({mode, caption, theme: theme.value, showBars: showGlowBars, showRibbon: showGlowRibbon, showHairline, reduced: reduced(), onRestart: restartReading, onMicrophone: toggleMicrophone});
+}
+// Voiced milliseconds at demo pace for each word of the phrase; live speech runs faster.
+const wordPace = [520, 420, 480, 640, 940];
+const phraseMs = wordPace.reduce(addNumbers, 0);
+let spokenMs = 0;
+let quietMs = 0;
+function addNumbers(total, value) { return total + value; }
+function restartReading() { spokenMs = 0; quietMs = 0; }
+function updateReading(dt) {
+  const pace = mode === 'live' ? 0.55 : 1;
+  if (mode === 'live' || mode === 'demo') {
+    if (envelope > 0.12) {
+      if (spokenMs >= phraseMs * pace && quietMs > 900) spokenMs = 0;
+      spokenMs += dt;
+      quietMs = 0;
+    } else quietMs += dt;
+  }
+  let start = 0;
+  const words = document.querySelectorAll('.beam-word');
+  for (let i = 0; i < words.length; i += 1) {
+    const end = start + wordPace[i] * pace;
+    const progress = mode === 'quiet' ? '' : mode === 'processing' || spokenMs >= end ? 'done' : spokenMs >= start ? 'now' : 'next';
+    if ((words[i].dataset.progress ?? '') !== progress) {
+      if (progress) words[i].dataset.progress = progress; else delete words[i].dataset.progress;
+    }
+    start = end;
+  }
+  const time = document.querySelector('.beam-time');
+  const seconds = `0:${String(Math.floor(spokenMs / 1000)).padStart(2, '0')}`;
+  if (time && time.textContent !== seconds) time.textContent = seconds;
+}
+function selectBeamTreatment(value) {
+  showHairline = value === "hairline";
+  showGlowRibbon = value === "ribbon";
+  showGlowBars = value === true;
+  glowOnly.setAttribute('aria-pressed', String(!showGlowBars && !showHairline && !showGlowRibbon));
+  glowWithBars.setAttribute('aria-pressed', String(showGlowBars));
+  hairlineChoice.setAttribute('aria-pressed', String(showHairline));
+  glowRibbonChoice.setAttribute('aria-pressed', String(showGlowRibbon));
+  updateBeam();
+}
+
+function reduced() { return motion.value === 'reduced' || (motion.value === 'system' && mediaPreference.matches); }
+function releaseMicrophone() {
+  requestId += 1;
+  if (stream) for (const track of stream.getTracks()) track.stop();
+  stream = null;
+  analyser = null;
+  if (context) void context.close().catch(ignoreClose);
+  context = null;
+}
+function ignoreClose() {}
+function setMode(next) {
+  releaseMicrophone();
+  mode = next;
+  microphone.disabled = false;
+  updateLabels();
+}
+function updateLabels() {
+  microphone.textContent = mode === 'live' ? 'Stop microphone' : 'Use microphone';
+  demo.setAttribute('aria-pressed', String(mode === 'demo'));
+  quiet.setAttribute('aria-pressed', String(mode === 'quiet'));
+  processing.setAttribute('aria-pressed', String(mode === 'processing'));
+  source.textContent = mode === 'live' ? 'Microphone · live' : mode === 'demo' ? 'Demo audio · simulated' : mode === 'processing' ? 'Checking · simulated' : 'Microphone off';
+  for (const state of document.querySelectorAll('.state')) state.textContent = mode === 'live' ? 'Listening' : mode === 'demo' ? 'Demo · simulated speech' : mode === 'processing' ? 'Checking your voice…' : 'Ready when you are';
+  restartReading();
+  updateBeam();
+  message.dataset.error = 'false';
+  message.textContent = mode === 'live' ? 'Speak naturally. All three previews respond to the same microphone input.' : mode === 'demo' ? 'Demo mode uses generated levels. Select Use microphone for real speech feedback.' : mode === 'processing' ? 'Processing preview. The microphone is off.' : 'The microphone is off. Compare the resting states.';
+}
+async function toggleMicrophone() {
+  if (mode === 'live') { setMode('quiet'); return; }
+  releaseMicrophone();
+  const currentRequest = requestId;
+  microphone.disabled = true;
+  message.textContent = 'Waiting for microphone permission…';
+  let acquired = null;
+  try {
+    acquired = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+    if (currentRequest !== requestId) { for (const track of acquired.getTracks()) track.stop(); return; }
+    stream = acquired;
+    context = new AudioContext();
+    analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.65;
+    context.createMediaStreamSource(stream).connect(analyser);
+    await context.resume();
+    if (currentRequest !== requestId) return;
+    mode = 'live';
+    updateLabels();
+  } catch (error) {
+    if (currentRequest !== requestId) return;
+    if (acquired) for (const track of acquired.getTracks()) track.stop();
+    releaseMicrophone();
+    mode = 'quiet';
+    updateLabels();
+    message.dataset.error = 'true';
+    message.textContent = 'Microphone unavailable. Allow access in this browser, or compare the demo animation.';
+  } finally {
+    if (currentRequest === requestId || mode === 'quiet') microphone.disabled = false;
+  }
+}
+function resizeCanvas(canvas, ctx) {
+  const ratio = Math.min(devicePixelRatio || 1, 2);
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+  }
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  return {width,height};
+}
+function drawBars(time, dt, energy) {
+  const {width,height} = resizeCanvas(bars, barContext);
+  const spacing = Math.min(9, (width - 24) / levels.length);
+  const start = (width - spacing * (levels.length - 1)) / 2;
+  for (let i = 0; i < levels.length; i += 1) {
+    const position = (i - (levels.length - 1) / 2) / (levels.length / 2);
+    const taper = 0.25 + 0.75 * Math.pow(Math.max(0, 1-position*position), 0.7);
+    let band = mode === 'live' ? frequencies[Math.min(511, Math.round(4 + Math.pow(i / 27, 1.7) * 150))] / 255 : 0.55 + 0.45*Math.sin(time*0.007+i*1.3)**2;
+    let target = energy * (0.25+band*0.75) * taper;
+    if (mode === 'processing') target = reduced() ? 0.08 : 0.08+0.12*Math.sin(time*0.004-i*0.35)**2;
+    if (reduced()) target = energy * 0.25 * taper;
+    const rate = target > levels[i] ? 55 : 200;
+    levels[i] += (target-levels[i]) * (1-Math.exp(-dt/rate));
+    const barHeight = 3 + levels[i]*67;
+    barContext.fillStyle = `rgba(${theme.value === "light" ? "40,65,77" : "222,235,240"},${0.4+Math.min(0.6,levels[i]+energy*0.3)})`;
+    barContext.beginPath();
+    barContext.roundRect(start+i*spacing-2, (height-barHeight)/2, 4, barHeight, 2);
+    barContext.fill();
+  }
+}
+function drawRibbon(dt, energy) {
+  const {width,height} = resizeCanvas(ribbon, ribbonContext);
+  const target = mode === 'processing' ? 0.08 : Math.min(1, energy * 1.5);
+  ribbonLevel += (target - ribbonLevel) * (1 - Math.exp(-dt / (target > ribbonLevel ? 45 : 150)));
+  if (!reduced()) phase += dt * (0.0025 + ribbonLevel * 0.005);
+  const amount = ribbonLevel;
+  for (let layer = 3; layer >= 0; layer -= 1) {
+    ribbonContext.beginPath();
+    for (let x=0; x<=width; x+=2) {
+      const u=x/width;
+      const taper=Math.pow(Math.sin(Math.PI*u),1.7);
+      const wave=Math.sin(u*Math.PI*4-phase+layer*0.5)*0.7+Math.sin(u*Math.PI*7+phase*0.7+layer)*0.3;
+      const displacement=reduced() ? amount*8*taper : amount*(38-layer*4.5)*taper*wave;
+      const y=height/2+displacement;
+      if (x===0) ribbonContext.moveTo(x,y); else ribbonContext.lineTo(x,y);
+    }
+    ribbonContext.strokeStyle=`rgba(${theme.value === "light" ? "40,65,77" : "215,234,243"},${layer===0 ? 0.55+amount*0.4 : 0.1+amount*0.1})`;
+    ribbonContext.lineWidth=layer===0 ? 1 : 0.65;
+    ribbonContext.stroke();
+  }
+}
+function frame(time) {
+  const dt=Math.min(50, lastTime ? time-lastTime : 16);
+  lastTime=time;
+  let energy=0;
+  if (mode === 'live' && analyser) {
+    analyser.getFloatTimeDomainData(samples);
+    analyser.getByteFrequencyData(frequencies);
+    let sum=0;
+    for (const value of samples) sum+=value*value;
+    const rms=Math.max(0,Math.sqrt(sum/samples.length)-0.003);
+    energy=Math.pow(rms/(rms+0.055),0.65);
+  } else if (mode === 'demo') {
+    const speaking=Math.sin(time*0.0012)>-0.45;
+    energy=speaking ? 0.2+0.6*Math.sin(time*0.008)**2*Math.sin(time*0.0021)**2 : 0;
+  }
+  energy=Math.min(1,energy*Number(sensitivity.value));
+  envelope+=(energy-envelope)*(1-Math.exp(-dt/(energy>envelope ? 55 : 200)));
+  drawBars(time,dt,envelope);
+  drawRibbon(dt,energy);
+  updateReading(dt);
+  const hairlineSvg = document.querySelector('#glow-hairline');
+  if (hairlineSvg && !hairline) hairline = mountHairlineVoice(hairlineSvg);
+  if (hairline && showHairline) hairline.update(mode === 'processing' ? 0.12 : energy, frequencies, mode === 'live', reduced());
+  const glowCanvas = document.querySelector('#glow-bars');
+  if (glowCanvas && (showGlowBars || showGlowRibbon)) {
+    const glowContext = glowCanvas.getContext('2d');
+    const size = resizeCanvas(glowCanvas, glowContext);
+    glowContext.drawImage(showGlowRibbon ? ribbon : bars, 0, 0, size.width, size.height);
+  }
+  requestAnimationFrame(frame);
+}
+function onVisibilityChange() { if(document.hidden) setMode('quiet'); }
+glowRibbonChoice.addEventListener('click', selectBeamTreatment.bind(null, 'ribbon'));
+hairlineChoice.addEventListener('click', selectBeamTreatment.bind(null, 'hairline'));
+glowOnly.addEventListener('click', selectBeamTreatment.bind(null, false));
+glowWithBars.addEventListener('click', selectBeamTreatment.bind(null, true));
+motion.addEventListener('change', updateBeam);
+theme.addEventListener('change', updateTheme);
+function updateTheme() {
+  document.documentElement.dataset.theme = theme.value;
+  updateBeam();
+}
+mediaPreference.addEventListener('change', updateBeam);
+updateBeam();
+microphone.addEventListener('click',toggleMicrophone);
+demo.addEventListener('click',setMode.bind(null,'demo'));
+quiet.addEventListener('click',setMode.bind(null,'quiet'));
+processing.addEventListener('click',setMode.bind(null,'processing'));
+document.addEventListener('visibilitychange',onVisibilityChange);
+window.addEventListener('pagehide',releaseMicrophone);
+requestAnimationFrame(frame);
+</script></body></html>
