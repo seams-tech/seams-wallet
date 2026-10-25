@@ -1,0 +1,562 @@
+[
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "voice": "Moira"
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we are having breakfast together this morning",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we sat together and watched the river",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "please open the window in the kitchen",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the little cat is sitting beside me",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the little dog is sleeping outside",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the weather is beautiful this morning",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i can see the mountains from here",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i am ready to open my wallet",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we will meet again tomorrow morning",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i would like another glass of water",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i can hear music in the kitchen",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the river is running very slowly",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "please bring the water to the table",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we have enough time to walk home",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the sun is shining through the window",
+    "rate": 140
+  },
+  {
+    "kind": "enrollment",
+    "expected": "she is reading beside the window",
+    "rate": 140
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we sat together and watched the river"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we sat together and watched the river",
+    "spoken": "please open the window in the kitchen"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "please open the window in the kitchen",
+    "spoken": "the little cat is sitting beside me"
+  },
+  {
+    "kind": "truncated",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little dog is sleeping outside"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the weather is beautiful this morning"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "i can see the mountains from here"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can see the mountains from here",
+    "spoken": "i am ready to open my wallet"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i am ready to open my wallet",
+    "spoken": "we will meet again tomorrow morning"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "i would like another glass of water"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i would like another glass of water",
+    "spoken": "i can hear music in the kitchen"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "the river is running very slowly"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the river is running very slowly",
+    "spoken": "please bring the water to the table"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "please bring the water to the table",
+    "spoken": "we have enough time to walk home"
+  },
+  {
+    "kind": "truncated",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we have enough time to walk home",
+    "spoken": "the sun is shining through the window"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the sun is shining through the window",
+    "spoken": "she is reading beside the window"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "she is reading beside the window",
+    "spoken": "we are having breakfast together this morning"
+  },
+  {
+    "kind": "truncated",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside"
+  }
+]

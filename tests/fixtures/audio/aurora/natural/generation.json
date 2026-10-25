@@ -1,130 +1,130 @@
 [
   {
-    "phrase": "i want to go home before it gets dark",
+    "phrase": "we are having breakfast together this morning",
     "file": "0.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "47c21e0d6a5bc497b47564993df5e9f28ce2bd216c9093e0422e0d09dbf4651b"
+    "sha256": "45f4026c10641b2880c448571971661963ad8b8474d89fcc42897ea289678d2a"
   },
   {
-    "phrase": "i can hear the music from the other room",
+    "phrase": "we sat together and watched the river",
     "file": "1.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "39ffabb39bde7bee6331b08bda162f550af541def4a906eb3401ab7eefa830e7"
+    "sha256": "03df567c38045e42c40a053554bf129899ff1e42754b327b18e7b8efc3e8022e"
   },
   {
-    "phrase": "this is my own voice and i am ready",
+    "phrase": "please open the window in the kitchen",
     "file": "2.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "a5fcabac6155d152d2722f1c38d7a9f0920c27ee601d9a18442c0cfcf913d699"
+    "sha256": "c9fa325480c13d6ac7d939f7c19c6177cac054304598ce0ec7a576a04434829c"
   },
   {
-    "phrase": "we are going home after a very good day",
+    "phrase": "the little cat is sitting beside me",
     "file": "3.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "0eb0064fbc141fbe82695a36184abf50fcebd9634df2a7a8f9923efe08fed24b"
+    "sha256": "c4658901badbd980a64c1109b5678ab6fa36e2c0a5fc2a28be1231cd31483a83"
   },
   {
-    "phrase": "the little dog is sleeping beside the open door",
+    "phrase": "the little dog is sleeping outside",
     "file": "4.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "f6394718aec509a0bbf7f5767f692eb3aae2f3c790d6b1732c4d824269fe00c2"
+    "sha256": "3d9ed62a9f5c80791e0e7abaefa58c3977fd701cc363eb112ac7c4036de16426"
   },
   {
-    "phrase": "the river is running slowly through the quiet town",
+    "phrase": "the weather is beautiful this morning",
     "file": "5.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "79cdb336913de5df59ba2b925834f007e0b97725947cfc2d18ebf036cf61a711"
+    "sha256": "978707831d74b19377d40aec001b7f5e44a248f45b162623ff79119a61b8c36f"
   },
   {
-    "phrase": "i would like a glass of water please",
+    "phrase": "i can see the mountains from here",
     "file": "6.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "deaf314bba9a996bc4200f3120d724d698e5a91f9a428377fc1e561ee5959c17"
+    "sha256": "17d317faabac7cadfe985e3909b8e2f7485e6fd7d0e725bb151c677c71019e80"
   },
   {
-    "phrase": "can you open the door before we go",
+    "phrase": "i am ready to open my wallet",
     "file": "7.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "aac8e9ccf743e6303c2860d06958d223e651932b61ab6622a316385f6b4fd86d"
+    "sha256": "b109b349146941fa7cf63250f569d2733c6481840d5fe0c11aaca19067af1465"
   },
   {
-    "phrase": "we sat beside the river and watched the water",
+    "phrase": "we will meet again tomorrow morning",
     "file": "8.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "93df163069a99ca3c953ff6a0e4ea0544bca780d59a34561daf9261ebca6f015"
+    "sha256": "8977b67b179066aad248dca11f7322a66b54e908d1bde0fb3ab225a48741a1a7"
   },
   {
-    "phrase": "the sun is shining and the sky is blue",
+    "phrase": "i would like another glass of water",
     "file": "9.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "739b5a3c360728ee66dd107dbf19a4e79a137c4b3d65d45880cdc3a64f197ba9"
+    "sha256": "00851bc75e8b4154e8914289b484f692759389793e765e8871dcfdf8ea6c525d"
   },
   {
-    "phrase": "she is reading a book in the living room",
+    "phrase": "i can hear music in the kitchen",
     "file": "10.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "46b055f88b7edffcd882221ace4d30e7da451b6591f041b6a9384fcca03f66d2"
+    "sha256": "1c25f18f6fd3f89fc6971e34f81569329b00cd56c6f427252cd510189f551379"
   },
   {
-    "phrase": "he is looking at the picture on the wall",
+    "phrase": "the river is running very slowly",
     "file": "11.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "81de65a431e24b9ec8ddb016229d542862f8848dd559ca18670d4981ad13b061"
+    "sha256": "86d89a8351a63845fece493b555f0a3851d27bab82875793c0d040ac52383434"
   },
   {
-    "phrase": "the door is open and we can go inside",
+    "phrase": "please bring the water to the table",
     "file": "12.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "b2b2ba89df4fb0097f564918f8cb614ef2e80b8efc063fb700db99995f1b9b8b"
+    "sha256": "962a7aeb8c6563df657b16c7b3979b9d44e9cda9599b7c61b054f9d324b366a8"
   },
   {
-    "phrase": "there is a little bird outside the window",
+    "phrase": "we have enough time to walk home",
     "file": "13.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "1b88a56d5bf3c589935ff7c80670a3c4b3f191e92b7bbd914af2fe965efb5056"
+    "sha256": "eda57486e50ecb4954359f5264f24671604dcdc998694456bd9d1b3b2ebd9b1b"
   },
   {
-    "phrase": "we can try this again in the morning",
+    "phrase": "the sun is shining through the window",
     "file": "14.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "9cf774e84273a7312a5f1f75df224b7455042e2cd3069ee9231ab796a1e20297"
+    "sha256": "49ea17b8f5b6e0f47a581f788ea0e290418d4f802d7c73d4941485af9ae0addf"
   },
   {
-    "phrase": "i will open the door for you now",
+    "phrase": "she is reading beside the window",
     "file": "15.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "57b37aac6af02743757068332b06c87ea79068c4a59c5039edb1cad73815e655"
+    "sha256": "5cfb1620e70fdc888ce99f735a2c176e112fb81bd56eba091176b595d0d29444"
   }
 ]

@@ -64,7 +64,7 @@ python tests/scripts/voiceid-aurora/fixtures.py --output /tmp/voiceid-aurora-fix
 
 The standard fixtures use connected speech at 140 words per minute. The natural
 fixtures use 160 words per minute. Neither set stretches audio. The current
-8–10-word sentences target about two seconds or more at a normal pace.
+6–7-word sentences target about two seconds or more at a normal pace.
 The browser helper reads the visible phrase and plays its WAV through a MediaStream.
 It exercises MediaRecorder, decoding, preprocessing, B1, and Aurora without mocking
 model outcomes. Explicit overrides supply wrong-speaker and wrong-phrase samples.

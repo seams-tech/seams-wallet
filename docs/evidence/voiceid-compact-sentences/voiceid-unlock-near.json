@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "ocean-falcon-4rcym9",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:78b7d34d-3495-46f6-aba7-165ce1c91dc5",
+  "freshSessionId": "wls_tQO2Up_d4JX6SEdTz8mOBtUKa6tu3OOPkPrWWN53fVk",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 112.61041700000351,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 406.1648749999986,
+    "runtimeVisibleMs": 114.53545799999847,
+    "loadingCardHeight": 435.03125,
+    "readyCardHeight": 435.03125,
+    "cancellationMs": 40.33537499999875,
+    "readyMs": 4531.234042,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 117.00629200000003,
+  "naturalCapture": {
+    "voicedMs": 1824,
+    "recordingMs": 5395.5,
+    "endedBy": "pause",
+    "similarity": 0.8730289488151742,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1752,
+    "recordingMs": 3531.899999976158,
+    "endedBy": "pause",
+    "similarity": 0.9373285656591553,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "be8c1635-c8ac-4205-a9b7-b34a48f22bd7",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.2670538090721484,
+      "levelThreshold": 0.006,
+      "recordingMs": 2114.600000023842,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "66fb7cf0-5b86-47f7-a690-5f39b1b5f1d5",
+      "voicedMs": 0,
+      "durationMs": 2700,
+      "peakFrameRms": 0.0002701373676444058,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.699999928474,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "ocean-falcon-4rcym9",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "ocean-falcon-4rcym9",
+    "accountId": "8f2d5fe8b3b6a63e0ecd3efbd6235bc0a6855c1c6ad316d8944368c3d4dbeaa5",
+    "publicKey": "ed25519:AduRxgZryCwzqfa7s3wcD33JhPTvCzvxXZpgfUcwRHja"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADhmMmQ1ZmU4YjNiNmE2M2UwZWNkM2VmYmQ2MjM1YmMwYTY4NTVjMWM2YWQzMTZkODk0NDM2OGMzZDRkYmVhYTUAjy1f6LO2pj4OzT771iNbwKaFXBxq0xbYlENow9Tb6qUCAAAAAAAAAEAAAAA4ZjJkNWZlOGIzYjZhNjNlMGVjZDNlZmJkNjIzNWJjMGE2ODU1YzFjNmFkMzE2ZDg5NDQzNjhjM2Q0ZGJlYWE1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAArXo6QtFnkk0IRBmh6w8NqFnsM4jwXlDZpp/kmdDt3muGmRgPhFmvIXkdeuYEXp3JOdUK/im3KoY1a6Gzm6J1Cg==",
+      "signedTransactionSha256": "f00fea8b2bb19fab1806756f44501d0b67380b8486d3acd1e9b5c3c4d69c6891",
+      "signerId": "8f2d5fe8b3b6a63e0ecd3efbd6235bc0a6855c1c6ad316d8944368c3d4dbeaa5",
+      "receiverId": "8f2d5fe8b3b6a63e0ecd3efbd6235bc0a6855c1c6ad316d8944368c3d4dbeaa5",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

@@ -100,7 +100,7 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 ## Prompt and preparation
 
 Enrollment, unlock, and transfer approval randomly select one of 16 short English
-sentences of 8–10 words, targeting about two seconds or more at a normal pace.
+sentences of 6–7 words, targeting about two seconds or more at a normal pace.
 Each attempt holds its displayed sentence until recording ends. Retries
 select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
 of quiet once audible input has continued for 100 ms. Initial silence does not

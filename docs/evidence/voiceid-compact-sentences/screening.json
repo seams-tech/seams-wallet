@@ -1,0 +1,1122 @@
+[
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Samantha",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.519625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Daniel",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6598125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Karen",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4083125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Moira",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.626375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and watched the river",
+    "voice": "Samantha",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 3.287186424793192,
+    "durationSeconds": 1.9971875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and watched the river",
+    "voice": "Daniel",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0678125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and watched the river",
+    "voice": "Karen",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": -0.30053946191788206,
+    "durationSeconds": 2.094875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and watched the river",
+    "voice": "Moira",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 0.30007173560222533,
+    "durationSeconds": 2.1968125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Samantha",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 0.1900472942621787,
+    "durationSeconds": 1.9689375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Daniel",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 1.540547431128751,
+    "durationSeconds": 2.055,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Karen",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 0.8829011189157228,
+    "durationSeconds": 2.0450625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Moira",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 1.3219173604866987,
+    "durationSeconds": 2.1341875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Samantha",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 1.0004511299504326,
+    "durationSeconds": 1.9475,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Daniel",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.274375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Karen",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.997625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Moira",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 5.729707925136821,
+    "durationSeconds": 2.133375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 2.089917293242185,
+    "durationSeconds": 2.040375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Daniel",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1583125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Karen",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 0.8199752535305964,
+    "durationSeconds": 1.9395625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Moira",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1914375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Samantha",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.92425,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Daniel",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.10025,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Karen",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 2.962066442600415,
+    "durationSeconds": 1.974375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Moira",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0753125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the mountains from here",
+    "voice": "Samantha",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the mountains from here",
+    "voice": "Daniel",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1756875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the mountains from here",
+    "voice": "Karen",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9230625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the mountains from here",
+    "voice": "Moira",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.04575,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Samantha",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Daniel",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.896,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Karen",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9680625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Moira",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 4.557152350723978,
+    "durationSeconds": 1.988125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Samantha",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 3.313693618245285,
+    "durationSeconds": 1.881125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Daniel",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 3.2970386962179394,
+    "durationSeconds": 2.021375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Karen",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 2.61493710985199,
+    "durationSeconds": 1.8859375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Moira",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 2.1357394280697615,
+    "durationSeconds": 2.1155,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another glass of water",
+    "voice": "Samantha",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another glass of water",
+    "voice": "Daniel",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1756875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another glass of water",
+    "voice": "Karen",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0854375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another glass of water",
+    "voice": "Moira",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 1.686934187493372,
+    "durationSeconds": 2.197125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Samantha",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Daniel",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 1.6285366081688748,
+    "durationSeconds": 2.012625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Karen",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 6.813356652908432,
+    "durationSeconds": 1.8998125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Moira",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9644375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running very slowly",
+    "voice": "Samantha",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9126875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running very slowly",
+    "voice": "Daniel",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0305625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running very slowly",
+    "voice": "Karen",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.939625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running very slowly",
+    "voice": "Moira",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.866375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water to the table",
+    "voice": "Samantha",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8644375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water to the table",
+    "voice": "Daniel",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 1.3977056481226646,
+    "durationSeconds": 1.9853125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water to the table",
+    "voice": "Karen",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.929,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water to the table",
+    "voice": "Moira",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 1.0935072635300616,
+    "durationSeconds": 1.98325,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time to walk home",
+    "voice": "Samantha",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 0.025477975670966435,
+    "durationSeconds": 1.857875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time to walk home",
+    "voice": "Daniel",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 0.3244808016218683,
+    "durationSeconds": 2.1490625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time to walk home",
+    "voice": "Karen",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 2.215874327165708,
+    "durationSeconds": 1.9670625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time to walk home",
+    "voice": "Moira",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0690625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining through the window",
+    "voice": "Samantha",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.5395966369798844,
+    "durationSeconds": 1.843,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining through the window",
+    "voice": "Daniel",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8911875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining through the window",
+    "voice": "Karen",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9510625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining through the window",
+    "voice": "Moira",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.936,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8416875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Daniel",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.996,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Karen",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.96725,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Moira",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9941875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Samantha",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.519625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and watched the river",
+    "voice": "Samantha",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 3.287186424793192,
+    "durationSeconds": 1.9971875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Samantha",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 0.1900472942621787,
+    "durationSeconds": 1.9689375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Samantha",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 1.0004511299504326,
+    "durationSeconds": 1.9475,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 2.089917293242185,
+    "durationSeconds": 2.040375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Samantha",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.92425,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the mountains from here",
+    "voice": "Samantha",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Samantha",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Samantha",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 3.313693618245285,
+    "durationSeconds": 1.881125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another glass of water",
+    "voice": "Samantha",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Samantha",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running very slowly",
+    "voice": "Samantha",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9126875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water to the table",
+    "voice": "Samantha",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8644375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time to walk home",
+    "voice": "Samantha",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 0.025477975670966435,
+    "durationSeconds": 1.857875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining through the window",
+    "voice": "Samantha",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.5395966369798844,
+    "durationSeconds": 1.843,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "enrollment",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8416875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we sat together and watched the river",
+    "voice": "Samantha",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 3.287186424793192,
+    "durationSeconds": 1.9971875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we are having breakfast together this morning",
+    "spoken": "we are having breakfast",
+    "voice": "Samantha",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 203.85300154676156,
+    "durationSeconds": 1.5444375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we sat together and watched the river",
+    "spoken": "please open the window in the kitchen",
+    "voice": "Samantha",
+    "recognized": "please open the window in the kitchen",
+    "gapToGreedy": 0.1900472942621787,
+    "durationSeconds": 1.9689375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we sat together and watched the river",
+    "spoken": "we sat together and",
+    "voice": "Samantha",
+    "recognized": "we sat together and watched the river",
+    "gapToGreedy": 150.04884333984566,
+    "durationSeconds": 1.3470625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "please open the window in the kitchen",
+    "spoken": "the little cat is sitting beside me",
+    "voice": "Samantha",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 1.0004511299504326,
+    "durationSeconds": 1.9475,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "please open the window in the kitchen",
+    "spoken": "please open the window",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 122.53359574295686,
+    "durationSeconds": 1.2955625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little dog is sleeping outside",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 2.089917293242185,
+    "durationSeconds": 2.040375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little cat is sitting beside me",
+    "spoken": "the little cat is",
+    "voice": "Samantha",
+    "recognized": "the little cat is sitting beside me",
+    "gapToGreedy": 128.24567586768282,
+    "durationSeconds": 1.088375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the weather is beautiful this morning",
+    "voice": "Samantha",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.92425,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little dog is sleeping outside",
+    "spoken": "the little dog is",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping outside",
+    "gapToGreedy": 116.59516102816141,
+    "durationSeconds": 1.1348125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "i can see the mountains from here",
+    "voice": "Samantha",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the weather is beautiful this morning",
+    "spoken": "the weather is beautiful",
+    "voice": "Samantha",
+    "recognized": "the weather is beautiful this morning",
+    "gapToGreedy": 89.21196063159901,
+    "durationSeconds": 1.3205625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can see the mountains from here",
+    "spoken": "i am ready to open my wallet",
+    "voice": "Samantha",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8870625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can see the mountains from here",
+    "spoken": "i can see the",
+    "voice": "Samantha",
+    "recognized": "i can see the mountains from here",
+    "gapToGreedy": 121.07358827995924,
+    "durationSeconds": 1.0973125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i am ready to open my wallet",
+    "spoken": "we will meet again tomorrow morning",
+    "voice": "Samantha",
+    "recognized": "we will meet again tomorrow morning",
+    "gapToGreedy": 3.313693618245285,
+    "durationSeconds": 1.881125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i am ready to open my wallet",
+    "spoken": "i am ready to",
+    "voice": "Samantha",
+    "recognized": "i am ready to open my wallet",
+    "gapToGreedy": 119.79593696500723,
+    "durationSeconds": 1.0860625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "i would like another glass of water",
+    "voice": "Samantha",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we will meet again tomorrow morning",
+    "spoken": "we will meet again",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 191.38004654040634,
+    "durationSeconds": 1.0451875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i would like another glass of water",
+    "spoken": "i can hear music in the kitchen",
+    "voice": "Samantha",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8755,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i would like another glass of water",
+    "spoken": "i would like another",
+    "voice": "Samantha",
+    "recognized": "i would like another glass of water",
+    "gapToGreedy": 165.67298410265397,
+    "durationSeconds": 1.0855,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "the river is running very slowly",
+    "voice": "Samantha",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.9126875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can hear music in the kitchen",
+    "spoken": "i can hear music",
+    "voice": "Samantha",
+    "recognized": "i can hear music in the kitchen",
+    "gapToGreedy": 144.9842368080026,
+    "durationSeconds": 1.2250625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the river is running very slowly",
+    "spoken": "please bring the water to the table",
+    "voice": "Samantha",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8644375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the river is running very slowly",
+    "spoken": "the river is running",
+    "voice": "Samantha",
+    "recognized": "the river is running very slowly",
+    "gapToGreedy": 115.07447351257714,
+    "durationSeconds": 1.088375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "please bring the water to the table",
+    "spoken": "we have enough time to walk home",
+    "voice": "Samantha",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 0.025477975670966435,
+    "durationSeconds": 1.857875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "please bring the water to the table",
+    "spoken": "please bring the water",
+    "voice": "Samantha",
+    "recognized": "please bring the water to the table",
+    "gapToGreedy": 109.66984236045468,
+    "durationSeconds": 1.15625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we have enough time to walk home",
+    "spoken": "the sun is shining through the window",
+    "voice": "Samantha",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 0.5395966369798844,
+    "durationSeconds": 1.843,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we have enough time to walk home",
+    "spoken": "we have enough time",
+    "voice": "Samantha",
+    "recognized": "we have enough time to walk home",
+    "gapToGreedy": 125.02202441783538,
+    "durationSeconds": 1.2309375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the sun is shining through the window",
+    "spoken": "she is reading beside the window",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.8416875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the sun is shining through the window",
+    "spoken": "the sun is shining",
+    "voice": "Samantha",
+    "recognized": "the sun is shining through the window",
+    "gapToGreedy": 156.17555959589941,
+    "durationSeconds": 1.07675,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "she is reading beside the window",
+    "spoken": "we are having breakfast together this morning",
+    "voice": "Samantha",
+    "recognized": "we are having breakfast together this morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.519625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "she is reading beside the window",
+    "spoken": "she is reading beside",
+    "voice": "Samantha",
+    "recognized": "she is reading beside the window",
+    "gapToGreedy": 75.02114154623416,
+    "durationSeconds": 1.412125,
+    "acceptedExpected": false
+  }
+]

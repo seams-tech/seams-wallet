@@ -177,7 +177,7 @@ The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
-Confirm click. Randomized prompts contain 8–10 words so users can supply more
+Confirm click. Randomized prompts contain 6–7 words so users can supply more
 speech at a natural pace. Existing enrollment remains valid. Aurora must select
 the displayed phrase from the same recording,
 with a log-likelihood gap of at most 8. Minor wording differences, such as an
