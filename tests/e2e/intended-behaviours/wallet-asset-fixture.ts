@@ -4,7 +4,7 @@ import { WalletAssetEvidence } from './wallet-asset-evidence';
 
 type AssetFixtures = { assets: WalletAssetEvidence };
 
-async function assetFixture(
+export async function assetFixture(
   { context, page }: { context: BrowserContext; page: Page },
   use: (evidence: WalletAssetEvidence) => Promise<void>,
   testInfo: TestInfo,

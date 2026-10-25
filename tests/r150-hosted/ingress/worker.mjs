@@ -5,6 +5,7 @@ const CORS_HEADERS = [
   'authorization',
   'x-seams-benchmark-diagnostics',
   'x-seams-linked-device-proof-v1',
+  'x-seams-wallet-protocol',
   'x-seams-wallet-recovery-challenge-id',
   'x-seams-trace-id',
   'x-seams-environment-id',

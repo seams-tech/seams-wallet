@@ -4,6 +4,14 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
+## Qualification checkpoint — October 25, 2026
+
+The [final hosted lifecycle report](ml-dsa-65-final-hosted-lifecycle-report.md) records passing Cloudflare browser campaigns for the full lifecycle, owner export, onward linking, and ordinary ECDSA.
+Recovery and participant restoration preserve the canonical key. A restored signer reaches NEAR testnet finality.
+Ordinary NEAR and ECDSA browser flows skip optional ML-DSA cryptography. Shared metadata and session helpers remain in common code.
+Preparation throughput and admission headroom are the next performance priority. This lifecycle campaign establishes no sustained capacity or five-second guarantee.
+The final composition security review and exact release-package acceptance remain separate release gates.
+
 ## Qualification checkpoint — October 21, 2026
 
 The [SDK release qualification](ml-dsa-65-sdk-release-qualification.md) records the real Cloudflare browser lifecycle.

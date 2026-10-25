@@ -12,17 +12,58 @@ import path from 'node:path';
 import { IntendedBehaviourHarness } from './harness';
 import {
   runMlDsaBrowserLifecycle,
+  runMlDsaDeviceOwnerParity,
   prepareMlDsaPool,
   signMlDsaTransaction,
 } from './ml-dsa-lifecycle-scenario';
 import { mlDsaHostedTarget, forwardMlDsaHostedRequest } from '../../helpers/mlDsaHostedFixture';
 import { requireCanonicalString } from '@shared/utils/validation';
 import { fundImplicitWallet } from './ml-dsa-testnet';
+import { assetFixture } from './wallet-asset-fixture';
+import type { WalletAssetEvidence } from './wallet-asset-evidence';
 
-const test = base.extend<{ harness: IntendedBehaviourHarness }>({ harness: hostedWallet });
+const test = base.extend<{ harness: IntendedBehaviourHarness; assets: WalletAssetEvidence }>({
+  harness: hostedWallet,
+  assets: [assetFixture, { auto: true }],
+});
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 test('Hosted ML-DSA completes the normal SDK lifecycle', runMlDsaBrowserLifecycle);
+test('Hosted ML-DSA owner export survives onward linking and recovery', runMlDsaDeviceOwnerParity);
+
+test('Hosted ECDSA-only lifecycle skips optional ML-DSA cryptography', async ({
+  harness,
+  assets,
+}) => {
+  assets.setPhase('ecdsa-only-registration');
+  await harness.registerPasskeyEcdsaOnlyWallet();
+  assets.setPhase('ecdsa-only-reload');
+  await harness.assertLockedPageReloadStaysLocked();
+  assets.setPhase('ecdsa-only-unlock');
+  await harness.unlockPasskeyWallet();
+  assets.setPhase('ecdsa-tempo-sign');
+  await harness.signTempoTransaction('post_unlock');
+  assets.setPhase('ecdsa-evm-sign');
+  await harness.signArcEvmTransaction('post_unlock');
+  assets.setPhase('ecdsa-only-export');
+  await harness.exportEcdsaKey();
+  for (const phase of [
+    'hosted-initialization',
+    'ecdsa-only-registration',
+    'ecdsa-only-reload',
+    'ecdsa-only-unlock',
+    'ecdsa-tempo-sign',
+    'ecdsa-evm-sign',
+    'ecdsa-only-export',
+  ]) {
+    for (const url of assets.getRequestedAssetUrlsForPhase(phase)) {
+      expect(new URL(url).pathname).not.toMatch(
+        /(?:ml_dsa_signer|pkg-ml-dsa|mlDsa(?:RootInstallation|RootLinking|SeedExport))/u,
+      );
+    }
+  }
+  assets.setPhase('completed');
+});
 
 async function initializeHostedHarness(
   context: BrowserContext,
@@ -47,10 +88,21 @@ async function initializeHostedHarness(
 }
 
 async function hostedWallet(
-  { context, page, request }: { context: BrowserContext; page: Page; request: APIRequestContext },
+  {
+    context,
+    page,
+    request,
+    assets,
+  }: {
+    context: BrowserContext;
+    page: Page;
+    request: APIRequestContext;
+    assets: WalletAssetEvidence;
+  },
   use: (harness: IntendedBehaviourHarness) => Promise<void>,
   testInfo: TestInfo,
 ) {
+  assets.setPhase('hosted-initialization');
   const harness = await initializeHostedHarness(context, page, request);
   try {
     await use(harness);
