@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { VoiceBeam } from 'voice-glow';
 import { MicrophonePreview } from './microphone';
-import { Waveform } from './Waveform';
+import { FRAME_MS, VoiceCapture } from './voiceCapture';
+import { Waveform, type TracePhase } from './Waveform';
 import './style.css';
 
 const INITIAL_PHRASE = 'Let us go home now.';
@@ -28,8 +29,66 @@ const stages: ReadonlyArray<{ label: string; state: State }> = [
   { label: 'Retry', state: { kind: 'retry', phrase: RETRY_PHRASE } },
 ];
 
+// Generated speech for the Listening demo and the stage buttons: four words over
+// room tone, a desk tap in the pause, then the pause that ends the capture.
+const DEMO_WORDS: ReadonlyArray<readonly [number, number]> = [
+  [500, 780],
+  [840, 1_060],
+  [1_140, 1_420],
+  [1_500, 2_250],
+];
+const DEMO_TAP_MS = 3_000;
+const DEMO_REPEAT_MS = 900;
+
+function demoRms(ms: number): number {
+  let speech = 0;
+  for (const [from, to] of DEMO_WORDS) {
+    if (ms <= from || ms >= to) continue;
+    const word = Math.sin(((ms - from) / (to - from)) * Math.PI) ** 0.6;
+    speech = 0.055 * word * (0.75 + 0.25 * Math.sin(ms / 37));
+  }
+  const room = 0.0018 * (0.75 + 0.5 * Math.abs(Math.sin(ms / 23) * Math.sin(ms / 71)));
+  const tap = Math.abs(ms - DEMO_TAP_MS) < FRAME_MS ? 0.009 : 0;
+  return Math.hypot(speech, room, tap);
+}
+
+function recordDemo(): VoiceCapture {
+  const capture = new VoiceCapture();
+  while (!capture.ended) capture.push(demoRms(capture.frames.length * FRAME_MS));
+  return capture;
+}
+
+class DemoSpeech {
+  // A finished capture for the Checking, Approved and Retry stages.
+  private readonly finished = recordDemo();
+  private current = new VoiceCapture();
+  private startedAt = performance.now();
+
+  restart(): void {
+    this.current = new VoiceCapture();
+    this.startedAt = performance.now();
+  }
+
+  // Frames follow the clock; the demo starts again shortly after each capture ends.
+  readonly capture = (): VoiceCapture => {
+    const repeatAt = this.startedAt + this.current.frames.length * FRAME_MS + DEMO_REPEAT_MS;
+    if (this.current.ended && performance.now() > repeatAt) this.restart();
+    const due = Math.floor((performance.now() - this.startedAt) / FRAME_MS);
+    while (this.current.frames.length < due && !this.current.ended)
+      this.current.push(demoRms(this.current.frames.length * FRAME_MS));
+    return this.current;
+  };
+
+  readonly finishedCapture = (): VoiceCapture => this.finished;
+
+  readonly level = (): number => this.capture().level();
+}
+
 function createMicrophone(): MicrophonePreview {
   return new MicrophonePreview();
+}
+function createDemo(): DemoSpeech {
+  return new DemoSpeech();
 }
 function cleanup(microphone: MicrophonePreview): () => void {
   return microphone.stop;
@@ -37,17 +96,60 @@ function cleanup(microphone: MicrophonePreview): () => void {
 function silent(): number {
   return 0;
 }
-function demoLevel(): number {
-  const time = performance.now() / 1_000;
-  return Math.max(0, Math.sin(time * 1.7)) * (0.2 + 0.65 * Math.abs(Math.sin(time * 9.3)));
+function noCapture(): null {
+  return null;
 }
-function levelSource(state: State, microphone: MicrophonePreview): () => number {
+function levelSource(state: State, microphone: MicrophonePreview, demo: DemoSpeech): () => number {
   if (state.kind !== 'listening') return silent;
-  return state.source === 'microphone' ? microphone.level : demoLevel;
+  return state.source === 'microphone' ? microphone.level : demo.level;
 }
 
-function show(microphone: MicrophonePreview, update: Update, state: State): void {
+function captureSource(
+  state: State,
+  microphone: MicrophonePreview,
+  demo: DemoSpeech,
+): () => VoiceCapture | null {
+  switch (state.kind) {
+    case 'listening':
+      return state.source === 'microphone' ? microphone.capture : demo.capture;
+    case 'captured':
+      return microphone.capture;
+    case 'checking':
+    case 'approved':
+    case 'retry':
+      return demo.finishedCapture;
+    case 'ready':
+    case 'opening':
+    case 'error':
+    case 'cancelled':
+      return noCapture;
+    default:
+      return assertNever(state);
+  }
+}
+
+function tracePhase(state: State): TracePhase {
+  switch (state.kind) {
+    case 'listening':
+      return 'live';
+    case 'captured':
+    case 'checking':
+    case 'approved':
+    case 'retry':
+      return state.kind;
+    case 'ready':
+    case 'opening':
+    case 'error':
+    case 'cancelled':
+      return 'rest';
+    default:
+      return assertNever(state);
+  }
+}
+
+function show(microphone: MicrophonePreview, demo: DemoSpeech, update: Update, state: State): void {
   microphone.stop();
+  if (state.kind === 'listening') demo.restart();
   update(state);
 }
 
@@ -122,6 +224,7 @@ function MicrophoneIcon(): React.ReactNode {
 
 function StageButton(
   microphone: MicrophonePreview,
+  demo: DemoSpeech,
   update: Update,
   current: State,
   stage: (typeof stages)[number],
@@ -130,7 +233,7 @@ function StageButton(
     <button
       key={stage.label}
       aria-pressed={current.kind === stage.state.kind}
-      onClick={show.bind(null, microphone, update, stage.state)}
+      onClick={show.bind(null, microphone, demo, update, stage.state)}
     >
       {stage.label}
     </button>
@@ -140,8 +243,9 @@ function StageButton(
 function App(): React.ReactNode {
   const [state, update] = useState<State>({ kind: 'ready', phrase: INITIAL_PHRASE });
   const [microphone] = useState(createMicrophone);
+  const [demo] = useState(createDemo);
   useEffect(cleanup.bind(null, microphone), [microphone]);
-  const level = levelSource(state, microphone);
+  const level = levelSource(state, microphone, demo);
   return (
     <div className="preview">
       <header className="preview-header">
@@ -165,7 +269,7 @@ function App(): React.ReactNode {
             <button
               className="close"
               aria-label="Cancel recording"
-              onClick={show.bind(null, microphone, update, {
+              onClick={show.bind(null, microphone, demo, update, {
                 kind: 'cancelled',
                 phrase: state.phrase,
               })}
@@ -175,7 +279,10 @@ function App(): React.ReactNode {
             <div className="voice-content">
               <h1>Read aloud</h1>
               <p className="phrase">{state.phrase}</p>
-              <Waveform level={level} />
+              <Waveform
+                capture={captureSource(state, microphone, demo)}
+                phase={tracePhase(state)}
+              />
               <p className="status" role="status" aria-live="polite">
                 {status(state)}
               </p>
@@ -197,7 +304,7 @@ function App(): React.ReactNode {
       </main>
       <footer className="preview-controls">
         <div role="group" aria-label="Preview states">
-          {stages.map(StageButton.bind(null, microphone, update, state))}
+          {stages.map(StageButton.bind(null, microphone, demo, update, state))}
         </div>
         <p>
           Select Record for live microphone feedback.

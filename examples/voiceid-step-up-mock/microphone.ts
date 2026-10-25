@@ -1,4 +1,5 @@
-import { voiceDisplayLevel } from '../../packages/wallet/src/plugins/voiceid/browser/waveform';
+import { FRAME_MS, VoiceCapture } from './voiceCapture';
+
 type CaptureState =
   | { kind: 'idle' }
   | { kind: 'requesting'; context: AudioContext; abort: AbortController }
@@ -8,20 +9,19 @@ type CaptureState =
       stream: MediaStream;
       analyser: AnalyserNode;
       samples: Float32Array<ArrayBuffer>;
+      capture: VoiceCapture;
+      startedAt: number;
       timer: number;
     };
 
 export class MicrophonePreview {
   private state: CaptureState = { kind: 'idle' };
+  // The last capture stays readable after it ends: levels only, never audio.
+  private latest: VoiceCapture | null = null;
 
-  readonly level = (): number => {
-    if (this.state.kind !== 'recording') return 0;
-    this.state.analyser.getFloatTimeDomainData(this.state.samples);
-    let energy = 0;
-    for (const sample of this.state.samples) energy += sample * sample;
-    const rms = Math.sqrt(energy / this.state.samples.length);
-    return voiceDisplayLevel(rms);
-  };
+  readonly level = (): number => (this.state.kind === 'recording' ? this.state.capture.level() : 0);
+
+  readonly capture = (): VoiceCapture | null => this.latest;
 
   async start(
     listening: () => void,
@@ -50,13 +50,17 @@ export class MicrophonePreview {
         return;
       }
       const analyser = connectStream(context, stream);
+      const capture = new VoiceCapture();
+      this.latest = capture;
       this.state = {
         kind: 'recording',
         context,
         stream,
         analyser,
         samples: new Float32Array(analyser.fftSize),
-        timer: window.setTimeout(this.complete.bind(this, complete), 8_000),
+        capture,
+        startedAt: performance.now(),
+        timer: window.setInterval(this.sample.bind(this, complete), FRAME_MS),
       };
       listening();
     } catch (error) {
@@ -81,7 +85,7 @@ export class MicrophonePreview {
         void state.context.close().catch(ignoreClosedContext);
         return;
       case 'recording':
-        window.clearTimeout(state.timer);
+        window.clearInterval(state.timer);
         stopTracks(state.stream);
         state.samples.fill(0);
         void state.context.close().catch(ignoreClosedContext);
@@ -90,6 +94,21 @@ export class MicrophonePreview {
         return assertNever(state);
     }
   };
+
+  // Frames follow the clock, so a throttled timer still reaches the 8 s limit on time.
+  private sample(done: () => void): void {
+    if (this.state.kind !== 'recording') return;
+    const { analyser, samples, capture, context, startedAt } = this.state;
+    analyser.getFloatTimeDomainData(samples);
+    const count = Math.min(samples.length, Math.round((context.sampleRate * FRAME_MS) / 1_000));
+    let energy = 0;
+    for (let index = samples.length - count; index < samples.length; index += 1)
+      energy += samples[index] * samples[index];
+    const rms = Math.sqrt(energy / count);
+    const due = Math.floor((performance.now() - startedAt) / FRAME_MS);
+    while (capture.frames.length < due && !capture.ended) capture.push(rms);
+    if (capture.ended) this.complete(done);
+  }
 
   private complete(done: () => void): void {
     this.stop();
@@ -110,7 +129,7 @@ function assertNever(state: never): never {
 function connectStream(context: AudioContext, stream: MediaStream): AnalyserNode {
   try {
     const analyser = context.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 1024;
     context.createMediaStreamSource(stream).connect(analyser);
     return analyser;
   } catch (error) {
