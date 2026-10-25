@@ -1,10 +1,27 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: sustainable preparation throughput, failed-job recovery, and pool material-loading tails.
+Current priority: private AES batching, provider failure reproduction, and pool material-loading tails.
 The current upper targets are roughly ten seconds for registration and eight seconds for signing.
 Prioritize verified signatures per minute including reserve restoration, preparation cost per signature, and empty-pool waits.
 Keep the five-second measurements for comparison. Recovery, FIPS export, two-at-once consumption, and per-wallet capacity stay unchanged.
+The [refill retry report](ml-dsa-65-refill-retry-report.md) and [replayed evidence](../evidence/ml-dsa-65-refill-retry-20261026.json) record the latest implementation.
+Each producer slot now persists bounded failure delays of 2, 4, 8, 16, and 30 seconds. Successful publication resets the delay.
+FIFO demand, fresh material identities, restart, stale settlement, healthy-slot progress, and permanent single-use markers pass composed tests.
+Confirmed paired publication after restart now persists Published before settlement.
+The actual Worker fault campaign admits replacement preparation ten milliseconds after its two-second retry deadline.
+The hosted candidate verifies 79 signatures in 0.255–5.498 seconds with zero empty-pool responses.
+An earlier control retains four driver interruptions and one proven server dispatch failure. Its unknown outcomes and material accounting remain release gaps.
+Future benchmark records preserve exact failed request input; local Workerd restart and watchdog checks pass without another submission.
+Its complete reserve cycle balances 128 initial + 217 new = 217 consumed + 128 final pairs and reaches 7.069 signatures/minute.
+The settled control and candidate require effective versions for all seven runtime roles through reserve restoration.
+The first control retains six unexplained unused initial pairs and is excluded from throughput comparisons.
+No failed executing preparation job occurs in either settled arm, so hosted loadShed mitigation and a causal speed gain remain unproved.
+Calibrated local samples place about 43–51% in private AES. Large native AES calls improve whole-request medians in the isolated public-input probe by 1.70–2.60 times.
+Eight-block native calls are slower. Production AES remains unchanged until larger private buffers and complete protocol execution qualify.
+The public archive replays signature verification, exact A/B consumption, stock accounting, and profile counts without network access.
+All eight temporary Workers are deleted. Wallet-seed recovery, FIPS export, two-at-once consumption, and per-wallet capacity stay unchanged.
+Next, prototype larger fixed public-size AES buffers, review private lifetimes, and repeat unchanged-capacity complete-cycle measurements. GPU work stays deferred.
 The [parallel refill report](ml-dsa-65-parallel-refill-report.md) and [hosted evidence](../evidence/ml-dsa-65-parallel-refill-hosted-20261026.json) record the completed eight-wallet comparison.
 Two preparation slots raise usable material throughput by 83.65%, from 21.948 to 40.308 candidates/minute.
 Complete-cycle rates rise from 3.699 to 7.546 verified signatures/minute, including full reserve restoration.

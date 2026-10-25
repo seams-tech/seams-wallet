@@ -542,7 +542,13 @@ def public_refill_wake(value, timestamp):
             check = public_counter
         if not check(value.get(field)):
             return None
-    return {"event": value["event"], **{field: value[field] for field in fields}, "log_timestamp_ms": timestamp}
+    result = {"event": value["event"], **{field: value[field] for field in fields}, "log_timestamp_ms": timestamp}
+    if value["event"] == "ml_dsa_refill_settled_v1":
+        outcome = value.get("outcome")
+        if outcome not in (None, "published", "failed", "interrupted"):
+            return None
+        result["outcome"] = outcome
+    return result
 
 
 def records(path, role):

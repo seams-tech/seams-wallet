@@ -1,5 +1,6 @@
 //! Bounded service-wide preprocessing leases with one active producer per key.
 use super::*;
+use std::num::NonZeroU8;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Groups {
@@ -28,6 +29,13 @@ impl ProducerSlot {
         match self {
             Self::Primary => "preprocessing-active",
             Self::Secondary => "preprocessing-active-secondary",
+        }
+    }
+
+    fn backoff_key(self) -> &'static str {
+        match self {
+            Self::Primary => "preprocessing-backoff",
+            Self::Secondary => "preprocessing-backoff-secondary",
         }
     }
 
@@ -69,6 +77,21 @@ pub enum Claim {
     Acquired { job: Job },
     Busy { retry_at_ms: u64 },
 }
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Outcome {
+    Published,
+    Failed,
+    Interrupted,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RetryBackoff {
+    consecutive_failures: NonZeroU8,
+    retry_at_ms: u64,
+}
+const RETRY_DELAYS_MS: [u64; 5] = [2_000, 4_000, 8_000, 16_000, 30_000];
 const WAITING: &str = "preprocessing-waiting";
 const MAX_WAITING_KEYS: usize = 64;
 const DEMAND_LIFETIME_MS: u64 = 30_000;
@@ -148,11 +171,37 @@ pub async fn claim(
         persist_waiting(store, &original, &waiting).await?;
         return Ok(busy);
     }
-    let producer_slot = ProducerSlot::ALL[..policy.max_active_preparations]
+    let mut available = Vec::new();
+    for slot in ProducerSlot::ALL[..policy.max_active_preparations]
         .iter()
         .copied()
-        .find(|slot| !active.iter().any(|job| job.producer_slot == *slot))
-        .ok_or_else(|| invalid("ML-DSA preprocessing capacity is inconsistent"))?;
+    {
+        if active.iter().any(|job| job.producer_slot == slot) {
+            continue;
+        }
+        let backoff: Option<RetryBackoff> = store.get(slot.backoff_key()).await?;
+        let retry_at_ms = backoff.map_or(now, |backoff| backoff.retry_at_ms);
+        available.push((slot, retry_at_ms));
+    }
+    let producer_slot = match available.iter().find(|(_, retry_at)| *retry_at <= now) {
+        Some((slot, _)) => *slot,
+        None => {
+            let retry_at_ms = available
+                .iter()
+                .map(|(_, retry_at)| *retry_at)
+                .min()
+                .ok_or_else(|| invalid("ML-DSA preprocessing capacity is inconsistent"))?;
+            // A claimant that follows this retry time must retain its queue turn.
+            // The active-owner and full-queue paths never reach this branch.
+            if let Some(entry) = waiting.iter_mut().find(|entry| entry.key == key) {
+                entry.expires_at_ms = entry
+                    .expires_at_ms
+                    .max(retry_at_ms.saturating_add(DEMAND_LIFETIME_MS));
+            }
+            persist_waiting(store, &original, &waiting).await?;
+            return Ok(Claim::Busy { retry_at_ms });
+        }
+    };
     let mut batch = [0; 32];
     getrandom::getrandom(&mut batch)
         .map_err(|_| invalid("ML-DSA refill randomness unavailable"))?;
@@ -181,6 +230,11 @@ async fn active_jobs(store: &impl Store, now: u64) -> Result<Vec<Job>> {
             }
             if job.expires_at_ms > now {
                 active.push(job);
+            } else {
+                // Retire once in this transaction. A late settlement cannot reset
+                // this failure or change a replacement producer's retry deadline.
+                record_failure(store, slot, now).await?;
+                store.delete(slot.storage_key()).await?;
             }
         }
     }
@@ -228,11 +282,20 @@ pub async fn finish(
     store: &impl Store,
     policy: &policy::Policy,
     job: &Job,
+    outcome: Outcome,
     now: u64,
 ) -> Result<Vec<KeyScope>> {
     match store.get::<Job>(job.producer_slot.storage_key()).await? {
         Some(active) if active != *job => return Ok(Vec::new()),
-        Some(_) => store.delete(job.producer_slot.storage_key()).await?,
+        Some(_) => {
+            match outcome {
+                Outcome::Published => store.delete(job.producer_slot.backoff_key()).await?,
+                Outcome::Failed | Outcome::Interrupted => {
+                    record_failure(store, job.producer_slot, now).await?;
+                }
+            }
+            store.delete(job.producer_slot.storage_key()).await?;
+        }
         None => {}
     }
     let waiting: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
@@ -254,6 +317,21 @@ pub async fn finish(
         wake.push(job.key.clone());
     }
     Ok(wake)
+}
+
+async fn record_failure(store: &impl Store, slot: ProducerSlot, now: u64) -> Result<()> {
+    let previous: Option<RetryBackoff> = store.get(slot.backoff_key()).await?;
+    let failures = previous
+        .map_or(1, |backoff| {
+            backoff.consecutive_failures.get().saturating_add(1)
+        })
+        .min(RETRY_DELAYS_MS.len() as u8);
+    let backoff = RetryBackoff {
+        consecutive_failures: NonZeroU8::new(failures)
+            .ok_or_else(|| invalid("ML-DSA retry count must be positive"))?,
+        retry_at_ms: now.saturating_add(RETRY_DELAYS_MS[usize::from(failures - 1)]),
+    };
+    store.put(slot.backoff_key(), &backoff).await
 }
 
 async fn key_is_active(store: &impl Store, key: &KeyScope) -> Result<bool> {

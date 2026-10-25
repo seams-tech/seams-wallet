@@ -16,6 +16,9 @@ use std::{
 };
 use zeroize::Zeroizing;
 
+#[path = "ml_dsa_durable_pool/refill_backoff.rs"]
+mod refill_backoff;
+
 struct Db(Connection);
 impl Db {
     fn open(path: &Path) -> Self {
@@ -405,7 +408,13 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     };
     tx(
         &router,
-        m::refill::finish(&router, &Policy::default(), &after_settlement, 1_007),
+        m::refill::finish(
+            &router,
+            &Policy::default(),
+            &after_settlement,
+            m::refill::Outcome::Published,
+            1_007,
+        ),
     )
     .unwrap();
     assert!(tx(&a, pool::inventory(&a, &key, 10, 1_006, 1_006))
@@ -906,6 +915,23 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     )
     .is_err());
     assert!(!tx(&router, m::refill::check(&router, &job, job.expires_at_ms)).unwrap());
+    let m::refill::Claim::Busy {
+        retry_at_ms: replacement_at,
+    } = tx(
+        &router,
+        m::refill::claim(
+            &router,
+            &Policy::default(),
+            refill_key.clone(),
+            m::refill::Groups::Two,
+            job.expires_at_ms,
+        ),
+    )
+    .unwrap()
+    else {
+        panic!("Expired producer bypassed its retry delay")
+    };
+    assert_eq!(replacement_at, job.expires_at_ms + 2_000);
     let m::refill::Claim::Acquired { job: replacement } = tx(
         &router,
         m::refill::claim(
@@ -913,16 +939,16 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &Policy::default(),
             refill_key,
             m::refill::Groups::Two,
-            job.expires_at_ms,
+            replacement_at,
         ),
     )
     .unwrap() else {
-        panic!("Lease expiry did not release capacity")
+        panic!("Expired producer did not resume after its retry delay")
     };
     assert_ne!(job.batch, replacement.batch);
     tx(
         &refill_store,
-        m::refill::start_role(&refill_store, &replacement, job.expires_at_ms),
+        m::refill::start_role(&refill_store, &replacement, replacement_at),
     )
     .unwrap();
     let pair_ids = replacement.batch_ids();
@@ -941,7 +967,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
                 &replacement,
                 fresh_binding.clone(),
                 fresh_sealed,
-                job.expires_at_ms + 1,
+                replacement_at + 1,
             ),
         )
         .unwrap();
@@ -954,7 +980,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
                 &replacement,
                 fresh_binding,
                 duplicate_sealed,
-                job.expires_at_ms + 2,
+                replacement_at + 2,
             )
         )
         .is_err());
@@ -965,8 +991,8 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &refill_store,
             &replacement.key,
             2,
-            job.expires_at_ms + 3,
-            job.expires_at_ms + 30_000,
+            replacement_at + 3,
+            replacement_at + 30_000,
         ),
     )
     .unwrap();
@@ -976,7 +1002,13 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
 
     assert!(tx(
         &router,
-        m::refill::finish(&router, &Policy::default(), &job, job.expires_at_ms + 3)
+        m::refill::finish(
+            &router,
+            &Policy::default(),
+            &job,
+            m::refill::Outcome::Published,
+            replacement_at + 3
+        )
     )
     .unwrap()
     .is_empty());
@@ -991,13 +1023,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &Policy::default(),
             &replacement,
-            job.expires_at_ms + 4,
+            m::refill::Outcome::Published,
+            replacement_at + 4,
         ),
     )
     .unwrap();
     // Unused stock survives the former ten-minute deadline, then expires at its
     // sealed deadline. Recovery still fences the same material immediately.
-    let retained_at = job.expires_at_ms + 700_000;
+    let retained_at = replacement_at + 700_000;
     let retained = tx(
         &refill_store,
         pool::inventory(
@@ -1027,6 +1060,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     registration_retirement_campaign(&directory);
     let refill_fairness = refill_fairness_campaign(&directory);
     let parallel_refill = parallel_refill_campaign(&directory);
+    let refill_backoff = refill_backoff::campaign(&directory);
     let retirement_evidence = serde_json::json!({ "restart": true, "late_ready_rejected": true, "changed_identity_rejected": true, "claimed_job_preserved": true, "other_stock_preserved": true, "fresh_replacement": true });
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
         .map(PathBuf::from)
@@ -1047,6 +1081,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     });
     evidence["failed_registration_retirement"] = retirement_evidence;
     evidence["parallel_refill"] = parallel_refill;
+    evidence["refill_backoff"] = refill_backoff;
     evidence["expiry_and_contention"] = serde_json::json!({
         "preflight_and_empty_wait_leave_capacity_free": true,
         "ready_wallet_claims_while_other_wallet_waits": true,
@@ -1110,7 +1145,17 @@ fn parallel_refill_campaign(directory: &Path) -> serde_json::Value {
     // Restart preserves both leases. A one-slot policy cannot overbook the other slot.
     drop(router);
     let router = Db::open(&path);
-    let wake = tx(&router, m::refill::finish(&router, &policy, &first, 1_004)).unwrap();
+    let wake = tx(
+        &router,
+        m::refill::finish(
+            &router,
+            &policy,
+            &first,
+            m::refill::Outcome::Published,
+            1_004,
+        ),
+    )
+    .unwrap();
     assert_eq!(wake.first(), Some(&c));
     assert!(tx(&router, m::refill::check(&router, &second, 1_004)).unwrap());
     assert!(matches!(
@@ -1135,18 +1180,31 @@ fn parallel_refill_campaign(directory: &Path) -> serde_json::Value {
         panic!("Missing reused slot")
     };
     assert_eq!(replacement.producer_slot, first.producer_slot);
-    assert!(
-        tx(&router, m::refill::finish(&router, &policy, &first, 1_007))
-            .unwrap()
-            .is_empty()
-    );
+    assert!(tx(
+        &router,
+        m::refill::finish(
+            &router,
+            &policy,
+            &first,
+            m::refill::Outcome::Published,
+            1_007
+        )
+    )
+    .unwrap()
+    .is_empty());
     assert!(tx(&router, m::refill::check(&router, &replacement, 1_007)).unwrap());
     let mut changed = second.clone();
     changed.producer_slot = first.producer_slot;
     assert!(!tx(&router, m::refill::check(&router, &changed, 1_007)).unwrap());
     assert!(tx(
         &router,
-        m::refill::finish(&router, &policy, &changed, 1_007)
+        m::refill::finish(
+            &router,
+            &policy,
+            &changed,
+            m::refill::Outcome::Published,
+            1_007
+        )
     )
     .unwrap()
     .is_empty());
@@ -1155,7 +1213,17 @@ fn parallel_refill_campaign(directory: &Path) -> serde_json::Value {
     activate(&router, &recovered);
     assert!(!tx(&router, m::refill::check(&router, &second, 1_008)).unwrap());
     assert!(tx(&router, m::refill::check(&router, &replacement, 1_008)).unwrap());
-    tx(&router, m::refill::finish(&router, &policy, &second, 1_009)).unwrap();
+    tx(
+        &router,
+        m::refill::finish(
+            &router,
+            &policy,
+            &second,
+            m::refill::Outcome::Published,
+            1_009,
+        ),
+    )
+    .unwrap();
     assert!(tx(&router, m::refill::check(&router, &replacement, 1_009)).unwrap());
     // Decode the existing primary storage format at its persistence boundary.
     let mut stored = serde_json::to_value(&replacement).unwrap();
@@ -1209,23 +1277,23 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     }
     drop(router);
     let router = Db::open(&path);
-    assert_eq!(
-        tx(
-            &router,
-            m::refill::finish(&router, &Policy::default(), &first, 1_009)
-        )
-        .unwrap(),
-        vec![b.clone(), a.clone()]
-    );
-    // A lost settlement reply can safely repeat the hints while the lease is idle.
-    assert_eq!(
-        tx(
-            &router,
-            m::refill::finish(&router, &Policy::default(), &first, 1_009)
-        )
-        .unwrap(),
-        vec![b.clone(), a.clone()]
-    );
+    // The first settlement and its lost-reply retry return the same wake hints.
+    for _ in 0..2 {
+        assert_eq!(
+            tx(
+                &router,
+                m::refill::finish(
+                    &router,
+                    &Policy::default(),
+                    &first,
+                    m::refill::Outcome::Published,
+                    1_009
+                )
+            )
+            .unwrap(),
+            vec![b.clone(), a.clone()]
+        );
+    }
     assert!(matches!(
         tx(
             &router,
@@ -1247,7 +1315,13 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert_eq!(
         tx(
             &router,
-            m::refill::finish(&router, &Policy::default(), &second, 1_012)
+            m::refill::finish(
+                &router,
+                &Policy::default(),
+                &second,
+                m::refill::Outcome::Published,
+                1_012
+            )
         )
         .unwrap(),
         vec![a.clone(), b.clone()]
@@ -1317,7 +1391,13 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert_eq!(
         tx(
             &router,
-            m::refill::finish(&router, &Policy::default(), &third, 1_016)
+            m::refill::finish(
+                &router,
+                &Policy::default(),
+                &third,
+                m::refill::Outcome::Published,
+                1_016
+            )
         )
         .unwrap(),
         vec![recovered_b.clone(), a.clone()]
@@ -1370,7 +1450,13 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert_eq!(
         tx(
             &router,
-            m::refill::finish(&router, &Policy::default(), &fourth, 32_000)
+            m::refill::finish(
+                &router,
+                &Policy::default(),
+                &fourth,
+                m::refill::Outcome::Published,
+                32_000
+            )
         )
         .unwrap(),
         vec![installing_c.clone(), recovered_b.clone()]
@@ -1403,7 +1489,13 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     assert_eq!(
         tx(
             &router,
-            m::refill::finish(&router, &Policy::default(), &fifth, 32_100)
+            m::refill::finish(
+                &router,
+                &Policy::default(),
+                &fifth,
+                m::refill::Outcome::Published,
+                32_100
+            )
         )
         .unwrap(),
         vec![waiting[0].clone(), installing_c.clone()]
@@ -1411,7 +1503,13 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     let sixth = refill_turn(&router, &waiting[0], 32_100);
     assert!(tx(
         &router,
-        m::refill::finish(&router, &Policy::default(), &fifth, 32_101)
+        m::refill::finish(
+            &router,
+            &Policy::default(),
+            &fifth,
+            m::refill::Outcome::Published,
+            32_101
+        )
     )
     .unwrap()
     .is_empty());

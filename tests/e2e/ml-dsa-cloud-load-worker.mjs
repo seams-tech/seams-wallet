@@ -14,7 +14,7 @@ const PUBLIC_LOG_FIELDS = {
   ml_dsa_refill_completed_v1: ['batch', 'batches', 'published', 'elapsed_ms', 'candidates'],
   ml_dsa_refill_recovery_v1: ['batch', 'stage', 'expires_at_ms'],
   ml_dsa_refill_controller_v1: ['key', 'epoch', 'at_ms'],
-  ml_dsa_refill_settled_v1: ['batch', 'wake_count', 'at_ms'],
+  ml_dsa_refill_settled_v1: ['batch', 'outcome', 'wake_count', 'at_ms'],
   ml_dsa_refill_woken_v1: ['batch', 'key', 'epoch', 'at_ms'],
   ml_dsa_producer_job_v1: ['producer', 'batch', 'batches', 'key', 'epoch', 'stage'],
   ml_dsa_producer_entered_v1: ['producer'],
@@ -164,6 +164,7 @@ export class LoadWallet extends DurableObject {
           successes: state.successes,
           demands: state.demands,
           error: interrupted.error,
+          operation: state.operation,
           completedAtMs: now,
         },
         [requestKey(state.sequence)]: interrupted,
@@ -229,6 +230,9 @@ export class LoadWallet extends DurableObject {
       wallet: state.config.index,
       demand: demands,
       operation: operation.request.operation,
+      signingRequest: operation.request,
+      messageHex: hex(operation.message),
+      contextHex: hex(operation.context),
       requestId,
       status: 'in_flight',
       startAtMs: startedAtMs,
@@ -291,7 +295,6 @@ export class LoadWallet extends DurableObject {
             const signature = result.operation.signature;
             if (!byteArray(signature, 3309)) throw new Error('Invalid ML-DSA-65 signature length');
             row.signatureHex = hex(signature);
-            row.messageHex = hex(operation.message);
             row.requiresIndependentVerification = true;
             await this.ctx.storage.put(requestKey(sequence), row);
             await this.ctx.storage.put(demandKey(demands), {
@@ -370,6 +373,7 @@ export class LoadWallet extends DurableObject {
         successes: state.successes,
         demands,
         error: String(error),
+        operation,
         completedAtMs: Date.now(),
       });
       await this.ctx.storage.deleteAlarm();

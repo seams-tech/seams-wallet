@@ -381,6 +381,7 @@ try {
       operation: Buffer.from(payload.request.operation).toString('hex'),
       key: result.a.activation.key,
       preparationMs,
+      initialSigningPreparationId: Buffer.from(ready.job.id).toString("hex"),
       initialSigningBatches: ready.job.signing_batches,
       initialSigningStockExpiresAtMs: ready.job.expires_at,
       serverResponseMs,

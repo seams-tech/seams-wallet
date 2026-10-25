@@ -171,7 +171,7 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
             AlarmWork::Abandon(job) => {
                 self.log_job(&job, "recovering");
                 let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                if now < job.expires_at_ms {
+                let terminal = if now < job.expires_at_ms {
                     self.schedule_recovery(&job, now).await?;
                     if !before_deadline(
                         now.saturating_add(RECOVERY_CHECK_MS),
@@ -184,10 +184,12 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                         return Response::from_json(&false);
                     }
                     log_recovery(&job, "paired_publication_confirmed");
+                    ProducerState::Published { job }
                 } else {
                     log_recovery(&job, "deadline_reached");
-                }
-                (ProducerState::Interrupted { job }, None)
+                    ProducerState::Interrupted { job }
+                };
+                (terminal, None)
             }
             AlarmWork::Settle(terminal) => {
                 self.log_job(terminal.job(), "settling");
@@ -273,7 +275,7 @@ impl RouterAbMlDsaProducerDurableObject {
         let deadline = crate::cloudflare_now_unix_ms_v1()
             .map_err(protocol_error)?
             .saturating_add(RECOVERY_CHECK_MS);
-        before_deadline(deadline, settle_remote(&self.env, terminal.job()))
+        before_deadline(deadline, settle_remote(&self.env, terminal))
             .await
             .map_err(protocol_error)?;
         let batch = terminal.job().batch;
@@ -360,18 +362,29 @@ async fn remove_head(store: TransactionStore, batch: [u8; 32]) -> Result<()> {
     store.put(PENDING, &queue).await
 }
 
-async fn settle_remote(env: &Env, job: &refill::Job) -> Result<()> {
+async fn settle_remote(env: &Env, terminal: &ProducerState) -> Result<()> {
+    let (job, outcome) = match terminal {
+        ProducerState::Published { job } => (job, refill::Outcome::Published),
+        ProducerState::Failed { job } => (job, refill::Outcome::Failed),
+        ProducerState::Interrupted { job } => (job, refill::Outcome::Interrupted),
+        ProducerState::Queued { .. } | ProducerState::Running { .. } => {
+            return Err(invalid("ML-DSA producer has no terminal outcome"));
+        }
+    };
     let wake: Vec<KeyScope> = service_call(
         env,
         CallAuthority::Internal,
-        &AdmissionCommand::FinishRefill { job: job.clone() },
+        &AdmissionCommand::FinishRefill {
+            job: job.clone(),
+            outcome,
+        },
     )
     .await?;
     worker::console_log!(
         "{}",
         serde_json::json!({
             "event": "ml_dsa_refill_settled_v1", "batch": hex(&job.batch),
-            "wake_count": wake.len(), "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+            "outcome": outcome, "wake_count": wake.len(), "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
         })
     );
     for key in wake {
