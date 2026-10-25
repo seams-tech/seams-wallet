@@ -509,10 +509,10 @@ export async function verifyMlDsaGatewayRegistration({
     checks.relocationCannotOmitInstalledMlDsa = true;
     await expireRegistration(database, scope, walletId, 1);
     traced.mode = 'lost_reply';
-    assert.equal(
-      (await gateway.post(walletId, 'ml-dsa/publish', publication)).body.code,
-      'conflict',
-    );
+    const recoveredPublication = await gateway.post(walletId, 'ml-dsa/publish', publication);
+    assert.equal(recoveredPublication.status, 200, JSON.stringify(recoveredPublication.body));
+    assert.deepEqual(recoveredPublication.body.key, finished.commit.key);
+    assert.equal(traced.mode, 'none', 'The lost acknowledgement must be injected');
     const committed = await phase(database, scope, walletId);
     assert.equal(JSON.parse(committed.record_json).phase.kind, 'published');
     await runtime.dispose();
