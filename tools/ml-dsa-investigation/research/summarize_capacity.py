@@ -52,6 +52,33 @@ def trace_coverage(client, records):
     }
 
 
+def authority_version_coverage(client, records, start, end):
+    expected = client['deploymentVersions']['router']
+    versions = {}
+    undated = 0
+    for row in records:
+        if row['role'] != 'router' or row['path'] not in ('/control', '/check'):
+            continue
+        at = row['event_timestamp_ms']
+        if at is None:
+            undated += 1
+            continue
+        if not start <= at <= end:
+            continue
+        version = row['version']
+        entry = versions.setdefault(version, {'invocations': 0, 'first_at_ms': at, 'last_at_ms': at})
+        entry['invocations'] += 1
+        entry['first_at_ms'] = min(entry['first_at_ms'], at)
+        entry['last_at_ms'] = max(entry['last_at_ms'], at)
+    return {
+        'scope': 'Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.',
+        'expected_version': expected,
+        'versions': versions,
+        'undated_invocations': undated,
+        'complete': bool(versions) and set(versions) == {expected} and undated == 0,
+    }
+
+
 def admission_stock_counts(records, start, end):
     checks = []
     for row in records:
@@ -341,6 +368,7 @@ def main():
         if row['event_timestamp_ms'] is not None and start <= row['event_timestamp_ms'] <= end
         and (row['outcome'] != 'ok' or row['exception_names'])]
     report['trace_coverage'] = trace_coverage(client, records)
+    report['authority_version_coverage'] = authority_version_coverage(client, rows, start, end)
     report['admission_stock'] = admission_stock_counts(records, start, end)
     report['producer_profiles'] = producer_profiles(client, records, start, end)
     report['after_starting_stock_expiry'] = expiry_guard(client, campaign, args.campaign.parent, records)
@@ -351,8 +379,11 @@ def main():
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({'wallets': len(client['wallets']), 'signatures': client['successfulSignatures'],
                       'trace_coverage': report['trace_coverage']['complete'],
+                      'authority_version_coverage': report['authority_version_coverage']['complete'],
                       'ledger_complete': report['stock_ledger_complete'],
                       'post_expiry': report['after_starting_stock_expiry']}))
+    if not report['authority_version_coverage']['complete']:
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

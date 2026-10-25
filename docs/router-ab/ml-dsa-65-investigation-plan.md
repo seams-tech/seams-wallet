@@ -1,22 +1,37 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: public SDK lifecycle integrated; production release remains gated, 2026-10-25.
-Current priority: producer runtime diagnosis and a controlled parallel-refill comparison.
-The [parallel refill report](ml-dsa-65-parallel-refill-report.md) records the two-slot prototype and local E2E evidence.
-Two wallets preserve canonical recovery, verify twelve signatures, and restore sixteen pairs each. Two cross-wallet preparation overlaps publish successfully.
-The native lifecycle checks cover restart, FIFO grants, recovery fencing, stale completion, and a switch back to one slot.
-Cloudflare testing awaits approval for eight new benchmark credential uploads. The default remains one preparation slot; per-wallet capacity remains unchanged.
+Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
+Current priority: sustainable preparation throughput, failed-job recovery, and pool material-loading tails.
+The current upper targets are roughly ten seconds for registration and eight seconds for signing.
+Prioritize verified signatures per minute including reserve restoration, preparation cost per signature, and empty-pool waits.
+Keep the five-second measurements for comparison. Recovery, FIPS export, two-at-once consumption, and per-wallet capacity stay unchanged.
+The [parallel refill report](ml-dsa-65-parallel-refill-report.md) and [hosted evidence](../evidence/ml-dsa-65-parallel-refill-hosted-20261026.json) record the completed eight-wallet comparison.
+Two preparation slots raise usable material throughput by 83.65%, from 21.948 to 40.308 candidates/minute.
+Complete-cycle rates rise from 3.699 to 7.546 verified signatures/minute, including full reserve restoration.
+The settled parallel run verifies 79 signatures in 0.335–3.676 seconds with zero empty-pool responses.
+Complete demand latency still includes cooldown and admission waits. These private Router timings exclude public Gateway approval and browser transport.
+Four-candidate job wall medians are 7.998–8.820 seconds. Parallel work leaves primary per-job CPU effectively unchanged.
+The sixteen registration/recovery calls take 6.829–12.402 seconds, with a 9.693-second median. Prior generic material and initial-stock preparation remain separate.
+Both complete-cycle stock ledgers balance. All 345 retained signatures verify independently, and altered messages fail verification.
+Eighteen primary-B loadShed failures recur. Their planned material is never observed in paired stock or signing.
+One serial signing call takes 14.145 seconds, with 12.823 seconds at material loading. Its underlying cause remains unknown.
+The first policy transitions mixed admission actor versions. Their scaling claims are withdrawn; the settled comparison requires full-cycle authority qualification.
+The analyzer now diagnoses unfiltered authority versions and exits unsuccessfully for mixed or missing authority evidence.
+All eight temporary Workers are deleted and independently checked for absence. Their synthetic private fixture storage remains outside the public archive.
+The default remains one preparation slot. Two slots require separate A/B preparer deployments; per-wallet capacity remains sixteen pairs.
+Native lifecycle checks cover restart, FIFO grants, recovery fencing, stale completion, and a switch back to one slot.
+Next, measure Workers-native batched AES, bound retries against unhealthy producer slots, and isolate material-loading stalls. GPU work stays deferred.
 The [expiry and admission campaign](ml-dsa-65-expiry-admission-report.md) verifies 137 hosted signatures with unchanged capacity; 136 successful calls finish below five seconds.
 No empty-pool response claims signing capacity, and no newly refilled paired stock is unaccounted for in these windows.
 Finite load-and-restoration cycles reach 3.640 and 3.352 signatures/minute. The eight-wallet post-starting-stock interval reaches 2.849/minute, with long waits still present.
 Twelve preparation attempts encounter B `loadShed`. Unexplained producer CPU variation prevents assigning the full gain to policy changes.
 The failure burst spans 34.532 seconds. Recorded Wasm memory sizes also occur in successful jobs; the cause remains unknown.
-The six Workers from that completed campaign are deleted. The new comparison has eight temporary shells awaiting credential approval.
+The six Workers from that earlier campaign are deleted. The completed parallel comparison above also confirms deletion of its eight Workers.
 The [sustained capacity report](ml-dsa-65-sustained-capacity-report.md) records unchanged-capacity four- and eight-wallet Cloudflare loads.
 Their post-stock rates are 2.545 and 1.417 signatures/minute. Complete demand latency reaches 767.428 seconds.
 Successful cloud calls take 0.452–5.182 seconds. Thirty newly prepared pairs leave ready inventory without use in the eight-wallet screen.
 Expiry/readiness evidence fits those losses. Explicit retirement events and full reserve restoration remain unproved.
-Prioritize material lifetime and admission efficiency before a controlled parallel-refill comparison. Preserve per-wallet capacity and the existing recovery/export requirements.
+Those earlier screens motivated the expiry, admission, and parallel-refill campaigns recorded above.
 The [signer parity requirement](ml-dsa--ui-near-key-selection-plan.md#signer-parity-requirement--october-24-2026) applies to Ed25519, ECDSA, and ML-DSA lifecycle features.
 The [Signing keys report](ml-dsa-65-signing-keys-report.md) records this implementation and its browser qualification.
 Hosted latency, sustained refill, and release security qualification remain open. Pool capacity remains unchanged.
