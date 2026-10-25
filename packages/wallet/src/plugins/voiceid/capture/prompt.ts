@@ -10,9 +10,6 @@ const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
 .seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
 .seams-voiceid-recording-details summary { cursor:pointer; }
-.seams-voiceid-prompt.seams-voiceid-management { display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; }
-.seams-voiceid-management button { padding: .75rem; border-radius: .75rem; font: inherit; cursor: pointer; }
-.seams-voiceid-management button:disabled { opacity: .5; cursor: default; }
 
 .seams-voiceid-prompt {
   box-sizing: border-box;
@@ -51,6 +48,77 @@ const CSS = `
   font-weight: 500;
   color: var(--seams-colors-textSecondary, #9cabb3);
   margin: 0 0 1.5rem;
+}
+.seams-voiceid-prompt.seams-voiceid-management {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-radius: var(--seams-shape-card, 1.5rem);
+  text-align: start;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.seams-voiceid-management h2 {
+  margin: 0;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 1.375rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+.seams-voiceid-management .seams-voiceid-management-intro {
+  margin: 0 0 0.5rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+}
+.seams-voiceid-management button {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  text-align: start;
+  font: inherit;
+  transition: background-color 140ms ease;
+}
+.seams-voiceid-management .seams-voiceid-record { border-radius: 0.75rem; }
+.seams-voiceid-management-action-title { display: block; font-weight: 600; }
+.seams-voiceid-management-action-detail {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.8125rem;
+}
+.seams-voiceid-management button:disabled { opacity: 0.5; cursor: default; }
+.seams-voiceid-management .seams-voiceid-management-cancel { text-align: center; font-weight: 600; }
+.seams-voiceid-management .seams-voiceid-management-note {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  background: var(--seams-colors-surface, #202b31);
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.8125rem;
+}
+.seams-voiceid-management-note span {
+  padding: 0.1875rem 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--seams-colors-textPrimary, #eff2f3), transparent 93%);
+  color: var(--seams-colors-textPrimary, #eff2f3);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.seams-voiceid-management [role="status"] { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.seams-voiceid-management [role="status"]:empty { display: none; }
+@media (hover: hover) {
+  .seams-voiceid-management button:hover:not(:disabled) {
+    background: var(--seams-colors-surface2, var(--seams-colors-surface, #202b31));
+  }
 }
 .seams-voiceid-prompt .seams-voiceid-phrase {
   font-size: clamp(1.75rem, 6vw, 2.25rem);

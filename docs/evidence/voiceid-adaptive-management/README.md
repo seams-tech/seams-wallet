@@ -9,6 +9,9 @@ All five composed browser journeys passed. See
 [RS256 passkey with Ed25519 Wallet](rs256-passkey-ed25519-wallet.json).
 The [settings screenshot](authentication-methods.png) shows the requested placement.
 The [management screenshot](manage-voice.png) shows the available actions.
+After matching the screen to Authentication methods, the complete ES256 journey
+passed again. See the [styled management run](styled-management-flow.json).
+SDK build, type checking, and the bloat check also passed after this styling change.
 
 ## Scope and fixed rules
 

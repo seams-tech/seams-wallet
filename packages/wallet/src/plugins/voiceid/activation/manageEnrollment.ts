@@ -49,17 +49,37 @@ class VoiceEnrollmentManagement {
     const heading = document.createElement('h2');
     heading.textContent = 'Manage voice';
     const description = document.createElement('p');
+    description.className = 'seams-voiceid-management-intro';
     description.textContent =
-      'Experimental improvements use three new samples and preserve your original voice. They expire after 24 hours or 32 voice checks. Each change requires your passkey.';
+      'Manage your voice enrollment on this device. Each change requires your passkey.';
     this.status.setAttribute('role', 'status');
     this.element.append(heading, description);
-    this.improve = this.action('Improve voice recognition', 'improve');
-    this.reset = this.action('Reset voice improvements', 'reset');
-    this.importButton = this.action('Use existing voice enrollment', 'import');
-    this.action('Record voice again', 'replace');
+    this.improve = this.action(
+      'Improve voice recognition',
+      'Add three samples while keeping your original enrollment.',
+      'improve',
+    );
+    this.reset = this.action(
+      'Reset voice improvements',
+      'Remove added samples and use your original enrollment.',
+      'reset',
+    );
+    this.importButton = this.action(
+      'Use existing voice enrollment',
+      'Import your saved voice for this wallet.',
+      'import',
+    );
+    this.action('Record voice again', 'Replace your enrollment with three new samples.', 'replace');
+    const note = document.createElement('p');
+    note.className = 'seams-voiceid-management-note';
+    const badge = document.createElement('span');
+    badge.textContent = 'Experimental';
+    note.append(badge, 'Improvements expire after 24 hours or 32 voice checks.');
+    this.element.append(note);
     const cancel = document.createElement('button');
     cancel.type = 'button';
     cancel.textContent = 'Cancel';
+    cancel.className = 'seams-voiceid-management-cancel';
     cancel.addEventListener('click', this.cancel);
     this.element.append(this.status, cancel);
     this.parent.replaceChildren(this.element);
@@ -68,10 +88,17 @@ class VoiceEnrollmentManagement {
     cancel.focus();
   }
 
-  private action(label: string, action: ManagementAction): HTMLButtonElement {
+  private action(label: string, detail: string, action: ManagementAction): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
-    button.textContent = label;
+    button.setAttribute('aria-label', label);
+    const title = document.createElement('span');
+    title.className = 'seams-voiceid-management-action-title';
+    title.textContent = label;
+    const description = document.createElement('span');
+    description.className = 'seams-voiceid-management-action-detail';
+    description.textContent = detail;
+    button.append(title, description);
     button.className = 'seams-voiceid-record';
     button.disabled = true;
     button.addEventListener('click', this.begin.bind(this, action));
