@@ -2,8 +2,11 @@
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-25.
 Current priority: sustained preparation capacity, material expiry waste, and admission contention.
-The [expiry and admission candidate](ml-dsa-65-expiry-admission-report.md) gives new refill stock a one-hour lifetime and checks stock before claiming signing capacity.
-Its durable lifecycle test passes. Hosted comparison remains pending exact test-credential approval; no throughput gain is claimed.
+The [expiry and admission campaign](ml-dsa-65-expiry-admission-report.md) verifies 137 hosted signatures with unchanged capacity; 136 successful calls finish below five seconds.
+No empty-pool response claims signing capacity, and no newly refilled paired stock is unaccounted for in these windows.
+Finite load-and-restoration cycles reach 3.640 and 3.352 signatures/minute. The eight-wallet post-starting-stock interval reaches 2.849/minute, with long waits still present.
+Twelve preparation attempts encounter B `loadShed`. Unexplained producer CPU variation prevents assigning the full gain to policy changes.
+Next, isolate those runtime failures and variation before a controlled parallel-refill comparison. All six temporary Workers are deleted.
 The [sustained capacity report](ml-dsa-65-sustained-capacity-report.md) records unchanged-capacity four- and eight-wallet Cloudflare loads.
 Their post-stock rates are 2.545 and 1.417 signatures/minute. Complete demand latency reaches 767.428 seconds.
 Successful cloud calls take 0.452–5.182 seconds. Thirty newly prepared pairs leave ready inventory without use in the eight-wallet screen.
