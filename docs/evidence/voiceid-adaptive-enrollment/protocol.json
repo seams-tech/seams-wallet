@@ -1,0 +1,23 @@
+{
+  "kind": "voiceid_adaptation_feasibility_v1",
+  "speakerThreshold": 0.5,
+  "supplementWeight": 0.2,
+  "maximumSupplements": 3,
+  "minimumSampleBaselineCosine": 0.5,
+  "minimumTemplateBaselineCosine": 0.98,
+  "enrollmentSeconds": 4,
+  "supplementSeconds": 2,
+  "probeSeconds": [
+    2,
+    4
+  ],
+  "developmentSplit": "calibration",
+  "evaluationSplit": "evaluation",
+  "selection": "Original speaker splits, baseline and probes; first three unused qualifying recordings from probe chapter.",
+  "speakerOnlyGate": "Fewer genuine rejects and no additional other-speaker accepts, in each duration and split.",
+  "productionRelease": "Blocked pending independent live sessions, phrase/quality gates, expiration policy, and a justified false-acceptance bound.",
+  "phraseCheck": "not_evaluated: audiobook content is outside the randomized phrase bank",
+  "identityConfirmation": "dataset_speaker_label: optimistic stand-in for independent owner confirmation",
+  "capture": "Historical RMS trim; no browser microphone, audio processing, or Silero capture simulation.",
+  "chronology": "Disjoint files, not dated sessions; no claim of later-day evaluation."
+}

@@ -12,6 +12,9 @@ const root = path.resolve(process.argv[2] || '/private/tmp/voiceid-redimnet-eval
 const ecapa = path.resolve(process.argv[3] || path.join(root, 'ecapa.onnx'));
 const engine = process.argv[4] || 'chromium';
 if (engine !== 'chromium' && engine !== 'webkit') throw new Error('Select chromium or webkit');
+const selection = process.argv[5] || 'all';
+if (selection !== 'all' && selection !== 'b1') throw new Error('Select all or b1 models');
+const models = selection === 'b1' ? ['b1'] : ['b1', 'ecapa', 'b0'];
 const ortDirectory = path.dirname(require.resolve('onnxruntime-web/wasm'));
 const ortVersion = JSON.parse(await readFile(path.join(ortDirectory, '../package.json'), 'utf8')).version;
 const corpus = JSON.parse(await readFile(path.join(root, 'corpus.json'), 'utf8'));
@@ -101,7 +104,7 @@ const browserType = engine === 'chromium' ? chromium : webkit;
 const browser = await browserType.launch({ headless: true });
 const origin = `http://127.0.0.1:${server.address().port}`;
 try {
-  for (const model of ['b1', 'ecapa', 'b0']) {
+  for (const model of models) {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto(`${origin}/?model=${model}`);

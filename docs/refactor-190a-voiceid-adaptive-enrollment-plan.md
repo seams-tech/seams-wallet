@@ -1,6 +1,9 @@
 # Refactor 190a — Adaptive VoiceID enrollment
 
-Status: proposed, 2026-10-26. Planning only; implementation requires a subsequent request.
+Status: public-corpus feasibility evaluation complete, 2026-10-26. The user authorized the staged work.
+The tested candidate did not improve rejection counts in the evaluation group.
+Production adaptation remains unimplemented and subject to the gates below.
+See the [experiment and repeatable evidence](evidence/voiceid-adaptive-enrollment/README.md).
 
 This work belongs to VoiceID stabilization. EVM support follows stabilization, then
 [cross-method transaction approval](refactor-190-voiceid-cross-method-step-up-plan.md).
@@ -18,6 +21,35 @@ the phrase gap limit at **8**, and prompts at **6–7 words**.
 Changing the reference can change false acceptance even with a fixed threshold.
 Measure both genuine-user rejection and other-speaker acceptance before release.
 Phrase recognition remains a separate stabilization task.
+
+## Download and storage cost
+
+Adaptation reuses the existing models. It requires **no additional model weights**.
+Application code for the eventual improvement flow adds an unmeasured, small payload;
+measure its built size before release.
+
+Measured existing assets on 2026-10-26, using decimal MB:
+
+| Asset | Uncompressed | Local gzip estimate |
+| --- | ---: | ---: |
+| B1 speaker model | 8.86 MB | 7.98 MB |
+| Aurora phrase model | 1.34 MB | 1.02 MB |
+| Silero speech detector | 2.33 MB | 1.94 MB |
+| Shared ONNX runtime, WASM and JavaScript | 14.34 MB | 3.70 MB |
+| Total | **26.86 MB** | **14.64 MB** |
+
+These are asset sizes, not a measured production network transfer. Gzip estimates
+use level 6. Server compression, HTTP caching, and previously loaded runtime assets
+change the transfer size. Ordinary Wallet code and minor worklet assets are excluded.
+
+Models load lazily when VoiceID is used. The current loader checks hash-keyed
+Cache Storage before fetching. Storage restrictions can limit reuse to the session.
+Eviction, cleared site data, or changed model hashes can require another download.
+
+One baseline plus three supplemental 192-value vectors needs about 6 KB as binary
+64-bit numbers. The current JSON-style representation and metadata use more space.
+Set and verify a small serialized storage budget during implementation. Raw audio
+is discarded after inference. Evaluation corpus downloads are developer-only costs.
 
 ## Reference and current implementation
 

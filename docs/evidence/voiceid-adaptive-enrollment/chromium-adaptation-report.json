@@ -1,0 +1,3498 @@
+{
+  "status": "experiment_complete_production_not_qualified",
+  "engine": {
+    "browser": "chromium",
+    "browserVersion": "141.0.7390.37",
+    "nodeVersion": "v26.4.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "osRelease": "24.6.0",
+    "cpuModel": "Apple M4 Pro",
+    "ortVersion": "1.30.0",
+    "transport": "localhost HTTP, uncompressed; load times are not internet download estimates"
+  },
+  "modelSha256": "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
+  "protocol": {
+    "kind": "voiceid_adaptation_feasibility_v1",
+    "speakerThreshold": 0.5,
+    "supplementWeight": 0.2,
+    "maximumSupplements": 3,
+    "minimumSampleBaselineCosine": 0.5,
+    "minimumTemplateBaselineCosine": 0.98,
+    "enrollmentSeconds": 4,
+    "supplementSeconds": 2,
+    "probeSeconds": [
+      2,
+      4
+    ],
+    "developmentSplit": "calibration",
+    "evaluationSplit": "evaluation",
+    "selection": "Original speaker splits, baseline and probes; first three unused qualifying recordings from probe chapter.",
+    "speakerOnlyGate": "Fewer genuine rejects and no additional other-speaker accepts, in each duration and split.",
+    "productionRelease": "Blocked pending independent live sessions, phrase/quality gates, expiration policy, and a justified false-acceptance bound.",
+    "phraseCheck": "not_evaluated: audiobook content is outside the randomized phrase bank",
+    "identityConfirmation": "dataset_speaker_label: optimistic stand-in for independent owner confirmation",
+    "capture": "Historical RMS trim; no browser microphone, audio processing, or Silero capture simulation.",
+    "chronology": "Disjoint files, not dated sessions; no claim of later-day evaluation."
+  },
+  "protocolSha256": "916a78228f222888a50ae6500e4fb7875ac56e096fdf457e19c83f48f9c67082",
+  "corpusSha256": "15cac18780616fc6757733ca82b3a5aa09e572e8a741a0d0777bd693402c7cd9",
+  "inputsSha256": "d7abefdd7010b36580a97ba52958deb8f2488a0e01bc720855c02e730daa0fae",
+  "sourceArchiveSha256": "39fde525e59672dc6d1551919b1478f724438a95aa55f874b576be21967e6c23",
+  "analysisScriptSha256": "31ae72ba0426b3506e8e0d84c2a02720dc2e4ffb87634772cbec41da29e481fc",
+  "minimumNativeCosine": 0.9999999999984783,
+  "excluded": [
+    {
+      "speaker": "121",
+      "reason": "Fewer than three unused qualifying supplement recordings"
+    }
+  ],
+  "trialArtifact": {
+    "file": "chromium-adaptation-trials.csv.gz",
+    "sha256": "ad8160f3410903daf66b5631b7888c895437c4fa3160deb6e9aa25a062df04f4",
+    "rows": 3152
+  },
+  "cases": [
+    {
+      "split": "calibration",
+      "seconds": 2,
+      "baseline": {
+        "threshold": 0.5,
+        "genuineTrials": 60,
+        "impostorTrials": 840,
+        "falseRejects": 1,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.016666666666666666,
+        "falseAcceptRate": 0.0
+      },
+      "adapted": {
+        "threshold": 0.5,
+        "genuineTrials": 60,
+        "impostorTrials": 840,
+        "falseRejects": 0,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.0,
+        "falseAcceptRate": 0.0
+      },
+      "recoveredGenuine": 1,
+      "regressedGenuine": 0,
+      "newOtherSpeakerAccepts": 0,
+      "feasibilityGatePassed": true,
+      "baselineUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.05
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "adaptedUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.0
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "perSpeaker": [
+        {
+          "speaker": "61",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "237",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "908",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1221",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1320",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1995",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "2961",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4077",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4970",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5105",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5683",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "6930",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7127",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8224",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8555",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 1,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.25,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 1,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": true,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.25,
+              0.25
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        }
+      ]
+    },
+    {
+      "split": "calibration",
+      "seconds": 4,
+      "baseline": {
+        "threshold": 0.5,
+        "genuineTrials": 60,
+        "impostorTrials": 840,
+        "falseRejects": 0,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.0,
+        "falseAcceptRate": 0.0
+      },
+      "adapted": {
+        "threshold": 0.5,
+        "genuineTrials": 60,
+        "impostorTrials": 840,
+        "falseRejects": 0,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.0,
+        "falseAcceptRate": 0.0
+      },
+      "recoveredGenuine": 0,
+      "regressedGenuine": 0,
+      "newOtherSpeakerAccepts": 0,
+      "feasibilityGatePassed": false,
+      "baselineUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.0
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "adaptedUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.0
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "perSpeaker": [
+        {
+          "speaker": "61",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "237",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "908",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1221",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1320",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1995",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "2961",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4077",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4970",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5105",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5683",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "6930",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7127",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8224",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8555",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 56,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        }
+      ]
+    },
+    {
+      "split": "evaluation",
+      "seconds": 2,
+      "baseline": {
+        "threshold": 0.5,
+        "genuineTrials": 52,
+        "impostorTrials": 624,
+        "falseRejects": 2,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.038461538461538464,
+        "falseAcceptRate": 0.0
+      },
+      "adapted": {
+        "threshold": 0.5,
+        "genuineTrials": 52,
+        "impostorTrials": 624,
+        "falseRejects": 2,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.038461538461538464,
+        "falseAcceptRate": 0.0
+      },
+      "recoveredGenuine": 0,
+      "regressedGenuine": 0,
+      "newOtherSpeakerAccepts": 0,
+      "feasibilityGatePassed": false,
+      "baselineUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.11538461538461539
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "adaptedUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.11538461538461539
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "perSpeaker": [
+        {
+          "speaker": "260",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1089",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1284",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1580",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "2830",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "3570",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4446",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 2,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.5,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 2,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.5,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.5,
+              0.5
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.5,
+              0.5
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4992",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5142",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "6829",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7021",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7176",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8463",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        }
+      ]
+    },
+    {
+      "split": "evaluation",
+      "seconds": 4,
+      "baseline": {
+        "threshold": 0.5,
+        "genuineTrials": 52,
+        "impostorTrials": 624,
+        "falseRejects": 2,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.038461538461538464,
+        "falseAcceptRate": 0.0
+      },
+      "adapted": {
+        "threshold": 0.5,
+        "genuineTrials": 52,
+        "impostorTrials": 624,
+        "falseRejects": 2,
+        "falseAccepts": 0,
+        "falseRejectRate": 0.038461538461538464,
+        "falseAcceptRate": 0.0
+      },
+      "recoveredGenuine": 0,
+      "regressedGenuine": 0,
+      "newOtherSpeakerAccepts": 0,
+      "feasibilityGatePassed": false,
+      "baselineUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.11538461538461539
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "adaptedUncertainty": {
+        "falseRejectRate95": [
+          0.0,
+          0.11538461538461539
+        ],
+        "falseAcceptRate95": [
+          0.0,
+          0.0
+        ],
+        "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+      },
+      "perSpeaker": [
+        {
+          "speaker": "260",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1089",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1284",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "1580",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "2830",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "3570",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4446",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 2,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.5,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 2,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.5,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.5,
+              0.5
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.5,
+              0.5
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "4992",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "5142",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "6829",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7021",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "7176",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        },
+        {
+          "speaker": "8463",
+          "baseline": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "adapted": {
+            "threshold": 0.5,
+            "genuineTrials": 4,
+            "impostorTrials": 48,
+            "falseRejects": 0,
+            "falseAccepts": 0,
+            "falseRejectRate": 0.0,
+            "falseAcceptRate": 0.0
+          },
+          "recoveredGenuine": 0,
+          "regressedGenuine": 0,
+          "newOtherSpeakerAccepts": 0,
+          "feasibilityGatePassed": false,
+          "baselineUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          },
+          "adaptedUncertainty": {
+            "falseRejectRate95": [
+              0.0,
+              0.0
+            ],
+            "falseAcceptRate95": [
+              0.0,
+              0.0
+            ],
+            "method": "2000 probe-speaker bootstrap draws; fixed enrollment cohort; seed 417. Zero-event intervals are degenerate and do not bound the true error rate."
+          }
+        }
+      ]
+    }
+  ],
+  "updates": [
+    {
+      "split": "calibration",
+      "updates": [
+        {
+          "speaker": "61",
+          "templateBaselineCosine": 0.9919264138964625,
+          "admissions": [
+            {
+              "sample": "61-70970-0003-2s",
+              "baselineScore": 0.599382103711525,
+              "decision": "admitted"
+            },
+            {
+              "sample": "61-70970-0005-2s",
+              "baselineScore": 0.6662121654317158,
+              "decision": "admitted"
+            },
+            {
+              "sample": "61-70970-0006-2s",
+              "baselineScore": 0.7085022674619471,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "237",
+          "templateBaselineCosine": 0.9938269206728874,
+          "admissions": [
+            {
+              "sample": "237-134493-0004-2s",
+              "baselineScore": 0.7789018773665367,
+              "decision": "admitted"
+            },
+            {
+              "sample": "237-134493-0005-2s",
+              "baselineScore": 0.7898972781451193,
+              "decision": "admitted"
+            },
+            {
+              "sample": "237-134493-0006-2s",
+              "baselineScore": 0.7789047155670962,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "908",
+          "templateBaselineCosine": 0.9900369833079369,
+          "admissions": [
+            {
+              "sample": "908-157963-0001-2s",
+              "baselineScore": 0.6430839223269125,
+              "decision": "admitted"
+            },
+            {
+              "sample": "908-157963-0002-2s",
+              "baselineScore": 0.641679457501779,
+              "decision": "admitted"
+            },
+            {
+              "sample": "908-157963-0003-2s",
+              "baselineScore": 0.6930578047872527,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1221",
+          "templateBaselineCosine": 0.9946925675357867,
+          "admissions": [
+            {
+              "sample": "1221-135767-0004-2s",
+              "baselineScore": 0.7287495475458508,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1221-135767-0005-2s",
+              "baselineScore": 0.7450910137742377,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1221-135767-0006-2s",
+              "baselineScore": 0.7988492578747077,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1320",
+          "templateBaselineCosine": 0.9914061725234466,
+          "admissions": [
+            {
+              "sample": "1320-122617-0004-2s",
+              "baselineScore": 0.638706288478775,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1320-122617-0005-2s",
+              "baselineScore": 0.710282646770285,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1320-122617-0006-2s",
+              "baselineScore": 0.6992245313929002,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1995",
+          "templateBaselineCosine": 0.9946141796227995,
+          "admissions": [
+            {
+              "sample": "1995-1836-0002-2s",
+              "baselineScore": 0.7340294512130221,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1995-1836-0005-2s",
+              "baselineScore": 0.7592267234044414,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1995-1836-0006-2s",
+              "baselineScore": 0.7822480596910237,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "2961",
+          "templateBaselineCosine": 0.9920510821224725,
+          "admissions": [
+            {
+              "sample": "2961-961-0005-2s",
+              "baselineScore": 0.7259764102761452,
+              "decision": "admitted"
+            },
+            {
+              "sample": "2961-961-0007-2s",
+              "baselineScore": 0.7345148736218672,
+              "decision": "admitted"
+            },
+            {
+              "sample": "2961-961-0008-2s",
+              "baselineScore": 0.6061804902923689,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "4077",
+          "templateBaselineCosine": 0.9924772019589444,
+          "admissions": [
+            {
+              "sample": "4077-13754-0001-2s",
+              "baselineScore": 0.6983504640321001,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4077-13754-0005-2s",
+              "baselineScore": 0.7729703729829687,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4077-13754-0006-2s",
+              "baselineScore": 0.6865037929243936,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "4970",
+          "templateBaselineCosine": 0.9864470594571395,
+          "admissions": [
+            {
+              "sample": "4970-29095-0000-2s",
+              "baselineScore": 0.6077598746392627,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4970-29095-0005-2s",
+              "baselineScore": 0.5248829859807973,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4970-29095-0006-2s",
+              "baselineScore": 0.39137067227161443,
+              "decision": "sample_below_baseline_bound"
+            }
+          ]
+        },
+        {
+          "speaker": "5105",
+          "templateBaselineCosine": 0.9934838446230078,
+          "admissions": [
+            {
+              "sample": "5105-28240-0004-2s",
+              "baselineScore": 0.7684557474758769,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5105-28240-0005-2s",
+              "baselineScore": 0.7519630138639812,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5105-28240-0006-2s",
+              "baselineScore": 0.6939849690481744,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "5683",
+          "templateBaselineCosine": 0.9911764609315415,
+          "admissions": [
+            {
+              "sample": "5683-32866-0000-2s",
+              "baselineScore": 0.6711742951806967,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5683-32866-0001-2s",
+              "baselineScore": 0.7468978953795675,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5683-32866-0003-2s",
+              "baselineScore": 0.5927419779562557,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "6930",
+          "templateBaselineCosine": 0.9885768655514029,
+          "admissions": [
+            {
+              "sample": "6930-76324-0000-2s",
+              "baselineScore": 0.6310929504279752,
+              "decision": "admitted"
+            },
+            {
+              "sample": "6930-76324-0001-2s",
+              "baselineScore": 0.6352330064748677,
+              "decision": "admitted"
+            },
+            {
+              "sample": "6930-76324-0003-2s",
+              "baselineScore": 0.5435662910867156,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "7127",
+          "templateBaselineCosine": 0.99244083681267,
+          "admissions": [
+            {
+              "sample": "7127-75947-0002-2s",
+              "baselineScore": 0.7268995958245268,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7127-75947-0005-2s",
+              "baselineScore": 0.5970232788289869,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7127-75947-0008-2s",
+              "baselineScore": 0.7035755913537048,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "8224",
+          "templateBaselineCosine": 0.9932489881512612,
+          "admissions": [
+            {
+              "sample": "8224-274384-0003-2s",
+              "baselineScore": 0.6571587254490552,
+              "decision": "admitted"
+            },
+            {
+              "sample": "8224-274384-0005-2s",
+              "baselineScore": 0.774892435445765,
+              "decision": "admitted"
+            },
+            {
+              "sample": "8224-274384-0006-2s",
+              "baselineScore": 0.7103273674100199,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "8555",
+          "templateBaselineCosine": 0.984787844712214,
+          "admissions": [
+            {
+              "sample": "8555-284449-0004-2s",
+              "baselineScore": 0.4580604369977922,
+              "decision": "sample_below_baseline_bound"
+            },
+            {
+              "sample": "8555-284449-0005-2s",
+              "baselineScore": 0.5872583850181813,
+              "decision": "admitted"
+            },
+            {
+              "sample": "8555-284449-0006-2s",
+              "baselineScore": 0.43851335674471914,
+              "decision": "sample_below_baseline_bound"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "split": "evaluation",
+      "updates": [
+        {
+          "speaker": "260",
+          "templateBaselineCosine": 0.9931136604136116,
+          "admissions": [
+            {
+              "sample": "260-123288-0000-2s",
+              "baselineScore": 0.7001132044380155,
+              "decision": "admitted"
+            },
+            {
+              "sample": "260-123288-0006-2s",
+              "baselineScore": 0.7852585329053987,
+              "decision": "admitted"
+            },
+            {
+              "sample": "260-123288-0007-2s",
+              "baselineScore": 0.6516275657451318,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1089",
+          "templateBaselineCosine": 0.9923371535575392,
+          "admissions": [
+            {
+              "sample": "1089-134691-0000-2s",
+              "baselineScore": 0.5738202625660533,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1089-134691-0003-2s",
+              "baselineScore": 0.7094019438291672,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1089-134691-0006-2s",
+              "baselineScore": 0.7678188870119647,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1284",
+          "templateBaselineCosine": 0.9913593848162696,
+          "admissions": [
+            {
+              "sample": "1284-1181-0000-2s",
+              "baselineScore": 0.6657242588574003,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1284-1181-0002-2s",
+              "baselineScore": 0.6642749255041154,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1284-1181-0005-2s",
+              "baselineScore": 0.5397820624135428,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "1580",
+          "templateBaselineCosine": 0.9947045413299589,
+          "admissions": [
+            {
+              "sample": "1580-141084-0001-2s",
+              "baselineScore": 0.7770473705672822,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1580-141084-0005-2s",
+              "baselineScore": 0.7147354837833961,
+              "decision": "admitted"
+            },
+            {
+              "sample": "1580-141084-0006-2s",
+              "baselineScore": 0.7720923368106698,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "2830",
+          "templateBaselineCosine": 0.9880804912854112,
+          "admissions": [
+            {
+              "sample": "2830-3980-0000-2s",
+              "baselineScore": 0.6002779119194782,
+              "decision": "admitted"
+            },
+            {
+              "sample": "2830-3980-0001-2s",
+              "baselineScore": 0.600720010202315,
+              "decision": "admitted"
+            },
+            {
+              "sample": "2830-3980-0002-2s",
+              "baselineScore": 0.5353325748213782,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "3570",
+          "templateBaselineCosine": 0.9913607077832978,
+          "admissions": [
+            {
+              "sample": "3570-5695-0004-2s",
+              "baselineScore": 0.7066919293893164,
+              "decision": "admitted"
+            },
+            {
+              "sample": "3570-5695-0005-2s",
+              "baselineScore": 0.7371653320252536,
+              "decision": "admitted"
+            },
+            {
+              "sample": "3570-5695-0006-2s",
+              "baselineScore": 0.5989110750949088,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "4446",
+          "templateBaselineCosine": 1.0,
+          "admissions": [
+            {
+              "sample": "4446-2273-0002-2s",
+              "baselineScore": 0.46923763123986356,
+              "decision": "sample_below_baseline_bound"
+            },
+            {
+              "sample": "4446-2273-0005-2s",
+              "baselineScore": 0.4542692984549209,
+              "decision": "sample_below_baseline_bound"
+            },
+            {
+              "sample": "4446-2273-0006-2s",
+              "baselineScore": 0.4799798038087012,
+              "decision": "sample_below_baseline_bound"
+            }
+          ]
+        },
+        {
+          "speaker": "4992",
+          "templateBaselineCosine": 0.9899851225638004,
+          "admissions": [
+            {
+              "sample": "4992-41797-0003-2s",
+              "baselineScore": 0.7280398705156568,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4992-41797-0005-2s",
+              "baselineScore": 0.559730501752266,
+              "decision": "admitted"
+            },
+            {
+              "sample": "4992-41797-0006-2s",
+              "baselineScore": 0.6834504562192951,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "5142",
+          "templateBaselineCosine": 0.9882205167333703,
+          "admissions": [
+            {
+              "sample": "5142-36377-0000-2s",
+              "baselineScore": 0.5708593254764107,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5142-36377-0003-2s",
+              "baselineScore": 0.5853420750051392,
+              "decision": "admitted"
+            },
+            {
+              "sample": "5142-36377-0006-2s",
+              "baselineScore": 0.5938934510141077,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "6829",
+          "templateBaselineCosine": 0.9935670502152628,
+          "admissions": [
+            {
+              "sample": "6829-68771-0004-2s",
+              "baselineScore": 0.7208068425871411,
+              "decision": "admitted"
+            },
+            {
+              "sample": "6829-68771-0005-2s",
+              "baselineScore": 0.670839995608357,
+              "decision": "admitted"
+            },
+            {
+              "sample": "6829-68771-0006-2s",
+              "baselineScore": 0.7200617358857908,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "7021",
+          "templateBaselineCosine": 0.9889646333629468,
+          "admissions": [
+            {
+              "sample": "7021-79740-0004-2s",
+              "baselineScore": 0.7013091396841441,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7021-79740-0005-2s",
+              "baselineScore": 0.5055082940253763,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7021-79740-0006-2s",
+              "baselineScore": 0.625584890756694,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "7176",
+          "templateBaselineCosine": 0.9934509315670977,
+          "admissions": [
+            {
+              "sample": "7176-92135-0002-2s",
+              "baselineScore": 0.7208207804142446,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7176-92135-0003-2s",
+              "baselineScore": 0.7416924940257522,
+              "decision": "admitted"
+            },
+            {
+              "sample": "7176-92135-0004-2s",
+              "baselineScore": 0.7166660871817441,
+              "decision": "admitted"
+            }
+          ]
+        },
+        {
+          "speaker": "8463",
+          "templateBaselineCosine": 0.9911103126282892,
+          "admissions": [
+            {
+              "sample": "8463-294825-0000-2s",
+              "baselineScore": 0.6609297997027972,
+              "decision": "admitted"
+            },
+            {
+              "sample": "8463-294825-0004-2s",
+              "baselineScore": 0.6787364434198022,
+              "decision": "admitted"
+            },
+            {
+              "sample": "8463-294825-0006-2s",
+              "baselineScore": 0.6931773490460744,
+              "decision": "admitted"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Public read speech; no proof of parity with the reported live failures.",
+    "Baseline and probes were used in earlier model studies; this is not a new independent validation corpus.",
+    "Supplement and probe files share a chapter; same-session benefit may overstate later-session benefit.",
+    "2s and 4s probes come from the same recordings and are correlated.",
+    "Dataset speaker labels stand in for trusted confirmation; no passkey flow is exercised.",
+    "Phrase checks, live capture quality, expiration, automatic updates, and poisoning resistance are not evaluated.",
+    "Bootstrap resamples probe speakers conditional on fixed templates; zero events do not bound population risk."
+  ]
+}

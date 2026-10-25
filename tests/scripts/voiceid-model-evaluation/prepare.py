@@ -18,10 +18,10 @@ import soundfile as sf
 import torch
 import torch.nn.functional as functional
 from torch.onnx.symbolic_helper import parse_args
+from audio import SAMPLE_RATE, speech_crop
 
 SOURCE_REVISION = 'ce039a624cb99fe127702ceb94c6080090e5032f'
 WEIGHTS_REVISION = '5180983b6895dafa0cd88aa88e8a07296df27834'
-SAMPLE_RATE = 16000
 CHECKPOINT_HASHES = {
     'b0': '68b8507be1f859d49e4cfd0c2d2bd7aa94e6a288a7df21e65276c9a5d5886cb0',
     'b1': '6e634bbbeb0f6afd9bbbb0606da834f93e23e4869b3954177a5717acc20ea36c',
@@ -116,20 +116,6 @@ def export_candidate(root, name, reference):
             'gzipBytes': len(gzip.compress(output.read_bytes(), compresslevel=6, mtime=0)),
             'sha256': digest(output), 'checkpointSha256': digest(root / f'{name}.pt'),
             'referenceChecks': checks}
-
-
-def speech_crop(samples, seconds):
-    count = seconds * SAMPLE_RATE
-    start = max(0, (len(samples) - count) // 2)
-    samples = samples[start:start + count].astype(np.float32)
-    # Match the Wallet's energy-based speech trimming, without changing the model frontend.
-    frames = samples[:len(samples) // 160 * 160].reshape(-1, 160)
-    voiced = np.flatnonzero(np.sqrt(np.mean(frames * frames, axis=1)) >= 0.006)
-    if len(voiced) < (200 if seconds == 4 else 100):
-        return None
-    start = max(0, int(voiced[0]) * 160 - 3200)
-    end = min(len(samples), (int(voiced[-1]) + 1) * 160 + 3200)
-    return samples[start:end].copy()
 
 
 def select_corpus(root):

@@ -123,3 +123,57 @@ To provision the selected B1 model without the historical ECAPA baseline, run
 `prepare.py --root "$voiceid_eval" --export-only`. Copy the resulting `b1.onnx` to
 `packages/wallet/assets/voiceid/redimnet-b1.onnx`, then build the SDK. The source
 and B0/B1 checkpoints above remain required. No corpus download is needed for export.
+
+## Adaptive enrollment feasibility
+
+This speaker-only experiment preserves each baseline and adds a bounded contribution
+from three separate recordings. It never reads Wallet storage or captures a microphone.
+The public dataset's speaker label stands in for independent owner confirmation.
+It does not exercise passkey authorization or the randomized phrase gate.
+
+Use the previously prepared corpus and deployed B1 model. Python needs NumPy,
+ONNX Runtime, and SoundFile; PyTorch is unnecessary for this experiment.
+
+```sh
+voiceid_adaptation=/private/tmp/voiceid-adaptation-evaluation-20261026
+python tests/scripts/voiceid-model-evaluation/adaptation.py prepare \
+  --root /private/tmp/voiceid-redimnet-evaluation \
+  --output "$voiceid_adaptation"
+node tests/scripts/voiceid-model-evaluation/run-browser.mjs \
+  "$voiceid_adaptation" /private/tmp/voiceid-redimnet-evaluation/ecapa.onnx chromium b1
+python tests/scripts/voiceid-model-evaluation/adaptation.py analyze \
+  --root "$voiceid_adaptation" --engine chromium
+```
+
+The output directory must be new. `prepare` freezes `protocol.json` before model
+inference. The browser runner's final `b1` argument excludes the other models;
+the historical ECAPA positional argument is unused in this mode. Repeat the last
+two commands with `webkit` to check another browser engine.
+
+The protocol uses the original speaker split and baseline/probe files. Three
+unused, qualifying recordings from each probe chapter supply supplemental samples.
+Speakers with fewer than three such recordings are excluded before scoring.
+Enrollment, supplement, and probe source files must be disjoint. Probe durations
+share source recordings, so they must not be pooled as independent trials.
+
+The candidate uses 80% baseline and 20% normalized supplemental mean. Admission
+requires sample/baseline cosine at least 0.5 and resulting template/baseline cosine
+at least 0.98. Each new template is recomputed from the original baseline. These
+are fixed exploratory parameters, not calibrated production learning rules.
+The acceptance threshold remains 0.5. No parameter search uses evaluation outcomes.
+
+`analyze` verifies the frozen protocol, model hash, PCM hashes, exact browser output
+coverage, and browser/native agreement. It reports paired recoveries and regressions,
+new other-speaker accepts, per-speaker results, and descriptive bootstrap intervals.
+Zero-event intervals are degenerate and cannot bound population false acceptance.
+
+Shareable artifacts: `protocol.json`, `inputs.json`, `<engine>-adaptation-report.json`,
+`<engine>-adaptation-trials.csv.gz`, and the browser completion screenshot.
+Keep `corpus.json`, raw browser outputs, models, and PCM outside Git because they
+contain embeddings or audio. Trial CSV rows allow independent recomputation of counts.
+
+This corpus uses read speech and the historical RMS trim. It does not reproduce
+current microphone processing, Silero capture, conversation, or separate-day use.
+Supplement and probe files share a chapter. Baseline/probe files also appeared in
+earlier model studies. Treat a positive result as feasibility evidence only.
+Automatic learning, poisoning, expiry, and production authorization remain untested.
