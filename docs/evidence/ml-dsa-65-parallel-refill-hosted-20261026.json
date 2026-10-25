@@ -1,0 +1,4820 @@
+{
+  "date": "2026-10-26",
+  "status": "Finite hosted refill comparison completed; production release qualification remains open.",
+  "report": "../router-ab/ml-dsa-65-parallel-refill-report.md",
+  "provenance": {
+    "before_rebase": "d1d3fdaf",
+    "after_rebase": "5346887cef3268380330dc412ab80d7b049a28d8",
+    "dev": "b89881964e38ae85aebb921e14918849196acee5",
+    "benchmark_wasm_hashes_unchanged": true,
+    "measurement_scripts_frozen": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-parallel-refill-hosted-20261026.tar.gz",
+    "bytes": 19070895,
+    "sha256": "5be311d6b53c3b5dda94e50c866d318ad63075ab6b28bc9f6e8547bc8d5f9242"
+  },
+  "source_hashes": {
+    "tools/ml-dsa-investigation/research/summarize_capacity.py": "7e05a692e73e5ce6480d56364079bb8ff12be4ffc0cbf2965e1744aa14971eb9",
+    "tools/ml-dsa-investigation/research/collect_worker_traces.py": "4940eba2dbb039aa0b9cd8aa920f98e85a370014cac07053004482598f129238"
+  },
+  "fixed_policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16,
+    "max_active_preparations": 1
+  },
+  "parallel_preparation_slots": 2,
+  "runtime_default_preparation_slots": 1,
+  "requirements": [
+    "wallet-seed recovery",
+    "standard FIPS seed/key export",
+    "passive server-blind model",
+    "two-candidate consumption",
+    "unchanged per-wallet pool capacity",
+    "Workers preparation"
+  ],
+  "gpu_work": "deferred",
+  "registration_with_client_verification_ms": {
+    "count": 16,
+    "minimum": 6829.032250000004,
+    "median": 9693.189312500006,
+    "maximum": 12401.658374999999
+  },
+  "registration_prior_preparation_ms": {
+    "count": 16,
+    "minimum": 51436.517834,
+    "median": 90330.88418749999,
+    "maximum": 117009.624125,
+    "scope": "Generic registration material plus initial signing stock; separate from four-candidate refill jobs."
+  },
+  "setup": {
+    "registration_calls": 16,
+    "canonical_recovery_wallets": 8,
+    "verified_signatures": 15,
+    "exhausted_operations": 1,
+    "failed_case_retained": true
+  },
+  "usable_material_candidates_per_minute": {
+    "serial": 21.947783592387736,
+    "parallel": 40.30762422214404,
+    "improvement_percent": 83.65236768656743
+  },
+  "settled_phases": [
+    {
+      "phase": "serial-settled",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 60000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16,
+        "max_active_preparations": 1
+      },
+      "authority_version_coverage": {
+        "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+        "expected_version": "f2a9357e-0494-4068-86c0-3fc9c225d021",
+        "versions": {
+          "f2a9357e-0494-4068-86c0-3fc9c225d021": {
+            "invocations": 6609,
+            "first_at_ms": 1792946815925,
+            "last_at_ms": 1792947415610
+          }
+        },
+        "undated_invocations": 0,
+        "complete": true
+      },
+      "cycle_qualified": true,
+      "signatures": 60,
+      "under_five_seconds": 58,
+      "under_eight_seconds": 59,
+      "successful_http_ms": {
+        "count": 60,
+        "minimum": 365,
+        "median": 1020.5,
+        "maximum": 14145,
+        "sum": 89289
+      },
+      "successful_demand_ms": {
+        "count": 60,
+        "minimum": 1408,
+        "median": 25840.5,
+        "maximum": 122011,
+        "sum": 1857153
+      },
+      "admission_waits": {
+        "scope": "Observed HTTP response time plus measured client retry sleeps, clipped at the load cutoff. Response counts cover attempts initiated within the window. Empty-pool waits include polling granularity; they are not an exact server stock-unavailable interval.",
+        "client_errors": [],
+        "retry_polling": {
+          "minimumMs": 1000,
+          "maximumMs": 5000
+        },
+        "by_reason": {
+          "empty_pool": {
+            "responses": 608,
+            "http_ms": 69558,
+            "sleep_ms": 687855
+          },
+          "service_capacity": {
+            "responses": 87,
+            "http_ms": 10331,
+            "sleep_ms": 433219
+          },
+          "wallet_cooldown": {
+            "responses": 346,
+            "http_ms": 16111,
+            "sleep_ms": 1517060
+          },
+          "operation_running": {
+            "responses": 0,
+            "http_ms": 0,
+            "sleep_ms": 0
+          },
+          "protocol_retry": {
+            "responses": 2,
+            "http_ms": 6067,
+            "sleep_ms": 2000
+          }
+        },
+        "demands_with_empty_pool": 12,
+        "empty_pool_http_and_sleep_ms": {
+          "count": 12,
+          "minimum": 7466,
+          "median": 53628.0,
+          "maximum": 192862,
+          "sum": 757413
+        },
+        "completed_demand_ms_when_pool_was_empty": {
+          "count": 8,
+          "minimum": 58528,
+          "median": 80721.0,
+          "maximum": 122011,
+          "sum": 671386
+        },
+        "per_demand": [
+          {
+            "wallet": 0,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 16099,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 16597
+          },
+          {
+            "wallet": 0,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 16231,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 16821
+          },
+          {
+            "wallet": 0,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 16347,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 16716
+          },
+          {
+            "wallet": 0,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 16461,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 17187
+          },
+          {
+            "wallet": 0,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 15051,
+              "wallet_cooldown": 16573,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 31989
+          },
+          {
+            "wallet": 0,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 32748,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 33140
+          },
+          {
+            "wallet": 0,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33870,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 34367
+          },
+          {
+            "wallet": 0,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 61366,
+            "reasons": {
+              "empty_pool": 61366,
+              "service_capacity": 24551,
+              "wallet_cooldown": 88819,
+              "operation_running": 0,
+              "protocol_retry": 5256
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 179992
+          },
+          {
+            "wallet": 1,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 36483,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38184
+          },
+          {
+            "wallet": 1,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 37386,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38149
+          },
+          {
+            "wallet": 1,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 37585,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38223
+          },
+          {
+            "wallet": 1,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 37733,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40554
+          },
+          {
+            "wallet": 1,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 5024,
+              "wallet_cooldown": 38789,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 45335
+          },
+          {
+            "wallet": 1,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 44550,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 46318
+          },
+          {
+            "wallet": 1,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 46252,
+            "reasons": {
+              "empty_pool": 46252,
+              "service_capacity": 25133,
+              "wallet_cooldown": 46032,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 118310
+          },
+          {
+            "wallet": 1,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 23748,
+            "reasons": {
+              "empty_pool": 23748,
+              "service_capacity": 0,
+              "wallet_cooldown": 60321,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 85101
+          },
+          {
+            "wallet": 1,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 36517,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 36517
+          },
+          {
+            "wallet": 2,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 21181,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 22928
+          },
+          {
+            "wallet": 2,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 21390,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 22696
+          },
+          {
+            "wallet": 2,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 22180,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 25076
+          },
+          {
+            "wallet": 2,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 23222,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 24859
+          },
+          {
+            "wallet": 2,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 24220,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 26605
+          },
+          {
+            "wallet": 2,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 22900,
+            "reasons": {
+              "empty_pool": 22900,
+              "service_capacity": 10050,
+              "wallet_cooldown": 25013,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 58528
+          },
+          {
+            "wallet": 2,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 59166,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 60626
+          },
+          {
+            "wallet": 2,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 99353,
+            "reasons": {
+              "empty_pool": 99353,
+              "service_capacity": 20320,
+              "wallet_cooldown": 59649,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 179322
+          },
+          {
+            "wallet": 3,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 31392,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 32691
+          },
+          {
+            "wallet": 3,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1017,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 2618
+          },
+          {
+            "wallet": 3,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1498,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 1907
+          },
+          {
+            "wallet": 3,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1617,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 1984
+          },
+          {
+            "wallet": 3,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 2761,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3905
+          },
+          {
+            "wallet": 3,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 2848,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3857
+          },
+          {
+            "wallet": 3,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 40036,
+            "reasons": {
+              "empty_pool": 40036,
+              "service_capacity": 15086,
+              "wallet_cooldown": 3066,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 58654
+          },
+          {
+            "wallet": 3,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 59273,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 59835
+          },
+          {
+            "wallet": 3,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 60384,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 61175
+          },
+          {
+            "wallet": 3,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 27395,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 27395
+          },
+          {
+            "wallet": 4,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 10981,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 11670
+          },
+          {
+            "wallet": 4,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11169,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 12638
+          },
+          {
+            "wallet": 4,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11670,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 12400
+          },
+          {
+            "wallet": 4,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11790,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 13573
+          },
+          {
+            "wallet": 4,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 192862,
+            "reasons": {
+              "empty_pool": 192862,
+              "service_capacity": 95077,
+              "wallet_cooldown": 69247,
+              "operation_running": 0,
+              "protocol_retry": 2811
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 359997
+          },
+          {
+            "wallet": 5,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 5896,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 6848
+          },
+          {
+            "wallet": 5,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 6055,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 6524
+          },
+          {
+            "wallet": 5,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 7215,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7681
+          },
+          {
+            "wallet": 5,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 7354,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 8504
+          },
+          {
+            "wallet": 5,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 7491,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 21636
+          },
+          {
+            "wallet": 5,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 9379,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 10364
+          },
+          {
+            "wallet": 5,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 9819,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 11130
+          },
+          {
+            "wallet": 5,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 119199,
+            "reasons": {
+              "empty_pool": 119199,
+              "service_capacity": 49783,
+              "wallet_cooldown": 11014,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 179996
+          },
+          {
+            "wallet": 6,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1134,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3449
+          },
+          {
+            "wallet": 6,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1923,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3339
+          },
+          {
+            "wallet": 6,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 2707,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 4996
+          },
+          {
+            "wallet": 6,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 3378,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 4757
+          },
+          {
+            "wallet": 6,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 5197,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7008
+          },
+          {
+            "wallet": 6,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 61004,
+            "reasons": {
+              "empty_pool": 61004,
+              "service_capacity": 15050,
+              "wallet_cooldown": 6213,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 83470
+          },
+          {
+            "wallet": 6,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 12297,
+            "reasons": {
+              "empty_pool": 12297,
+              "service_capacity": 5017,
+              "wallet_cooldown": 59888,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 77972
+          },
+          {
+            "wallet": 6,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 7466,
+            "reasons": {
+              "empty_pool": 7466,
+              "service_capacity": 0,
+              "wallet_cooldown": 59336,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 67340
+          },
+          {
+            "wallet": 6,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11118,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 11118
+          },
+          {
+            "wallet": 7,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 26295,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 28100
+          },
+          {
+            "wallet": 7,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 26470,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 27053
+          },
+          {
+            "wallet": 7,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 26633,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 27305
+          },
+          {
+            "wallet": 7,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 26825,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 27332
+          },
+          {
+            "wallet": 7,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 10051,
+              "wallet_cooldown": 26982,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39050
+          },
+          {
+            "wallet": 7,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 38074,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38739
+          },
+          {
+            "wallet": 7,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 38284,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39087
+          },
+          {
+            "wallet": 7,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 5030,
+              "wallet_cooldown": 38474,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 46834
+          },
+          {
+            "wallet": 7,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 70930,
+            "reasons": {
+              "empty_pool": 70930,
+              "service_capacity": 0,
+              "wallet_cooldown": 43671,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 122011
+          }
+        ]
+      },
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 8,
+          "startAtMs": 1792947235731,
+          "startMs": 420008,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 179992,
+          "observedClosureElapsedMs": 179994
+        },
+        {
+          "wallet": 1,
+          "number": 9,
+          "startAtMs": 1792947379206,
+          "startMs": 563483,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 36517,
+          "observedClosureElapsedMs": 36517
+        },
+        {
+          "wallet": 2,
+          "number": 8,
+          "startAtMs": 1792947236401,
+          "startMs": 420678,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 179322,
+          "observedClosureElapsedMs": 217506
+        },
+        {
+          "wallet": 3,
+          "number": 10,
+          "startAtMs": 1792947388328,
+          "startMs": 572605,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 27395,
+          "observedClosureElapsedMs": 27395
+        },
+        {
+          "wallet": 4,
+          "number": 5,
+          "startAtMs": 1792947055726,
+          "startMs": 240003,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 359997,
+          "observedClosureElapsedMs": 359997
+        },
+        {
+          "wallet": 5,
+          "number": 8,
+          "startAtMs": 1792947235727,
+          "startMs": 420004,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 179996,
+          "observedClosureElapsedMs": 179997
+        },
+        {
+          "wallet": 6,
+          "number": 10,
+          "startAtMs": 1792947404605,
+          "startMs": 588882,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 11118,
+          "observedClosureElapsedMs": 11118
+        }
+      ],
+      "reserve_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792946815723,
+        "restored_at_ms": 1792947788942,
+        "restoration_observation_bound_ms": 1792947788942,
+        "after_load_ms": 373219,
+        "verified_signatures": 60,
+        "cycle_ms": 973219,
+        "signatures_per_minute": 3.6990646504024274,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "f2a9357e-0494-4068-86c0-3fc9c225d021",
+          "versions": {
+            "f2a9357e-0494-4068-86c0-3fc9c225d021": {
+              "invocations": 8438,
+              "first_at_ms": 1792946815925,
+              "last_at_ms": 1792947788917
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "qualified": true,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 178,
+          "completion_receipted_pairs_before_restoration": 178,
+          "paired_before_completion_receipt": [],
+          "consumed_pairs": 178,
+          "final_pairs": 128,
+          "unaccounted_pairs": [],
+          "unexplained_pairs": [],
+          "complete": true
+        },
+        "observations": [
+          {
+            "key": "7f2e878888e217f0fd50b22059fcbbfa9e0e6dc8b193f9e3c609291bcb6f48bd",
+            "epoch": 2,
+            "ready_a": [
+              "e6b39a6cd33919651a2aa5658459a61d972a2b0868daf1e4534daa1eede33852",
+              "3c209e51d415eb500237234311be6bfe7fedca07ca0d46d82e20f1f2b0807b5a",
+              "680a5c04aea7dfdeca6ca40a070743cb2d7ea351b2e667060ea61424b73d0245",
+              "e7bed3e52d0bc9efb2ecac6f0ae5fa2fc44c4ed45c3c4cff553ae9cb50ca3f78",
+              "50b8b12485f40079cf7b7e20b0a617bbcbf9afb43c791765301c4d64363aad55",
+              "9df8cf6618094d50e5f15deb409b618916325565de8b4f034d8a25755aa97f85",
+              "e48e735723e6c28fa076fa3db60cbeca79a62ae66d1e7395844bce5f1c044890",
+              "52bbef4180f79b03b458409296ac9b3a0b36510b280aa1f6311dd7f270e4d572",
+              "94fd99ad34c1f17a29a0e0b24a9337d64c3e32ac73c4348c342d6f33d4a7deaa",
+              "ed85d3652cdf83494836da40f1ec0dad2ad7d2d6959ddbd243054b894ed2376e",
+              "81e7f39fe32c825cef5177b9f223501c2976f988cffbb6e83442e17fe2561f2e",
+              "aa2bc9c167564ef30a3478e6709f979fa169e0d3c5526aacf7373671392629f9",
+              "7d1f77833a1eda3cb1a40dae1c6d4360175ebb83a287b1e26887b05c26b3c2b0",
+              "2d707365a0abe031bac739c716b29eab6a6245dcb72c2501ade260ff50174f8d",
+              "5c9aafa873a85535ba05f3c7cede44812e6d8e05bc44cb47f84aa21dc1007a35",
+              "8bb642c5ae84b8fc3e02e9099b7628fede71e63efdd76d01967ab5debee261f4"
+            ],
+            "ready_b": [
+              "e6b39a6cd33919651a2aa5658459a61d972a2b0868daf1e4534daa1eede33852",
+              "3c209e51d415eb500237234311be6bfe7fedca07ca0d46d82e20f1f2b0807b5a",
+              "680a5c04aea7dfdeca6ca40a070743cb2d7ea351b2e667060ea61424b73d0245",
+              "e7bed3e52d0bc9efb2ecac6f0ae5fa2fc44c4ed45c3c4cff553ae9cb50ca3f78",
+              "50b8b12485f40079cf7b7e20b0a617bbcbf9afb43c791765301c4d64363aad55",
+              "9df8cf6618094d50e5f15deb409b618916325565de8b4f034d8a25755aa97f85",
+              "e48e735723e6c28fa076fa3db60cbeca79a62ae66d1e7395844bce5f1c044890",
+              "52bbef4180f79b03b458409296ac9b3a0b36510b280aa1f6311dd7f270e4d572",
+              "94fd99ad34c1f17a29a0e0b24a9337d64c3e32ac73c4348c342d6f33d4a7deaa",
+              "ed85d3652cdf83494836da40f1ec0dad2ad7d2d6959ddbd243054b894ed2376e",
+              "81e7f39fe32c825cef5177b9f223501c2976f988cffbb6e83442e17fe2561f2e",
+              "aa2bc9c167564ef30a3478e6709f979fa169e0d3c5526aacf7373671392629f9",
+              "7d1f77833a1eda3cb1a40dae1c6d4360175ebb83a287b1e26887b05c26b3c2b0",
+              "2d707365a0abe031bac739c716b29eab6a6245dcb72c2501ade260ff50174f8d",
+              "5c9aafa873a85535ba05f3c7cede44812e6d8e05bc44cb47f84aa21dc1007a35",
+              "8bb642c5ae84b8fc3e02e9099b7628fede71e63efdd76d01967ab5debee261f4"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947768430
+          },
+          {
+            "key": "50d32cf0d57a779f6b114ff4de5cdbcde7674130bf67f6eb7101cf0b93de955e",
+            "epoch": 2,
+            "ready_a": [
+              "36e43fb998a22e66a50d1fdda146283da81f24a9417322aa6f24d5198ae8e86c",
+              "a970c37d918ecafa52ab56084bd4650e752cd578f8ba4fea507536f917342514",
+              "eddb1399e2fb7eaa6b4081177b73a382e60cff9ccbd2e23db3b3290dd7cb2f18",
+              "1f736b8c39ff69609a6de1b25814270d38b495fc0e843e0f4f36ba1cfdeb6061",
+              "26a21395270eee5bb197f8fd37f760d81076087b13b50b172c8311b11ff68cc5",
+              "ed383e9919fedcd1e850b4b1df4e56d516fbbce91904c6f4cc9e960380844b3e",
+              "88aab0eedf2f808dad475f0666d796dd023ab0984df1a828891712f558645fc1",
+              "b6c204898a11a61e6a32f7b761e32c8622dac6d6645a1cb97910dcece877b9e8",
+              "8b072fbbfbc491ddf49a0619142cc686bf5b3744951fcecc6b836f4af5f5eb2c",
+              "8e20df39511d476bdbb58e118816d9b2c5b4acfe851e3999acdf54155f59b024",
+              "609a2c70bd39d5a1b9a9e923b77cdf47414f54b3515eadd197431703a476bbdb",
+              "9a7fa2045f69ba8ab8d4c0eec4c297733c2e889900748bd20b738990a0c94b11",
+              "06d5432054a0ec46d7819bc209942303b8413e675341ea9297150b83e8895608",
+              "1a5904434eac649185d626bf8e9acff41b36547daf53745109045eb187af704f",
+              "18ef4df5b50bfb99eb9a132538bcc642eaaf81635f5912ae48caa9ad80a5ae09",
+              "af189f5e27b054eab45e04b39c4ea13f94a757e338c60525b0fd938f054b11e2"
+            ],
+            "ready_b": [
+              "36e43fb998a22e66a50d1fdda146283da81f24a9417322aa6f24d5198ae8e86c",
+              "a970c37d918ecafa52ab56084bd4650e752cd578f8ba4fea507536f917342514",
+              "eddb1399e2fb7eaa6b4081177b73a382e60cff9ccbd2e23db3b3290dd7cb2f18",
+              "1f736b8c39ff69609a6de1b25814270d38b495fc0e843e0f4f36ba1cfdeb6061",
+              "26a21395270eee5bb197f8fd37f760d81076087b13b50b172c8311b11ff68cc5",
+              "ed383e9919fedcd1e850b4b1df4e56d516fbbce91904c6f4cc9e960380844b3e",
+              "88aab0eedf2f808dad475f0666d796dd023ab0984df1a828891712f558645fc1",
+              "b6c204898a11a61e6a32f7b761e32c8622dac6d6645a1cb97910dcece877b9e8",
+              "8b072fbbfbc491ddf49a0619142cc686bf5b3744951fcecc6b836f4af5f5eb2c",
+              "8e20df39511d476bdbb58e118816d9b2c5b4acfe851e3999acdf54155f59b024",
+              "609a2c70bd39d5a1b9a9e923b77cdf47414f54b3515eadd197431703a476bbdb",
+              "9a7fa2045f69ba8ab8d4c0eec4c297733c2e889900748bd20b738990a0c94b11",
+              "06d5432054a0ec46d7819bc209942303b8413e675341ea9297150b83e8895608",
+              "1a5904434eac649185d626bf8e9acff41b36547daf53745109045eb187af704f",
+              "18ef4df5b50bfb99eb9a132538bcc642eaaf81635f5912ae48caa9ad80a5ae09",
+              "af189f5e27b054eab45e04b39c4ea13f94a757e338c60525b0fd938f054b11e2"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947777011
+          },
+          {
+            "key": "ba95e70fb166bc10887d30226c1a5c56733b580121ea3f9dafe28684c13dffca",
+            "epoch": 2,
+            "ready_a": [
+              "2b40a8cef8194425773097dc324495383b0b71ff9323b996e93d8cf3a7c9b1dd",
+              "aed5e7c412ecce3f75ca353f03e3853867ee9cafa4bd420d76161e37d5748efd",
+              "bfcb4a98fced99ca4a5dfd5aa17f34e4bd5a872f77b698642b201c67dd48bab9",
+              "557be3fa4896e49d6adc9b24184102302157596e596ce3e6a61650aedd0187e7",
+              "d48922c66a6769b86b7123071d85973399dd5d4f91855d8b0976488b98dfdfb2",
+              "021ab07bfdd01570aa0aefb19e8c9f048f257afe0dd677ebc5948ac42b5ab948",
+              "d93dddfdc42a9f21a9f930ca4fde3247b6e144f633883933a464994c3d52846d",
+              "7aaf4c9c72ab5a6007181165600b33b7935b00dd772c5f9f6c4b4b109f7a3f37",
+              "a54a83e931cf8955044a12483439f81d1aa0a15c55af4e76ae9aedd573987c97",
+              "8f237d55c7129f85ee28af3bb4662b0a547e07caf79a7ebc966bcbd6e2b3bb0e",
+              "36afc3f71d3b12ded3f98578dc36cd0c9159f960982272ba3d9a8012210e2863",
+              "b03a9753e7a93521c7adff3d5b3ef3ebf3ec573a62a73c5dc31f75a46775cb20",
+              "55724775dbdbe9481e970cd10d075e7a11862a5b86bab3ee36e288293f029bd1",
+              "cf162fac7f1ac8c51628fddab9fb42ea0aa1026e9de31907764e7584a8a9f3ee",
+              "9747ddad00979bb85f1c15851df450956928aad82b20322dd7a34300e4ac40c1",
+              "843ec06f1c0ab0193595572253b2cf033327248f5288561d934643e4f47aef31"
+            ],
+            "ready_b": [
+              "2b40a8cef8194425773097dc324495383b0b71ff9323b996e93d8cf3a7c9b1dd",
+              "aed5e7c412ecce3f75ca353f03e3853867ee9cafa4bd420d76161e37d5748efd",
+              "bfcb4a98fced99ca4a5dfd5aa17f34e4bd5a872f77b698642b201c67dd48bab9",
+              "557be3fa4896e49d6adc9b24184102302157596e596ce3e6a61650aedd0187e7",
+              "d48922c66a6769b86b7123071d85973399dd5d4f91855d8b0976488b98dfdfb2",
+              "021ab07bfdd01570aa0aefb19e8c9f048f257afe0dd677ebc5948ac42b5ab948",
+              "d93dddfdc42a9f21a9f930ca4fde3247b6e144f633883933a464994c3d52846d",
+              "7aaf4c9c72ab5a6007181165600b33b7935b00dd772c5f9f6c4b4b109f7a3f37",
+              "a54a83e931cf8955044a12483439f81d1aa0a15c55af4e76ae9aedd573987c97",
+              "8f237d55c7129f85ee28af3bb4662b0a547e07caf79a7ebc966bcbd6e2b3bb0e",
+              "36afc3f71d3b12ded3f98578dc36cd0c9159f960982272ba3d9a8012210e2863",
+              "b03a9753e7a93521c7adff3d5b3ef3ebf3ec573a62a73c5dc31f75a46775cb20",
+              "55724775dbdbe9481e970cd10d075e7a11862a5b86bab3ee36e288293f029bd1",
+              "cf162fac7f1ac8c51628fddab9fb42ea0aa1026e9de31907764e7584a8a9f3ee",
+              "9747ddad00979bb85f1c15851df450956928aad82b20322dd7a34300e4ac40c1",
+              "843ec06f1c0ab0193595572253b2cf033327248f5288561d934643e4f47aef31"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947780722
+          },
+          {
+            "key": "17fa50e3fb8793c4c70af47b4b2afc92726ebb34412effa4da995f1444132a3f",
+            "epoch": 2,
+            "ready_a": [
+              "0ba1785be02070f074cc717eb4d2338b98720eec3cbc09bece790bc38980a019",
+              "4b0c7a6b7ad2c3c7ea9e06dcdd65f770897181e2ccd882090c0219c271d44af3",
+              "08f0a5d3548f466d5ea8d3e9e9fa906e678deccbff00155dc2b885afb9912e23",
+              "080121ee4c3149f6ead0bec0aa155c78288f9f7b28754f122d98fa25aafa247e",
+              "980536449405bf7e98386d03891bdd329cf4039db4782cd704ad62a7393d72ea",
+              "81ac58a2616a0cb2a9984c2987915cced1c531ffc21f99057a6f4c3096b92f09",
+              "fea6ca8d45ba0d84be77f23b0aee8cf3a74261f2074968f3c239b3a61281307d",
+              "3f325184d901c9239146eaa00e66ee59aa422958553778aaa16c822c42d3c2be",
+              "75dad4dab6e62f496f925e4750337796f0dfd620346ef47a5ff72bd8f742562a",
+              "257679b23588c3d3aa90d44f4a6b31dbcc1eb74f933bc5dd78d2f340c3ad93f3",
+              "539b43690554524b676272778160fdd4755780350fc9bfbf7c6c22819cd36328",
+              "fdea20cd1fc604cca1e999f36ac71bab66eb5a49251e8d8985fba693a88cb1f8",
+              "745671bcfdbadf22fd4d02f5e0cb8685bfb069eb4f871ac94f21073c7b7e8e2d",
+              "67f9998f7c66c902e4465ffe4864defa7728056808972daf3811c0b599eba90b",
+              "c317267653767ef67b147d4bf580736afa5d92a42650247e6f9bdb1ae00a738a",
+              "7fffc6f0b0e2024ba23f95ff8e93005f4c47d1270bea4ec1bf69384b77a32a99"
+            ],
+            "ready_b": [
+              "0ba1785be02070f074cc717eb4d2338b98720eec3cbc09bece790bc38980a019",
+              "4b0c7a6b7ad2c3c7ea9e06dcdd65f770897181e2ccd882090c0219c271d44af3",
+              "08f0a5d3548f466d5ea8d3e9e9fa906e678deccbff00155dc2b885afb9912e23",
+              "080121ee4c3149f6ead0bec0aa155c78288f9f7b28754f122d98fa25aafa247e",
+              "980536449405bf7e98386d03891bdd329cf4039db4782cd704ad62a7393d72ea",
+              "81ac58a2616a0cb2a9984c2987915cced1c531ffc21f99057a6f4c3096b92f09",
+              "fea6ca8d45ba0d84be77f23b0aee8cf3a74261f2074968f3c239b3a61281307d",
+              "3f325184d901c9239146eaa00e66ee59aa422958553778aaa16c822c42d3c2be",
+              "75dad4dab6e62f496f925e4750337796f0dfd620346ef47a5ff72bd8f742562a",
+              "257679b23588c3d3aa90d44f4a6b31dbcc1eb74f933bc5dd78d2f340c3ad93f3",
+              "539b43690554524b676272778160fdd4755780350fc9bfbf7c6c22819cd36328",
+              "fdea20cd1fc604cca1e999f36ac71bab66eb5a49251e8d8985fba693a88cb1f8",
+              "745671bcfdbadf22fd4d02f5e0cb8685bfb069eb4f871ac94f21073c7b7e8e2d",
+              "67f9998f7c66c902e4465ffe4864defa7728056808972daf3811c0b599eba90b",
+              "c317267653767ef67b147d4bf580736afa5d92a42650247e6f9bdb1ae00a738a",
+              "7fffc6f0b0e2024ba23f95ff8e93005f4c47d1270bea4ec1bf69384b77a32a99"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947788942
+          },
+          {
+            "key": "e2b5b3207076010d431d33f3bd3e830331189a449f0387c222cebe2e7cc403dd",
+            "epoch": 2,
+            "ready_a": [
+              "8cea2780aacca985e1dbfd90ece1e20711ed077b879f0e2bd09aa62b87988baa",
+              "2a76de63b5b025a5892341aaf65937e7d1e75348dd33f773e041dbc61969fb44",
+              "942a84bd5285ed3f6985bd4be18629b0f689d757b06f8b97c98091f97d24c91b",
+              "7e073ff756d0d34cf7393f48c27fb0f95f3ae7f144775c5c8c3519acdbb1ae02",
+              "f8b515b694755f754a6ff0d3c0824ac6aa00dfa666af842fe387ad11b22419d7",
+              "7fa8cda34f366fa2c273f5c31758e1a5054e5a3012be494f38cb735bf8f76c16",
+              "2bf99f5382b5e4b5a58bbad67577d58c7201569a710c436df5adf74fd1b3e444",
+              "d46d10b2b00ad46efd0e22e6593c47a3946d646654e7fb74cb04f1c6a1d00242",
+              "430379367fd7347cd7e6314504bdebf6f15b852434860dff2caefb5e59ce4388",
+              "21d5913270e878b414a82d138bc522af11c1ae76cb665e9bc4e4e822344ec6ff",
+              "85e81186f1ef8940bd23094e53afd1dd51944a44e9dc9ccba1a01e272207bc51",
+              "40017ac546c6617efe80067e2e87d8b4c848f8613a45c0fd7022af369d2e6b6d",
+              "ff8cd512dc193a128043e3c58ab9a5d5bbd2454e79752018dd0984355cf993a5",
+              "63471a367cfcb2f5d7d83e93bd51a734d4fa3d62d4b1cadc3e7071103660eaf9",
+              "67195fa1c74843ee61f80680e120b9095516bec7fbe8d802bebf7b9e1f19ac5a",
+              "bd0bc437c516334b79c5b598eb63c725bcf93d3781e018bba22896154b2a7f53"
+            ],
+            "ready_b": [
+              "8cea2780aacca985e1dbfd90ece1e20711ed077b879f0e2bd09aa62b87988baa",
+              "2a76de63b5b025a5892341aaf65937e7d1e75348dd33f773e041dbc61969fb44",
+              "942a84bd5285ed3f6985bd4be18629b0f689d757b06f8b97c98091f97d24c91b",
+              "7e073ff756d0d34cf7393f48c27fb0f95f3ae7f144775c5c8c3519acdbb1ae02",
+              "f8b515b694755f754a6ff0d3c0824ac6aa00dfa666af842fe387ad11b22419d7",
+              "7fa8cda34f366fa2c273f5c31758e1a5054e5a3012be494f38cb735bf8f76c16",
+              "2bf99f5382b5e4b5a58bbad67577d58c7201569a710c436df5adf74fd1b3e444",
+              "d46d10b2b00ad46efd0e22e6593c47a3946d646654e7fb74cb04f1c6a1d00242",
+              "430379367fd7347cd7e6314504bdebf6f15b852434860dff2caefb5e59ce4388",
+              "21d5913270e878b414a82d138bc522af11c1ae76cb665e9bc4e4e822344ec6ff",
+              "85e81186f1ef8940bd23094e53afd1dd51944a44e9dc9ccba1a01e272207bc51",
+              "40017ac546c6617efe80067e2e87d8b4c848f8613a45c0fd7022af369d2e6b6d",
+              "ff8cd512dc193a128043e3c58ab9a5d5bbd2454e79752018dd0984355cf993a5",
+              "63471a367cfcb2f5d7d83e93bd51a734d4fa3d62d4b1cadc3e7071103660eaf9",
+              "67195fa1c74843ee61f80680e120b9095516bec7fbe8d802bebf7b9e1f19ac5a",
+              "bd0bc437c516334b79c5b598eb63c725bcf93d3781e018bba22896154b2a7f53"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947764041
+          },
+          {
+            "key": "1820f6d340f6b22f6ab607ba14ee993338d95309720f954dc3cee1bcf256c530",
+            "epoch": 2,
+            "ready_a": [
+              "5d5f89e437e73968e484e885e71dc6574ae9e14f8daa30fc269df96f77778eeb",
+              "57013f78cee853febd655510033efdddc8ffff56c899d2bd51e5c662d8cca386",
+              "22daa3450eaa4382b2df99f8eb31e37c2d61e2ecdeb63922df63e7c3ea0474ea",
+              "79adbd41ba24b8e785271bd3cb11393976bf58412129d5c5fb5169b95bd8615b",
+              "c7bbf25a1d97854a7be81dcf842664df9eba5b91dbb100412456023daa3eacef",
+              "10a6c752f138be25d9b02d5f595a1d6cbe1d2314dc08f04a691de4fb9bc41f12",
+              "489e1b09cf32b88ac54953e23d96c427b4991b1bff8f585bc9c9d0a57ed0028d",
+              "6c01142bc03e8d79005603e87b03a6ef73e83db6ef9df9bb805b06cee7b3c7f2",
+              "b2c255b00c6a7fc503bd33335adc3409fee1d6646daf37d533d3c2791f181859",
+              "290f08ece5c67a01917b82d5b369a33571d911e6d5ab761d52673ff402ff64e8",
+              "dbe7d2c28f444471e254f5e6c17378525839de42654804fc928be5a5acb15ac0",
+              "591aa8152239b0f221847dfacfcdb5e78a263b7e9f620657cda385baae9c6e06",
+              "ea9c51b43133bf3f05fc1337b46a59ba1a260e7ef114dda02791c805dc3e8443",
+              "7d32c1c4784c3c9b9805c35255ac4acf71ad65c18c22ca03dcb2abcca0be8ff4",
+              "afb0a17b961e120eb9f9539d4bec2ced98e530f4294d77dab59b5ee146958396",
+              "61e99ae098a4196f01c8d1061c6c22c996a3e428fbf7bc477ed5c50174672f6d"
+            ],
+            "ready_b": [
+              "5d5f89e437e73968e484e885e71dc6574ae9e14f8daa30fc269df96f77778eeb",
+              "57013f78cee853febd655510033efdddc8ffff56c899d2bd51e5c662d8cca386",
+              "22daa3450eaa4382b2df99f8eb31e37c2d61e2ecdeb63922df63e7c3ea0474ea",
+              "79adbd41ba24b8e785271bd3cb11393976bf58412129d5c5fb5169b95bd8615b",
+              "c7bbf25a1d97854a7be81dcf842664df9eba5b91dbb100412456023daa3eacef",
+              "10a6c752f138be25d9b02d5f595a1d6cbe1d2314dc08f04a691de4fb9bc41f12",
+              "489e1b09cf32b88ac54953e23d96c427b4991b1bff8f585bc9c9d0a57ed0028d",
+              "6c01142bc03e8d79005603e87b03a6ef73e83db6ef9df9bb805b06cee7b3c7f2",
+              "b2c255b00c6a7fc503bd33335adc3409fee1d6646daf37d533d3c2791f181859",
+              "290f08ece5c67a01917b82d5b369a33571d911e6d5ab761d52673ff402ff64e8",
+              "dbe7d2c28f444471e254f5e6c17378525839de42654804fc928be5a5acb15ac0",
+              "591aa8152239b0f221847dfacfcdb5e78a263b7e9f620657cda385baae9c6e06",
+              "ea9c51b43133bf3f05fc1337b46a59ba1a260e7ef114dda02791c805dc3e8443",
+              "7d32c1c4784c3c9b9805c35255ac4acf71ad65c18c22ca03dcb2abcca0be8ff4",
+              "afb0a17b961e120eb9f9539d4bec2ced98e530f4294d77dab59b5ee146958396",
+              "61e99ae098a4196f01c8d1061c6c22c996a3e428fbf7bc477ed5c50174672f6d"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947770599
+          },
+          {
+            "key": "fc9d6400c7b2e075fd5ae71346a1cf0e497ddfa08fe48650d3d71608d5a6498d",
+            "epoch": 2,
+            "ready_a": [
+              "b76bd57049d6f9f1ea71edeb97aba3db2ab543a0249290dc7c1c8cc8678f7437",
+              "52ea3242713307b1b4f98e0fa5716fb6e872f69d1777799c6e053b1170b0a052",
+              "0ceb9a30f4b3c9c2af4338585ef858652930424644a6d66b583e986ef7626973",
+              "4dacdb6e56cae9ee1448e4f5b6e8f5eb22995d67b2b6aee9ffee6cc1faa54b15",
+              "81b0f90baadc626d0f3120088060bd0b418818751802f3ceb479ac81ccc0124d",
+              "a9d9c715b8268fa17d642e3ab66ec28d154e88e084f3119a85bf6b4cebb703f4",
+              "5b91898f8d207a58ba3f6f7f83010c5d4b6191a215f7e7afd429dc95a6eb999f",
+              "16514e336651aa0c32507bff76ea66e9a6ffeedfb3abca4aedcabc3c62e4f604",
+              "975b19d0213795ec030c62891d145b306b8d699c7335f6da6142f0811f6ebc8a",
+              "09e276586c76eb929c806492046fd7e1b2931ac01a92db036bf81d04bd2fbe71",
+              "e4a26fbf08588bad5acc0e60ed3f8968f00dae2fe47c937eaf602a516d874189",
+              "2dde24b0b81f8168feb226559e70ff6acbd32a76a78a40091ff2fa9e6c6710bd",
+              "06c72f0b3616fb885f290a43fced03d611a924011dff5f0983568e7d8cf32e09",
+              "1489a2991bc00682c31cf7d023bac23fa848609a52a091359abb9170742fb1ab",
+              "f73cb21f9bee5c358961b27f288127d4c56bca394ed3f419eabea3193e908b9c",
+              "8b888354fa9a8c74b4616ece7620bdd4bd342f53d180306422a497e0e8297af0"
+            ],
+            "ready_b": [
+              "b76bd57049d6f9f1ea71edeb97aba3db2ab543a0249290dc7c1c8cc8678f7437",
+              "52ea3242713307b1b4f98e0fa5716fb6e872f69d1777799c6e053b1170b0a052",
+              "0ceb9a30f4b3c9c2af4338585ef858652930424644a6d66b583e986ef7626973",
+              "4dacdb6e56cae9ee1448e4f5b6e8f5eb22995d67b2b6aee9ffee6cc1faa54b15",
+              "81b0f90baadc626d0f3120088060bd0b418818751802f3ceb479ac81ccc0124d",
+              "a9d9c715b8268fa17d642e3ab66ec28d154e88e084f3119a85bf6b4cebb703f4",
+              "5b91898f8d207a58ba3f6f7f83010c5d4b6191a215f7e7afd429dc95a6eb999f",
+              "16514e336651aa0c32507bff76ea66e9a6ffeedfb3abca4aedcabc3c62e4f604",
+              "975b19d0213795ec030c62891d145b306b8d699c7335f6da6142f0811f6ebc8a",
+              "09e276586c76eb929c806492046fd7e1b2931ac01a92db036bf81d04bd2fbe71",
+              "e4a26fbf08588bad5acc0e60ed3f8968f00dae2fe47c937eaf602a516d874189",
+              "2dde24b0b81f8168feb226559e70ff6acbd32a76a78a40091ff2fa9e6c6710bd",
+              "06c72f0b3616fb885f290a43fced03d611a924011dff5f0983568e7d8cf32e09",
+              "1489a2991bc00682c31cf7d023bac23fa848609a52a091359abb9170742fb1ab",
+              "f73cb21f9bee5c358961b27f288127d4c56bca394ed3f419eabea3193e908b9c",
+              "8b888354fa9a8c74b4616ece7620bdd4bd342f53d180306422a497e0e8297af0"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947786453
+          },
+          {
+            "key": "cff6149d68d928439b5e3dfc3ea66747edf7be514934c53bcd9767fff8663f1e",
+            "epoch": 2,
+            "ready_a": [
+              "1783f6628e07b449101d966e1f8f029941aef695347d99da2462a668f7bbf8ae",
+              "d42351829cf16c3abdedd61c35cb22c83760a4d7aae83c94e6edf92990ab9e1e",
+              "89804bae6b5bd8a698e99e441173bb186ee665df4c19c663b743fd9dac5167e2",
+              "fad80438f5a5380800303c92f9b26b6b34ef2bf50c0527806711e6d4e8909f93",
+              "bd9bab41537f8df27fc8c4e628f79fe16f5143d2d021aa5fe0b66a66d24dee20",
+              "bc5d53619c9233ae096a363808c0dcfb7cad6e0c5a13349b70aec72458ee1918",
+              "9f36ab7fe2d0f8b35bcfa310a7134217d9fae2c8ca1bdce7cbf96835a9eee1a0",
+              "933adee42dfddc7d4c8195089881336c5d50f718692a3d69dd29f2cf2f3bbd3e",
+              "e994285dabf9a4ae893e5cc991c3be37dae7f4684f81f6e8b0c6cacaf2431ab9",
+              "b0cfb74fcc6fdc06f761cee234ee3d8f8c8dda09ed76afb9e957c11568b0b26e",
+              "bed615f6a1a43ad613adfcd2435028328feb8f648d9bcab8fde72f8ec4868b87",
+              "189ee9a030a376ff8ef5f862d40196319d940fbbfa9e781c3d9befc56c4de316",
+              "59506c54316712590c2825c049c129cd8d77e0728adae87db73f162fcbc57f18",
+              "253b58a00797c6760bd102bf7c04b319bf0915140177fd3ddeba1a20a3d7c430",
+              "b5595a3c340fb1e3c64b4d021020aa83f149268a9738748172ebc4fda0d306f0",
+              "a7a5fbf9ea688fdc54fce18a648920f8fd31153d8a9ccb9330484abc1169c96b"
+            ],
+            "ready_b": [
+              "1783f6628e07b449101d966e1f8f029941aef695347d99da2462a668f7bbf8ae",
+              "d42351829cf16c3abdedd61c35cb22c83760a4d7aae83c94e6edf92990ab9e1e",
+              "89804bae6b5bd8a698e99e441173bb186ee665df4c19c663b743fd9dac5167e2",
+              "fad80438f5a5380800303c92f9b26b6b34ef2bf50c0527806711e6d4e8909f93",
+              "bd9bab41537f8df27fc8c4e628f79fe16f5143d2d021aa5fe0b66a66d24dee20",
+              "bc5d53619c9233ae096a363808c0dcfb7cad6e0c5a13349b70aec72458ee1918",
+              "9f36ab7fe2d0f8b35bcfa310a7134217d9fae2c8ca1bdce7cbf96835a9eee1a0",
+              "933adee42dfddc7d4c8195089881336c5d50f718692a3d69dd29f2cf2f3bbd3e",
+              "e994285dabf9a4ae893e5cc991c3be37dae7f4684f81f6e8b0c6cacaf2431ab9",
+              "b0cfb74fcc6fdc06f761cee234ee3d8f8c8dda09ed76afb9e957c11568b0b26e",
+              "bed615f6a1a43ad613adfcd2435028328feb8f648d9bcab8fde72f8ec4868b87",
+              "189ee9a030a376ff8ef5f862d40196319d940fbbfa9e781c3d9befc56c4de316",
+              "59506c54316712590c2825c049c129cd8d77e0728adae87db73f162fcbc57f18",
+              "253b58a00797c6760bd102bf7c04b319bf0915140177fd3ddeba1a20a3d7c430",
+              "b5595a3c340fb1e3c64b4d021020aa83f149268a9738748172ebc4fda0d306f0",
+              "a7a5fbf9ea688fdc54fce18a648920f8fd31153d8a9ccb9330484abc1169c96b"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792947774495
+          }
+        ]
+      },
+      "job_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 1880,
+              "median": 1981.5,
+              "maximum": 2098
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 4391,
+              "median": 4678.0,
+              "maximum": 5091
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 2657,
+              "median": 3268.0,
+              "maximum": 3715
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 11,
+              "median": 14.0,
+              "maximum": 15
+            },
+            "serialized_to_publication_ms": {
+              "count": 4,
+              "minimum": 406,
+              "median": 463.0,
+              "maximum": 499
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 1880,
+              "median": 1898.5,
+              "maximum": 1917
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2046,
+              "median": 2072.0,
+              "maximum": 2098
+            },
+            "module_ids": [
+              "28bee9d3b904dfd5790da8434fd33eda",
+              "b90621f1df434b7b363d74fd802e1705"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 1947,
+              "median": 2043.5,
+              "maximum": 2210
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 4166,
+              "median": 4361.5,
+              "maximum": 4620
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 2657,
+              "median": 3268.0,
+              "maximum": 3715
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 11,
+              "median": 14.0,
+              "maximum": 15
+            },
+            "serialized_to_publication_ms": {
+              "count": 4,
+              "minimum": 203,
+              "median": 223.5,
+              "maximum": 244
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 1947,
+              "median": 1967.0,
+              "maximum": 1987
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2100,
+              "median": 2155.0,
+              "maximum": 2210
+            },
+            "module_ids": [
+              "56b379761bcc7b81bcc6619b7d848554",
+              "edc0db8dd70626a620c93a7d4bbb7520"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 1880,
+              "median": 1981.5,
+              "maximum": 2098
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 4391,
+              "median": 4678.0,
+              "maximum": 5091
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 2657,
+              "median": 3268.0,
+              "maximum": 3715
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 11,
+              "median": 14.0,
+              "maximum": 15
+            },
+            "serialized_to_publication_ms": {
+              "count": 4,
+              "minimum": 406,
+              "median": 463.0,
+              "maximum": 499
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 1880,
+              "median": 1898.5,
+              "maximum": 1917
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2046,
+              "median": 2072.0,
+              "maximum": 2098
+            },
+            "module_ids": [
+              "28bee9d3b904dfd5790da8434fd33eda",
+              "b90621f1df434b7b363d74fd802e1705"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 1947,
+              "median": 2043.5,
+              "maximum": 2210
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 4166,
+              "median": 4361.5,
+              "maximum": 4620
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 2657,
+              "median": 3268.0,
+              "maximum": 3715
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 11,
+              "median": 14.0,
+              "maximum": 15
+            },
+            "serialized_to_publication_ms": {
+              "count": 4,
+              "minimum": 203,
+              "median": 223.5,
+              "maximum": 244
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 1947,
+              "median": 1967.0,
+              "maximum": 1987
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2100,
+              "median": 2155.0,
+              "maximum": 2210
+            },
+            "module_ids": [
+              "56b379761bcc7b81bcc6619b7d848554",
+              "edc0db8dd70626a620c93a7d4bbb7520"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 59,
+            "cpu_ms": {
+              "count": 59,
+              "minimum": 7,
+              "median": 3765,
+              "maximum": 5468
+            },
+            "wall_ms": {
+              "count": 59,
+              "minimum": 640,
+              "median": 8623,
+              "maximum": 12723
+            },
+            "correlations_ms": {
+              "count": 49,
+              "minimum": 5347,
+              "median": 7106,
+              "maximum": 10855
+            },
+            "commitments_ms": {
+              "count": 49,
+              "minimum": 15,
+              "median": 27,
+              "maximum": 2029
+            },
+            "serialized_to_publication_ms": {
+              "count": 49,
+              "minimum": 509,
+              "median": 782,
+              "maximum": 1667
+            },
+            "warm_cpu_ms": {
+              "count": 48,
+              "minimum": 3573,
+              "median": 3784.5,
+              "maximum": 5468
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 3854,
+              "median": 3854,
+              "maximum": 3854
+            },
+            "module_ids": [
+              "28bee9d3b904dfd5790da8434fd33eda",
+              "b90621f1df434b7b363d74fd802e1705",
+              "c927e41f105989831b10bb2629206192"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 59,
+            "cpu_ms": {
+              "count": 59,
+              "minimum": 103,
+              "median": 3896,
+              "maximum": 5985
+            },
+            "wall_ms": {
+              "count": 59,
+              "minimum": 152,
+              "median": 8273,
+              "maximum": 12260
+            },
+            "correlations_ms": {
+              "count": 49,
+              "minimum": 5347,
+              "median": 7106,
+              "maximum": 10855
+            },
+            "commitments_ms": {
+              "count": 49,
+              "minimum": 16,
+              "median": 28,
+              "maximum": 2029
+            },
+            "serialized_to_publication_ms": {
+              "count": 49,
+              "minimum": 208,
+              "median": 339,
+              "maximum": 1083
+            },
+            "warm_cpu_ms": {
+              "count": 45,
+              "minimum": 3652,
+              "median": 3909,
+              "maximum": 5660
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 4009,
+              "median": 4179.0,
+              "maximum": 5985
+            },
+            "module_ids": [
+              "0a0f611fb2c707fc0616ca2c11d61ba1",
+              "4e401c8e011920c9500ddfe63f1efbac",
+              "56b379761bcc7b81bcc6619b7d848554",
+              "644674e02ae508d527b41d0b38119b4d",
+              "67698e77779d8a323bba8fa386289a5a",
+              "6eb7165e017a6019ac6e2427b7bce0ae",
+              "92d9d48009af4dc2a75bd83b3f7a5098",
+              "a7e65fdaaab304396a65291b55e5bf25",
+              "be3e16f5eeddff5c15211a888c655c27",
+              "c23e34107a156f2afb412a3582c0feb0",
+              "edc0db8dd70626a620c93a7d4bbb7520",
+              "f259e2fb89a972c7feaefc8f23e10bd9",
+              "f31a5bf37ea95e380d2f76700fdfe7a3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 10
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 49,
+            "cpu_ms": {
+              "count": 49,
+              "minimum": 3573,
+              "median": 3790,
+              "maximum": 5468
+            },
+            "wall_ms": {
+              "count": 49,
+              "minimum": 8185,
+              "median": 8657,
+              "maximum": 12723
+            },
+            "correlations_ms": {
+              "count": 49,
+              "minimum": 5347,
+              "median": 7106,
+              "maximum": 10855
+            },
+            "commitments_ms": {
+              "count": 49,
+              "minimum": 15,
+              "median": 27,
+              "maximum": 2029
+            },
+            "serialized_to_publication_ms": {
+              "count": 49,
+              "minimum": 509,
+              "median": 782,
+              "maximum": 1667
+            },
+            "warm_cpu_ms": {
+              "count": 48,
+              "minimum": 3573,
+              "median": 3784.5,
+              "maximum": 5468
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 3854,
+              "median": 3854,
+              "maximum": 3854
+            },
+            "module_ids": [
+              "28bee9d3b904dfd5790da8434fd33eda",
+              "b90621f1df434b7b363d74fd802e1705",
+              "c927e41f105989831b10bb2629206192"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 49,
+            "cpu_ms": {
+              "count": 49,
+              "minimum": 3652,
+              "median": 3917,
+              "maximum": 5985
+            },
+            "wall_ms": {
+              "count": 49,
+              "minimum": 7773,
+              "median": 8385,
+              "maximum": 12260
+            },
+            "correlations_ms": {
+              "count": 49,
+              "minimum": 5347,
+              "median": 7106,
+              "maximum": 10855
+            },
+            "commitments_ms": {
+              "count": 49,
+              "minimum": 16,
+              "median": 28,
+              "maximum": 2029
+            },
+            "serialized_to_publication_ms": {
+              "count": 49,
+              "minimum": 208,
+              "median": 339,
+              "maximum": 1083
+            },
+            "warm_cpu_ms": {
+              "count": 45,
+              "minimum": 3652,
+              "median": 3909,
+              "maximum": 5660
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 4009,
+              "median": 4179.0,
+              "maximum": 5985
+            },
+            "module_ids": [
+              "56b379761bcc7b81bcc6619b7d848554",
+              "67698e77779d8a323bba8fa386289a5a",
+              "6eb7165e017a6019ac6e2427b7bce0ae",
+              "92d9d48009af4dc2a75bd83b3f7a5098",
+              "edc0db8dd70626a620c93a7d4bbb7520",
+              "f31a5bf37ea95e380d2f76700fdfe7a3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/failed": {
+          "a": {
+            "count": 10,
+            "cpu_ms": {
+              "count": 10,
+              "minimum": 7,
+              "median": 514.5,
+              "maximum": 3375
+            },
+            "wall_ms": {
+              "count": 10,
+              "minimum": 640,
+              "median": 2434.5,
+              "maximum": 10249
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "b90621f1df434b7b363d74fd802e1705"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 10,
+            "cpu_ms": {
+              "count": 10,
+              "minimum": 103,
+              "median": 621.5,
+              "maximum": 3473
+            },
+            "wall_ms": {
+              "count": 10,
+              "minimum": 152,
+              "median": 1927.5,
+              "maximum": 9956
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "0a0f611fb2c707fc0616ca2c11d61ba1",
+              "4e401c8e011920c9500ddfe63f1efbac",
+              "644674e02ae508d527b41d0b38119b4d",
+              "67698e77779d8a323bba8fa386289a5a",
+              "92d9d48009af4dc2a75bd83b3f7a5098",
+              "a7e65fdaaab304396a65291b55e5bf25",
+              "be3e16f5eeddff5c15211a888c655c27",
+              "c23e34107a156f2afb412a3582c0feb0",
+              "edc0db8dd70626a620c93a7d4bbb7520",
+              "f259e2fb89a972c7feaefc8f23e10bd9"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 10
+          }
+        }
+      },
+      "trace_coverage_complete": true,
+      "pool_target_respected": true
+    },
+    {
+      "phase": "parallel-settled",
+      "policy": {
+        "wallet_cooldown": {
+          "mode": "enabled",
+          "interval_ms": 60000
+        },
+        "max_active_operations": 1,
+        "operation_timeout_ms": 30000,
+        "candidate_group_size": 2,
+        "preparation_group_size": 4,
+        "minimum_ready_batches": 8,
+        "refill_target_batches": 16,
+        "max_active_preparations": 2
+      },
+      "authority_version_coverage": {
+        "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+        "expected_version": "77e69cc7-07ad-4c36-9d01-00946d9de0cc",
+        "versions": {
+          "77e69cc7-07ad-4c36-9d01-00946d9de0cc": {
+            "invocations": 5353,
+            "first_at_ms": 1792948476346,
+            "last_at_ms": 1792949075247
+          }
+        },
+        "undated_invocations": 0,
+        "complete": true
+      },
+      "cycle_qualified": true,
+      "signatures": 79,
+      "under_five_seconds": 79,
+      "under_eight_seconds": 79,
+      "successful_http_ms": {
+        "count": 79,
+        "minimum": 335,
+        "median": 1162,
+        "maximum": 3676,
+        "sum": 109009
+      },
+      "successful_demand_ms": {
+        "count": 79,
+        "minimum": 2054,
+        "median": 23842,
+        "maximum": 62069,
+        "sum": 2032265
+      },
+      "admission_waits": {
+        "scope": "Observed HTTP response time plus measured client retry sleeps, clipped at the load cutoff. Response counts cover attempts initiated within the window. Empty-pool waits include polling granularity; they are not an exact server stock-unavailable interval.",
+        "client_errors": [],
+        "retry_polling": {
+          "minimumMs": 1000,
+          "maximumMs": 5000
+        },
+        "by_reason": {
+          "empty_pool": {
+            "responses": 0,
+            "http_ms": 0,
+            "sleep_ms": 0
+          },
+          "service_capacity": {
+            "responses": 32,
+            "http_ms": 10250,
+            "sleep_ms": 160319
+          },
+          "wallet_cooldown": {
+            "responses": 388,
+            "http_ms": 14333,
+            "sleep_ms": 1795916
+          },
+          "operation_running": {
+            "responses": 0,
+            "http_ms": 0,
+            "sleep_ms": 0
+          },
+          "protocol_retry": {
+            "responses": 0,
+            "http_ms": 0,
+            "sleep_ms": 0
+          }
+        },
+        "demands_with_empty_pool": 0,
+        "empty_pool_http_and_sleep_ms": null,
+        "completed_demand_ms_when_pool_was_empty": null,
+        "per_demand": [
+          {
+            "wallet": 0,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 21333,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 22389
+          },
+          {
+            "wallet": 0,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 21441,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 21892
+          },
+          {
+            "wallet": 0,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 22572,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 23184
+          },
+          {
+            "wallet": 0,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 15709,
+              "wallet_cooldown": 23087,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39282
+          },
+          {
+            "wallet": 0,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 38878,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39269
+          },
+          {
+            "wallet": 0,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39048,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39615
+          },
+          {
+            "wallet": 0,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39373,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40234
+          },
+          {
+            "wallet": 0,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39483,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40987
+          },
+          {
+            "wallet": 0,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39587,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40714
+          },
+          {
+            "wallet": 0,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39697,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40458
+          },
+          {
+            "wallet": 1,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 26519,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 29460
+          },
+          {
+            "wallet": 1,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 26739,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 28401
+          },
+          {
+            "wallet": 1,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 27179,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 29666
+          },
+          {
+            "wallet": 1,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 27634,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 28359
+          },
+          {
+            "wallet": 1,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 27835,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 28997
+          },
+          {
+            "wallet": 1,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 28057,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 29536
+          },
+          {
+            "wallet": 1,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 60000,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 62069
+          },
+          {
+            "wallet": 1,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 58074,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 59869
+          },
+          {
+            "wallet": 1,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 59240,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 60290
+          },
+          {
+            "wallet": 1,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 57562,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "censored_at_end_of_window",
+            "total_demand_ms": 57562
+          },
+          {
+            "wallet": 2,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 5781,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7209
+          },
+          {
+            "wallet": 2,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 6308,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7959
+          },
+          {
+            "wallet": 2,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 7092,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 8344
+          },
+          {
+            "wallet": 2,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 7782,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 11361
+          },
+          {
+            "wallet": 2,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 8577,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 10239
+          },
+          {
+            "wallet": 2,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 9329,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 10822
+          },
+          {
+            "wallet": 2,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11061,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 13362
+          },
+          {
+            "wallet": 2,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 12013,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 13649
+          },
+          {
+            "wallet": 2,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 14148,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 14858
+          },
+          {
+            "wallet": 2,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 14378,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 16955
+          },
+          {
+            "wallet": 3,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 16247,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 18129
+          },
+          {
+            "wallet": 3,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 17387,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 18469
+          },
+          {
+            "wallet": 3,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 18070,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 20858
+          },
+          {
+            "wallet": 3,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 21091,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 22761
+          },
+          {
+            "wallet": 3,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 22324,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 22942
+          },
+          {
+            "wallet": 3,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 22504,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 23051
+          },
+          {
+            "wallet": 3,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 22715,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 23842
+          },
+          {
+            "wallet": 3,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 23373,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 23813
+          },
+          {
+            "wallet": 3,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 23468,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 24282
+          },
+          {
+            "wallet": 3,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 5017,
+              "wallet_cooldown": 23565,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 28917
+          },
+          {
+            "wallet": 4,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 11058,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 13228
+          },
+          {
+            "wallet": 4,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 11205,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 13162
+          },
+          {
+            "wallet": 4,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 12279,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 15955
+          },
+          {
+            "wallet": 4,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 13192,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 15354
+          },
+          {
+            "wallet": 4,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 14197,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 17392
+          },
+          {
+            "wallet": 4,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 16184,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 18018
+          },
+          {
+            "wallet": 4,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 17654,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 20347
+          },
+          {
+            "wallet": 4,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 18767,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 21741
+          },
+          {
+            "wallet": 4,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 19850,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 21420
+          },
+          {
+            "wallet": 4,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 21730,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 24840
+          },
+          {
+            "wallet": 5,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 37251,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38800
+          },
+          {
+            "wallet": 5,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 38089,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 38614
+          },
+          {
+            "wallet": 5,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 38266,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 39547
+          },
+          {
+            "wallet": 5,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 39987,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 40839
+          },
+          {
+            "wallet": 5,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 41157,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 41885
+          },
+          {
+            "wallet": 5,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 41499,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 41956
+          },
+          {
+            "wallet": 5,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 41649,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 42840
+          },
+          {
+            "wallet": 5,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 42850,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 43338
+          },
+          {
+            "wallet": 5,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 44043,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 44774
+          },
+          {
+            "wallet": 5,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 44478,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 45496
+          },
+          {
+            "wallet": 6,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1144,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 2136
+          },
+          {
+            "wallet": 6,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 1816,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3781
+          },
+          {
+            "wallet": 6,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 2574,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3984
+          },
+          {
+            "wallet": 6,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 2980,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 3692
+          },
+          {
+            "wallet": 6,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 3431,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 4154
+          },
+          {
+            "wallet": 6,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 3881,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 5643
+          },
+          {
+            "wallet": 6,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 4763,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 5584
+          },
+          {
+            "wallet": 6,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 6029,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7080
+          },
+          {
+            "wallet": 6,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 6751,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 7981
+          },
+          {
+            "wallet": 7,
+            "demand": 1,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 31654,
+              "wallet_cooldown": 0,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 32508
+          },
+          {
+            "wallet": 7,
+            "demand": 2,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 31799,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 32349
+          },
+          {
+            "wallet": 7,
+            "demand": 3,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 31959,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 33733
+          },
+          {
+            "wallet": 7,
+            "demand": 4,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33124,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 33642
+          },
+          {
+            "wallet": 7,
+            "demand": 5,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33315,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 34152
+          },
+          {
+            "wallet": 7,
+            "demand": 6,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33457,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 33936
+          },
+          {
+            "wallet": 7,
+            "demand": 7,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33609,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 34200
+          },
+          {
+            "wallet": 7,
+            "demand": 8,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33794,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 36205
+          },
+          {
+            "wallet": 7,
+            "demand": 9,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 33968,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 34546
+          },
+          {
+            "wallet": 7,
+            "demand": 10,
+            "empty_pool_http_and_sleep_ms": 0,
+            "reasons": {
+              "empty_pool": 0,
+              "service_capacity": 0,
+              "wallet_cooldown": 34108,
+              "operation_running": 0,
+              "protocol_retry": 0
+            },
+            "state": "succeeded",
+            "total_demand_ms": 34866
+          }
+        ]
+      },
+      "censored_demands": [
+        {
+          "wallet": 1,
+          "number": 10,
+          "startAtMs": 1792949018662,
+          "startMs": 542438,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 57562,
+          "observedClosureElapsedMs": 57562
+        }
+      ],
+      "reserve_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792948476224,
+        "restored_at_ms": 1792949104393,
+        "restoration_observation_bound_ms": 1792949164386,
+        "after_load_ms": 28169,
+        "verified_signatures": 79,
+        "cycle_ms": 628169,
+        "signatures_per_minute": 7.545740079500899,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "77e69cc7-07ad-4c36-9d01-00946d9de0cc",
+          "versions": {
+            "77e69cc7-07ad-4c36-9d01-00946d9de0cc": {
+              "invocations": 5425,
+              "first_at_ms": 1792948476346,
+              "last_at_ms": 1792949104113
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "qualified": true,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 211,
+          "completion_receipted_pairs_before_restoration": 211,
+          "paired_before_completion_receipt": [],
+          "consumed_pairs": 211,
+          "final_pairs": 128,
+          "unaccounted_pairs": [],
+          "unexplained_pairs": [],
+          "complete": true
+        },
+        "observations": [
+          {
+            "key": "fc9d6400c7b2e075fd5ae71346a1cf0e497ddfa08fe48650d3d71608d5a6498d",
+            "epoch": 2,
+            "ready_a": [
+              "f67fd31df0a6a7c985482e89be4f5b7981320dcd717aec29dce02584efd57b5c",
+              "d21ba95df18b106b97cca2bb2c7b9cc9c7f7c1a2c60985220007a7b39127eb43",
+              "c1a832ae53894aaa9b50605e53826f4dd72d084c0d2579b568caeee015da2f69",
+              "ff3d51b222b4e89342f89c0407370890818721586661704be2008406450f76e0",
+              "7428e60e4853727d8d9ce7329d8e65305778f422a875577d003b94336eb8cc01",
+              "51543a5c33aa2e77ea28f6ff986d964abfe1a359ad35e9e1d166f98fe9e0cfb9",
+              "802e9631d66375f813785d9b7718d3afadd5fa1344e5933d1bb1df98551a28e2",
+              "ee789c5e4c8be7fc7a4850e33bcbe18f7d22c1d9a654c768331799febf6286ae",
+              "79e06c68742ff435b38222a7023fa360fc9babcf5a6299117610e9ff7080deee",
+              "06002255e0ce22968d14de97874ec5614fee8ea497557e481baad7acf7cb50da",
+              "eedd56d159d9d9a12392c963c16e72cbeede17dd9e9db313d8402988bcdbf56f",
+              "f5f74021321d6b0ff05fa3489f895d35647c5efff1c626f39771384eb0b3337a",
+              "b4402582d0a7f6781b64424a9fc42471cfd1d75e5e55d631f61d91788c4720ad",
+              "576bd62cc54c0973d45fa1fea8714bd2c986e4bfb031f957b585f2ddfe05cc69",
+              "dadfa559156252382c83fe81f232bc910674e4a3750631292fa99560a51b6e5e",
+              "165210caa50c71699b6b26df299463af9992fc3919525b3fd36452188608b513"
+            ],
+            "ready_b": [
+              "f67fd31df0a6a7c985482e89be4f5b7981320dcd717aec29dce02584efd57b5c",
+              "d21ba95df18b106b97cca2bb2c7b9cc9c7f7c1a2c60985220007a7b39127eb43",
+              "c1a832ae53894aaa9b50605e53826f4dd72d084c0d2579b568caeee015da2f69",
+              "ff3d51b222b4e89342f89c0407370890818721586661704be2008406450f76e0",
+              "7428e60e4853727d8d9ce7329d8e65305778f422a875577d003b94336eb8cc01",
+              "51543a5c33aa2e77ea28f6ff986d964abfe1a359ad35e9e1d166f98fe9e0cfb9",
+              "802e9631d66375f813785d9b7718d3afadd5fa1344e5933d1bb1df98551a28e2",
+              "ee789c5e4c8be7fc7a4850e33bcbe18f7d22c1d9a654c768331799febf6286ae",
+              "79e06c68742ff435b38222a7023fa360fc9babcf5a6299117610e9ff7080deee",
+              "06002255e0ce22968d14de97874ec5614fee8ea497557e481baad7acf7cb50da",
+              "eedd56d159d9d9a12392c963c16e72cbeede17dd9e9db313d8402988bcdbf56f",
+              "f5f74021321d6b0ff05fa3489f895d35647c5efff1c626f39771384eb0b3337a",
+              "b4402582d0a7f6781b64424a9fc42471cfd1d75e5e55d631f61d91788c4720ad",
+              "576bd62cc54c0973d45fa1fea8714bd2c986e4bfb031f957b585f2ddfe05cc69",
+              "dadfa559156252382c83fe81f232bc910674e4a3750631292fa99560a51b6e5e",
+              "165210caa50c71699b6b26df299463af9992fc3919525b3fd36452188608b513"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949077428
+          },
+          {
+            "key": "1820f6d340f6b22f6ab607ba14ee993338d95309720f954dc3cee1bcf256c530",
+            "epoch": 2,
+            "ready_a": [
+              "b261c5d2d30b772d7d1121ec1a61ef1ae06951541716bfd74703ab4dc75e6d6a",
+              "5e08308d664c82c7fcbb996584fb08331fa2c6879c913239ae28274480bddf6d",
+              "0d1d5ea4f4ee290419af97fa0cf2bb57212e0d6c415173dc59a589b4e29a1e61",
+              "13113949514e67109a8dfeeab99be838590f1fae9cc78b1f15c1267af0f0dabf",
+              "21e2fb977ebe96964ef98962ba8823a8b9ef125665dee2bbf7505f5a7420bcbc",
+              "34268d1474187c85e69a5aab523506900ab84c5b5d3508851cab3f7a096f5063",
+              "622d2e54d240eaef4d203ca0a81e4d8587b652686045e927ba8004954b3991a0",
+              "6b8217a8e6951d9752822deb83430567d362410f26beac3f3b08d6c4ad6feb5b",
+              "77ce6fdf8a7c3f17f529f9f4810cfc492f87acac9264a0341e3b3f46318bcb8e",
+              "0236d6a14744eb30c4dc1127ff65dcb6ac01ce792b2f3ab67aee25dceb1cdd39",
+              "5dd05b4b57766633fee227b2912ae2e3691ed3593ca7244e259a616b83d17a67",
+              "542821246114c7b7aaafa896cfac8073f19e3916387b89789138e27fa9b783f1",
+              "fe4123a4da26b1d8f01b39934796061fa2b47d6ded337494dc497c64a02cec73",
+              "0a3946131b22b0f13546c7511e686fb5a1753a80235aca43fb2ccd5bb54dcf83",
+              "9532ca6c35b692ac4362cf8806bbca616c5f5362cf6e71ffabd28651b9e8ed5d",
+              "a6e06791f882d0c435869c1f013b762dd523b90650852d96c11311165267be8f"
+            ],
+            "ready_b": [
+              "b261c5d2d30b772d7d1121ec1a61ef1ae06951541716bfd74703ab4dc75e6d6a",
+              "5e08308d664c82c7fcbb996584fb08331fa2c6879c913239ae28274480bddf6d",
+              "0d1d5ea4f4ee290419af97fa0cf2bb57212e0d6c415173dc59a589b4e29a1e61",
+              "13113949514e67109a8dfeeab99be838590f1fae9cc78b1f15c1267af0f0dabf",
+              "21e2fb977ebe96964ef98962ba8823a8b9ef125665dee2bbf7505f5a7420bcbc",
+              "34268d1474187c85e69a5aab523506900ab84c5b5d3508851cab3f7a096f5063",
+              "622d2e54d240eaef4d203ca0a81e4d8587b652686045e927ba8004954b3991a0",
+              "6b8217a8e6951d9752822deb83430567d362410f26beac3f3b08d6c4ad6feb5b",
+              "77ce6fdf8a7c3f17f529f9f4810cfc492f87acac9264a0341e3b3f46318bcb8e",
+              "0236d6a14744eb30c4dc1127ff65dcb6ac01ce792b2f3ab67aee25dceb1cdd39",
+              "5dd05b4b57766633fee227b2912ae2e3691ed3593ca7244e259a616b83d17a67",
+              "542821246114c7b7aaafa896cfac8073f19e3916387b89789138e27fa9b783f1",
+              "fe4123a4da26b1d8f01b39934796061fa2b47d6ded337494dc497c64a02cec73",
+              "0a3946131b22b0f13546c7511e686fb5a1753a80235aca43fb2ccd5bb54dcf83",
+              "9532ca6c35b692ac4362cf8806bbca616c5f5362cf6e71ffabd28651b9e8ed5d",
+              "a6e06791f882d0c435869c1f013b762dd523b90650852d96c11311165267be8f"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949089390
+          },
+          {
+            "key": "50d32cf0d57a779f6b114ff4de5cdbcde7674130bf67f6eb7101cf0b93de955e",
+            "epoch": 2,
+            "ready_a": [
+              "ab99441e64ba75850cd9ecc563ece2ed7676d4ffa563d5b245a2420089d67ef1",
+              "dadf6e75220c13d53e1da8af1a0470beae98d5048cbc72d60b2ba2dbdcaf0883",
+              "601c0fa22a015890d8e8687a77cc19cd61cda45b1b90121d21571f801cc71af7",
+              "8439f73b5545d57be55ed254842758b82f8245a9268ebcfc287e11b39b562f78",
+              "763c0cc6099f8d2ec9fa9fdbfbcc38a448af1cbfa600fde491253f5246ef960d",
+              "27965051639313fb5dfa18df9740ead11220bfbbf942736e28705b408a37100f",
+              "7cfaee9e7482a99110d4c040fcb317b80ced130ffbe0318560d70652989066bd",
+              "dbd0073ad64629878867c5358ca1242c82ad37d42877b9118dfbd4b23950dae1",
+              "edb237688800706cffafeafd01eefecc85a4b34ccda5d8bff2ca959713ab76e3",
+              "1cbd64f335f509f0bbe3c7d1b7f8ef4a0b1ffd740506fc1c9d90e2effa5bb5b2",
+              "7947ad90e2ade112cdbf2f679d05df9cf79837075b603385f99be23f5f3725e1",
+              "55e142709c78495f0cd5fc91c0cad07934b17db9eb69e8e13ea74bc840209377",
+              "e3c3a55e34dd00c0137aaefd0e8cfe95d0fe636716a842625a6ac820ba4dabe4",
+              "5c961a160006b6424835618f54e1ccc158e163b344b9dc0f56a7122179c7736f",
+              "8b76d1fceb0453947685261e9ac867868876b1f3e354df336dc994cf01df3db0",
+              "1d747203e4b762961dbe3c5954bef93a176562b40e9050f59e5928250d321db0"
+            ],
+            "ready_b": [
+              "ab99441e64ba75850cd9ecc563ece2ed7676d4ffa563d5b245a2420089d67ef1",
+              "dadf6e75220c13d53e1da8af1a0470beae98d5048cbc72d60b2ba2dbdcaf0883",
+              "601c0fa22a015890d8e8687a77cc19cd61cda45b1b90121d21571f801cc71af7",
+              "8439f73b5545d57be55ed254842758b82f8245a9268ebcfc287e11b39b562f78",
+              "763c0cc6099f8d2ec9fa9fdbfbcc38a448af1cbfa600fde491253f5246ef960d",
+              "27965051639313fb5dfa18df9740ead11220bfbbf942736e28705b408a37100f",
+              "7cfaee9e7482a99110d4c040fcb317b80ced130ffbe0318560d70652989066bd",
+              "dbd0073ad64629878867c5358ca1242c82ad37d42877b9118dfbd4b23950dae1",
+              "edb237688800706cffafeafd01eefecc85a4b34ccda5d8bff2ca959713ab76e3",
+              "1cbd64f335f509f0bbe3c7d1b7f8ef4a0b1ffd740506fc1c9d90e2effa5bb5b2",
+              "7947ad90e2ade112cdbf2f679d05df9cf79837075b603385f99be23f5f3725e1",
+              "55e142709c78495f0cd5fc91c0cad07934b17db9eb69e8e13ea74bc840209377",
+              "e3c3a55e34dd00c0137aaefd0e8cfe95d0fe636716a842625a6ac820ba4dabe4",
+              "5c961a160006b6424835618f54e1ccc158e163b344b9dc0f56a7122179c7736f",
+              "8b76d1fceb0453947685261e9ac867868876b1f3e354df336dc994cf01df3db0",
+              "1d747203e4b762961dbe3c5954bef93a176562b40e9050f59e5928250d321db0"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949082555
+          },
+          {
+            "key": "7f2e878888e217f0fd50b22059fcbbfa9e0e6dc8b193f9e3c609291bcb6f48bd",
+            "epoch": 2,
+            "ready_a": [
+              "07075d3f03eba9f4c3f72f6e72dbc1183c520bbf244919e779040cf1c3385bba",
+              "949a774e705f5f7074203fb889ac9e91dcf4f904b88d889ed67d3d59e143a5e8",
+              "8c3975ac68e5d18213c02b9d296e81d54a99c653ccaab0057b37b79ee2e01540",
+              "964b26f206dba35cdfe165632110d1c774820f7c12415c5daf5a9a19a0242f04",
+              "230604b06ad7c6c070f9a31ebf5afff25bd013efcd6599c43ba64fd0c50a0258",
+              "b43270b2fb282a20874759297019803911cb4eb0f61687a59b22579bd9a6e36a",
+              "d49e1332826241b10ed806db27d94572d8f84323897bb29589b597d3a1dde27a",
+              "26f565275206172d8c32f21b3da8246f286a5f2884d449be0bd5e08e228b3b45",
+              "4d594d0d4876704ce5f70b691e65332fecc73d624488f37a12b6d638fc821090",
+              "09aadb0abbc57940fd05ca83fba39eb1b151468c7b1f39e8e09d1636e06b008f",
+              "d2e36959a6abfe24da8ae4b2e1301eb7bc1c023cc5196cdd4f3335bb49404617",
+              "9b8131aaccc919ac6433001847622a9a767244e586ed2090c893e2690f7d4035",
+              "2cb88dedf6ec7998199cb12c23e8bebc68d5478de86cf17fcc5c1a595a617ee5",
+              "89df6223be11991092c95e55e855ddec4bdfbf360db5f605a5c7f5a917563b7a",
+              "45a5996762862ddbae0c2a4b374ff263477d0bee7dff73db97553026232b5431",
+              "c9809530f033a7d6732f074349f08c14f3486b7862bca3acbb6dda3720e6c722"
+            ],
+            "ready_b": [
+              "07075d3f03eba9f4c3f72f6e72dbc1183c520bbf244919e779040cf1c3385bba",
+              "949a774e705f5f7074203fb889ac9e91dcf4f904b88d889ed67d3d59e143a5e8",
+              "8c3975ac68e5d18213c02b9d296e81d54a99c653ccaab0057b37b79ee2e01540",
+              "964b26f206dba35cdfe165632110d1c774820f7c12415c5daf5a9a19a0242f04",
+              "230604b06ad7c6c070f9a31ebf5afff25bd013efcd6599c43ba64fd0c50a0258",
+              "b43270b2fb282a20874759297019803911cb4eb0f61687a59b22579bd9a6e36a",
+              "d49e1332826241b10ed806db27d94572d8f84323897bb29589b597d3a1dde27a",
+              "26f565275206172d8c32f21b3da8246f286a5f2884d449be0bd5e08e228b3b45",
+              "4d594d0d4876704ce5f70b691e65332fecc73d624488f37a12b6d638fc821090",
+              "09aadb0abbc57940fd05ca83fba39eb1b151468c7b1f39e8e09d1636e06b008f",
+              "d2e36959a6abfe24da8ae4b2e1301eb7bc1c023cc5196cdd4f3335bb49404617",
+              "9b8131aaccc919ac6433001847622a9a767244e586ed2090c893e2690f7d4035",
+              "2cb88dedf6ec7998199cb12c23e8bebc68d5478de86cf17fcc5c1a595a617ee5",
+              "89df6223be11991092c95e55e855ddec4bdfbf360db5f605a5c7f5a917563b7a",
+              "45a5996762862ddbae0c2a4b374ff263477d0bee7dff73db97553026232b5431",
+              "c9809530f033a7d6732f074349f08c14f3486b7862bca3acbb6dda3720e6c722"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949089047
+          },
+          {
+            "key": "ba95e70fb166bc10887d30226c1a5c56733b580121ea3f9dafe28684c13dffca",
+            "epoch": 2,
+            "ready_a": [
+              "0b5271d6d100b6330ed589ae92ffc4a42fabffefe8737a4beae0540f7ccb8bdf",
+              "6872f48374c826bdae29b768654d595d05146e284c728d2525056b9866df1cae",
+              "e458a4c27039e346144930e2a3b920a317f49ae1edaca8f8063f798113164f8f",
+              "ff058791df6ef25416ec8d9c2b3f4c7dc543ca82d7c30b258247e8004b562488",
+              "6c5b836109b424921f25b0beb9ebab2a27785ba6a89803f735cae0b1181f512a",
+              "4c6ab363c98a244b2f518a3547bda2c8348685244cbb663c4bac5f68f5f92c46",
+              "368dcf02286f7b0399832cddd0d27952f6b372c927534160f952301d238886b0",
+              "a0dfa50a807657a5ca9aebf498650e34981f87ced9b1ac0993ad90e9930bbc35",
+              "bbbbaae1045d31cbdd881c87b0e44372d014891bb67f6a9cc3b1c5ba66eaa3db",
+              "f1b3c0ff39bb823649f08c49150aa52989bdfa8b3e89d6192b7f2c5536194de9",
+              "095fedd6e687d50e41d1c31e7c0da5cdec91b3570d61c15b648123e80cfc549a",
+              "30d0cc6f4c44654922ccc7b413d649e286c34453d373c5b758f7397df9a47603",
+              "e0d51ae82b06f2852647e909453b8692096d0dc6bb9392f7ab07b1b3442f91f8",
+              "b3762eef74689a80d7fbc81e026900417ff14b5054ca891d1f56374b4982d74e",
+              "46c72f99a774185dfa889b7f3b5522f969f1a68ed6f63e8cb3d002cb75b46e53",
+              "064f3bd4b7595f16d3c1bd94b3f9d5f36d1480ee979582a7834431b39c7ede53"
+            ],
+            "ready_b": [
+              "0b5271d6d100b6330ed589ae92ffc4a42fabffefe8737a4beae0540f7ccb8bdf",
+              "6872f48374c826bdae29b768654d595d05146e284c728d2525056b9866df1cae",
+              "e458a4c27039e346144930e2a3b920a317f49ae1edaca8f8063f798113164f8f",
+              "ff058791df6ef25416ec8d9c2b3f4c7dc543ca82d7c30b258247e8004b562488",
+              "6c5b836109b424921f25b0beb9ebab2a27785ba6a89803f735cae0b1181f512a",
+              "4c6ab363c98a244b2f518a3547bda2c8348685244cbb663c4bac5f68f5f92c46",
+              "368dcf02286f7b0399832cddd0d27952f6b372c927534160f952301d238886b0",
+              "a0dfa50a807657a5ca9aebf498650e34981f87ced9b1ac0993ad90e9930bbc35",
+              "bbbbaae1045d31cbdd881c87b0e44372d014891bb67f6a9cc3b1c5ba66eaa3db",
+              "f1b3c0ff39bb823649f08c49150aa52989bdfa8b3e89d6192b7f2c5536194de9",
+              "095fedd6e687d50e41d1c31e7c0da5cdec91b3570d61c15b648123e80cfc549a",
+              "30d0cc6f4c44654922ccc7b413d649e286c34453d373c5b758f7397df9a47603",
+              "e0d51ae82b06f2852647e909453b8692096d0dc6bb9392f7ab07b1b3442f91f8",
+              "b3762eef74689a80d7fbc81e026900417ff14b5054ca891d1f56374b4982d74e",
+              "46c72f99a774185dfa889b7f3b5522f969f1a68ed6f63e8cb3d002cb75b46e53",
+              "064f3bd4b7595f16d3c1bd94b3f9d5f36d1480ee979582a7834431b39c7ede53"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949093389
+          },
+          {
+            "key": "e2b5b3207076010d431d33f3bd3e830331189a449f0387c222cebe2e7cc403dd",
+            "epoch": 2,
+            "ready_a": [
+              "035f00e97aa1f40d4d19b9628939c393f7cef95cede322a3441ff52c7f1d5d42",
+              "1f387544f40ffff44ae2838783b4feaed01bc018467e67aa4b5ed7791a821cbd",
+              "5a236e21ce433060fbb1ce864aec64d38c42df8118e213dd714bede67587d466",
+              "950b14478eb7777405e4f33e627f89c6a5cd490616ed1bed60e2d369e6efca79",
+              "aed974d2901c1226f95989b3a3e912b01af05f2211b96369634e5ced2dd65de9",
+              "0b70572084f8444eb51f3ac493bb4d93ce1b55c275c63b3d4cd3b0f7a1efbe76",
+              "08c976c4156cc2c706a4c5a73df12dd14177deba4a09fb2a743c67ab6a4f983e",
+              "f3a2e9b9a9c5fa68bf7fedf6c89706f64dffeb802b4097518164e8f3dd8abbf6",
+              "c599f17a7ca1fb8c96a76d1dd227cf25b3f86582bc201fdf2e3a30ae13c5f41c",
+              "fe3082a54b7c2cb7f9ca41b56c283f5efd0ed807c531541ba7fa32e78798b186",
+              "1491056afe3240ab9396cf8bfd2eef98819d46a9a1d043afd4cc23036544c739",
+              "e61fc88e2519273923667739d038acb907c3f29cbf870cde17442242ed768f44",
+              "d67d4a8db84f59629849cf901ac4ac644d5d87d3625dbc63cd8f9df1e8a2643a",
+              "e58472dcef0a74247b4351de0b8035fc14de369e709d897f719f60274a655c8f",
+              "9d6c97d81cb30ccaf43d40b1607be959a17a008239b7fd66abbc5debbcc4ee4a",
+              "b7134b8928a8ed8bd8031a2e031d0e3a07b25695feda4375bc55e75a41555102"
+            ],
+            "ready_b": [
+              "035f00e97aa1f40d4d19b9628939c393f7cef95cede322a3441ff52c7f1d5d42",
+              "1f387544f40ffff44ae2838783b4feaed01bc018467e67aa4b5ed7791a821cbd",
+              "5a236e21ce433060fbb1ce864aec64d38c42df8118e213dd714bede67587d466",
+              "950b14478eb7777405e4f33e627f89c6a5cd490616ed1bed60e2d369e6efca79",
+              "aed974d2901c1226f95989b3a3e912b01af05f2211b96369634e5ced2dd65de9",
+              "0b70572084f8444eb51f3ac493bb4d93ce1b55c275c63b3d4cd3b0f7a1efbe76",
+              "08c976c4156cc2c706a4c5a73df12dd14177deba4a09fb2a743c67ab6a4f983e",
+              "f3a2e9b9a9c5fa68bf7fedf6c89706f64dffeb802b4097518164e8f3dd8abbf6",
+              "c599f17a7ca1fb8c96a76d1dd227cf25b3f86582bc201fdf2e3a30ae13c5f41c",
+              "fe3082a54b7c2cb7f9ca41b56c283f5efd0ed807c531541ba7fa32e78798b186",
+              "1491056afe3240ab9396cf8bfd2eef98819d46a9a1d043afd4cc23036544c739",
+              "e61fc88e2519273923667739d038acb907c3f29cbf870cde17442242ed768f44",
+              "d67d4a8db84f59629849cf901ac4ac644d5d87d3625dbc63cd8f9df1e8a2643a",
+              "e58472dcef0a74247b4351de0b8035fc14de369e709d897f719f60274a655c8f",
+              "9d6c97d81cb30ccaf43d40b1607be959a17a008239b7fd66abbc5debbcc4ee4a",
+              "b7134b8928a8ed8bd8031a2e031d0e3a07b25695feda4375bc55e75a41555102"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949098071
+          },
+          {
+            "key": "cff6149d68d928439b5e3dfc3ea66747edf7be514934c53bcd9767fff8663f1e",
+            "epoch": 2,
+            "ready_a": [
+              "a4241fb91a78696f1215e7414e48e35ea5cb036d3cc0d18e620979421e8bf350",
+              "f6ff5bd39356ae04483b80d1747ce2ae73d176d75e68cff131f9709fcdcd3d41",
+              "22b8d9b145b1ceaf5993c9258194981471bc2cd646d05d65fad91b5003bf92d0",
+              "bf5ecc5f2cfc1f0c69a9dbf73ab604aabaa123b1072d7a15b4f8a731d4b89608",
+              "e9682b3831148968d2533711a56a2a68dba5e7fca316ba3b78e62a51e3a9b5af",
+              "47b3bdd0f1e65fd87979c68af6f8dc800e5799e9e6d2b30a54b96dade7bdeac4",
+              "49573839e8f241b7c67c0801e6d3458ea59e534ddc73998816fb9d703afee8c7",
+              "a55906a76629c84f5d99358a3ef8134d99ea927e6cd4553c0d52335e8d06e999",
+              "5cb8bb216ddb57c3c956e075747fcecb7d22c22aa5b635b50d5b8ea4008b2df3",
+              "6a197dcf1756187f623ed15da840095bd8aa4de10827fad3551202e3c348286b",
+              "94f59eb86c1266395112e1f9a259c7329e388306d545cefd3ab028a25775c8be",
+              "a02ff48868aea3a839a8b9124232f74dc2d0b6f7479cd7cc486a9dbbfd073a84",
+              "2891bdbbf5a4fe11f9f2d5a833c7343e306907f15cc75465df2ff90cf0525f52",
+              "0b37c1b738191a14d40e3f7c6837aa021f9e37494f0c2806ad0616aed5793e0c",
+              "51e8d6397b9701ed9220659048db0bab64b1768c20380ff5d2c83ffde40ee5c8",
+              "080ae1f47570f5ac1d86eb5f61abe64dbc282ec511f46128c1a1cd6ad184023d"
+            ],
+            "ready_b": [
+              "a4241fb91a78696f1215e7414e48e35ea5cb036d3cc0d18e620979421e8bf350",
+              "f6ff5bd39356ae04483b80d1747ce2ae73d176d75e68cff131f9709fcdcd3d41",
+              "22b8d9b145b1ceaf5993c9258194981471bc2cd646d05d65fad91b5003bf92d0",
+              "bf5ecc5f2cfc1f0c69a9dbf73ab604aabaa123b1072d7a15b4f8a731d4b89608",
+              "e9682b3831148968d2533711a56a2a68dba5e7fca316ba3b78e62a51e3a9b5af",
+              "47b3bdd0f1e65fd87979c68af6f8dc800e5799e9e6d2b30a54b96dade7bdeac4",
+              "49573839e8f241b7c67c0801e6d3458ea59e534ddc73998816fb9d703afee8c7",
+              "a55906a76629c84f5d99358a3ef8134d99ea927e6cd4553c0d52335e8d06e999",
+              "5cb8bb216ddb57c3c956e075747fcecb7d22c22aa5b635b50d5b8ea4008b2df3",
+              "6a197dcf1756187f623ed15da840095bd8aa4de10827fad3551202e3c348286b",
+              "94f59eb86c1266395112e1f9a259c7329e388306d545cefd3ab028a25775c8be",
+              "a02ff48868aea3a839a8b9124232f74dc2d0b6f7479cd7cc486a9dbbfd073a84",
+              "2891bdbbf5a4fe11f9f2d5a833c7343e306907f15cc75465df2ff90cf0525f52",
+              "0b37c1b738191a14d40e3f7c6837aa021f9e37494f0c2806ad0616aed5793e0c",
+              "51e8d6397b9701ed9220659048db0bab64b1768c20380ff5d2c83ffde40ee5c8",
+              "080ae1f47570f5ac1d86eb5f61abe64dbc282ec511f46128c1a1cd6ad184023d"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949099637
+          },
+          {
+            "key": "17fa50e3fb8793c4c70af47b4b2afc92726ebb34412effa4da995f1444132a3f",
+            "epoch": 2,
+            "ready_a": [
+              "6e3d8744ade55e954b36bf321dab1ce08c5609fe38425345f9b4b01bc1f99164",
+              "d3ad72d0a29307ff3c2057f681f4d15cb723fb43d3c7a57fcebdd2f68917426b",
+              "facd63c8fdbab5db55afbc9abca7fd5bf8b83dce5fcd2c8ca2a4c46f8176e349",
+              "fe619158753c6338bfb24e839b23ec385017256c4e4d6cf5004bedf495e89722",
+              "611dcf8480718b6ec86af345da59e99d68554fb6a0a2cb8174675cb661f6d95a",
+              "cfb39c506ed5039bdfef730321be5249a5831aaf99b8636c6d199a226931cd1a",
+              "7ebd4f5a14c212ba2ad20b6c3e4e1dee9e629a5032535a0749ddc70e0cee87c6",
+              "1a89cf27b2d6dce21be54f0fd1d817b407497c179f1369dbd4f541e68cf53b39",
+              "5c84cee5eb24bd1098e4c15d7c445b64a765a32e553c3b65b90529296e2400ab",
+              "7e713a6a963ec9509c66061d59db0718f4f6c4af3334a6ed3f89df0fc0e15e11",
+              "a438b82e324fe36665714700dcfec1252d0dbea7a828a7a83b2bb64e6424f46b",
+              "c0ac6c0fa5b47ea2d78cb95934b548971ae44aa28bbdb4fa91d4c52da928a92f",
+              "55c9e3e8006cebc8e7a0c55c0caa907a66f273878c58396e7effc4a586397175",
+              "a8963743b2fb395c702d2a8412d6b7dd5a8bf3a3afdef5cdb9835726da21e379",
+              "0147b94ce7dedb1b097528c958eac08ae81ac0ebfb5b8730f853f81b85530bbb",
+              "a7cfeb56a4aced63a2b80c3b3e68f4a9db09cd181947428a9e488cfc9cd23214"
+            ],
+            "ready_b": [
+              "6e3d8744ade55e954b36bf321dab1ce08c5609fe38425345f9b4b01bc1f99164",
+              "d3ad72d0a29307ff3c2057f681f4d15cb723fb43d3c7a57fcebdd2f68917426b",
+              "facd63c8fdbab5db55afbc9abca7fd5bf8b83dce5fcd2c8ca2a4c46f8176e349",
+              "fe619158753c6338bfb24e839b23ec385017256c4e4d6cf5004bedf495e89722",
+              "611dcf8480718b6ec86af345da59e99d68554fb6a0a2cb8174675cb661f6d95a",
+              "cfb39c506ed5039bdfef730321be5249a5831aaf99b8636c6d199a226931cd1a",
+              "7ebd4f5a14c212ba2ad20b6c3e4e1dee9e629a5032535a0749ddc70e0cee87c6",
+              "1a89cf27b2d6dce21be54f0fd1d817b407497c179f1369dbd4f541e68cf53b39",
+              "5c84cee5eb24bd1098e4c15d7c445b64a765a32e553c3b65b90529296e2400ab",
+              "7e713a6a963ec9509c66061d59db0718f4f6c4af3334a6ed3f89df0fc0e15e11",
+              "a438b82e324fe36665714700dcfec1252d0dbea7a828a7a83b2bb64e6424f46b",
+              "c0ac6c0fa5b47ea2d78cb95934b548971ae44aa28bbdb4fa91d4c52da928a92f",
+              "55c9e3e8006cebc8e7a0c55c0caa907a66f273878c58396e7effc4a586397175",
+              "a8963743b2fb395c702d2a8412d6b7dd5a8bf3a3afdef5cdb9835726da21e379",
+              "0147b94ce7dedb1b097528c958eac08ae81ac0ebfb5b8730f853f81b85530bbb",
+              "a7cfeb56a4aced63a2b80c3b3e68f4a9db09cd181947428a9e488cfc9cd23214"
+            ],
+            "reserved_a": [],
+            "reserved_b": [],
+            "log_timestamp_ms": 1792949104393
+          }
+        ]
+      },
+      "job_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 1741,
+              "median": 1864.5,
+              "maximum": 2289
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 4102,
+              "median": 4383.5,
+              "maximum": 5298
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 2336,
+              "median": 3146.5,
+              "maximum": 4402
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 6,
+              "median": 11.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 303,
+              "median": 396.0,
+              "maximum": 635
+            },
+            "warm_cpu_ms": {
+              "count": 17,
+              "minimum": 1741,
+              "median": 1864,
+              "maximum": 2289
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2114,
+              "median": 2114,
+              "maximum": 2114
+            },
+            "module_ids": [
+              "247f34f514c65f54a0de3cf3e2749048",
+              "3abeb4b14fa3249dc05a309662d18654",
+              "883ece37c0699cef95ac6b7e730662e5",
+              "cf096779968c80245f9334a016f3b5be"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 1779,
+              "median": 1957.0,
+              "maximum": 2395
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 3930,
+              "median": 4168.0,
+              "maximum": 5062
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 2336,
+              "median": 3146.5,
+              "maximum": 4402
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 6,
+              "median": 11.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 112,
+              "median": 171.5,
+              "maximum": 513
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 1779,
+              "median": 1941.5,
+              "maximum": 2395
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2149,
+              "median": 2201.0,
+              "maximum": 2253
+            },
+            "module_ids": [
+              "0e3e3451a5b9f1cb0c3a87a6cbb450bd",
+              "39f0b92778d9b08b09b4f71523041f49",
+              "43bd4e2389bd60ef709d6f44ec3e194e",
+              "69d6344aa270df8926a3cace0a7bd3a6",
+              "7f34a6da629e46832455fc5c26898690",
+              "cf74949802315eda4c2e99787828b906",
+              "f7674b7dfe57a9c54a583409ef69e92b",
+              "fc0b89c804cd61be4fbfef761bbd630a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 1741,
+              "median": 1864.5,
+              "maximum": 2289
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 4102,
+              "median": 4383.5,
+              "maximum": 5298
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 2336,
+              "median": 3146.5,
+              "maximum": 4402
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 6,
+              "median": 11.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 303,
+              "median": 396.0,
+              "maximum": 635
+            },
+            "warm_cpu_ms": {
+              "count": 17,
+              "minimum": 1741,
+              "median": 1864,
+              "maximum": 2289
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2114,
+              "median": 2114,
+              "maximum": 2114
+            },
+            "module_ids": [
+              "247f34f514c65f54a0de3cf3e2749048",
+              "3abeb4b14fa3249dc05a309662d18654",
+              "883ece37c0699cef95ac6b7e730662e5",
+              "cf096779968c80245f9334a016f3b5be"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 1779,
+              "median": 1957.0,
+              "maximum": 2395
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 3930,
+              "median": 4168.0,
+              "maximum": 5062
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 2336,
+              "median": 3146.5,
+              "maximum": 4402
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 6,
+              "median": 11.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 112,
+              "median": 171.5,
+              "maximum": 513
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 1779,
+              "median": 1941.5,
+              "maximum": 2395
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2149,
+              "median": 2201.0,
+              "maximum": 2253
+            },
+            "module_ids": [
+              "0e3e3451a5b9f1cb0c3a87a6cbb450bd",
+              "39f0b92778d9b08b09b4f71523041f49",
+              "43bd4e2389bd60ef709d6f44ec3e194e",
+              "69d6344aa270df8926a3cace0a7bd3a6",
+              "7f34a6da629e46832455fc5c26898690",
+              "cf74949802315eda4c2e99787828b906",
+              "f7674b7dfe57a9c54a583409ef69e92b",
+              "fc0b89c804cd61be4fbfef761bbd630a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 1634,
+              "median": 1770.5,
+              "maximum": 2151
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 3732,
+              "median": 4250.5,
+              "maximum": 5121
+            },
+            "correlations_ms": {
+              "count": 20,
+              "minimum": 2071,
+              "median": 2937.0,
+              "maximum": 3700
+            },
+            "commitments_ms": {
+              "count": 20,
+              "minimum": 7,
+              "median": 14.0,
+              "maximum": 175
+            },
+            "serialized_to_publication_ms": {
+              "count": 20,
+              "minimum": 236,
+              "median": 354.0,
+              "maximum": 1062
+            },
+            "warm_cpu_ms": {
+              "count": 19,
+              "minimum": 1634,
+              "median": 1751,
+              "maximum": 2151
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 1854,
+              "median": 1854,
+              "maximum": 1854
+            },
+            "module_ids": [
+              "055ee574728a86e1ad368f13a1516de8",
+              "0e342bbe96ea78d7cd764b88bee43266",
+              "60b5ffbbfc12b5cf2cfaa7fc4f489181",
+              "6bb2e222b751682a731822af7338979f",
+              "fbe4f806403d18cc30fc4571a77caa41"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 1667,
+              "median": 1809.5,
+              "maximum": 2232
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 3539,
+              "median": 3970.0,
+              "maximum": 4916
+            },
+            "correlations_ms": {
+              "count": 20,
+              "minimum": 2071,
+              "median": 2937.0,
+              "maximum": 3700
+            },
+            "commitments_ms": {
+              "count": 20,
+              "minimum": 7,
+              "median": 14.0,
+              "maximum": 175
+            },
+            "serialized_to_publication_ms": {
+              "count": 20,
+              "minimum": 101,
+              "median": 165.5,
+              "maximum": 875
+            },
+            "warm_cpu_ms": {
+              "count": 20,
+              "minimum": 1667,
+              "median": 1809.5,
+              "maximum": 2232
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "3b7722ee35a51933f6f3ad0ae2c4c24b",
+              "916351b8eab80b21247fe8607b6fa8b8",
+              "c99872ce8863ac0d220a4b1cf5f1c151"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 1634,
+              "median": 1770.5,
+              "maximum": 2151
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 3732,
+              "median": 4250.5,
+              "maximum": 5121
+            },
+            "correlations_ms": {
+              "count": 20,
+              "minimum": 2071,
+              "median": 2937.0,
+              "maximum": 3700
+            },
+            "commitments_ms": {
+              "count": 20,
+              "minimum": 7,
+              "median": 14.0,
+              "maximum": 175
+            },
+            "serialized_to_publication_ms": {
+              "count": 20,
+              "minimum": 236,
+              "median": 354.0,
+              "maximum": 1062
+            },
+            "warm_cpu_ms": {
+              "count": 19,
+              "minimum": 1634,
+              "median": 1751,
+              "maximum": 2151
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 1854,
+              "median": 1854,
+              "maximum": 1854
+            },
+            "module_ids": [
+              "055ee574728a86e1ad368f13a1516de8",
+              "0e342bbe96ea78d7cd764b88bee43266",
+              "60b5ffbbfc12b5cf2cfaa7fc4f489181",
+              "6bb2e222b751682a731822af7338979f",
+              "fbe4f806403d18cc30fc4571a77caa41"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 1667,
+              "median": 1809.5,
+              "maximum": 2232
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 3539,
+              "median": 3970.0,
+              "maximum": 4916
+            },
+            "correlations_ms": {
+              "count": 20,
+              "minimum": 2071,
+              "median": 2937.0,
+              "maximum": 3700
+            },
+            "commitments_ms": {
+              "count": 20,
+              "minimum": 7,
+              "median": 14.0,
+              "maximum": 175
+            },
+            "serialized_to_publication_ms": {
+              "count": 20,
+              "minimum": 101,
+              "median": 165.5,
+              "maximum": 875
+            },
+            "warm_cpu_ms": {
+              "count": 20,
+              "minimum": 1667,
+              "median": 1809.5,
+              "maximum": 2232
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "3b7722ee35a51933f6f3ad0ae2c4c24b",
+              "916351b8eab80b21247fe8607b6fa8b8",
+              "c99872ce8863ac0d220a4b1cf5f1c151"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 50,
+            "cpu_ms": {
+              "count": 50,
+              "minimum": 8,
+              "median": 3766.0,
+              "maximum": 5360
+            },
+            "wall_ms": {
+              "count": 50,
+              "minimum": 613,
+              "median": 8485.0,
+              "maximum": 11963
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 5728,
+              "median": 7062.5,
+              "maximum": 10572
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 14,
+              "median": 32.0,
+              "maximum": 2031
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 332,
+              "median": 717.0,
+              "maximum": 1349
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 3579,
+              "median": 3785,
+              "maximum": 5360
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 3797,
+              "median": 3880,
+              "maximum": 4099
+            },
+            "module_ids": [
+              "247f34f514c65f54a0de3cf3e2749048",
+              "3abeb4b14fa3249dc05a309662d18654",
+              "883ece37c0699cef95ac6b7e730662e5",
+              "cf096779968c80245f9334a016f3b5be"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 50,
+            "cpu_ms": {
+              "count": 50,
+              "minimum": 104,
+              "median": 3920.0,
+              "maximum": 5519
+            },
+            "wall_ms": {
+              "count": 50,
+              "minimum": 158,
+              "median": 8262.5,
+              "maximum": 11716
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 5728,
+              "median": 7062.5,
+              "maximum": 10572
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 15,
+              "median": 32.0,
+              "maximum": 2032
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 138,
+              "median": 314.5,
+              "maximum": 910
+            },
+            "warm_cpu_ms": {
+              "count": 35,
+              "minimum": 3678,
+              "median": 3936,
+              "maximum": 5519
+            },
+            "cold_cpu_ms": {
+              "count": 7,
+              "minimum": 4059,
+              "median": 4187,
+              "maximum": 4305
+            },
+            "module_ids": [
+              "0e3e3451a5b9f1cb0c3a87a6cbb450bd",
+              "39f0b92778d9b08b09b4f71523041f49",
+              "431b642f4951aadc535a7649a56b9c99",
+              "43bd4e2389bd60ef709d6f44ec3e194e",
+              "48c806ac2cd6050e31dda17da47fb484",
+              "7f0308d3a6278c5ac038783570fec80b",
+              "7f34a6da629e46832455fc5c26898690",
+              "85a5b8c2a0028f46777c5fbca023d1f7",
+              "8fd537accfcf92d0dd7c6a3250de0021",
+              "9e4339ef11a63625b96654bba6034a8e",
+              "c501d5ead2ab3afdffa00fb8458e1de2",
+              "cf74949802315eda4c2e99787828b906",
+              "e726d17b2caf2985feb40a933ea0f77d",
+              "f7674b7dfe57a9c54a583409ef69e92b",
+              "fc0b89c804cd61be4fbfef761bbd630a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 8
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 3579,
+              "median": 3792.5,
+              "maximum": 5360
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 8065,
+              "median": 8820.0,
+              "maximum": 11963
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 5728,
+              "median": 7062.5,
+              "maximum": 10572
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 14,
+              "median": 32.0,
+              "maximum": 2031
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 332,
+              "median": 717.0,
+              "maximum": 1349
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 3579,
+              "median": 3785,
+              "maximum": 5360
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 3797,
+              "median": 3880,
+              "maximum": 4099
+            },
+            "module_ids": [
+              "247f34f514c65f54a0de3cf3e2749048",
+              "3abeb4b14fa3249dc05a309662d18654",
+              "883ece37c0699cef95ac6b7e730662e5",
+              "cf096779968c80245f9334a016f3b5be"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 3678,
+              "median": 3958.0,
+              "maximum": 5519
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 7744,
+              "median": 8452.5,
+              "maximum": 11716
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 5728,
+              "median": 7062.5,
+              "maximum": 10572
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 15,
+              "median": 32.0,
+              "maximum": 2032
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 138,
+              "median": 314.5,
+              "maximum": 910
+            },
+            "warm_cpu_ms": {
+              "count": 35,
+              "minimum": 3678,
+              "median": 3936,
+              "maximum": 5519
+            },
+            "cold_cpu_ms": {
+              "count": 7,
+              "minimum": 4059,
+              "median": 4187,
+              "maximum": 4305
+            },
+            "module_ids": [
+              "0e3e3451a5b9f1cb0c3a87a6cbb450bd",
+              "39f0b92778d9b08b09b4f71523041f49",
+              "43bd4e2389bd60ef709d6f44ec3e194e",
+              "7f0308d3a6278c5ac038783570fec80b",
+              "7f34a6da629e46832455fc5c26898690",
+              "cf74949802315eda4c2e99787828b906",
+              "f7674b7dfe57a9c54a583409ef69e92b",
+              "fc0b89c804cd61be4fbfef761bbd630a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/failed": {
+          "a": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 8,
+              "median": 22.0,
+              "maximum": 2351
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 613,
+              "median": 797.5,
+              "maximum": 5391
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "247f34f514c65f54a0de3cf3e2749048",
+              "883ece37c0699cef95ac6b7e730662e5"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 104,
+              "median": 137.0,
+              "maximum": 2358
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 158,
+              "median": 226.5,
+              "maximum": 4829
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "431b642f4951aadc535a7649a56b9c99",
+              "48c806ac2cd6050e31dda17da47fb484",
+              "85a5b8c2a0028f46777c5fbca023d1f7",
+              "8fd537accfcf92d0dd7c6a3250de0021",
+              "9e4339ef11a63625b96654bba6034a8e",
+              "c501d5ead2ab3afdffa00fb8458e1de2",
+              "cf74949802315eda4c2e99787828b906",
+              "e726d17b2caf2985feb40a933ea0f77d"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 8
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 43,
+            "cpu_ms": {
+              "count": 43,
+              "minimum": 3224,
+              "median": 3454,
+              "maximum": 4371
+            },
+            "wall_ms": {
+              "count": 43,
+              "minimum": 7227,
+              "median": 7998,
+              "maximum": 9756
+            },
+            "correlations_ms": {
+              "count": 43,
+              "minimum": 5025,
+              "median": 6321,
+              "maximum": 8744
+            },
+            "commitments_ms": {
+              "count": 43,
+              "minimum": 12,
+              "median": 22,
+              "maximum": 1708
+            },
+            "serialized_to_publication_ms": {
+              "count": 43,
+              "minimum": 323,
+              "median": 801,
+              "maximum": 1964
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 3224,
+              "median": 3418,
+              "maximum": 4367
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 3502,
+              "median": 3554.0,
+              "maximum": 4371
+            },
+            "module_ids": [
+              "055ee574728a86e1ad368f13a1516de8",
+              "0e342bbe96ea78d7cd764b88bee43266",
+              "60b5ffbbfc12b5cf2cfaa7fc4f489181",
+              "6bb2e222b751682a731822af7338979f",
+              "fbe4f806403d18cc30fc4571a77caa41"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 43,
+            "cpu_ms": {
+              "count": 43,
+              "minimum": 3315,
+              "median": 3574,
+              "maximum": 4587
+            },
+            "wall_ms": {
+              "count": 43,
+              "minimum": 7089,
+              "median": 7528,
+              "maximum": 9404
+            },
+            "correlations_ms": {
+              "count": 43,
+              "minimum": 5025,
+              "median": 6321,
+              "maximum": 8744
+            },
+            "commitments_ms": {
+              "count": 43,
+              "minimum": 13,
+              "median": 22,
+              "maximum": 1708
+            },
+            "serialized_to_publication_ms": {
+              "count": 43,
+              "minimum": 140,
+              "median": 304,
+              "maximum": 1600
+            },
+            "warm_cpu_ms": {
+              "count": 40,
+              "minimum": 3315,
+              "median": 3566.5,
+              "maximum": 4575
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 3533,
+              "median": 3808,
+              "maximum": 4587
+            },
+            "module_ids": [
+              "3b7722ee35a51933f6f3ad0ae2c4c24b",
+              "916351b8eab80b21247fe8607b6fa8b8",
+              "c99872ce8863ac0d220a4b1cf5f1c151"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 43,
+            "cpu_ms": {
+              "count": 43,
+              "minimum": 3224,
+              "median": 3454,
+              "maximum": 4371
+            },
+            "wall_ms": {
+              "count": 43,
+              "minimum": 7227,
+              "median": 7998,
+              "maximum": 9756
+            },
+            "correlations_ms": {
+              "count": 43,
+              "minimum": 5025,
+              "median": 6321,
+              "maximum": 8744
+            },
+            "commitments_ms": {
+              "count": 43,
+              "minimum": 12,
+              "median": 22,
+              "maximum": 1708
+            },
+            "serialized_to_publication_ms": {
+              "count": 43,
+              "minimum": 323,
+              "median": 801,
+              "maximum": 1964
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 3224,
+              "median": 3418,
+              "maximum": 4367
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 3502,
+              "median": 3554.0,
+              "maximum": 4371
+            },
+            "module_ids": [
+              "055ee574728a86e1ad368f13a1516de8",
+              "0e342bbe96ea78d7cd764b88bee43266",
+              "60b5ffbbfc12b5cf2cfaa7fc4f489181",
+              "6bb2e222b751682a731822af7338979f",
+              "fbe4f806403d18cc30fc4571a77caa41"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 43,
+            "cpu_ms": {
+              "count": 43,
+              "minimum": 3315,
+              "median": 3574,
+              "maximum": 4587
+            },
+            "wall_ms": {
+              "count": 43,
+              "minimum": 7089,
+              "median": 7528,
+              "maximum": 9404
+            },
+            "correlations_ms": {
+              "count": 43,
+              "minimum": 5025,
+              "median": 6321,
+              "maximum": 8744
+            },
+            "commitments_ms": {
+              "count": 43,
+              "minimum": 13,
+              "median": 22,
+              "maximum": 1708
+            },
+            "serialized_to_publication_ms": {
+              "count": 43,
+              "minimum": 140,
+              "median": 304,
+              "maximum": 1600
+            },
+            "warm_cpu_ms": {
+              "count": 40,
+              "minimum": 3315,
+              "median": 3566.5,
+              "maximum": 4575
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 3533,
+              "median": 3808,
+              "maximum": 4587
+            },
+            "module_ids": [
+              "3b7722ee35a51933f6f3ad0ae2c4c24b",
+              "916351b8eab80b21247fe8607b6fa8b8",
+              "c99872ce8863ac0d220a4b1cf5f1c151"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "trace_coverage_complete": true,
+      "pool_target_respected": true
+    }
+  ],
+  "phase_qualification": [
+    {
+      "phase": "serial-before",
+      "exit_code": 0,
+      "authority_version_qualified": true
+    },
+    {
+      "phase": "parallel",
+      "exit_code": 1,
+      "authority_version_qualified": false
+    },
+    {
+      "phase": "serial-after",
+      "exit_code": 1,
+      "authority_version_qualified": false
+    },
+    {
+      "phase": "serial-settled",
+      "exit_code": 0,
+      "authority_version_qualified": true
+    },
+    {
+      "phase": "parallel-settled",
+      "exit_code": 0,
+      "authority_version_qualified": true
+    }
+  ],
+  "excluded_comparisons": [
+    "parallel and serial-after mix effective authority versions; retained as transition evidence only."
+  ],
+  "signature_verification": {
+    "verified": 345,
+    "altered_messages_rejected": 345
+  },
+  "failed_material": {
+    "serial-settled": {
+      "failed_jobs": 10,
+      "planned_pairs": 20,
+      "reported_a_b_cpu_ms": 23319
+    },
+    "parallel-settled": {
+      "failed_jobs": 8,
+      "planned_pairs": 16,
+      "reported_a_b_cpu_ms": 5908
+    }
+  },
+  "capture_stability": {
+    "serial-before": {
+      "bounded_profile": {
+        "records": 31193,
+        "sha256": "6d8aaddc96ccc301c546ac0ab146af57a61679d4daf96fc7708cb75270812714"
+      },
+      "unfiltered_full_cycle": {
+        "records": 23962,
+        "sha256": "69232c3620ad3ea8f1100cbff1400236cd38cd19b036a0030d68a812699cf9d1"
+      }
+    },
+    "parallel": {
+      "bounded_profile": {
+        "records": 32914,
+        "sha256": "d1ff79c70b0b19249d36ce14b4531587d3a527c4dfcbade5cb146601f0001a48"
+      },
+      "unfiltered_full_cycle": {
+        "records": 16027,
+        "sha256": "78433cdaab5be34630200b7151523891bc1463b6b31388f860231efb0bdc15ec"
+      }
+    },
+    "serial-after": {
+      "bounded_profile": {
+        "records": 41264,
+        "sha256": "ba038ef0206f1a1de526329cf4754c493f06db552fa5534352cc9b0581b0902f"
+      },
+      "unfiltered_full_cycle": {
+        "records": 17431,
+        "sha256": "551386d29645b2ed49c2f8ccf9a86354815fcb6c367e46593d0486a9026669a1"
+      }
+    },
+    "serial-settled": {
+      "bounded_profile": {
+        "records": 62007,
+        "sha256": "d68b93f7800adcd17bd6bd9544575549a8b9a771dd26a100c4ae26e837f689fd"
+      },
+      "unfiltered_full_cycle": {
+        "records": 20930,
+        "sha256": "d3a2e1d84f17df3a51ef96fe566362bb18713d0dc70651e27a9733b254849131"
+      }
+    },
+    "parallel-settled": {
+      "bounded_profile": {
+        "records": 61218,
+        "sha256": "3fed15e1135c6f1a9522829572fbbfd60c4b764b403f2570bc77e84bc92104ec"
+      },
+      "unfiltered_full_cycle": {
+        "records": 11876,
+        "sha256": "7bade02f63b66ab9ff1a3e6f0d8d9ce04b80166397b2b4191bd3a83c207c90cc"
+      }
+    }
+  },
+  "archive_replay": {
+    "passed": true,
+    "checks": [
+      {
+        "check": "signature verification",
+        "exit_code": 0
+      },
+      {
+        "check": "serial-before authority qualification",
+        "exit_code": 0
+      },
+      {
+        "check": "serial-before reserve cycle",
+        "exit_code": 0
+      },
+      {
+        "check": "parallel authority qualification",
+        "exit_code": 1
+      },
+      {
+        "check": "parallel reserve cycle",
+        "exit_code": 1
+      },
+      {
+        "check": "serial-after authority qualification",
+        "exit_code": 1
+      },
+      {
+        "check": "serial-after reserve cycle",
+        "exit_code": 1
+      },
+      {
+        "check": "serial-settled authority qualification",
+        "exit_code": 0
+      },
+      {
+        "check": "serial-settled reserve cycle",
+        "exit_code": 0
+      },
+      {
+        "check": "parallel-settled authority qualification",
+        "exit_code": 0
+      },
+      {
+        "check": "parallel-settled reserve cycle",
+        "exit_code": 0
+      },
+      {
+        "check": "audit_failed_material.py",
+        "exit_code": 0
+      },
+      {
+        "check": "analyze_parallel.py",
+        "exit_code": 0
+      }
+    ]
+  },
+  "cleanup": {
+    "workers": [
+      {
+        "worker": "ml-dsa-par-1025-b30118-router",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-b",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-preparer-a",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-preparer-b",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-preparer-a-secondary",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-preparer-b-secondary",
+        "absent": true,
+        "exit_code": 1
+      },
+      {
+        "worker": "ml-dsa-par-1025-b30118-front",
+        "absent": true,
+        "exit_code": 1
+      }
+    ],
+    "private_fixture_storage_removed": false,
+    "private_fixture_storage": "Retained outside the public archive after automatic review rejected deletion without explicit scope approval."
+  },
+  "limitations": [
+    "Finite load and full restoration cycles do not establish maximum production capacity.",
+    "Successful HTTP calls exclude earlier cooldown/admission waits, browser transport, public Gateway approval, UI, and NEAR finality.",
+    "One serial call takes 14.145 seconds; the material-load interval remains unexplained.",
+    "Eighteen primary B loadShed failures recur; total-memory instrumentation is unqualified.",
+    "The historical producer speed difference remains unexplained.",
+    "The inherited bloat check exceeds the Rust duplication baseline by 218 lines; this change adds no Rust duplication."
+  ]
+}
