@@ -496,14 +496,15 @@ def public_refill_claim(value, timestamp):
     digest = scope.get("public_key_digest")
     if not isinstance(digest, list) or any(type(byte) is not int for byte in digest) or digest != list(bytes.fromhex(key)):
         return None
-    if not public_counter(job.get("expires_at_ms")):
+    if not all(public_counter(job.get(field)) for field in ("expires_at_ms", "material_expires_at_ms")):
         return None
     groups = job.get("groups", "one")
     if groups not in ("one", "two"):
         return None
     batch = bytes(batch).hex()
     return {**result, "status": "acquired", "batch": batch,
-            "batches": preparation_ids(batch, groups), "expires_at_ms": job["expires_at_ms"]}
+            "batches": preparation_ids(batch, groups), "expires_at_ms": job["expires_at_ms"],
+            "material_expires_at_ms": job["material_expires_at_ms"]}
 
 
 def public_refill_wake(value, timestamp):

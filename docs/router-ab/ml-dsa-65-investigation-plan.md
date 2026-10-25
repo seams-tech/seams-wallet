@@ -1,7 +1,12 @@
 # ML-DSA-65 threshold signing investigation plan
 
-Status: public SDK lifecycle integrated; production release remains gated, 2026-10-24.
-Current priority: consolidate the implemented settings and selection into a shared signer experience.
+Status: public SDK lifecycle integrated; production release remains gated, 2026-10-25.
+Current priority: sustained preparation capacity, material expiry waste, and admission contention.
+The [sustained capacity report](ml-dsa-65-sustained-capacity-report.md) records unchanged-capacity four- and eight-wallet Cloudflare loads.
+Their post-stock rates are 2.545 and 1.417 signatures/minute. Complete demand latency reaches 767.428 seconds.
+Successful cloud calls take 0.452–5.182 seconds. Thirty newly prepared pairs leave ready inventory without use in the eight-wallet screen.
+Expiry/readiness evidence fits those losses. Explicit retirement events and full reserve restoration remain unproved.
+Prioritize material lifetime and admission efficiency before a controlled parallel-refill comparison. Preserve per-wallet capacity and the existing recovery/export requirements.
 The [signer parity requirement](ml-dsa--ui-near-key-selection-plan.md#signer-parity-requirement--october-24-2026) applies to Ed25519, ECDSA, and ML-DSA lifecycle features.
 The [Signing keys report](ml-dsa-65-signing-keys-report.md) records this implementation and its browser qualification.
 Hosted latency, sustained refill, and release security qualification remain open. Pool capacity remains unchanged.

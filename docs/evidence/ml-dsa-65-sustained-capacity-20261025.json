@@ -1,0 +1,789 @@
+{
+  "schema": "seams.ml-dsa-sustained-capacity.v1",
+  "observed_date": "2026-10-25",
+  "scope": "Fixed-policy real Cloudflare capacity screen. Cloud driver durations exclude public SDK, owner approval, user network, UI and NEAR finality. Post-stock rates are finite observations, not maximum capacity.",
+  "source_commit_at_start": "08178907e36f5c41b5e9bb9041a9c42ee2341cb7",
+  "runtime_commit": "c0292b42",
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16
+  },
+  "preparation_expiry_policy_ms": {
+    "initial_registration_stock": 900000,
+    "refill_stock": 600000
+  },
+  "preserved_requirements": [
+    "wallet-seed recovery",
+    "ordinary FIPS seed/key export",
+    "two-at-once consumption",
+    "unchanged thirty-two-candidate capacity",
+    "Workers preparation"
+  ],
+  "recovery_checks": {
+    "wallets": 8,
+    "all_canonical_recovery": true,
+    "all_initial_signature_checks": true
+  },
+  "runtime_components": {
+    "checkedAt": "2026-10-25T08:14:29.352065+00:00",
+    "components": [
+      {
+        "role": "router",
+        "sha256": "2f5e3d39232f96d379c0d17aae658f635de82d7b4d0ef83854524f13f8324134",
+        "bytes": 8099551,
+        "unchanged": true
+      },
+      {
+        "role": "a",
+        "sha256": "9f563cf1a74684560c45d8f6a27856a107978beb16676ee9bac1894ec39ace5f",
+        "bytes": 45958655,
+        "unchanged": true
+      },
+      {
+        "role": "b",
+        "sha256": "85cbfc43a0ec3aac1d4633708b972472989ab4c95f52818ea68df15d4f12c425",
+        "bytes": 45995027,
+        "unchanged": true
+      },
+      {
+        "role": "preparer-a",
+        "sha256": "9f563cf1a74684560c45d8f6a27856a107978beb16676ee9bac1894ec39ace5f",
+        "bytes": 45958655,
+        "unchanged": true
+      },
+      {
+        "role": "preparer-b",
+        "sha256": "85cbfc43a0ec3aac1d4633708b972472989ab4c95f52818ea68df15d4f12c425",
+        "bytes": 45995027,
+        "unchanged": true
+      },
+      {
+        "role": "front",
+        "sha256": "cd32fc62ec6dd8ae938d53ea6234bf90cc2b5d4cdbe96abefc269d539e082bcf",
+        "bytes": 7131837,
+        "unchanged": true
+      }
+    ]
+  },
+  "cohorts": [
+    {
+      "name": "cloud-control",
+      "wallets": 2,
+      "scope": "Cloudflare durable test drivers call the ordinary forwarding Router through a service binding. One outstanding demand per wallet and fixed 60-second demand interval. Signatures independently verified by Node/OpenSSL after collection. Client network, SDK, login, UI and NEAR finality are excluded. Initial stock must be excluded from refill throughput.",
+      "requested_duration_ms": 60000,
+      "elapsed_ms": 60070,
+      "verified_signatures": 2,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 1
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 1
+        }
+      ],
+      "successful_http_ms": {
+        "count": 2,
+        "minimum": 1704,
+        "median": 1705.5,
+        "maximum": 1707,
+        "sum": 3411
+      },
+      "successful_demand_ms": {
+        "count": 2,
+        "minimum": 1707,
+        "median": 4299.5,
+        "maximum": 6892,
+        "sum": 8599
+      },
+      "successful_calls_under_five_seconds": 2,
+      "trailing_successes": 0,
+      "empty_pool_demands": 0,
+      "empty_pool_http_and_retry_ms": null,
+      "waits_by_reason": {
+        "empty_pool": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        },
+        "service_capacity": {
+          "responses": 1,
+          "http_ms": 188,
+          "sleep_ms": 5000
+        },
+        "wallet_cooldown": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        },
+        "operation_running": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        },
+        "protocol_retry": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        }
+      },
+      "censored_demands": [],
+      "client_errors": [],
+      "distinct_consumed_pairs": 4,
+      "post_starting_stock": {
+        "scope": "Each excluded pair has either a terminal client response backed by identical A/B taken events, or one recorded deadline with no taken event. The interval starts after the latest bound. A material deadline proves no later contribution; its retirement cause stays unobserved. This finite interval does not prove full reserve restoration or maximum sustainable capacity.",
+        "excluded_pairs": 30,
+        "additional_prestarted_pairs": [],
+        "unresolved": [],
+        "start_ms": 1792911274896,
+        "elapsed_ms": 0,
+        "verified_signatures": 0,
+        "successful_signatures_per_minute": null
+      },
+      "unused_material_audit": {
+        "scope": "Unaccounted pairs are audited against recorded deadlines and actual taken events. Readiness disappearance is an observation, not proof of a retirement event.",
+        "count": 0,
+        "newly_prepared_pairs": 0,
+        "deadlines_passed": 0,
+        "conflicting_taken_events": 0,
+        "missing_or_conflicting_deadlines": 0,
+        "early_disappearances": 0
+      },
+      "stock_ledger_complete": true,
+      "configured_pool_target_respected": true,
+      "peak_observed_pairs_per_role_and_wallet": 16,
+      "producer_profiles": [
+        {
+          "active_wallet": true,
+          "candidates": 4,
+          "executing_invocations": 2,
+          "unique_jobs": 2,
+          "published_jobs": 2,
+          "exact_b_matches": 2,
+          "a_cpu_ms": {
+            "count": 2,
+            "minimum": 7900,
+            "median": 7998.0,
+            "maximum": 8096,
+            "sum": 15996
+          },
+          "a_wall_ms": {
+            "count": 2,
+            "minimum": 17172,
+            "median": 17375.5,
+            "maximum": 17579,
+            "sum": 34751
+          },
+          "b_cpu_ms": {
+            "count": 2,
+            "minimum": 7987,
+            "median": 8152.0,
+            "maximum": 8317,
+            "sum": 16304
+          },
+          "b_wall_ms": {
+            "count": 2,
+            "minimum": 16937,
+            "median": 17119.5,
+            "maximum": 17302,
+            "sum": 34239
+          }
+        },
+        {
+          "active_wallet": false,
+          "candidates": 4,
+          "executing_invocations": 1,
+          "unique_jobs": 1,
+          "published_jobs": 1,
+          "exact_b_matches": 1,
+          "a_cpu_ms": {
+            "count": 1,
+            "minimum": 10062,
+            "median": 10062,
+            "maximum": 10062,
+            "sum": 10062
+          },
+          "a_wall_ms": {
+            "count": 1,
+            "minimum": 21864,
+            "median": 21864,
+            "maximum": 21864,
+            "sum": 21864
+          },
+          "b_cpu_ms": {
+            "count": 1,
+            "minimum": 10616,
+            "median": 10616,
+            "maximum": 10616,
+            "sum": 10616
+          },
+          "b_wall_ms": {
+            "count": 1,
+            "minimum": 21611,
+            "median": 21611,
+            "maximum": 21611,
+            "sum": 21611
+          }
+        }
+      ],
+      "nonexecuting_lifecycle_alarms": 0,
+      "unattributed_alarms": 3,
+      "exact_trace_coverage": true,
+      "runtime_exception_invocations_in_window": 0,
+      "functional_passed": true,
+      "evidence_path": "cohorts/cloud-control"
+    },
+    {
+      "name": "cloud-four",
+      "wallets": 4,
+      "scope": "Cloudflare durable test drivers call the ordinary forwarding Router through a service binding. One outstanding demand per wallet and fixed 60-second demand interval. Signatures independently verified by Node/OpenSSL after collection. Client network, SDK, login, UI and NEAR finality are excluded. Initial stock must be excluded from refill throughput.",
+      "requested_duration_ms": 720000,
+      "elapsed_ms": 720098,
+      "verified_signatures": 39,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 10
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 8
+        },
+        {
+          "wallet": 2,
+          "successfulSignatures": 11
+        },
+        {
+          "wallet": 3,
+          "successfulSignatures": 10
+        }
+      ],
+      "successful_http_ms": {
+        "count": 39,
+        "minimum": 506,
+        "median": 1352,
+        "maximum": 3799,
+        "sum": 55868
+      },
+      "successful_demand_ms": {
+        "count": 39,
+        "minimum": 2056,
+        "median": 18254,
+        "maximum": 154906,
+        "sum": 1183069
+      },
+      "successful_calls_under_five_seconds": 39,
+      "trailing_successes": 0,
+      "empty_pool_demands": 12,
+      "empty_pool_http_and_retry_ms": {
+        "count": 12,
+        "minimum": 7807,
+        "median": 23692.0,
+        "maximum": 75136,
+        "sum": 386049
+      },
+      "waits_by_reason": {
+        "empty_pool": {
+          "responses": 327,
+          "http_ms": 41496,
+          "sleep_ms": 344553
+        },
+        "service_capacity": {
+          "responses": 29,
+          "http_ms": 1361,
+          "sleep_ms": 145020
+        },
+        "wallet_cooldown": {
+          "responses": 208,
+          "http_ms": 7051,
+          "sleep_ms": 932087
+        },
+        "operation_running": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        },
+        "protocol_retry": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        }
+      },
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 11,
+          "startAtMs": 1792911761896,
+          "startMs": 679947,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 40054
+        },
+        {
+          "wallet": 1,
+          "number": 9,
+          "startAtMs": 1792911658322,
+          "startMs": 576373,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 143627
+        },
+        {
+          "wallet": 2,
+          "number": 12,
+          "startAtMs": 1792911741957,
+          "startMs": 660008,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 59992
+        },
+        {
+          "wallet": 3,
+          "number": 11,
+          "startAtMs": 1792911701353,
+          "startMs": 619404,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 100694
+        }
+      ],
+      "client_errors": [],
+      "distinct_consumed_pairs": 103,
+      "post_starting_stock": {
+        "scope": "Each excluded pair has either a terminal client response backed by identical A/B taken events, or one recorded deadline with no taken event. The interval starts after the latest bound. A material deadline proves no later contribution; its retirement cause stays unobserved. This finite interval does not prove full reserve restoration or maximum sustainable capacity.",
+        "excluded_pairs": 60,
+        "additional_prestarted_pairs": [],
+        "unresolved": [],
+        "start_ms": 1792911401239,
+        "elapsed_ms": 400808.0,
+        "verified_signatures": 17,
+        "successful_signatures_per_minute": 2.544859384044231
+      },
+      "unused_material_audit": {
+        "scope": "Unaccounted pairs are audited against recorded deadlines and actual taken events. Readiness disappearance is an observation, not proof of a retirement event.",
+        "count": 3,
+        "newly_prepared_pairs": 0,
+        "deadlines_passed": 3,
+        "conflicting_taken_events": 0,
+        "missing_or_conflicting_deadlines": 0,
+        "early_disappearances": 0
+      },
+      "stock_ledger_complete": false,
+      "configured_pool_target_respected": true,
+      "peak_observed_pairs_per_role_and_wallet": 16,
+      "producer_profiles": [
+        {
+          "active_wallet": true,
+          "candidates": 2,
+          "executing_invocations": 1,
+          "unique_jobs": 1,
+          "published_jobs": 1,
+          "exact_b_matches": 1,
+          "a_cpu_ms": {
+            "count": 1,
+            "minimum": 4061,
+            "median": 4061,
+            "maximum": 4061,
+            "sum": 4061
+          },
+          "a_wall_ms": {
+            "count": 1,
+            "minimum": 8983,
+            "median": 8983,
+            "maximum": 8983,
+            "sum": 8983
+          },
+          "b_cpu_ms": {
+            "count": 1,
+            "minimum": 4238,
+            "median": 4238,
+            "maximum": 4238,
+            "sum": 4238
+          },
+          "b_wall_ms": {
+            "count": 1,
+            "minimum": 8752,
+            "median": 8752,
+            "maximum": 8752,
+            "sum": 8752
+          }
+        },
+        {
+          "active_wallet": true,
+          "candidates": 4,
+          "executing_invocations": 36,
+          "unique_jobs": 36,
+          "published_jobs": 36,
+          "exact_b_matches": 36,
+          "a_cpu_ms": {
+            "count": 36,
+            "minimum": 7339,
+            "median": 8395.0,
+            "maximum": 11561,
+            "sum": 309658
+          },
+          "a_wall_ms": {
+            "count": 36,
+            "minimum": 15872,
+            "median": 18129.0,
+            "maximum": 24917,
+            "sum": 669110
+          },
+          "b_cpu_ms": {
+            "count": 36,
+            "minimum": 7607,
+            "median": 8649.0,
+            "maximum": 11982,
+            "sum": 320204
+          },
+          "b_wall_ms": {
+            "count": 36,
+            "minimum": 15641,
+            "median": 17911.5,
+            "maximum": 24661,
+            "sum": 659891
+          }
+        }
+      ],
+      "nonexecuting_lifecycle_alarms": 1,
+      "unattributed_alarms": 35,
+      "exact_trace_coverage": true,
+      "runtime_exception_invocations_in_window": 0,
+      "functional_passed": true,
+      "evidence_path": "cohorts/cloud-four",
+      "closed_capture_stability": {
+        "first_closed_records": 9731,
+        "second_closed_records": 9731,
+        "stable": true,
+        "first_sha256": "95d6c4fcf5e1d4e0745bb6f4d1a4fae85473939226ac3d01b41dd8ef3f92e529",
+        "second_sha256": "95d6c4fcf5e1d4e0745bb6f4d1a4fae85473939226ac3d01b41dd8ef3f92e529",
+        "cutoff_ms": 1792911801949,
+        "first_drain_at_least_ms": 90000,
+        "second_drain_at_least_ms": 30000
+      }
+    },
+    {
+      "name": "cloud-eight",
+      "wallets": 8,
+      "scope": "Cloudflare durable test drivers call the ordinary forwarding Router through a service binding. One outstanding demand per wallet and fixed 60-second demand interval. Signatures independently verified by Node/OpenSSL after collection. Client network, SDK, login, UI and NEAR finality are excluded. Initial stock must be excluded from refill throughput.",
+      "requested_duration_ms": 1200000,
+      "elapsed_ms": 1200000,
+      "verified_signatures": 46,
+      "successes_per_wallet": [
+        {
+          "wallet": 0,
+          "successfulSignatures": 5
+        },
+        {
+          "wallet": 1,
+          "successfulSignatures": 8
+        },
+        {
+          "wallet": 2,
+          "successfulSignatures": 5
+        },
+        {
+          "wallet": 3,
+          "successfulSignatures": 6
+        },
+        {
+          "wallet": 4,
+          "successfulSignatures": 6
+        },
+        {
+          "wallet": 5,
+          "successfulSignatures": 7
+        },
+        {
+          "wallet": 6,
+          "successfulSignatures": 5
+        },
+        {
+          "wallet": 7,
+          "successfulSignatures": 4
+        }
+      ],
+      "successful_http_ms": {
+        "count": 46,
+        "minimum": 452,
+        "median": 980.5,
+        "maximum": 5182,
+        "sum": 57509
+      },
+      "successful_demand_ms": {
+        "count": 46,
+        "minimum": 1598,
+        "median": 131001.0,
+        "maximum": 767428,
+        "sum": 6967399
+      },
+      "successful_calls_under_five_seconds": 45,
+      "trailing_successes": 0,
+      "empty_pool_demands": 36,
+      "empty_pool_http_and_retry_ms": {
+        "count": 36,
+        "minimum": 5516,
+        "median": 85979.5,
+        "maximum": 388434,
+        "sum": 4085980
+      },
+      "waits_by_reason": {
+        "empty_pool": {
+          "responses": 3031,
+          "http_ms": 366063,
+          "sleep_ms": 3719917
+        },
+        "service_capacity": {
+          "responses": 533,
+          "http_ms": 25169,
+          "sleep_ms": 2655307
+        },
+        "wallet_cooldown": {
+          "responses": 471,
+          "http_ms": 17266,
+          "sleep_ms": 2166897
+        },
+        "operation_running": {
+          "responses": 0,
+          "http_ms": 0,
+          "sleep_ms": 0
+        },
+        "protocol_retry": {
+          "responses": 1,
+          "http_ms": 1540,
+          "sleep_ms": 1000
+        }
+      },
+      "censored_demands": [
+        {
+          "wallet": 0,
+          "number": 6,
+          "startAtMs": 1792913761029,
+          "startMs": 1068662,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 131338
+        },
+        {
+          "wallet": 1,
+          "number": 9,
+          "startAtMs": 1792913879086,
+          "startMs": 1186719,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 13281
+        },
+        {
+          "wallet": 2,
+          "number": 6,
+          "startAtMs": 1792913486787,
+          "startMs": 794420,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 405580
+        },
+        {
+          "wallet": 3,
+          "number": 7,
+          "startAtMs": 1792913656254,
+          "startMs": 963887,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 236113
+        },
+        {
+          "wallet": 4,
+          "number": 7,
+          "startAtMs": 1792913459335,
+          "startMs": 766968,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 433032
+        },
+        {
+          "wallet": 5,
+          "number": 8,
+          "startAtMs": 1792913674623,
+          "startMs": 982256,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 217744
+        },
+        {
+          "wallet": 6,
+          "number": 6,
+          "startAtMs": 1792913864230,
+          "startMs": 1171863,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 28137
+        },
+        {
+          "wallet": 7,
+          "number": 5,
+          "startAtMs": 1792913314323,
+          "startMs": 621956,
+          "state": "censored_at_end_of_window",
+          "elapsedMs": 578044
+        }
+      ],
+      "client_errors": [],
+      "distinct_consumed_pairs": 117,
+      "post_starting_stock": {
+        "scope": "Each excluded pair has either a terminal client response backed by identical A/B taken events, or one recorded deadline with no taken event. The interval starts after the latest bound. A material deadline proves no later contribution; its retirement cause stays unobserved. This finite interval does not prove full reserve restoration or maximum sustainable capacity.",
+        "excluded_pairs": 81,
+        "additional_prestarted_pairs": [],
+        "unresolved": [],
+        "start_ms": 1792913257019,
+        "elapsed_ms": 635348.0,
+        "verified_signatures": 15,
+        "successful_signatures_per_minute": 1.4165465225356813
+      },
+      "unused_material_audit": {
+        "scope": "Unaccounted pairs are audited against recorded deadlines and actual taken events. Readiness disappearance is an observation, not proof of a retirement event.",
+        "count": 44,
+        "newly_prepared_pairs": 30,
+        "deadlines_passed": 40,
+        "conflicting_taken_events": 0,
+        "missing_or_conflicting_deadlines": 0,
+        "early_disappearances": 0
+      },
+      "stock_ledger_complete": false,
+      "configured_pool_target_respected": true,
+      "peak_observed_pairs_per_role_and_wallet": 16,
+      "producer_profiles": [
+        {
+          "active_wallet": true,
+          "candidates": 4,
+          "executing_invocations": 60,
+          "unique_jobs": 60,
+          "published_jobs": 60,
+          "exact_b_matches": 60,
+          "a_cpu_ms": {
+            "count": 60,
+            "minimum": 7223,
+            "median": 7997.5,
+            "maximum": 10556,
+            "sum": 498085
+          },
+          "a_wall_ms": {
+            "count": 60,
+            "minimum": 15827,
+            "median": 17775.5,
+            "maximum": 24172,
+            "sum": 1101780
+          },
+          "b_cpu_ms": {
+            "count": 60,
+            "minimum": 7593,
+            "median": 8593.0,
+            "maximum": 11546,
+            "sum": 533246
+          },
+          "b_wall_ms": {
+            "count": 60,
+            "minimum": 15580,
+            "median": 17380.5,
+            "maximum": 23892,
+            "sum": 1085231
+          }
+        }
+      ],
+      "nonexecuting_lifecycle_alarms": 2,
+      "unattributed_alarms": 57,
+      "exact_trace_coverage": true,
+      "runtime_exception_invocations_in_window": 0,
+      "functional_passed": true,
+      "evidence_path": "cohorts/cloud-eight",
+      "closed_capture_stability": {
+        "first_closed_records": 46866,
+        "second_closed_records": 46866,
+        "stable": true,
+        "first_sha256": "b3bab9d66734e6a2b12fea37bf10224b0f7f40fcc233b8c424332a5311b21a13",
+        "second_sha256": "b3bab9d66734e6a2b12fea37bf10224b0f7f40fcc233b8c424332a5311b21a13",
+        "cutoff_ms": 1792913892367,
+        "first_drain_at_least_ms": 90000,
+        "second_drain_at_least_ms": 30000
+      }
+    }
+  ],
+  "local_two_wallet_reference": {
+    "verified_signatures": 20,
+    "empty_pool_responses": 0,
+    "full_reserve_cycle_ms": 624373.0,
+    "full_reserve_cycle_signatures_per_minute": 1.9219280782480985,
+    "post_stock_interval_ms": 51200.352294921875,
+    "post_stock_capacity_limit": "Insufficient observation duration"
+  },
+  "invalid_local_four_wallet_run": {
+    "classification": "environment_or_infrastructure_failure",
+    "reason": "Clamshell sleep interrupts local clocks and HTTP clients. Full-window timing is excluded. Pre-sleep empty-pool responses remain observed facts.",
+    "evidence_path": "cohorts/invalid-local-four"
+  },
+  "cleanup": {
+    "at": "2026-10-25T08:28:32.747Z",
+    "workers": [
+      {
+        "worker": "ml-dsa-load-1025-78bd57-router",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      },
+      {
+        "worker": "ml-dsa-load-1025-78bd57-a",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      },
+      {
+        "worker": "ml-dsa-load-1025-78bd57-b",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      },
+      {
+        "worker": "ml-dsa-load-1025-78bd57-preparer-a",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      },
+      {
+        "worker": "ml-dsa-load-1025-78bd57-preparer-b",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      },
+      {
+        "worker": "ml-dsa-load-1025-78bd57-front",
+        "status": 404,
+        "errorCodes": [
+          10007
+        ],
+        "absent": true
+      }
+    ],
+    "allAbsent": true
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_repository_failure",
+    "metric": "rustDuplicatedLines",
+    "baseline": 13754,
+    "observed": 13972,
+    "rust_source_changed": false
+  },
+  "archive": {
+    "path": "ml-dsa-65-sustained-capacity-20261025.tar.gz",
+    "bytes": 6702524,
+    "sha256": "4c3eba9cf0d6f61eb751abee6002afbe589a0e9d5bd160d594f51333e588a162",
+    "manifest_sha256": "9e05ef30aaf39bbdf4f0803581ca0fe8804b65357674cf28b800efd6daf1f99f"
+  }
+}

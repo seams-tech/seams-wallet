@@ -10,6 +10,14 @@ The [final hosted lifecycle report](ml-dsa-65-final-hosted-lifecycle-report.md) 
 Recovery and participant restoration preserve the canonical key. A restored signer reaches NEAR testnet finality.
 Ordinary NEAR and ECDSA browser flows skip optional ML-DSA cryptography. Shared metadata and session helpers remain in common code.
 Preparation throughput and admission headroom are the next performance priority. This lifecycle campaign establishes no sustained capacity or five-second guarantee.
+
+The [sustained capacity campaign](ml-dsa-65-sustained-capacity-report.md) completes real Cloudflare loads at unchanged capacity.
+Four active wallets produce 39 verified signatures, with 2.545 signatures/minute after starting stock cannot contribute.
+Eight active wallets produce 46 verified signatures, with 1.417 signatures/minute after that bound.
+Successful cloud calls take 0.452–5.182 seconds across these runs. Complete demands reach 767.428 seconds because admission and material waits accumulate.
+Thirty newly prepared pairs become unavailable without use during the eight-wallet screen. Deadline and readiness evidence fits those losses.
+Next, reduce expiry waste and measure empty-pool admission contention, then test controlled parallel refill with the same per-wallet capacity.
+All six temporary Workers are deleted. Wallet-seed recovery, ordinary FIPS export, and two-at-once consumption remain unchanged.
 The final composition security review and exact release-package acceptance remain separate release gates.
 
 ## Qualification checkpoint — October 21, 2026
