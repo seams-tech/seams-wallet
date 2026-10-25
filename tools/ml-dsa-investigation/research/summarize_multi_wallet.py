@@ -203,7 +203,9 @@ def admission_waits(client):
             continue
         delay = request["retryDelayMs"]
         assert isinstance(delay, (int, float)) and delay >= 0
-        elapsed = request["elapsedMs"]
+        remaining = max(0, client["elapsedMs"] - request["startMs"])
+        elapsed = min(request["elapsedMs"], remaining)
+        delay = min(delay, max(0, remaining - request["elapsedMs"]))
         totals[reason]["responses"] += 1
         totals[reason]["http_ms"] += elapsed
         totals[reason]["sleep_ms"] += delay
@@ -221,7 +223,7 @@ def admission_waits(client):
         entry["total_demand_ms"] = demand.get("elapsedMs")
     empty = [entry for entry in grouped.values() if entry["empty_pool_http_and_sleep_ms"] > 0]
     return {
-        "scope": "Observed HTTP response time plus measured client retry sleeps. Empty-pool waits include polling granularity. They are not an exact server stock-unavailable interval.",
+        "scope": "Observed HTTP response time plus measured client retry sleeps, clipped at the load cutoff. Response counts cover attempts initiated within the window. Empty-pool waits include polling granularity; they are not an exact server stock-unavailable interval.",
         "client_errors": client["errors"],
         "retry_polling": client["retryPolling"],
         "by_reason": totals,

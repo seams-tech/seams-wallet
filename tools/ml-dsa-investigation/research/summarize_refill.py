@@ -44,10 +44,24 @@ def main():
                       "post_initial_stock": report["post_initial_stock"]}))
 
 
+def role_consumption(traces):
+    consumed = {"a": {}, "b": {}}
+    for record in traces:
+        role = record["role"]
+        if role not in consumed:
+            continue
+        for trace in record.get("signing_traces", []):
+            batches = consumed[role].setdefault(trace["operation"], [])
+            batches.extend(event["value"]["material_id"] for event in trace["batches"]
+                           if event["value"]["stage"] == "taken")
+    return consumed
+
+
 def summarize(client, traces, versions, target_groups):
     traces = [record for record in traces if record["version"] == versions.get(record["role"])]
     start = datetime.datetime.fromisoformat(client["observedAt"].replace("Z", "+00:00")).timestamp() * 1000
     end = start + client["elapsedMs"]
+    taken = role_consumption(traces)
     key_digest = hashlib.sha256(bytes.fromhex(client["publicKeyHex"])).hexdigest()
     operations = {bytes(request["operation"]).hex() for request in client["requests"]}
     verified_operations = {bytes(request["operation"]).hex() for request in client["requests"] if request.get("verified")}
@@ -105,13 +119,11 @@ def summarize(client, traces, versions, target_groups):
             if "consumed_batches" not in result:
                 consumed.append({"operation": operation, "count_unknown": True, "outcome": result})
                 continue
-            snapshots = record.get("inventories", [])
-            assert len(snapshots) == 1, "Cannot identify this operation's reserved order"
-            available = paired(snapshots[0])
-            count = result["consumed_batches"]
-            assert count <= len(available)
+            batches = taken["a"].get(operation, [])
+            assert batches == taken["b"].get(operation, []), "Participant consumption differs"
+            assert len(batches) == result["consumed_batches"], "Incomplete participant consumption trace"
             consumed.append({"operation": operation, "at_ms": completions[operation], "dispatch_at_ms": timestamp(record, outcome),
-                             "batches": available[:count], "outcome": result})
+                             "batches": batches, "outcome": result})
     for operation in sorted(verified_operations - seen_operations):
         consumed.append({"operation": operation, "count_unknown": True,
                          "outcome": {"status": "verified_signature_missing_router_outcome"}})

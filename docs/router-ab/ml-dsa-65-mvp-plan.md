@@ -6,8 +6,10 @@ The first public registration flow adds ML-DSA to an existing passkey wallet. Ne
 
 ## Qualification checkpoint — October 25, 2026
 
-The [expiry and admission candidate](ml-dsa-65-expiry-admission-report.md) retains new refill stock for one hour and avoids claiming a signing slot for empty preflights.
-Durable lifecycle checks pass. The sustained hosted repeat requires approval for fresh test credentials. Capacity and recovery/export rules remain unchanged.
+The [expiry and admission campaign](ml-dsa-65-expiry-admission-report.md) verifies 48 and 89 hosted signatures with unchanged capacity and recovery/export rules.
+No empty-pool response claims a signing slot. Newly refilled paired stock remains accounted for in both windows.
+Observed load-and-restoration cycles reach 3.640 and 3.352 signatures/minute; eight-wallet complete demands still exceed the five-second target.
+Investigate twelve B `loadShed` preparation failures and unexplained producer CPU variation before testing parallel refill. All six temporary Workers are deleted.
 
 The [final hosted lifecycle report](ml-dsa-65-final-hosted-lifecycle-report.md) records passing Cloudflare browser campaigns for the full lifecycle, owner export, onward linking, and ordinary ECDSA.
 Recovery and participant restoration preserve the canonical key. A restored signer reaches NEAR testnet finality.

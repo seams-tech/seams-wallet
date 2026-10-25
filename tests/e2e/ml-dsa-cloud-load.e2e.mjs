@@ -188,7 +188,7 @@ async function collect() {
     const first = result.requests.find(isVerified);
     if (result.state.state === 'complete' && first)
       duplicateRequests.push(await verifyDuplicate(wallet, first));
-    demands.push(...result.demands);
+    for (const demand of result.demands) demands.push(demandAtCutoff(demand, input.endAtMs));
     if (result.state.state !== 'complete')
       errors.push({ wallet: i, error: result.state.error ?? 'Cloud driver still active' });
     successCounts.push({
@@ -206,7 +206,7 @@ async function collect() {
     timingBoundary:
       'Durable test driver through ordinary front Router service binding and full Router A/B path',
     requestedDurationMs: input.endAtMs - input.startAtMs,
-    elapsedMs: completedAtMs - input.startAtMs,
+    elapsedMs: input.endAtMs - input.startAtMs,
     intervalMs: input.intervalMs,
     policy: input.policy,
     deploymentVersions: input.versions,
@@ -246,6 +246,19 @@ async function collect() {
   );
   if (!client.functionalPassed) process.exitCode = 1;
 }
+function demandAtCutoff(demand, endAtMs) {
+  if (demand.state !== 'censored_at_end_of_window') return demand;
+  return {
+    wallet: demand.wallet,
+    number: demand.number,
+    startAtMs: demand.startAtMs,
+    startMs: demand.startMs,
+    state: demand.state,
+    elapsedMs: Math.min(demand.elapsedMs, endAtMs - demand.startAtMs),
+    observedClosureElapsedMs: demand.elapsedMs,
+  };
+}
+
 function completedAt(result) {
   return result.state.completedAtMs ?? 0;
 }

@@ -282,7 +282,9 @@ def unused_material_audit(records, summary, start, horizon):
                 snapshots.setdefault(scope, []).append((at, ready, reserved))
     for values in snapshots.values():
         values.sort(key=itemgetter(0))
-    initial = {item['batch'] for item in summary['after_starting_stock_disposal_bound']['pair_bounds']}
+    initial = {batch for wallet in summary['wallets']
+               for batch in wallet['initial_ids_including_prestarted_producers']}
+    initial.update(summary['after_starting_stock_disposal_bound']['additional_prestarted_pairs'])
     result = []
     for wallet in summary['wallets']:
         snapshot = wallet['initial_observed_stock']
