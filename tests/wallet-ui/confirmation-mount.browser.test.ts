@@ -436,7 +436,14 @@ test('a message signature receipt is complete once signed and has no network sta
   await expect(receipt.locator('.seams-receipt-heading p')).toHaveText(
     'Signed off-chain. Nothing was sent to the network.',
   );
-  await expect(receipt.locator('.seams-receipt-steps')).toHaveCount(0);
+  const steps = receipt.locator('.seams-receipt-step');
+  await expect(steps).toHaveCount(3);
+  expect(await steps.evaluateAll((items) => items.map((item) => item.dataset.state))).toEqual([
+    'complete',
+    'complete',
+    'complete',
+  ]);
+  await expect(receipt.locator('.seams-receipt-steps')).toHaveText('Signed');
   await page.getByText('Receipt details', { exact: true }).click();
   const details = receipt.locator('.seams-review-technical .seams-review-fields');
   await expect(details.locator('dt')).toHaveText(['Signer', 'Recipient', 'Message', 'Status']);

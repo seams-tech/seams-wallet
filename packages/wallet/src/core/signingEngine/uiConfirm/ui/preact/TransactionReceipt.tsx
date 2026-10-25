@@ -14,6 +14,7 @@ import {
   receiptIsPending,
   receiptCompletedStages,
   receiptTitle,
+  type MessageReceiptState,
   type TransactionReceiptModel,
   type TransactionReceiptState,
 } from '../transaction-receipt';
@@ -233,7 +234,11 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             </div>
           </dl>
         )}
-        {transaction && <ReceiptSteps state={transaction} />}
+        {transaction ? (
+          <ReceiptSteps state={transaction} />
+        ) : (
+          receipt.subject === 'message' && <MessageReceiptSteps state={receipt.state} />
+        )}
         <ReviewDisclosure label={walletText(this.context, 'Receipt details')}>
           <dl class="seams-review-fields">
             {transaction && data.model?.signerAccount && (
@@ -371,6 +376,30 @@ function ReceiptSteps({ state }: { state: TransactionReceiptState }) {
         complete={completedStages === 3}
         active={state.kind === 'submitted'}
       />
+    </div>
+  );
+}
+
+/**
+ * A message signature has one stage. It keeps the transaction's three tracks, so
+ * the receipt has the same height, and fills them all once signed. Only the first
+ * track has a label: there is no broadcast or confirmation.
+ */
+function MessageReceiptSteps({ state }: { state: MessageReceiptState }) {
+  const locale = useWalletLocale();
+  const complete = state.kind === 'signed';
+  const active = state.kind === 'signing';
+  return (
+    <div class="seams-receipt-steps" aria-label={walletText(locale, 'Transaction progress')}>
+      <ReceiptStep
+        stage="signing"
+        label={walletText(locale, 'Signed')}
+        activeLabel="Signing"
+        complete={complete}
+        active={active}
+      />
+      <ReceiptStep stage="signed" label="" activeLabel="" complete={complete} active={false} />
+      <ReceiptStep stage="signed" label="" activeLabel="" complete={complete} active={false} />
     </div>
   );
 }
