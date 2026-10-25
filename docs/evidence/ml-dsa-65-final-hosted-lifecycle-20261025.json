@@ -1,0 +1,355 @@
+{
+  "schema": "seams.ml-dsa-final-hosted-lifecycle-summary.v1",
+  "observedAt": "2026-10-25T02:55:34.998381+00:00",
+  "runtimeRevision": "c0292b42dd7e5d08c945da9161036079424e6050",
+  "passed": true,
+  "hostedCases": [
+    "ordinary ECDSA lifecycle and optional-module exclusion",
+    "full ML-DSA lifecycle, recovery, linked owner, restoration and finalized NEAR testnet transaction",
+    "owner export after reload, onward linking, recovery and selective revocation"
+  ],
+  "policy": {
+    "candidateGroupSize": 2,
+    "preparationGroupSize": 4,
+    "minimumReadyCandidates": 16,
+    "poolCapacityCandidates": 32,
+    "walletCooldownMs": 60000
+  },
+  "signingMeasurements": [
+    {
+      "case": "original",
+      "sdkElapsedMs": 3522.1999999284744,
+      "harnessElapsedMs": 4418.481041999999,
+      "probeInterceptsRequest": false,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "warm",
+      "sdkElapsedMs": 5338.800000071526,
+      "harnessElapsedMs": 6045.9493749999965,
+      "probeInterceptsRequest": false,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "emailFresh",
+      "sdkElapsedMs": 8145.100000023842,
+      "harnessElapsedMs": 8757.880166999996,
+      "probeInterceptsRequest": true,
+      "extraWrongOperationAndReplayRequests": true
+    },
+    {
+      "case": "emailGrant",
+      "sdkElapsedMs": 4086.7000000476837,
+      "harnessElapsedMs": 4394.714541999972,
+      "probeInterceptsRequest": true,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "emailWarm",
+      "sdkElapsedMs": 3124.600000023842,
+      "harnessElapsedMs": 3761.988916000002,
+      "probeInterceptsRequest": true,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "recovered",
+      "sdkElapsedMs": 2772.5,
+      "harnessElapsedMs": 2999.4770000000717,
+      "probeInterceptsRequest": false,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "linked",
+      "sdkElapsedMs": 7086.600000023842,
+      "harnessElapsedMs": 7615.111875000002,
+      "probeInterceptsRequest": false,
+      "extraWrongOperationAndReplayRequests": false
+    },
+    {
+      "case": "restored",
+      "sdkElapsedMs": 4641.399999976158,
+      "harnessElapsedMs": 5303.089291999931,
+      "probeInterceptsRequest": false,
+      "extraWrongOperationAndReplayRequests": false
+    }
+  ],
+  "timingLimits": [
+    "Automatic test approval excludes human response time.",
+    "SDK calls include hosted Gateway/Router/participants and browser verification.",
+    "Email calls use a test interception; emailFresh adds wrong-operation and replay checks.",
+    "Pool preparation, NEAR finality, and explicit cooldown sleeps are outside the signing timers.",
+    "Registration deliberately interrupts publication and reloads; no clean registration-latency measurement.",
+    "No sustained refill, multi-wallet capacity, cost, percentile, or five-second guarantee follows from this lifecycle test."
+  ],
+  "browserModules": {
+    "passed": true,
+    "entries": [
+      {
+        "profile": "ordinary",
+        "rawBytes": 488271,
+        "gzipBytes": 201701,
+        "sha256": "ae4ae8036994845b70eddab41f086d3381ee5aea3400d3e6f4f83e97916b9779",
+        "hasVerifier": false,
+        "hasSeedExport": false,
+        "nep413DigestHex": "222191178733e5527ec0dfef51ee8e0f2c6c018d588d0165def3652f6201fa64"
+      },
+      {
+        "profile": "ml-dsa",
+        "rawBytes": 725607,
+        "gzipBytes": 278352,
+        "sha256": "ceb46d767e84540f9ca5eb7e4a7093c429e336f672e04bc26ca4d4ba3089d43d",
+        "hasVerifier": true,
+        "hasSeedExport": true,
+        "nep413DigestHex": "222191178733e5527ec0dfef51ee8e0f2c6c018d588d0165def3652f6201fa64"
+      }
+    ]
+  },
+  "workerModules": {
+    "passed": true,
+    "receipts": [
+      {
+        "profile": "standard",
+        "role": "router",
+        "sha256": "cd32fc62ec6dd8ae938d53ea6234bf90cc2b5d4cdbe96abefc269d539e082bcf",
+        "rawBytes": 7131837,
+        "gzipBytes": 2306892,
+        "embeddedCircuits": [],
+        "mlDsaExports": []
+      },
+      {
+        "profile": "standard",
+        "role": "deriver-a",
+        "sha256": "6b401673f7464e88b51e35ae90c643d91a7ada56117d7d501f17f30417bc6c78",
+        "rawBytes": 11213721,
+        "gzipBytes": 4355875,
+        "embeddedCircuits": [],
+        "mlDsaExports": []
+      },
+      {
+        "profile": "standard",
+        "role": "deriver-b",
+        "sha256": "52c7496539115e880ba69eb4cac0955af38f6766312f211f4d1130c5b7bda3f9",
+        "rawBytes": 11249537,
+        "gzipBytes": 4365578,
+        "embeddedCircuits": [],
+        "mlDsaExports": []
+      },
+      {
+        "profile": "standard",
+        "role": "signing-worker",
+        "sha256": "de7c862d4a79d4ef53c07813029622d4c389a7aa2647e353da3ee7523c269848",
+        "rawBytes": 6784766,
+        "gzipBytes": 2174291,
+        "embeddedCircuits": [],
+        "mlDsaExports": []
+      },
+      {
+        "profile": "standard",
+        "role": "tenant-root-control-plane",
+        "sha256": "edb6cde16abb39b48984150de47a77d848ef88db04076c43e9eb0aafb3415a5b",
+        "rawBytes": 2057550,
+        "gzipBytes": 758354,
+        "embeddedCircuits": [],
+        "mlDsaExports": []
+      },
+      {
+        "profile": "ml-dsa",
+        "role": "router",
+        "sha256": "2f5e3d39232f96d379c0d17aae658f635de82d7b4d0ef83854524f13f8324134",
+        "rawBytes": 8099551,
+        "gzipBytes": 2599834,
+        "embeddedCircuits": [],
+        "mlDsaExports": [
+          "__wbg_routerabmldsaadmissiondurableobject_free",
+          "routerabmldsaadmissiondurableobject_alarm",
+          "routerabmldsaadmissiondurableobject_fetch",
+          "routerabmldsaadmissiondurableobject_webSocketClose",
+          "routerabmldsaadmissiondurableobject_webSocketError",
+          "routerabmldsaadmissiondurableobject_webSocketMessage",
+          "routerabmldsaadmissiondurableobject_new"
+        ]
+      },
+      {
+        "profile": "ml-dsa",
+        "role": "deriver-a",
+        "sha256": "9f563cf1a74684560c45d8f6a27856a107978beb16676ee9bac1894ec39ace5f",
+        "rawBytes": 45958655,
+        "gzipBytes": 23126698,
+        "embeddedCircuits": [
+          "fresh-mask.bin",
+          "prepared-commitment.bin",
+          "commitment-hash.bin",
+          "response-check.bin",
+          "low-response-check.bin",
+          "bounds-decision.bin",
+          "wallet-seed.bin",
+          "seed.bin",
+          "sampling-two-blocks.bin",
+          "sampling-three-blocks.bin",
+          "sampling-final-bound.bin"
+        ],
+        "mlDsaExports": [
+          "__wbg_routerabmldsapooldurableobject_free",
+          "__wbg_routerabmldsaproducerdurableobject_free",
+          "__wbg_routerabmldsaregistrationdurableobject_free",
+          "routerabmldsapooldurableobject_alarm",
+          "routerabmldsapooldurableobject_fetch",
+          "routerabmldsapooldurableobject_webSocketClose",
+          "routerabmldsapooldurableobject_webSocketError",
+          "routerabmldsapooldurableobject_webSocketMessage",
+          "routerabmldsaproducerdurableobject_alarm",
+          "routerabmldsaproducerdurableobject_fetch",
+          "routerabmldsaproducerdurableobject_new",
+          "routerabmldsaproducerdurableobject_webSocketClose",
+          "routerabmldsaproducerdurableobject_webSocketError",
+          "routerabmldsaproducerdurableobject_webSocketMessage",
+          "routerabmldsaregistrationdurableobject_alarm",
+          "routerabmldsaregistrationdurableobject_fetch",
+          "routerabmldsaregistrationdurableobject_new",
+          "routerabmldsaregistrationdurableobject_webSocketClose",
+          "routerabmldsaregistrationdurableobject_webSocketError",
+          "routerabmldsaregistrationdurableobject_webSocketMessage",
+          "routerabmldsapooldurableobject_new"
+        ]
+      },
+      {
+        "profile": "ml-dsa",
+        "role": "deriver-b",
+        "sha256": "85cbfc43a0ec3aac1d4633708b972472989ab4c95f52818ea68df15d4f12c425",
+        "rawBytes": 45995027,
+        "gzipBytes": 23126029,
+        "embeddedCircuits": [
+          "fresh-mask.bin",
+          "prepared-commitment.bin",
+          "commitment-hash.bin",
+          "response-check.bin",
+          "low-response-check.bin",
+          "bounds-decision.bin",
+          "wallet-seed.bin",
+          "seed.bin",
+          "sampling-two-blocks.bin",
+          "sampling-three-blocks.bin",
+          "sampling-final-bound.bin"
+        ],
+        "mlDsaExports": [
+          "__wbg_routerabmldsapooldurableobject_free",
+          "__wbg_routerabmldsaproducerdurableobject_free",
+          "__wbg_routerabmldsaregistrationdurableobject_free",
+          "routerabmldsapooldurableobject_alarm",
+          "routerabmldsapooldurableobject_fetch",
+          "routerabmldsapooldurableobject_webSocketClose",
+          "routerabmldsapooldurableobject_webSocketError",
+          "routerabmldsapooldurableobject_webSocketMessage",
+          "routerabmldsaproducerdurableobject_alarm",
+          "routerabmldsaproducerdurableobject_fetch",
+          "routerabmldsaproducerdurableobject_new",
+          "routerabmldsaproducerdurableobject_webSocketClose",
+          "routerabmldsaproducerdurableobject_webSocketError",
+          "routerabmldsaproducerdurableobject_webSocketMessage",
+          "routerabmldsaregistrationdurableobject_alarm",
+          "routerabmldsaregistrationdurableobject_fetch",
+          "routerabmldsaregistrationdurableobject_new",
+          "routerabmldsaregistrationdurableobject_webSocketClose",
+          "routerabmldsaregistrationdurableobject_webSocketError",
+          "routerabmldsaregistrationdurableobject_webSocketMessage",
+          "routerabmldsapooldurableobject_new"
+        ]
+      }
+    ]
+  },
+  "deploymentVersions": [
+    {
+      "worker": "ml-dsa-sdk-1025-560485-router",
+      "versionId": "1ac8cebc-d60a-46e7-b492-8002d1445cac"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-deriver-a",
+      "versionId": "506139f9-b5c4-49e6-b6d1-091cca39ee10"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-deriver-b",
+      "versionId": "d2653bd3-35a6-4d5d-bae4-130f0abdb830"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-signing-worker",
+      "versionId": "1c3d56b4-7dad-4009-802e-92859c5f4289"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-tenant-root-control-plane",
+      "versionId": "8ddf1058-5dd1-4d74-95be-07a159535a90"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ml-dsa-router",
+      "versionId": "aa7b4a1b-75c0-42bb-85d8-85135cc063e0"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ml-dsa-a",
+      "versionId": "5c406bda-f178-4de4-8fb9-9c178c80b56f"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ml-dsa-b",
+      "versionId": "fb74e68a-9253-4dcc-bfd5-7937c3a6d8b9"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ml-dsa-preparer-a",
+      "versionId": "85d54891-c4a0-458b-b5a6-868ab2cbf79e"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ml-dsa-preparer-b",
+      "versionId": "311c6cfe-01b4-445f-9499-4725e88848e9"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-gateway",
+      "versionId": "071f4375-9bb3-46aa-bc80-b32934a0b544"
+    },
+    {
+      "worker": "ml-dsa-sdk-1025-560485-ingress",
+      "versionId": "2dafc4af-fc10-4996-be78-efd1f80281da"
+    }
+  ],
+  "retainedFailures": [
+    {
+      "classification": "valid_test_needs_update",
+      "case": "Broad filename assertion rejected shared ML-DSA metadata modules.",
+      "resolution": "Assert absence of optional cryptographic modules; retain the shared-module observations. Both ordinary lifecycle tests pass."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "case": "Hosted setup sent dotenv single-quote delimiters as credential bytes.",
+      "resolution": "Parse generated dotenv values correctly. Underlying test credentials and destinations are unchanged."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "case": "Gateway rejected extra private-JWK metadata fields.",
+      "resolution": "Use the current four-field JWK schema with identical key material."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "case": "Email proof probe bypassed context-level benchmark authentication.",
+      "resolution": "Preserve benchmark headers on intercepted preparation, signing, wrong-operation and replay requests. Ingress had recorded HTTP 403 with the header absent."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "case": "Disposable testnet sponsor lacked the transfer fee allowance.",
+      "resolution": "Replenish the same disposable testnet sponsor before repeating."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "case": "Configured Google test token expired during setup and testing.",
+      "resolution": "Refresh the configured test identity immediately before each browser run."
+    }
+  ],
+  "archive": {
+    "path": "docs/evidence/ml-dsa-65-final-hosted-lifecycle-20261025-data.json.gz",
+    "sha256": "647334c1728606d8821a609f0f3a1ca409b2ad0fe0f3a1e4dc71c85be722363a",
+    "bytes": 386576
+  },
+  "cleanup": {
+    "complete": true,
+    "workers": 12,
+    "databases": 4,
+    "buckets": 2,
+    "completedAt": "2026-10-25T02:58:13.335Z",
+    "firstAttempt": "Cloudflare returned code 10013 for ingress deletion; the repeat completed. Cause unknown."
+  }
+}

@@ -1,3 +1,4 @@
+import type { WalletAssetEvidence } from './wallet-asset-evidence';
 import { MlDsaEmailProofProbe } from './ml-dsa-email-proof-probe';
 import { test, expect, type TestInfo, type Page, type Route, type Browser } from '@playwright/test';
 import {
@@ -23,7 +24,17 @@ import { requireRecord, requireCanonicalString } from '@shared/utils/validation'
 import { fundImplicitWallet, testnetRpc } from './ml-dsa-testnet';
 
 export async function runMlDsaBrowserLifecycle(
-  { harness, browser, page }: { harness: IntendedBehaviourHarness; browser: Browser; page: Page },
+  {
+    harness,
+    browser,
+    page,
+    assets,
+  }: {
+    harness: IntendedBehaviourHarness;
+    browser: Browser;
+    page: Page;
+    assets: WalletAssetEvidence;
+  },
   testInfo: TestInfo,
 ) {
   testInfo.setTimeout(900_000);
@@ -34,6 +45,7 @@ export async function runMlDsaBrowserLifecycle(
   page.on('requestfailed', discoveryTrace.failed.bind(discoveryTrace));
   const optionalAssets: string[] = [];
   page.on('request', recordOptionalAsset.bind(null, optionalAssets));
+  assets.setPhase('ordinary-registration');
   await harness.registerPasskeyWallet();
   await harness.awaitNearReady();
   const context = await harness.runMlDsaCommand({ kind: 'context' });
@@ -61,6 +73,7 @@ export async function runMlDsaBrowserLifecycle(
     await initialWalletFrame.locator('body').evaluate(restorePasskeyPrompts);
   }
   await page.keyboard.press('Escape');
+  assets.setPhase('ordinary-signing');
   const ordinarySigning = await harness.runMlDsaCommand({
     kind: 'normal_sign_default',
     sessionPolicy: null,
@@ -68,6 +81,12 @@ export async function runMlDsaBrowserLifecycle(
   verifyOrdinarySignature(ordinarySigning);
   const ordinaryOptionalAssets = optionalAssets.slice();
   expect(ordinaryOptionalAssets).toEqual([]);
+  for (const phase of ['hosted-initialization', 'ordinary-registration', 'ordinary-signing']) {
+    expect(assets.getRequestedAssetUrlsForPhase(phase).filter(isOptionalMlDsaCryptoAsset)).toEqual(
+      [],
+    );
+  }
+  assets.setPhase('ml-dsa-registration');
   await page.keyboard.press('Escape');
   await prepareMlDsaPool(context.walletId);
   const signer = await publishAcrossReload(page, harness);
@@ -116,8 +135,15 @@ export async function runMlDsaBrowserLifecycle(
   } finally {
     await page.unroute('**/ml-dsa/metadata', hidePublishedSigner);
   }
+  assets.setPhase('ml-dsa-signing');
   const original = await signFromDefaultPicker(page, harness, signer, testInfo);
   expect(optionalAssets.some(isOptionalWasm)).toBe(true);
+  expect(
+    ['ml-dsa-registration', 'ml-dsa-signing']
+      .flatMap(assets.getRequestedAssetUrlsForPhase.bind(assets))
+      .some(isOptionalWasm),
+  ).toBe(true);
+  assets.setPhase('ml-dsa-owner-lifecycle');
   await pause(60_000);
   const walletFrame = page
     .locator('iframe[allow*="publickey-credentials-get"]')
@@ -287,6 +313,8 @@ export async function runMlDsaBrowserLifecycle(
       defaultSignerPersistsAfterReload: true,
       unavailableDefaultRefusedWithoutFallback: true,
       ordinaryEd25519SignatureVerified: true,
+      ordinaryFlowsSkipOptionalMlDsaCryptography: true,
+      mlDsaFlowLoadsOptionalWasm: true,
       revokedOwnerMetadataRefused: true,
       metadataUsesExistingSession: true,
       noOptionalAssetsBeforeEnrollment: true,
@@ -608,6 +636,12 @@ function recordOptionalAsset(urls: string[], request: import('@playwright/test')
   const url = request.url();
   if (/ml_dsa_signer|pkg-ml-dsa/.test(url)) urls.push(url);
 }
+function isOptionalMlDsaCryptoAsset(url: string): boolean {
+  return /(?:ml_dsa_signer|pkg-ml-dsa|mlDsa(?:RootInstallation|RootLinking|SeedExport))/u.test(
+    new URL(url).pathname,
+  );
+}
+
 function isOptionalWasm(url: string): boolean {
   return url.includes('ml_dsa_signer_bg.wasm');
 }
@@ -820,8 +854,9 @@ export async function runMlDsaDeviceOwnerParity(
   await assertCanonicalExport(third.page, third, signer);
   await saveEvidence(testInfo, {
     observedAt: new Date().toISOString(),
-    scope:
-      'Public SDK, Chromium with separate authenticators, local Gateway/D1/Router/A/B Workers. NEAR RPC uses the intended-behaviour fixture. No live-chain or latency claim.',
+    scope: process.env.ML_DSA_HOSTED_DEPLOYMENT
+      ? 'Public SDK, Chromium with separate authenticators, real Cloudflare Gateway/D1/Router/A/B Workers and separate preparers. Browser assets use local test origins. No live-chain or latency claim.'
+      : 'Public SDK, Chromium with separate authenticators, local Gateway/D1/Router/A/B Workers. NEAR RPC uses the intended-behaviour fixture. No live-chain or latency claim.',
     walletId: context.walletId,
     signer,
     checks: {

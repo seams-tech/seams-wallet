@@ -1,4 +1,4 @@
-import { intendedTest as test } from './harness';
+import { walletAssetTest as test } from './wallet-asset-fixture';
 import { runMlDsaBrowserLifecycle, runMlDsaDeviceOwnerParity } from './ml-dsa-lifecycle-scenario';
 
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });

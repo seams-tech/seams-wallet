@@ -2,6 +2,7 @@ import { expect, type Page, type Route } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { isolatedGatewayDatabasePath, loadIsolatedDatabaseSync } from './local-gateway-database';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
+import { hostedGatewayHeaders } from './hosted-gateway-access';
 
 /** Keep credentials in memory only. Evidence contains no requests or OTP codes. */
 export class MlDsaEmailProofProbe {
@@ -52,12 +53,13 @@ export class MlDsaEmailProofProbe {
     const request = route.request();
     this.preparation = {
       url: request.url(),
-      headers: await request.allHeaders(),
+      headers: await proofProbeHeaders(route),
       body: requireRecord(request.postDataJSON(), 'signing request'),
     };
-    await route.continue();
+    await route.continue({ headers: this.preparation.headers });
   }
   private async sign(route: Route): Promise<void> {
+    const headers = await proofProbeHeaders(route);
     const body = requireRecord(route.request().postDataJSON(), 'signing execution');
     const authorization = requireRecord(body.authorization, 'signing authorization');
     const authorizationKind = requireCanonicalString(authorization.kind, 'authorization kind');
@@ -73,7 +75,10 @@ export class MlDsaEmailProofProbe {
         postData: { ...source.body, operationIdB64u: otherOperation },
       });
       expect(requireRecord(await prepared.json(), 'other preparation').kind).toBe('prepared');
-      const wrong = await route.fetch({ postData: { ...body, operationIdB64u: otherOperation } });
+      const wrong = await route.fetch({
+        headers,
+        postData: { ...body, operationIdB64u: otherOperation },
+      });
       const refusal = requireRecord(await wrong.json(), 'wrong-operation result');
       expect(refusal.kind).toBe('refused');
       expect(refusal.code).toBe('unauthorized');
@@ -86,7 +91,7 @@ export class MlDsaEmailProofProbe {
     ) {
       const rollback = await injectApprovalCommitFailure();
       try {
-        const failedCommit = await route.fetch();
+        const failedCommit = await route.fetch({ headers });
         const result = requireRecord(await failedCommit.json(), 'injected commit result');
         expect(result.kind).toBe('refused');
         expect(['conflict', 'protocol_failed']).toContain(result.code);
@@ -95,15 +100,20 @@ export class MlDsaEmailProofProbe {
       }
       this.rolledBackApprovals.add(authorizationKind);
     }
-    const response = await route.fetch();
+    const response = await route.fetch({ headers });
     const result = requireRecord(await response.json(), 'signing result');
     if (result.kind === 'signed' && authorization.kind === 'email_otp') {
-      const replay = await route.fetch();
+      const replay = await route.fetch({ headers });
       expect(await replay.json()).toEqual(result);
       this.completedReplayVerified = true;
     }
     await route.fulfill({ response });
   }
+}
+
+async function proofProbeHeaders(route: Route): Promise<Record<string, string>> {
+  const mode = process.env.ML_DSA_HOSTED_DEPLOYMENT ? 'external_staging' : 'managed_local';
+  return { ...(await route.request().allHeaders()), ...hostedGatewayHeaders(mode) };
 }
 
 /** Fault injection is confined to the fresh local test database. */
