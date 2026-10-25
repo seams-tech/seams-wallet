@@ -4,6 +4,9 @@ Status: deferred. Written 2026-10-26. This document plans future work; it does n
 
 Priority order: stabilize VoiceID first, add EVM support second, then resume this cross-method approval plan.
 
+The proposed [adaptive enrollment evaluation](refactor-190a-voiceid-adaptive-enrollment-plan.md)
+belongs to stabilization and has separate release criteria.
+
 ## Goal and size
 
 Allow an owner to unlock with a passkey and explicitly choose VoiceID to approve a reviewed NEAR testnet transfer. Keep the original session, selected authority, signer, permissions, expiry, and remaining-use accounting.
