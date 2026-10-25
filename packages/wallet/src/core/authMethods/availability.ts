@@ -5,7 +5,7 @@ import { rejectUnknownFields } from '@shared/utils/exactRecord';
 
 import type { AuthMethodAvailability } from './availabilityTypes';
 
-function availabilityKey(walletId: WalletId, methodId: WalletAuthMethodId): string {
+export function availabilityKey(walletId: WalletId, methodId: WalletAuthMethodId): string {
   return `wallet-auth-method-availability:${encodeURIComponent(walletId)}:${encodeURIComponent(methodId)}`;
 }
 
@@ -14,14 +14,22 @@ export async function readAuthMethodEnabled(
   methodId: WalletAuthMethodId,
 ): Promise<boolean> {
   const raw = await IndexedDBManager.getAppState(availabilityKey(walletId, methodId));
-  // Existing enrollment predates the availability preference.
-  if (raw === undefined || raw === null) return true;
+  return parseStoredAuthMethodAvailability(raw).enabled;
+}
+
+export function parseStoredAuthMethodAvailability(raw: unknown): {
+  enabled: boolean;
+  revision: string;
+} {
+  if (raw === undefined || raw === null) return { enabled: true, revision: 'initial' };
   const record = requireRecord(raw, 'authentication method availability');
-  rejectUnknownFields(record, ['kind'], 'authentication method availability');
+  rejectUnknownFields(record, ['kind', 'revision'], 'authentication method availability');
   if (record.kind !== 'enabled' && record.kind !== 'disabled') {
     throw new Error('Authentication method availability is invalid.');
   }
-  return record.kind === 'enabled';
+  if (record.revision !== undefined && (typeof record.revision !== 'string' || !record.revision))
+    throw new Error('Authentication method availability revision is invalid.');
+  return { enabled: record.kind === 'enabled', revision: record.revision ?? 'initial' };
 }
 
 export async function writeAuthMethodEnabled(
@@ -31,6 +39,7 @@ export async function writeAuthMethodEnabled(
 ): Promise<void> {
   await IndexedDBManager.setAppState(availabilityKey(walletId, methodId), {
     kind: enabled ? 'enabled' : 'disabled',
+    revision: crypto.randomUUID(),
   });
 }
 

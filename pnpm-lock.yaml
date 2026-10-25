@@ -118,6 +118,9 @@ importers:
 
   packages/wallet:
     dependencies:
+      '@levischuck/tiny-cbor':
+        specifier: 0.2.11
+        version: 0.2.11
       '@near-js/types':
         specifier: ^2.4.0
         version: 2.4.0

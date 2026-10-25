@@ -24,39 +24,67 @@ export function VoiceIdAvailabilityControl({
   const { seams, refreshSession, loginState } = useSeams();
   const [state, setState] = React.useState<ViewState>({ kind: 'loading' });
   React.useEffect(loadAvailability.bind(null, seams, walletId, setState), [seams, walletId]);
-  const ownerSelected =
+  const passkeySelected =
     loginState.isLoggedIn &&
     loginState.currentAuthMethod.kind === 'selected' &&
-    loginState.currentAuthMethod.binding.kind !== 'voiceid';
+    loginState.currentAuthMethod.binding.kind === 'passkey';
   const ready = state.kind === 'ready';
   const enabled = (ready || state.kind === 'updating') && state.availability.kind === 'enabled';
   return (
     <div className="seams-voiceid-availability" data-setup={setup}>
       {setup ? <strong>VoiceID · Experimental</strong> : null}
-      <button
-        type="button"
-        role="switch"
-        className="seams-transaction-switch"
-        aria-label="Enable VoiceID in this browser"
-        aria-checked={enabled}
-        disabled={disabled || !ready}
-        onClick={
-          ready
-            ? changeAvailability.bind(
-                null,
-                seams,
-                walletId,
-                state.availability,
-                setState,
-                refreshSession,
-                onChanged,
-                'toggle',
-              )
-            : undefined
-        }
-      >
-        <span aria-hidden="true" />
-      </button>
+      <div className="seams-voiceid-controls">
+        <button
+          type="button"
+          role="switch"
+          className="seams-transaction-switch"
+          aria-label="Enable VoiceID in this browser"
+          aria-checked={enabled}
+          disabled={disabled || !ready}
+          onClick={
+            ready
+              ? changeAvailability.bind(
+                  null,
+                  seams,
+                  walletId,
+                  state.availability,
+                  setState,
+                  refreshSession,
+                  onChanged,
+                  'toggle',
+                )
+              : undefined
+          }
+        >
+          <span aria-hidden="true" />
+        </button>
+        {(ready || state.kind === 'updating') && state.availability.kind !== 'not_enrolled' ? (
+          <button
+            type="button"
+            className="seams-voiceid-manage"
+            disabled={disabled || !ready || !passkeySelected || !enabled}
+            title={
+              !passkeySelected
+                ? 'Unlock with a passkey to manage voice.'
+                : !enabled
+                  ? 'Enable VoiceID to manage voice.'
+                  : undefined
+            }
+            onClick={changeAvailability.bind(
+              null,
+              seams,
+              walletId,
+              state.availability,
+              setState,
+              refreshSession,
+              onChanged,
+              'manage',
+            )}
+          >
+            Manage voice
+          </button>
+        ) : null}
+      </div>
       <span role="status">
         {state.kind === 'loading'
           ? 'Checking VoiceID…'
@@ -70,25 +98,6 @@ export function VoiceIdAvailabilityControl({
                   ? 'On in this browser'
                   : 'Off in this browser'}
       </span>
-      {(ready || state.kind === 'updating') && state.availability.kind !== 'not_enrolled' && ownerSelected ? (
-        <button
-          type="button"
-          className="seams-voiceid-reenroll"
-          disabled={disabled || !ready}
-          onClick={changeAvailability.bind(
-            null,
-            seams,
-            walletId,
-            state.availability,
-            setState,
-            refreshSession,
-            onChanged,
-            'reenroll',
-          )}
-        >
-          Record voice again
-        </button>
-      ) : null}
       {setup ? (
         <p className="seams-linked-devices-modal-security-note">
           First-time setup downloads voice tools and records three samples. Your current login
@@ -136,14 +145,14 @@ async function changeAvailability(
   setState: React.Dispatch<React.SetStateAction<ViewState>>,
   refreshSession: ReturnType<typeof useSeams>['refreshSession'],
   onChanged: () => Promise<void>,
-  action: 'toggle' | 'reenroll',
+  action: 'toggle' | 'manage',
 ): Promise<void> {
   setState({ kind: 'updating', availability: previous });
   try {
-    if (previous.kind === 'not_enrolled' || action === 'reenroll')
+    if (previous.kind === 'not_enrolled' || action === 'manage')
       await seams.registration.activateAuthMethod({ walletId, method: 'voiceid' });
     const availability =
-      action === 'reenroll'
+      action === 'manage'
         ? await seams.registration.getAuthMethodAvailability({ walletId, method: 'voiceid' })
         : await seams.registration.setAuthMethodEnabled({
             walletId,

@@ -19,8 +19,8 @@ operation; it cannot silently bypass voice approval.
 
 After a passkey or Email OTP owner unlock, call
 `registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
-The Wallet requests microphone permission and enrolls this browser through three
-Record clicks. Later use `auth.unlockWithAuthMethod` with that wallet and method
+The Wallet requests microphone permission and enrolls this wallet method through three
+Record clicks. For an existing method, the same command opens Manage voice. Later use `auth.unlockWithAuthMethod` with that wallet and method
 ID. A VoiceID-selected NEAR testnet transfer requires Confirm and a fresh voice match.
 The button confirms intent. Read the displayed phrase at a normal pace. Use Cancel to cancel.
 
@@ -80,11 +80,48 @@ model is discarded and downloaded again. Failed loads remain retryable.
 ## Re-enrollment after a model change
 
 The persistence boundary treats an enrollment for a different model as unavailable.
-Voice-only unlock cannot use it. The user must first unlock with a passkey or Email
-OTP and select Enroll voice again. Activation reuses an existing local device
+Voice-only unlock cannot use it. The user must first unlock with a passkey and
+select Manage voice, then Record voice again. Activation reuses an existing local device
 credential for that wallet and authority, then replaces the speaker template only
 after all three samples succeed. It does not create another server method or change
 the existing custody envelope. Cancellation preserves the prior stored record.
+
+## Manual adaptive enrollment
+
+Manage voice provides Improve voice recognition, Reset voice improvements, and
+Record voice again. Each action requires a fresh passkey confirmation. The trusted
+Wallet validates the assertion's signature, challenge, origin, RP ID, user presence,
+and user verification. ES256 passkey credentials use the existing public-key crypto
+worker for COSE and signature decoding, then WebCrypto for signature verification. No credential PRF
+output is requested. Confirmation authorizes one local enrollment change only.
+Both ES256 and RS256 passkey credentials are supported. RS256 uses WebCrypto and
+the existing small CBOR dependency for its RSA public key. These are passkey algorithms.
+Wallet transaction signers remain ECDSA/secp256k1 and Ed25519. VoiceID signing currently
+supports Ed25519-Yao NEAR testnet transfers. The server must still recognize the
+same owner session before confirmation and before saving; no signing quota is consumed.
+
+Enrollment storage binds wallet, authority, method, and device key. An atomic commit
+checks owner selection, lock generation, availability revision, and enrollment
+generation/revision. A competing update cannot be overwritten. Capture watches
+owner lifecycle changes and releases the microphone if the action becomes invalid.
+
+Three accepted supplements contribute 20% of the effective template; the immutable
+baseline contributes 80%. Each supplement must match the baseline at 0.5. The final
+template must stay within cosine 0.98 of the baseline. Supplements expire after
+24 hours or 32 template uses. Reset preserves the baseline. Re-recording creates a
+new baseline generation. These are bounded experimental settings, not calibrated
+accuracy or false-acceptance guarantees. Automatic learning is not implemented.
+
+Old browser-wide records cannot authenticate directly. Manage voice offers an
+explicit, passkey-confirmed import for the selected method. This migration boundary
+is the only reader of the old record. Other wallets require their own import or
+enrollment. Import deletes it once all known active VoiceID methods have scoped records.
+
+No additional model weights are needed. Fresh passkey confirmation can load the
+existing crypto worker and WASM if uncached: about 1.34 MB uncompressed or 0.31 MB
+with local gzip compression, plus management JavaScript. This is separate from the
+26.86 MB uncompressed voice models and inference runtime. Actual network transfer
+depends on compression and caching. The local enrollment record has a 32 KiB limit.
 
 To replace the implementation, preserve `WalletAuthMethodHostPlugin`, the device
 assertion contract, and method-bound custody envelopes. To remove VoiceID, remove
@@ -175,7 +212,8 @@ and timestamp. No audio or transcript is saved or sent by these diagnostics.
 
 ## Settings and SeamsAuthMenu
 
-Settings exposes an enable/disable switch and owner-only re-enrollment. Use
+Authentication methods shows **Manage voice** beside the VoiceID enable/disable switch.
+Management requires an enabled VoiceID method and a selected passkey owner session. Use
 `registration.getAuthMethodAvailability({ walletId, method: 'voiceid' })` to read
 `not_enrolled`, `enabled`, or `disabled`. Use
 `registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled })`

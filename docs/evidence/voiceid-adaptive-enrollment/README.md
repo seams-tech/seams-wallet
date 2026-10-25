@@ -99,5 +99,11 @@ rule requires a separately declared experiment and independent validation data.
 
 Before production work resumes, collect explicitly authorized natural-paced human
 samples across sessions and test the original-enrollment hypothesis directly.
-The passkey-confirmed collection flow, storage migration, expiration, reset, and
-automatic learning remain unimplemented. The speaker and phrase thresholds are unchanged.
+At the time of this experiment, the passkey-confirmed collection flow, storage migration,
+expiration, reset, and automatic learning were unimplemented. See the current plan
+for subsequent manual implementation. This experiment changed neither threshold.
+
+The user subsequently requested the explicit manual option as an experiment.
+Its separate [browser evidence](../voiceid-adaptive-management/README.md) verifies
+management behavior. The accuracy result and automatic-learning decision above
+remain unchanged.

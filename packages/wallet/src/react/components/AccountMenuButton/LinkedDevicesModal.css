@@ -628,5 +628,7 @@
 
 .seams-auth-method-actions > .seams-linked-devices-modal-remove { align-self: flex-end; }
 .seams-auth-methods-modal-content .seams-linked-devices-modal-item-content { align-self: start; padding-block-start: 0.25rem; }
-.seams-voiceid-reenroll { border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.75rem; padding: 0.25rem 0; cursor: pointer; }
-.seams-voiceid-reenroll:disabled { opacity: 0.5; cursor: default; }
+.seams-voiceid-manage { border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.75rem; padding: 0.25rem 0; cursor: pointer; }
+.seams-voiceid-manage:disabled { opacity: 0.5; cursor: default; }
+
+.seams-voiceid-controls { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; }

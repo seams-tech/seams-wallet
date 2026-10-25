@@ -11,7 +11,7 @@ import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerH
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceIdDeviceAssertion';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
-import { readVoiceEnrollment } from '../browser/enrollment';
+import { readVoiceEnrollment, resolveVoiceEnrollmentScope } from '../browser/enrollmentStore';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
 import type { PreparedVoiceCapture } from '../capture/surface';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
@@ -47,9 +47,10 @@ export async function prepareUnlockSurface(
     location.origin,
     fetchWithWalletHomeDiscovery,
   );
-  if (!(await readVoiceEnrollment())) {
+  const scope = await resolveVoiceEnrollmentScope(input.walletId, input.walletAuthMethodId);
+  if (!(await readVoiceEnrollment(scope))) {
     throw new Error(
-      'Unlock with a passkey or Email OTP, then select Enroll voice again to use the current VoiceID model.',
+      'Unlock with a passkey, then open Manage voice to import or record your enrollment.',
     );
   }
   await prepareVoiceModelWithProgress(parent);
@@ -63,7 +64,11 @@ export async function prepareUnlockSurface(
   input.assertActive();
   const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install };
   signal.throwIfAborted();
-  return { expiresAtMs: challenge.expiresAtMs, action: captureAndInstall.bind(null, prepared) };
+  return {
+    kind: 'recording',
+    expiresAtMs: challenge.expiresAtMs,
+    action: captureAndInstall.bind(null, prepared),
+  };
 }
 
 function installVerifiedSession(

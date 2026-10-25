@@ -1,9 +1,15 @@
 # Refactor 190a — Adaptive VoiceID enrollment
 
-Status: public-corpus feasibility evaluation complete, 2026-10-26. The user authorized the staged work.
+Status: manual implementation complete and both management journeys passed, 2026-10-26. After reviewing the feasibility
+result, the user explicitly requested adaptive VoiceID implementation. The manual
+flow uses the evaluated 80/20 rule as an experimental, user-confirmed option.
 The tested candidate did not improve rejection counts in the evaluation group.
-Production adaptation remains unimplemented and subject to the gates below.
+Automatic learning and accuracy qualification remain deferred. The original release
+criteria below remain the qualification requirements, not claims about this implementation.
 See the [experiment and repeatable evidence](evidence/voiceid-adaptive-enrollment/README.md).
+The [management browser evidence](evidence/voiceid-adaptive-management/README.md)
+records fresh passkey confirmation, capture, reset, expiry, import, removal, unlock,
+and Ed25519 NEAR signing. Live human accuracy validation remains outstanding.
 
 This work belongs to VoiceID stabilization. EVM support follows stabilization, then
 [cross-method transaction approval](refactor-190-voiceid-cross-method-step-up-plan.md).
@@ -25,8 +31,13 @@ Phrase recognition remains a separate stabilization task.
 ## Download and storage cost
 
 Adaptation reuses the existing models. It requires **no additional model weights**.
-Application code for the eventual improvement flow adds an unmeasured, small payload;
-measure its built size before release.
+The management flow adds application code and reuses the existing inference assets.
+
+ES256 passkey confirmation uses the existing public-key crypto worker for signature
+decoding. If uncached, its worker and WASM add 1,337,366 bytes uncompressed or
+307,808 bytes with local gzip, plus management JavaScript. RS256 passkey confirmation
+uses WebCrypto and the existing small CBOR decoder. These credential algorithms are
+separate from the ECDSA/secp256k1 and Ed25519 wallet transaction signers.
 
 Measured existing assets on 2026-10-26, using decimal MB:
 
@@ -51,6 +62,10 @@ One baseline plus three supplemental 192-value vectors needs about 6 KB as binar
 Set and verify a small serialized storage budget during implementation. Raw audio
 is discarded after inference. Evaluation corpus downloads are developer-only costs.
 
+The implemented record limit is 32 KiB. Supplements expire after 24 hours or 32
+template uses. These lifetime limits bound retention and use; they are conservative
+engineering choices and have not been calibrated as biometric accuracy parameters.
+
 ## Reference and current implementation
 
 Apple documents temporary additions to Face ID representations after sufficiently
@@ -59,7 +74,7 @@ followed by passcode confirmation. Apple does not publish an averaging rate or a
 voice-specific implementation in this document.
 [Source: Apple Platform Security](https://support.apple.com/guide/security/facial-matching-security-sece151358d1/web).
 
-Current source boundaries:
+Source boundaries before implementation:
 
 | Boundary | Current behavior | Implementation work |
 | --- | --- | --- |

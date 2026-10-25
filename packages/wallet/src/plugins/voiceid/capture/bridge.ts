@@ -3,6 +3,7 @@ import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/micro
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import { verifyBrowserVoice } from '../browser/enrollment';
+import type { VoiceEnrollmentScope } from '../browser/enrollmentStore';
 
 export type VoiceBinding = Readonly<{
   attemptId: string;
@@ -19,6 +20,7 @@ export function sameVoiceBinding(left: VoiceBinding, right: VoiceBinding): boole
 }
 
 export async function listenForVoiceApproval(
+  scope: VoiceEnrollmentScope,
   binding: VoiceBinding,
   timeoutMs: number,
   signal: AbortSignal,
@@ -28,7 +30,7 @@ export async function listenForVoiceApproval(
   const deadline = Math.min(binding.expiresAtMs, Date.now() + timeoutMs);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
-  const result = await verifyBrowserVoice(signal, onCapture, phrase);
+  const result = await verifyBrowserVoice({ kind: 'active', scope }, signal, onCapture, phrase);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
   switch (result.kind) {

@@ -152,7 +152,7 @@ async function verifyLivePage(
   expect(assets.activations).toBe(1);
   await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
-  await expect(status).toContainText('Enroll voice again');
+  await expect(status).toContainText('Manage voice');
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await expect(
     page.getByRole('button', { name: 'Enroll voice again', exact: true }),
@@ -160,7 +160,7 @@ async function verifyLivePage(
   await page.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('passkey');
   await page.getByRole('button', { name: 'Enroll voice again', exact: true }).click();
-  await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Record voice again', exact: true }).click();
   await enrollBrowserMicrophone(page);
   await expect(status).toHaveText('VoiceID activated. Lock the wallet, then unlock with VoiceID.');
   expect(assets.activations).toBe(1);

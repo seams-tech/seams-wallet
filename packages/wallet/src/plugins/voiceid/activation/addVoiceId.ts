@@ -10,7 +10,8 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
 import type { SpokenPhrase } from '../browser/phrase';
-import { enrollBrowserVoice } from '../browser/enrollment';
+import { manageVoiceEnrollment } from './manageEnrollment';
+import { resolveVoiceEnrollmentScope } from '../browser/enrollmentStore';
 import { readBrowserVoiceDevice } from '../browser/deviceStore';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
 import type { PreparedVoiceCapture } from '../capture/surface';
@@ -31,6 +32,7 @@ import {
   type WalletAuthMethodId,
 } from '@shared/utils/domainIds';
 import { secureRandomId } from '@shared/utils/secureRandomId';
+import type { Variant } from '@shared/utils/variant';
 
 type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
 
@@ -39,6 +41,7 @@ type PreparedVoiceIdActivation =
       readonly kind: 'enroll_existing';
       readonly walletId: WalletId;
       readonly walletAuthMethodId: WalletAuthMethodId;
+      readonly context: RegistrationWebContext;
     }
   | {
       readonly kind: 'activate';
@@ -108,7 +111,12 @@ async function prepareActivation(
       continue;
     const device = await readBrowserVoiceDevice(walletId, method.walletAuthMethodId);
     if (device && device.deviceKeyId === method.deviceKeyId) {
-      return { kind: 'enroll_existing', walletId, walletAuthMethodId: method.walletAuthMethodId };
+      return {
+        kind: 'enroll_existing',
+        walletId,
+        walletAuthMethodId: method.walletAuthMethodId,
+        context,
+      };
     }
   }
   const store = new VoiceIdActivationStore(IndexedDBManager);
@@ -161,20 +169,32 @@ export async function prepareActivationSurface(
   const { context, walletId } = input;
   const prepared = await prepareActivation(context, walletId);
   signal.throwIfAborted();
-  return { action: activatePreparedVoiceId.bind(null, prepared), expiresAtMs: null };
+  if (prepared.kind === 'enroll_existing') {
+    return { kind: 'management', action: managePreparedVoiceId.bind(null, prepared) };
+  }
+  return {
+    kind: 'recording',
+    action: activatePreparedVoiceId.bind(null, prepared),
+    expiresAtMs: null,
+  };
+}
+
+async function managePreparedVoiceId(
+  prepared: Variant<PreparedVoiceIdActivation, 'kind', 'enroll_existing'>,
+  signal: AbortSignal,
+): Promise<AddVoiceIdResult> {
+  const scope = await resolveVoiceEnrollmentScope(prepared.walletId, prepared.walletAuthMethodId);
+  await manageVoiceEnrollment(prepared.context, scope, signal);
+  signal.throwIfAborted();
+  return { walletId: prepared.walletId, walletAuthMethodId: prepared.walletAuthMethodId };
 }
 
 async function activatePreparedVoiceId(
-  prepared: PreparedVoiceIdActivation,
+  prepared: Variant<PreparedVoiceIdActivation, 'kind', 'activate'>,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<AddVoiceIdResult> {
-  if (prepared.kind === 'enroll_existing') {
-    await enrollBrowserVoice(signal);
-    signal.throwIfAborted();
-    return { walletId: prepared.walletId, walletAuthMethodId: prepared.walletAuthMethodId };
-  }
   const outcome = await activateVoiceIdForUnlockedWallet({
     plan: prepared.plan,
     ownerCredential: prepared.ownerCredential,

@@ -359,6 +359,7 @@ type HostedAuthMenuContext = {
 type HostedAuthMenuTerminalGate = {
   completed: boolean;
   observedLoggedIn: boolean;
+  logoutGeneration: number;
 };
 
 const hostedAuthMenuTerminalGates = new WeakMap<SeamsWeb, HostedAuthMenuTerminalGate>();
@@ -383,6 +384,7 @@ function terminalGateFor(seams: SeamsWeb | null): HostedAuthMenuTerminalGate | n
   const gate: HostedAuthMenuTerminalGate = {
     completed: false,
     observedLoggedIn: false,
+    logoutGeneration: 0,
   };
   hostedAuthMenuTerminalGates.set(seams, gate);
   return gate;
@@ -398,6 +400,7 @@ function syncTerminalGate(gate: HostedAuthMenuTerminalGate | null, isLoggedIn: b
   if (!gate.observedLoggedIn) return;
   gate.completed = false;
   gate.observedLoggedIn = false;
+  gate.logoutGeneration += 1;
 }
 
 function forwardHostedAuthMenuOutcome(
@@ -455,7 +458,10 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     onOutcomeRef,
   );
   const effectConfigKey = hostedAuthMenuEffectConfigKey(effectConfigRef.current);
+  const logoutGeneration = terminalGate?.logoutGeneration ?? 0;
 
+  // Authentication can publish before open() resolves. Keep that controller alive
+  // to deliver its terminal outcome; a later logout starts a new menu lifecycle.
   React.useEffect(() => {
     const anchorElement = anchorRef.current;
     if (!seams || !anchorElement || typeof window === 'undefined') return undefined;
@@ -476,7 +482,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     });
     session.start();
     return session.cleanup.bind(session);
-  }, [seams, isLoggedIn, effectConfigKey]);
+  }, [seams, logoutGeneration, effectConfigKey]);
 
   return (
     <span

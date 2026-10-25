@@ -154,7 +154,51 @@ cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
 after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires
 an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
-envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB.
+envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB,
+scoped to its wallet, authority, method, and device key.
+
+### Explicit voice improvements
+
+Authentication methods exposes **Manage voice** for an existing local VoiceID method.
+The Wallet opens management directly. Improvement, reset, re-recording, and import
+require a fresh user-verified passkey assertion from the selected owner authority.
+The Wallet verifies the signature locally against the stored active passkey and binds
+the assertion to the operation, origin, exact enrollment revision, and owner selection.
+An old unlocked session or a replayed assertion cannot authorize a change.
+The owner session is checked with the server before confirmation and before saving.
+Management does not consume or renew signing quota.
+
+**Improve voice recognition** collects three phrase-matched recordings with a normal
+background estimate. Each must match the immutable baseline at 0.5 and remain
+consistent with the other new samples. The effective template combines 80% baseline
+with 20% normalized supplemental mean, then normalizes that combination. Its cosine
+against the baseline must remain at least 0.98. The original template stays unchanged.
+
+Supplements expire after 24 hours or 32 voice template uses, whichever comes first.
+Each use is reserved atomically before the speaker decision, including rejected
+attempts. The last reserved use can use the adapted template. Later checks use the
+baseline. Expired or invalid supplemental data is ignored and removed at the next
+enrollment read or template use. Expiry never renews through use. Corrupt baseline or identity data fails closed.
+**Reset voice improvements** removes supplements. **Record voice again** explicitly
+replaces the baseline and clears supplements after all three recordings succeed.
+
+Changes commit atomically against the captured generation and revision. Cancellation,
+expiry, lock, owner-method changes, availability changes, revocation, and competing
+updates prevent a stale write. Method removal through the SDK deletes its scoped
+enrollment. The enrollment record is limited to 32 KiB. Audio and temporary vectors
+are discarded after processing; diagnostics contain no embeddings.
+
+The previous browser-wide enrollment is available only through an explicit,
+passkey-confirmed **Use existing voice enrollment** action. Verification never falls
+back to it. Import preserves its baseline for the selected wallet method; it does
+not silently grant that enrollment to other wallets. Import deletes the old record
+when all known active VoiceID methods have scoped enrollments. Otherwise, it remains
+solely at this migration boundary for the other methods.
+
+Automatic learning remains disabled. The public-corpus evaluation did not establish
+a reduction in evaluation-group rejection. These manual controls remain experimental
+and require separate live accuracy validation. Speaker threshold 0.5, phrase limit 8,
+6–7-word prompts, server authorization, session budgets, and signing admission remain unchanged.
 
 VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
 VoiceBeam glow. They consume the recorder's activity events without opening a

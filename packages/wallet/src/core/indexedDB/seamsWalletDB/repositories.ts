@@ -2117,7 +2117,7 @@ function rawValueIsPresent(value: unknown): boolean {
   return value !== undefined;
 }
 
-function parseWalletAuthorityStorageRow(value: unknown): WalletAuthorityRow | null {
+export function parseWalletAuthorityStorageRow(value: unknown): WalletAuthorityRow | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   const parsed = parseWalletAuthorityV1(Reflect.get(value, 'record'));
   if (!parsed.ok) return null;
@@ -2235,7 +2235,7 @@ function parseWalletAuthMethodLocalPresentationV1(
   }
 }
 
-function parseWalletAuthMethodV2StorageRow(value: unknown): WalletAuthMethodV2Row | null {
+export function parseWalletAuthMethodV2StorageRow(value: unknown): WalletAuthMethodV2Row | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   const record = parseWalletAuthMethodRecordV2(Reflect.get(value, 'record'));
   if (!record) return null;
@@ -2712,7 +2712,7 @@ function parseWalletSelectionRecord(value: unknown): WalletSelectionRecordV1 {
   };
 }
 
-function parseWalletSelectionStorageRow(value: unknown): WalletSelectionRow | null {
+export function parseWalletSelectionStorageRow(value: unknown): WalletSelectionRow | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
   try {
     const record = parseWalletSelectionRecord(Reflect.get(value, 'record'));

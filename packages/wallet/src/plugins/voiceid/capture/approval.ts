@@ -15,6 +15,10 @@ import {
 import { ActionType } from '@shared/near/actions';
 import { isPlainObject } from '@shared/utils/validation';
 import { listenForVoiceApproval, sameVoiceBinding, type VoiceBinding } from './bridge';
+import { walletForHostRequest } from '@/SeamsWeb/walletIframe/host/walletMutationGuard';
+import { IndexedDBManager } from '@/core/indexedDB';
+import { resolveVoiceEnrollmentScope } from '../browser/enrollmentStore';
+import type { WalletId } from '@shared/utils/domainIds';
 
 export type VoiceIdPolicy =
   | { readonly kind: 'disabled'; readonly approval?: never }
@@ -95,7 +99,12 @@ export async function voiceIdPolicyForRequest(
       const hash = await crypto.subtle.digest('SHA-256', bytes);
       let operationHash = '';
       for (const byte of new Uint8Array(hash)) operationHash += byte.toString(16).padStart(2, '0');
-      return { kind: 'required', approval: VoiceIdApproval.forReview(review, operationHash) };
+      const walletId = walletForHostRequest(request, null);
+      if (!walletId) throw new Error('VoiceID review requires a wallet identity.');
+      return {
+        kind: 'required',
+        approval: VoiceIdApproval.forReview(review, operationHash, walletId),
+      };
     }
     default:
       return { kind: 'disabled' };
@@ -125,6 +134,7 @@ export class VoiceIdApproval {
   private constructor(
     private readonly reviewExpiresAtMs: number,
     private readonly operationHash: string,
+    private readonly walletId: WalletId,
   ) {
     this.prompt = new VoicePrompt(document, 'Approve transfer with VoiceID', this.phrase);
     this.prompt.record.hidden = true;
@@ -136,14 +146,18 @@ export class VoiceIdApproval {
     this.surface.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true }));
   };
 
-  static forReview(review: TransactionReviewWire, operationHash: string): VoiceIdApproval {
+  static forReview(
+    review: TransactionReviewWire,
+    operationHash: string,
+    walletId: WalletId,
+  ): VoiceIdApproval {
     if (review.validity.kind !== 'expires_at' || !/^[0-9a-f]{64}$/.test(operationHash)) {
       throw new TransactionReviewError(
         'review_invalid_input',
         'VoiceID requires a bounded operation.',
       );
     }
-    return new VoiceIdApproval(review.validity.atMs, operationHash);
+    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId);
   }
 
   async approve(signal: AbortSignal): Promise<AuthMethodApprovalResult> {
@@ -178,7 +192,20 @@ export class VoiceIdApproval {
     this.prompt.status.textContent = 'Opening microphone…';
     this.state = { kind: 'listening', binding, deadline, signal };
     try {
+      const selected = await IndexedDBManager.resolveSelectedWalletAuthority(this.walletId);
+      if (
+        selected.kind !== 'resolved' ||
+        selected.authMethod.kind !== 'voiceid' ||
+        selected.selection.lockState !== 'unlocked'
+      ) {
+        throw new Error('Unlock this wallet with VoiceID before voice approval.');
+      }
+      const scope = await resolveVoiceEnrollmentScope(
+        this.walletId,
+        selected.authMethod.walletAuthMethodId,
+      );
       const outcome = await listenForVoiceApproval(
+        scope,
         binding,
         remaining,
         signal,

@@ -17,7 +17,7 @@ export type BrowserVoiceDevice = Readonly<{
   ciphertext: ArrayBuffer;
 }>;
 
-function deviceKey(walletId: WalletId, methodId: WalletAuthMethodId): string {
+export function deviceKey(walletId: WalletId, methodId: WalletAuthMethodId): string {
   return `voiceid-browser-device-v1:${encodeURIComponent(walletId)}:${encodeURIComponent(methodId)}`;
 }
 

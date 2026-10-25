@@ -10,6 +10,9 @@ const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
 .seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
 .seams-voiceid-recording-details summary { cursor:pointer; }
+.seams-voiceid-prompt.seams-voiceid-management { display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; }
+.seams-voiceid-management button { padding: .75rem; border-radius: .75rem; font: inherit; cursor: pointer; }
+.seams-voiceid-management button:disabled { opacity: .5; cursor: default; }
 
 .seams-voiceid-prompt {
   box-sizing: border-box;
@@ -260,9 +263,11 @@ export class VoicePrompt {
       case 'measured': {
         const quality = event.quality;
         this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
-        this.details.hidden = quality.voicedMs >= quality.requiredVoicedMs && quality.noise !== 'high';
-        if (quality.noise === 'high') this.status.textContent = 'Background noise is high. Move closer to the microphone.';
-        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s of detected speech. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}. Background RMS ${quality.backgroundRms.toFixed(4)}. Speech/background ${quality.speechToBackgroundDb === null ? "unknown" : quality.speechToBackgroundDb.toFixed(1) + " dB"}. Browser processing: ${JSON.stringify(quality.processing)}.`;
+        this.details.hidden =
+          quality.voicedMs >= quality.requiredVoicedMs && quality.noise !== 'high';
+        if (quality.noise === 'high')
+          this.status.textContent = 'Background noise is high. Move closer to the microphone.';
+        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s of detected speech. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}. Background RMS ${quality.backgroundRms.toFixed(4)}. Speech/background ${quality.speechToBackgroundDb === null ? 'unknown' : quality.speechToBackgroundDb.toFixed(1) + ' dB'}. Browser processing: ${JSON.stringify(quality.processing)}.`;
         return;
       }
       case 'processing':

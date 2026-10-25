@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "transport": "deterministic_perception_boundary",
+  "transactionBroadcast": false,
+  "cases": [
+    "mainnet_and_unreviewed_requests_rejected",
+    "signing_without_voice_rejected",
+    "voice_review_cannot_prepare_a_passkey_lane",
+    "operation_frozen_before_voice_approval"
+  ]
+}

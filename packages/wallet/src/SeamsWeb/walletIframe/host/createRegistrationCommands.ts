@@ -107,11 +107,16 @@ async function removeAuthMethod(
   getContext: () => RegistrationWebContext,
   args: Parameters<RegistrationCapability['removeAuthMethod']>[0],
 ): Promise<Awaited<ReturnType<RegistrationCapability['removeAuthMethod']>>> {
-  return await revokeWalletAuthMethodOperation({
+  const result = await revokeWalletAuthMethodOperation({
     context: getContext(),
     walletId: args.walletId,
     walletAuthMethodId: args.walletAuthMethodId,
   });
+  if (result.authMethod.kind === 'voiceid') {
+    const voice = await import('@/plugins/voiceid/browser/enrollmentStore');
+    await voice.removeVoiceEnrollments(result.walletId, result.walletAuthMethodId);
+  }
+  return result;
 }
 
 async function addEmail(

@@ -194,6 +194,7 @@
     }
   },
   "dependencies": {
+    "@levischuck/tiny-cbor": "0.2.11",
     "@near-js/types": "^2.4.0",
     "borsh": "1.0.0",
     "bs58": "^6.0.0",

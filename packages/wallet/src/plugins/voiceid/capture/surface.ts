@@ -16,17 +16,25 @@ type CaptureAction<T> = (
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ) => Promise<T>;
-export type PreparedVoiceCapture<T> = Readonly<{
+type PreparedRecording<T> = Readonly<{
+  kind: 'recording';
   action: CaptureAction<T>;
   expiresAtMs: number | null;
 }>;
+export type PreparedVoiceCapture<T> =
+  | PreparedRecording<T>
+  | Readonly<{
+      kind: 'management';
+      action: (signal: AbortSignal) => Promise<T>;
+      expiresAtMs?: never;
+    }>;
 type CapturePreparation<T> = (
   signal: AbortSignal,
   parent: HTMLElement,
 ) => Promise<PreparedVoiceCapture<T>>;
 type CaptureState<T> =
   | { kind: 'preparing' }
-  | { kind: 'ready'; capture: PreparedVoiceCapture<T> }
+  | { kind: 'ready'; capture: PreparedRecording<T> }
   | { kind: 'capturing' }
   | { kind: 'closed' };
 class VoiceIdCaptureSurface<T> {
@@ -105,6 +113,16 @@ class VoiceIdCaptureSurface<T> {
       this.controller.signal.throwIfAborted();
       const capture = await prepare(this.controller.signal, this.prompt.progress);
       if (this.state.kind === 'closed') return;
+      if (capture.kind === 'management') {
+        this.element.setAttribute('aria-label', 'Manage voice');
+        this.element.dataset.preparation = 'ready';
+        this.state = { kind: 'capturing' };
+        const result = await capture.action(this.controller.signal);
+        this.controller.signal.throwIfAborted();
+        this.state = { kind: 'closed' };
+        this.completion.resolve(result);
+        return;
+      }
       const remaining = capture.expiresAtMs === null ? null : capture.expiresAtMs - Date.now();
       if (remaining !== null && remaining <= 0) {
         throw new Error('VoiceID challenge expired. Start unlock again.');
@@ -132,7 +150,7 @@ class VoiceIdCaptureSurface<T> {
     void this.perform(capture);
   };
 
-  private async perform(capture: PreparedVoiceCapture<T>): Promise<void> {
+  private async perform(capture: PreparedRecording<T>): Promise<void> {
     this.activateButton.disabled = true;
     this.status.textContent = 'Opening microphone…';
     try {
@@ -143,7 +161,11 @@ class VoiceIdCaptureSurface<T> {
       this.completion.resolve(result);
     } catch (error: unknown) {
       if (this.state.kind === 'closed') return;
-      if (error instanceof InsufficientVoiceAudioError || error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError) {
+      if (
+        error instanceof InsufficientVoiceAudioError ||
+        error instanceof VoicePhraseMismatchError ||
+        error instanceof VoiceSpeakerMismatchError
+      ) {
         if (capture.expiresAtMs !== null && Date.now() >= capture.expiresAtMs) {
           this.expire();
           return;

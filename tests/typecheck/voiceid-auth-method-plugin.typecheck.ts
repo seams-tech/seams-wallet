@@ -1,5 +1,47 @@
 import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
 import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/descriptor';
+import { ConfirmedVoiceChange } from '../../packages/wallet/src/plugins/voiceid/activation/ownerConfirmation';
+import type {
+  VoiceEnrollmentChange,
+  VoiceEnrollment,
+} from '../../packages/wallet/src/plugins/voiceid/browser/enrollmentStore';
+
+declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
+// @ts-expect-error Confirmation must verify a fresh passkey assertion.
+new ConfirmedVoiceChange('forged', Date.now(), assertCurrentOwner);
+declare const consumeChange: ConfirmedVoiceChange['consume'];
+// @ts-expect-error A plain object cannot manufacture a passkey confirmation.
+const forgedChange: ConfirmedVoiceChange = { consume: consumeChange };
+declare const confirmedChange: ConfirmedVoiceChange;
+// @ts-expect-error Spreading removes private proof identity.
+const copiedChange: ConfirmedVoiceChange = { ...confirmedChange, consume: confirmedChange.consume };
+// @ts-expect-error Improvement requires fresh confirmation.
+const unconfirmedImprovement: VoiceEnrollmentChange = { kind: 'improve', samples: [] };
+const improvementFields = { samples: [] };
+// @ts-expect-error Reset cannot carry replacement samples.
+const resetWithSamples: VoiceEnrollmentChange = {
+  kind: 'reset',
+  confirmation: confirmedChange,
+  ...improvementFields,
+};
+// @ts-expect-error Adaptation requires both expiry and a remaining-use bound.
+const unlimitedAdaptation: VoiceEnrollment['adaptation'] = { kind: 'adapted', samples: [] };
+void forgedChange;
+void copiedChange;
+void unconfirmedImprovement;
+void resetWithSamples;
+void unlimitedAdaptation;
+
+import type { PreparedVoiceCapture } from '../../packages/wallet/src/plugins/voiceid/capture/surface';
+declare const managementAction: (signal: AbortSignal) => Promise<void>;
+const recordingDeadline = { expiresAtMs: Date.now() };
+// @ts-expect-error Management has per-action owner confirmation, not a recording deadline.
+const mixedCapture: PreparedVoiceCapture<void> = {
+  kind: 'management',
+  action: managementAction,
+  ...recordingDeadline,
+};
+void mixedCapture;
 import type { SeamsConfigsInput } from '../../packages/wallet/src/core/types/seams';
 import type { VerifiedVoiceIdSessionProof } from '../../packages/wallet-server/src/authorization/voiceIdDeviceProof';
 import type {

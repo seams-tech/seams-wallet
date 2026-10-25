@@ -13,7 +13,10 @@ export const voiceIdBrowserAudio = {
   },
 };
 
-export async function allowBrowserMicrophone(context: BrowserContext): Promise<void> {
+export async function allowBrowserMicrophone(
+  context: BrowserContext,
+  passkeyAlgorithm: 'es256' | 'rs256' = 'es256',
+): Promise<void> {
   const probe = JSON.parse(
     execFileSync(
       process.execPath,
@@ -24,7 +27,9 @@ export async function allowBrowserMicrophone(context: BrowserContext): Promise<v
       { encoding: 'utf8' },
     ),
   );
-  await context.addInitScript({ content: probe[0].code });
+  const configurePasskey =
+    passkeyAlgorithm === 'rs256' ? '\nwindow.voiceIdRequireRsaPasskey();' : '';
+  await context.addInitScript({ content: probe[0].code + configurePasskey });
   await context.route(/\/voiceid-test-audio\/(?:natural\/)?\d+\.wav$/, servePhraseAudio);
   await context.grantPermissions(['microphone'], {
     origin: process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202',

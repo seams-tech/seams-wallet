@@ -18,7 +18,15 @@ import {
   readBrowserVoiceDevice,
   openBrowserVoiceFactor,
 } from '../browser/deviceStore';
-import { readVoiceEnrollment, enrollBrowserVoice, verifyBrowserVoice } from '../browser/enrollment';
+import { enrollBrowserVoice, verifyBrowserVoice } from '../browser/enrollment';
+import {
+  readVoiceEnrollment,
+  voiceEnrollmentScope,
+  resolveVoiceEnrollmentScope,
+  type VoiceTemplateAccess,
+} from '../browser/enrollmentStore';
+import { prepareVoiceOwner } from '../activation/ownerConfirmation';
+import { IndexedDBManager } from '@/core/indexedDB';
 import { requireVoiceUserAction, InsufficientVoiceAudioError } from '../browser/microphone';
 
 export async function captureVoiceIdActivation(input: {
@@ -34,11 +42,28 @@ export async function captureVoiceIdActivation(input: {
   factorSecret32: Uint8Array;
 }> {
   requireVoiceUserAction();
-  if (await readVoiceEnrollment())
-    await requireVoiceMatch(input.signal, input.onCapture, input.phrase);
-  else await enrollBrowserVoice(input.signal);
-  input.signal.throwIfAborted();
   const device = await createBrowserVoiceDevice(input.walletId, input.walletAuthMethodId);
+  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(input.walletId);
+  if (selected.kind !== 'resolved')
+    throw new Error('Select the owner wallet before enrolling VoiceID.');
+  const scope = voiceEnrollmentScope(device, selected.authority.authorityId);
+  const enrollment = await readVoiceEnrollment(scope);
+  if (enrollment) {
+    const owner = await prepareVoiceOwner(scope, 'activating');
+    await requireVoiceMatch(
+      { kind: 'activation', scope, owner },
+      input.signal,
+      input.onCapture,
+      input.phrase,
+    );
+  } else {
+    const guard = await prepareVoiceOwner(scope, 'activating');
+    await enrollBrowserVoice(
+      { kind: 'activate', scope, guard, snapshot: { kind: 'missing' } },
+      input.signal,
+    );
+  }
+  input.signal.throwIfAborted();
   const factorSecret32 = await openBrowserVoiceFactor(device);
   if (input.signal.aborted) {
     factorSecret32.fill(0);
@@ -65,7 +90,8 @@ export async function captureVoiceIdUnlock(input: {
   const device = await readBrowserVoiceDevice(challenge.walletId, challenge.walletAuthMethodId);
   if (!device || device.deviceKeyId !== challenge.deviceKeyId)
     throw new Error('VoiceID device key is unavailable in this browser.');
-  await requireVoiceMatch(input.signal, input.onCapture, input.phrase);
+  const scope = await resolveVoiceEnrollmentScope(challenge.walletId, challenge.walletAuthMethodId);
+  await requireVoiceMatch({ kind: 'active', scope }, input.signal, input.onCapture, input.phrase);
   input.signal.throwIfAborted();
   if (challenge.expiresAtMs <= Date.now())
     throw new Error('VoiceID challenge expired. Start unlock again.');
@@ -91,18 +117,25 @@ export async function captureVoiceIdUnlock(input: {
 }
 
 async function requireVoiceMatch(
+  access: VoiceTemplateAccess,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<void> {
-  const result = await verifyBrowserVoice(signal, onCapture, phrase);
+  const result = await verifyBrowserVoice(access, signal, onCapture, phrase);
   switch (result.kind) {
     case 'matched':
       return;
     case 'insufficient_audio':
       throw new InsufficientVoiceAudioError(result.quality);
     case 'mismatch':
-      throw new VoiceSpeakerMismatchError(result.similarity, result.threshold, result.quality, result.phraseMatched, result.modelInputMs);
+      throw new VoiceSpeakerMismatchError(
+        result.similarity,
+        result.threshold,
+        result.quality,
+        result.phraseMatched,
+        result.modelInputMs,
+      );
     case 'phrase_mismatch':
       throw new VoicePhraseMismatchError(result.message);
     default:
