@@ -25,7 +25,7 @@ export async function allowBrowserMicrophone(context: BrowserContext): Promise<v
     ),
   );
   await context.addInitScript({ content: probe[0].code });
-  await context.route('**/voiceid-test-audio/**/*.wav', servePhraseAudio);
+  await context.route(/\/voiceid-test-audio\/(?:natural\/)?\d+\.wav$/, servePhraseAudio);
   await context.grantPermissions(['microphone'], {
     origin: process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202',
   });
