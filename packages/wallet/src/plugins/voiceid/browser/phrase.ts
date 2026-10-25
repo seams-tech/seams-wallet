@@ -63,7 +63,16 @@ function ctcScore(probabilities: Float64Array, frames: number, tokens: readonly 
   return states.length === 1 ? previous[0] : logAdd(previous[states.length - 1], previous[states.length - 2]);
 }
 
-function recognize(logits: Float32Array, frames: number): SpokenPhrase | null {
+type PhraseRecognition =
+  | { kind: 'recognized'; phrase: SpokenPhrase; gap: number }
+  | { kind: 'uncertain'; candidate: SpokenPhrase; gap: number }
+  | { kind: 'empty' };
+
+export type PhraseCheck =
+  | { kind: 'matched'; recognition: PhraseRecognition }
+  | { kind: 'mismatch'; recognition: PhraseRecognition; message: string };
+
+function recognize(logits: Float32Array, frames: number): PhraseRecognition {
   const probabilities = new Float64Array(logits.length);
   const greedy: number[] = [];
   let previousToken = -1;
@@ -95,7 +104,7 @@ function recognize(logits: Float32Array, frames: number): SpokenPhrase | null {
     previousToken = bestToken;
   }
   if (greedy.length === 0) {
-    return null;
+    return { kind: 'empty' };
   }
   let bestScore = -Infinity;
   let bestIndex = 0;
@@ -107,13 +116,16 @@ function recognize(logits: Float32Array, frames: number): SpokenPhrase | null {
     }
   }
   const greedyScore = ctcScore(probabilities, frames, greedy);
-  return greedyScore - bestScore <= MAX_GREEDY_LOG_GAP ? SPOKEN_PHRASES[bestIndex] : null;
+  const gap = greedyScore - bestScore;
+  return gap <= MAX_GREEDY_LOG_GAP
+    ? { kind: 'recognized', phrase: SPOKEN_PHRASES[bestIndex], gap }
+    : { kind: 'uncertain', candidate: SPOKEN_PHRASES[bestIndex], gap };
 }
 
-export async function spokenPhraseMatches(
+export async function checkSpokenPhrase(
   samples: Float32Array,
   expected: SpokenPhrase,
-): Promise<boolean> {
+): Promise<PhraseCheck> {
   const session = await preparePhraseModel();
   const ort = await import('onnxruntime-web/wasm');
   const input = new ort.Tensor('float32', samples, [1, samples.length]);
@@ -131,7 +143,10 @@ export async function spokenPhraseMatches(
       ) {
         throw new Error('Phrase model returned an invalid result.');
       }
-      return recognize(logits.data, logits.dims[1]) === expected;
+      const recognition = recognize(logits.data, logits.dims[1]);
+      if (recognition.kind === 'recognized' && recognition.phrase === expected)
+        return { kind: 'matched', recognition };
+      return { kind: 'mismatch', recognition, message: phraseFailureMessage(recognition) };
     } finally {
       for (const output of Object.values(outputs)) {
         output.dispose();
@@ -140,4 +155,20 @@ export async function spokenPhraseMatches(
   } finally {
     input.dispose();
   }
+}
+
+function phraseFailureMessage(result: PhraseRecognition): string {
+  switch (result.kind) {
+    case 'recognized':
+      return `Phrase recognition chose “${result.phrase}”. Please read the displayed phrase naturally.`;
+    case 'uncertain':
+      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Score gap ${result.gap.toFixed(1)}; limit ${MAX_GREEDY_LOG_GAP}.`;
+    case 'empty':
+      return 'Phrase recognition detected no words. Please try again in your normal voice.';
+    default:
+      return assertNever(result);
+  }
+}
+function assertNever(value: never): never {
+  throw new Error(`Unexpected phrase result: ${String(value)}`);
 }

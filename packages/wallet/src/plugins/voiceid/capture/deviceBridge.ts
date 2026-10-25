@@ -103,7 +103,7 @@ async function requireVoiceMatch(
     case 'mismatch':
       throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
     case 'phrase_mismatch':
-      throw new Error('The spoken words did not match. Start again and read the new phrase.');
+      throw new Error(result.message);
     default:
       return assertNever(result);
   }

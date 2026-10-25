@@ -1,0 +1,450 @@
+[
+  {
+    "expected": "i want to go home",
+    "voice": "Samantha",
+    "greedy": "i want to go home",
+    "oldGap": 0.0,
+    "newGap": -6.630307807092839e-07
+  },
+  {
+    "expected": "i want to go home",
+    "voice": "Daniel",
+    "greedy": "i want to go home",
+    "oldGap": 0.0,
+    "newGap": -2.3066280131711636e-05
+  },
+  {
+    "expected": "i can hear the music",
+    "voice": "Samantha",
+    "greedy": "i can hear the music",
+    "oldGap": 0.0,
+    "newGap": -1.3186304956280814e-07
+  },
+  {
+    "expected": "i can hear the music",
+    "voice": "Daniel",
+    "greedy": "i can hear the music",
+    "oldGap": 0.0,
+    "newGap": -9.648843448117894e-06
+  },
+  {
+    "expected": "this is my own voice",
+    "voice": "Samantha",
+    "greedy": "this is my own voice",
+    "oldGap": 0.0,
+    "newGap": -4.599862310494807e-09
+  },
+  {
+    "expected": "this is my own voice",
+    "voice": "Daniel",
+    "greedy": "this is my own voice",
+    "oldGap": 0.0,
+    "newGap": -0.00016361853355428835
+  },
+  {
+    "expected": "we are going home now",
+    "voice": "Samantha",
+    "greedy": "we are going home now",
+    "oldGap": 0.0,
+    "newGap": -4.3452492997919645e-06
+  },
+  {
+    "expected": "we are going home now",
+    "voice": "Daniel",
+    "greedy": "we are going home now",
+    "oldGap": 0.0,
+    "newGap": -3.100808647585329e-06
+  },
+  {
+    "expected": "the little dog is sleeping",
+    "voice": "Samantha",
+    "greedy": "the little dog is sleeping",
+    "oldGap": 0.0,
+    "newGap": -0.00010935414331814108
+  },
+  {
+    "expected": "the little dog is sleeping",
+    "voice": "Daniel",
+    "greedy": "the little dog is sleeping",
+    "oldGap": 0.0,
+    "newGap": -0.00032867001549935493
+  },
+  {
+    "expected": "the river is running slowly",
+    "voice": "Samantha",
+    "greedy": "the river is running slowly",
+    "oldGap": 0.0,
+    "newGap": -2.0800668587561688e-07
+  },
+  {
+    "expected": "the river is running slowly",
+    "voice": "Daniel",
+    "greedy": "the river is running slowly",
+    "oldGap": 0.0,
+    "newGap": -4.227472866213944e-08
+  },
+  {
+    "expected": "i want a glass of water",
+    "voice": "Samantha",
+    "greedy": "i want a glass of water",
+    "oldGap": 0.0,
+    "newGap": -8.929473382934816e-07
+  },
+  {
+    "expected": "i want a glass of water",
+    "voice": "Daniel",
+    "greedy": "i want a glass of water",
+    "oldGap": 0.0,
+    "newGap": -8.366513478175186e-05
+  },
+  {
+    "expected": "can you open the window",
+    "voice": "Samantha",
+    "greedy": "can you open the window",
+    "oldGap": 0.0,
+    "newGap": -2.3166355224146784e-06
+  },
+  {
+    "expected": "can you open the window",
+    "voice": "Daniel",
+    "greedy": "can you open the window",
+    "oldGap": 0.0,
+    "newGap": -8.472876424270304e-05
+  },
+  {
+    "expected": "we sat beside the river",
+    "voice": "Samantha",
+    "greedy": "we sat beside the river",
+    "oldGap": 0.0,
+    "newGap": -2.246041318210157e-08
+  },
+  {
+    "expected": "we sat beside the river",
+    "voice": "Daniel",
+    "greedy": "we sat beside the river",
+    "oldGap": 0.0,
+    "newGap": -2.2585694009480406e-08
+  },
+  {
+    "expected": "they are waiting for us",
+    "voice": "Samantha",
+    "greedy": "they are waiting for us",
+    "oldGap": 0.0,
+    "newGap": -3.7190074186899125e-08
+  },
+  {
+    "expected": "they are waiting for us",
+    "voice": "Daniel",
+    "greedy": "they are waiting for us",
+    "oldGap": 0.0,
+    "newGap": -1.0189118898606964e-06
+  },
+  {
+    "expected": "she is reading a book",
+    "voice": "Samantha",
+    "greedy": "she is reading a book",
+    "oldGap": 0.0,
+    "newGap": -1.8251224248588827e-07
+  },
+  {
+    "expected": "she is reading a book",
+    "voice": "Daniel",
+    "greedy": "she is reading a book",
+    "oldGap": 0.0,
+    "newGap": -3.6514327652614753e-06
+  },
+  {
+    "expected": "he is looking at me",
+    "voice": "Samantha",
+    "greedy": "he is looking at me",
+    "oldGap": 0.0,
+    "newGap": -3.5592438558662565e-06
+  },
+  {
+    "expected": "he is looking at me",
+    "voice": "Daniel",
+    "greedy": "he is looking at me",
+    "oldGap": 0.0,
+    "newGap": -3.516356636301676e-05
+  },
+  {
+    "expected": "the door is open now",
+    "voice": "Samantha",
+    "greedy": "the door is open now",
+    "oldGap": 0.0,
+    "newGap": -0.0044625341605168956
+  },
+  {
+    "expected": "the door is open now",
+    "voice": "Daniel",
+    "greedy": "the door is open now",
+    "oldGap": 0.0,
+    "newGap": -7.864468705612304e-06
+  },
+  {
+    "expected": "let us go home now",
+    "voice": "Samantha",
+    "greedy": "let us go home now",
+    "oldGap": 0.0,
+    "newGap": -2.0306695808214315e-07
+  },
+  {
+    "expected": "let us go home now",
+    "voice": "Daniel",
+    "greedy": "let us go home now",
+    "oldGap": 0.0,
+    "newGap": -2.5143928746029776e-06
+  },
+  {
+    "expected": "that is a good idea",
+    "voice": "Samantha",
+    "greedy": "that is a good idea",
+    "oldGap": 0.0,
+    "newGap": -6.153351717053113e-10
+  },
+  {
+    "expected": "that is a good idea",
+    "voice": "Daniel",
+    "greedy": "that is a good idea",
+    "oldGap": 0.0,
+    "newGap": -1.5606933800871303e-10
+  },
+  {
+    "expected": "come and sit with me",
+    "voice": "Samantha",
+    "greedy": "come and sit with me",
+    "oldGap": 0.0,
+    "newGap": -0.001094412624192076
+  },
+  {
+    "expected": "come and sit with me",
+    "voice": "Daniel",
+    "greedy": "come and sit with me",
+    "oldGap": 0.0,
+    "newGap": -2.4090978504365257e-05
+  },
+  {
+    "expected": "i want to go home",
+    "voice": "Karen",
+    "greedy": "i want to go home",
+    "oldGap": 0.0,
+    "newGap": -0.0005953330638923671
+  },
+  {
+    "expected": "i want to go home",
+    "voice": "Moira",
+    "greedy": "i want to go home",
+    "oldGap": 0.0,
+    "newGap": -1.535181826078924e-06
+  },
+  {
+    "expected": "i can hear the music",
+    "voice": "Karen",
+    "greedy": "i can hear the music",
+    "oldGap": 0.0,
+    "newGap": -4.705451432163166e-06
+  },
+  {
+    "expected": "i can hear the music",
+    "voice": "Moira",
+    "greedy": "i can hear the music",
+    "oldGap": 0.0,
+    "newGap": -8.718134508756137e-07
+  },
+  {
+    "expected": "this is my own voice",
+    "voice": "Karen",
+    "greedy": "this is my own voice",
+    "oldGap": 0.0,
+    "newGap": -4.5325194694689763e-07
+  },
+  {
+    "expected": "this is my own voice",
+    "voice": "Moira",
+    "greedy": "this is my own voice",
+    "oldGap": 0.0,
+    "newGap": -7.994014322026954e-10
+  },
+  {
+    "expected": "we are going home now",
+    "voice": "Karen",
+    "greedy": "we are going home now",
+    "oldGap": 0.0,
+    "newGap": -0.0005841603364531434
+  },
+  {
+    "expected": "we are going home now",
+    "voice": "Moira",
+    "greedy": "we are going home n",
+    "oldGap": 0.10525990317579281,
+    "newGap": 0.10515233111810529
+  },
+  {
+    "expected": "the little dog is sleeping",
+    "voice": "Karen",
+    "greedy": "the little dog is sleeping",
+    "oldGap": 0.0,
+    "newGap": -9.474525866076666e-05
+  },
+  {
+    "expected": "the little dog is sleeping",
+    "voice": "Moira",
+    "greedy": "the little dog is sleeping",
+    "oldGap": 0.0,
+    "newGap": -8.538123733581315e-07
+  },
+  {
+    "expected": "the river is running slowly",
+    "voice": "Karen",
+    "greedy": "the rivers running slowy",
+    "oldGap": 2.455768783671983,
+    "newGap": 2.31817214523029
+  },
+  {
+    "expected": "the river is running slowly",
+    "voice": "Moira",
+    "greedy": "the river is running slowly",
+    "oldGap": 0.0,
+    "newGap": -7.312488629618308e-07
+  },
+  {
+    "expected": "i want a glass of water",
+    "voice": "Karen",
+    "greedy": "i want a glass of water",
+    "oldGap": 0.0,
+    "newGap": -3.1414930226625337e-06
+  },
+  {
+    "expected": "i want a glass of water",
+    "voice": "Moira",
+    "greedy": "i want a glass of waler",
+    "oldGap": 1.7270099158949739,
+    "newGap": 1.698942694331302
+  },
+  {
+    "expected": "can you open the window",
+    "voice": "Karen",
+    "greedy": "can you open the window",
+    "oldGap": 0.0,
+    "newGap": -1.737158806536243e-05
+  },
+  {
+    "expected": "can you open the window",
+    "voice": "Moira",
+    "greedy": "can you open the window",
+    "oldGap": 0.0,
+    "newGap": -9.172297790738249e-08
+  },
+  {
+    "expected": "we sat beside the river",
+    "voice": "Karen",
+    "greedy": "we sat beside the river",
+    "oldGap": 0.0,
+    "newGap": -2.8519094713574944e-07
+  },
+  {
+    "expected": "we sat beside the river",
+    "voice": "Moira",
+    "greedy": "we sat beside the river",
+    "oldGap": 0.0,
+    "newGap": -2.810256985652515e-05
+  },
+  {
+    "expected": "they are waiting for us",
+    "voice": "Karen",
+    "greedy": "they awaging th us",
+    "oldGap": 19.44043700679148,
+    "newGap": 19.372648251363476
+  },
+  {
+    "expected": "they are waiting for us",
+    "voice": "Moira",
+    "greedy": "they are wishing for us",
+    "oldGap": 0.2782163351146627,
+    "newGap": 0.2782045821070023
+  },
+  {
+    "expected": "she is reading a book",
+    "voice": "Karen",
+    "greedy": "she is reading a boo",
+    "oldGap": 0.7377116621973383,
+    "newGap": 0.7376531804280266
+  },
+  {
+    "expected": "she is reading a book",
+    "voice": "Moira",
+    "greedy": "she is reading a book",
+    "oldGap": 0.0,
+    "newGap": -2.6045805712193726e-06
+  },
+  {
+    "expected": "he is looking at me",
+    "voice": "Karen",
+    "greedy": "he is looking at may",
+    "oldGap": 3.4036442627786236,
+    "newGap": 3.285938245542008
+  },
+  {
+    "expected": "he is looking at me",
+    "voice": "Moira",
+    "greedy": "he is looking up me",
+    "oldGap": 2.259302186005769,
+    "newGap": 2.259301461176211
+  },
+  {
+    "expected": "the door is open now",
+    "voice": "Karen",
+    "greedy": "the door is open now",
+    "oldGap": 0.0,
+    "newGap": -4.223007628662012e-05
+  },
+  {
+    "expected": "the door is open now",
+    "voice": "Moira",
+    "greedy": "the door is open now",
+    "oldGap": 0.0,
+    "newGap": -9.856262893404022e-05
+  },
+  {
+    "expected": "let us go home now",
+    "voice": "Karen",
+    "greedy": "let us go home now",
+    "oldGap": 0.0,
+    "newGap": -0.0001064985983002531
+  },
+  {
+    "expected": "let us go home now",
+    "voice": "Moira",
+    "greedy": "let us go home now",
+    "oldGap": 0.0,
+    "newGap": -4.7761486343889104e-05
+  },
+  {
+    "expected": "that is a good idea",
+    "voice": "Karen",
+    "greedy": "that is a good idea",
+    "oldGap": 0.0,
+    "newGap": -2.175116808889044e-09
+  },
+  {
+    "expected": "that is a good idea",
+    "voice": "Moira",
+    "greedy": "thou is a good idea",
+    "oldGap": 4.929018104088508,
+    "newGap": 4.92266100231176
+  },
+  {
+    "expected": "come and sit with me",
+    "voice": "Karen",
+    "greedy": "comm and sit with me",
+    "oldGap": 4.2557998301631095,
+    "newGap": 4.183488489019909
+  },
+  {
+    "expected": "come and sit with me",
+    "voice": "Moira",
+    "greedy": "commonsge with me",
+    "oldGap": 21.031878849267848,
+    "newGap": 17.23718937066574
+  }
+]

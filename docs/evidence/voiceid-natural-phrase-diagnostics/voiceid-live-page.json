@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "glowing-grove-v4b4cy",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "5086f173-3a5b-4758-85f7-e15a341b77cd",
+    "capturedAtMs": 1792902554864,
+    "durationMs": 3420,
+    "recordingMs": 4975.700000047684,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.273883126485508,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "can you open the window",
+      "gap": 214.70079807282116
+    },
+    "expectedPhrase": "we sat beside the river"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "glowing-grove-v4b4cy",
+    "accountId": "0e934ced27f0b5080f98d63ef45cb518419a07ac16bb4f4d1748446ffb3a146a",
+    "publicKey": "ed25519:ytyuKvbCno7u6FaS54zn1CDsGZJD2z2DRBY3VWwa6cZ"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADBlOTM0Y2VkMjdmMGI1MDgwZjk4ZDYzZWY0NWNiNTE4NDE5YTA3YWMxNmJiNGY0ZDE3NDg0NDZmZmIzYTE0NmEADpNM7SfwtQgPmNY+9Fy1GEGaB6wWu09NF0hEb/s6FGoCAAAAAAAAAEAAAAAwZTkzNGNlZDI3ZjBiNTA4MGY5OGQ2M2VmNDVjYjUxODQxOWEwN2FjMTZiYjRmNGQxNzQ4NDQ2ZmZiM2ExNDZhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqFIbXHE4y9oPdPjiveHVV/hMUNm78R51Yhv8MYG4l17VeZjXnllBhWlixWBJ6iY/Ot5xmFZDZvxeb96+I14EBQ==",
+      "signedTransactionSha256": "b74037386a32dcfaf6b7e5e1a075c01343b008cd329678cf801cc5dc59bbde7d",
+      "signerId": "0e934ced27f0b5080f98d63ef45cb518419a07ac16bb4f4d1748446ffb3a146a",
+      "receiverId": "0e934ced27f0b5080f98d63ef45cb518419a07ac16bb4f4d1748446ffb3a146a",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

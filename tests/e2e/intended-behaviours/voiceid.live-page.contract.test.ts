@@ -138,7 +138,7 @@ async function verifyLivePage(
   );
   await wallet.locator('body').evaluate(useOtherSpeaker, wrongEnrollment.toString('base64'));
   await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
-  await expect(wallet.getByText('The words did not match.', { exact: false })).toBeVisible({
+  await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible({
     timeout: 20_000,
   });
   await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
@@ -242,7 +242,7 @@ async function verifyLivePage(
   );
   await wallet.locator('body').evaluate(useOtherSpeaker, stalePhrase.toString('base64'));
   await wallet.locator('button.confirm').click();
-  await expect(wallet.getByText('The spoken words did not match.', { exact: false })).toBeVisible({
+  await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible({
     timeout: 20_000,
   });
   expect(evidence.snapshot()).toEqual(beforeMismatch);

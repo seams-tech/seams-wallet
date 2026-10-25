@@ -1,4 +1,4 @@
-import { newSpokenPhrase, spokenPhraseMatches, type SpokenPhrase } from './phrase';
+import { newSpokenPhrase, checkSpokenPhrase, type SpokenPhrase } from './phrase';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES } from '@/core/indexedDB/schemaNames';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
@@ -147,9 +147,8 @@ class VoiceEnrollmentSurface {
       let embedding: number[];
       try {
         this.status.textContent = 'Checking your voice…';
-        if (!(await spokenPhraseMatches(pcm.samples, this.phrase))) {
-          throw new Error('The words did not match. Record the new phrase.');
-        }
+        const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase);
+        if (phraseCheck.kind === 'mismatch') throw new Error(phraseCheck.message);
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
         pcm.samples.fill(0);
@@ -237,7 +236,7 @@ export async function verifyBrowserVoice(
 ): Promise<
   | { kind: 'matched' }
   | { kind: 'mismatch' }
-  | { kind: 'phrase_mismatch' }
+  | { kind: 'phrase_mismatch'; message: string }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
 > {
   delete document.body.dataset.voiceVerification;
@@ -253,7 +252,8 @@ export async function verifyBrowserVoice(
   }
   try {
     signal.throwIfAborted();
-    const phraseMatched = await spokenPhraseMatches(pcm.samples, phrase);
+    const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase);
+    const phraseMatched = phraseCheck.kind === 'matched';
     const embedding = await voiceEmbedding(pcm.samples);
     if (signal.aborted) throw new Error('VoiceID verification was cancelled.');
     const similarity = voiceSimilarity(embedding, enrollment.template);
@@ -268,10 +268,14 @@ export async function verifyBrowserVoice(
       similarity,
       threshold: VOICE_MATCH_THRESHOLD,
       phraseMatched,
+      phraseRecognition: phraseCheck.recognition,
+      expectedPhrase: phrase,
     });
     embedding.fill(0);
     if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch' };
-    return phraseMatched ? { kind: 'matched' } : { kind: 'phrase_mismatch' };
+    return phraseCheck.kind === 'matched'
+      ? { kind: 'matched' }
+      : { kind: 'phrase_mismatch', message: phraseCheck.message };
   } finally {
     pcm.samples.fill(0);
   }

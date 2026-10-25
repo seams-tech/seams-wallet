@@ -38,7 +38,7 @@ export async function listenForVoiceApproval(
     case 'mismatch':
       return { kind: 'retry', message: 'VoiceID did not match the enrolled voice.' };
     case 'phrase_mismatch':
-      return { kind: 'retry', message: 'The spoken words did not match.' };
+      return { kind: 'retry', message: result.message };
     default:
       return assertNever(result);
   }
