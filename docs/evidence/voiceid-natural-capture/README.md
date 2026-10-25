@@ -68,3 +68,13 @@ at a normal pace. Existing enrollment was reused. NEAR RPC independently confirm
 as FINAL with SuccessValue: one yoctoNEAR transferred to the same wallet account.
 `live-transfer.json` records the result. Live capture timing and inference scores
 were not collected. This confirms one user journey, with no population accuracy claim.
+
+## Historical test retirement — 2026-10-26
+
+The RMS-only tone capture probe and `voiceid-capture.browser.test.ts` were retired
+after speech detection replaced volume-only classification. A pure tone is not
+a valid positive speech fixture. Current capture validation uses real synthetic
+speech through MediaRecorder in `voiceid.unlock-near.contract.test.ts` and
+`voiceid.noise.contract.test.ts`, including initial silence, noise-only rejection,
+pause stopping, and cancellation. The original artifacts above remain historical
+evidence for the earlier RMS implementation.
