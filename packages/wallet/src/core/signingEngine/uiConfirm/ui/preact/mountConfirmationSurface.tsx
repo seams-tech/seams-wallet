@@ -255,7 +255,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   private cancel = (): void => {
     if (this.state.kind !== 'mounted') return;
     if (this.receipt) {
-      if (receiptIsPending(this.receipt.state)) this.receipt.onView('toast');
+      if (receiptIsPending(this.receipt)) this.receipt.onView('toast');
       else this.receipt.onDismiss();
       return;
     }

@@ -748,6 +748,13 @@
 :where(.seams-wallet-ui) .seams-transaction-receipt > .seams-review-technical .seams-review-fields .seams-review-copy.copied > .copy-icon {
   opacity: 1;
 }
+:where(.seams-wallet-ui) .seams-receipt-message {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
 :where(.seams-wallet-ui) .seams-receipt-step[data-state='complete'] {
   color: var(--seams-colors-buttonBackground);
 }

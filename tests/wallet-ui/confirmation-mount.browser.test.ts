@@ -9,7 +9,10 @@ import type {
   ConfirmationSurfaceHandle,
 } from '@/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface';
 import type { EmailOtpVerificationState } from '@/core/signingEngine/uiConfirm/ui/preact/email-otp-session';
-import type { TransactionReceiptState } from '@/core/signingEngine/uiConfirm/ui/transaction-receipt';
+import type {
+  MessageReceiptState,
+  TransactionReceiptState,
+} from '@/core/signingEngine/uiConfirm/ui/transaction-receipt';
 
 const walletUiCss = fs.readFileSync(
   path.resolve(import.meta.dirname, '../../packages/wallet/dist/esm/sdk/wallet-ui.css'),
@@ -26,6 +29,7 @@ declare global {
       close(index: number): void;
       dispose(index: number): void;
       receipt(index: number, state: TransactionReceiptState, view?: 'expanded' | 'toast'): void;
+      messageReceipt(index: number, state: MessageReceiptState, view: 'expanded' | 'toast'): void;
       recipient(index: number, value: string): void;
       contract(index: number, value: string): void;
       calls: string[];
@@ -191,6 +195,33 @@ test.beforeEach(async ({ page }) => {
       view: 'expanded' | 'toast' = 'toast',
     ) {
       handles[index].showReceipt({
+        subject: 'transaction',
+        state,
+        view,
+        onView: receiptView,
+        onDismiss: receiptDismiss,
+      });
+    }
+    function messageReceipt(index: number, state: MessageReceiptState, view: 'expanded' | 'toast') {
+      const viewModel = model('Sign message', true);
+      if (viewModel.content.kind !== 'transaction') throw new Error('Expected transaction fixture');
+      viewModel.content.review = { tree: null, model: {
+        chain: 'near',
+        signerAccount: 'alice.testnet',
+        operations: [{
+          id: 'near.message',
+          kind: 'near.message',
+          label: 'Message signature',
+          fields: [
+            { label: 'Signer', value: 'alice.testnet' },
+            { label: 'Recipient', value: 'auction.example' },
+            { label: 'Message', value: 'Sign in to Auction House', renderAs: 'file-content' },
+          ],
+        }],
+      } };
+      handles[index].update(viewModel);
+      handles[index].showReceipt({
+        subject: 'message',
         state,
         view,
         onView: receiptView,
@@ -208,6 +239,7 @@ test.beforeEach(async ({ page }) => {
       close,
       dispose,
       receipt,
+      messageReceipt,
       recipient,
       contract,
       calls: [],
@@ -389,6 +421,42 @@ test('confirmed receipts link to the configured block explorer', async ({ page }
   await expect(link).toHaveAttribute('href', `https://basescan.org/tx/${hash}`);
   await expect(link).toHaveAttribute('target', '_blank');
   await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+});
+
+test('a message signature receipt is complete once signed and has no network stages', async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.__confirmationMount.mount('modal', 'wallet-iframe');
+    window.__confirmationMount.messageReceipt(0, { kind: 'signed' }, 'expanded');
+  });
+  const receipt = page.locator('.seams-transaction-receipt');
+  await expect(receipt.locator('.seams-review-toolbar')).toHaveText('Message signature');
+  await expect(receipt.getByRole('status')).toHaveText('Message signed');
+  await expect(receipt.locator('.seams-receipt-heading p')).toHaveText(
+    'Signed off-chain. Nothing was sent to the network.',
+  );
+  await expect(receipt.locator('.seams-receipt-steps')).toHaveCount(0);
+  await page.getByText('Receipt details', { exact: true }).click();
+  const details = receipt.locator('.seams-review-technical .seams-review-fields');
+  await expect(details.locator('dt')).toHaveText(['Signer', 'Recipient', 'Message', 'Status']);
+  await expect(details.locator('.seams-receipt-message')).toHaveText('Sign in to Auction House');
+  await expect(receipt.getByRole('button', { name: 'Done' })).toBeVisible();
+
+  await page.evaluate(() =>
+    window.__confirmationMount.messageReceipt(0, { kind: 'signed' }, 'toast'),
+  );
+  const progress = page.locator('.seams-toast-progress');
+  await expect
+    .poll(async () => {
+      const track = await progress.boundingBox();
+      const fill = await progress.locator('.seams-toast-progress-fill').boundingBox();
+      return fill!.width / track!.width;
+    })
+    .toBeCloseTo(1, 2);
+  await expect(progress.locator('.seams-toast-progress-active')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close transaction' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__confirmationMount.violations)).toEqual([]);
 });
 
 test('a toast offers to close only once its transaction has finished', async ({ page }) => {

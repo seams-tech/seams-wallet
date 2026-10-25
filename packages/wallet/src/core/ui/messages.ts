@@ -349,6 +349,14 @@ const walletMessages = [
   ['Confirmation unavailable', '承認状態を取得できません'],
   ['Preparing your signed transaction.', '署名済みトランザクションを準備中です。'],
   ['Signature created, ready to broadcast.', '署名を作成しました。送信する準備ができました。'],
+  ['Signing message', 'メッセージに署名中'],
+  ['Message signed', 'メッセージに署名しました'],
+  ['Signature failed', '署名に失敗しました'],
+  ['Preparing your message signature.', 'メッセージへの署名を準備中です。'],
+  [
+    'Signed off-chain. Nothing was sent to the network.',
+    'オフチェーンで署名しました。ネットワークには何も送信していません。',
+  ],
   [
     'Submitting your signed transaction to the network.',
     '署名済みトランザクションをネットワークに送信中です。',

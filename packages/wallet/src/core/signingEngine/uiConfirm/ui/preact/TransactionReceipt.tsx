@@ -2,6 +2,7 @@
 import {
   WalletText,
   WalletLocaleContext,
+  useWalletLocale,
 } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { walletText, walletDisplayText } from '@/core/ui/messages';
 import type { WalletLocale } from '@/core/ui/locale';
@@ -9,9 +10,12 @@ import { Component, createRef } from 'preact';
 import {
   receiptDescription,
   receiptHeading,
+  receiptIsComplete,
   receiptIsPending,
   receiptCompletedStages,
+  receiptTitle,
   type TransactionReceiptModel,
+  type TransactionReceiptState,
 } from '../transaction-receipt';
 import { announceClampedSurfaceResize } from '../confirm-surface-resize';
 import { confirmationDocumentStyles } from './confirmation-styles';
@@ -51,7 +55,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
     this.props.receipt.onView('expanded');
   };
   private close = (): void => {
-    if (receiptIsPending(this.props.receipt.state)) this.minimize();
+    if (receiptIsPending(this.props.receipt)) this.minimize();
     else this.props.receipt.onDismiss();
   };
   componentDidUpdate(previous: TransactionReceiptProps): void {
@@ -59,6 +63,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
     if (
       receipt.view === 'expanded' &&
       previous.receipt.view === 'expanded' &&
+      receipt.subject === 'transaction' &&
       receipt.state.kind === 'confirmed' &&
       previous.receipt.state.kind !== 'confirmed'
     ) {
@@ -127,14 +132,15 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
   }
   render() {
     const { receipt, data } = this.props;
-    const heading = receiptHeading(receipt.state);
-    const complete = receipt.state.kind === 'confirmed' || receipt.state.kind === 'signed';
-    const pending = receiptIsPending(receipt.state);
-    const completedStages = receiptCompletedStages(receipt.state);
+    const heading = receiptHeading(receipt);
+    const complete = receiptIsComplete(receipt);
+    const pending = receiptIsPending(receipt);
+    const completedStages = receiptCompletedStages(receipt);
     const recipient = reviewRecipient(data.model);
+    const transaction = receipt.subject === 'transaction' ? receipt.state : null;
     const explorerHref =
-      receipt.state.kind === 'confirmed' && receipt.state.hash
-        ? transactionExplorerHref(data.model, this.props.explorers, receipt.state.hash)
+      transaction?.kind === 'confirmed' && transaction.hash
+        ? transactionExplorerHref(data.model, this.props.explorers, transaction.hash)
         : null;
     if (receipt.view === 'toast') {
       return (
@@ -178,7 +184,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
       <div class="seams-transaction-receipt">
         <div class="seams-review-toolbar">
           <span>
-            <WalletText message="Transaction receipt" />
+            <WalletText copy={receiptTitle(receipt)} />
           </span>
           <button
             type="button"
@@ -197,7 +203,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
               <WalletText copy={heading} />
             </h2>
             <p>
-              <WalletText copy={receiptDescription(receipt.state)} />
+              <WalletText copy={receiptDescription(receipt)} />
             </p>
           </div>
         </div>
@@ -227,38 +233,10 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             </div>
           </dl>
         )}
-        <div
-          class="seams-receipt-steps"
-          aria-label={walletText(this.context, 'Transaction progress')}
-        >
-          <ReceiptStep
-            stage="signing"
-            label={walletText(this.context, 'Signed')}
-            activeLabel="Signing"
-            complete={completedStages >= 1}
-            active={receipt.state.kind === 'signing'}
-          />
-          <ReceiptStep
-            stage="broadcast"
-            label={walletText(this.context, 'Broadcast')}
-            activeLabel="Broadcasting"
-            complete={completedStages >= 2}
-            active={receipt.state.kind === 'broadcasting'}
-          />
-          <ReceiptStep
-            stage="confirming"
-            label={walletDisplayText(
-              this.context,
-              receipt.state.kind === 'reverted' ? 'Reverted' : 'Confirmed',
-            )}
-            activeLabel="Confirming"
-            complete={completedStages === 3}
-            active={receipt.state.kind === 'submitted'}
-          />
-        </div>
+        {transaction && <ReceiptSteps state={transaction} />}
         <ReviewDisclosure label={walletText(this.context, 'Receipt details')}>
           <dl class="seams-review-fields">
-            {data.model?.signerAccount && (
+            {transaction && data.model?.signerAccount && (
               <div>
                 <dt>
                   <WalletText message="From" />
@@ -289,17 +267,18 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
                 </dd>
               </div>
             )}
-            {receipt.state.hash && (
+            {transaction?.hash && (
               <div>
                 <dt>
                   <WalletText message="Transaction" />
                 </dt>
                 <dd>
-                  <ReviewMiddleTruncated value={receipt.state.hash} class="seams-review-hash" />
-                  <CopyReviewValue value={receipt.state.hash} />
+                  <ReviewMiddleTruncated value={transaction.hash} class="seams-review-hash" />
+                  <CopyReviewValue value={transaction.hash} />
                 </dd>
               </div>
             )}
+            {receipt.subject === 'message' && <MessageReceiptFields model={data.model} />}
             <div>
               <dt>
                 <WalletText message="Status" />
@@ -311,7 +290,7 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
           </dl>
         </ReviewDisclosure>
         <button type="button" class="seams-receipt-primary" onClick={this.close}>
-          {receiptIsPending(receipt.state) ? (
+          {pending ? (
             <WalletText message="Continue in background" />
           ) : (
             <WalletText message="Done" />
@@ -364,6 +343,68 @@ function transactionExplorerHref(
 
 function assertNeverDisplayChain(chain: never): never {
   throw new Error(`Unexpected display chain: ${String(chain)}`);
+}
+
+function ReceiptSteps({ state }: { state: TransactionReceiptState }) {
+  const locale = useWalletLocale();
+  const completedStages = receiptCompletedStages({ subject: 'transaction', state });
+  return (
+    <div class="seams-receipt-steps" aria-label={walletText(locale, 'Transaction progress')}>
+      <ReceiptStep
+        stage="signing"
+        label={walletText(locale, 'Signed')}
+        activeLabel="Signing"
+        complete={completedStages >= 1}
+        active={state.kind === 'signing'}
+      />
+      <ReceiptStep
+        stage="broadcast"
+        label={walletText(locale, 'Broadcast')}
+        activeLabel="Broadcasting"
+        complete={completedStages >= 2}
+        active={state.kind === 'broadcasting'}
+      />
+      <ReceiptStep
+        stage="confirming"
+        label={walletDisplayText(locale, state.kind === 'reverted' ? 'Reverted' : 'Confirmed')}
+        activeLabel="Confirming"
+        complete={completedStages === 3}
+        active={state.kind === 'submitted'}
+      />
+    </div>
+  );
+}
+
+/** The signed message's own fields: signer, recipient and message text. */
+function MessageReceiptFields({ model }: { model: TransactionReviewData['model'] }) {
+  const locale = useWalletLocale();
+  const operation = model?.operations.length === 1 ? model.operations[0] : null;
+  if (operation?.kind !== 'near.message') return null;
+  return (
+    <>
+      {operation.fields?.map((field) => (
+        <div key={field.label}>
+          <dt>
+            <WalletText copy={field.label} />
+          </dt>
+          {field.renderAs === 'file-content' ? (
+            <dd>
+              <span class="seams-receipt-message">{field.value}</span>
+              <CopyReviewValue value={field.copyValue ?? field.value} />
+            </dd>
+          ) : (
+            <dd class="seams-review-recipient">
+              <CopyReviewValue
+                value={field.copyValue ?? field.value}
+                address
+                label={walletDisplayText(locale, `Copy ${field.label.toLowerCase()} address ${field.value}`)}
+              />
+            </dd>
+          )}
+        </div>
+      ))}
+    </>
+  );
 }
 
 function ReceiptStep(props: {

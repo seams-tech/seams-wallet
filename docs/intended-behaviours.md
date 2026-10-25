@@ -1169,6 +1169,9 @@ An omitted `callbackUrl` encodes as the Borsh `None` option.
 The SDK returns `state` unchanged, including an empty string. `state` is transport
 data and does not enter the signed payload. Changes to message, nonce, recipient,
 or callback URL invalidate the signature.
+The hosted wallet receipt for a message signature is complete once the signature
+exists. It names a message signature, says nothing was sent to the network, and
+shows the signer, recipient and message. It has no broadcast or confirmation stage.
 
 NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
 actions, options })`, including React bindings. A single action is a one-element
