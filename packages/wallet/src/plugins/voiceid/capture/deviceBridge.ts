@@ -1,3 +1,4 @@
+import { VoiceSpeakerMismatchError } from '../browser/verificationError';
 import type { VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import {
@@ -101,7 +102,7 @@ async function requireVoiceMatch(
     case 'insufficient_audio':
       throw new InsufficientVoiceAudioError(result.quality);
     case 'mismatch':
-      throw new Error('VoiceID did not match the enrolled voice. Try again in your normal voice.');
+      throw new VoiceSpeakerMismatchError(result.similarity, result.threshold, result.quality, result.phraseMatched);
     case 'phrase_mismatch':
       throw new VoicePhraseMismatchError(result.message);
     default:

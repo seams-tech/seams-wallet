@@ -241,7 +241,7 @@ export async function verifyBrowserVoice(
   phrase: SpokenPhrase,
 ): Promise<
   | { kind: 'matched' }
-  | { kind: 'mismatch' }
+  | { kind: 'mismatch'; similarity: number; threshold: number; quality: VoiceCaptureQuality; phraseMatched: boolean }
   | { kind: 'phrase_mismatch'; message: string }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
 > {
@@ -282,7 +282,8 @@ export async function verifyBrowserVoice(
       expectedPhrase: phrase,
     });
     embedding.fill(0);
-    if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch' };
+    if (similarity < VOICE_MATCH_THRESHOLD)
+      return { kind: 'mismatch', similarity, threshold: VOICE_MATCH_THRESHOLD, quality: pcm.quality, phraseMatched };
     return phraseCheck.kind === 'matched'
       ? { kind: 'matched' }
       : { kind: 'phrase_mismatch', message: phraseCheck.message };

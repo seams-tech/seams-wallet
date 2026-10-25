@@ -1,3 +1,4 @@
+import { VoiceSpeakerMismatchError } from '../browser/verificationError';
 import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import {
@@ -142,7 +143,7 @@ class VoiceIdCaptureSurface<T> {
       this.completion.resolve(result);
     } catch (error: unknown) {
       if (this.state.kind === 'closed') return;
-      if (error instanceof InsufficientVoiceAudioError || error instanceof VoicePhraseMismatchError) {
+      if (error instanceof InsufficientVoiceAudioError || error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError) {
         if (capture.expiresAtMs !== null && Date.now() >= capture.expiresAtMs) {
           this.expire();
           return;
@@ -152,7 +153,8 @@ class VoiceIdCaptureSurface<T> {
         this.state = { kind: 'ready', capture };
         this.activateButton.textContent = 'Try again';
         this.prompt.ready(error.message);
-        if (error instanceof VoicePhraseMismatchError) this.prompt.showDetails(error.details);
+        if (error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError)
+          this.prompt.showDetails(error.details);
         this.activateButton.focus();
         return;
       }

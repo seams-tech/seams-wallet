@@ -174,7 +174,10 @@ verification retains its independent similarity threshold of 0.5.
 A local phrase rejection during unlock keeps the prompt open with a fresh phrase
 and an explicit Try again action. The original challenge deadline still applies.
 Recording details expose the recognition diagnostic without crowding the prompt.
-A failed phrase check cannot unlock the wallet or authorize a transfer.
+A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.
+Speaker rejection during unlock also stays in the prompt, with the unchanged
+challenge deadline. Recording details show similarity, threshold, detected speech,
+microphone processing, and the phrase result. This does not alter the enrollment.
 The decoder scores all bank phrases independently of the expected phrase and rejects
 results too far from unconstrained recognition. A failed phrase check cannot add an
 enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open
