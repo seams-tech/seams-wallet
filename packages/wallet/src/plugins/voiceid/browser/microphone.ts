@@ -1,8 +1,19 @@
 import { createVoiceActivity } from './voiceActivity';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 
+/** One 32 ms frame as the recorder judged it. No capture event carries the stream. */
+export type VoiceActivityEvent = Readonly<{
+  kind: 'activity';
+  rms: number;
+  /** The voice activity model and the level check both found speech. */
+  speech: boolean;
+  /** The share of the end pause that has passed: 0 before speech, 1 when capture stops. */
+  pause: number;
+  stream?: never;
+}>;
 export type VoiceCaptureEvent =
-  | { readonly kind: 'listening'; readonly stream: MediaStream }
+  | { readonly kind: 'listening'; readonly stream?: never }
+  | VoiceActivityEvent
   | { readonly kind: 'processing'; readonly stream?: never }
   | { readonly kind: 'measured'; readonly quality: VoiceCaptureQuality; readonly stream?: never };
 export type VoiceCaptureObserver = (event: VoiceCaptureEvent) => void;
@@ -172,7 +183,7 @@ class VoiceRecording {
   constructor(
     private readonly stream: MediaStream,
     private readonly signal: AbortSignal,
-    onCapture: VoiceCaptureObserver,
+    private readonly onCapture: VoiceCaptureObserver,
   ) {
     this.recorder = new MediaRecorder(stream);
     this.recorder.addEventListener('dataavailable', this.data);
@@ -180,10 +191,10 @@ class VoiceRecording {
     this.recorder.addEventListener('error', this.failed);
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.timer = setTimeout(this.startupFailed, MAX_RECORDING_MS);
-    void this.start(onCapture);
+    void this.start();
   }
 
-  private async start(onCapture: VoiceCaptureObserver): Promise<void> {
+  private async start(): Promise<void> {
     try {
       await this.startPauseDetection();
       this.signal.throwIfAborted();
@@ -192,7 +203,7 @@ class VoiceRecording {
       this.recorder.start();
       if (this.timer !== null) clearTimeout(this.timer);
       this.timer = setTimeout(this.stop.bind(this, 'limit'), MAX_RECORDING_MS);
-      onCapture({ kind: 'listening', stream: this.stream });
+      this.onCapture({ kind: 'listening' });
     } catch (error) {
       this.cleanup();
       this.completion.reject(
@@ -300,9 +311,10 @@ class VoiceRecording {
       }
       let energy = 0;
       for (const sample of frame) energy += sample * sample;
-      this.updateActivity(
-        probability >= 0.5 && Math.sqrt(energy / frame.length) >= LEVEL_THRESHOLD,
-      );
+      const rms = Math.sqrt(energy / frame.length);
+      const speech = probability >= 0.5 && rms >= LEVEL_THRESHOLD;
+      this.updateActivity(speech);
+      this.onCapture({ kind: 'activity', rms, speech, pause: this.pauseProgress() });
     } finally {
       frame.fill(0);
       this.queuedFrames -= 1;
@@ -327,6 +339,11 @@ class VoiceRecording {
       default:
         return assertNeverActivity(this.activity);
     }
+  }
+
+  private pauseProgress(): number {
+    if (this.activity.kind === 'waiting') return 0;
+    return Math.min(1, (performance.now() - this.activity.lastSoundAtMs) / END_PAUSE_MS);
   }
 
   private readonly stopPauseDetection = (): void => {

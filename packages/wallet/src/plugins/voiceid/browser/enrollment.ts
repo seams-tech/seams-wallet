@@ -181,6 +181,7 @@ class VoiceEnrollmentSurface {
       }
       this.samples.push(embedding);
       if (this.samples.length < 3) {
+        this.prompt.accepted();
         this.status.textContent = `Sample ${this.samples.length} saved. Record the next sample.`;
         this.record.textContent = `Record sample ${this.samples.length + 1}`;
         return;
@@ -198,6 +199,7 @@ class VoiceEnrollmentSurface {
       await commitEnrollment(enrollment, this.controller.signal);
       if (this.signal.aborted || this.closed) return;
       this.phase = 'closed';
+      this.prompt.accepted();
       this.status.textContent = 'Voice enrolled. Activating this wallet…';
       this.completion.resolve();
     } catch (error) {

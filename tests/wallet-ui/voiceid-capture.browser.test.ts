@@ -56,6 +56,9 @@ async function verifyCapture({ page }: { page: Page }, testInfo: TestInfo): Prom
   expect(completed.quality.recordingMs).toBeLessThan(6_000);
   expect(completed.quality.voicedMs).toBeGreaterThanOrEqual(900);
   expect(completed.quality.voicedMs).toBeLessThan(1_300);
+  // The trace draws these recorder frames: speech, and the silence around it.
+  expect(completed.frames.speech).toBeGreaterThan(0);
+  expect(completed.frames.total).toBeGreaterThan(completed.frames.speech);
   expect(completed.tracks).toEqual(['ended']);
 
   await page.getByRole('button', { name: 'Record', exact: true }).click();

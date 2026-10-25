@@ -98,13 +98,22 @@ void captureMarkup;
 
 import type { VoiceCaptureEvent } from '../../packages/wallet/src/plugins/voiceid/browser/microphone';
 declare const captureStream: MediaStream;
-// @ts-expect-error A listening event must carry the existing recording stream.
-const noRecordingStream: VoiceCaptureEvent = { kind: 'listening' };
+// @ts-expect-error The trace draws recorder frames; no capture event carries the stream.
+const listeningWithStream: VoiceCaptureEvent = { kind: 'listening', stream: captureStream };
 const liveStreamFields = { stream: captureStream };
 // @ts-expect-error Processing cannot retain a live stream through a broad spread.
 const processingWithStream: VoiceCaptureEvent = { kind: 'processing', ...liveStreamFields };
-void noRecordingStream;
+// @ts-expect-error Activity frames cannot carry a live stream through a broad spread.
+const activityWithStream: VoiceCaptureEvent = {
+  kind: 'activity',
+  rms: 0,
+  speech: false,
+  pause: 0,
+  ...liveStreamFields,
+};
+void listeningWithStream;
 void processingWithStream;
+void activityWithStream;
 
 import type { ConfirmationContentModel } from '../../packages/wallet/src/core/signingEngine/uiConfirm/ui/preact/ConfirmationContent';
 declare const registrationContent: Extract<ConfirmationContentModel, { kind: 'registration' }>;

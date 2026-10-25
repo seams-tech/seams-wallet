@@ -3,6 +3,7 @@ import { recordVoice, type VoiceCaptureEvent } from './plugins/voiceid/browser/m
 let audio: AudioContext | null = null;
 let stream: MediaStream | null = null;
 let controller = new AbortController();
+let frames = { total: 0, speech: 0 };
 
 async function microphone(): Promise<MediaStream> {
   audio = new AudioContext();
@@ -28,6 +29,7 @@ async function microphone(): Promise<MediaStream> {
 
 async function record(): Promise<void> {
   controller = new AbortController();
+  frames = { total: 0, speech: 0 };
   document.body.dataset.result = 'pending';
   try {
     const result = await recordVoice(controller.signal, observe);
@@ -35,6 +37,7 @@ async function record(): Promise<void> {
     document.body.dataset.result = JSON.stringify({
       kind: result.kind,
       quality: result.quality,
+      frames,
       tracks: stream?.getTracks().map(trackState),
     });
   } catch (error) {
@@ -52,7 +55,12 @@ function trackState(track: MediaStreamTrack): MediaStreamTrackState {
   return track.readyState;
 }
 function observe(event: VoiceCaptureEvent): void {
-  document.body.dataset.capture = event.kind;
+  if (event.kind !== 'activity') {
+    document.body.dataset.capture = event.kind;
+    return;
+  }
+  frames.total += 1;
+  if (event.speech) frames.speech += 1;
 }
 function cancel(): void {
   controller.abort();

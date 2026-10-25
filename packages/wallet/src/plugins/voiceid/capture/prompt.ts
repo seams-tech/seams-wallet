@@ -4,7 +4,7 @@ import {
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceCaptureEvent } from '../browser/microphone';
-import { VoiceWaveform } from '../browser/waveform';
+import { VoiceTrace } from '../browser/waveform';
 
 const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
@@ -33,12 +33,6 @@ const CSS = `
 @starting-style {
   .seams-voiceid-prompt { opacity: 0; transform: translateY(4px); }
 }
-.seams-voiceid-waveform rect {
-  transform-box: view-box;
-  transform-origin: center;
-  transition: transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
-}
-.seams-voiceid-waveform[data-listening="true"] rect { transition: transform 64ms linear; }
 .seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
 .seams-voiceid-progress-slot:empty { visibility: hidden; }
 .seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { visibility: hidden; }
@@ -46,7 +40,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
   @starting-style { .seams-voiceid-prompt { transform: none; } }
-  .seams-voiceid-waveform rect { transition: none !important; }
+  .seams-voiceid-trace-capture { transition: none !important; }
 }
 .seams-voiceid-prompt h2 {
   font-size: 0.85rem;
@@ -65,14 +59,43 @@ const CSS = `
   align-self: center;
   margin: 0 auto;
 }
-.seams-voiceid-waveform {
+.seams-voiceid-trace {
   display: block;
-  width: 227px;
+  width: 340px;
   max-width: 100%;
   height: 64px;
   margin: auto;
-  fill: currentColor;
+  overflow: visible;
 }
+.seams-voiceid-trace path,
+.seams-voiceid-trace circle {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.seams-voiceid-trace-future {
+  fill: none;
+  stroke: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 35%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+}
+.seams-voiceid-trace-capture { transition: opacity 200ms ease; }
+.seams-voiceid-trace-ripple {
+  fill: none;
+  stroke: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 65%, transparent);
+  stroke-width: 1;
+}
+.seams-voiceid-trace-body {
+  fill: color-mix(in srgb, var(--seams-colors-textPrimary, #eff2f3) 8%, transparent);
+}
+.seams-voiceid-trace-contour,
+.seams-voiceid-trace-check {
+  fill: none;
+  stroke: var(--seams-colors-textPrimary, #eff2f3);
+  stroke-width: 1.25;
+}
+.seams-voiceid-trace-check { stroke-width: 1.5; stroke-dasharray: 1 1; }
+.seams-voiceid-trace-pen { fill: var(--seams-colors-textPrimary, #eff2f3); }
 .seams-voiceid-prompt .seams-voiceid-status {
   font-size: 0.75rem;
   line-height: 1.5;
@@ -163,7 +186,7 @@ export class VoicePrompt {
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
   readonly progress: HTMLElement;
-  private readonly waveform: VoiceWaveform;
+  private readonly trace: VoiceTrace;
   private readonly details: HTMLDetailsElement;
   private readonly detailText: HTMLParagraphElement;
   private disposed = false;
@@ -189,7 +212,7 @@ export class VoicePrompt {
     this.phrase.dataset.voiceidPhrase = '';
     this.phrase.setAttribute('aria-live', 'polite');
     this.setPhrase(phrase);
-    this.waveform = new VoiceWaveform(document);
+    this.trace = new VoiceTrace(document);
     this.status = document.createElement('p');
     this.status.className = 'seams-voiceid-status';
     this.status.setAttribute('role', 'status');
@@ -230,7 +253,7 @@ export class VoicePrompt {
       this.cancel,
       this.title,
       this.phrase,
-      this.waveform.element,
+      this.trace.element,
       this.status,
       slot,
       this.progress,
@@ -253,7 +276,10 @@ export class VoicePrompt {
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
         this.status.textContent = 'Listening';
-        this.waveform.start(event.stream);
+        this.trace.listen();
+        return;
+      case 'activity':
+        this.trace.add(event);
         return;
       case 'measured': {
         const quality = event.quality;
@@ -265,7 +291,7 @@ export class VoicePrompt {
       }
       case 'processing':
         this.element.dataset.capture = 'processing';
-        this.waveform.stop();
+        this.trace.checking();
         this.status.textContent = 'Checking your voice…';
         return;
       default:
@@ -279,8 +305,13 @@ export class VoicePrompt {
     this.detailText.textContent = message;
   }
 
+  /** The last capture passed: the trace draws its check until the next capture. */
+  accepted(): void {
+    this.trace.accept();
+  }
+
   ready(message: string): void {
-    this.waveform.stop();
+    this.trace.ready();
     this.element.dataset.capture = 'ready';
     this.status.textContent = message;
     this.record.hidden = false;
@@ -289,7 +320,7 @@ export class VoicePrompt {
 
   dispose(): void {
     this.disposed = true;
-    this.waveform.stop();
+    this.trace.stop();
   }
 }
 

@@ -240,10 +240,10 @@ async function verifyLivePage(
   await expect
     .poll(
       wallet
-        .locator('.seams-voiceid-waveform')
-        .evaluate.bind(wallet.locator('.seams-voiceid-waveform'), waveformHeight),
+        .locator('.seams-voiceid-trace-contour')
+        .evaluate.bind(wallet.locator('.seams-voiceid-trace-contour'), speechContours),
     )
-    .toBeGreaterThan(6);
+    .toBeGreaterThan(0);
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
@@ -384,9 +384,7 @@ class ModelDownloadGate {
   }
 }
 
-function waveformHeight(element: Element): number {
-  let maximum = 0;
-  for (const bar of element.querySelectorAll('rect'))
-    maximum = Math.max(maximum, Number(bar.getAttribute('height')));
-  return maximum;
+// Each contour line the trace draws for recorder-detected speech starts a subpath.
+function speechContours(element: Element): number {
+  return (element.getAttribute('d') ?? '').split('M').length - 1;
 }
