@@ -1,6 +1,8 @@
-# Cross-method transaction approval
+# Refactor 190 — Cross-method transaction approval
 
 Status: deferred. Written 2026-10-26. This document plans future work; it does not change current behavior.
+
+Priority order: stabilize VoiceID first, add EVM support second, then resume this cross-method approval plan.
 
 ## Goal and size
 
