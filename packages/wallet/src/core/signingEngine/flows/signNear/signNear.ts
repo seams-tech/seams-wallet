@@ -295,18 +295,24 @@ export async function signNear<TRequest extends NearSignIntentRequest>(
   deps: NearSigningApiDeps,
   request: TRequest,
 ): Promise<NearSignIntentResult<TRequest>> {
+  const context = deps.getSignerWorkerContext();
+  const admission =
+    request.kind === 'transactionWithActions'
+      ? reviewAdmissionForBinding(context.touchConfirm?.getContext().surfaceMeasurementBinding) ?? null
+      : null;
+  if (admission) admission.assertPending();
+  deps = {
+    ...deps,
+    prepareNearEd25519YaoMaterialBoundary: prepareReviewBoundNearMaterial.bind(
+      null,
+      deps.prepareNearEd25519YaoMaterialBoundary.bind(deps),
+      admission,
+    ),
+    getSignerWorkerContext: admission
+      ? reviewedNearContext.bind(null, context, admission.beforeSigning)
+      : deps.getSignerWorkerContext,
+  };
   if (request.kind === 'transactionWithActions') {
-    const context = deps.getSignerWorkerContext();
-    const admission = reviewAdmissionForBinding(
-      context.touchConfirm?.getContext().surfaceMeasurementBinding,
-    );
-    if (admission) {
-      admission.assertPending();
-      deps = {
-        ...deps,
-        getSignerWorkerContext: reviewedNearContext.bind(null, context, admission.beforeSigning),
-      };
-    }
     return (await signTransaction(deps, request.args)) as NearSignIntentResult<TRequest>;
   }
   if (request.kind === 'delegateAction') {
@@ -318,6 +324,20 @@ export async function signNear<TRequest extends NearSignIntentRequest>(
   throw new Error(
     `[SigningEngine] unsupported near signing intent: ${String((request as { kind?: unknown }).kind || '')}`,
   );
+}
+
+function prepareReviewBoundNearMaterial(
+  prepare: NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary'],
+  admission: NonNullable<ReturnType<typeof reviewAdmissionForBinding>> | null,
+  input: Parameters<NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary']>[0],
+): ReturnType<NearSigningApiDeps['prepareNearEd25519YaoMaterialBoundary']> {
+  const auth = input.materialIdentity ? input.materialIdentity.auth : input.auth;
+  const method = signingLaneAuthMethod(auth);
+  if (method === 'voiceid' && !admission) {
+    throw new Error('VoiceID requires a reviewed NEAR transfer.');
+  }
+  admission?.assertAuthMethodPolicy(method);
+  return prepare(input);
 }
 
 type NearEd25519SelectedTransactionLane = TransactionLaneSelectedState<

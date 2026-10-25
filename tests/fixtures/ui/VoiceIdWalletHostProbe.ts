@@ -149,6 +149,16 @@ class WalletJourney {
     }
   }
 
+  trySelectingPasskey(): string {
+    if (this.state.kind !== 'mounted') throw new Error('Expected a mounted review');
+    try {
+      this.state.admission.assertAuthMethodPolicy('passkey');
+      return 'unexpected_method_change';
+    } catch (error) {
+      return errorText(error);
+    }
+  }
+
   setSigningDelay(milliseconds: number): void {
     this.signingDelayMs = milliseconds;
   }

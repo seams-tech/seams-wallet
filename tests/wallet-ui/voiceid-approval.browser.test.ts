@@ -66,10 +66,11 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   cases.push('mainnet_and_unreviewed_requests_rejected');
 
   await begin(page, 10_000);
+  expect(await page.evaluate(tryPasskeySelection)).toContain('authentication method changed');
   expect(await page.evaluate(tryBypass)).toContain('current voice approval is required');
   await page.evaluate(cancelReview);
   await settled(page, 'cancelled', 0);
-  cases.push('signing_without_voice_rejected');
+  cases.push('signing_without_voice_rejected', 'voice_review_cannot_prepare_a_passkey_lane');
 
   await begin(page, 10_000);
   expect(await page.evaluate(tryChange)).toBe(true);
@@ -77,8 +78,10 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   await page.evaluate(cancelReview);
   await settled(page, 'cancelled', 0);
   cases.push('operation_frozen_before_voice_approval');
-  await testInfo.attach('voiceid-wallet-gate.json', {
-    body: JSON.stringify(
+  const report = testInfo.outputPath('voiceid-wallet-gate.json');
+  fs.writeFileSync(
+    report,
+    JSON.stringify(
       {
         status: 'passed',
         transport: 'deterministic_perception_boundary',
@@ -88,6 +91,9 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
       null,
       2,
     ),
+  );
+  await testInfo.attach('voiceid-wallet-gate.json', {
+    path: report,
     contentType: 'application/json',
   });
 }
@@ -122,4 +128,8 @@ async function settled(page: Page, result: string, count: number): Promise<void>
   await expect
     .poll(page.evaluate.bind(page, snapshot))
     .toMatchObject({ kind: 'settled', result, signingBoundaryCount: count });
+}
+
+function tryPasskeySelection(): string {
+  return window.voiceJourney.trySelectingPasskey();
 }

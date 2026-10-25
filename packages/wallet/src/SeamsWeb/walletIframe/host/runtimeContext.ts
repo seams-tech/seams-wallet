@@ -1,4 +1,7 @@
-import { assertWalletHostMutationAllowed } from './walletMutationGuard';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
+import { IndexedDBManager } from '@/core/indexedDB';
+import { assertWalletHostMutationAllowed, walletForHostRequest } from './walletMutationGuard';
 import { WalletHostSessionObserver } from './sessionObserver';
 import { getWalletSession } from '@/SeamsWeb/operations/auth/login';
 import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
@@ -368,8 +371,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
     }
 
     const handler = handlers[input.req.type] as unknown as
-      | ((r: ParentToChildEnvelope) => Promise<void>)
-      | undefined;
+      ((r: ParentToChildEnvelope) => Promise<void>) | undefined;
     if (!handler) {
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
@@ -388,4 +390,23 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);
     }
   }
+}
+
+/** Use the requested wallet's trusted selection; app configuration only grants availability. */
+export async function walletAuthMethodReviewPolicy(
+  state: WalletHostRuntimeState,
+  request: ParentToChildEnvelope,
+): Promise<AuthMethodReviewPolicy> {
+  const ctx = syncRuntimeContext(state);
+  const configuration = ctx.configuration;
+  if (configuration.kind !== 'configured') throw new Error('Wallet service is not configured.');
+  const walletId = walletForHostRequest(request, null);
+  if (walletId === null) return { kind: 'disabled' };
+  ensureRequestWalletRuntime(ctx);
+  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
+  if (selected.kind !== 'resolved' || selected.authMethod.kind !== 'voiceid') {
+    return { kind: 'disabled' };
+  }
+  const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, 'voiceid');
+  return await plugin.review(request, configuration);
 }

@@ -1054,7 +1054,7 @@ test('expanded wallet approval scrolls keyboard focus into a short viewport', as
 
 test('wallet admission arbitrates credential cancellation and preserves a started signature', async ({
   page,
-}) => {
+}, testInfo) => {
   const outcomes = await page.evaluate(async () => {
     const probeUrl = '/review-wallet-probe.js';
     const { TransactionReviewAdmission } = await import(probeUrl);
@@ -1086,6 +1086,14 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     }
     const cancelled = await active('cancelled', Date.now() + 10_000);
     cancelled.beforeCredential();
+    cancelled.assertAuthMethodPolicy('passkey');
+    let changedMethodRejected = false;
+    try {
+      cancelled.assertAuthMethodPolicy('voiceid');
+    } catch (error) {
+      changedMethodRejected =
+        error !== null && typeof error === 'object' && Reflect.get(error, 'code') === 'review_identity_changed';
+    }
     cancelled.cancel(Object.assign(new Error('cancelled'), { code: 'cancelled' }));
     const aborted = cancelled.abortController.signal.aborted;
     let prevented = false;
@@ -1111,6 +1119,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     signing.finish();
     return {
       aborted,
+      changedMethodRejected,
       prevented,
       deferredUntilUnwind,
       errors,
@@ -1121,6 +1130,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
   });
   expect(outcomes).toEqual({
     aborted: true,
+    changedMethodRejected: true,
     prevented: true,
     deferredUntilUnwind: true,
     errors: ['cancelled'],
@@ -1128,6 +1138,9 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     nextSignatureExpired: true,
     preserved: true,
   });
+  const report = testInfo.outputPath('review-method-selection-guard.json');
+  await writeFile(report, JSON.stringify(outcomes, null, 2));
+  await testInfo.attach('review-method-selection-guard.json', { path: report, contentType: 'application/json' });
 });
 
 test('all transaction methods forward one core failure and preserve callback ownership', async ({

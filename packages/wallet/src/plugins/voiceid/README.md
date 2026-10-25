@@ -6,11 +6,22 @@ The plugin owns browser microphone capture, three-sample enrollment, ReDimNet B1
 speaker matching, AuroraASR phrase recognition, WebCrypto device credentials, and the existing server proof
 exchange. SDK core owns custody installation, quotas, and NEAR MPC signing.
 
+Availability and selection are separate. Configuring the descriptor does not apply
+voice approval to passkey or Email OTP signing. The Wallet selects policy from the
+requested wallet's trusted authority selection. Enrolling VoiceID does not change
+the current owner method. Unlock with VoiceID to select voice approval; unlock with
+a passkey to return to passkey signing. Built-in methods do not load the VoiceID
+entry or inference assets, including after a reload with an enrolled voice method.
+A signing lane must match its review policy, so a method change cannot reuse an
+incompatible approval. Omitting the plugin while VoiceID is selected rejects the
+operation; it cannot silently bypass voice approval.
+
+
 After a passkey or Email OTP owner unlock, call
 `registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
 The Wallet requests microphone permission and enrolls this browser through three
 Record clicks. Later use `auth.unlockWithAuthMethod` with that wallet and method
-ID. A reviewed NEAR testnet transfer requires Confirm and a fresh voice match.
+ID. A VoiceID-selected NEAR testnet transfer requires Confirm and a fresh voice match.
 The button confirms intent. Read the displayed phrase at a normal pace. Use Cancel to cancel.
 
 `browser/` contains capture, model inference, enrollment, and device storage.

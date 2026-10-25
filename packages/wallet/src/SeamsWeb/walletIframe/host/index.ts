@@ -1,11 +1,8 @@
 import { prewarmWalletRegistrationSetup } from '@/core/rpcClients/relayer/walletRegistrationSetupPrewarm';
-import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
-import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
 import {
   applyWalletConfigurationUpdate,
   parseWalletConfigurationUpdate,
   walletHostExecutionFingerprint,
-  type WalletHostConfigurationState,
 } from '../shared/configuration';
 import {
   TransactionReviewAdmission,
@@ -51,26 +48,6 @@ import {
 } from './requestRouter';
 
 let initialized = false;
-
-async function authMethodPolicyForConfiguredRequest(
-  request: ParentToChildEnvelope,
-  configuration: WalletHostConfigurationState,
-): Promise<AuthMethodReviewPolicy> {
-  if (configuration.kind !== 'configured' || !request.type.startsWith('PM_SIGN_')) {
-    return { kind: 'disabled' };
-  }
-  let selected: AuthMethodReviewPolicy = { kind: 'disabled' };
-  for (const descriptor of configuration.config.authMethods) {
-    const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, descriptor.kind);
-    const policy = await plugin.review(request, configuration);
-    if (policy.kind === 'disabled') continue;
-    if (selected.kind === 'required') {
-      throw new Error('Multiple authentication plugins require this transaction review.');
-    }
-    selected = policy;
-  }
-  return selected;
-}
 
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
@@ -258,7 +235,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
-      const authMethodPolicy = await authMethodPolicyForConfiguredRequest(req, state.configuration);
+      const authMethodPolicy = req.type.startsWith('PM_SIGN_')
+        ? await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(state, req)
+        : { kind: 'disabled' as const };
       if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
         return;
       if ('transactionReview' in req) {
@@ -284,7 +263,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         reviewAdmission = new TransactionReviewAdmission(
           metadata,
           req.type === 'PM_SIGN_TEMPO' &&
-          req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
+            req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
             ? 'credential'
             : 'mpc',
           (payload) => postForRequest({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
@@ -417,9 +396,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             const view =
               payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
             if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
-              const activity = await import(
-                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
-              );
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
               activity.setTransactionActivityView(target, view);
             }
             return;
@@ -431,9 +409,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 ? Reflect.get(payload, 'signedTransaction')
                 : null;
             if (typeof signedTransaction === 'string') {
-              const activity = await import(
-                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
-              );
+              const activity =
+                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
               activity.transactionBroadcastStarted(signedTransaction);
             }
             return;

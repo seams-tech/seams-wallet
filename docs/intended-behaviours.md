@@ -80,6 +80,18 @@ first enabled operation. Model and inference-runtime downloads start only when
 voice enrollment or verification needs them. No native host, loopback request,
 Chrome extension, Keychain access, or system-settings change is part of this flow.
 
+SDK configuration makes VoiceID available. It does not select VoiceID for every
+wallet or signing operation. The Wallet reads the requested wallet's selected
+authentication method from its trusted authority selection. Passkey and Email OTP
+signing bypass VoiceID policy, UI, model, and inference-runtime loading, even when
+VoiceID is available or enrolled. Enrollment preserves the owner's current method.
+Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
+A VoiceID-selected wallet requires the enabled plugin and a reviewed NEAR transfer.
+The prepared signing method must match the admitted review policy. Switching between
+voice and built-in methods during preparation requires another review; a VoiceID lane cannot sign through a review without voice
+approval or through an unreviewed path.
+
+
 The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
 Wallet's browser enrollment UI. Each of three samples requires a separate Record
 click. The browser requests microphone permission. Enrollment and verification

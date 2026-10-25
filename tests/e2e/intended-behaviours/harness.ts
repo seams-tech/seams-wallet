@@ -5520,6 +5520,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
     normalized.endsWith('passkey.voiceid-near.contract.test.ts') ||
+    normalized.endsWith('passkey.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('voiceid.unlock-near.contract.test.ts') ||
     normalized.endsWith('voiceid.live-page.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
@@ -5541,6 +5542,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    normalized.endsWith('email-otp.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||

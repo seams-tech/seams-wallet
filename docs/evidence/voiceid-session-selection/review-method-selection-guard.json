@@ -1,0 +1,12 @@
+{
+  "aborted": true,
+  "changedMethodRejected": true,
+  "prevented": true,
+  "deferredUntilUnwind": true,
+  "errors": [
+    "cancelled"
+  ],
+  "cancellationIgnored": true,
+  "nextSignatureExpired": true,
+  "preserved": true
+}

@@ -37,7 +37,10 @@ async function verifyTransfer(
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
-  await activation;
+  const method = await activation;
+  const unlocking = page.evaluate(unlockWithVoice, method.walletAuthMethodId);
+  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  expect(await unlocking).toMatchObject({ success: true });
   const evidence = new VoiceIdNearSigningEvidence(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
     identity,
@@ -100,4 +103,9 @@ function transactionHash(transfer: { signedTransactionSha256: string }): string 
 
 function useNaturalPhrases(): void {
   window.voiceIdUseNaturalPhrases();
+}
+
+function unlockWithVoice(walletAuthMethodId: string) {
+  if (!window.__seamsIntendedVoiceId) throw new Error('VoiceID test helper is unavailable');
+  return window.__seamsIntendedVoiceId.unlock(walletAuthMethodId);
 }

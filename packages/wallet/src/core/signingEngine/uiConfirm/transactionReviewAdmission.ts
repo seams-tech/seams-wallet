@@ -1,3 +1,4 @@
+import type { WalletAuthMethod } from '@/core/types/seams';
 import {
   assertTransactionReviewValid,
   sameTransactionReviewIdentity,
@@ -156,6 +157,16 @@ export class TransactionReviewAdmission {
     } catch (error) {
       this.cancel(error instanceof Error ? error : new Error(String(error)));
       return false;
+    }
+  }
+
+  assertAuthMethodPolicy(method: WalletAuthMethod): void {
+    this.assertPending();
+    if ((method === 'voiceid') !== (this.authMethodPolicy.kind === 'required')) {
+      throw new TransactionReviewError(
+        'review_identity_changed',
+        'The authentication method changed. Review the transaction again.',
+      );
     }
   }
 

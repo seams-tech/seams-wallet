@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "speechPace": "natural_160_words_per_minute",
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "violet-tundra-h5jwun",
+    "accountId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+    "publicKey": "ed25519:BY2yzxYdALcKqzoftAaTd5yWshPx56MvSoJkBDMhQMLx"
+  },
+  "oneSignatureAcrossBroadcastRetries": true,
+  "newReviewCancellationPreventedSigning": true,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADljODgxZGMyMThmYWZhNTJkZTlhZjE1MjRjMzgzNTVmMzY5Y2Q2Yzc2ZGFiZTNjZWYzOTA5YWZjYjY3N2M4ZWQAnIgdwhj6+lLemvFSTDg1Xzac1sdtq+PO85Ca/LZ3yO0CAAAAAAAAAEAAAAA5Yzg4MWRjMjE4ZmFmYTUyZGU5YWYxNTI0YzM4MzU1ZjM2OWNkNmM3NmRhYmUzY2VmMzkwOWFmY2I2NzdjOGVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXo7vQHX1io74apxKsU7N+ObnXCg5HtjV4rjdZBXytwyy3B1QG2QzQmCK4bg5Om+zyz1IPgDn3CjXOcMyB0NLDg==",
+      "signedTransactionSha256": "a8a86d6c6ad070ecb14f60b1aca5c77ea09798ea09ea8cbce52de52874e7b904",
+      "signerId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "receiverId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADljODgxZGMyMThmYWZhNTJkZTlhZjE1MjRjMzgzNTVmMzY5Y2Q2Yzc2ZGFiZTNjZWYzOTA5YWZjYjY3N2M4ZWQAnIgdwhj6+lLemvFSTDg1Xzac1sdtq+PO85Ca/LZ3yO0CAAAAAAAAAEAAAAA5Yzg4MWRjMjE4ZmFmYTUyZGU5YWYxNTI0YzM4MzU1ZjM2OWNkNmM3NmRhYmUzY2VmMzkwOWFmY2I2NzdjOGVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXo7vQHX1io74apxKsU7N+ObnXCg5HtjV4rjdZBXytwyy3B1QG2QzQmCK4bg5Om+zyz1IPgDn3CjXOcMyB0NLDg==",
+      "signedTransactionSha256": "a8a86d6c6ad070ecb14f60b1aca5c77ea09798ea09ea8cbce52de52874e7b904",
+      "signerId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "receiverId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADljODgxZGMyMThmYWZhNTJkZTlhZjE1MjRjMzgzNTVmMzY5Y2Q2Yzc2ZGFiZTNjZWYzOTA5YWZjYjY3N2M4ZWQAnIgdwhj6+lLemvFSTDg1Xzac1sdtq+PO85Ca/LZ3yO0CAAAAAAAAAEAAAAA5Yzg4MWRjMjE4ZmFmYTUyZGU5YWYxNTI0YzM4MzU1ZjM2OWNkNmM3NmRhYmUzY2VmMzkwOWFmY2I2NzdjOGVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXo7vQHX1io74apxKsU7N+ObnXCg5HtjV4rjdZBXytwyy3B1QG2QzQmCK4bg5Om+zyz1IPgDn3CjXOcMyB0NLDg==",
+      "signedTransactionSha256": "a8a86d6c6ad070ecb14f60b1aca5c77ea09798ea09ea8cbce52de52874e7b904",
+      "signerId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "receiverId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADljODgxZGMyMThmYWZhNTJkZTlhZjE1MjRjMzgzNTVmMzY5Y2Q2Yzc2ZGFiZTNjZWYzOTA5YWZjYjY3N2M4ZWQAnIgdwhj6+lLemvFSTDg1Xzac1sdtq+PO85Ca/LZ3yO0CAAAAAAAAAEAAAAA5Yzg4MWRjMjE4ZmFmYTUyZGU5YWYxNTI0YzM4MzU1ZjM2OWNkNmM3NmRhYmUzY2VmMzkwOWFmY2I2NzdjOGVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXo7vQHX1io74apxKsU7N+ObnXCg5HtjV4rjdZBXytwyy3B1QG2QzQmCK4bg5Om+zyz1IPgDn3CjXOcMyB0NLDg==",
+      "signedTransactionSha256": "a8a86d6c6ad070ecb14f60b1aca5c77ea09798ea09ea8cbce52de52874e7b904",
+      "signerId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "receiverId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADljODgxZGMyMThmYWZhNTJkZTlhZjE1MjRjMzgzNTVmMzY5Y2Q2Yzc2ZGFiZTNjZWYzOTA5YWZjYjY3N2M4ZWQAnIgdwhj6+lLemvFSTDg1Xzac1sdtq+PO85Ca/LZ3yO0CAAAAAAAAAEAAAAA5Yzg4MWRjMjE4ZmFmYTUyZGU5YWYxNTI0YzM4MzU1ZjM2OWNkNmM3NmRhYmUzY2VmMzkwOWFmY2I2NzdjOGVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXo7vQHX1io74apxKsU7N+ObnXCg5HtjV4rjdZBXytwyy3B1QG2QzQmCK4bg5Om+zyz1IPgDn3CjXOcMyB0NLDg==",
+      "signedTransactionSha256": "a8a86d6c6ad070ecb14f60b1aca5c77ea09798ea09ea8cbce52de52874e7b904",
+      "signerId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "receiverId": "9c881dc218fafa52de9af1524c38355f369cd6c76dabe3cef3909afcb677c8ed",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

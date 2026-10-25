@@ -7,7 +7,7 @@ export async function assertWalletHostMutationAllowed(
   request: ParentToChildEnvelope,
   currentWalletId: string | null,
 ): Promise<void> {
-  const walletId = mutationWallet(request, currentWalletId);
+  const walletId = walletForHostRequest(request, currentWalletId);
   if (walletId === null) return;
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
   // Missing credentials still follow the operation's normal authentication flow.
@@ -30,7 +30,7 @@ function requiredWallet(raw: unknown): WalletId {
   return parsed.value;
 }
 
-function mutationWallet(
+export function walletForHostRequest(
   request: ParentToChildEnvelope,
   currentWalletId: string | null,
 ): WalletId | null {
