@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "settings": "enroll_disable_reenable_and_lock_active_voice_session",
+  "login": "one_wallet_with_method_choices_and_cancel_restores_menu",
+  "disabledSdkUnlockRejected": true,
+  "reenrollmentPreservedMethodId": true,
+  "signing": "minimal_voice_prompt",
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGEwOTg5YzBiNThkMmFhZmI2ZmYzOGY3OGU1YjJmZGEyMDU0NmVkNGNmNWM2NTZjNzY1NGJkNDM3MWU2MGRiOGYAoJicC1jSqvtv84945bL9ogVG7Uz1xlbHZUvUNx5g248CAAAAAAAAAEAAAABhMDk4OWMwYjU4ZDJhYWZiNmZmMzhmNzhlNWIyZmRhMjA1NDZlZDRjZjVjNjU2Yzc2NTRiZDQzNzFlNjBkYjhmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA9L/0hv3MSPc6uxtcmRudQ1/iSPf7hidMgrvnK4J/CP4MDAaXw43FjOz1Cs3qhwzbyyd3cn35/MLdWYSg/fC2DA==",
+      "signedTransactionSha256": "51d533f74ebbf30a703ec83d64fad2dbd1f3b034e76128605acff88acf1fe9c3",
+      "signerId": "a0989c0b58d2aafb6ff38f78e5b2fda20546ed4cf5c656c7654bd4371e60db8f",
+      "receiverId": "a0989c0b58d2aafb6ff38f78e5b2fda20546ed4cf5c656c7654bd4371e60db8f",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

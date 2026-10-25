@@ -102,7 +102,7 @@ class VoiceIdCaptureSurface<T> {
     try {
       await new Promise<void>(afterPromptPaint);
       this.controller.signal.throwIfAborted();
-      const capture = await prepare(this.controller.signal, this.prompt.element);
+      const capture = await prepare(this.controller.signal, this.prompt.progress);
       if (this.state.kind === 'closed') return;
       const remaining = capture.expiresAtMs === null ? null : capture.expiresAtMs - Date.now();
       if (remaining !== null && remaining <= 0) {

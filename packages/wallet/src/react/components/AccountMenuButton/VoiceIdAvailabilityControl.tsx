@@ -70,11 +70,11 @@ export function VoiceIdAvailabilityControl({
                   ? 'On in this browser'
                   : 'Off in this browser'}
       </span>
-      {ready && state.availability.kind !== 'not_enrolled' && ownerSelected ? (
+      {(ready || state.kind === 'updating') && state.availability.kind !== 'not_enrolled' && ownerSelected ? (
         <button
           type="button"
           className="seams-voiceid-reenroll"
-          disabled={disabled}
+          disabled={disabled || !ready}
           onClick={changeAvailability.bind(
             null,
             seams,

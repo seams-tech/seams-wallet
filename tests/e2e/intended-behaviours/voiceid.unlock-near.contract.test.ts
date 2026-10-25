@@ -506,11 +506,16 @@ async function measureColdPreparation(
   await expect(
     wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
   ).toBeDisabled();
+  const loadingCard = await dialog.locator('.seams-voiceid-prompt').boundingBox();
+  expect(loadingCard).not.toBeNull();
   await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-runtime.png') });
   await runtime.finished.promise;
   await expect(
     wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
   ).toBeEnabled({ timeout: 20_000 });
+  const readyCard = await dialog.locator('.seams-voiceid-prompt').boundingBox();
+  expect(readyCard).not.toBeNull();
+  expect(Math.abs(readyCard!.height - loadingCard!.height)).toBeLessThanOrEqual(1);
   const readyMs = performance.now() - runtimeStarted;
   expect(readyMs).toBeGreaterThanOrEqual(4_000);
   expect(requests.challenges).toBe(1);
@@ -522,6 +527,8 @@ async function measureColdPreparation(
   return {
     moduleVisibleMs,
     runtimeVisibleMs,
+    loadingCardHeight: loadingCard!.height,
+    readyCardHeight: readyCard!.height,
     cancellationMs,
     readyMs,
     injectedDelayMs: 4_000,

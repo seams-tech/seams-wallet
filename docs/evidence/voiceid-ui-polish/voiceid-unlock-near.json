@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "crimson-meteor-yww69w",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:e8a481c6-02a0-4768-87ad-4f810da405ef",
+  "freshSessionId": "wls_HOQcPHw_hYpLWvOyUDHoU8k-3sqAvcb41PDeSN9k7Rk",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 109.29570800000147,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 389.1236250000002,
+    "runtimeVisibleMs": 114.14066599999933,
+    "loadingCardHeight": 546.625,
+    "readyCardHeight": 546.625,
+    "cancellationMs": 41.56708299999809,
+    "readyMs": 4532.796082999997,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 114.38141700000006,
+  "naturalCapture": {
+    "voicedMs": 1190,
+    "recordingMs": 4802.5,
+    "endedBy": "pause",
+    "similarity": 0.6316596976338797,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1410,
+    "recordingMs": 3152.600000023842,
+    "endedBy": "pause",
+    "similarity": 0.718023066112997,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "f923ab5a-12e5-4cda-946b-382f2d061a27",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2126.8000000715256,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "824803ed-a729-4eec-a176-681147f1d162",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8001.899999976158,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "crimson-meteor-yww69w",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "crimson-meteor-yww69w",
+    "accountId": "bfc354ea8a2816949d8f564d02a7201434b1209f28e872aad91aa52c3383ae32",
+    "publicKey": "ed25519:DuZd7Vv4TThvuKgyjL8VFcd6UUdebvVBzqBfrmrGekBB"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGJmYzM1NGVhOGEyODE2OTQ5ZDhmNTY0ZDAyYTcyMDE0MzRiMTIwOWYyOGU4NzJhYWQ5MWFhNTJjMzM4M2FlMzIAv8NU6oooFpSdj1ZNAqcgFDSxIJ8o6HKq2RqlLDODrjICAAAAAAAAAEAAAABiZmMzNTRlYThhMjgxNjk0OWQ4ZjU2NGQwMmE3MjAxNDM0YjEyMDlmMjhlODcyYWFkOTFhYTUyYzMzODNhZTMyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAiZeQLupOihJy6eGzRE1+6NHMpV985VF1hk0aIhnJwIF0X+Y42H7AreK9d/WZxIJRBujyhWbcGp6Q/nu1S7YdDw==",
+      "signedTransactionSha256": "7ee3e5da6d9719681c85a3f77f2e76206183e9a7935b91e397b2c667b735fb10",
+      "signerId": "bfc354ea8a2816949d8f564d02a7201434b1209f28e872aad91aa52c3383ae32",
+      "receiverId": "bfc354ea8a2816949d8f564d02a7201434b1209f28e872aad91aa52c3383ae32",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

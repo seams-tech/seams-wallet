@@ -867,6 +867,10 @@ export class AuthMenuSession {
     if (this.stateValue.kind === 'complete' || !this.surface) return;
     this.surface.element.hidden = false;
     this.surface.element.inert = false;
+    this.surface.element.animate(
+      [{ opacity: 0 }, { opacity: 1 }],
+      { duration: 150, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
+    );
     this.surface.element.querySelector<HTMLElement>('[data-auth-menu-voiceid]')?.focus();
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'auth_menu_surface',

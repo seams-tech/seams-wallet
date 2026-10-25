@@ -23,6 +23,24 @@ const CSS = `
   text-align: center;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+.seams-voiceid-prompt {
+  transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+@starting-style {
+  .seams-voiceid-prompt { opacity: 0; transform: translateY(4px); }
+}
+.seams-voiceid-waveform rect {
+  transform-box: view-box;
+  transform-origin: center;
+  transition: transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.seams-voiceid-waveform[data-listening="true"] rect { transition: transform 64ms linear; }
+.seams-voiceid-progress-slot { display: flow-root; min-height: 7rem; }
+@media (prefers-reduced-motion: reduce) {
+  .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
+  @starting-style { .seams-voiceid-prompt { transform: none; } }
+  .seams-voiceid-waveform rect { transition: none !important; }
+}
 .seams-voiceid-prompt h2 {
   font-size: 0.85rem;
   line-height: 1.4;
@@ -51,7 +69,7 @@ const CSS = `
 .seams-voiceid-prompt .seams-voiceid-status {
   font-size: 0.75rem;
   line-height: 1.5;
-  min-height: 1.2rem;
+  min-height: 3.375rem;
   opacity: 0.75;
   margin: 0;
 }
@@ -115,6 +133,7 @@ export class VoicePrompt {
   readonly status: HTMLParagraphElement;
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
+  readonly progress: HTMLElement;
   private readonly waveform: VoiceWaveform;
   private readonly details: HTMLDetailsElement;
   private readonly detailText: HTMLParagraphElement;
@@ -161,6 +180,8 @@ export class VoicePrompt {
     this.cancel.className = 'seams-voiceid-close';
     this.cancel.textContent = '×';
     this.cancel.setAttribute('aria-label', 'Cancel');
+    this.progress = document.createElement('div');
+    this.progress.className = 'seams-voiceid-progress-slot';
     const slot = document.createElement('div');
     slot.className = 'seams-voiceid-record-slot';
     slot.append(this.record);
@@ -170,8 +191,9 @@ export class VoicePrompt {
       this.phrase,
       this.waveform.element,
       this.status,
-      this.details,
       slot,
+      this.progress,
+      this.details,
     );
   }
 

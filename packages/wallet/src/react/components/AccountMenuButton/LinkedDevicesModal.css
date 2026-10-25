@@ -621,7 +621,7 @@
 }
 
 .seams-voiceid-availability { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
-.seams-voiceid-availability [role="status"] { font-size: 0.7rem; max-width: 12rem; }
+.seams-voiceid-availability [role="status"] { font-size: 0.7rem; max-width: 12rem; min-height: 2.1rem; }
 .seams-voiceid-availability[data-setup="true"] { align-items: flex-start; padding-block: 0.75rem; }
 
 .seams-auth-method-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
