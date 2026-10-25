@@ -381,6 +381,7 @@ try {
       key: result.a.activation.key,
       preparationMs,
       initialSigningBatches: ready.job.signing_batches,
+      initialSigningStockExpiresAtMs: ready.job.expires_at,
       serverResponseMs,
       registrationWithClientVerificationMs,
       underFiveSeconds: registrationWithClientVerificationMs < 5000,

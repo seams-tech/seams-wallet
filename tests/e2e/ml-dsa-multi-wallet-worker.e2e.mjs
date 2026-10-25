@@ -31,16 +31,18 @@ try {
   throw error;
 }
 const clientSetupMs = performance.now() - clientSetupStarted;
+const wallStarted = Date.now();
 const started = performance.now();
 const deadline = started + durationMs;
 const report = {
-  observedAt: new Date().toISOString(),
+  observedAt: new Date(wallStarted).toISOString(),
   scope: 'Concurrent independent wallets, one outstanding demand and one persistent Node HTTP client per wallet. Real hosted Router and separate participant Workers. Thirty-two prepared candidates per wallet. Durations include client dispatch and result delivery. All starting stock must be excluded from sustained throughput. Login, UI, NEAR submission, and finality are excluded.',
   policy: registrations[0].policy,
   httpCalibration,
   eventLoopGaps: [],
   requestedDurationMs: durationMs,
   intervalMs,
+  retryPolling: { minimumMs: 1000, maximumMs: 5000 },
   minimumSuccessesPerWallet: 4,
   scriptSha256: hash(await readFile(import.meta.filename)),
   httpTimingSourceSha256: hash(await readFile(new URL('./ml-dsa-http-timing.mjs', import.meta.url))),
@@ -59,16 +61,21 @@ try {
   await Promise.all(wallets.map(runWallet));
 } finally {
   clearInterval(eventLoopMonitor);
+  report.completedAt = new Date().toISOString();
   report.elapsedMs = performance.now() - started;
+  report.elapsedWallMs = Date.now() - wallStarted;
+  report.clockDifferenceMs = report.elapsedWallMs - report.elapsedMs;
+  report.timingQualified = Math.abs(report.clockDifferenceMs) <= 2000;
   await Promise.allSettled(clients.map(closeClient));
   const successes = report.requests.filter(verified);
   report.successfulSignatures = successes.length;
   report.successfulSignaturesUnderFiveSeconds = successes.filter(underTarget).length;
   report.allSuccessfulSignaturesUnderFiveSeconds = successes.length > 0 && successes.every(underTarget);
   report.successesPerWallet = wallets.map(successCount);
+  if (!report.timingQualified) report.errors.push({ error: 'Host clocks diverged. Exclude this run from throughput and latency claims.' });
   report.functionalPassed = report.errors.length === 0 && wallets.every(walletSucceeded);
   await writeFile(artifact, `${JSON.stringify(report, null, 2)}\n`);
-  if (!report.functionalPassed) process.exitCode = 1;
+  if (!report.functionalPassed || !report.timingQualified) process.exitCode = 1;
   console.log(JSON.stringify({ artifact, successful: successes.length, underFiveSeconds: report.successfulSignaturesUnderFiveSeconds, functionalPassed: report.functionalPassed }));
 }
 
@@ -159,7 +166,7 @@ async function runDemand(wallet, demand) {
     if (result.status === 'unavailable') {
       entry.reason = result.reason;
       entry.retryAtMs = result.retry_at_ms;
-      await retryPause(result.retry_at_ms);
+      entry.retryDelayMs = await retryPause(result.retry_at_ms);
       continue;
     }
     assert.equal(result.status, 'existing');
@@ -175,16 +182,21 @@ async function runDemand(wallet, demand) {
         if (wallet.successes === 1) await verifyDuplicate(wallet, operation, signature);
         demand.state = 'succeeded';
         demand.elapsedMs = entry.demandElapsedMs;
+        console.log(JSON.stringify({
+          event: 'ml_dsa_sustained_signature', wallet: wallet.index,
+          successfulSignatures: wallet.successes, demandMs: demand.elapsedMs,
+          signingHttpMs: entry.elapsedMs,
+        }));
         return;
       }
       case 'preparing':
       case 'running':
-        await retryPause(Date.now() + 1000);
+        entry.retryDelayMs = await retryPause(Date.now() + 1000);
         break;
       case 'failed':
       case 'declined':
         operation = newOperation(wallet);
-        await retryPause(Date.now() + 1000);
+        entry.retryDelayMs = await retryPause(Date.now() + 1000);
         break;
       default:
         throw new Error('Unexpected ML-DSA operation state');
@@ -218,8 +230,10 @@ async function verifyDuplicate(wallet, operation, signature) {
 }
 
 async function retryPause(retryAtMs) {
+  const started = performance.now();
   const remaining = Math.max(0, deadline - performance.now());
   await delay(Math.min(remaining, Math.max(1000, Math.min(5000, retryAtMs - Date.now()))));
+  return performance.now() - started;
 }
 
 function newOperation(wallet) {

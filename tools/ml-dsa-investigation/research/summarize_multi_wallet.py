@@ -73,6 +73,7 @@ def wallet_client(client, wallet):
 
 
 def summarize_all(client, records, versions):
+    assert client.get("timingQualified", True), "Client clock continuity failed; timing and throughput are unqualified"
     records = [row for row in records if row["version"] == versions.get(row["role"])]
     scopes = batch_scopes(records)
     summaries = []
@@ -170,6 +171,8 @@ def summarize_all(client, records, versions):
             "paired_batches_per_minute": len(new_arrivals) * 60000 / duration if duration and duration > 0 else None,
             "successful_signatures_per_minute": successes_after * 60000 / duration if duration and duration > 0 else None,
         },
+        "admission_waits": admission_waits(client),
+        "reserve_restoration_cycle": reserve_restoration_cycle(client, summaries, start, end),
         "successful_http_ms": distribution([item["elapsedMs"] for item in successful]),
         "successful_demand_ms": distribution([item["demandElapsedMs"] for item in successful]),
         "successful_under_five_seconds": sum(item["elapsedMs"] < 5000 for item in successful),
@@ -179,6 +182,74 @@ def summarize_all(client, records, versions):
         "service_non_ok_invocations": [row for row in records if row["outcome"] != "ok" or row["exception_names"]],
         "unmapped_producer_records": [row for row in records if row["producer_alarm"]
                                       and not any(item["batch"] in scopes for item in row["refill"])],
+    }
+
+
+def admission_waits(client):
+    reasons = ("empty_pool", "service_capacity", "wallet_cooldown", "operation_running", "protocol_retry")
+    totals = {reason: {"responses": 0, "http_ms": 0, "sleep_ms": 0} for reason in reasons}
+    grouped = {}
+    for request in client["requests"]:
+        if request.get("status") == "unavailable":
+            reason = request["reason"]
+            assert reason in reasons[:3], "Unknown admission reason"
+        elif request.get("state") == "awaiting_stock":
+            reason = "empty_pool"
+        elif request.get("state") in ("preparing", "running"):
+            reason = "operation_running"
+        elif request.get("state") in ("failed", "declined"):
+            reason = "protocol_retry"
+        else:
+            continue
+        delay = request["retryDelayMs"]
+        assert isinstance(delay, (int, float)) and delay >= 0
+        elapsed = request["elapsedMs"]
+        totals[reason]["responses"] += 1
+        totals[reason]["http_ms"] += elapsed
+        totals[reason]["sleep_ms"] += delay
+        identity = (request["wallet"], request["demand"])
+        entry = grouped.setdefault(identity, {"wallet": identity[0], "demand": identity[1],
+                                              "empty_pool_http_and_sleep_ms": 0,
+                                              "reasons": {reason: 0 for reason in reasons}})
+        entry["reasons"][reason] += elapsed + delay
+        if reason == "empty_pool":
+            entry["empty_pool_http_and_sleep_ms"] += elapsed + delay
+    demands = {(item["wallet"], item["number"]): item for item in client["demands"]}
+    for identity, entry in grouped.items():
+        demand = demands[identity]
+        entry["state"] = demand["state"]
+        entry["total_demand_ms"] = demand.get("elapsedMs")
+    empty = [entry for entry in grouped.values() if entry["empty_pool_http_and_sleep_ms"] > 0]
+    return {
+        "scope": "Observed HTTP response time plus measured client retry sleeps. Empty-pool waits include polling granularity. They are not an exact server stock-unavailable interval.",
+        "client_errors": client["errors"],
+        "retry_polling": client["retryPolling"],
+        "by_reason": totals,
+        "demands_with_empty_pool": len(empty),
+        "empty_pool_http_and_sleep_ms": distribution([item["empty_pool_http_and_sleep_ms"] for item in empty]),
+        "completed_demand_ms_when_pool_was_empty": distribution([item["total_demand_ms"] for item in empty if item["state"] == "succeeded"]),
+        "per_demand": list(grouped.values()),
+    }
+
+
+def reserve_restoration_cycle(client, summaries, start, end):
+    final = [item["final_observed_stock"] for item in summaries]
+    target = client["policy"]["refill_target_batches"]
+    complete = all(item is not None and len(paired(item)) == target
+                   and not item["reserved_a"] and not item["reserved_b"] for item in final)
+    initial_full = all(len(paired(item["initial_observed_stock"])) == target for item in summaries)
+    observed_end = max(item["at_ms"] for item in final) if complete else None
+    elapsed = observed_end - start if complete and initial_full else None
+    successes = sum(item.get("verified") is True for item in client["requests"])
+    return {
+        "scope": "Full starting and ending reserves at unchanged capacity. Includes the observed wait for final refill and idle inventory alarms. This is a finite load-and-restoration cycle, not a production capacity guarantee.",
+        "full_reserve_restored": complete,
+        "initial_full_reserve_observed": initial_full,
+        "observed_end_ms": observed_end,
+        "cycle_elapsed_ms": elapsed,
+        "after_load_observation_wait_ms": observed_end - end if complete else None,
+        "verified_signatures": successes,
+        "signatures_per_cycle_minute": successes * 60000 / elapsed if elapsed and elapsed > 0 else None,
     }
 
 
