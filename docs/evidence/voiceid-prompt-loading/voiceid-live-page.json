@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "serene-falcon-wnytb9",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "2c7ff011-6542-465c-bc44-fc0a9974bc4b",
+    "capturedAtMs": 1792893844816,
+    "durationMs": 3420,
+    "recordingMs": 4975.400000095367,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.23583901658391113,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "serene-falcon-wnytb9",
+    "accountId": "87382837dd0e50cbdbfaf0e825575b3194f83bec32e4719cff46fbd3aaa5e27f",
+    "publicKey": "ed25519:A6qht2axBaZKGgjWjBTzkxMsvjt3tnWaGBw1CCoyXZpi"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADg3MzgyODM3ZGQwZTUwY2JkYmZhZjBlODI1NTc1YjMxOTRmODNiZWMzMmU0NzE5Y2ZmNDZmYmQzYWFhNWUyN2YAhzgoN90OUMvb+vDoJVdbMZT4O+wy5HGc/0b706ql4n8CAAAAAAAAAEAAAAA4NzM4MjgzN2RkMGU1MGNiZGJmYWYwZTgyNTU3NWIzMTk0ZjgzYmVjMzJlNDcxOWNmZjQ2ZmJkM2FhYTVlMjdmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAcNN6DiOCMgcLqO8TJavo377sWo6WlneE2Uiqt/i3Vr1b6/g096e+rew7nbYjiUicsTGsyaJKvaJBiPCocIk6Bg==",
+      "signedTransactionSha256": "266c778f621215d8e485108c450f332a3c10310a8c4a51204f31dc8f8315dabe",
+      "signerId": "87382837dd0e50cbdbfaf0e825575b3194f83bec32e4719cff46fbd3aaa5e27f",
+      "receiverId": "87382837dd0e50cbdbfaf0e825575b3194f83bec32e4719cff46fbd3aaa5e27f",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

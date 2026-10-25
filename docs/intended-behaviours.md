@@ -98,7 +98,15 @@ challenge and expiry timer. Cancellation, expiry, and other failures stay termin
 Each enrollment, unlock, and signing attempt displays a randomly selected short
 English phrase from a bank of 16. The phrase remains fixed during capture. A retry
 selects a different phrase. The user reads it at a normal pace, then pauses.
-Activation and unlock show a cancellable modal before asynchronous preparation.
+The VoiceID prompt reports its size through the current request measurement binding.
+The parent reveals measured bounds without waiting for its fallback timer.
+The reporter tracks enrollment content changes and disconnects on disposal.
+The lazy VoiceID host entry mounts a cancellable prompt and yields a frame before
+loading the activation or unlock implementation. Unlock session cleanup and
+generation allocation occur within this visible preparation phase. Recording stays
+disabled while preparation runs. Model download progress stays inside the card.
+Cancelling during implementation loading prevents later session preparation or
+challenge requests. The lightweight prompt module itself still needs its first load.
 The capture card shows a large phrase, a live amplitude waveform, a short status,
 and Cancel. Enrollment identifies each of three samples. The waveform observes the
 same microphone stream that supplies model audio. It makes no second capture request

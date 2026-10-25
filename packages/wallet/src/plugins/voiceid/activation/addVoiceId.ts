@@ -13,18 +13,20 @@ import type { SpokenPhrase } from '../browser/phrase';
 import { enrollBrowserVoice } from '../browser/enrollment';
 import { readBrowserVoiceDevice } from '../browser/deviceStore';
 import { captureVoiceIdActivation } from '../capture/deviceBridge';
-import { showVoiceIdCaptureSurface, type PreparedVoiceCapture } from '../capture/surface';
+import type { PreparedVoiceCapture } from '../capture/surface';
 import {
   readUnlockedWalletEd25519ExportRootCapabilityV1,
   walletCustodyCeremonyTransportFromWorkerContextV1,
 } from '@/core/signingEngine/walletCustody/unlockedEd25519ExportRootCapability';
 import type { WalletCustodyCeremonyTransportPort } from '@/core/signingEngine/walletCustody/ceremonyStepRunner';
-import type { RegistrationCapability, RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
+import type {
+  RegistrationCapability,
+  RegistrationWebContext,
+} from '@/SeamsWeb/signingSurface/types';
 import type { WalletSessionOperationCredentialV1 } from '@shared/device-linking/contracts';
 import {
   allocateWalletAuthMethodId,
   parsePasskeyEnvelopeId,
-  parseWalletId,
   type WalletId,
   type WalletAuthMethodId,
 } from '@shared/utils/domainIds';
@@ -98,8 +100,12 @@ async function prepareActivation(
   }
   const methods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
   for (const method of methods) {
-    if (method.kind !== 'voiceid' || method.status !== 'active' ||
-        method.walletAuthorityId !== selected.authority.authorityId) continue;
+    if (
+      method.kind !== 'voiceid' ||
+      method.status !== 'active' ||
+      method.walletAuthorityId !== selected.authority.authorityId
+    )
+      continue;
     const device = await readBrowserVoiceDevice(walletId, method.walletAuthMethodId);
     if (device && device.deviceKeyId === method.deviceKeyId) {
       return { kind: 'enroll_existing', walletId, walletAuthMethodId: method.walletAuthMethodId };
@@ -147,23 +153,12 @@ async function prepareActivation(
   };
 }
 
-export async function addVoiceIdWalletAuthMethod(input: {
-  context: RegistrationWebContext;
-  walletId: WalletId | string;
-}): Promise<AddVoiceIdResult> {
-  const parsedWalletId = parseWalletId(input.walletId);
-  if (!parsedWalletId.ok) throw new Error('VoiceID activation wallet ID is invalid.');
-  return await showVoiceIdCaptureSurface({
-    prepare: prepareActivationSurface.bind(null, input.context, parsedWalletId.value),
-    purpose: 'activation',
-  });
-}
-
-async function prepareActivationSurface(
-  context: RegistrationWebContext,
-  walletId: WalletId,
+export async function prepareActivationSurface(
+  input: { readonly context: RegistrationWebContext; readonly walletId: WalletId },
   signal: AbortSignal,
 ): Promise<PreparedVoiceCapture<AddVoiceIdResult>> {
+  signal.throwIfAborted();
+  const { context, walletId } = input;
   const prepared = await prepareActivation(context, walletId);
   signal.throwIfAborted();
   return { action: activatePreparedVoiceId.bind(null, prepared), expiresAtMs: null };

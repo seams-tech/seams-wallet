@@ -1,3 +1,4 @@
+import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import type { RegistrationWebContext } from '@/SeamsWeb/signingSurface/types';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { ConfiguredWalletHost } from '@/SeamsWeb/walletIframe/shared/configuration';
@@ -59,7 +60,8 @@ export interface WalletAuthMethodHostPlugin {
     readonly relayerUrl: string;
     readonly walletId: WalletId;
     readonly walletAuthMethodId: WalletAuthMethodId;
-    readonly install: AuthMethodSessionInstaller;
+    readonly surfaceMeasurementBinding: UiConfirmSurfaceMeasurementBinding;
+    readonly prepareSession: (signal: AbortSignal) => Promise<AuthMethodSessionInstaller>;
     readonly assertActive: () => void;
   }): Promise<AuthMethodUnlockSuccess>;
   activate(input: {

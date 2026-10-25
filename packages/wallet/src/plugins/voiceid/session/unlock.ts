@@ -12,7 +12,7 @@ import type { VoiceIdWalletSessionChallenge } from '@shared/authorization/voiceI
 import { prepareVoiceModelWithProgress } from '../browser/progress';
 import { readVoiceEnrollment } from '../browser/enrollment';
 import { captureVoiceIdUnlock } from '../capture/deviceBridge';
-import { showVoiceIdCaptureSurface, type PreparedVoiceCapture } from '../capture/surface';
+import type { PreparedVoiceCapture } from '../capture/surface';
 import { VoiceIdHttpClient, type VoiceIdVerifiedSession } from './httpClient';
 import { verifyVoiceIdChallengeWithDevice } from './unlockFromDevice';
 
@@ -23,20 +23,12 @@ type PreparedVoiceIdUnlock = Readonly<{
   install: AuthMethodSessionInstaller;
 }>;
 
-export async function unlockWithVoiceId(
-  input: Parameters<WalletAuthMethodHostPlugin['unlock']>[0],
-): Promise<AuthMethodUnlockSuccess> {
-  return await showVoiceIdCaptureSurface({
-    purpose: 'unlock',
-    prepare: prepareUnlockSurface.bind(null, input),
-  });
-}
-
-async function prepareUnlockSurface(
+export async function prepareUnlockSurface(
   input: Parameters<WalletAuthMethodHostPlugin['unlock']>[0],
   signal: AbortSignal,
   parent: HTMLElement,
 ): Promise<PreparedVoiceCapture<AuthMethodUnlockSuccess>> {
+  const install = await input.prepareSession(signal);
   const authMethod = await IndexedDBManager.getWalletAuthMethodV2(input.walletAuthMethodId);
   if (
     !authMethod ||
@@ -66,7 +58,7 @@ async function prepareUnlockSurface(
     signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
   input.assertActive();
-  const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install: input.install };
+  const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install };
   signal.throwIfAborted();
   return { expiresAtMs: challenge.expiresAtMs, action: captureAndInstall.bind(null, prepared) };
 }

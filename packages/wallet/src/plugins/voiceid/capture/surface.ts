@@ -1,3 +1,8 @@
+import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
+import {
+  createWalletIframeSurfaceMeasurementReporter,
+  type WalletIframeSurfaceMeasurementReporter,
+} from '@/SeamsWeb/walletIframe/host/surface-measurement-reporter';
 import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferred';
 import { newSpokenPhrase, type SpokenPhrase } from '../browser/phrase';
 import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
@@ -31,11 +36,16 @@ class VoiceIdCaptureSurface<T> {
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
+  private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(prepare: CapturePreparation<T>, purpose: 'activation' | 'unlock') {
+  constructor(
+    prepare: CapturePreparation<T>,
+    purpose: 'activation' | 'unlock',
+    binding: UiConfirmSurfaceMeasurementBinding,
+  ) {
     const actionLabel = purpose === 'activation' ? 'Activate VoiceID' : 'Unlock with VoiceID';
     const parent = document.getElementById('root') ?? document.body;
     if (!parent) throw new Error('Wallet activation surface has no mount root.');
@@ -49,6 +59,8 @@ class VoiceIdCaptureSurface<T> {
     this.element.append(this.prompt.element);
     this.status = this.prompt.status;
     this.status.textContent = 'Preparing VoiceID…';
+    this.prompt.title.textContent = 'VoiceID';
+    this.element.dataset.preparation = 'loading';
     this.activateButton = this.prompt.record;
     this.activateButton.textContent = actionLabel;
     this.activateButton.disabled = true;
@@ -57,12 +69,22 @@ class VoiceIdCaptureSurface<T> {
     this.cancelButton.addEventListener('click', this.cancel);
     this.element.addEventListener('cancel', this.cancel);
     parent.appendChild(this.element);
+    this.measurement =
+      binding.kind === 'wallet_iframe'
+        ? createWalletIframeSurfaceMeasurementReporter({
+            kind: 'request_surface',
+            element: this.element,
+            requestId: binding.requestId,
+            postMeasurement: binding.postMeasurement,
+          })
+        : null;
     this.cancelButton.focus();
     this.result = this.completion.promise;
     void this.initialize(prepare);
   }
 
   dispose(): void {
+    this.measurement?.disconnect();
     if (this.expiryTimer !== null) clearTimeout(this.expiryTimer);
     this.element.removeEventListener('cancel', this.cancel);
     this.activateButton.removeEventListener('click', this.begin);
@@ -73,7 +95,9 @@ class VoiceIdCaptureSurface<T> {
 
   private async initialize(prepare: CapturePreparation<T>): Promise<void> {
     try {
-      const capture = await prepare(this.controller.signal, this.element);
+      await new Promise<void>(afterPromptPaint);
+      this.controller.signal.throwIfAborted();
+      const capture = await prepare(this.controller.signal, this.prompt.element);
       if (this.state.kind === 'closed') return;
       const remaining = capture.expiresAtMs === null ? null : capture.expiresAtMs - Date.now();
       if (remaining !== null && remaining <= 0) {
@@ -83,6 +107,8 @@ class VoiceIdCaptureSurface<T> {
       this.expiryTimer = remaining === null ? null : setTimeout(this.expire, remaining);
       for (const progress of this.element.querySelectorAll('.seams-voiceid-model-download'))
         progress.remove();
+      this.element.dataset.preparation = 'ready';
+      this.prompt.title.textContent = 'Read aloud';
       this.status.textContent = 'Read naturally, then pause.';
       this.activateButton.disabled = false;
       this.activateButton.focus();
@@ -147,11 +173,19 @@ class VoiceIdCaptureSurface<T> {
 export async function showVoiceIdCaptureSurface<T>(input: {
   readonly prepare: CapturePreparation<T>;
   readonly purpose: 'activation' | 'unlock';
+  readonly measurement: UiConfirmSurfaceMeasurementBinding;
 }): Promise<T> {
-  const surface = new VoiceIdCaptureSurface(input.prepare, input.purpose);
+  const surface = new VoiceIdCaptureSurface(input.prepare, input.purpose, input.measurement);
   try {
     return await surface.result;
   } finally {
     surface.dispose();
   }
+}
+
+function afterPromptPaint(resolve: () => void): void {
+  requestAnimationFrame(queueAfterPaint.bind(null, resolve));
+}
+function queueAfterPaint(resolve: () => void): void {
+  setTimeout(resolve, 0);
 }

@@ -46,7 +46,9 @@ async function verifyUnlock(
   const activationStarted = performance.now();
   const activation = page.evaluate(activate);
   await expect(wallet.getByRole('dialog', { name: 'Activate VoiceID', exact: true })).toBeVisible();
+  await expectPaintedPrompt(page);
   const activationDialogMs = performance.now() - activationStarted;
+  expect(activationDialogMs).toBeLessThan(1_000);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
   const method = await activation;
@@ -54,6 +56,14 @@ async function verifyUnlock(
 
   await page.evaluate(lock);
   expect((await page.evaluate(readSession)).authentication.kind).toBe('signed_out');
+  await page.reload();
+  await expect(page.getByTestId('intended-register-passkey')).toBeVisible();
+  const coldPreparation = await measureColdPreparation(
+    context,
+    page,
+    method.walletAuthMethodId,
+    testInfo,
+  );
   const preparation = await verifyPreparationCancellation(context, page, method.walletAuthMethodId);
   await verifyLockDuringUnlock(context, page, method.walletAuthMethodId);
   const qualityRequests = new QualityRetryRequests();
@@ -183,6 +193,7 @@ async function verifyUnlock(
         freshSessionId,
         concurrentLockRejectedStaleUnlock: true,
         preparation,
+        coldPreparation,
         activationDialogMs,
         naturalCapture: naturalQuality,
         naturalSigningCapture: signingQuality,
@@ -247,6 +258,7 @@ async function verifyPreparationCancellation(
   await expect(
     wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true }),
   ).toBeVisible({ timeout: 10_000 });
+  await expectPaintedPrompt(page);
   const dialogVisibleMs = performance.now() - started;
   await challenge.requested.promise;
   const disabledWhilePreparing = !(await wallet
@@ -425,4 +437,105 @@ async function readLastQuality(page: Page) {
     similarity: raw.similarity,
     phraseMatched: raw.phraseMatched,
   };
+}
+
+class DelayedPreparationAsset {
+  readonly requested = new WorkerDeferred<void>();
+  readonly finished = new WorkerDeferred<void>();
+  readonly serve = async (route: Route): Promise<void> => {
+    const response = await route.fetch();
+    this.requested.resolve();
+    await new Promise<void>(waitFourSeconds);
+    try {
+      await route.fulfill({ response });
+    } finally {
+      this.finished.resolve();
+    }
+  };
+}
+function waitFourSeconds(resolve: () => void): void {
+  setTimeout(resolve, 4_000);
+}
+
+async function measureColdPreparation(
+  context: BrowserContext,
+  page: Page,
+  methodId: string,
+  testInfo: TestInfo,
+) {
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const dialog = wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true });
+  const module = new DelayedPreparationAsset();
+  await context.route('**/unlock-*.js', module.serve);
+  const requests = new QualityRetryRequests();
+  context.on('request', requests.observe);
+  const started = performance.now();
+  const operation = page.evaluate(unlock, methodId).then(unexpectedUnlock, rejectedUnlock);
+  await expect(dialog).toBeVisible({ timeout: 1_500 });
+  await expectPaintedPrompt(page);
+  const moduleVisibleMs = performance.now() - started;
+  expect(moduleVisibleMs).toBeLessThan(1_000);
+  await module.requested.promise;
+  await expect(dialog).toHaveAttribute('data-preparation', 'loading');
+  await expect(
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeDisabled();
+  await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-module.png') });
+  const cancelledAt = performance.now();
+  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await operation).kind).toBe('rejected');
+  const cancellationMs = performance.now() - cancelledAt;
+  expect(cancellationMs).toBeLessThan(1_000);
+  await module.finished.promise;
+  await context.unroute('**/unlock-*.js', module.serve);
+  await expect(dialog).toHaveCount(0);
+  expect(requests.challenges).toBe(0);
+  expect(requests.verifies).toBe(0);
+
+  const runtime = new DelayedPreparationAsset();
+  await context.route('**/ort.wasm.bundle.min-*.js', runtime.serve);
+  const runtimeStarted = performance.now();
+  const retry = page.evaluate(unlock, methodId).then(unexpectedUnlock, rejectedUnlock);
+  await expect(dialog).toBeVisible({ timeout: 1_500 });
+  await expectPaintedPrompt(page);
+  const runtimeVisibleMs = performance.now() - runtimeStarted;
+  expect(runtimeVisibleMs).toBeLessThan(1_000);
+  await runtime.requested.promise;
+  await expect(dialog).toHaveAttribute('data-preparation', 'loading');
+  await expect(dialog.locator('.seams-voiceid-prompt .seams-voiceid-model-download')).toBeVisible();
+  await expect(
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeDisabled();
+  await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-runtime.png') });
+  await runtime.finished.promise;
+  await expect(
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeEnabled({ timeout: 20_000 });
+  const readyMs = performance.now() - runtimeStarted;
+  expect(readyMs).toBeGreaterThanOrEqual(4_000);
+  expect(requests.challenges).toBe(1);
+  expect(await wallet.locator('body').evaluate(readMicrophoneStates)).toEqual([]);
+  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect((await retry).kind).toBe('rejected');
+  await context.unroute('**/ort.wasm.bundle.min-*.js', runtime.serve);
+  context.off('request', requests.observe);
+  return {
+    moduleVisibleMs,
+    runtimeVisibleMs,
+    cancellationMs,
+    readyMs,
+    injectedDelayMs: 4_000,
+    cancelledModuleStartedNoChallenge: true,
+    microphoneStartedDuringPreparation: false,
+  };
+}
+function readMicrophoneStates(): MediaStreamTrackState[] {
+  return window.voiceIdMicrophoneStates();
+}
+
+async function expectPaintedPrompt(page: Page): Promise<void> {
+  const overlay = page.locator('dialog.seams-wallet-overlay-dialog[open]');
+  await expect(overlay).toHaveCSS('opacity', '1', { timeout: 1_500 });
+  await expect(overlay).toHaveCSS('pointer-events', 'auto');
+  await expect(overlay).not.toHaveClass(/is-provisional|is-viewport-fallback|is-reveal-pending/);
 }

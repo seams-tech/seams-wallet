@@ -1,0 +1,91 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "serene-oasis-57jth7",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:e016f4c3-8e8f-4f73-a3c8-4b3ac1623f59",
+  "freshSessionId": "wls_LpHynRUsdVIJorJ89qJ6D_eiyI46Gs_e0uj8lpWWAxk",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 112.02312499999971,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 389.8007499999985,
+    "runtimeVisibleMs": 113.69462500000009,
+    "cancellationMs": 44.80025000000023,
+    "readyMs": 4687.471167,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 113.72862499999974,
+  "naturalCapture": {
+    "voicedMs": 1180,
+    "recordingMs": 4703.399999976158,
+    "endedBy": "pause",
+    "similarity": 0.630030829562302,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1500,
+    "recordingMs": 3278.899999976158,
+    "endedBy": "pause",
+    "similarity": 0.757889316606489,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "6434a326-a0d1-471e-95ca-7aec776ab20b",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2103.4000000953674,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "570a0180-c96a-4bf3-ae39-845293175bee",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.799999952316,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "serene-oasis-57jth7",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "serene-oasis-57jth7",
+    "accountId": "7b16e6c76df62a71f40eaa9a6d20eeda375eeb199f00102777e7512f62e78812",
+    "publicKey": "ed25519:9HVQFztYbuGHqKUehGa8PcWeCErt8FAdsSZvZchTQmJH"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADdiMTZlNmM3NmRmNjJhNzFmNDBlYWE5YTZkMjBlZWRhMzc1ZWViMTk5ZjAwMTAyNzc3ZTc1MTJmNjJlNzg4MTIAexbmx232KnH0DqqabSDu2jde6xmfABAnd+dRL2LniBICAAAAAAAAAEAAAAA3YjE2ZTZjNzZkZjYyYTcxZjQwZWFhOWE2ZDIwZWVkYTM3NWVlYjE5OWYwMDEwMjc3N2U3NTEyZjYyZTc4ODEyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAGXn+47du+DcBKAhM2p6FUM/Lg1m6bKoDEFE901BSh5LYmTizB3RUAWkzxd3sbmEm0IbGxRp35lbTtPurMVSdAA==",
+      "signedTransactionSha256": "2d7c62d4168cdfb570f593983095d286a01d074efd61bff15c8295f5d4fe9411",
+      "signerId": "7b16e6c76df62a71f40eaa9a6d20eeda375eeb199f00102777e7512f62e78812",
+      "receiverId": "7b16e6c76df62a71f40eaa9a6d20eeda375eeb199f00102777e7512f62e78812",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

@@ -43,8 +43,15 @@ void disabledWithApproval;
 declare const hostPlugin: WalletAuthMethodHostPlugin;
 declare const walletId: WalletId;
 declare const walletAuthMethodId: WalletAuthMethodId;
-// @ts-expect-error A plugin unlock cannot omit the core signing installer.
-hostPlugin.unlock({ relayerUrl: 'https://router.example.test', walletId, walletAuthMethodId });
+declare const assertUnlockActive: () => void;
+// @ts-expect-error A plugin unlock must prepare its core signing installer after its prompt opens.
+hostPlugin.unlock({
+  relayerUrl: 'https://router.example.test',
+  walletId,
+  walletAuthMethodId,
+  assertActive: assertUnlockActive,
+  surfaceMeasurementBinding: { kind: 'disabled' },
+});
 // @ts-expect-error An installer can return only a successful installed unlock.
 const failedInstaller: AuthMethodSessionInstaller = async () => ({
   success: false,

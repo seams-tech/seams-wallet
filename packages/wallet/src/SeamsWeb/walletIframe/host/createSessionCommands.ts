@@ -25,9 +25,13 @@ import {
   lock as lockCore,
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
+import type { AuthMethodSessionInstaller } from '@/core/authMethods/hostPlugin';
 import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
 import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
-import type { WalletAuthenticationSurface } from '@/SeamsWeb/signingSurface/ports';
+import type {
+  WalletAuthenticationSurface,
+  WalletIframeSurfaceMeasurementSurface,
+} from '@/SeamsWeb/signingSurface/ports';
 import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type {
@@ -45,6 +49,7 @@ import {
 type WalletHostAuthContext = WalletAuthWebContext & {
   signingEngine: Pick<WalletIframeWarmupSurface, 'warmCriticalResources'> &
     PendingRegistrationRecoverySigningSurface &
+    WalletIframeSurfaceMeasurementSurface &
     Pick<WalletAuthenticationSurface, 'installAuthMethodNearSession'>;
 };
 
@@ -83,18 +88,31 @@ async function unlockWithAuthMethod(
   if (!methodId.ok) throw new Error('Wallet unlock method ID is invalid.');
   const plugin = await loadWalletAuthMethodHostPlugin(context.configs.authMethods, args.method);
   assertActive();
-  await lockCore(context);
-  const generation = await context.signingEngine.advanceWalletLockGeneration(walletId);
   return await plugin.unlock({
     walletId,
     walletAuthMethodId: methodId.value,
     relayerUrl: context.configs.network.relayer.url,
     assertActive,
-    install: context.signingEngine.installAuthMethodNearSession.bind(
-      context.signingEngine,
-      generation,
-    ),
+    surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+    prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
   });
+}
+
+async function prepareAuthMethodSession(
+  context: WalletHostAuthContext,
+  walletId: ReturnType<typeof toWalletId>,
+  assertActive: () => void,
+  signal: AbortSignal,
+): Promise<AuthMethodSessionInstaller> {
+  signal.throwIfAborted();
+  assertActive();
+  await lockCore(context);
+  signal.throwIfAborted();
+  assertActive();
+  const generation = await context.signingEngine.advanceWalletLockGeneration(walletId);
+  signal.throwIfAborted();
+  assertActive();
+  return context.signingEngine.installAuthMethodNearSession.bind(context.signingEngine, generation);
 }
 
 function allowActiveRequest(): void {}

@@ -108,9 +108,18 @@ The finite phrase bank does not establish replay resistance or liveness. The MVP
 still assumes physical possession of an open, active device. Spoof detection stays
 outside scope. See [screening results](../../../../../docs/evidence/voiceid-aurora-20261024/README.md).
 
-The capture modal mounts before plugin preparation. It shows Preparing VoiceID
-and allows cancellation while its recording button is disabled. Unlock then checks
-local state, loads the cached model if needed, and requests its server challenge.
+The prompt reports its dimensions through the Wallet request measurement binding.
+This reveals the parent modal immediately after layout, without its four-second
+fallback. The reporter watches the stable outer section during enrollment changes
+and disconnects when the prompt closes.
+
+The lazy host entry contains the prompt shell. It mounts the modal and yields a
+frame before importing the unlock or activation implementation. The card shows
+Preparing VoiceID and allows cancellation while its recording button is disabled.
+Unlock then prepares its core session installer, including lock cleanup and a new
+lock generation. It checks local state, loads the cached model if needed, and
+requests its server challenge. Model progress appears inside the same card.
+The lightweight shell itself still needs its first module download.
 Cancellation aborts the challenge request and prevents late UI or recording.
 Shared model loading can finish and populate the cache after cancellation.
 

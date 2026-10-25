@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "speechPace": "natural_160_words_per_minute",
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "zephyr-bloom-2fvxyu",
+    "accountId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+    "publicKey": "ed25519:H2REpPBcsevwHNzM1GnRKSE5Q6EwoF6t9FyyoWF39f8c"
+  },
+  "oneSignatureAcrossBroadcastRetries": true,
+  "newReviewCancellationPreventedSigning": true,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGVlMTdmYTU2MjQ3ZDUyNjNhMzU1N2FmNDUzOGJlZjJlMGZlZWQ4MjcwMWMyMTMzMjMzN2MwYmM1N2RiZGY3NzEA7hf6ViR9UmOjVXr0U4vvLg/u2CcBwhMyM3wLxX2993ECAAAAAAAAAEAAAABlZTE3ZmE1NjI0N2Q1MjYzYTM1NTdhZjQ1MzhiZWYyZTBmZWVkODI3MDFjMjEzMzIzMzdjMGJjNTdkYmRmNzcxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqlM1qtbGmNa59NWlROT7XnfHy4fTUR8xzwTsCEhMJXf3frUcQfWPTWJNOhf92Y+2QOm36PKNlCFLiExOId4gAg==",
+      "signedTransactionSha256": "2a803478d53c7b205126de8f9e740938ea3afad5e0977287a8d27ebf8099feb0",
+      "signerId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "receiverId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGVlMTdmYTU2MjQ3ZDUyNjNhMzU1N2FmNDUzOGJlZjJlMGZlZWQ4MjcwMWMyMTMzMjMzN2MwYmM1N2RiZGY3NzEA7hf6ViR9UmOjVXr0U4vvLg/u2CcBwhMyM3wLxX2993ECAAAAAAAAAEAAAABlZTE3ZmE1NjI0N2Q1MjYzYTM1NTdhZjQ1MzhiZWYyZTBmZWVkODI3MDFjMjEzMzIzMzdjMGJjNTdkYmRmNzcxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqlM1qtbGmNa59NWlROT7XnfHy4fTUR8xzwTsCEhMJXf3frUcQfWPTWJNOhf92Y+2QOm36PKNlCFLiExOId4gAg==",
+      "signedTransactionSha256": "2a803478d53c7b205126de8f9e740938ea3afad5e0977287a8d27ebf8099feb0",
+      "signerId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "receiverId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGVlMTdmYTU2MjQ3ZDUyNjNhMzU1N2FmNDUzOGJlZjJlMGZlZWQ4MjcwMWMyMTMzMjMzN2MwYmM1N2RiZGY3NzEA7hf6ViR9UmOjVXr0U4vvLg/u2CcBwhMyM3wLxX2993ECAAAAAAAAAEAAAABlZTE3ZmE1NjI0N2Q1MjYzYTM1NTdhZjQ1MzhiZWYyZTBmZWVkODI3MDFjMjEzMzIzMzdjMGJjNTdkYmRmNzcxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqlM1qtbGmNa59NWlROT7XnfHy4fTUR8xzwTsCEhMJXf3frUcQfWPTWJNOhf92Y+2QOm36PKNlCFLiExOId4gAg==",
+      "signedTransactionSha256": "2a803478d53c7b205126de8f9e740938ea3afad5e0977287a8d27ebf8099feb0",
+      "signerId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "receiverId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGVlMTdmYTU2MjQ3ZDUyNjNhMzU1N2FmNDUzOGJlZjJlMGZlZWQ4MjcwMWMyMTMzMjMzN2MwYmM1N2RiZGY3NzEA7hf6ViR9UmOjVXr0U4vvLg/u2CcBwhMyM3wLxX2993ECAAAAAAAAAEAAAABlZTE3ZmE1NjI0N2Q1MjYzYTM1NTdhZjQ1MzhiZWYyZTBmZWVkODI3MDFjMjEzMzIzMzdjMGJjNTdkYmRmNzcxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqlM1qtbGmNa59NWlROT7XnfHy4fTUR8xzwTsCEhMJXf3frUcQfWPTWJNOhf92Y+2QOm36PKNlCFLiExOId4gAg==",
+      "signedTransactionSha256": "2a803478d53c7b205126de8f9e740938ea3afad5e0977287a8d27ebf8099feb0",
+      "signerId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "receiverId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGVlMTdmYTU2MjQ3ZDUyNjNhMzU1N2FmNDUzOGJlZjJlMGZlZWQ4MjcwMWMyMTMzMjMzN2MwYmM1N2RiZGY3NzEA7hf6ViR9UmOjVXr0U4vvLg/u2CcBwhMyM3wLxX2993ECAAAAAAAAAEAAAABlZTE3ZmE1NjI0N2Q1MjYzYTM1NTdhZjQ1MzhiZWYyZTBmZWVkODI3MDFjMjEzMzIzMzdjMGJjNTdkYmRmNzcxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqlM1qtbGmNa59NWlROT7XnfHy4fTUR8xzwTsCEhMJXf3frUcQfWPTWJNOhf92Y+2QOm36PKNlCFLiExOId4gAg==",
+      "signedTransactionSha256": "2a803478d53c7b205126de8f9e740938ea3afad5e0977287a8d27ebf8099feb0",
+      "signerId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "receiverId": "ee17fa56247d5263a3557af4538bef2e0feed82701c21332337c0bc57dbdf771",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}
