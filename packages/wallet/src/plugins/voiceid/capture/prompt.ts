@@ -7,21 +7,25 @@ import type { VoiceCaptureEvent } from '../browser/microphone';
 import { VoiceWaveform } from '../browser/waveform';
 
 const CSS = `
-.seams-voiceid-activation-surface { width: min(100%, 28rem); margin: 0 auto; }
+.seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
 .seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
 .seams-voiceid-recording-details summary { cursor:pointer; }
 
 .seams-voiceid-prompt {
   box-sizing: border-box;
   position: relative;
-  width: min(100%, 28rem);
+  width: min(100%, 26.25rem);
   margin: 0 auto;
-  padding: 3.25rem 1.5rem 2rem;
-  border-radius: 1.75rem;
+  padding: 3.5rem 1.5rem 1.5rem;
+  display: grid;
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 5rem auto;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-card, 16px);
   background: var(--seams-colors-colorBackground, #192024);
   color: var(--seams-colors-textPrimary, #eff2f3);
   text-align: center;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--seams-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  -webkit-font-smoothing: antialiased;
 }
 .seams-voiceid-prompt {
   transition: opacity 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1)), transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
@@ -35,7 +39,10 @@ const CSS = `
   transition: transform 180ms var(--seams-ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 .seams-voiceid-waveform[data-listening="true"] rect { transition: transform 64ms linear; }
-.seams-voiceid-progress-slot { display: flow-root; min-height: 7rem; }
+.seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
+.seams-voiceid-progress-slot:empty { visibility: hidden; }
+.seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { visibility: hidden; }
+.seams-voiceid-recording-details { grid-row: 6; grid-column: 1; color: var(--seams-colors-textSecondary, #9cabb3); }
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
   @starting-style { .seams-voiceid-prompt { transform: none; } }
@@ -44,18 +51,18 @@ const CSS = `
 .seams-voiceid-prompt h2 {
   font-size: 0.85rem;
   line-height: 1.4;
-  font-weight: 400;
-  opacity: 0.7;
+  font-weight: 500;
+  color: var(--seams-colors-textSecondary, #9cabb3);
   margin: 0 0 1.5rem;
 }
 .seams-voiceid-prompt .seams-voiceid-phrase {
-  font-size: clamp(1.8rem, 6vw, 2.5rem);
-  font-weight: 450;
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
+  font-weight: 600;
   line-height: 1.17;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   text-wrap: balance;
   max-width: 21rem;
-  min-height: 5.85rem;
+  align-self: center;
   margin: 0 auto;
 }
 .seams-voiceid-waveform {
@@ -63,14 +70,14 @@ const CSS = `
   width: 227px;
   max-width: 100%;
   height: 64px;
-  margin: 1.5rem auto 0.5rem;
+  margin: auto;
   fill: currentColor;
 }
 .seams-voiceid-prompt .seams-voiceid-status {
   font-size: 0.75rem;
   line-height: 1.5;
   min-height: 3.375rem;
-  opacity: 0.75;
+  color: var(--seams-colors-textSecondary, #9cabb3);
   margin: 0;
 }
 .seams-voiceid-prompt button {
@@ -80,31 +87,37 @@ const CSS = `
 }
 .seams-voiceid-prompt button:focus-visible {
   outline: 2px solid currentColor;
-  outline-offset: 4px;
+  outline-offset: 2px;
 }
 .seams-voiceid-prompt .seams-voiceid-close {
   position: absolute;
   right: 0.75rem;
-  top: 0.5rem;
+  top: 0.75rem;
   width: 2.5rem;
   height: 2.5rem;
   background: transparent;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--seams-shape-control, 10px);
   color: inherit;
-  font-size: 1.5rem;
-  opacity: 0.7;
+  display: grid;
+  place-items: center;
+  color: var(--seams-colors-textSecondary, #9cabb3);
 }
 .seams-voiceid-prompt .seams-voiceid-record-slot {
-  height: 4rem;
-  padding-top: 1.25rem;
+  grid-row: 5;
+  grid-column: 1;
+  align-self: center;
+  width: 100%;
   box-sizing: border-box;
 }
 .seams-voiceid-prompt .seams-voiceid-primary {
-  padding: 0.7rem 1.25rem;
-  font-size: 0.8rem;
+  width: 100%;
+  min-height: var(--seams-shape-controlHeight, 44px);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   border: 0;
-  border-radius: 2rem;
+  border-radius: var(--seams-shape-control, 10px);
   background: var(--seams-colors-textPrimary, #eff2f3);
   color: var(--seams-colors-colorBackground, #192024);
 }
@@ -121,7 +134,23 @@ const CSS = `
   line-height: 1.5;
 }
 .seams-voiceid-prompt .seams-voiceid-model-download progress {
+  appearance: none;
+  display: block;
   width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--seams-colors-surface, #202b31);
+  accent-color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-model-download p { margin: 0 0 0.75rem; color: var(--seams-colors-textSecondary, #9cabb3); font-variant-numeric: tabular-nums; }
+.seams-voiceid-model-download progress::-webkit-progress-bar { background: var(--seams-colors-surface, #202b31); }
+.seams-voiceid-model-download progress::-webkit-progress-value { background: var(--seams-colors-textPrimary, #eff2f3); border-radius: 2px; }
+.seams-voiceid-model-download progress::-moz-progress-bar { background: var(--seams-colors-textPrimary, #eff2f3); }
+@media (hover: hover) and (pointer: fine) {
+  .seams-voiceid-close:hover { background: var(--seams-colors-surface, #202b31); }
+  .seams-voiceid-primary:hover:not(:disabled) { opacity: 0.9; }
 }
 `;
 const styles = new WeakMap<Document, ReturnType<typeof createCspStylesheetManager>>();
@@ -178,7 +207,19 @@ export class VoicePrompt {
     this.cancel = document.createElement('button');
     this.cancel.type = 'button';
     this.cancel.className = 'seams-voiceid-close';
-    this.cancel.textContent = '×';
+    const closeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    closeIcon.setAttribute('viewBox', '0 0 24 24');
+    closeIcon.setAttribute('width', '20');
+    closeIcon.setAttribute('height', '20');
+    closeIcon.setAttribute('aria-hidden', 'true');
+    const closePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    closePath.setAttribute('d', 'M6 6l12 12M18 6L6 18');
+    closePath.setAttribute('fill', 'none');
+    closePath.setAttribute('stroke', 'currentColor');
+    closePath.setAttribute('stroke-width', '1.75');
+    closePath.setAttribute('stroke-linecap', 'round');
+    closeIcon.append(closePath);
+    this.cancel.append(closeIcon);
     this.cancel.setAttribute('aria-label', 'Cancel');
     this.progress = document.createElement('div');
     this.progress.className = 'seams-voiceid-progress-slot';

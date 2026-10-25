@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "mossy-dune-cf6dyb",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "01783d70-49e9-422a-b5f7-631d5a83d69d",
+    "capturedAtMs": 1792910935167,
+    "durationMs": 3420,
+    "recordingMs": 4976,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.2479925597741371,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "can you open the window",
+      "gap": 214.70079807282116
+    },
+    "expectedPhrase": "the river is running slowly"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "mossy-dune-cf6dyb",
+    "accountId": "eaf2ed14a36e741d726f12b2dc6b881ffa5b3b7592db764ddb2c74a551818143",
+    "publicKey": "ed25519:Gp9FHiGbdh1bZr5SHXWQp4GJPQMUkHDyypDAEvi69ULz"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGVhZjJlZDE0YTM2ZTc0MWQ3MjZmMTJiMmRjNmI4ODFmZmE1YjNiNzU5MmRiNzY0ZGRiMmM3NGE1NTE4MTgxNDMA6vLtFKNudB1ybxKy3GuIH/pbO3WS23ZN2yx0pVGBgUMCAAAAAAAAAEAAAABlYWYyZWQxNGEzNmU3NDFkNzI2ZjEyYjJkYzZiODgxZmZhNWIzYjc1OTJkYjc2NGRkYjJjNzRhNTUxODE4MTQzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAW552TGxZ99bi7lCeDI6PxKJte01r47rwW0CJq6muOFNUn7Z7YOIETxxYcVJtaSkoajk0/ZZQPimDJc+pTpBFDQ==",
+      "signedTransactionSha256": "b4ed515c2bf5de9fe82dc39ca6e8aa4fcf43c81e7c7749cf22bd4103cd5398b1",
+      "signerId": "eaf2ed14a36e741d726f12b2dc6b881ffa5b3b7592db764ddb2c74a551818143",
+      "receiverId": "eaf2ed14a36e741d726f12b2dc6b881ffa5b3b7592db764ddb2c74a551818143",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

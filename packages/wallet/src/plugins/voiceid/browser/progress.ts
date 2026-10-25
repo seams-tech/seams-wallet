@@ -23,12 +23,12 @@ class VoiceModelDownload {
     this.meter.removeAttribute('value');
     switch (state.kind) {
       case 'checking_cache':
-        this.status.textContent = `Checking this browser for ${state.label.toLowerCase()}…`;
+        this.status.textContent = `Loading saved ${state.label.toLowerCase()}…`;
         return;
       case 'downloading':
         this.meter.max = state.total;
         this.meter.value = state.received;
-        this.status.textContent = `Downloading ${state.label.toLowerCase()}: ${(state.received / 1_000_000).toFixed(1)} of ${(state.total / 1_000_000).toFixed(1)} MB (${Math.floor(state.received / state.total * 100)}%). This browser will save the model for next time.`;
+        this.status.textContent = `Downloading ${state.label.toLowerCase()}: ${(state.received / 1_000_000).toFixed(1)} of ${(state.total / 1_000_000).toFixed(1)} MB · ${Math.floor(state.received / state.total * 100)}%`;
         return;
       case 'preparing':
         this.status.textContent = `Preparing ${state.label.toLowerCase()} on this device…`;

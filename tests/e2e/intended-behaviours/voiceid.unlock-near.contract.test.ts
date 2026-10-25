@@ -262,7 +262,7 @@ async function verifyPreparationCancellation(
   const dialogVisibleMs = performance.now() - started;
   await challenge.requested.promise;
   const disabledWhilePreparing = !(await wallet
-    .getByRole('button', { name: 'Unlock with VoiceID', exact: true })
+    .getByRole('button', { name: 'Unlock with VoiceID', exact: true, includeHidden: true })
     .isEnabled());
   await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
   const cancelled = await operation;
@@ -478,7 +478,7 @@ async function measureColdPreparation(
   await module.requested.promise;
   await expect(dialog).toHaveAttribute('data-preparation', 'loading');
   await expect(
-    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true, includeHidden: true }),
   ).toBeDisabled();
   await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-module.png') });
   const cancelledAt = performance.now();
@@ -504,7 +504,7 @@ async function measureColdPreparation(
   await expect(dialog).toHaveAttribute('data-preparation', 'loading');
   await expect(dialog.locator('.seams-voiceid-prompt .seams-voiceid-model-download')).toBeVisible();
   await expect(
-    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true, includeHidden: true }),
   ).toBeDisabled();
   const loadingCard = await dialog.locator('.seams-voiceid-prompt').boundingBox();
   expect(loadingCard).not.toBeNull();
