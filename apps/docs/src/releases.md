@@ -1,16 +1,26 @@
 ---
-title: Release 0.21.0
-description: Current SDK, server, CLI, and hosted runtime requirements for Seams Wallet 0.21.0.
+title: Release 0.22.0
+description: Current SDK, server, CLI, and hosted runtime requirements for Seams Wallet 0.22.0.
 ---
 
-# Release 0.21.0
+# Release 0.22.0
 
-These docs target version **0.21.0** of the browser and server SDKs. The recovery CLI also uses **0.21.0**.
+These docs target version **0.22.0** of the browser and server SDKs. The recovery CLI uses **0.21.0**.
+
+Prepared on 2026-10-25. Check npm publication and each hosted deployment separately.
+
+## Changes in 0.22.0
+
+- The unlock menu shows saved wallets while authentication prepares.
+- Transaction settings provide a review switch and modal or drawer layouts.
+- NEP-413 message signatures show a completed receipt with three filled tracks.
+- The link-device factor selector and Continue button follow the wallet theme.
+- The NEAR relayer reads the access key and recent block concurrently.
 
 | Component                               | Version    | Requirement                                               |
 | --------------------------------------- | ---------- | --------------------------------------------------------- |
-| Browser SDK `@seams/wallet`             | **0.21.0** | Match application code and wallet-origin assets           |
-| Server SDK `@seams/wallet-server`       | **0.21.0** | Deploy the coordinated backend roles                      |
+| Browser SDK `@seams/wallet`             | **0.22.0** | Match application code and wallet-origin assets           |
+| Server SDK `@seams/wallet-server`       | **0.22.0** | Deploy the coordinated backend roles                      |
 | Native CLI launcher `@seams/wallet-cli` | **0.21.0** | Use its signed native assets and the dashboard's commands |
 | Wallet iframe protocol                  | **16.0.0** | Match the application and wallet host                     |
 
@@ -37,7 +47,7 @@ The formal verification docs distinguish proved invariants from assumptions and 
 
 ## English and Japanese controls
 
-This release aligns the browser and server SDKs at `0.21.0`. The recovery CLI also uses `0.21.0`.
+This release aligns the browser and server SDKs at `0.22.0`. The recovery CLI uses `0.21.0`.
 The wallet iframe protocol remains 16.0.0.
 
 Set the SDK language when creating the provider configuration:
@@ -56,7 +66,7 @@ The provider and wallet-origin controls share this configuration.
 SDK previews also accept `locale` on `AccountMenuButtonMock` and `SeamsAuthMenuMock`.
 Applications provide translations for their own headings and custom copy overrides.
 
-Pin the exact `0.21.0` browser and server packages in Console and deploy the matching wallet-origin assets.
+Pin the exact `0.22.0` browser and server packages in Console and deploy the matching wallet-origin assets.
 An application-only update cannot translate an older hosted wallet build.
 
 ## Integration
