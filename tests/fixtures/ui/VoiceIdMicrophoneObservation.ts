@@ -156,3 +156,40 @@ function currentPhrase(root: Document | ShadowRoot): string | null {
   }
   return null;
 }
+
+const originalWorkletAddModule = Worklet.prototype.addModule;
+let holdWorklet = false;
+let releaseWorklet: (() => void) | null = null;
+
+async function observedWorkletAddModule(
+  this: Worklet,
+  moduleURL: string | URL,
+  options?: WorkletOptions,
+): Promise<void> {
+  if (holdWorklet) {
+    holdWorklet = false;
+    document.body.dataset.voiceTestWorklet = 'waiting';
+    await new Promise<void>(storeWorkletRelease);
+  }
+  await originalWorkletAddModule.call(this, moduleURL, options);
+}
+function storeWorkletRelease(resolve: () => void): void {
+  releaseWorklet = resolve;
+}
+function holdNextWorklet(): void {
+  holdWorklet = true;
+  delete document.body.dataset.voiceTestWorklet;
+}
+function releaseHeldWorklet(): void {
+  releaseWorklet?.();
+  releaseWorklet = null;
+}
+declare global {
+  interface Window {
+    voiceIdHoldNextWorklet: typeof holdNextWorklet;
+    voiceIdReleaseWorklet: typeof releaseHeldWorklet;
+  }
+}
+Worklet.prototype.addModule = observedWorkletAddModule;
+window.voiceIdHoldNextWorklet = holdNextWorklet;
+window.voiceIdReleaseWorklet = releaseHeldWorklet;

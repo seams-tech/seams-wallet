@@ -153,7 +153,12 @@ an owner unlock and three new samples. Re-enrollment preserves the existing loca
 envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB.
 
 The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
-Both share the inference runtime. Each exact model digest is checked before inference. A progress bar shows downloaded bytes and percentage.
+Silero speech detection adds 2,327,524 bytes. It qualifies speech and detects
+pauses using sequential local audio frames. Noise alone must not qualify as
+sufficient speech or unlock the wallet. Recording details report browser audio
+processing settings and approximate speech/background levels. High-noise
+recordings receive brief guidance. Detection is not speaker identification.
+All three share the inference runtime. Each exact model digest is checked before inference. A progress bar shows downloaded bytes and percentage.
 Verified bytes are saved in Wallet-origin Cache Storage and reused after reload.
 Storage failure allows session-only inference with a visible explanation. Browser
 eviction or clearing site data can require another download. The inference runtime

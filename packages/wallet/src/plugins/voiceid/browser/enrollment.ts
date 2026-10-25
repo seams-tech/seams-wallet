@@ -166,6 +166,10 @@ class VoiceEnrollmentSurface {
         endedBy: pcm.quality.endedBy,
         voicedMs: pcm.quality.voicedMs,
         microphone: pcm.quality.microphone,
+        processing: pcm.quality.processing,
+        backgroundRms: pcm.quality.backgroundRms,
+        speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
+        noise: pcm.quality.noise,
         minimumSimilarity,
       });
       for (const previous of this.samples) {
@@ -267,6 +271,10 @@ export async function verifyBrowserVoice(
       endedBy: pcm.quality.endedBy,
       voicedMs: pcm.quality.voicedMs,
       microphone: pcm.quality.microphone,
+      processing: pcm.quality.processing,
+      backgroundRms: pcm.quality.backgroundRms,
+      speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
+      noise: pcm.quality.noise,
       similarity,
       threshold: VOICE_MATCH_THRESHOLD,
       phraseMatched,

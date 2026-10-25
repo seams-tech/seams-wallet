@@ -326,7 +326,7 @@ async function copyVoiceIdAssets() {
   await fs.mkdir(destination, { recursive: true });
   await fs.copyFile(model, path.join(destination, 'redimnet-b1.onnx'));
   await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/aurora-int8.onnx'), path.join(destination, 'aurora-int8.onnx'));
-  for (const file of ['NOTICE.txt', 'AURORA_LICENSE.txt']) {
+  for (const file of ['NOTICE.txt', 'AURORA_LICENSE.txt', 'SILERO_LICENSE.txt', 'silero-vad.onnx', 'voice-activity-worklet.js']) {
     await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid', file), path.join(destination, file));
   }
   const require = createRequire(import.meta.url);

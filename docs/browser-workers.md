@@ -25,7 +25,9 @@ registration, login, and local session material (see
 The SDK enables the optional VoiceID plugin by configuration. The Wallet iframe
 loads its implementation on first use. Browser MediaRecorder captures deliberate
 samples, and local ONNX Runtime Web inference verifies the speaker. Inference
-uses one WebAssembly thread. This adds no worker with signing or custody authority.
+uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames
+to local Silero speech detection on the iframe main thread. The worklet holds only
+short audio frames and has no signing or custody authority.
 Audio is discarded after inference. The Wallet origin stores its template and
 nonextractable WebCrypto device keys in IndexedDB. A separate nonextractable
 AES-GCM key encrypts the random method factor at rest. The factor is decrypted

@@ -1,3 +1,4 @@
+import { prepareVoiceActivity } from './voiceActivity';
 import { prepareVoiceModel } from './model';
 import { preparePhraseModel } from './phrase';
 import type { VoiceModelProgress } from './inference';
@@ -47,4 +48,5 @@ export async function prepareVoiceModelWithProgress(parent: HTMLElement): Promis
   const component = new VoiceModelDownload(parent);
   await prepareVoiceModel(component.update);
   await preparePhraseModel(component.update);
+  await prepareVoiceActivity(component.update);
 }

@@ -185,3 +185,20 @@ reads local metadata without loading the voice models. Voice login uses the menu
 measurement and cancellation channel; the old menu is hidden and inert during
 capture. Cancel restores it. The minimal signing prompt is unchanged, with an
 explicit “Confirm with VoiceID” review button. Capture remains click initiated.
+
+## Background noise
+
+Silero VAD adds 2,327,524 bytes, loaded only with VoiceID and cached with integrity
+verification. Browser noise suppression, echo cancellation, and automatic gain
+control remain requested. Recording details show the actual reported settings,
+including unknown settings when the browser does not report them.
+
+Speech detection replaces volume alone for pause detection and clip qualification.
+It retains the 1.5-second pause and eight-second recording cap. Speech probability
+must reach 0.5 and the original minimum volume must also pass. The speaker
+threshold remains 0.5; the independent phrase-score limit remains 8.
+
+Noise estimates compare frames classified as speech with other frames. They are
+approximate guidance, not a calibrated acoustic SNR or an authorization decision.
+Nearby conversation can still register as speech. No extra denoiser is shipped.
+See `tests/scripts/voiceid-noise/README.md` for model provisioning and evaluation.

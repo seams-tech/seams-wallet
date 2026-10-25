@@ -258,8 +258,9 @@ export class VoicePrompt {
       case 'measured': {
         const quality = event.quality;
         this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
-        this.details.hidden = quality.voicedMs >= quality.requiredVoicedMs;
-        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s above the minimum level. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}.`;
+        this.details.hidden = quality.voicedMs >= quality.requiredVoicedMs && quality.noise !== 'high';
+        if (quality.noise === 'high') this.status.textContent = 'Background noise is high. Move closer to the microphone.';
+        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s of detected speech. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}. Background RMS ${quality.backgroundRms.toFixed(4)}. Speech/background ${quality.speechToBackgroundDb === null ? "unknown" : quality.speechToBackgroundDb.toFixed(1) + " dB"}. Browser processing: ${JSON.stringify(quality.processing)}.`;
         return;
       }
       case 'processing':
