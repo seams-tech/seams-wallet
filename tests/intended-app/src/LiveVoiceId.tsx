@@ -26,7 +26,7 @@ type AuthMethod = Extract<
 >['authMethods'][number];
 
 export function LiveVoiceId(): React.ReactNode {
-  const { seams, loginState } = useSeams();
+  const { seams, loginState, refreshSession } = useSeams();
   const selectedMethodId =
     loginState.isLoggedIn && loginState.currentAuthMethod.kind === 'selected'
       ? loginState.currentAuthMethod.binding.walletAuthMethodId
@@ -52,7 +52,7 @@ export function LiveVoiceId(): React.ReactNode {
   const voiceStatus = voiceStatusMessage(voice !== null, ownerUnlocked);
   const busy = operation.kind === 'running';
   const hasNearSigner = target.kind === 'selected' && identity?.nearAccountId != null;
-  const perform = runCommand.bind(null, seams, setTarget, setRead, setOperation);
+  const perform = runCommand.bind(null, seams, refreshSession, setTarget, setRead, setOperation);
   return (
     <main
       style={{
@@ -262,6 +262,7 @@ function retainSelectedWallet(walletId: WalletId, current: WalletTarget): Wallet
 
 async function runCommand(
   seams: Seams,
+  refreshSession: ReturnType<typeof useSeams>['refreshSession'],
   setTarget: React.Dispatch<React.SetStateAction<WalletTarget>>,
   setRead: React.Dispatch<React.SetStateAction<SessionRead>>,
   setOperation: React.Dispatch<React.SetStateAction<Operation>>,
@@ -272,6 +273,7 @@ async function runCommand(
     const walletId = await executeCommand(seams, command);
     selectWallet(setTarget, walletId);
     setRead({ kind: 'loading' });
+    await refreshSession(walletId);
     const session = await seams.auth.getSession(walletId);
     setRead({ kind: 'loaded', walletId, session });
     setOperation({ kind: 'succeeded', message: successMessage(command) });
@@ -381,7 +383,7 @@ function successMessage(command: Command): string {
     case 'activate':
       return 'VoiceID activated. Lock the wallet, then unlock with VoiceID.';
     case 'voice_unlock':
-      return 'VoiceID unlocked the wallet. You can review a NEAR transfer.';
+      return 'VoiceID unlock completed.';
     case 'lock':
       return 'Wallet locked.';
     case 'refresh':

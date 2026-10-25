@@ -195,6 +195,8 @@ async function verifyLivePage(
   await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening');
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('minimal-voice-unlock.png') });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('voiceid');
+  await expect(page.getByRole('button', { name: 'Review NEAR testnet transfer', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('reviewed-near-readiness')).toHaveText('Ready to review a NEAR testnet transfer.');
   const evidence = new VoiceIdNearSigningEvidence(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
     identity,

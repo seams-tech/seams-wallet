@@ -2,6 +2,7 @@ import React from 'react';
 import {
   useSeams,
   type BoundNearSigner,
+  type BoundWallet,
   type TransactionReviewControls,
 } from '@seams/wallet/react';
 import { ActionType } from '@seams/wallet';
@@ -16,6 +17,7 @@ export function ReviewedNearTransfer({ walletId }: { walletId: string | null }):
   const { wallet } = useSeams();
   const [state, setState] = React.useState<TransferState>({ kind: 'idle' });
   const signer = wallet?.walletId === walletId ? wallet.near : null;
+  const readiness = transferReadiness(walletId, wallet, state);
   return (
     <section>
       <button
@@ -25,11 +27,21 @@ export function ReviewedNearTransfer({ walletId }: { walletId: string | null }):
       >
         Review NEAR testnet transfer
       </button>
+      <p role="status" data-testid="reviewed-near-readiness">{readiness}</p>
       <output data-testid="reviewed-near-result" role="status" data-state={state.kind}>
         {state.kind === 'idle' ? '' : JSON.stringify(state)}
       </output>
     </section>
   );
+}
+
+function transferReadiness(walletId: string | null, wallet: BoundWallet | null, state: TransferState): string {
+  if (state.kind === 'pending') return 'Complete the current transfer review in the Wallet.';
+  if (walletId === null) return 'Create a wallet before reviewing a transfer.';
+  if (wallet === null) return 'Unlock this wallet to enable the transfer button.';
+  if (wallet.walletId !== walletId) return 'The selected wallet differs from the active session. Select Refresh status.';
+  if (wallet.near === null) return 'A NEAR signer is not available for this wallet. Select Refresh status.';
+  return 'Ready to review a NEAR testnet transfer.';
 }
 
 function renderTransferReview(controls: TransactionReviewControls): React.ReactNode {
