@@ -58,3 +58,13 @@ pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
 Each contract writes a JSON artifact. Fixture generation commands are in
 `tests/scripts/voiceid-aurora/README.md`. The 350 ms truncated fixture replaces the
 older 800 ms fixture because 800 ms intentionally exceeds the new precheck.
+
+
+## Live user test
+
+The user reported successful voice unlock and transfer after instructions to speak
+at a normal pace. Existing enrollment was reused. NEAR RPC independently confirmed
+[Akj7JCNH6yYkCeiEemuzLfg8KHpScWVvwze16Xxn149r](https://testnet.nearblocks.io/txns/Akj7JCNH6yYkCeiEemuzLfg8KHpScWVvwze16Xxn149r)
+as FINAL with SuccessValue: one yoctoNEAR transferred to the same wallet account.
+`live-transfer.json` records the result. Live capture timing and inference scores
+were not collected. This confirms one user journey, with no population accuracy claim.
