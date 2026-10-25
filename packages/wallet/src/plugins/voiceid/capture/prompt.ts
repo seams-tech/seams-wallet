@@ -4,7 +4,7 @@ import {
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceCaptureEvent } from '../browser/microphone';
-import { VoiceTrace } from '../browser/waveform';
+import { VoiceVisual } from './visual';
 
 const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
@@ -40,7 +40,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
   @starting-style { .seams-voiceid-prompt { transform: none; } }
-  .seams-voiceid-trace-row { transition: none !important; }
+  .seams-voiceid-ribbon { transition: none !important; }
 }
 .seams-voiceid-prompt h2 {
   font-size: 0.85rem;
@@ -59,21 +59,18 @@ const CSS = `
   align-self: center;
   margin: 0 auto;
 }
-.seams-voiceid-trace {
+.seams-voiceid-ribbon {
   display: block;
   width: 308px;
   max-width: 100%;
   height: 64px;
   margin: auto;
 }
-.seams-voiceid-trace-row { transition: opacity 200ms ease; }
-.seams-voiceid-trace-speech { fill: var(--seams-colors-textPrimary, #eff2f3); }
-.seams-voiceid-trace-ambient {
-  fill: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 70%, transparent);
-}
-.seams-voiceid-trace-rest {
-  fill: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 35%, transparent);
-}
+/* The glow is decorative and cannot intercept record, retry or cancel controls. */
+.seams-voiceid-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0; }
+.seams-voiceid-beam { width: 100%; height: 100%; border-radius: inherit; }
+.seams-voiceid-prompt > :not(.seams-voiceid-glow) { position: relative; z-index: 1; }
+.seams-voiceid-prompt > .seams-voiceid-close { position: absolute; }
 .seams-voiceid-prompt .seams-voiceid-status {
   font-size: 0.75rem;
   line-height: 1.5;
@@ -164,7 +161,7 @@ export class VoicePrompt {
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
   readonly progress: HTMLElement;
-  private readonly trace: VoiceTrace;
+  private readonly visual: VoiceVisual;
   private readonly details: HTMLDetailsElement;
   private readonly detailText: HTMLParagraphElement;
   private disposed = false;
@@ -190,7 +187,7 @@ export class VoicePrompt {
     this.phrase.dataset.voiceidPhrase = '';
     this.phrase.setAttribute('aria-live', 'polite');
     this.setPhrase(phrase);
-    this.trace = new VoiceTrace(document);
+    this.visual = new VoiceVisual(document, this.element);
     this.status = document.createElement('p');
     this.status.className = 'seams-voiceid-status';
     this.status.setAttribute('role', 'status');
@@ -228,10 +225,11 @@ export class VoicePrompt {
     slot.className = 'seams-voiceid-record-slot';
     slot.append(this.record);
     this.element.append(
+      this.visual.glow,
       this.cancel,
       this.title,
       this.phrase,
-      this.trace.element,
+      this.visual.element,
       this.status,
       slot,
       this.progress,
@@ -254,10 +252,10 @@ export class VoicePrompt {
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
         this.status.textContent = 'Listening';
-        this.trace.listen();
+        this.visual.listen();
         return;
       case 'activity':
-        this.trace.add(event);
+        this.visual.add(event);
         return;
       case 'measured': {
         const quality = event.quality;
@@ -269,7 +267,7 @@ export class VoicePrompt {
       }
       case 'processing':
         this.element.dataset.capture = 'processing';
-        this.trace.checking();
+        this.visual.checking();
         this.status.textContent = 'Checking your voice…';
         return;
       default:
@@ -283,13 +281,13 @@ export class VoicePrompt {
     this.detailText.textContent = message;
   }
 
-  /** The last capture passed: its bars stay at full strength until the next capture. */
+  /** Settle the visual when an enrollment sample is accepted. */
   accepted(): void {
-    this.trace.accept();
+    this.visual.accept();
   }
 
   ready(message: string): void {
-    this.trace.ready();
+    this.visual.ready();
     this.element.dataset.capture = 'ready';
     this.status.textContent = message;
     this.record.hidden = false;
@@ -298,7 +296,7 @@ export class VoicePrompt {
 
   dispose(): void {
     this.disposed = true;
-    this.trace.stop();
+    this.visual.stop();
   }
 }
 

@@ -156,6 +156,12 @@ after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An e
 an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
 envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB.
 
+VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
+VoiceBeam glow. They consume the recorder's activity events without opening a
+second microphone or audio graph. Cancel disposes both visuals with the prompt.
+Reduced motion suppresses traveling ribbon motion. The visuals remain inside the
+optional VoiceID module and do not affect authorization decisions.
+
 The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
 Silero speech detection adds 2,327,524 bytes. It qualifies speech and detects
 pauses using sequential local audio frames. Noise alone must not qualify as

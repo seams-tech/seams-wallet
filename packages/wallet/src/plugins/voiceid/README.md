@@ -148,17 +148,14 @@ trusted DOM surface. The Wallet retains its modal, cancellation, expiry, and rev
 binding. A mismatch returns to the original review and requires another Confirm.
 The core host loads no VoiceID UI code when the plugin is disabled.
 
-The waveform draws the recorder's `activity` events, one rounded bar per 32 ms
-frame: its RMS, and whether the voice activity model and the level check found
-speech. The newest frame enters at the right edge and the row holds the last 1.4 s,
-fading out at the left. Speech frames draw full bars on the `voiceDisplayLevel`
-curve. Ambient sound draws short, dim bars: -66 dBFS stays a dot and -30 dBFS
-reaches 7 px. After capture the row stops and dims during the check.
-`VoicePrompt.accepted()` returns an accepted enrollment sample to full strength;
-`ready()` dims any other finished capture. The waveform opens no audio graph, and
-no capture event carries the stream. Model audio, gain control, phrase thresholds, and speaker
-thresholds are unchanged. The visual cannot grant approval. Voice and phrase
-matches still gate signing.
+The prompt combines a thin, four-layer flowing ribbon with the SDK's existing
+VoiceBeam glow. Both use the recorder's activity levels; neither opens an audio
+graph or requests a microphone. Speech drives full movement and ambient sound
+is restrained. The ribbon settles when recording ends and the glow indicates
+processing. Reduced motion removes ribbon travel and the glow honors the system
+preference. Disposal cancels the ribbon clock and unmounts the glow.
+The visual is loaded through the optional VoiceID host module. It cannot grant
+approval or change capture, phrase, speaker, or signing policy.
 
 ## Recording quality feedback
 

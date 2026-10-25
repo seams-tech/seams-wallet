@@ -757,7 +757,11 @@ const configs = [
     },
     external: embeddedExternal,
     resolve: {
-      alias: aliasConfig,
+      alias: {
+        ...aliasConfig,
+        'react/jsx-runtime': 'preact/jsx-runtime',
+        react: 'preact/compat',
+      },
     },
     plugins: [...prodPlugins, assertWalletIframeHostReactFreePlugin, emitWalletServiceStaticPlugin],
   },

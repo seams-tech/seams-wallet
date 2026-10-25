@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "activity": "synthetic_recorder_events",
+  "microphoneRequests": 0,
+  "actualComponent": "voice-glow@0.2.1",
+  "renderer": "preact",
+  "states": [
+    "listening",
+    "processing",
+    "retry",
+    "reduced_motion",
+    "light_theme",
+    "disposed"
+  ],
+  "authorizationTested": false,
+  "strictStyleCsp": true
+}

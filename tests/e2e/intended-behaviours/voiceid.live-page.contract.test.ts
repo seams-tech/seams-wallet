@@ -237,8 +237,9 @@ async function verifyLivePage(
   expect((await wallet.locator('body').evaluate(microphoneStates)).length).toBe(
     streamsBefore.length + 1,
   );
-  const speechBars = wallet.locator('.seams-voiceid-trace-speech');
-  await expect.poll(speechBars.count.bind(speechBars)).toBeGreaterThan(0);
+  await expect(wallet.locator('.seams-voiceid-ribbon')).toHaveAttribute('data-speech', 'true');
+  await expect(wallet.locator('.seams-voiceid-glow [data-voice-beam]')).toHaveCount(1);
+  await expect(wallet.locator('.seams-voiceid-ribbon path')).toHaveCount(4);
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
