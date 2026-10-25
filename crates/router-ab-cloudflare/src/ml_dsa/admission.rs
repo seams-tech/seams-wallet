@@ -211,23 +211,34 @@ pub async fn lookup(
     }
     Ok(Some(record.status))
 }
-/// Claims one coordinator execution before it contacts either role.
-/// Duplicate callers never acquire authority to release another run's reservations.
-pub async fn begin(
+/// Checks replay, custody, cooldown and capacity without claiming a service slot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Preflight {
+    CheckStock,
+    Decided { decision: Decision },
+}
+pub async fn preflight(
     store: &impl Store,
     policy: &Policy,
-    request: SigningRequest,
+    request: &SigningRequest,
     now_ms: u64,
-) -> Result<Decision> {
+) -> Result<Preflight> {
     match lookup(store, &request, now_ms).await? {
         Some(Status::AwaitingStock { retry_at_ms }) if now_ms < retry_at_ms => {
-            return Ok(Decision::Unavailable {
-                reason: UnavailableReason::EmptyPool,
-                retry_at_ms,
+            return Ok(Preflight::Decided {
+                decision: Decision::Unavailable {
+                    reason: UnavailableReason::EmptyPool,
+                    retry_at_ms,
+                },
             });
         }
         Some(Status::AwaitingStock { .. }) | None => {}
-        Some(operation) => return Ok(Decision::Existing { operation }),
+        Some(operation) => {
+            return Ok(Preflight::Decided {
+                decision: Decision::Existing { operation },
+            })
+        }
     }
     if active_key(store, &request.key)
         .await?
@@ -242,9 +253,11 @@ pub async fn begin(
     let wallet_key = format!("cooldown/{}", hex(&digest(b"wallet", &request.key.wallet)?));
     let next = store.get::<u64>(&wallet_key).await?.unwrap_or(0);
     if !matches!(policy.wallet_cooldown, policy::WalletCooldown::Disabled) && now_ms < next {
-        return Ok(Decision::Unavailable {
-            reason: UnavailableReason::WalletCooldown,
-            retry_at_ms: next,
+        return Ok(Preflight::Decided {
+            decision: Decision::Unavailable {
+                reason: UnavailableReason::WalletCooldown,
+                retry_at_ms: next,
+            },
         });
     }
     let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
@@ -257,11 +270,56 @@ pub async fn begin(
             .map(|slot| slot.expires_at_ms)
             .min()
             .ok_or_else(|| invalid("ML-DSA capacity state is invalid"))?;
-        return Ok(Decision::Unavailable {
-            reason: UnavailableReason::ServiceCapacity,
-            retry_at_ms,
+        return Ok(Preflight::Decided {
+            decision: Decision::Unavailable {
+                reason: UnavailableReason::ServiceCapacity,
+                retry_at_ms,
+            },
         });
     }
+    Ok(Preflight::CheckStock)
+}
+
+/// Persists the exact empty request without occupying signing or preprocessing capacity.
+pub async fn defer_empty(
+    store: &impl Store,
+    policy: &Policy,
+    request: SigningRequest,
+    retry_at_ms: u64,
+    now_ms: u64,
+) -> Result<Decision> {
+    if let Preflight::Decided { decision } = preflight(store, policy, &request, now_ms).await? {
+        return Ok(decision);
+    }
+    let retry_at_ms = retry_at_ms.max(now_ms.saturating_add(1_000));
+    store
+        .put(
+            &request.record_key()?,
+            &Record {
+                request,
+                status: Status::AwaitingStock { retry_at_ms },
+            },
+        )
+        .await?;
+    Ok(Decision::Unavailable {
+        reason: UnavailableReason::EmptyPool,
+        retry_at_ms,
+    })
+}
+
+/// Claims one coordinator execution after a stock preflight.
+/// Duplicate callers never acquire authority to release another run's reservations.
+pub async fn begin(
+    store: &impl Store,
+    policy: &Policy,
+    request: SigningRequest,
+    now_ms: u64,
+) -> Result<Decision> {
+    if let Preflight::Decided { decision } = preflight(store, policy, &request, now_ms).await? {
+        return Ok(decision);
+    }
+    let mut active = store.get::<Vec<Slot>>("active").await?.unwrap_or_default();
+    active.retain(|slot| slot.expires_at_ms > now_ms);
     let mut token = [0; 32];
     getrandom::getrandom(&mut token).map_err(|_| invalid("ML-DSA claim randomness failed"))?;
     let claim = Claim {

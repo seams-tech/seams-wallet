@@ -96,6 +96,13 @@ pub enum AdmissionCommand {
     ActiveKey {
         key: KeyScope,
     },
+    Preflight {
+        request: super::SigningRequest,
+    },
+    DeferEmpty {
+        request: super::SigningRequest,
+        retry_at_ms: u64,
+    },
     Begin {
         request: super::SigningRequest,
     },
@@ -554,6 +561,13 @@ async fn execute_admission(
         AdmissionCommand::CommitKey { activation } => {
             json(admission::commit_key(store, activation).await?)
         }
+        AdmissionCommand::Preflight { request } => {
+            json(admission::preflight(store, policy, &request, now).await?)
+        }
+        AdmissionCommand::DeferEmpty {
+            request,
+            retry_at_ms,
+        } => json(admission::defer_empty(store, policy, request, retry_at_ms, now).await?),
         AdmissionCommand::Begin { request } => {
             json(admission::begin(store, policy, request, now).await?)
         }

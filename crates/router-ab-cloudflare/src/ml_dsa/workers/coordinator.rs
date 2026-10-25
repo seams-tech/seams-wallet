@@ -31,6 +31,43 @@ async fn admit(
 ) -> Result<Decision> {
     check_signing_scope(env, &input.key)?;
     let policy = policy(env)?;
+    let preflight: admission::Preflight = service_call(
+        env,
+        CallAuthority::Gateway(headers),
+        &AdmissionCommand::Preflight {
+            request: input.clone(),
+        },
+    )
+    .await?;
+    if let admission::Preflight::Decided { decision } = preflight {
+        return Ok(decision);
+    }
+    let (a, b) = inventory_pair(
+        env,
+        &policy,
+        &input.key,
+        policy.deadline(crate::cloudflare_now_unix_ms_v1()?)?,
+    )
+    .await?;
+    let paired = a.ready.iter().filter(|id| b.ready.contains(id)).count();
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_admission_stock_v1", "operation": hex(&input.operation),
+            "paired": paired, "minimum": policy.minimum_ready_batches(), "stage": "preflight",
+        })
+    );
+    if paired < policy.minimum_ready_batches() {
+        return service_call(
+            env,
+            CallAuthority::Gateway(headers),
+            &AdmissionCommand::DeferEmpty {
+                request: input,
+                retry_at_ms: a.retry_at_ms.max(b.retry_at_ms),
+            },
+        )
+        .await;
+    }
     let decision: Decision = service_call(
         env,
         CallAuthority::Gateway(headers),
@@ -40,6 +77,13 @@ async fn admit(
     let Decision::Claimed { claim } = decision else {
         return Ok(decision);
     };
+    worker::console_log!(
+        "{}",
+        serde_json::json!({
+            "event": "ml_dsa_admission_stock_v1", "operation": hex(&claim.request.operation),
+            "paired": paired, "minimum": policy.minimum_ready_batches(), "stage": "claimed",
+        })
+    );
     let outcome = reserve_pair(env, &policy, &claim).await;
     match outcome {
         Ok(PairReservation::Ready { batches }) => {
@@ -81,18 +125,28 @@ async fn admit(
         }
     }
 }
-async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<PairReservation> {
+async fn inventory_pair(
+    env: &Env,
+    policy: &Policy,
+    key: &KeyScope,
+    ready_until_ms: u64,
+) -> Result<(pool::Inventory, pool::Inventory)> {
     let query = RoleCommand::Inventory {
-        key: claim.request.key.clone(),
+        key: key.clone(),
         target: policy.refill_target_batches(),
-        ready_until_ms: claim.expires_at_ms,
+        ready_until_ms: ready_until_ms,
     };
     let (a, b) = futures::join!(
         role_call::<pool::Inventory>(env, "DERIVER_A", &query),
         role_call::<pool::Inventory>(env, "DERIVER_B", &query)
     );
     let (a, b) = (a?, b?);
-    preparation::log_inventory(&claim.request.key, &a, &b);
+    preparation::log_inventory(key, &a, &b);
+    Ok((a, b))
+}
+async fn reserve_pair(env: &Env, policy: &Policy, claim: &Claim) -> Result<PairReservation> {
+    // Repeat the inventory check under the exclusive claim. Preflight is only a hint.
+    let (a, b) = inventory_pair(env, policy, &claim.request.key, claim.expires_at_ms).await?;
     let only_a: Vec<_> = a
         .ready
         .iter()

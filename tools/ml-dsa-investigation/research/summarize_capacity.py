@@ -52,6 +52,28 @@ def trace_coverage(client, records):
     }
 
 
+def admission_stock_counts(records, start, end):
+    checks = []
+    for row in records:
+        at = row['event_timestamp_ms']
+        if row['role'] != 'router' or at is None or not start <= at <= end:
+            continue
+        stock = row.get('admission_stock', [])
+        for item in stock:
+            if item['stage'] != 'preflight':
+                continue
+            claimed = any(event['stage'] == 'claimed' and event['operation'] == item['operation']
+                          for event in stock)
+            checks.append({'request_id': row['http_request'], 'operation': item['operation'],
+                           'paired': item['paired'], 'minimum': item['minimum'], 'claimed': claimed})
+    empty = [item for item in checks if item['paired'] < item['minimum']]
+    return {'scope': 'Router invocation logs distinguish empty inventory hints from subsequent exclusive claims. These counts do not measure slot occupancy time.',
+            'checks': checks, 'empty_checks': len(empty),
+            'ready_checks': len(checks) - len(empty),
+            'empty_checks_that_claimed': sum(item['claimed'] for item in empty),
+            'claimed': sum(item['claimed'] for item in checks)}
+
+
 def producer_profiles(client, records, start, end):
     active = {(bytes(wallet['key']['public_key_digest']).hex(), wallet['key']['epoch']) for wallet in client['wallets']}
     jobs = []
@@ -119,7 +141,7 @@ def expiry_guard(client, campaign, directory, records):
         assert latest['key'] == wallet['key'], 'Recovery epoch changed during the load test'
         registration_expiry.append(latest['initialSigningStockExpiresAtMs'])
     guard = max(start + expiry['refill_stock'], *registration_expiry)
-    assert guard <= start + expiry['initial_registration_stock'], 'Starting-stock expiry exceeds its declared bound'
+    assert max(registration_expiry) <= start + expiry['initial_registration_stock'], 'Initial registration stock exceeds its declared lifetime'
     first_attempts = {}
     for request in client['requests']:
         operation = operation_id(request['operation'])
@@ -130,7 +152,7 @@ def expiry_guard(client, campaign, directory, records):
     published = [job for job in producer['jobs'] if job['active_wallet'] and job['published_at_ms'] is not None
                  and guard <= job['published_at_ms'] <= end]
     elapsed = max(0, end - guard)
-    return {'scope': 'Conservative interval after all material present or in flight before load must be expired or consumed. Uses recorded initial-registration expiry and the unchanged ten-minute refill lifetime. Only operations whose first HTTP attempt starts after that bound count. Earlier operations stay excluded.',
+    return {'scope': 'Conservative interval after all material present or in flight before load must be expired or consumed. Uses recorded initial-registration expiry and the campaign refill lifetime. Only operations whose first HTTP attempt starts after that bound count. Earlier operations stay excluded.',
             'start_ms': guard, 'elapsed_ms': elapsed,
             'verified_signatures': len(requests),
             'successful_signatures_per_minute': len(requests) * 60000 / elapsed if elapsed else None,
@@ -317,6 +339,7 @@ def main():
         if row['event_timestamp_ms'] is not None and start <= row['event_timestamp_ms'] <= end
         and (row['outcome'] != 'ok' or row['exception_names'])]
     report['trace_coverage'] = trace_coverage(client, records)
+    report['admission_stock'] = admission_stock_counts(records, start, end)
     report['producer_profiles'] = producer_profiles(client, records, start, end)
     report['after_starting_stock_expiry'] = expiry_guard(client, campaign, args.campaign.parent, records)
     report['after_starting_stock_disposal_bound'] = starting_stock_bound(client, records, report, start, end)

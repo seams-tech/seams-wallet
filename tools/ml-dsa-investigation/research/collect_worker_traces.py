@@ -222,6 +222,20 @@ def public_stage_trace(value, timestamp):
     }
 
 
+def public_admission_stock(value, timestamp):
+    if value.get("event") != "ml_dsa_admission_stock_v1":
+        return None
+    if value.get("stage") not in ("preflight", "claimed"):
+        return None
+    operation = value.get("operation")
+    if not isinstance(operation, str) or re.fullmatch("[0-9a-f]{64}", operation) is None:
+        return None
+    if not all(public_counter(value.get(field)) for field in ("paired", "minimum")):
+        return None
+    return {"operation": operation, "stage": value["stage"], "paired": value["paired"],
+            "minimum": value["minimum"], "log_timestamp_ms": timestamp}
+
+
 def public_durable_boundary(value, timestamp):
     if value.get("event") != "ml_dsa_durable_boundary_v1":
         return None
@@ -566,6 +580,7 @@ def records(path, role):
         registration_links = []
         wait_traces = []
         durable_boundaries = []
+        admission_stock = []
         retirements = []
         commit_probes = []
         stage_traces = []
@@ -591,6 +606,9 @@ def records(path, role):
                     continue
                 if not isinstance(value, dict):
                     continue
+                stock = public_admission_stock(value, log.get("timestamp"))
+                if stock is not None:
+                    admission_stock.append(stock)
                 boundary = public_durable_boundary(value, log.get("timestamp"))
                 if boundary is not None:
                     durable_boundaries.append(boundary)
@@ -738,6 +756,7 @@ def records(path, role):
             "registration_links": registration_links,
             "wait_traces": wait_traces,
             "durable_boundaries": durable_boundaries,
+            "admission_stock": admission_stock,
             "retirements": retirements,
             "commit_probes": commit_probes,
             "worker": item.get("scriptName"),

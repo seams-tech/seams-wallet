@@ -6,6 +6,9 @@ The first public registration flow adds ML-DSA to an existing passkey wallet. Ne
 
 ## Qualification checkpoint — October 25, 2026
 
+The [expiry and admission candidate](ml-dsa-65-expiry-admission-report.md) retains new refill stock for one hour and avoids claiming a signing slot for empty preflights.
+Durable lifecycle checks pass. The sustained hosted repeat requires approval for fresh test credentials. Capacity and recovery/export rules remain unchanged.
+
 The [final hosted lifecycle report](ml-dsa-65-final-hosted-lifecycle-report.md) records passing Cloudflare browser campaigns for the full lifecycle, owner export, onward linking, and ordinary ECDSA.
 Recovery and participant restoration preserve the canonical key. A restored signer reaches NEAR testnet finality.
 Ordinary NEAR and ECDSA browser flows skip optional ML-DSA cryptography. Shared metadata and session helpers remain in common code.
