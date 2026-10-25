@@ -92,7 +92,7 @@ menu cancels capture. Successful voice unlock reports `method: 'voiceid'` throug
 the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
 
 Voice-selected transfers show “Confirm with VoiceID” before replacing the review
-with the existing minimal phrase and live trace. Passkey and Email OTP sessions
+with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
 retain their own approval paths. The iframe protocol is version 17 for these APIs
 and the additional authenticated outcome.
 
@@ -141,15 +141,15 @@ generation allocation occur within this visible preparation phase. Recording sta
 disabled while preparation runs. Model download progress stays inside the card.
 Cancelling during implementation loading prevents later session preparation or
 challenge requests. The lightweight prompt module itself still needs its first load.
-The capture card shows a large phrase, a live trace, a short status, and Cancel.
-Enrollment identifies each of three samples. The trace draws the recorder's own
-32 ms activity frames: ambient sound as a faint ripple, frames that the voice
-activity model and level check accept as speech as contours, and the end pause as
-a closing dotted line. It opens no audio graph, makes no second capture request, and
+The capture card shows a large phrase, a live waveform, a short status, and Cancel.
+Enrollment identifies each of three samples. The waveform draws the recorder's own
+32 ms activity frames as a scrolling row of rounded bars: frames that the voice
+activity model and level check accept as speech draw full bars, and ambient sound
+draws short, dim bars. It opens no audio graph, makes no second capture request, and
 does not change the recording or recognition thresholds. No capture event carries
-the microphone stream. After capture the trace trims to its speech and dims while
-the Wallet checks it; an accepted enrollment sample draws a check, and a retry stays
-dim until the next capture. Recording stays disabled until preparation finishes. A delayed server response
+the microphone stream. After capture the row stops and dims while the Wallet checks
+it; an accepted enrollment sample returns to full strength, and a retry stays dim
+until the next capture. Recording stays disabled until preparation finishes. A delayed server response
 cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
 after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires

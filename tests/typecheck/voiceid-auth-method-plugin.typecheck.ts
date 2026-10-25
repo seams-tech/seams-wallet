@@ -108,7 +108,6 @@ const activityWithStream: VoiceCaptureEvent = {
   kind: 'activity',
   rms: 0,
   speech: false,
-  pause: 0,
   ...liveStreamFields,
 };
 void listeningWithStream;

@@ -237,13 +237,8 @@ async function verifyLivePage(
   expect((await wallet.locator('body').evaluate(microphoneStates)).length).toBe(
     streamsBefore.length + 1,
   );
-  await expect
-    .poll(
-      wallet
-        .locator('.seams-voiceid-trace-contour')
-        .evaluate.bind(wallet.locator('.seams-voiceid-trace-contour'), speechContours),
-    )
-    .toBeGreaterThan(0);
+  const speechBars = wallet.locator('.seams-voiceid-trace-speech');
+  await expect.poll(speechBars.count.bind(speechBars)).toBeGreaterThan(0);
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
@@ -384,7 +379,3 @@ class ModelDownloadGate {
   }
 }
 
-// Each contour line the trace draws for recorder-detected speech starts a subpath.
-function speechContours(element: Element): number {
-  return (element.getAttribute('d') ?? '').split('M').length - 1;
-}

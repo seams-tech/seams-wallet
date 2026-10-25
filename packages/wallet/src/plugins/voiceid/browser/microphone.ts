@@ -7,8 +7,6 @@ export type VoiceActivityEvent = Readonly<{
   rms: number;
   /** The voice activity model and the level check both found speech. */
   speech: boolean;
-  /** The share of the end pause that has passed: 0 before speech, 1 when capture stops. */
-  pause: number;
   stream?: never;
 }>;
 export type VoiceCaptureEvent =
@@ -314,7 +312,7 @@ class VoiceRecording {
       const rms = Math.sqrt(energy / frame.length);
       const speech = probability >= 0.5 && rms >= LEVEL_THRESHOLD;
       this.updateActivity(speech);
-      this.onCapture({ kind: 'activity', rms, speech, pause: this.pauseProgress() });
+      this.onCapture({ kind: 'activity', rms, speech });
     } finally {
       frame.fill(0);
       this.queuedFrames -= 1;
@@ -339,11 +337,6 @@ class VoiceRecording {
       default:
         return assertNeverActivity(this.activity);
     }
-  }
-
-  private pauseProgress(): number {
-    if (this.activity.kind === 'waiting') return 0;
-    return Math.min(1, (performance.now() - this.activity.lastSoundAtMs) / END_PAUSE_MS);
   }
 
   private readonly stopPauseDetection = (): void => {

@@ -40,7 +40,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
   @starting-style { .seams-voiceid-prompt { transform: none; } }
-  .seams-voiceid-trace-capture { transition: none !important; }
+  .seams-voiceid-trace-row { transition: none !important; }
 }
 .seams-voiceid-prompt h2 {
   font-size: 0.85rem;
@@ -61,41 +61,19 @@ const CSS = `
 }
 .seams-voiceid-trace {
   display: block;
-  width: 340px;
+  width: 308px;
   max-width: 100%;
   height: 64px;
   margin: auto;
-  overflow: visible;
 }
-.seams-voiceid-trace path,
-.seams-voiceid-trace circle {
-  vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.seams-voiceid-trace-row { transition: opacity 200ms ease; }
+.seams-voiceid-trace-speech { fill: var(--seams-colors-textPrimary, #eff2f3); }
+.seams-voiceid-trace-ambient {
+  fill: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 70%, transparent);
 }
-.seams-voiceid-trace-future {
-  fill: none;
-  stroke: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 35%, transparent);
-  stroke-width: 1;
-  stroke-dasharray: 1 3;
+.seams-voiceid-trace-rest {
+  fill: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 35%, transparent);
 }
-.seams-voiceid-trace-capture { transition: opacity 200ms ease; }
-.seams-voiceid-trace-ripple {
-  fill: none;
-  stroke: color-mix(in srgb, var(--seams-colors-textSecondary, #9cabb3) 65%, transparent);
-  stroke-width: 1;
-}
-.seams-voiceid-trace-body {
-  fill: color-mix(in srgb, var(--seams-colors-textPrimary, #eff2f3) 8%, transparent);
-}
-.seams-voiceid-trace-contour,
-.seams-voiceid-trace-check {
-  fill: none;
-  stroke: var(--seams-colors-textPrimary, #eff2f3);
-  stroke-width: 1.25;
-}
-.seams-voiceid-trace-check { stroke-width: 1.5; stroke-dasharray: 1 1; }
-.seams-voiceid-trace-pen { fill: var(--seams-colors-textPrimary, #eff2f3); }
 .seams-voiceid-prompt .seams-voiceid-status {
   font-size: 0.75rem;
   line-height: 1.5;
@@ -305,7 +283,7 @@ export class VoicePrompt {
     this.detailText.textContent = message;
   }
 
-  /** The last capture passed: the trace draws its check until the next capture. */
+  /** The last capture passed: its bars stay at full strength until the next capture. */
   accepted(): void {
     this.trace.accept();
   }
