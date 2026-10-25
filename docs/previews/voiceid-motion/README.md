@@ -1,6 +1,6 @@
 # VoiceID motion comparison
 
-Saved preview of the centered bars, flowing ribbon, and SDK VoiceBeam variants. Glow + ribbon and the light theme are selected by default. The ribbon uses a 1 px main stroke, 0.65 px supporting strokes, visual gain 1.5, and the gentler 38 px maximum amplitude setting.
+Saved preview of the centered bars, flowing ribbon, and SDK VoiceBeam variants. Glow + ribbon and the light theme are selected by default. The ribbon uses a 1 px main stroke, 0.65 px supporting strokes, visual gain 1.5, and the gentler 32 px maximum amplitude setting.
 
 This is a standalone design preview. Production VoiceID is unchanged by this snapshot. Demo levels are simulated. Microphone mode analyzes audio locally and does not record, persist, or upload it. The preview includes independent phrase-progress exploration; it is not authentication evidence.
 

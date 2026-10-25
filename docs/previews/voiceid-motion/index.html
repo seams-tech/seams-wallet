@@ -232,7 +232,7 @@ function drawRibbon(dt, energy) {
       const u=x/width;
       const taper=Math.pow(Math.sin(Math.PI*u),1.7);
       const wave=Math.sin(u*Math.PI*4-phase+layer*0.5)*0.7+Math.sin(u*Math.PI*7+phase*0.7+layer)*0.3;
-      const displacement=reduced() ? amount*8*taper : amount*(38-layer*4.5)*taper*wave;
+      const displacement=reduced() ? amount*8*taper : amount*(32-layer*4)*taper*wave;
       const y=height/2+displacement;
       if (x===0) ribbonContext.moveTo(x,y); else ribbonContext.lineTo(x,y);
     }
