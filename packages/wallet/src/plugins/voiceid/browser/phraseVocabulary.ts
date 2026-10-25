@@ -1,21 +1,21 @@
-// Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/export.py.
+// Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.
 export const SPOKEN_PHRASES = [
-  "i want to go home",
-  "i can hear the music",
-  "this is my own voice",
-  "we are going home now",
-  "the little dog is sleeping",
-  "the river is running slowly",
-  "i want a glass of water",
-  "can you open the window",
-  "we sat beside the river",
-  "they are waiting for us",
-  "she is reading a book",
-  "he is looking at me",
-  "the door is open now",
-  "let us go home now",
-  "that is a good idea",
-  "come and sit with me"
+  "i want to go home before it gets dark",
+  "i can hear the music from the other room",
+  "this is my own voice and i am ready",
+  "we are going home after a very good day",
+  "the little dog is sleeping beside the open door",
+  "the river is running slowly through the quiet town",
+  "i would like a glass of water please",
+  "can you open the door before we go",
+  "we sat beside the river and watched the water",
+  "the sun is shining and the sky is blue",
+  "she is reading a book in the living room",
+  "he is looking at the picture on the wall",
+  "the door is open and we can go inside",
+  "there is a little bird outside the window",
+  "we can try this again in the morning",
+  "i will open the door for you now"
 ] as const;
 export const PHRASE_TOKENS: readonly (readonly number[])[] = [
   [
@@ -25,7 +25,17 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     24,
     181,
     13,
-    134
+    134,
+    45,
+    245,
+    123,
+    55,
+    43,
+    75,
+    237,
+    28,
+    39,
+    251
   ],
   [
     16,
@@ -36,7 +46,15 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     5,
     15,
     140,
-    53
+    53,
+    148,
+    5,
+    9,
+    231,
+    95,
+    83,
+    233,
+    44
   ],
   [
     136,
@@ -48,7 +66,14 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     152,
     233,
     53,
-    230
+    230,
+    22,
+    16,
+    4,
+    242,
+    67,
+    86,
+    247
   ],
   [
     78,
@@ -57,8 +82,16 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     29,
     13,
     134,
-    42,
-    52
+    4,
+    245,
+    94,
+    4,
+    229,
+    171,
+    43,
+    185,
+    28,
+    77
   ],
   [
     5,
@@ -72,7 +105,17 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     48,
     230,
     248,
-    29
+    29,
+    12,
+    35,
+    61,
+    230,
+    5,
+    9,
+    248,
+    23,
+    138,
+    33
   ],
   [
     5,
@@ -87,12 +130,24 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     7,
     240,
     52,
-    59
+    59,
+    30,
+    238,
+    214,
+    5,
+    229,
+    144,
+    235,
+    75,
+    24,
+    244,
+    234
   ],
   [
     16,
-    8,
-    165,
+    192,
+    137,
+    120,
     4,
     43,
     240,
@@ -101,7 +156,11 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     25,
     8,
     20,
-    14
+    14,
+    31,
+    48,
+    40,
+    230
   ],
   [
     18,
@@ -111,9 +170,13 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     248,
     23,
     5,
-    8,
-    177,
-    52
+    138,
+    33,
+    45,
+    245,
+    123,
+    78,
+    181
   ],
   [
     78,
@@ -126,18 +189,36 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     5,
     83,
     235,
-    72
+    72,
+    22,
+    8,
+    20,
+    243,
+    3,
+    239,
+    5,
+    8,
+    20,
+    14
   ],
   [
-    125,
-    190,
-    8,
-    232,
-    38,
+    5,
+    113,
+    234,
+    93,
+    106,
+    6,
     29,
-    76,
-    71,
-    237
+    22,
+    5,
+    7,
+    251,
+    247,
+    93,
+    12,
+    240,
+    241,
+    230
   ],
   [
     102,
@@ -148,7 +229,15 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     4,
     12,
     99,
-    251
+    251,
+    36,
+    5,
+    137,
+    250,
+    29,
+    83,
+    233,
+    44
   ],
   [
     32,
@@ -158,7 +247,16 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     251,
     29,
     98,
-    111
+    5,
+    31,
+    53,
+    231,
+    241,
+    10,
+    64,
+    5,
+    8,
+    118
   ],
   [
     5,
@@ -168,38 +266,64 @@ export const PHRASE_TOKENS: readonly (readonly number[])[] = [
     9,
     248,
     23,
-    42,
-    52
-  ],
-  [
-    34,
-    75,
-    71,
-    237,
+    22,
+    78,
+    18,
+    41,
     181,
-    13,
-    134,
-    42,
-    52
+    36,
+    237,
+    61,
+    230
   ],
   [
-    58,
+    158,
     93,
     4,
-    43,
-    185,
-    16,
+    34,
+    213,
+    48,
+    12,
+    82,
     239,
+    203,
+    237,
+    61,
     230,
-    232
+    5,
+    8,
+    177,
+    52
   ],
   [
+    78,
     18,
-    134,
-    22,
-    7,
-    38,
-    84,
-    111
+    41,
+    227,
+    247,
+    136,
+    4,
+    246,
+    112,
+    36,
+    5,
+    15,
+    33,
+    234,
+    29
+  ],
+  [
+    16,
+    206,
+    9,
+    248,
+    23,
+    5,
+    138,
+    33,
+    76,
+    68,
+    42,
+    52
   ]
 ];

@@ -100,7 +100,8 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 ## Prompt and preparation
 
 Enrollment, unlock, and transfer approval randomly select one of 16 short English
-phrases. Each attempt holds its displayed phrase until recording ends. Retries
+sentences of 8–10 words, targeting about two seconds or more at a normal pace.
+Each attempt holds its displayed sentence until recording ends. Retries
 select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
 of quiet once audible input has continued for 100 ms. Initial silence does not
 stop capture. An eight-second maximum bounds silence, continued noise, and

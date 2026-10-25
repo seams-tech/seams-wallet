@@ -1,4 +1,7 @@
 import { VoicePrompt } from '@/plugins/voiceid/capture/prompt';
+import { SPOKEN_PHRASES } from '@/plugins/voiceid/browser/phraseVocabulary';
+
+const [initialPhrase, retryPhrase] = SPOKEN_PHRASES;
 
 let prompt: VoicePrompt | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -14,7 +17,7 @@ function mount(): void {
   dispose();
   document.documentElement.dataset.theme = 'dark';
   document.body.style.margin = '0';
-  prompt = new VoicePrompt(document, 'VoiceID visual probe', 'this is my own voice');
+  prompt = new VoicePrompt(document, 'VoiceID visual probe', initialPhrase);
   document.body.append(prompt.element);
   prompt.cancel.addEventListener('click', dispose);
   prompt.ready('Read naturally, then pause.');
@@ -39,7 +42,7 @@ function checking(): void {
 }
 function retry(): void {
   stopTimer();
-  prompt?.setPhrase('let us go home now');
+  prompt?.setPhrase(retryPhrase);
   prompt?.ready('Try the new phrase at your normal pace.');
 }
 function dispose(): void {

@@ -1,130 +1,130 @@
 [
   {
-    "phrase": "i want to go home",
+    "phrase": "i want to go home before it gets dark",
     "file": "0.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "33b8ba9a409f1f9d78d4dcc23244776d29569e27042d0c75bc1329f9143140bb"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "47c21e0d6a5bc497b47564993df5e9f28ce2bd216c9093e0422e0d09dbf4651b"
   },
   {
-    "phrase": "i can hear the music",
+    "phrase": "i can hear the music from the other room",
     "file": "1.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "646ecfc0327dc12f902136a76bbaf30a1eb265c9a003270312355ecb8ead7a2c"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "39ffabb39bde7bee6331b08bda162f550af541def4a906eb3401ab7eefa830e7"
   },
   {
-    "phrase": "this is my own voice",
+    "phrase": "this is my own voice and i am ready",
     "file": "2.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "6396733f61e8ad621cad5695c70222e9dde52bdcc5e5b4d73880003dc4ecc305"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "a5fcabac6155d152d2722f1c38d7a9f0920c27ee601d9a18442c0cfcf913d699"
   },
   {
-    "phrase": "we are going home now",
+    "phrase": "we are going home after a very good day",
     "file": "3.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "fef5dd459b7991e33185269c3a40389b12ac7d32f9ef6bc22d9bff343c843d3c"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "0eb0064fbc141fbe82695a36184abf50fcebd9634df2a7a8f9923efe08fed24b"
   },
   {
-    "phrase": "the little dog is sleeping",
+    "phrase": "the little dog is sleeping beside the open door",
     "file": "4.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "7d6b6cd71f30b3c468c054dadce02a3c68be143008c7c2deb00bf065f0dccee4"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "f6394718aec509a0bbf7f5767f692eb3aae2f3c790d6b1732c4d824269fe00c2"
   },
   {
-    "phrase": "the river is running slowly",
+    "phrase": "the river is running slowly through the quiet town",
     "file": "5.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.85,
-    "sha256": "978d5bdaef8c3f7af0710cdb72a23fb447b6e83ee22efc22881d2983a7b1d42e"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "79cdb336913de5df59ba2b925834f007e0b97725947cfc2d18ebf036cf61a711"
   },
   {
-    "phrase": "i want a glass of water",
+    "phrase": "i would like a glass of water please",
     "file": "6.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "65cf74595fdafbcd2893b35392c1b3bc2442e37696c28ae91c933f3fcf31bd32"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "deaf314bba9a996bc4200f3120d724d698e5a91f9a428377fc1e561ee5959c17"
   },
   {
-    "phrase": "can you open the window",
+    "phrase": "can you open the door before we go",
     "file": "7.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.7,
-    "sha256": "6d5db3a7132a166584d0d49312788a2066fcf24d38dd4ca8fdbce2cf45517ad8"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "aac8e9ccf743e6303c2860d06958d223e651932b61ab6622a316385f6b4fd86d"
   },
   {
-    "phrase": "we sat beside the river",
+    "phrase": "we sat beside the river and watched the water",
     "file": "8.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.7,
-    "sha256": "b7a7e79ada21ba3066ea6ca0067ae1cfbe844fe3bd4ce155264c0b36089a177a"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "93df163069a99ca3c953ff6a0e4ea0544bca780d59a34561daf9261ebca6f015"
   },
   {
-    "phrase": "they are waiting for us",
+    "phrase": "the sun is shining and the sky is blue",
     "file": "9.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.7,
-    "sha256": "be104a85e70320697a280ab54cb47ac395ce05d6cea31267206ada025d62d91c"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "739b5a3c360728ee66dd107dbf19a4e79a137c4b3d65d45880cdc3a64f197ba9"
   },
   {
-    "phrase": "she is reading a book",
+    "phrase": "she is reading a book in the living room",
     "file": "10.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.65,
-    "sha256": "c3c4a39c3082838e1f826b4d62b5c80985b95066a9a4309d8a80ad5f706d8e69"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "46b055f88b7edffcd882221ace4d30e7da451b6591f041b6a9384fcca03f66d2"
   },
   {
-    "phrase": "he is looking at me",
+    "phrase": "he is looking at the picture on the wall",
     "file": "11.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "73b5dcf18485b16657cb0456e8629317334c2c238b955287ddf88e628882103c"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "81de65a431e24b9ec8ddb016229d542862f8848dd559ca18670d4981ad13b061"
   },
   {
-    "phrase": "the door is open now",
+    "phrase": "the door is open and we can go inside",
     "file": "12.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.7,
-    "sha256": "172de4b638a135e34fde88900b654e1cf1479b50f208ed8b5764abe9eb63d90c"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "b2b2ba89df4fb0097f564918f8cb614ef2e80b8efc063fb700db99995f1b9b8b"
   },
   {
-    "phrase": "let us go home now",
+    "phrase": "there is a little bird outside the window",
     "file": "13.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "a0ccc67da3793a879c035c2c79969fffeec75aee570f34d9ac877bb08becf95e"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "1b88a56d5bf3c589935ff7c80670a3c4b3f191e92b7bbd914af2fe965efb5056"
   },
   {
-    "phrase": "that is a good idea",
+    "phrase": "we can try this again in the morning",
     "file": "14.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "b9a080c12364570534de6e10bafe591c09a36af1f6edf768fa47b173553e1d19"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "9cf774e84273a7312a5f1f75df224b7455042e2cd3069ee9231ab796a1e20297"
   },
   {
-    "phrase": "come and sit with me",
+    "phrase": "i will open the door for you now",
     "file": "15.wav",
     "voice": "Samantha",
-    "rate": 95,
-    "tempo": 0.55,
-    "sha256": "90ec261e8706c583da9a698e43d1049b158d334abd7868cd39dc5ec8eb7ab9b4"
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "57b37aac6af02743757068332b06c87ea79068c4a59c5039edb1cad73815e655"
   }
 ]

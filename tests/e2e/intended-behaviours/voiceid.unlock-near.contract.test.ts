@@ -120,10 +120,10 @@ async function verifyUnlock(
   await unlocked;
   const naturalQuality = await readLastQuality(page);
   expect(naturalQuality.voicedMs).toBeGreaterThanOrEqual(600);
-  expect(naturalQuality.voicedMs).toBeLessThan(2_000);
+  expect(naturalQuality.voicedMs).toBeLessThan(4_000);
   expect(naturalQuality.endedBy).toBe('pause');
   expect(naturalQuality.recordingMs).toBeGreaterThan(3_500);
-  expect(naturalQuality.recordingMs).toBeLessThan(6_000);
+  expect(naturalQuality.recordingMs).toBeLessThan(7_500);
   expect(await unlocked).toMatchObject({
     success: true,
     kind: 'near_wallet_unlocked',
@@ -171,9 +171,9 @@ async function verifyUnlock(
   );
   const signingQuality = await readLastQuality(page);
   expect(signingQuality.voicedMs).toBeGreaterThanOrEqual(600);
-  expect(signingQuality.voicedMs).toBeLessThan(2_000);
+  expect(signingQuality.voicedMs).toBeLessThan(4_000);
   expect(signingQuality.endedBy).toBe('pause');
-  expect(signingQuality.recordingMs).toBeLessThan(4_500);
+  expect(signingQuality.recordingMs).toBeLessThan(6_000);
   expect(evidence.transfers).toHaveLength(1);
   expect(evidence.snapshot().finalizations).toBeGreaterThan(0);
   const budget = await harness.readCurrentWalletSessionStatus();

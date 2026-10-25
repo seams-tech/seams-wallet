@@ -50,8 +50,8 @@ python tests/scripts/voiceid-aurora/screen.py \
 ```
 
 Each run synthesizes 16 kHz audio and writes a repeatable `results.json` artifact.
-System voice versions can change results. The native PyTorch CTC scorer is an
-independent reference for the browser decoder.
+System voice versions can change results. The native NumPy CTC scorer is a separate implementation of the browser
+decoder. Earlier saved screening used PyTorch CTC.
 
 ## Browser E2E fixtures
 
@@ -62,8 +62,9 @@ Regenerate in a temporary directory with macOS `say` and ffmpeg:
 python tests/scripts/voiceid-aurora/fixtures.py --output /tmp/voiceid-aurora-fixtures
 ```
 
-The fixture rates preserve the two-second minimum speech duration. After reviewing
-recognition results, copy the WAVs and phrases.json to `tests/fixtures/audio/aurora/`.
+The standard fixtures use connected speech at 140 words per minute. The natural
+fixtures use 160 words per minute. Neither set stretches audio. The current
+8–10-word sentences target about two seconds or more at a normal pace.
 The browser helper reads the visible phrase and plays its WAV through a MediaStream.
 It exercises MediaRecorder, decoding, preprocessing, B1, and Aurora without mocking
 model outcomes. Explicit overrides supply wrong-speaker and wrong-phrase samples.
@@ -103,8 +104,26 @@ python tests/scripts/voiceid-aurora/fixtures.py --natural --output /tmp/voiceid-
 cp /tmp/voiceid-natural-fixtures/*.wav tests/fixtures/audio/aurora/natural/
 ```
 
-The unlock contract enrolls with the slower fixtures, rejects truncated and quiet
+The unlock contract enrolls at 140 words per minute, rejects truncated and quiet
 input, then unlocks with natural speech after two seconds of initial silence.
 It signs a reviewed NEAR transfer with another natural-paced phrase. This checks
 existing enrollment compatibility and capture completion with the real browser
 models. Synthetic voices do not establish human false-accept or false-reject rates.
+
+## Update the sentence bank
+
+Edit `phrases.json`, then regenerate tokens with the pinned tokenizer. This does
+not export or change the Aurora model:
+
+```sh
+python tests/scripts/voiceid-aurora/vocabulary.py \
+  --root /tmp/voiceid-aurora \
+  --vocabulary packages/wallet/src/plugins/voiceid/browser/phraseVocabulary.ts
+```
+
+`screen.py` accepts `--rate` (default 160) and `--phrases` for candidate screening.
+Use `--rate 95` when reproducing the historical slow-speech screen. Cases can
+override the rate and supply a different spoken sentence for negative checks.
+Regenerate both fixture sets and the derived noise fixtures after changing the bank.
+The phrase limit remains 8 and speaker threshold remains 0.5. Existing speaker
+enrollment remains valid because its model and template format did not change.

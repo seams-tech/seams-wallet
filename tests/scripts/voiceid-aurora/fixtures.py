@@ -9,7 +9,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--natural', action='store_true', help='Normal pace without time stretching')
+    parser.add_argument('--natural', action='store_true', help='Use 160 words per minute instead of 140')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).with_name('phrases.json')
@@ -19,17 +19,13 @@ def main():
         aiff = args.output / f'{index}.aiff'
         wav = args.output / f'{index}.wav'
         source_wav = args.output / f'{index}-source.wav'
-        # Keep the slow enrollment fixtures to check matching across speaking rates.
-        rate = 160 if args.natural else 95
-        tempo = 1 if args.natural else {5: .85, 7: .7, 8: .7, 9: .7, 10: .65, 12: .7}.get(index, .55)
+        # Both sets use connected speech, with a modest speaking-rate difference.
+        rate = 160 if args.natural else 140
+        tempo = 1
         subprocess.run(['say', '-v', 'Samantha', '-r', str(rate), '-o', str(aiff), phrase], check=True)
         subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1',
                         str(aiff), str(source_wav)], check=True)
-        if args.natural:
-            wav.write_bytes(source_wav.read_bytes())
-        else:
-            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(source_wav),
-                            '-af', f'atempo={tempo}', '-ar', '16000', '-ac', '1', str(wav)], check=True)
+        wav.write_bytes(source_wav.read_bytes())
         aiff.unlink()
         source_wav.unlink()
         rows.append({'phrase': phrase, 'file': wav.name, 'voice': 'Samantha',

@@ -1,0 +1,962 @@
+[
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go home before it gets dark",
+    "voice": "Samantha",
+    "recognized": "i want to go home before it gets dark",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.456,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go home before it gets dark",
+    "voice": "Daniel",
+    "recognized": "i want to go home before it gets dark",
+    "gapToGreedy": 1.101782967157576,
+    "durationSeconds": 2.674875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go home before it gets dark",
+    "voice": "Karen",
+    "recognized": "i want to go home before it gets dark",
+    "gapToGreedy": 3.2478639494983437,
+    "durationSeconds": 2.5614375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go home before it gets dark",
+    "voice": "Moira",
+    "recognized": "i want to go home before it gets dark",
+    "gapToGreedy": 4.991279931839628,
+    "durationSeconds": 2.7195625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the music from the other room",
+    "voice": "Samantha",
+    "recognized": "i can hear the music from the other room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1773125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the music from the other room",
+    "voice": "Daniel",
+    "recognized": "i can hear the music from the other room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4426875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the music from the other room",
+    "voice": "Karen",
+    "recognized": "i can hear the music from the other room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.294625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the music from the other room",
+    "voice": "Moira",
+    "recognized": "i can hear the music from the other room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.3591875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own voice and i am ready",
+    "voice": "Samantha",
+    "recognized": "this is my own voice and i am ready",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.074375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own voice and i am ready",
+    "voice": "Daniel",
+    "recognized": "this is my own voice and i am ready",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.2624375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own voice and i am ready",
+    "voice": "Karen",
+    "recognized": "this is my own voice and i am ready",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.074875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own voice and i am ready",
+    "voice": "Moira",
+    "recognized": "this is my own voice and i am ready",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1798125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home after a very good day",
+    "voice": "Samantha",
+    "recognized": "we are going home after a very good day",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.519625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home after a very good day",
+    "voice": "Daniel",
+    "recognized": "we are going home after a very good day",
+    "gapToGreedy": 0.9910992111048893,
+    "durationSeconds": 2.613375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home after a very good day",
+    "voice": "Karen",
+    "recognized": "we are going home after a very good day",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4083125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home after a very good day",
+    "voice": "Moira",
+    "recognized": "we are going home after a very good day",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4521875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is sleeping beside the open door",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping beside the open door",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6673125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is sleeping beside the open door",
+    "voice": "Daniel",
+    "recognized": "the little dog is sleeping beside the open door",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.8753125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is sleeping beside the open door",
+    "voice": "Karen",
+    "recognized": "the little dog is sleeping beside the open door",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6245625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is sleeping beside the open door",
+    "voice": "Moira",
+    "recognized": "the little dog is sleeping beside the open door",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.8880625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running slowly through the quiet town",
+    "voice": "Samantha",
+    "recognized": "the river is running slowly through the quiet town",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.81825,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running slowly through the quiet town",
+    "voice": "Daniel",
+    "recognized": "the river is running slowly through the quiet town",
+    "gapToGreedy": 2.458977130861411,
+    "durationSeconds": 2.9358125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running slowly through the quiet town",
+    "voice": "Karen",
+    "recognized": "the river is running slowly through the quiet town",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.833625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running slowly through the quiet town",
+    "voice": "Moira",
+    "recognized": "the river is running slowly through the quiet town",
+    "gapToGreedy": 0.39209398120818495,
+    "durationSeconds": 2.5978125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a glass of water please",
+    "voice": "Samantha",
+    "recognized": "i would like a glass of water please",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0496875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a glass of water please",
+    "voice": "Daniel",
+    "recognized": "i would like a glass of water please",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.280125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a glass of water please",
+    "voice": "Karen",
+    "recognized": "i would like a glass of water please",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.2015,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a glass of water please",
+    "voice": "Moira",
+    "recognized": "i would like a glass of water please",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.3364375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the door before we go",
+    "voice": "Samantha",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0393125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the door before we go",
+    "voice": "Daniel",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 2.9781659828709985,
+    "durationSeconds": 2.083625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the door before we go",
+    "voice": "Karen",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 1.3758420018697533,
+    "durationSeconds": 1.9921875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the door before we go",
+    "voice": "Moira",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1943125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the river and watched the water",
+    "voice": "Samantha",
+    "recognized": "we sat beside the river and watched the water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4384375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the river and watched the water",
+    "voice": "Daniel",
+    "recognized": "we sat beside the river and watched the water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6366875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the river and watched the water",
+    "voice": "Karen",
+    "recognized": "we sat beside the river and watched the water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6173125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the river and watched the water",
+    "voice": "Moira",
+    "recognized": "we sat beside the river and watched the water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.7656875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining and the sky is blue",
+    "voice": "Samantha",
+    "recognized": "the sun is shining and the sky is blue",
+    "gapToGreedy": 6.353435369271664,
+    "durationSeconds": 2.040375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining and the sky is blue",
+    "voice": "Daniel",
+    "recognized": "the sun is shining and the sky is blue",
+    "gapToGreedy": 4.109582358546856,
+    "durationSeconds": 2.204625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining and the sky is blue",
+    "voice": "Karen",
+    "recognized": "the sun is shining and the sky is blue",
+    "gapToGreedy": 4.507611566835676,
+    "durationSeconds": 2.1716875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining and the sky is blue",
+    "voice": "Moira",
+    "recognized": "the sun is shining and the sky is blue",
+    "gapToGreedy": 4.67276075378784,
+    "durationSeconds": 2.2030625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a book in the living room",
+    "voice": "Samantha",
+    "recognized": "she is reading a book in the living room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0855,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a book in the living room",
+    "voice": "Daniel",
+    "recognized": "she is reading a book in the living room",
+    "gapToGreedy": 1.8251531478705691,
+    "durationSeconds": 2.3326875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a book in the living room",
+    "voice": "Karen",
+    "recognized": "she is reading a book in the living room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1854375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a book in the living room",
+    "voice": "Moira",
+    "recognized": "she is reading a book in the living room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1335,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at the picture on the wall",
+    "voice": "Samantha",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1059375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at the picture on the wall",
+    "voice": "Daniel",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.168125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at the picture on the wall",
+    "voice": "Karen",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.148625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at the picture on the wall",
+    "voice": "Moira",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.117625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open and we can go inside",
+    "voice": "Samantha",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 0.11514270819355055,
+    "durationSeconds": 2.2725625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open and we can go inside",
+    "voice": "Daniel",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.3785625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open and we can go inside",
+    "voice": "Karen",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.3110625,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open and we can go inside",
+    "voice": "Moira",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.53975,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little bird outside the window",
+    "voice": "Samantha",
+    "recognized": "there is a little bird outside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1208125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little bird outside the window",
+    "voice": "Daniel",
+    "recognized": "there is a little bird outside the window",
+    "gapToGreedy": 0.9048227488027267,
+    "durationSeconds": 2.2858125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little bird outside the window",
+    "voice": "Karen",
+    "recognized": "there is a little bird outside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1428125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little bird outside the window",
+    "voice": "Moira",
+    "recognized": "there is a little bird outside the window",
+    "gapToGreedy": 5.432406464896925,
+    "durationSeconds": 2.4073125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this again in the morning",
+    "voice": "Samantha",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.95075,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this again in the morning",
+    "voice": "Daniel",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0678125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this again in the morning",
+    "voice": "Karen",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 4.360429306065731,
+    "durationSeconds": 1.93225,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this again in the morning",
+    "voice": "Moira",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1851875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the door for you now",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.7594375,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the door for you now",
+    "voice": "Daniel",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.931875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the door for you now",
+    "voice": "Karen",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.74875,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the door for you now",
+    "voice": "Moira",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 7.465806130842806,
+    "durationSeconds": 1.988125,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i can hear the music from the other room",
+    "voice": "Samantha",
+    "recognized": "i can hear the music from the other room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1773125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 151.11229188183995,
+    "durationSeconds": 1.0276875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can hear the music from the other room",
+    "spoken": "this is my own voice and i am ready",
+    "voice": "Samantha",
+    "recognized": "this is my own voice and i am ready",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.074375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 128.69605785070038,
+    "durationSeconds": 1.08575,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "we are going home after a very good day",
+    "voice": "Samantha",
+    "recognized": "we are going home after a very good day",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.519625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 191.39963483705515,
+    "durationSeconds": 0.9946875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we are going home after a very good day",
+    "spoken": "the little dog is sleeping beside the open door",
+    "voice": "Samantha",
+    "recognized": "the little dog is sleeping beside the open door",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.6673125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 174.29747710576075,
+    "durationSeconds": 1.1845,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the river is running slowly through the quiet town",
+    "voice": "Samantha",
+    "recognized": "the river is running slowly through the quiet town",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.81825,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 133.19958967054438,
+    "durationSeconds": 1.1348125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "i would like a glass of water please",
+    "voice": "Samantha",
+    "recognized": "i would like a glass of water please",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0496875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 194.49293334633825,
+    "durationSeconds": 1.088375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i would like a glass of water please",
+    "spoken": "can you open the door before we go",
+    "voice": "Samantha",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0393125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 134.94702867147853,
+    "durationSeconds": 0.98125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "can you open the door before we go",
+    "spoken": "we sat beside the river and watched the water",
+    "voice": "Samantha",
+    "recognized": "we sat beside the river and watched the water",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.4384375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the",
+    "voice": "Samantha",
+    "recognized": "can you open the door before we go",
+    "gapToGreedy": 73.46120301061494,
+    "durationSeconds": 1.203375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "the sun is shining and the sky is blue",
+    "voice": "Samantha",
+    "recognized": "the sun is shining and the sky is blue",
+    "gapToGreedy": 6.353435369271664,
+    "durationSeconds": 2.040375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 136.72034309198582,
+    "durationSeconds": 1.3354375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "she is reading a book in the living room",
+    "voice": "Samantha",
+    "recognized": "she is reading a book in the living room",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.0855,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 178.20880164519437,
+    "durationSeconds": 1.07675,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "she is reading a book in the living room",
+    "spoken": "he is looking at the picture on the wall",
+    "voice": "Samantha",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1059375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 153.34217325852381,
+    "durationSeconds": 1.1335,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "the door is open and we can go inside",
+    "voice": "Samantha",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 0.11514270819355055,
+    "durationSeconds": 2.2725625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at",
+    "voice": "Samantha",
+    "recognized": "he is looking at the picture on the wall",
+    "gapToGreedy": 141.37437951698232,
+    "durationSeconds": 1.0494375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the door is open and we can go inside",
+    "spoken": "there is a little bird outside the window",
+    "voice": "Samantha",
+    "recognized": "there is a little bird outside the window",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.1208125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open",
+    "voice": "Samantha",
+    "recognized": "the door is open and we can go inside",
+    "gapToGreedy": 168.5674474590419,
+    "durationSeconds": 1.088375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "there is a little bird outside the window",
+    "spoken": "we can try this again in the morning",
+    "voice": "Samantha",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.95075,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 198.9225597359709,
+    "durationSeconds": 0.820625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we can try this again in the morning",
+    "spoken": "i will open the door for you now",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 1.7594375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this",
+    "voice": "Samantha",
+    "recognized": "we can try this again in the morning",
+    "gapToGreedy": 172.77266240876398,
+    "durationSeconds": 1.10325,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i will open the door for you now",
+    "spoken": "i want to go home before it gets dark",
+    "voice": "Samantha",
+    "recognized": "i want to go home before it gets dark",
+    "gapToGreedy": 0.0,
+    "durationSeconds": 2.456,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "truncated",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the",
+    "voice": "Samantha",
+    "recognized": "i will open the door for you now",
+    "gapToGreedy": 61.173150122824666,
+    "durationSeconds": 1.14375,
+    "acceptedExpected": false
+  }
+]

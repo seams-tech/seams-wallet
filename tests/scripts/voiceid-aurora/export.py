@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import onnx
 import onnxruntime as ort
-import sentencepiece as spm
+from vocabulary import write_vocabulary
 import torch
 import torch.nn.functional as functional
 from safetensors.torch import load_file
@@ -125,13 +125,7 @@ def main():
     models = [export(args.root, precision) for precision in ('fp32', 'int8')]
     if models[1]['sha256'] != MODEL_HASH:
         raise ValueError('Export differs from the pinned browser artifact; inspect before updating the digest')
-    phrases = json.loads(Path(__file__).with_name('phrases.json').read_text())
-    tokenizer = spm.SentencePieceProcessor(model_file=str(args.root / 'bpe256.model'))
-    tokens = [[token + 1 for token in tokenizer.encode(phrase)] for phrase in phrases]
-    args.vocabulary.write_text(
-        '// Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/export.py.\n'
-        + 'export const SPOKEN_PHRASES = ' + json.dumps(phrases, indent=2) + ' as const;\n'
-        + 'export const PHRASE_TOKENS: readonly (readonly number[])[] = ' + json.dumps(tokens, indent=2) + ';\n')
+    write_vocabulary(args.root, args.vocabulary)
     report = {'revision': REVISION, 'sourceHashes': sources, 'models': models,
               'vocabularySha256': sha256(args.vocabulary),
               'versions': {'torch': torch.__version__, 'onnx': onnx.__version__,

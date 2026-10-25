@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "silver-orchid-ycxf7b",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "255d91a2-8c27-4030-816c-896cda63e378",
+    "capturedAtMs": 1792925531567,
+    "durationMs": 3420,
+    "recordingMs": 4987.799999952316,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.21455130810520842,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i will open the door for you now",
+      "gap": 214.20531909870715
+    },
+    "expectedPhrase": "the little dog is sleeping beside the open door"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "silver-orchid-ycxf7b",
+    "accountId": "4512fd5b508ddb9f28feeab40ee248828a43d8323a1b38a09eaed4d313447c6a",
+    "publicKey": "ed25519:5edvh68cpFwujVfMTFzQgexFe3woqpH4BdySSNrp2Er5"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADQ1MTJmZDViNTA4ZGRiOWYyOGZlZWFiNDBlZTI0ODgyOGE0M2Q4MzIzYTFiMzhhMDllYWVkNGQzMTM0NDdjNmEARRL9W1CN258o/uq0DuJIgopD2DI6Gzignq7U0xNEfGoCAAAAAAAAAEAAAAA0NTEyZmQ1YjUwOGRkYjlmMjhmZWVhYjQwZWUyNDg4MjhhNDNkODMyM2ExYjM4YTA5ZWFlZDRkMzEzNDQ3YzZhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA/DCs+X40sm4dva/Y5dKfdX9h+dixDToojmcQXK7yGUt0aTZxnuFASmPGKSulcsOC0rMO3eczU2SQ5KuBYNT+Cg==",
+      "signedTransactionSha256": "c76ad736fc1bdf30a1aaa3540eff16dfe14c3332dae0dab119321c3ea4c027e4",
+      "signerId": "4512fd5b508ddb9f28feeab40ee248828a43d8323a1b38a09eaed4d313447c6a",
+      "receiverId": "4512fd5b508ddb9f28feeab40ee248828a43d8323a1b38a09eaed4d313447c6a",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}
