@@ -3523,6 +3523,8 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Bound installation by its registration claim deadline, including gate waiting. Drain both preparation futures on ordinary errors; late remote replies must not complete an expired registration.
 - Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
+- Check replay, custody, cooldown, and service capacity before checking participant stock. Empty stock must retain the exact operation without claiming a signing slot or charging cooldown. Repeat authoritative checks and both inventories before reservation.
+- Give newly refilled, untouched signing material a one-hour sealed lifetime. Keep existing deadlines, the ninety-second producer lease, operation deadlines, and immediate recovery-epoch retirement. Initial registration stock retains its fifteen-minute lifetime.
 - Prepare private nonce commitments during key-bound refill, using only the admitted public key and role-local fresh nonce shares. Keep long-term signing shares in the signing participants.
 - Bind committed preparation to the exact public key, material epoch, role, batch identity, candidate count, and circuit schedules. Publish it only after private commitment evaluation and encrypted storage finish.
 - Store only unused signing correlations with committed refill. Consume its durable record before restoring private nonce and commitment shares. Reject a different key or epoch before transport.

@@ -45,6 +45,9 @@ const ACTIVE: &str = "preprocessing-active";
 const WAITING: &str = "preprocessing-waiting";
 const MAX_WAITING_KEYS: usize = 64;
 const DEMAND_LIFETIME_MS: u64 = 30_000;
+// Untouched material remains key/epoch-bound and single-use. Producer and operation
+// leases stay short; this deadline only limits encrypted stock retention.
+const MATERIAL_LIFETIME_MS: u64 = 60 * 60 * 1_000;
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Waiting {
@@ -126,7 +129,7 @@ pub async fn claim(store: &impl Store, key: KeyScope, groups: Groups, now: u64) 
         batch,
         groups,
         expires_at_ms: now.saturating_add(90_000),
-        material_expires_at_ms: now.saturating_add(600_000),
+        material_expires_at_ms: now.saturating_add(MATERIAL_LIFETIME_MS),
     };
     waiting.remove(0);
     persist_waiting(store, &original, &waiting).await?;

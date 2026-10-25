@@ -193,7 +193,46 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let mut changed_activation = activation.clone();
     changed_activation.ceremony_id = [46; 32];
     assert!(tx(&router, admission::commit_key(&router, changed_activation)).is_err());
-    let empty_claim = claim(&router, &policy, first.clone(), 500);
+    activate(&router, &key);
+    let empty_preflight = request(&key, 98);
+    assert!(matches!(
+        tx(
+            &router,
+            admission::preflight(&router, &policy, &empty_preflight, 400)
+        )
+        .unwrap(),
+        admission::Preflight::CheckStock
+    ));
+    assert!(tx(&router, router.get::<Vec<serde_json::Value>>("active"))
+        .unwrap()
+        .unwrap_or_default()
+        .is_empty());
+    assert!(matches!(
+        tx(
+            &router,
+            admission::defer_empty(&router, &policy, empty_preflight.clone(), 1_500, 500)
+        )
+        .unwrap(),
+        Decision::Unavailable {
+            reason: UnavailableReason::EmptyPool,
+            retry_at_ms: 1_500
+        }
+    ));
+    assert!(tx(&router, router.get::<Vec<serde_json::Value>>("active"))
+        .unwrap()
+        .unwrap_or_default()
+        .is_empty());
+    let ready_key = self::key("ready-while-empty");
+    let ready_claim = claim(&router, &policy, request(&ready_key, 99), 502);
+    tx(&router, admission::cancel(&router, &ready_claim)).unwrap();
+    // Empty preflight persists without a slot across restart.
+    drop(router);
+    let router = Db::open(&service_path);
+    assert_eq!(
+        tx(&router, admission::lookup(&router, &empty_preflight, 503)).unwrap(),
+        Some(Status::AwaitingStock { retry_at_ms: 1_500 })
+    );
+    let empty_claim = claim(&router, &policy, first.clone(), 504);
     tx(
         &router,
         admission::await_stock(&router, &empty_claim, 1_000),
@@ -925,6 +964,33 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         m::refill::finish(&router, &replacement, job.expires_at_ms + 4),
     )
     .unwrap();
+    // Unused stock survives the former ten-minute deadline, then expires at its
+    // sealed deadline. Recovery still fences the same material immediately.
+    let retained_at = job.expires_at_ms + 700_000;
+    let retained = tx(
+        &refill_store,
+        pool::inventory(
+            &refill_store,
+            &replacement.key,
+            2,
+            retained_at,
+            retained_at + 30_000,
+        ),
+    )
+    .unwrap();
+    assert_eq!(retained.ready.len(), 2);
+    let expired = tx(
+        &refill_store,
+        pool::inventory(
+            &refill_store,
+            &replacement.key,
+            2,
+            replacement.material_expires_at_ms,
+            replacement.material_expires_at_ms + 30_000,
+        ),
+    )
+    .unwrap();
+    assert!(expired.ready.is_empty());
     drop(refill_store);
     registration_allocator_campaign(&directory);
     registration_retirement_campaign(&directory);
@@ -948,6 +1014,11 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         "concurrent_service_claim_winners":1,"verified_completion_and_restart_replay":true,"scope":"Transactional lifecycle and encrypted storage E2E. Synthetic prepared bytes. Real threshold persistence is covered by the investigation harness. No hosted latency claim."
     });
     evidence["failed_registration_retirement"] = retirement_evidence;
+    evidence["expiry_and_contention"] = serde_json::json!({
+        "preflight_and_empty_wait_leave_capacity_free": true,
+        "ready_wallet_claims_while_other_wallet_waits": true,
+        "untouched_stock_survives_ten_minutes_and_still_expires": true,
+    });
     std::fs::write(&output, serde_json::to_vec_pretty(&evidence).unwrap()).unwrap();
     drop(a);
     drop(b);

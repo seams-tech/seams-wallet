@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 
 const AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const PUBLIC_LOG_FIELDS = {
+  ml_dsa_admission_stock_v1: ['operation', 'paired', 'minimum', 'stage'],
   ml_dsa_inventory_v1: ['key', 'epoch', 'ready_a', 'ready_b', 'reserved_a', 'reserved_b'],
   ml_dsa_signing_outcome_v1: ['operation', 'outcome'],
   ml_dsa_material_stage_v1: ['operation', 'role', 'value'],
