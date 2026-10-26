@@ -174,7 +174,7 @@ function matchDecodedPhrase(decodedText: string): PhraseRecognition {
 
 /** A local phrase rejection can retry while the original server challenge is valid. */
 export class VoicePhraseMismatchError extends Error {
-  constructor(readonly details: string) {
+  constructor() {
     super('The phrase was not clear. Try the new phrase at your normal pace.');
     this.name = 'VoicePhraseMismatchError';
   }
@@ -182,7 +182,7 @@ export class VoicePhraseMismatchError extends Error {
 
 export type PhraseCheck =
   | { kind: 'matched'; recognition: PhraseRecognition }
-  | { kind: 'mismatch'; recognition: PhraseRecognition; message: string };
+  | { kind: 'mismatch'; recognition: PhraseRecognition };
 
 function recognize(logits: Float32Array, frames: number): PhraseRecognition {
   const greedy: number[] = [];
@@ -246,7 +246,7 @@ export async function checkSpokenPhrase(
       const recognition = recognize(logits.data, logits.dims[1]);
       if (recognition.kind === 'recognized' && recognition.phrase === expected)
         return { kind: 'matched', recognition };
-      return { kind: 'mismatch', recognition, message: phraseFailureMessage(recognition) };
+      return { kind: 'mismatch', recognition };
     } finally {
       for (const output of Object.values(outputs)) {
         output.dispose();
@@ -255,20 +255,4 @@ export async function checkSpokenPhrase(
   } finally {
     input.dispose();
   }
-}
-
-function phraseFailureMessage(result: PhraseRecognition): string {
-  switch (result.kind) {
-    case 'recognized':
-      return `Phrase recognition chose “${result.phrase}”. Model heard: “${result.decodedText}”. Please read the displayed phrase naturally.`;
-    case 'uncertain':
-      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Model heard: “${result.decodedText}”. Text difference ${(result.difference * 100).toFixed(1)}% (maximum ${MAX_TEXT_DIFFERENCE * 100}%). Candidate margin ${(result.margin * 100).toFixed(1)} points (minimum ${MIN_CANDIDATE_MARGIN * 100}). Rejection: ${result.reason}.`;
-    case 'empty':
-      return 'Phrase recognition detected no words. Please try again in your normal voice.';
-    default:
-      return assertNever(result);
-  }
-}
-function assertNever(value: never): never {
-  throw new Error(`Unexpected phrase result: ${String(value)}`);
 }

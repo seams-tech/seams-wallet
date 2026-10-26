@@ -213,8 +213,9 @@ server challenge and expiry timer remain unchanged. Only typed insufficient-audi
 results can take this path. A retry displays a new phrase before capture starts.
 The normal phrase and speaker checks still apply before device-key use.
 
-Recording details show the actual input label, decoded duration, wall-clock
-recording time, stop reason, qualifying frame duration, and peak frame RMS. The
+The prompt shows brief failure guidance and a retry control. It exposes no
+Recording details expander or technical recognition text. Internal measurements
+retain the input label, duration, stop reason, and frame levels for behavior checks. The
 level threshold is 0.006. The quality precheck requires 600 ms of qualifying audio.
 Aurora phrase and B1 speaker thresholds are unchanged. This energy proxy cannot generally separate
 short speech from quiet or suppressed speech. Each measurement has an attempt ID
@@ -225,7 +226,9 @@ and timestamp. No audio or transcript is saved or sent by these diagnostics.
 
 The VoiceID card in Authentication methods shows the enable/disable switch, the
 state in this browser, and **Manage voice**.
-Management requires an enabled VoiceID method and a selected passkey owner session. Use
+Management requires an enabled VoiceID method and an active owner session.
+Each change requires a fresh passkey assertion from the same authority. VoiceID
+can remain selected while that passkey confirms the change. Use
 `registration.getAuthMethodAvailability({ walletId, method: 'voiceid' })` to read
 `not_enrolled`, `enabled`, or `disabled`. Use
 `registration.setAuthMethodEnabled({ walletId, method: 'voiceid', enabled })`
@@ -244,13 +247,13 @@ explicit “Confirm with VoiceID” review button. Capture remains click initiat
 
 Silero VAD adds 2,327,524 bytes, loaded only with VoiceID and cached with integrity
 verification. Browser noise suppression, echo cancellation, and automatic gain
-control remain requested. Recording details show the actual reported settings,
-including unknown settings when the browser does not report them.
+control remain requested. High-noise recordings receive brief retry guidance.
 
 Speech detection replaces volume alone for pause detection and clip qualification.
 It retains the 1.5-second pause and eight-second recording cap. Speech probability
 must reach 0.5 and the original minimum volume must also pass. The speaker
-threshold remains 0.5; the independent phrase-score limit remains 8.
+threshold remains 0.5. Phrase matching retains the bounded text-difference and
+candidate-margin checks described above.
 
 Noise estimates compare frames classified as speech with other frames. They are
 approximate guidance, not a calibrated acoustic SNR or an authorization decision.

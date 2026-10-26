@@ -195,8 +195,6 @@ class VoiceIdCaptureSurface<T> {
         this.activateButton.hidden = false;
         this.activateButton.textContent = 'Try again';
         this.prompt.ready(error.message);
-        if (error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError)
-          this.prompt.showDetails(error.details, attemptedPhrase);
         this.activateButton.focus();
         return;
       }

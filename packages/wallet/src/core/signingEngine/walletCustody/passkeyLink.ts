@@ -70,7 +70,6 @@ function publicKeyCreationOptions(
   };
 }
 
-
 function requireUnlockedCapabilitySource(
   source: WalletCustodySealSourceV1,
 ): UnlockedWalletEd25519ExportRootCapabilityV1 {
@@ -91,8 +90,8 @@ function requireCredentialId(value: string): WebAuthnCredentialIdB64u {
  * Where the seed being resealed comes from.
  *
  * A Passkey source hands over the PRF it just collected. An Email OTP source
- * hands over nothing: its factor secret is already parked in the worker by the
- * unlock that opened this session, so the addition costs no factor release and
+ * uses the custody handle already opened by the selected owner session,
+ * including VoiceID. The addition costs no factor release and
  * no second one-time code. Either way the worker opens the seed and reseals it;
  * only the door differs.
  */

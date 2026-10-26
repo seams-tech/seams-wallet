@@ -39,7 +39,10 @@ hardware-attestation claim. No native host or Keychain is involved.
 The core opens the seed-encrypted NEAR custody cache in the existing Yao WASM
 runtime on the iframe main thread. The custody worker opens the method envelope
 and retains its existing session-scoped custody handle. JavaScript never
-receives the wallet custody seed. Existing workers keep their responsibilities.
+receives the wallet custody seed. An Email OTP proof can authorize adding the first
+passkey while VoiceID remains selected. The existing custody handle reseals the
+seed in the same custody worker. This requires no extra unlock or factor release.
+Existing workers keep their responsibilities.
 
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the

@@ -64,14 +64,19 @@ export async function resolveAddAuthMethodSourceClaimV1(
     ActivePasskeyWalletAuthMethodRecordV2 | ActiveEmailOtpWalletAuthMethodRecordV2;
   if (selected.authMethod.kind === 'voiceid') {
     const methods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
-    const passkey = findAuthorityPasskey(walletId, selected.authority.authorityId, methods);
-    if (!passkey) {
+    const confirmer = findAuthorityConfirmationMethod(
+      walletId,
+      selected.authority.authorityId,
+      methods,
+    );
+    if (!confirmer) {
       return {
         kind: 'unavailable',
-        reason: 'this authority needs an active passkey to confirm the addition',
+        reason:
+          'this authority needs an active passkey or Email OTP method to confirm the addition',
       };
     }
-    sourceAuthMethod = passkey;
+    sourceAuthMethod = confirmer;
   } else {
     sourceAuthMethod = selected.authMethod;
   }
@@ -87,19 +92,34 @@ export async function resolveAddAuthMethodSourceClaimV1(
   };
 }
 
-function findAuthorityPasskey(
+function findAuthorityConfirmationMethod(
   walletId: WalletId,
   authorityId: WalletAuthorityId,
   methods: readonly WalletAuthMethodRecordV2[],
-): ActivePasskeyWalletAuthMethodRecordV2 | null {
+): ActivePasskeyWalletAuthMethodRecordV2 | ActiveEmailOtpWalletAuthMethodRecordV2 | null {
+  let emailMethod: ActiveEmailOtpWalletAuthMethodRecordV2 | null = null;
   for (const method of methods) {
     if (
-      method.kind === 'passkey' &&
-      method.status === 'active' &&
-      method.walletId === walletId &&
-      method.walletAuthorityId === authorityId
+      method.status !== 'active' ||
+      method.walletId !== walletId ||
+      method.walletAuthorityId !== authorityId
     )
-      return method;
+      continue;
+    switch (method.kind) {
+      case 'passkey':
+        return method;
+      case 'email_otp':
+        emailMethod = method;
+        break;
+      case 'voiceid':
+        break;
+      default:
+        return assertNever(method);
+    }
   }
-  return null;
+  return emailMethod;
+}
+
+function assertNever(method: never): never {
+  throw new Error(`Unsupported confirmation method: ${String(method)}`);
 }

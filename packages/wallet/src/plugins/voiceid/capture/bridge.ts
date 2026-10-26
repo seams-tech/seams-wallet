@@ -41,17 +41,10 @@ export async function listenForVoiceApproval(
     case 'mismatch':
       return {
         kind: 'retry',
-        message: new VoiceSpeakerMismatchError(
-          result.similarity,
-          result.threshold,
-          result.quality,
-          result.phraseMatched,
-          result.modelInputMs,
-          result.recognitionDetails,
-        ).message,
+        message: new VoiceSpeakerMismatchError(result.quality).message,
       };
     case 'phrase_mismatch':
-      return { kind: 'retry', message: new VoicePhraseMismatchError(result.message).message };
+      return { kind: 'retry', message: new VoicePhraseMismatchError().message };
     default:
       return assertNever(result);
   }

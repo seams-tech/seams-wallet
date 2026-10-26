@@ -75,10 +75,9 @@ cases above, with repeatable JSON evidence. Finish with an explicit live testnet
 self-transfer and verify its chain receipt. Deterministic RPC tests and live chain
 execution must be labeled separately.
 
-Before SDK 0.24.0, remove the user-facing **Recording details** expander
-and its technical diagnostic text from VoiceID prompts. Keep it during the current
-debugging work. Released prompts retain concise failure guidance and retry controls.
-Update browser checks to verify that the expander is absent from released UI.
+The user-facing **Recording details** expander and technical diagnostic text are
+removed for SDK 0.24.0. Prompts retain concise failure guidance and retry controls.
+Browser checks verify that phrase and speaker failures expose no expander.
 
 ## Results
 

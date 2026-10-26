@@ -133,16 +133,9 @@ async function requireVoiceMatch(
     case 'insufficient_audio':
       throw new InsufficientVoiceAudioError(result.quality);
     case 'mismatch':
-      throw new VoiceSpeakerMismatchError(
-        result.similarity,
-        result.threshold,
-        result.quality,
-        result.phraseMatched,
-        result.modelInputMs,
-        result.recognitionDetails,
-      );
+      throw new VoiceSpeakerMismatchError(result.quality);
     case 'phrase_mismatch':
-      throw new VoicePhraseMismatchError(result.message);
+      throw new VoicePhraseMismatchError();
     default:
       return assertNever(result);
   }

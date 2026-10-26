@@ -144,8 +144,7 @@ class VoiceEnrollmentSurface {
         await assertVoiceOwner(this.plan.scope, this.plan.guard);
         this.status.textContent = 'Checking your voice…';
         const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase);
-        if (phraseCheck.kind === 'mismatch')
-          throw new VoicePhraseMismatchError(phraseCheck.message);
+        if (phraseCheck.kind === 'mismatch') throw new VoicePhraseMismatchError();
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
         pcm.samples.fill(0);
@@ -158,10 +157,6 @@ class VoiceEnrollmentSurface {
         const similarity = voiceSimilarity(this.plan.snapshot.enrollment.baseline, embedding);
         if (similarity < VOICE_MATCH_THRESHOLD) {
           embedding.fill(0);
-          this.prompt.showDetails(
-            `Original similarity ${similarity.toFixed(3)}; required ${VOICE_MATCH_THRESHOLD.toFixed(3)}.`,
-            this.phrase,
-          );
           throw new Error(
             'Your voice did not match the original enrollment. To replace it, return to Manage voice and choose Record voice again.',
           );
@@ -253,8 +248,6 @@ class VoiceEnrollmentSurface {
         this.completion.reject(toError(error));
         return;
       }
-      if (!this.closed && error instanceof VoicePhraseMismatchError)
-        this.prompt.showDetails(error.details, this.phrase);
       if (!this.closed && this.samples.length === 3) this.samples.pop()?.fill(0);
       if (!this.closed)
         this.status.textContent =
@@ -317,16 +310,8 @@ export async function verifyBrowserVoice(
   phrase: SpokenPhrase,
 ): Promise<
   | { kind: 'matched' }
-  | {
-      kind: 'mismatch';
-      similarity: number;
-      threshold: number;
-      quality: VoiceCaptureQuality;
-      phraseMatched: boolean;
-      modelInputMs: number;
-      recognitionDetails: string;
-    }
-  | { kind: 'phrase_mismatch'; message: string }
+  | { kind: 'mismatch'; quality: VoiceCaptureQuality }
+  | { kind: 'phrase_mismatch' }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
 > {
   delete document.body.dataset.voiceVerification;
@@ -379,28 +364,8 @@ export async function verifyBrowserVoice(
       phraseRecognition: phraseCheck.recognition,
       expectedPhrase: phrase,
     });
-    const referenceDetails = `Voice reference: ${referenceKind === 'adapted' ? 'improved' : 'original'}. Original similarity ${baselineSimilarity.toFixed(3)}; active similarity ${similarity.toFixed(3)}; required ${VOICE_MATCH_THRESHOLD.toFixed(3)}. `;
-    const recognitionDetails =
-      referenceDetails +
-      (phraseCheck.kind === 'mismatch' ? phraseCheck.message : 'Phrase matched.');
-    if (similarity < VOICE_MATCH_THRESHOLD)
-      return {
-        kind: 'mismatch',
-        similarity,
-        threshold: VOICE_MATCH_THRESHOLD,
-        quality: pcm.quality,
-        phraseMatched,
-        modelInputMs,
-        recognitionDetails,
-      };
-    return phraseCheck.kind === 'matched'
-      ? { kind: 'matched' }
-      : {
-          kind: 'phrase_mismatch',
-          message:
-            recognitionDetails +
-            ` Model input ${(modelInputMs / 1000).toFixed(2)} s; detected speech ${(pcm.quality.voicedMs / 1000).toFixed(2)} s; background ${pcm.quality.noise}.`,
-        };
+    if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch', quality: pcm.quality };
+    return phraseCheck.kind === 'matched' ? { kind: 'matched' } : { kind: 'phrase_mismatch' };
   } finally {
     pcm.samples.fill(0);
   }

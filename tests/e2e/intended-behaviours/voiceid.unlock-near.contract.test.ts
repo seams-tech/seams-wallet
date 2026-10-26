@@ -110,7 +110,7 @@ async function verifyUnlock(
     'data-voiceid-phrase',
     retryPhrase,
   );
-  await wallet.getByText('Recording details', { exact: true }).click();
+  await expect(wallet.locator('.seams-voiceid-prompt details')).toHaveCount(0);
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('voiceid-quality-retry.png') });
@@ -506,12 +506,19 @@ async function measureColdPreparation(
   expect(loadingCard).not.toBeNull();
   await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-runtime.png') });
   await runtime.finished.promise;
-  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening', { timeout: 20_000 });
+  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveAttribute(
+    'data-capture',
+    'listening',
+    { timeout: 20_000 },
+  );
   const readyCard = await dialog.locator('.seams-voiceid-prompt').boundingBox();
   expect(readyCard).not.toBeNull();
   await expect(dialog.getByText('Secured by', { exact: true })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Back', exact: true })).toBeEnabled();
-  await dialog.screenshot({ path: testInfo.outputPath('voiceid-listening-after-download.png'), animations: 'disabled' });
+  await dialog.screenshot({
+    path: testInfo.outputPath('voiceid-listening-after-download.png'),
+    animations: 'disabled',
+  });
   const readyMs = performance.now() - runtimeStarted;
   expect(readyMs).toBeGreaterThanOrEqual(4_000);
   expect(requests.challenges).toBe(1);

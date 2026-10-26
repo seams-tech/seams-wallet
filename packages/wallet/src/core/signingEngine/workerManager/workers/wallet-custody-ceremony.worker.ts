@@ -1067,13 +1067,12 @@ async function sealEd25519ExportRootForLinkedDevice(
 }
 
 /**
- * Reseals the wallet seed under a new factor from the unlocked capability, for
- * an addition whose source is Email OTP.
+ * Reseals the wallet seed under a new factor from the selected owner session's
+ * unlocked capability. Passkey, Email OTP, and VoiceID unlock can open this handle.
  *
- * The source factor secret is already parked here — an Email unlock left it
- * with the opened handle — so the addition needs no factor release and no
- * second one-time code. The user proves the source freshly to authorize the
- * ceremony; the seed itself comes from the handle that unlock already opened.
+ * A fresh Email OTP proof can authorize adding a passkey while VoiceID remains
+ * selected. The seed comes from the existing handle, so no second unlock or
+ * factor release is needed.
  *
  * The same reseal every other path uses. Nothing new is derived: the handle
  * carries the seed's proof that it reproduces this wallet's key set, and the

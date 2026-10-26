@@ -124,9 +124,8 @@ maximum. The quality precheck requires 600 ms of qualifying audio; phrase and
 speaker checks still decide approval. The level check counts 10 ms frames
 with RMS of at least 0.006; this is an audio-energy proxy, not speech recognition.
 Insufficient audio does not reach phrase matching, speaker matching, or device-key use.
-The prompt displays the measured qualifying duration and offers recording details
-(input label, decoded duration, recording time, stop reason, and peak frame RMS). Metrics carry an attempt ID and
-time and remain in the Wallet UI; audio is not retained. Unlock can retry a typed
+The prompt gives brief guidance for insufficient audio. Internal measurements carry
+an attempt ID and timestamp. Audio is not retained. Unlock can retry a typed
 insufficient-audio result in place with a fresh phrase. Retries preserve the original
 challenge and expiry timer. Cancellation, expiry, and other failures stay terminal.
 Each enrollment, unlock, and signing attempt displays a randomly selected short
@@ -192,8 +191,11 @@ Authentication methods loads the active authority inventory through the selected
 session, including a VoiceID session. A failed inventory request displays an error.
 It cannot present the selected method alone as the complete inventory. A VoiceID
 session with an active passkey can add Email OTP through that passkey's fresh
-addition proof. The intent binds the proving method and authority. It does not
-require an unrelated passkey session or switch the selected authentication method.
+addition proof. A VoiceID session backed by Email OTP can add its first passkey
+with one fresh Email OTP proof. The existing custody handle supplies the seed
+inside the custody worker. The selected VoiceID session remains unchanged.
+The intent binds the proving method and authority. It does not require an unrelated
+passkey session or switch the selected authentication method.
 
 Manage voice shows whether the enrollment is original or improved. An improved
 enrollment shows that its added samples are saved on this device. The dialog shows only
@@ -242,13 +244,13 @@ VoiceBeam glow. They consume the recorder's activity events without opening a
 second microphone or audio graph. Cancel disposes both visuals with the prompt.
 Reduced motion suppresses traveling ribbon motion. The visuals remain inside the
 optional VoiceID module and do not affect authorization decisions.
+Prompts show concise failure guidance and retry controls. They contain no
+Recording details expander or technical recognition text.
 
 The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
 Silero speech detection adds 2,327,524 bytes. It qualifies speech and detects
 pauses using sequential local audio frames. Noise alone must not qualify as
-sufficient speech or unlock the wallet. Recording details report browser audio
-processing settings and approximate speech/background levels. High-noise
-recordings receive brief guidance. Detection is not speaker identification.
+sufficient speech or unlock the wallet. High-noise recordings receive brief guidance. Detection is not speaker identification.
 All three share the inference runtime. Each exact model digest is checked before inference. A progress bar shows downloaded bytes and percentage.
 Verified bytes are saved in Wallet-origin Cache Storage and reused after reload.
 Storage failure allows session-only inference with a visible explanation. Browser
@@ -273,12 +275,10 @@ A different selected phrase, an ambiguous result, or text outside these bounds f
 verification retains its independent similarity threshold of 0.5.
 A local phrase rejection during unlock keeps the prompt open with a fresh phrase
 and an explicit Try again action. The original challenge deadline still applies.
-Recording details expose the recognition diagnostic without crowding the prompt.
 A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.
 Speaker rejection during unlock also stays in the prompt, with the unchanged
-challenge deadline. Recording details open automatically for speaker and phrase rejections. They
-identify the attempted sentence separately from the next retry sentence and show
-similarity, threshold, detected speech, microphone processing, and the phrase result. This does not alter the enrollment.
+challenge deadline. Rejections show concise guidance and a new retry phrase.
+They do not alter the enrollment.
 The decoder scores all bank phrases independently of the expected phrase and rejects
 results too far from unconstrained recognition. A failed phrase check cannot add an
 enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open

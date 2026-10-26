@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "walletId": "vivid-vermillion-d9x8wj",
+  "source": "email_otp",
+  "selectedSession": "voiceid",
+  "emailChallenges": 1,
+  "additionalUnlockRequests": 0,
+  "selectedSessionPreserved": true,
+  "lostFinalizeResponseRecovered": true,
+  "addedPasskeyUnlockedAfterReload": true,
+  "signedWithAddedPasskey": [
+    "near",
+    "tempo"
+  ]
+}

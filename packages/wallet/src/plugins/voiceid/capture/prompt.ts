@@ -9,8 +9,6 @@ import { VoiceVisual } from './visual';
 
 const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; background: transparent; }
-.seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
-.seams-voiceid-recording-details summary { cursor:pointer; }
 
 .seams-voiceid-prompt {
   box-sizing: border-box;
@@ -19,7 +17,7 @@ const CSS = `
   margin: 0 auto;
   padding: 3.5rem 1.5rem 1.5rem;
   display: grid;
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 5rem auto;
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 5rem;
   border: 1px solid var(--seams-colors-borderPrimary, #303b41);
   border-radius: var(--seams-shape-card, 16px);
   background: var(--seams-colors-colorBackground, #192024);
@@ -37,7 +35,6 @@ const CSS = `
 .seams-voiceid-progress-slot { grid-row: 5; grid-column: 1; min-width: 0; align-self: center; }
 .seams-voiceid-progress-slot:empty { visibility: hidden; }
 .seams-voiceid-activation-surface[data-preparation="loading"] .seams-voiceid-record-slot { visibility: hidden; }
-.seams-voiceid-recording-details { grid-row: 6; grid-column: 1; color: var(--seams-colors-textSecondary, #9cabb3); }
 @media (prefers-reduced-motion: reduce) {
   .seams-voiceid-prompt { transform: none; transition: opacity 150ms ease; }
   @starting-style { .seams-voiceid-prompt { transform: none; } }
@@ -333,8 +330,6 @@ export class VoicePrompt {
   readonly cancel: HTMLButtonElement;
   readonly progress: HTMLElement;
   private readonly visual: VoiceVisual;
-  private readonly details: HTMLDetailsElement;
-  private readonly detailText: HTMLParagraphElement;
   private disposed = false;
 
   constructor(
@@ -369,13 +364,6 @@ export class VoicePrompt {
     this.status = document.createElement('p');
     this.status.className = 'seams-voiceid-status';
     this.status.setAttribute('role', 'status');
-    this.details = document.createElement('details');
-    this.details.hidden = true;
-    this.details.className = 'seams-voiceid-recording-details';
-    const summary = document.createElement('summary');
-    summary.textContent = 'Recording details';
-    this.detailText = document.createElement('p');
-    this.details.append(summary, this.detailText);
     this.record = document.createElement('button');
     this.record.type = 'button';
     this.record.className = 'seams-voiceid-primary';
@@ -411,7 +399,6 @@ export class VoicePrompt {
       this.status,
       slot,
       this.progress,
-      this.details,
     );
   }
 
@@ -424,8 +411,6 @@ export class VoicePrompt {
     if (this.disposed) return;
     switch (event.kind) {
       case 'listening':
-        this.details.hidden = true;
-        this.details.open = false;
         delete this.status.dataset.voiceCaptureQuality;
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
@@ -438,11 +423,8 @@ export class VoicePrompt {
       case 'measured': {
         const quality = event.quality;
         this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
-        this.details.hidden =
-          quality.voicedMs >= quality.requiredVoicedMs && quality.noise !== 'high';
         if (quality.noise === 'high')
           this.status.textContent = 'Background noise is high. Move closer to the microphone.';
-        this.detailText.textContent = `Input: ${quality.microphone}. Audio length ${(quality.durationMs / 1_000).toFixed(1)} s; capture ${(quality.recordingMs / 1_000).toFixed(1)} s, ended by ${quality.endedBy}; ${(quality.voicedMs / 1_000).toFixed(2)} s of detected speech. Peak frame level ${quality.peakFrameRms.toFixed(4)}; minimum ${quality.levelThreshold}. Background RMS ${quality.backgroundRms.toFixed(4)}. Speech/background ${quality.speechToBackgroundDb === null ? 'unknown' : quality.speechToBackgroundDb.toFixed(1) + ' dB'}. Browser processing: ${JSON.stringify(quality.processing)}.`;
         return;
       }
       case 'processing':
@@ -455,12 +437,6 @@ export class VoicePrompt {
         return assertNever(event);
     }
   };
-
-  showDetails(message: string, attemptedPhrase: SpokenPhrase): void {
-    this.details.hidden = false;
-    this.details.open = true;
-    this.detailText.textContent = `Attempted sentence: “${attemptedPhrase}”. ${message}`;
-  }
 
   /** Settle the visual when an enrollment sample is accepted. */
   accepted(): void {
@@ -479,7 +455,6 @@ export class VoicePrompt {
     if (this.disposed) return;
     this.element.dataset.capture = 'succeeded';
     this.record.hidden = true;
-    this.details.hidden = true;
     await this.visual.succeed(this.beginSuccess.bind(this, headline, message, area));
   }
 
