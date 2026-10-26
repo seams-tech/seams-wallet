@@ -62,9 +62,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures);
     expect(rpc.transactions).toHaveLength(0);
     await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
-    await expect(
-    page.getByRole('button', { name: 'Continue to wallet', exact: true }),
-  ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
+      0,
+    );
     await expect(
       wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }),
     ).toBeVisible({ timeout: 15_000 });
@@ -76,6 +76,12 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await expect(
       wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }),
     ).toBeEnabled({ timeout: 15_000 });
+    await expect(wallet.locator('.seams-review-amount')).toContainText('0.000000000000000001 USDC');
+    await expect(wallet.getByText('Arc Testnet', { exact: true })).toBeVisible();
+    await expect(wallet.locator('.seams-review-token-fallback')).toHaveCount(0);
+    await wallet
+      .locator('.seams-confirmation-surface')
+      .screenshot({ path: testInfo.outputPath('arc-usdc-review.png') });
     await wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }).click();
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute(
       'data-state',
@@ -93,9 +99,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures + 1);
     await waitForWalletIframeConfirmationSettlement(page);
     await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
-    await expect(
-    page.getByRole('button', { name: 'Continue to wallet', exact: true }),
-  ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
+      0,
+    );
     await expect(wallet.locator('.seams-confirmation-surface')).not.toHaveAttribute('inert', '');
     await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute('data-state', 'failed');

@@ -67,6 +67,8 @@ export function ReviewIcon({
 
 export function reviewNetwork(model: TxDisplayModel | null): string {
   if (!model) return 'Wallet transaction';
+  if (model.chain === 'evm' && model.chainId === 5042) return 'Arc';
+  if (model.chain === 'evm' && model.chainId === 5042002) return 'Arc Testnet';
   if (model.chain === 'evm' && model.chainId === 8453) return 'Base';
   if (model.chain === 'evm' && model.chainId === 84532) return 'Base Sepolia';
   if (model.chain === 'evm' && model.chainId === 1) return 'Ethereum';
@@ -175,6 +177,12 @@ function reviewAmount(model: TxDisplayModel | null): { value: string; symbol: st
   if (!total?.nativeValue) return null;
   if (total.nativeSymbol === 'yoctoNEAR')
     return { value: decimalUnits(total.nativeValue, 24), symbol: 'NEAR' };
+  if (
+    model?.chain === 'evm' &&
+    (model.chainId === 5042 || model.chainId === 5042002) &&
+    total.nativeSymbol === 'wei'
+  )
+    return { value: decimalUnits(total.nativeValue, 18), symbol: 'USDC' };
   // A chain's native denomination cannot be inferred from EVM compatibility alone.
   return { value: total.nativeValue, symbol: total.nativeSymbol ?? '' };
 }
