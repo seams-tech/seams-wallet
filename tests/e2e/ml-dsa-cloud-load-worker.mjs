@@ -2,6 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 
 const AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const PUBLIC_LOG_FIELDS = {
+  ml_dsa_router_trace_v1: ['http_request', 'operation', 'module_instance', 'status', 'milestones'],
+  ml_dsa_benchmark_request_v1: ['wallet', 'request', 'operation', 'stage', 'at_ms', 'http_status'],
   ml_dsa_preparation_cache_v1: [
     'job', 'role', 'producer_slot', 'stage', 'topology_builds', 'topology_hits',
     'public_topology_bytes', 'active_crypto', 'module_instance', 'at_ms',
@@ -151,6 +153,7 @@ export class LoadWallet extends DurableObject {
     const now = Date.now();
     if (state.state === 'in_flight') {
       const interrupted = await this.ctx.storage.get(requestKey(state.sequence));
+      logDriverRequest(interrupted, 'watchdog_interrupted');
       interrupted.status = 'client_error_unknown_server_outcome';
       interrupted.error = 'Interrupted request has an unknown server outcome';
       interrupted.completedAtMs = now;
@@ -240,6 +243,7 @@ export class LoadWallet extends DurableObject {
       alarmLatenessMs: Math.max(0, now - state.nextAt),
       retryDelayMs: 0,
     };
+    logDriverRequest(row, 'created');
     await this.ctx.storage.put({
       wallet: {
         state: 'in_flight',
@@ -261,6 +265,8 @@ export class LoadWallet extends DurableObject {
     });
     await this.ctx.storage.setAlarm(startedAtMs + 60000);
     try {
+      row.forwardAtMs = Date.now();
+      logDriverRequest(row, 'dispatch_started');
       const response = await this.env.TEST_FRONT.fetch('https://test/router-ab/ml-dsa/sign', {
         method: 'POST',
         headers: {
@@ -272,7 +278,10 @@ export class LoadWallet extends DurableObject {
         signal: AbortSignal.timeout(45000),
       });
       row.httpStatus = response.status;
+      row.responseHeadersAtMs = Date.now();
+      logDriverRequest(row, 'response_headers');
       const result = await response.json();
+      logDriverRequest(row, 'response_decoded');
       row.completedAtMs = Date.now();
       row.elapsedMs = row.completedAtMs - startedAtMs;
       row.demandElapsedMs = row.completedAtMs - demandStartAtMs;
@@ -357,6 +366,7 @@ export class LoadWallet extends DurableObject {
       row.demandElapsedMs = row.completedAtMs - demandStartAtMs;
       row.status = 'client_error_unknown_server_outcome';
       row.error = String(error);
+      logDriverRequest(row, 'failed');
       await this.ctx.storage.put(requestKey(sequence), row);
       await this.ctx.storage.put(demandKey(demands), {
         wallet: state.config.index,
@@ -432,6 +442,8 @@ function sanitizeTrace(event) {
     const value = request?.headers?.[name];
     if (typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,128}$/.test(value)) headers[name] = value;
   }
+  const signingOperation = publicSigningOperation(request);
+  if (signingOperation !== null) headers['x-ml-dsa-operation'] = signingOperation;
   const refill = publicRefillHeader(request);
   if (refill !== null) headers['x-ml-dsa-input'] = refill;
   const traceEvent =
@@ -539,6 +551,26 @@ function publicRefillHeader(request) {
         material_expires_at_ms: decoded.material_expires_at_ms,
       }),
     );
+  } catch {
+    return null;
+  }
+}
+
+function logDriverRequest(row, stage) {
+  console.log(JSON.stringify({
+    event: 'ml_dsa_benchmark_request_v1', wallet: row.wallet, request: row.requestId,
+    operation: hex(row.operation), stage, at_ms: Date.now(), http_status: row.httpStatus ?? null,
+  }));
+}
+
+function publicSigningOperation(request) {
+  if (!request || new URL(request.url).pathname !== '/router-ab/ml-dsa/connect') return null;
+  const encoded = request.headers?.['x-ml-dsa-input'];
+  if (typeof encoded !== 'string' || encoded.length > 32768) return null;
+  try {
+    const decoded = JSON.parse(atob(encoded.replaceAll('-', '+').replaceAll('_', '/')));
+    const operation = decoded.permit?.request?.operation;
+    return byteArray(operation, 32) ? hex(operation) : null;
   } catch {
     return null;
   }

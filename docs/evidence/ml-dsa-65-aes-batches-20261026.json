@@ -1,0 +1,5383 @@
+{
+  "schema": "seams.ml-dsa-aes-batches-screen.v1",
+  "base_commit": "ac133fa5a86f7a47f6c37fe4a90f68af2e1e73d1",
+  "selection": {
+    "runtime": "existing software AES and original small buffers",
+    "summary": "Keep the existing software AES runtime. Neither larger-buffer prototype establishes a useful hosted gain. The native path increases published-job CPU. The larger software batches also show no CPU reduction. Both runtime prototypes are removed; their exact sources remain archived. New public benchmark correlation and the corrected activation fixtures remain.",
+    "selected_source_sha256": {
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent.rs": "62ead2ad0162aa3a8771a3a553b80bc6f34ba261dc20a667ae9cbee45ab2c374",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs": "ff60709396f9627819acdae9e7d8dfb0073a6b38486bfc08a0963364b887cda2",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/pprf.rs": "8ef4b951f49f6a1443bfcae7766055562052326f9228fcab651d69c9ec0f4ca0"
+    },
+    "software_prototype_source_sha256": {
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent.rs": "a965585cf7ac5f7765c1e50cf3b2f2f63b54e0599e4cd0a9f43ad03b5fbde33f",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs": "7a792ac711e7049bc56a3834e99fa14395097f66ce5a7b2748c9bb705d6d711e",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/pprf.rs": "515d0aa4a2a07de5d38fb7097a0d22191680e25d0d153c37062504515b66efa4"
+    },
+    "limits": "The final software client has a driver interruption. Its complete throughput remains unqualified. Runtime variation and different rejection counts prevent a causal end-to-end speed estimate."
+  },
+  "constraints": {
+    "preparation": "Cloudflare Workers",
+    "wallet_seed_recovery": true,
+    "standard_fips_export": true,
+    "consumption_candidates": 2,
+    "preparation_candidates": 4,
+    "pool_pairs_per_wallet": 16,
+    "comparison_preparation_slots": 2,
+    "runtime_default_preparation_slots": 1,
+    "refill_retention_ms": 3600000,
+    "gpu": "deferred"
+  },
+  "limits": [
+    "Private Router measurements exclude browser transport and public Gateway approval.",
+    "Successful HTTP latency excludes preceding admission waits.",
+    "Qualified means capture/version/accounting qualification, not universal request success.",
+    "Positive completion receipts do not prove all durable publication outcomes.",
+    "Retired state does not distinguish a physical burn from unlogged consumption.",
+    "No hosted speedup is established by either prototype."
+  ],
+  "phases": [
+    {
+      "phase": "precondition",
+      "verified_client_signatures": 73,
+      "client_functional_passed": true,
+      "successful_http_ms": {
+        "count": 73,
+        "minimum": 552,
+        "median": 1851,
+        "maximum": 6316,
+        "sum": 145516
+      },
+      "successful_demand_ms": {
+        "count": 73,
+        "minimum": 2008,
+        "median": 31902,
+        "maximum": 219594,
+        "sum": 2823157
+      },
+      "empty_pool_responses": 83,
+      "failed_operations": 3,
+      "client_errors": [],
+      "complete_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792981822900,
+        "restored_at_ms": 1792982512823,
+        "restoration_observation_bound_ms": 1792982520930,
+        "after_load_ms": 89923,
+        "verified_signatures": 73,
+        "cycle_ms": 689923,
+        "signatures_per_minute": 6.348534546608825,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "a2c05f82-cc28-4313-a566-4f67adbc2d54",
+          "versions": {
+            "a2c05f82-cc28-4313-a566-4f67adbc2d54": {
+              "invocations": 6674,
+              "first_at_ms": 1792981823141,
+              "last_at_ms": 1792982512794
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "client_functional_passed": true,
+        "qualified": false,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 241,
+          "completion_receipted_pairs_before_restoration": 241,
+          "paired_before_completion_receipt": [],
+          "summary_consumed_pairs": 197,
+          "observed_taken_pairs": 197,
+          "failed_retired_without_observed_take_pairs": 40,
+          "final_pairs": 128,
+          "unaccounted_pairs": [
+            "1f1a84fa65a4bfc899d5907ec0a351b748d50a6e6d2ff41e858439045d664a47",
+            "6a52aa99d478c901ab0cf5036bcd8f7dc916fdc19205d10747155b4d1a8e6a55",
+            "90415b41e0cadbf408e8f369a0140ffb2a8b3825fa37bab377bcb02c964f52b2",
+            "a069364b913cdda86289f6dbee0df212e9ca88b7bc2ec3712639be617752dd55"
+          ],
+          "unexplained_pairs": [],
+          "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+          "complete": false
+        }
+      },
+      "positive_completion_receipt_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 1936,
+              "median": 2011.0,
+              "maximum": 2720
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 4552,
+              "median": 4788.0,
+              "maximum": 6688
+            },
+            "correlations_ms": {
+              "count": 8,
+              "minimum": 3077,
+              "median": 3698.0,
+              "maximum": 5152
+            },
+            "commitments_ms": {
+              "count": 8,
+              "minimum": 8,
+              "median": 13.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 8,
+              "minimum": 414,
+              "median": 494.5,
+              "maximum": 963
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 1936,
+              "median": 2011.0,
+              "maximum": 2720
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "47f458db80bd1046f43c03e28a4cffad"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 1978,
+              "median": 2054.0,
+              "maximum": 2782
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 4289,
+              "median": 4517.0,
+              "maximum": 6161
+            },
+            "correlations_ms": {
+              "count": 8,
+              "minimum": 3077,
+              "median": 3698.0,
+              "maximum": 5152
+            },
+            "commitments_ms": {
+              "count": 8,
+              "minimum": 8,
+              "median": 13.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 8,
+              "minimum": 141,
+              "median": 248.0,
+              "maximum": 749
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 1978,
+              "median": 2054.0,
+              "maximum": 2782
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "019c49651698208127a319f0c6de8a53",
+              "0d09173d4bc13c391c519e1a9493d2e8",
+              "6cdac3df96747a316ae90ef31283290f",
+              "9eb4a97513d6b56771e5742ecf08dd01"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 1936,
+              "median": 2011.0,
+              "maximum": 2720
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 4552,
+              "median": 4788.0,
+              "maximum": 6688
+            },
+            "correlations_ms": {
+              "count": 8,
+              "minimum": 3077,
+              "median": 3698.0,
+              "maximum": 5152
+            },
+            "commitments_ms": {
+              "count": 8,
+              "minimum": 8,
+              "median": 13.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 8,
+              "minimum": 414,
+              "median": 494.5,
+              "maximum": 963
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 1936,
+              "median": 2011.0,
+              "maximum": 2720
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "47f458db80bd1046f43c03e28a4cffad"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 1978,
+              "median": 2054.0,
+              "maximum": 2782
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 4289,
+              "median": 4517.0,
+              "maximum": 6161
+            },
+            "correlations_ms": {
+              "count": 8,
+              "minimum": 3077,
+              "median": 3698.0,
+              "maximum": 5152
+            },
+            "commitments_ms": {
+              "count": 8,
+              "minimum": 8,
+              "median": 13.0,
+              "maximum": 21
+            },
+            "serialized_to_publication_ms": {
+              "count": 8,
+              "minimum": 141,
+              "median": 248.0,
+              "maximum": 749
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 1978,
+              "median": 2054.0,
+              "maximum": 2782
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "019c49651698208127a319f0c6de8a53",
+              "0d09173d4bc13c391c519e1a9493d2e8",
+              "6cdac3df96747a316ae90ef31283290f",
+              "9eb4a97513d6b56771e5742ecf08dd01"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 1939,
+              "median": 2026,
+              "maximum": 2822
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 4551,
+              "median": 4925,
+              "maximum": 6793
+            },
+            "correlations_ms": {
+              "count": 13,
+              "minimum": 2686,
+              "median": 3221,
+              "maximum": 5520
+            },
+            "commitments_ms": {
+              "count": 13,
+              "minimum": 9,
+              "median": 13,
+              "maximum": 1849
+            },
+            "serialized_to_publication_ms": {
+              "count": 13,
+              "minimum": 302,
+              "median": 502,
+              "maximum": 1044
+            },
+            "warm_cpu_ms": {
+              "count": 13,
+              "minimum": 1939,
+              "median": 2026,
+              "maximum": 2822
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "62b60f31e0231abe694e8b3b4bdc6f3b",
+              "ce3b358310f7cfa751813387b1187462"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 2015,
+              "median": 2082,
+              "maximum": 2896
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 4320,
+              "median": 4510,
+              "maximum": 6328
+            },
+            "correlations_ms": {
+              "count": 13,
+              "minimum": 2686,
+              "median": 3221,
+              "maximum": 5520
+            },
+            "commitments_ms": {
+              "count": 13,
+              "minimum": 9,
+              "median": 13,
+              "maximum": 1849
+            },
+            "serialized_to_publication_ms": {
+              "count": 13,
+              "minimum": 124,
+              "median": 201,
+              "maximum": 723
+            },
+            "warm_cpu_ms": {
+              "count": 13,
+              "minimum": 2015,
+              "median": 2082,
+              "maximum": 2896
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "34aeaba726c5915c29617c2d743cc161",
+              "91eac4544f8ea88a2262e96edb899900"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 1939,
+              "median": 2026,
+              "maximum": 2822
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 4551,
+              "median": 4925,
+              "maximum": 6793
+            },
+            "correlations_ms": {
+              "count": 13,
+              "minimum": 2686,
+              "median": 3221,
+              "maximum": 5520
+            },
+            "commitments_ms": {
+              "count": 13,
+              "minimum": 9,
+              "median": 13,
+              "maximum": 1849
+            },
+            "serialized_to_publication_ms": {
+              "count": 13,
+              "minimum": 302,
+              "median": 502,
+              "maximum": 1044
+            },
+            "warm_cpu_ms": {
+              "count": 13,
+              "minimum": 1939,
+              "median": 2026,
+              "maximum": 2822
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "62b60f31e0231abe694e8b3b4bdc6f3b",
+              "ce3b358310f7cfa751813387b1187462"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 2015,
+              "median": 2082,
+              "maximum": 2896
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 4320,
+              "median": 4510,
+              "maximum": 6328
+            },
+            "correlations_ms": {
+              "count": 13,
+              "minimum": 2686,
+              "median": 3221,
+              "maximum": 5520
+            },
+            "commitments_ms": {
+              "count": 13,
+              "minimum": 9,
+              "median": 13,
+              "maximum": 1849
+            },
+            "serialized_to_publication_ms": {
+              "count": 13,
+              "minimum": 124,
+              "median": 201,
+              "maximum": 723
+            },
+            "warm_cpu_ms": {
+              "count": 13,
+              "minimum": 2015,
+              "median": 2082,
+              "maximum": 2896
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "34aeaba726c5915c29617c2d743cc161",
+              "91eac4544f8ea88a2262e96edb899900"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 52,
+            "cpu_ms": {
+              "count": 52,
+              "minimum": 3739,
+              "median": 4012.5,
+              "maximum": 5795
+            },
+            "wall_ms": {
+              "count": 52,
+              "minimum": 8658,
+              "median": 9179.5,
+              "maximum": 13073
+            },
+            "correlations_ms": {
+              "count": 52,
+              "minimum": 6174,
+              "median": 7301.5,
+              "maximum": 11660
+            },
+            "commitments_ms": {
+              "count": 52,
+              "minimum": 16,
+              "median": 32.5,
+              "maximum": 1533
+            },
+            "serialized_to_publication_ms": {
+              "count": 52,
+              "minimum": 486,
+              "median": 877.5,
+              "maximum": 1706
+            },
+            "warm_cpu_ms": {
+              "count": 51,
+              "minimum": 3739,
+              "median": 4009,
+              "maximum": 5795
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 5688,
+              "median": 5688,
+              "maximum": 5688
+            },
+            "module_ids": [
+              "47f458db80bd1046f43c03e28a4cffad"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 52,
+            "cpu_ms": {
+              "count": 52,
+              "minimum": 3779,
+              "median": 4134.0,
+              "maximum": 6056
+            },
+            "wall_ms": {
+              "count": 52,
+              "minimum": 8372,
+              "median": 8810.0,
+              "maximum": 12728
+            },
+            "correlations_ms": {
+              "count": 52,
+              "minimum": 6174,
+              "median": 7301.5,
+              "maximum": 11660
+            },
+            "commitments_ms": {
+              "count": 52,
+              "minimum": 16,
+              "median": 33.0,
+              "maximum": 1533
+            },
+            "serialized_to_publication_ms": {
+              "count": 52,
+              "minimum": 231,
+              "median": 399.0,
+              "maximum": 947
+            },
+            "warm_cpu_ms": {
+              "count": 46,
+              "minimum": 3779,
+              "median": 4132.0,
+              "maximum": 6056
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 4073,
+              "median": 4366.0,
+              "maximum": 5933
+            },
+            "module_ids": [
+              "019c49651698208127a319f0c6de8a53",
+              "0d09173d4bc13c391c519e1a9493d2e8",
+              "24a823097357a2068b5010979c45ab02",
+              "6cdac3df96747a316ae90ef31283290f",
+              "7ce5a7985916ed56ae4fe0f4d98879d8",
+              "9eb4a97513d6b56771e5742ecf08dd01"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 52,
+            "cpu_ms": {
+              "count": 52,
+              "minimum": 3739,
+              "median": 4012.5,
+              "maximum": 5795
+            },
+            "wall_ms": {
+              "count": 52,
+              "minimum": 8658,
+              "median": 9179.5,
+              "maximum": 13073
+            },
+            "correlations_ms": {
+              "count": 52,
+              "minimum": 6174,
+              "median": 7301.5,
+              "maximum": 11660
+            },
+            "commitments_ms": {
+              "count": 52,
+              "minimum": 16,
+              "median": 32.5,
+              "maximum": 1533
+            },
+            "serialized_to_publication_ms": {
+              "count": 52,
+              "minimum": 486,
+              "median": 877.5,
+              "maximum": 1706
+            },
+            "warm_cpu_ms": {
+              "count": 51,
+              "minimum": 3739,
+              "median": 4009,
+              "maximum": 5795
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 5688,
+              "median": 5688,
+              "maximum": 5688
+            },
+            "module_ids": [
+              "47f458db80bd1046f43c03e28a4cffad"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 52,
+            "cpu_ms": {
+              "count": 52,
+              "minimum": 3779,
+              "median": 4134.0,
+              "maximum": 6056
+            },
+            "wall_ms": {
+              "count": 52,
+              "minimum": 8372,
+              "median": 8810.0,
+              "maximum": 12728
+            },
+            "correlations_ms": {
+              "count": 52,
+              "minimum": 6174,
+              "median": 7301.5,
+              "maximum": 11660
+            },
+            "commitments_ms": {
+              "count": 52,
+              "minimum": 16,
+              "median": 33.0,
+              "maximum": 1533
+            },
+            "serialized_to_publication_ms": {
+              "count": 52,
+              "minimum": 231,
+              "median": 399.0,
+              "maximum": 947
+            },
+            "warm_cpu_ms": {
+              "count": 46,
+              "minimum": 3779,
+              "median": 4132.0,
+              "maximum": 6056
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 4073,
+              "median": 4366.0,
+              "maximum": 5933
+            },
+            "module_ids": [
+              "019c49651698208127a319f0c6de8a53",
+              "0d09173d4bc13c391c519e1a9493d2e8",
+              "24a823097357a2068b5010979c45ab02",
+              "6cdac3df96747a316ae90ef31283290f",
+              "7ce5a7985916ed56ae4fe0f4d98879d8",
+              "9eb4a97513d6b56771e5742ecf08dd01"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 44,
+            "cpu_ms": {
+              "count": 44,
+              "minimum": 3761,
+              "median": 4033.5,
+              "maximum": 5677
+            },
+            "wall_ms": {
+              "count": 44,
+              "minimum": 8640,
+              "median": 9380.0,
+              "maximum": 16672
+            },
+            "correlations_ms": {
+              "count": 44,
+              "minimum": 6266,
+              "median": 7443.5,
+              "maximum": 11115
+            },
+            "commitments_ms": {
+              "count": 44,
+              "minimum": 17,
+              "median": 29.5,
+              "maximum": 2085
+            },
+            "serialized_to_publication_ms": {
+              "count": 44,
+              "minimum": 494,
+              "median": 938.5,
+              "maximum": 1775
+            },
+            "warm_cpu_ms": {
+              "count": 42,
+              "minimum": 3761,
+              "median": 4029.5,
+              "maximum": 5677
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4358,
+              "median": 4381.0,
+              "maximum": 4404
+            },
+            "module_ids": [
+              "62b60f31e0231abe694e8b3b4bdc6f3b",
+              "ce3b358310f7cfa751813387b1187462"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 44,
+            "cpu_ms": {
+              "count": 44,
+              "minimum": 3943,
+              "median": 4172.0,
+              "maximum": 5970
+            },
+            "wall_ms": {
+              "count": 44,
+              "minimum": 8389,
+              "median": 9027.5,
+              "maximum": 12445
+            },
+            "correlations_ms": {
+              "count": 44,
+              "minimum": 6266,
+              "median": 7443.5,
+              "maximum": 11115
+            },
+            "commitments_ms": {
+              "count": 44,
+              "minimum": 18,
+              "median": 30.0,
+              "maximum": 2085
+            },
+            "serialized_to_publication_ms": {
+              "count": 44,
+              "minimum": 236,
+              "median": 454.5,
+              "maximum": 1371
+            },
+            "warm_cpu_ms": {
+              "count": 42,
+              "minimum": 3943,
+              "median": 4159.0,
+              "maximum": 5970
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4462,
+              "median": 4565.5,
+              "maximum": 4669
+            },
+            "module_ids": [
+              "34aeaba726c5915c29617c2d743cc161",
+              "91eac4544f8ea88a2262e96edb899900"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 44,
+            "cpu_ms": {
+              "count": 44,
+              "minimum": 3761,
+              "median": 4033.5,
+              "maximum": 5677
+            },
+            "wall_ms": {
+              "count": 44,
+              "minimum": 8640,
+              "median": 9380.0,
+              "maximum": 16672
+            },
+            "correlations_ms": {
+              "count": 44,
+              "minimum": 6266,
+              "median": 7443.5,
+              "maximum": 11115
+            },
+            "commitments_ms": {
+              "count": 44,
+              "minimum": 17,
+              "median": 29.5,
+              "maximum": 2085
+            },
+            "serialized_to_publication_ms": {
+              "count": 44,
+              "minimum": 494,
+              "median": 938.5,
+              "maximum": 1775
+            },
+            "warm_cpu_ms": {
+              "count": 42,
+              "minimum": 3761,
+              "median": 4029.5,
+              "maximum": 5677
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4358,
+              "median": 4381.0,
+              "maximum": 4404
+            },
+            "module_ids": [
+              "62b60f31e0231abe694e8b3b4bdc6f3b",
+              "ce3b358310f7cfa751813387b1187462"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 44,
+            "cpu_ms": {
+              "count": 44,
+              "minimum": 3943,
+              "median": 4172.0,
+              "maximum": 5970
+            },
+            "wall_ms": {
+              "count": 44,
+              "minimum": 8389,
+              "median": 9027.5,
+              "maximum": 12445
+            },
+            "correlations_ms": {
+              "count": 44,
+              "minimum": 6266,
+              "median": 7443.5,
+              "maximum": 11115
+            },
+            "commitments_ms": {
+              "count": 44,
+              "minimum": 18,
+              "median": 30.0,
+              "maximum": 2085
+            },
+            "serialized_to_publication_ms": {
+              "count": 44,
+              "minimum": 236,
+              "median": 454.5,
+              "maximum": 1371
+            },
+            "warm_cpu_ms": {
+              "count": 42,
+              "minimum": 3943,
+              "median": 4159.0,
+              "maximum": 5970
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4462,
+              "median": 4565.5,
+              "maximum": 4669
+            },
+            "module_ids": [
+              "34aeaba726c5915c29617c2d743cc161",
+              "91eac4544f8ea88a2262e96edb899900"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "pool_target_respected": true,
+      "authority_version_coverage_complete": true,
+      "trace_coverage_complete": true
+    },
+    {
+      "phase": "control",
+      "verified_client_signatures": 46,
+      "client_functional_passed": true,
+      "successful_http_ms": {
+        "count": 46,
+        "minimum": 810,
+        "median": 1726.0,
+        "maximum": 5128,
+        "sum": 89639
+      },
+      "successful_demand_ms": {
+        "count": 46,
+        "minimum": 1758,
+        "median": 21939.5,
+        "maximum": 50029,
+        "sum": 1017771
+      },
+      "empty_pool_responses": 9,
+      "failed_operations": 1,
+      "client_errors": [],
+      "complete_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792982617601,
+        "restored_at_ms": 1792983117423,
+        "restoration_observation_bound_ms": 1792983137356,
+        "after_load_ms": 139822,
+        "verified_signatures": 46,
+        "cycle_ms": 499822,
+        "signatures_per_minute": 5.52196581983186,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "a2c05f82-cc28-4313-a566-4f67adbc2d54",
+          "versions": {
+            "a2c05f82-cc28-4313-a566-4f67adbc2d54": {
+              "invocations": 3716,
+              "first_at_ms": 1792982617826,
+              "last_at_ms": 1792983117405
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "client_functional_passed": true,
+        "qualified": true,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 113,
+          "completion_receipted_pairs_before_restoration": 113,
+          "paired_before_completion_receipt": [],
+          "summary_consumed_pairs": 97,
+          "observed_taken_pairs": 97,
+          "failed_retired_without_observed_take_pairs": 16,
+          "final_pairs": 128,
+          "unaccounted_pairs": [],
+          "unexplained_pairs": [],
+          "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+          "complete": true
+        }
+      },
+      "positive_completion_receipt_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 11,
+            "cpu_ms": {
+              "count": 11,
+              "minimum": 138,
+              "median": 1873,
+              "maximum": 3035
+            },
+            "wall_ms": {
+              "count": 11,
+              "minimum": 1161,
+              "median": 4492,
+              "maximum": 7402
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 2815,
+              "median": 4780,
+              "maximum": 6064
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 13,
+              "median": 18,
+              "maximum": 33
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 308,
+              "median": 418,
+              "maximum": 943
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 1873,
+              "median": 1929,
+              "maximum": 2749
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3021,
+              "median": 3028.0,
+              "maximum": 3035
+            },
+            "module_ids": [
+              "5ff15e1ded98da7471d7e1fc0acc96bb",
+              "7c4905897c741f1c2c408df195545cfd",
+              "879db3e1bf040fe471e54e6f598723bf",
+              "8a830d316d27d00ee15eb15a46c4b368",
+              "c20c6f052bcbf4f035ddeecad10b7bce",
+              "c89be12d631e5cd516e9a28a89df67d1",
+              "e182783bac7a1c8e070d52bffacf016f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 11,
+            "cpu_ms": {
+              "count": 11,
+              "minimum": 138,
+              "median": 1895,
+              "maximum": 3208
+            },
+            "wall_ms": {
+              "count": 11,
+              "minimum": 324,
+              "median": 4176,
+              "maximum": 6764
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 2815,
+              "median": 4780,
+              "maximum": 6064
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 13,
+              "median": 18,
+              "maximum": 33
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 119,
+              "median": 165,
+              "maximum": 375
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 1895,
+              "median": 1945,
+              "maximum": 2844
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3191,
+              "median": 3199.5,
+              "maximum": 3208
+            },
+            "module_ids": [
+              "0e79aa837ad742f0e2b6017a912f0f5a",
+              "17079f911e2f1cb85c68516957a50657",
+              "1780758244475894274e46edfb71b31e",
+              "223d6050b5fea1eda2e56a3d8c887399",
+              "27aaf2fd8606970771ff120636912c29",
+              "3a643bef603e06ac39e064b168b6d780",
+              "7fd4d6afd7671683cc7aafbe9c27b27e",
+              "884ccd08b3b927d7eb4c4525ed873308",
+              "c4dedc9301a9e14229f1539852d6a7c7"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 6
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 1873,
+              "median": 2749,
+              "maximum": 3035
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 4492,
+              "median": 6496,
+              "maximum": 7402
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 2815,
+              "median": 4780,
+              "maximum": 6064
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 13,
+              "median": 18,
+              "maximum": 33
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 308,
+              "median": 418,
+              "maximum": 943
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 1873,
+              "median": 1929,
+              "maximum": 2749
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3021,
+              "median": 3028.0,
+              "maximum": 3035
+            },
+            "module_ids": [
+              "5ff15e1ded98da7471d7e1fc0acc96bb",
+              "7c4905897c741f1c2c408df195545cfd",
+              "c20c6f052bcbf4f035ddeecad10b7bce"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 1895,
+              "median": 2844,
+              "maximum": 3208
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 4176,
+              "median": 6246,
+              "maximum": 6764
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 2815,
+              "median": 4780,
+              "maximum": 6064
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 13,
+              "median": 18,
+              "maximum": 33
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 119,
+              "median": 165,
+              "maximum": 375
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 1895,
+              "median": 1945,
+              "maximum": 2844
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3191,
+              "median": 3199.5,
+              "maximum": 3208
+            },
+            "module_ids": [
+              "17079f911e2f1cb85c68516957a50657",
+              "223d6050b5fea1eda2e56a3d8c887399",
+              "27aaf2fd8606970771ff120636912c29"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/failed": {
+          "a": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 138,
+              "median": 338.5,
+              "maximum": 2622
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 1161,
+              "median": 2000.0,
+              "maximum": 6976
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "5ff15e1ded98da7471d7e1fc0acc96bb",
+              "879db3e1bf040fe471e54e6f598723bf",
+              "8a830d316d27d00ee15eb15a46c4b368",
+              "c20c6f052bcbf4f035ddeecad10b7bce",
+              "c89be12d631e5cd516e9a28a89df67d1",
+              "e182783bac7a1c8e070d52bffacf016f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 138,
+              "median": 402.5,
+              "maximum": 2668
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 324,
+              "median": 801.0,
+              "maximum": 5414
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "0e79aa837ad742f0e2b6017a912f0f5a",
+              "1780758244475894274e46edfb71b31e",
+              "3a643bef603e06ac39e064b168b6d780",
+              "7fd4d6afd7671683cc7aafbe9c27b27e",
+              "884ccd08b3b927d7eb4c4525ed873308",
+              "c4dedc9301a9e14229f1539852d6a7c7"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 6
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 14,
+            "cpu_ms": {
+              "count": 14,
+              "minimum": 1905,
+              "median": 2029.5,
+              "maximum": 2721
+            },
+            "wall_ms": {
+              "count": 14,
+              "minimum": 4481,
+              "median": 5016.0,
+              "maximum": 19441
+            },
+            "correlations_ms": {
+              "count": 14,
+              "minimum": 2954,
+              "median": 3768.5,
+              "maximum": 4989
+            },
+            "commitments_ms": {
+              "count": 14,
+              "minimum": 7,
+              "median": 11.5,
+              "maximum": 20
+            },
+            "serialized_to_publication_ms": {
+              "count": 14,
+              "minimum": 266,
+              "median": 474.5,
+              "maximum": 15913
+            },
+            "warm_cpu_ms": {
+              "count": 12,
+              "minimum": 1905,
+              "median": 2010.5,
+              "maximum": 2721
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2231,
+              "median": 2240.5,
+              "maximum": 2250
+            },
+            "module_ids": [
+              "392806ec7e8b8a30c6f9c79ec11eeb6f",
+              "c8cd6a8b76cfdb53c15d9434a6b77d86"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 14,
+            "cpu_ms": {
+              "count": 14,
+              "minimum": 1962,
+              "median": 2102.0,
+              "maximum": 2822
+            },
+            "wall_ms": {
+              "count": 14,
+              "minimum": 4187,
+              "median": 4701.5,
+              "maximum": 19129
+            },
+            "correlations_ms": {
+              "count": 14,
+              "minimum": 2954,
+              "median": 3768.5,
+              "maximum": 4989
+            },
+            "commitments_ms": {
+              "count": 14,
+              "minimum": 7,
+              "median": 11.5,
+              "maximum": 20
+            },
+            "serialized_to_publication_ms": {
+              "count": 14,
+              "minimum": 127,
+              "median": 240.5,
+              "maximum": 460
+            },
+            "warm_cpu_ms": {
+              "count": 12,
+              "minimum": 1962,
+              "median": 2083.0,
+              "maximum": 2822
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2269,
+              "median": 2308.5,
+              "maximum": 2348
+            },
+            "module_ids": [
+              "6e41fd82f0b2ee41f2850ffc22c3ac3a",
+              "972754c0c5739bf4c5c8db36f8efb196"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 14,
+            "cpu_ms": {
+              "count": 14,
+              "minimum": 1905,
+              "median": 2029.5,
+              "maximum": 2721
+            },
+            "wall_ms": {
+              "count": 14,
+              "minimum": 4481,
+              "median": 5016.0,
+              "maximum": 19441
+            },
+            "correlations_ms": {
+              "count": 14,
+              "minimum": 2954,
+              "median": 3768.5,
+              "maximum": 4989
+            },
+            "commitments_ms": {
+              "count": 14,
+              "minimum": 7,
+              "median": 11.5,
+              "maximum": 20
+            },
+            "serialized_to_publication_ms": {
+              "count": 14,
+              "minimum": 266,
+              "median": 474.5,
+              "maximum": 15913
+            },
+            "warm_cpu_ms": {
+              "count": 12,
+              "minimum": 1905,
+              "median": 2010.5,
+              "maximum": 2721
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2231,
+              "median": 2240.5,
+              "maximum": 2250
+            },
+            "module_ids": [
+              "392806ec7e8b8a30c6f9c79ec11eeb6f",
+              "c8cd6a8b76cfdb53c15d9434a6b77d86"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 14,
+            "cpu_ms": {
+              "count": 14,
+              "minimum": 1962,
+              "median": 2102.0,
+              "maximum": 2822
+            },
+            "wall_ms": {
+              "count": 14,
+              "minimum": 4187,
+              "median": 4701.5,
+              "maximum": 19129
+            },
+            "correlations_ms": {
+              "count": 14,
+              "minimum": 2954,
+              "median": 3768.5,
+              "maximum": 4989
+            },
+            "commitments_ms": {
+              "count": 14,
+              "minimum": 7,
+              "median": 11.5,
+              "maximum": 20
+            },
+            "serialized_to_publication_ms": {
+              "count": 14,
+              "minimum": 127,
+              "median": 240.5,
+              "maximum": 460
+            },
+            "warm_cpu_ms": {
+              "count": 12,
+              "minimum": 1962,
+              "median": 2083.0,
+              "maximum": 2822
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 2269,
+              "median": 2308.5,
+              "maximum": 2348
+            },
+            "module_ids": [
+              "6e41fd82f0b2ee41f2850ffc22c3ac3a",
+              "972754c0c5739bf4c5c8db36f8efb196"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 133,
+              "median": 3674,
+              "maximum": 4113
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 937,
+              "median": 8578,
+              "maximum": 10425
+            },
+            "correlations_ms": {
+              "count": 7,
+              "minimum": 6306,
+              "median": 7375,
+              "maximum": 7862
+            },
+            "commitments_ms": {
+              "count": 7,
+              "minimum": 22,
+              "median": 24,
+              "maximum": 739
+            },
+            "serialized_to_publication_ms": {
+              "count": 7,
+              "minimum": 587,
+              "median": 1229,
+              "maximum": 2286
+            },
+            "warm_cpu_ms": {
+              "count": 6,
+              "minimum": 3674,
+              "median": 3901.0,
+              "maximum": 4092
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4113,
+              "median": 4113,
+              "maximum": 4113
+            },
+            "module_ids": [
+              "5ab35a200a29388fb60afcd1e7ede25c",
+              "5ff15e1ded98da7471d7e1fc0acc96bb",
+              "7c4905897c741f1c2c408df195545cfd",
+              "c20c6f052bcbf4f035ddeecad10b7bce"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 13,
+            "cpu_ms": {
+              "count": 13,
+              "minimum": 125,
+              "median": 3933,
+              "maximum": 4276
+            },
+            "wall_ms": {
+              "count": 13,
+              "minimum": 295,
+              "median": 7905,
+              "maximum": 9627
+            },
+            "correlations_ms": {
+              "count": 7,
+              "minimum": 6306,
+              "median": 7375,
+              "maximum": 7862
+            },
+            "commitments_ms": {
+              "count": 7,
+              "minimum": 23,
+              "median": 24,
+              "maximum": 739
+            },
+            "serialized_to_publication_ms": {
+              "count": 7,
+              "minimum": 268,
+              "median": 368,
+              "maximum": 891
+            },
+            "warm_cpu_ms": {
+              "count": 5,
+              "minimum": 3746,
+              "median": 3957,
+              "maximum": 4217
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4098,
+              "median": 4187.0,
+              "maximum": 4276
+            },
+            "module_ids": [
+              "17079f911e2f1cb85c68516957a50657",
+              "27aaf2fd8606970771ff120636912c29",
+              "3c52016c6fe80a9e960739a9bb207f49",
+              "452df47d935e82420c35520bd762c40e",
+              "570a22a7ce57bef4bf36462c33f240ea",
+              "646f59cd3195316668fdf1bef4a03b96",
+              "d3592ebcc151775ff57f4ad083476dfb",
+              "f940f02690792feb9227e0d05ffc1349"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 6
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 7,
+            "cpu_ms": {
+              "count": 7,
+              "minimum": 3674,
+              "median": 3946,
+              "maximum": 4113
+            },
+            "wall_ms": {
+              "count": 7,
+              "minimum": 8126,
+              "median": 9293,
+              "maximum": 10425
+            },
+            "correlations_ms": {
+              "count": 7,
+              "minimum": 6306,
+              "median": 7375,
+              "maximum": 7862
+            },
+            "commitments_ms": {
+              "count": 7,
+              "minimum": 22,
+              "median": 24,
+              "maximum": 739
+            },
+            "serialized_to_publication_ms": {
+              "count": 7,
+              "minimum": 587,
+              "median": 1229,
+              "maximum": 2286
+            },
+            "warm_cpu_ms": {
+              "count": 6,
+              "minimum": 3674,
+              "median": 3901.0,
+              "maximum": 4092
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4113,
+              "median": 4113,
+              "maximum": 4113
+            },
+            "module_ids": [
+              "7c4905897c741f1c2c408df195545cfd"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 7,
+            "cpu_ms": {
+              "count": 7,
+              "minimum": 3746,
+              "median": 4044,
+              "maximum": 4276
+            },
+            "wall_ms": {
+              "count": 7,
+              "minimum": 7905,
+              "median": 8935,
+              "maximum": 9627
+            },
+            "correlations_ms": {
+              "count": 7,
+              "minimum": 6306,
+              "median": 7375,
+              "maximum": 7862
+            },
+            "commitments_ms": {
+              "count": 7,
+              "minimum": 23,
+              "median": 24,
+              "maximum": 739
+            },
+            "serialized_to_publication_ms": {
+              "count": 7,
+              "minimum": 268,
+              "median": 368,
+              "maximum": 891
+            },
+            "warm_cpu_ms": {
+              "count": 5,
+              "minimum": 3746,
+              "median": 3957,
+              "maximum": 4217
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4098,
+              "median": 4187.0,
+              "maximum": 4276
+            },
+            "module_ids": [
+              "17079f911e2f1cb85c68516957a50657",
+              "3c52016c6fe80a9e960739a9bb207f49"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/failed": {
+          "a": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 133,
+              "median": 656.0,
+              "maximum": 3671
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 937,
+              "median": 2369.0,
+              "maximum": 8578
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "5ab35a200a29388fb60afcd1e7ede25c",
+              "5ff15e1ded98da7471d7e1fc0acc96bb",
+              "c20c6f052bcbf4f035ddeecad10b7bce"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 125,
+              "median": 767.5,
+              "maximum": 3933
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 295,
+              "median": 1616.5,
+              "maximum": 7790
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "27aaf2fd8606970771ff120636912c29",
+              "452df47d935e82420c35520bd762c40e",
+              "570a22a7ce57bef4bf36462c33f240ea",
+              "646f59cd3195316668fdf1bef4a03b96",
+              "d3592ebcc151775ff57f4ad083476dfb",
+              "f940f02690792feb9227e0d05ffc1349"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 6
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 3822,
+              "median": 3993,
+              "maximum": 5568
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 8717,
+              "median": 9446,
+              "maximum": 12621
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6153,
+              "median": 7595,
+              "maximum": 10736
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 18,
+              "median": 34,
+              "maximum": 1333
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 487,
+              "median": 924,
+              "maximum": 1979
+            },
+            "warm_cpu_ms": {
+              "count": 18,
+              "minimum": 3822,
+              "median": 3984.0,
+              "maximum": 5568
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4160,
+              "median": 4160,
+              "maximum": 4160
+            },
+            "module_ids": [
+              "392806ec7e8b8a30c6f9c79ec11eeb6f",
+              "bfe4777876e5f94e4e093d6a8deeb136",
+              "c8cd6a8b76cfdb53c15d9434a6b77d86"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 3991,
+              "median": 4132,
+              "maximum": 5853
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 8440,
+              "median": 9011,
+              "maximum": 12371
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6153,
+              "median": 7595,
+              "maximum": 10736
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 18,
+              "median": 35,
+              "maximum": 1333
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 217,
+              "median": 470,
+              "maximum": 701
+            },
+            "warm_cpu_ms": {
+              "count": 18,
+              "minimum": 3991,
+              "median": 4128.5,
+              "maximum": 5853
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4361,
+              "median": 4361,
+              "maximum": 4361
+            },
+            "module_ids": [
+              "6e41fd82f0b2ee41f2850ffc22c3ac3a",
+              "972754c0c5739bf4c5c8db36f8efb196",
+              "bcbedcf848bf761bbf50ad98a27cd284"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 3822,
+              "median": 3993,
+              "maximum": 5568
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 8717,
+              "median": 9446,
+              "maximum": 12621
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6153,
+              "median": 7595,
+              "maximum": 10736
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 18,
+              "median": 34,
+              "maximum": 1333
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 487,
+              "median": 924,
+              "maximum": 1979
+            },
+            "warm_cpu_ms": {
+              "count": 18,
+              "minimum": 3822,
+              "median": 3984.0,
+              "maximum": 5568
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4160,
+              "median": 4160,
+              "maximum": 4160
+            },
+            "module_ids": [
+              "392806ec7e8b8a30c6f9c79ec11eeb6f",
+              "bfe4777876e5f94e4e093d6a8deeb136",
+              "c8cd6a8b76cfdb53c15d9434a6b77d86"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 3991,
+              "median": 4132,
+              "maximum": 5853
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 8440,
+              "median": 9011,
+              "maximum": 12371
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6153,
+              "median": 7595,
+              "maximum": 10736
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 18,
+              "median": 35,
+              "maximum": 1333
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 217,
+              "median": 470,
+              "maximum": 701
+            },
+            "warm_cpu_ms": {
+              "count": 18,
+              "minimum": 3991,
+              "median": 4128.5,
+              "maximum": 5853
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 4361,
+              "median": 4361,
+              "maximum": 4361
+            },
+            "module_ids": [
+              "6e41fd82f0b2ee41f2850ffc22c3ac3a",
+              "972754c0c5739bf4c5c8db36f8efb196",
+              "bcbedcf848bf761bbf50ad98a27cd284"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "pool_target_respected": true,
+      "authority_version_coverage_complete": true,
+      "trace_coverage_complete": true
+    },
+    {
+      "phase": "candidate",
+      "verified_client_signatures": 32,
+      "client_functional_passed": false,
+      "successful_http_ms": {
+        "count": 32,
+        "minimum": 605,
+        "median": 2119.0,
+        "maximum": 5129,
+        "sum": 72708
+      },
+      "successful_demand_ms": {
+        "count": 32,
+        "minimum": 2184,
+        "median": 19835.5,
+        "maximum": 120111,
+        "sum": 804288
+      },
+      "empty_pool_responses": 200,
+      "failed_operations": 2,
+      "client_errors": [
+        {
+          "wallet": 0,
+          "error": "Interrupted request has an unknown server outcome"
+        }
+      ],
+      "complete_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792983526089,
+        "restored_at_ms": 1792984109399,
+        "restoration_observation_bound_ms": 1792984144594,
+        "after_load_ms": 223310,
+        "verified_signatures": 32,
+        "cycle_ms": 583310,
+        "signatures_per_minute": 3.291560233837925,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "b0887a5b-d69c-45bc-8aa9-4d4aae8ec2f1",
+          "versions": {
+            "b0887a5b-d69c-45bc-8aa9-4d4aae8ec2f1": {
+              "invocations": 4466,
+              "first_at_ms": 1792983526329,
+              "last_at_ms": 1792984109398
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "client_functional_passed": false,
+        "qualified": false,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 119,
+          "completion_receipted_pairs_before_restoration": 119,
+          "paired_before_completion_receipt": [],
+          "summary_consumed_pairs": 96,
+          "observed_taken_pairs": 96,
+          "failed_retired_without_observed_take_pairs": 23,
+          "final_pairs": 128,
+          "unaccounted_pairs": [],
+          "unexplained_pairs": [],
+          "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+          "complete": true
+        }
+      },
+      "positive_completion_receipt_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 2568,
+              "median": 3275.5,
+              "maximum": 4366
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 6464,
+              "median": 8051.5,
+              "maximum": 9773
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5144,
+              "median": 6369,
+              "maximum": 7746
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 12,
+              "median": 20,
+              "maximum": 94
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 431,
+              "median": 710,
+              "maximum": 1169
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 3270,
+              "median": 3281,
+              "maximum": 4366
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "77259bdc3e25b870996482e3e9288b37"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 2527,
+              "median": 3352.5,
+              "maximum": 4197
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 5451,
+              "median": 7422.5,
+              "maximum": 9393
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5144,
+              "median": 6369,
+              "maximum": 7746
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 12,
+              "median": 20,
+              "maximum": 94
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 185,
+              "median": 219,
+              "maximum": 838
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 4197,
+              "median": 4197,
+              "maximum": 4197
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3294,
+              "median": 3352.5,
+              "maximum": 3411
+            },
+            "module_ids": [
+              "07e1af1006447cfa9ac4f7c6f1c19d60",
+              "c90b7c876b01e79fa9b7918221da2bf0",
+              "ed001d462615ceeae43632ea7d83fa57",
+              "f70dfee80ea61b9a62ae86d42906fba3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 1
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 3270,
+              "median": 3281,
+              "maximum": 4366
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 8014,
+              "median": 8089,
+              "maximum": 9773
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5144,
+              "median": 6369,
+              "maximum": 7746
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 12,
+              "median": 20,
+              "maximum": 94
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 431,
+              "median": 710,
+              "maximum": 1169
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 3270,
+              "median": 3281,
+              "maximum": 4366
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "77259bdc3e25b870996482e3e9288b37"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 3294,
+              "median": 3411,
+              "maximum": 4197
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 7403,
+              "median": 7442,
+              "maximum": 9393
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5144,
+              "median": 6369,
+              "maximum": 7746
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 12,
+              "median": 20,
+              "maximum": 94
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 185,
+              "median": 219,
+              "maximum": 838
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 4197,
+              "median": 4197,
+              "maximum": 4197
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3294,
+              "median": 3352.5,
+              "maximum": 3411
+            },
+            "module_ids": [
+              "07e1af1006447cfa9ac4f7c6f1c19d60",
+              "ed001d462615ceeae43632ea7d83fa57",
+              "f70dfee80ea61b9a62ae86d42906fba3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/failed": {
+          "a": {
+            "count": 1,
+            "cpu_ms": {
+              "count": 1,
+              "minimum": 2568,
+              "median": 2568,
+              "maximum": 2568
+            },
+            "wall_ms": {
+              "count": 1,
+              "minimum": 6464,
+              "median": 6464,
+              "maximum": 6464
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "77259bdc3e25b870996482e3e9288b37"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 1,
+            "cpu_ms": {
+              "count": 1,
+              "minimum": 2527,
+              "median": 2527,
+              "maximum": 2527
+            },
+            "wall_ms": {
+              "count": 1,
+              "minimum": 5451,
+              "median": 5451,
+              "maximum": 5451
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "c90b7c876b01e79fa9b7918221da2bf0"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 1
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 3004,
+              "median": 3511,
+              "maximum": 4774
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 6669,
+              "median": 9413,
+              "maximum": 11020
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5935,
+              "median": 6921,
+              "maximum": 8078
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 8,
+              "median": 18,
+              "maximum": 19
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 346,
+              "median": 512,
+              "maximum": 766
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 3004,
+              "median": 3004,
+              "maximum": 3004
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3511,
+              "median": 4142.5,
+              "maximum": 4774
+            },
+            "module_ids": [
+              "183b6f0861cc4bfda70075828b9b5cb7",
+              "f709cdc59f32a514067fbf38e9d3f7cb"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2897,
+              "median": 3408,
+              "maximum": 4529
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 6432,
+              "median": 8684,
+              "maximum": 10190
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5935,
+              "median": 6921,
+              "maximum": 8078
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 8,
+              "median": 18,
+              "maximum": 19
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 178,
+              "median": 203,
+              "maximum": 206
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2897,
+              "median": 2897,
+              "maximum": 2897
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3408,
+              "median": 3968.5,
+              "maximum": 4529
+            },
+            "module_ids": [
+              "092d430875972d5979f07cb80b0f0894",
+              "fdc8482bae6c56d5b8bfac93532b2647"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 3004,
+              "median": 3511,
+              "maximum": 4774
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 6669,
+              "median": 9413,
+              "maximum": 11020
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5935,
+              "median": 6921,
+              "maximum": 8078
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 8,
+              "median": 18,
+              "maximum": 19
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 346,
+              "median": 512,
+              "maximum": 766
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 3004,
+              "median": 3004,
+              "maximum": 3004
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3511,
+              "median": 4142.5,
+              "maximum": 4774
+            },
+            "module_ids": [
+              "183b6f0861cc4bfda70075828b9b5cb7",
+              "f709cdc59f32a514067fbf38e9d3f7cb"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2897,
+              "median": 3408,
+              "maximum": 4529
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 6432,
+              "median": 8684,
+              "maximum": 10190
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 5935,
+              "median": 6921,
+              "maximum": 8078
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 8,
+              "median": 18,
+              "maximum": 19
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 178,
+              "median": 203,
+              "maximum": 206
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2897,
+              "median": 2897,
+              "maximum": 2897
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 3408,
+              "median": 3968.5,
+              "maximum": 4529
+            },
+            "module_ids": [
+              "092d430875972d5979f07cb80b0f0894",
+              "fdc8482bae6c56d5b8bfac93532b2647"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 380,
+              "median": 6091,
+              "maximum": 8540
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 1977,
+              "median": 14011,
+              "maximum": 19372
+            },
+            "correlations_ms": {
+              "count": 11,
+              "minimum": 10141,
+              "median": 11739,
+              "maximum": 16920
+            },
+            "commitments_ms": {
+              "count": 11,
+              "minimum": 23,
+              "median": 77,
+              "maximum": 1845
+            },
+            "serialized_to_publication_ms": {
+              "count": 11,
+              "minimum": 462,
+              "median": 982,
+              "maximum": 1883
+            },
+            "warm_cpu_ms": {
+              "count": 9,
+              "minimum": 6076,
+              "median": 6377,
+              "maximum": 8540
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 6309,
+              "median": 6429.0,
+              "maximum": 6549
+            },
+            "module_ids": [
+              "0cede70cc87a203b795ac81e06cc27ac",
+              "77259bdc3e25b870996482e3e9288b37",
+              "8513d743f4bc93cb0843d41cceb52843",
+              "f6dee54b7a9241e792dee89faa071b1c",
+              "fd327e39e4f7ac662a5b800293bd5d58"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 467,
+              "median": 5911,
+              "maximum": 8818
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 952,
+              "median": 13508,
+              "maximum": 18569
+            },
+            "correlations_ms": {
+              "count": 11,
+              "minimum": 10141,
+              "median": 11739,
+              "maximum": 16920
+            },
+            "commitments_ms": {
+              "count": 11,
+              "minimum": 24,
+              "median": 77,
+              "maximum": 1846
+            },
+            "serialized_to_publication_ms": {
+              "count": 11,
+              "minimum": 228,
+              "median": 398,
+              "maximum": 930
+            },
+            "warm_cpu_ms": {
+              "count": 5,
+              "minimum": 5890,
+              "median": 6140,
+              "maximum": 6414
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 5911,
+              "median": 6334.0,
+              "maximum": 8818
+            },
+            "module_ids": [
+              "23b59bf0f1b6027f264ff1957a674412",
+              "33064b8ac6d42cc71b66d2223b04592c",
+              "39bd54eb4d6e0e0287ba518e47a9a7bb",
+              "430ab1494cc0b37dd2f9cb108ef9250b",
+              "71d6645d9a191698b00bc5b8cbdfe1cc",
+              "77dca23a7b36cd5ef7078ce450552704",
+              "806250ce3462ee810ef7c8dd220e31b3",
+              "91601b60e05035f3bffca0b8308a5866",
+              "a72ff2bfdaf917e2c55e9296594dc413",
+              "c81778e5c874cab47d00c23978ce7878",
+              "d75beeaf71a60012ede78704f10b1b14",
+              "ed001d462615ceeae43632ea7d83fa57",
+              "ed1344782ebbc2ab365039afbadc0bfe"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 8
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 11,
+            "cpu_ms": {
+              "count": 11,
+              "minimum": 6076,
+              "median": 6377,
+              "maximum": 8540
+            },
+            "wall_ms": {
+              "count": 11,
+              "minimum": 13244,
+              "median": 14354,
+              "maximum": 19372
+            },
+            "correlations_ms": {
+              "count": 11,
+              "minimum": 10141,
+              "median": 11739,
+              "maximum": 16920
+            },
+            "commitments_ms": {
+              "count": 11,
+              "minimum": 23,
+              "median": 77,
+              "maximum": 1845
+            },
+            "serialized_to_publication_ms": {
+              "count": 11,
+              "minimum": 462,
+              "median": 982,
+              "maximum": 1883
+            },
+            "warm_cpu_ms": {
+              "count": 9,
+              "minimum": 6076,
+              "median": 6377,
+              "maximum": 8540
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 6309,
+              "median": 6429.0,
+              "maximum": 6549
+            },
+            "module_ids": [
+              "77259bdc3e25b870996482e3e9288b37",
+              "f6dee54b7a9241e792dee89faa071b1c"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 11,
+            "cpu_ms": {
+              "count": 11,
+              "minimum": 5890,
+              "median": 6161,
+              "maximum": 8818
+            },
+            "wall_ms": {
+              "count": 11,
+              "minimum": 12930,
+              "median": 13735,
+              "maximum": 18569
+            },
+            "correlations_ms": {
+              "count": 11,
+              "minimum": 10141,
+              "median": 11739,
+              "maximum": 16920
+            },
+            "commitments_ms": {
+              "count": 11,
+              "minimum": 24,
+              "median": 77,
+              "maximum": 1846
+            },
+            "serialized_to_publication_ms": {
+              "count": 11,
+              "minimum": 228,
+              "median": 398,
+              "maximum": 930
+            },
+            "warm_cpu_ms": {
+              "count": 5,
+              "minimum": 5890,
+              "median": 6140,
+              "maximum": 6414
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 5911,
+              "median": 6334.0,
+              "maximum": 8818
+            },
+            "module_ids": [
+              "23b59bf0f1b6027f264ff1957a674412",
+              "71d6645d9a191698b00bc5b8cbdfe1cc",
+              "91601b60e05035f3bffca0b8308a5866",
+              "a72ff2bfdaf917e2c55e9296594dc413",
+              "ed001d462615ceeae43632ea7d83fa57",
+              "ed1344782ebbc2ab365039afbadc0bfe"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/failed": {
+          "a": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 380,
+              "median": 1067.5,
+              "maximum": 3621
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 1977,
+              "median": 3063.5,
+              "maximum": 8887
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "0cede70cc87a203b795ac81e06cc27ac",
+              "77259bdc3e25b870996482e3e9288b37",
+              "8513d743f4bc93cb0843d41cceb52843",
+              "fd327e39e4f7ac662a5b800293bd5d58"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 8,
+            "cpu_ms": {
+              "count": 8,
+              "minimum": 467,
+              "median": 1052.5,
+              "maximum": 3668
+            },
+            "wall_ms": {
+              "count": 8,
+              "minimum": 952,
+              "median": 2318.0,
+              "maximum": 7707
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "33064b8ac6d42cc71b66d2223b04592c",
+              "39bd54eb4d6e0e0287ba518e47a9a7bb",
+              "430ab1494cc0b37dd2f9cb108ef9250b",
+              "71d6645d9a191698b00bc5b8cbdfe1cc",
+              "77dca23a7b36cd5ef7078ce450552704",
+              "806250ce3462ee810ef7c8dd220e31b3",
+              "c81778e5c874cab47d00c23978ce7878",
+              "d75beeaf71a60012ede78704f10b1b14"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 8
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 17,
+            "cpu_ms": {
+              "count": 17,
+              "minimum": 6112,
+              "median": 6316,
+              "maximum": 9960
+            },
+            "wall_ms": {
+              "count": 17,
+              "minimum": 13330,
+              "median": 14356,
+              "maximum": 21081
+            },
+            "correlations_ms": {
+              "count": 17,
+              "minimum": 10572,
+              "median": 12222,
+              "maximum": 18529
+            },
+            "commitments_ms": {
+              "count": 17,
+              "minimum": 22,
+              "median": 35,
+              "maximum": 2062
+            },
+            "serialized_to_publication_ms": {
+              "count": 17,
+              "minimum": 414,
+              "median": 1070,
+              "maximum": 1705
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 6112,
+              "median": 6300.5,
+              "maximum": 9960
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 6568,
+              "median": 6568,
+              "maximum": 6568
+            },
+            "module_ids": [
+              "058c737f74774ec88c51ffc3cdd2cd4f",
+              "183b6f0861cc4bfda70075828b9b5cb7",
+              "f709cdc59f32a514067fbf38e9d3f7cb"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 17,
+            "cpu_ms": {
+              "count": 17,
+              "minimum": 5829,
+              "median": 6082,
+              "maximum": 9294
+            },
+            "wall_ms": {
+              "count": 17,
+              "minimum": 13047,
+              "median": 13934,
+              "maximum": 20761
+            },
+            "correlations_ms": {
+              "count": 17,
+              "minimum": 10572,
+              "median": 12222,
+              "maximum": 18529
+            },
+            "commitments_ms": {
+              "count": 17,
+              "minimum": 23,
+              "median": 35,
+              "maximum": 2062
+            },
+            "serialized_to_publication_ms": {
+              "count": 17,
+              "minimum": 198,
+              "median": 574,
+              "maximum": 1082
+            },
+            "warm_cpu_ms": {
+              "count": 15,
+              "minimum": 5829,
+              "median": 6073,
+              "maximum": 9294
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 6270,
+              "median": 6442.5,
+              "maximum": 6615
+            },
+            "module_ids": [
+              "092d430875972d5979f07cb80b0f0894",
+              "4f31de74a4e0369cbe65597b792bc3dd",
+              "ec0a31f898a617b006efd83f10372a08",
+              "fdc8482bae6c56d5b8bfac93532b2647"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 17,
+            "cpu_ms": {
+              "count": 17,
+              "minimum": 6112,
+              "median": 6316,
+              "maximum": 9960
+            },
+            "wall_ms": {
+              "count": 17,
+              "minimum": 13330,
+              "median": 14356,
+              "maximum": 21081
+            },
+            "correlations_ms": {
+              "count": 17,
+              "minimum": 10572,
+              "median": 12222,
+              "maximum": 18529
+            },
+            "commitments_ms": {
+              "count": 17,
+              "minimum": 22,
+              "median": 35,
+              "maximum": 2062
+            },
+            "serialized_to_publication_ms": {
+              "count": 17,
+              "minimum": 414,
+              "median": 1070,
+              "maximum": 1705
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 6112,
+              "median": 6300.5,
+              "maximum": 9960
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 6568,
+              "median": 6568,
+              "maximum": 6568
+            },
+            "module_ids": [
+              "058c737f74774ec88c51ffc3cdd2cd4f",
+              "183b6f0861cc4bfda70075828b9b5cb7",
+              "f709cdc59f32a514067fbf38e9d3f7cb"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 17,
+            "cpu_ms": {
+              "count": 17,
+              "minimum": 5829,
+              "median": 6082,
+              "maximum": 9294
+            },
+            "wall_ms": {
+              "count": 17,
+              "minimum": 13047,
+              "median": 13934,
+              "maximum": 20761
+            },
+            "correlations_ms": {
+              "count": 17,
+              "minimum": 10572,
+              "median": 12222,
+              "maximum": 18529
+            },
+            "commitments_ms": {
+              "count": 17,
+              "minimum": 23,
+              "median": 35,
+              "maximum": 2062
+            },
+            "serialized_to_publication_ms": {
+              "count": 17,
+              "minimum": 198,
+              "median": 574,
+              "maximum": 1082
+            },
+            "warm_cpu_ms": {
+              "count": 15,
+              "minimum": 5829,
+              "median": 6073,
+              "maximum": 9294
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 6270,
+              "median": 6442.5,
+              "maximum": 6615
+            },
+            "module_ids": [
+              "092d430875972d5979f07cb80b0f0894",
+              "4f31de74a4e0369cbe65597b792bc3dd",
+              "ec0a31f898a617b006efd83f10372a08",
+              "fdc8482bae6c56d5b8bfac93532b2647"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "pool_target_respected": true,
+      "authority_version_coverage_complete": true,
+      "trace_coverage_complete": true
+    },
+    {
+      "phase": "software-precondition",
+      "verified_client_signatures": 63,
+      "client_functional_passed": true,
+      "successful_http_ms": {
+        "count": 63,
+        "minimum": 510,
+        "median": 1869,
+        "maximum": 19564,
+        "sum": 149433
+      },
+      "successful_demand_ms": {
+        "count": 63,
+        "minimum": 1409,
+        "median": 22132,
+        "maximum": 242301,
+        "sum": 1997010
+      },
+      "empty_pool_responses": 388,
+      "failed_operations": 3,
+      "client_errors": [],
+      "complete_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792986241815,
+        "restored_at_ms": 1792987028190,
+        "restoration_observation_bound_ms": 1792987047505,
+        "after_load_ms": 186375,
+        "verified_signatures": 63,
+        "cycle_ms": 786375,
+        "signatures_per_minute": 4.8068669527897,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "7cddff92-4653-49bf-b533-0e3393b9c093",
+          "versions": {
+            "7cddff92-4653-49bf-b533-0e3393b9c093": {
+              "invocations": 7620,
+              "first_at_ms": 1792986242020,
+              "last_at_ms": 1792987028181
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "client_functional_passed": true,
+        "qualified": false,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 195,
+          "completion_receipted_pairs_before_restoration": 193,
+          "paired_before_completion_receipt": [
+            "0da022fb83dc0d385cbef4c1a63b1f83e4d399b024b03f506fb4b86f8b6df067",
+            "7a6749f5ec17ee72bd3c832658fa3f5233ef831c1aa7bd0a037dd081ebc19960"
+          ],
+          "summary_consumed_pairs": 179,
+          "observed_taken_pairs": 179,
+          "failed_retired_without_observed_take_pairs": 15,
+          "final_pairs": 128,
+          "unaccounted_pairs": [
+            "849b28528c49bd47bcea8873a597ff7b217bc833fd38f373d991cee53aedec30"
+          ],
+          "unexplained_pairs": [],
+          "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+          "complete": false
+        }
+      },
+      "positive_completion_receipt_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 518,
+              "median": 1318.5,
+              "maximum": 2125
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 1897,
+              "median": 3503.5,
+              "maximum": 5667
+            },
+            "correlations_ms": {
+              "count": 2,
+              "minimum": 3582,
+              "median": 3633.0,
+              "maximum": 3684
+            },
+            "commitments_ms": {
+              "count": 2,
+              "minimum": 821,
+              "median": 862.5,
+              "maximum": 904
+            },
+            "serialized_to_publication_ms": {
+              "count": 2,
+              "minimum": 324,
+              "median": 327.0,
+              "maximum": 330
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 2111,
+              "median": 2118.0,
+              "maximum": 2125
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "745d0f77c00d4d6527b9a833fa110857",
+              "dbc417fea520369fb49af70cd9a9c01a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 6,
+            "cpu_ms": {
+              "count": 6,
+              "minimum": 666,
+              "median": 1438.0,
+              "maximum": 2513
+            },
+            "wall_ms": {
+              "count": 6,
+              "minimum": 1292,
+              "median": 2831.5,
+              "maximum": 5068
+            },
+            "correlations_ms": {
+              "count": 2,
+              "minimum": 3582,
+              "median": 3633.0,
+              "maximum": 3684
+            },
+            "commitments_ms": {
+              "count": 2,
+              "minimum": 821,
+              "median": 862.5,
+              "maximum": 904
+            },
+            "serialized_to_publication_ms": {
+              "count": 2,
+              "minimum": 135,
+              "median": 157.0,
+              "maximum": 179
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2191,
+              "median": 2191,
+              "maximum": 2191
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2513,
+              "median": 2513,
+              "maximum": 2513
+            },
+            "module_ids": [
+              "31469a4717c11f52f77ee4e2970a4858",
+              "69eea4e20503145aee34a085826d23b6",
+              "bb456608cae45050c1aac150157ea0c4",
+              "c28fe22c97297691d3642b415e3dd27b",
+              "c5e5287c05c81ce30bc527540e4157c5",
+              "eb28dbd9a38e58f8833dde4486a57f1f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 4
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 2,
+            "cpu_ms": {
+              "count": 2,
+              "minimum": 2111,
+              "median": 2118.0,
+              "maximum": 2125
+            },
+            "wall_ms": {
+              "count": 2,
+              "minimum": 4952,
+              "median": 5309.5,
+              "maximum": 5667
+            },
+            "correlations_ms": {
+              "count": 2,
+              "minimum": 3582,
+              "median": 3633.0,
+              "maximum": 3684
+            },
+            "commitments_ms": {
+              "count": 2,
+              "minimum": 821,
+              "median": 862.5,
+              "maximum": 904
+            },
+            "serialized_to_publication_ms": {
+              "count": 2,
+              "minimum": 324,
+              "median": 327.0,
+              "maximum": 330
+            },
+            "warm_cpu_ms": {
+              "count": 2,
+              "minimum": 2111,
+              "median": 2118.0,
+              "maximum": 2125
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "745d0f77c00d4d6527b9a833fa110857"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 2,
+            "cpu_ms": {
+              "count": 2,
+              "minimum": 2191,
+              "median": 2352.0,
+              "maximum": 2513
+            },
+            "wall_ms": {
+              "count": 2,
+              "minimum": 4707,
+              "median": 4887.5,
+              "maximum": 5068
+            },
+            "correlations_ms": {
+              "count": 2,
+              "minimum": 3582,
+              "median": 3633.0,
+              "maximum": 3684
+            },
+            "commitments_ms": {
+              "count": 2,
+              "minimum": 821,
+              "median": 862.5,
+              "maximum": 904
+            },
+            "serialized_to_publication_ms": {
+              "count": 2,
+              "minimum": 135,
+              "median": 157.0,
+              "maximum": 179
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2191,
+              "median": 2191,
+              "maximum": 2191
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2513,
+              "median": 2513,
+              "maximum": 2513
+            },
+            "module_ids": [
+              "69eea4e20503145aee34a085826d23b6",
+              "bb456608cae45050c1aac150157ea0c4"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/failed": {
+          "a": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 518,
+              "median": 794.5,
+              "maximum": 1592
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 1897,
+              "median": 2449.5,
+              "maximum": 4032
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "745d0f77c00d4d6527b9a833fa110857",
+              "dbc417fea520369fb49af70cd9a9c01a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 4,
+            "cpu_ms": {
+              "count": 4,
+              "minimum": 666,
+              "median": 982.0,
+              "maximum": 1630
+            },
+            "wall_ms": {
+              "count": 4,
+              "minimum": 1292,
+              "median": 1829.0,
+              "maximum": 3301
+            },
+            "correlations_ms": {
+              "count": 0
+            },
+            "commitments_ms": {
+              "count": 0
+            },
+            "serialized_to_publication_ms": {
+              "count": 0
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "31469a4717c11f52f77ee4e2970a4858",
+              "c28fe22c97297691d3642b415e3dd27b",
+              "c5e5287c05c81ce30bc527540e4157c5",
+              "eb28dbd9a38e58f8833dde4486a57f1f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 4
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2060,
+              "median": 2121,
+              "maximum": 2151
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 4897,
+              "median": 4904,
+              "maximum": 4954
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 3511,
+              "median": 4140,
+              "maximum": 4232
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 7,
+              "median": 11,
+              "maximum": 12
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 281,
+              "median": 337,
+              "maximum": 419
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 2060,
+              "median": 2121,
+              "maximum": 2151
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "a40ed52c26cc0725345d9da62625053c"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2092,
+              "median": 2102,
+              "maximum": 2205
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 4494,
+              "median": 4613,
+              "maximum": 4684
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 3511,
+              "median": 4140,
+              "maximum": 4232
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 7,
+              "median": 11,
+              "maximum": 12
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 103,
+              "median": 133,
+              "maximum": 157
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 2092,
+              "median": 2102,
+              "maximum": 2205
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "8a3649d8d1dc7e67c53ab3e208dc1b97"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2060,
+              "median": 2121,
+              "maximum": 2151
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 4897,
+              "median": 4904,
+              "maximum": 4954
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 3511,
+              "median": 4140,
+              "maximum": 4232
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 7,
+              "median": 11,
+              "maximum": 12
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 281,
+              "median": 337,
+              "maximum": 419
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 2060,
+              "median": 2121,
+              "maximum": 2151
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "a40ed52c26cc0725345d9da62625053c"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 3,
+            "cpu_ms": {
+              "count": 3,
+              "minimum": 2092,
+              "median": 2102,
+              "maximum": 2205
+            },
+            "wall_ms": {
+              "count": 3,
+              "minimum": 4494,
+              "median": 4613,
+              "maximum": 4684
+            },
+            "correlations_ms": {
+              "count": 3,
+              "minimum": 3511,
+              "median": 4140,
+              "maximum": 4232
+            },
+            "commitments_ms": {
+              "count": 3,
+              "minimum": 7,
+              "median": 11,
+              "maximum": 12
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 103,
+              "median": 133,
+              "maximum": 157
+            },
+            "warm_cpu_ms": {
+              "count": 3,
+              "minimum": 2092,
+              "median": 2102,
+              "maximum": 2205
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "8a3649d8d1dc7e67c53ab3e208dc1b97"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 41,
+            "cpu_ms": {
+              "count": 41,
+              "minimum": 50,
+              "median": 4083,
+              "maximum": 5636
+            },
+            "wall_ms": {
+              "count": 41,
+              "minimum": 1098,
+              "median": 9618,
+              "maximum": 20075
+            },
+            "correlations_ms": {
+              "count": 25,
+              "minimum": 6824,
+              "median": 7874,
+              "maximum": 10192
+            },
+            "commitments_ms": {
+              "count": 25,
+              "minimum": 21,
+              "median": 33,
+              "maximum": 1723
+            },
+            "serialized_to_publication_ms": {
+              "count": 22,
+              "minimum": 376,
+              "median": 922.0,
+              "maximum": 1972
+            },
+            "warm_cpu_ms": {
+              "count": 19,
+              "minimum": 3958,
+              "median": 4121,
+              "maximum": 5329
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 4106,
+              "median": 4553.0,
+              "maximum": 5636
+            },
+            "module_ids": [
+              "160a85654caa8a52566a28f30645474a",
+              "211122f7de44c3598adc9248deb3cf10",
+              "2382c535121d6f8f08cc6ab16641a551",
+              "267a909f5e5a388d4f3df6120bffed41",
+              "745d0f77c00d4d6527b9a833fa110857",
+              "dbc417fea520369fb49af70cd9a9c01a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 41,
+            "cpu_ms": {
+              "count": 41,
+              "minimum": 198,
+              "median": 4389,
+              "maximum": 5993
+            },
+            "wall_ms": {
+              "count": 41,
+              "minimum": 334,
+              "median": 9028,
+              "maximum": 14250
+            },
+            "correlations_ms": {
+              "count": 25,
+              "minimum": 6824,
+              "median": 7874,
+              "maximum": 10192
+            },
+            "commitments_ms": {
+              "count": 25,
+              "minimum": 21,
+              "median": 34,
+              "maximum": 1723
+            },
+            "serialized_to_publication_ms": {
+              "count": 24,
+              "minimum": 151,
+              "median": 387.5,
+              "maximum": 1244
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 4162,
+              "median": 4417.5,
+              "maximum": 5417
+            },
+            "cold_cpu_ms": {
+              "count": 17,
+              "minimum": 4389,
+              "median": 4606,
+              "maximum": 5993
+            },
+            "module_ids": [
+              "10284a0031378eb8213a3d649f055db8",
+              "10c11a6f29ad75397e7f0cc02ba33c22",
+              "135abb61561713371b16fc409faa8835",
+              "1b764a369603dc837f8903265aa7a032",
+              "2d0dcd9bf758349e28894f258c962993",
+              "359b0c9ce8660cbe72ce6f86f0a7abbc",
+              "3e1c675fcae58b351e23805980b8d34c",
+              "44b26528bf336990d444b25835d1989b",
+              "4f0395d24d2985a3858c9aed5b006cae",
+              "51baaaa812567d0a6abd4369b1dfaab8",
+              "760f54ae90e592d4fea3e3a40ef2b905",
+              "7feaf4679a4b9ded2502086c0f329444",
+              "8550af502c14c9c2010f83e0590955c9",
+              "88c356c848ae2cc2906ab08d0f544982",
+              "adc32942df08fd1bd0a3a194d4b6e8bb",
+              "b6f097aed7381b0a640e8d078a7f04ef",
+              "b8edeadf7681380565dbc2f20558e7b9",
+              "bb456608cae45050c1aac150157ea0c4",
+              "bc85460683ad8917bdb0bca822039796",
+              "c05a1452ab578f1748735fa2e1fbad0e",
+              "c0b3c0cafdd8ced04e3f3ec89f06916a",
+              "c20c605f0d8a63635cc8901cb332c353",
+              "c331445f0be5a1c7002097e95e292f8d",
+              "c65eb792acdeffb72be2dc118e13103d",
+              "cb6562de7d365d38f44c72c72f3b8144",
+              "ce50252de3d0fff346783dcfda6e5a7c",
+              "da032bcaa8c0b0209a2101f5694dd35f",
+              "e48f0f61e0eb906f5ea21c2ee73a7119",
+              "e7c23d97b77541d143c2b90c69d6dd8c",
+              "e8719aae7b2d594733ce6fc83c0696ec",
+              "eab50f76336ae6e10f64f5387e42b642"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 20
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 21,
+            "cpu_ms": {
+              "count": 21,
+              "minimum": 3958,
+              "median": 4254,
+              "maximum": 5636
+            },
+            "wall_ms": {
+              "count": 21,
+              "minimum": 9181,
+              "median": 10206,
+              "maximum": 13313
+            },
+            "correlations_ms": {
+              "count": 21,
+              "minimum": 6824,
+              "median": 7983,
+              "maximum": 10192
+            },
+            "commitments_ms": {
+              "count": 21,
+              "minimum": 21,
+              "median": 40,
+              "maximum": 1723
+            },
+            "serialized_to_publication_ms": {
+              "count": 21,
+              "minimum": 376,
+              "median": 851,
+              "maximum": 1972
+            },
+            "warm_cpu_ms": {
+              "count": 15,
+              "minimum": 3958,
+              "median": 4087,
+              "maximum": 5329
+            },
+            "cold_cpu_ms": {
+              "count": 6,
+              "minimum": 4106,
+              "median": 4553.0,
+              "maximum": 5636
+            },
+            "module_ids": [
+              "160a85654caa8a52566a28f30645474a",
+              "211122f7de44c3598adc9248deb3cf10",
+              "2382c535121d6f8f08cc6ab16641a551",
+              "267a909f5e5a388d4f3df6120bffed41",
+              "745d0f77c00d4d6527b9a833fa110857",
+              "dbc417fea520369fb49af70cd9a9c01a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 21,
+            "cpu_ms": {
+              "count": 21,
+              "minimum": 4162,
+              "median": 4616,
+              "maximum": 5993
+            },
+            "wall_ms": {
+              "count": 21,
+              "minimum": 8925,
+              "median": 9626,
+              "maximum": 12366
+            },
+            "correlations_ms": {
+              "count": 21,
+              "minimum": 6824,
+              "median": 7983,
+              "maximum": 10192
+            },
+            "commitments_ms": {
+              "count": 21,
+              "minimum": 21,
+              "median": 41,
+              "maximum": 1723
+            },
+            "serialized_to_publication_ms": {
+              "count": 21,
+              "minimum": 151,
+              "median": 391,
+              "maximum": 1244
+            },
+            "warm_cpu_ms": {
+              "count": 8,
+              "minimum": 4162,
+              "median": 4417.5,
+              "maximum": 5417
+            },
+            "cold_cpu_ms": {
+              "count": 13,
+              "minimum": 4389,
+              "median": 4621,
+              "maximum": 5993
+            },
+            "module_ids": [
+              "10c11a6f29ad75397e7f0cc02ba33c22",
+              "2d0dcd9bf758349e28894f258c962993",
+              "3e1c675fcae58b351e23805980b8d34c",
+              "44b26528bf336990d444b25835d1989b",
+              "4f0395d24d2985a3858c9aed5b006cae",
+              "bb456608cae45050c1aac150157ea0c4",
+              "c05a1452ab578f1748735fa2e1fbad0e",
+              "c0b3c0cafdd8ced04e3f3ec89f06916a",
+              "cb6562de7d365d38f44c72c72f3b8144",
+              "e48f0f61e0eb906f5ea21c2ee73a7119",
+              "e7c23d97b77541d143c2b90c69d6dd8c",
+              "e8719aae7b2d594733ce6fc83c0696ec",
+              "eab50f76336ae6e10f64f5387e42b642"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/failed": {
+          "a": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 50,
+              "median": 2881.0,
+              "maximum": 4204
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 1098,
+              "median": 6985.0,
+              "maximum": 20075
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 7468,
+              "median": 7690.5,
+              "maximum": 7874
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 26,
+              "median": 30.5,
+              "maximum": 1042
+            },
+            "serialized_to_publication_ms": {
+              "count": 1,
+              "minimum": 1081,
+              "median": 1081,
+              "maximum": 1081
+            },
+            "warm_cpu_ms": {
+              "count": 4,
+              "minimum": 4100,
+              "median": 4129.0,
+              "maximum": 4204
+            },
+            "cold_cpu_ms": {
+              "count": 0
+            },
+            "module_ids": [
+              "160a85654caa8a52566a28f30645474a",
+              "211122f7de44c3598adc9248deb3cf10",
+              "745d0f77c00d4d6527b9a833fa110857",
+              "dbc417fea520369fb49af70cd9a9c01a"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 20,
+            "cpu_ms": {
+              "count": 20,
+              "minimum": 198,
+              "median": 3111.5,
+              "maximum": 4651
+            },
+            "wall_ms": {
+              "count": 20,
+              "minimum": 334,
+              "median": 6124.0,
+              "maximum": 14250
+            },
+            "correlations_ms": {
+              "count": 4,
+              "minimum": 7468,
+              "median": 7690.5,
+              "maximum": 7874
+            },
+            "commitments_ms": {
+              "count": 4,
+              "minimum": 27,
+              "median": 31.0,
+              "maximum": 1042
+            },
+            "serialized_to_publication_ms": {
+              "count": 3,
+              "minimum": 163,
+              "median": 169,
+              "maximum": 419
+            },
+            "warm_cpu_ms": {
+              "count": 0
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 4574,
+              "median": 4602.0,
+              "maximum": 4651
+            },
+            "module_ids": [
+              "10284a0031378eb8213a3d649f055db8",
+              "135abb61561713371b16fc409faa8835",
+              "1b764a369603dc837f8903265aa7a032",
+              "359b0c9ce8660cbe72ce6f86f0a7abbc",
+              "51baaaa812567d0a6abd4369b1dfaab8",
+              "760f54ae90e592d4fea3e3a40ef2b905",
+              "7feaf4679a4b9ded2502086c0f329444",
+              "8550af502c14c9c2010f83e0590955c9",
+              "88c356c848ae2cc2906ab08d0f544982",
+              "adc32942df08fd1bd0a3a194d4b6e8bb",
+              "b6f097aed7381b0a640e8d078a7f04ef",
+              "b8edeadf7681380565dbc2f20558e7b9",
+              "bb456608cae45050c1aac150157ea0c4",
+              "bc85460683ad8917bdb0bca822039796",
+              "c20c605f0d8a63635cc8901cb332c353",
+              "c331445f0be5a1c7002097e95e292f8d",
+              "c65eb792acdeffb72be2dc118e13103d",
+              "ce50252de3d0fff346783dcfda6e5a7c",
+              "da032bcaa8c0b0209a2101f5694dd35f",
+              "eab50f76336ae6e10f64f5387e42b642"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 20
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 4006,
+              "median": 4277.0,
+              "maximum": 5854
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 8862,
+              "median": 10124.5,
+              "maximum": 23867
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 6680,
+              "median": 8105.5,
+              "maximum": 11483
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 22,
+              "median": 30.0,
+              "maximum": 1682
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 497,
+              "median": 1030.0,
+              "maximum": 10767
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 4006,
+              "median": 4275,
+              "maximum": 5854
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4446,
+              "median": 4447,
+              "maximum": 5117
+            },
+            "module_ids": [
+              "3075eadc40a6b343fde81a358bcd4f9a",
+              "42cdf8871aab47eead667f68ba3d1b6d",
+              "a40ed52c26cc0725345d9da62625053c"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 4132,
+              "median": 4427.0,
+              "maximum": 6402
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 8620,
+              "median": 9742.5,
+              "maximum": 23543
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 6680,
+              "median": 8105.5,
+              "maximum": 11483
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 23,
+              "median": 32.0,
+              "maximum": 1683
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 207,
+              "median": 470.5,
+              "maximum": 10483
+            },
+            "warm_cpu_ms": {
+              "count": 38,
+              "minimum": 4132,
+              "median": 4393.0,
+              "maximum": 6137
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 4560,
+              "median": 4944.0,
+              "maximum": 6402
+            },
+            "module_ids": [
+              "1684ae638f5acb10c260e59f8ebfc045",
+              "51b41de911a1904fd919452ba7a1d32a",
+              "77e80cc5d40533abc4ee70e1f3dbf835",
+              "8a3649d8d1dc7e67c53ab3e208dc1b97"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 4006,
+              "median": 4277.0,
+              "maximum": 5854
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 8862,
+              "median": 10124.5,
+              "maximum": 23867
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 6680,
+              "median": 8105.5,
+              "maximum": 11483
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 22,
+              "median": 30.0,
+              "maximum": 1682
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 497,
+              "median": 1030.0,
+              "maximum": 10767
+            },
+            "warm_cpu_ms": {
+              "count": 39,
+              "minimum": 4006,
+              "median": 4275,
+              "maximum": 5854
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4446,
+              "median": 4447,
+              "maximum": 5117
+            },
+            "module_ids": [
+              "3075eadc40a6b343fde81a358bcd4f9a",
+              "42cdf8871aab47eead667f68ba3d1b6d",
+              "a40ed52c26cc0725345d9da62625053c"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 42,
+            "cpu_ms": {
+              "count": 42,
+              "minimum": 4132,
+              "median": 4427.0,
+              "maximum": 6402
+            },
+            "wall_ms": {
+              "count": 42,
+              "minimum": 8620,
+              "median": 9742.5,
+              "maximum": 23543
+            },
+            "correlations_ms": {
+              "count": 42,
+              "minimum": 6680,
+              "median": 8105.5,
+              "maximum": 11483
+            },
+            "commitments_ms": {
+              "count": 42,
+              "minimum": 23,
+              "median": 32.0,
+              "maximum": 1683
+            },
+            "serialized_to_publication_ms": {
+              "count": 42,
+              "minimum": 207,
+              "median": 470.5,
+              "maximum": 10483
+            },
+            "warm_cpu_ms": {
+              "count": 38,
+              "minimum": 4132,
+              "median": 4393.0,
+              "maximum": 6137
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 4560,
+              "median": 4944.0,
+              "maximum": 6402
+            },
+            "module_ids": [
+              "1684ae638f5acb10c260e59f8ebfc045",
+              "51b41de911a1904fd919452ba7a1d32a",
+              "77e80cc5d40533abc4ee70e1f3dbf835",
+              "8a3649d8d1dc7e67c53ab3e208dc1b97"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "pool_target_respected": true,
+      "authority_version_coverage_complete": true,
+      "trace_coverage_complete": true
+    },
+    {
+      "phase": "software-batches",
+      "verified_client_signatures": 42,
+      "client_functional_passed": false,
+      "successful_http_ms": {
+        "count": 42,
+        "minimum": 664,
+        "median": 2197.5,
+        "maximum": 11368,
+        "sum": 118872
+      },
+      "successful_demand_ms": {
+        "count": 42,
+        "minimum": 2087,
+        "median": 26349.0,
+        "maximum": 95206,
+        "sum": 1160088
+      },
+      "empty_pool_responses": 0,
+      "failed_operations": 0,
+      "client_errors": [
+        {
+          "wallet": 7,
+          "error": "Interrupted request has an unknown server outcome"
+        }
+      ],
+      "complete_cycle": {
+        "scope": "Finite load plus the earliest captured set of full reserve observations, each no older than 45 seconds. Observation delay is included. This is not a maximum-capacity claim.",
+        "start_at_ms": 1792987264839,
+        "restored_at_ms": 1792987723621,
+        "restoration_observation_bound_ms": 1792987769931,
+        "after_load_ms": 98782,
+        "verified_signatures": 42,
+        "cycle_ms": 458782,
+        "signatures_per_minute": 5.492804861568239,
+        "authority_version_coverage": {
+          "scope": "Unfiltered admission actor invocation versions during the load window. The public Router version alone does not establish the effective policy.",
+          "expected_version": "7cddff92-4653-49bf-b533-0e3393b9c093",
+          "versions": {
+            "7cddff92-4653-49bf-b533-0e3393b9c093": {
+              "invocations": 3265,
+              "first_at_ms": 1792987265082,
+              "last_at_ms": 1792987723578
+            }
+          },
+          "undated_invocations": 0,
+          "complete": true
+        },
+        "serial_slots_valid": true,
+        "client_functional_passed": false,
+        "qualified": false,
+        "complete_cycle_ledger": {
+          "initial_pairs": 128,
+          "new_paired_pairs": 118,
+          "completion_receipted_pairs_before_restoration": 118,
+          "paired_before_completion_receipt": [],
+          "summary_consumed_pairs": 118,
+          "observed_taken_pairs": 118,
+          "failed_retired_without_observed_take_pairs": 0,
+          "final_pairs": 128,
+          "unaccounted_pairs": [],
+          "unexplained_pairs": [],
+          "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+          "complete": true
+        }
+      },
+      "positive_completion_receipt_profiles": {
+        "preparer-a/2/all": {
+          "a": {
+            "count": 12,
+            "cpu_ms": {
+              "count": 12,
+              "minimum": 2035,
+              "median": 2299.0,
+              "maximum": 2926
+            },
+            "wall_ms": {
+              "count": 12,
+              "minimum": 4938,
+              "median": 5703.0,
+              "maximum": 6875
+            },
+            "correlations_ms": {
+              "count": 12,
+              "minimum": 3201,
+              "median": 4437.0,
+              "maximum": 5507
+            },
+            "commitments_ms": {
+              "count": 12,
+              "minimum": 10,
+              "median": 14.5,
+              "maximum": 26
+            },
+            "serialized_to_publication_ms": {
+              "count": 12,
+              "minimum": 351,
+              "median": 541.0,
+              "maximum": 790
+            },
+            "warm_cpu_ms": {
+              "count": 11,
+              "minimum": 2035,
+              "median": 2239,
+              "maximum": 2926
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2863,
+              "median": 2863,
+              "maximum": 2863
+            },
+            "module_ids": [
+              "77b66146eecc348b4baddcbb5d1992e0",
+              "babc1d799ce05db64eacb9096a759edd",
+              "daa0effa911e132831eb18d93c42ede6"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 12,
+            "cpu_ms": {
+              "count": 12,
+              "minimum": 2154,
+              "median": 2412.5,
+              "maximum": 2992
+            },
+            "wall_ms": {
+              "count": 12,
+              "minimum": 4658,
+              "median": 5182.0,
+              "maximum": 6469
+            },
+            "correlations_ms": {
+              "count": 12,
+              "minimum": 3201,
+              "median": 4437.0,
+              "maximum": 5507
+            },
+            "commitments_ms": {
+              "count": 12,
+              "minimum": 10,
+              "median": 14.5,
+              "maximum": 26
+            },
+            "serialized_to_publication_ms": {
+              "count": 12,
+              "minimum": 136,
+              "median": 196.5,
+              "maximum": 464
+            },
+            "warm_cpu_ms": {
+              "count": 11,
+              "minimum": 2154,
+              "median": 2406,
+              "maximum": 2992
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2419,
+              "median": 2419,
+              "maximum": 2419
+            },
+            "module_ids": [
+              "cc744572b942dab69776da15284c98d4",
+              "d9ba33951f7d3d91efef02cf3321dc59",
+              "fc478aca564968275818a4d7af497ac3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/2/published": {
+          "a": {
+            "count": 12,
+            "cpu_ms": {
+              "count": 12,
+              "minimum": 2035,
+              "median": 2299.0,
+              "maximum": 2926
+            },
+            "wall_ms": {
+              "count": 12,
+              "minimum": 4938,
+              "median": 5703.0,
+              "maximum": 6875
+            },
+            "correlations_ms": {
+              "count": 12,
+              "minimum": 3201,
+              "median": 4437.0,
+              "maximum": 5507
+            },
+            "commitments_ms": {
+              "count": 12,
+              "minimum": 10,
+              "median": 14.5,
+              "maximum": 26
+            },
+            "serialized_to_publication_ms": {
+              "count": 12,
+              "minimum": 351,
+              "median": 541.0,
+              "maximum": 790
+            },
+            "warm_cpu_ms": {
+              "count": 11,
+              "minimum": 2035,
+              "median": 2239,
+              "maximum": 2926
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2863,
+              "median": 2863,
+              "maximum": 2863
+            },
+            "module_ids": [
+              "77b66146eecc348b4baddcbb5d1992e0",
+              "babc1d799ce05db64eacb9096a759edd",
+              "daa0effa911e132831eb18d93c42ede6"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 12,
+            "cpu_ms": {
+              "count": 12,
+              "minimum": 2154,
+              "median": 2412.5,
+              "maximum": 2992
+            },
+            "wall_ms": {
+              "count": 12,
+              "minimum": 4658,
+              "median": 5182.0,
+              "maximum": 6469
+            },
+            "correlations_ms": {
+              "count": 12,
+              "minimum": 3201,
+              "median": 4437.0,
+              "maximum": 5507
+            },
+            "commitments_ms": {
+              "count": 12,
+              "minimum": 10,
+              "median": 14.5,
+              "maximum": 26
+            },
+            "serialized_to_publication_ms": {
+              "count": 12,
+              "minimum": 136,
+              "median": 196.5,
+              "maximum": 464
+            },
+            "warm_cpu_ms": {
+              "count": 11,
+              "minimum": 2154,
+              "median": 2406,
+              "maximum": 2992
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2419,
+              "median": 2419,
+              "maximum": 2419
+            },
+            "module_ids": [
+              "cc744572b942dab69776da15284c98d4",
+              "d9ba33951f7d3d91efef02cf3321dc59",
+              "fc478aca564968275818a4d7af497ac3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/all": {
+          "a": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 2226,
+              "median": 2349,
+              "maximum": 2621
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 5403,
+              "median": 6419,
+              "maximum": 6586
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 3403,
+              "median": 3885,
+              "maximum": 4526
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 14,
+              "median": 17,
+              "maximum": 51
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 443,
+              "median": 546,
+              "maximum": 902
+            },
+            "warm_cpu_ms": {
+              "count": 4,
+              "minimum": 2226,
+              "median": 2327.0,
+              "maximum": 2417
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2621,
+              "median": 2621,
+              "maximum": 2621
+            },
+            "module_ids": [
+              "00c5fe2d8a051e1c6e47d049410a58e7",
+              "0bc8d2a49cfe66864fafa87472803719",
+              "64cbb90438278f56a7988cb09842b4df",
+              "f22aba59c9b505d76bfb96db6589d70f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 2375,
+              "median": 2708,
+              "maximum": 2856
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 5099,
+              "median": 5554,
+              "maximum": 5986
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 3403,
+              "median": 3885,
+              "maximum": 4526
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 14,
+              "median": 17,
+              "maximum": 51
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 183,
+              "median": 287,
+              "maximum": 426
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2375,
+              "median": 2375,
+              "maximum": 2375
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 2574,
+              "median": 2748.0,
+              "maximum": 2856
+            },
+            "module_ids": [
+              "0b4b1710a31745d35ba520adf18d887e",
+              "0ee7437c8772bf7e9d36582a3e96c806",
+              "170f4636aacd8e4d813731a34a468352",
+              "2e0093d3f222b121e8f9c53469c8f364",
+              "f8c3c7a224ded842598af0960aa3113f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/2/published": {
+          "a": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 2226,
+              "median": 2349,
+              "maximum": 2621
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 5403,
+              "median": 6419,
+              "maximum": 6586
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 3403,
+              "median": 3885,
+              "maximum": 4526
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 14,
+              "median": 17,
+              "maximum": 51
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 443,
+              "median": 546,
+              "maximum": 902
+            },
+            "warm_cpu_ms": {
+              "count": 4,
+              "minimum": 2226,
+              "median": 2327.0,
+              "maximum": 2417
+            },
+            "cold_cpu_ms": {
+              "count": 1,
+              "minimum": 2621,
+              "median": 2621,
+              "maximum": 2621
+            },
+            "module_ids": [
+              "00c5fe2d8a051e1c6e47d049410a58e7",
+              "0bc8d2a49cfe66864fafa87472803719",
+              "64cbb90438278f56a7988cb09842b4df",
+              "f22aba59c9b505d76bfb96db6589d70f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 5,
+            "cpu_ms": {
+              "count": 5,
+              "minimum": 2375,
+              "median": 2708,
+              "maximum": 2856
+            },
+            "wall_ms": {
+              "count": 5,
+              "minimum": 5099,
+              "median": 5554,
+              "maximum": 5986
+            },
+            "correlations_ms": {
+              "count": 5,
+              "minimum": 3403,
+              "median": 3885,
+              "maximum": 4526
+            },
+            "commitments_ms": {
+              "count": 5,
+              "minimum": 14,
+              "median": 17,
+              "maximum": 51
+            },
+            "serialized_to_publication_ms": {
+              "count": 5,
+              "minimum": 183,
+              "median": 287,
+              "maximum": 426
+            },
+            "warm_cpu_ms": {
+              "count": 1,
+              "minimum": 2375,
+              "median": 2375,
+              "maximum": 2375
+            },
+            "cold_cpu_ms": {
+              "count": 4,
+              "minimum": 2574,
+              "median": 2748.0,
+              "maximum": 2856
+            },
+            "module_ids": [
+              "0b4b1710a31745d35ba520adf18d887e",
+              "0ee7437c8772bf7e9d36582a3e96c806",
+              "170f4636aacd8e4d813731a34a468352",
+              "2e0093d3f222b121e8f9c53469c8f364",
+              "f8c3c7a224ded842598af0960aa3113f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/all": {
+          "a": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 4033,
+              "median": 4414.5,
+              "maximum": 6483
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 9183,
+              "median": 10143.5,
+              "maximum": 14404
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 6293,
+              "median": 8361.0,
+              "maximum": 12780
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 19,
+              "median": 38.0,
+              "maximum": 1695
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 441,
+              "median": 940.5,
+              "maximum": 1624
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4033,
+              "median": 4354.0,
+              "maximum": 6483
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4459,
+              "median": 4534.0,
+              "maximum": 4609
+            },
+            "module_ids": [
+              "77b66146eecc348b4baddcbb5d1992e0",
+              "babc1d799ce05db64eacb9096a759edd",
+              "daa0effa911e132831eb18d93c42ede6"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 4114,
+              "median": 4566.5,
+              "maximum": 6688
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 8935,
+              "median": 9699.5,
+              "maximum": 14027
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 6293,
+              "median": 8361.0,
+              "maximum": 12780
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 20,
+              "median": 39.0,
+              "maximum": 1695
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 166,
+              "median": 378.5,
+              "maximum": 1078
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4114,
+              "median": 4524.0,
+              "maximum": 6688
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4593,
+              "median": 4685.0,
+              "maximum": 4777
+            },
+            "module_ids": [
+              "cc744572b942dab69776da15284c98d4",
+              "d9ba33951f7d3d91efef02cf3321dc59",
+              "fc478aca564968275818a4d7af497ac3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a/4/published": {
+          "a": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 4033,
+              "median": 4414.5,
+              "maximum": 6483
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 9183,
+              "median": 10143.5,
+              "maximum": 14404
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 6293,
+              "median": 8361.0,
+              "maximum": 12780
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 19,
+              "median": 38.0,
+              "maximum": 1695
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 441,
+              "median": 940.5,
+              "maximum": 1624
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4033,
+              "median": 4354.0,
+              "maximum": 6483
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4459,
+              "median": 4534.0,
+              "maximum": 4609
+            },
+            "module_ids": [
+              "77b66146eecc348b4baddcbb5d1992e0",
+              "babc1d799ce05db64eacb9096a759edd",
+              "daa0effa911e132831eb18d93c42ede6"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 18,
+            "cpu_ms": {
+              "count": 18,
+              "minimum": 4114,
+              "median": 4566.5,
+              "maximum": 6688
+            },
+            "wall_ms": {
+              "count": 18,
+              "minimum": 8935,
+              "median": 9699.5,
+              "maximum": 14027
+            },
+            "correlations_ms": {
+              "count": 18,
+              "minimum": 6293,
+              "median": 8361.0,
+              "maximum": 12780
+            },
+            "commitments_ms": {
+              "count": 18,
+              "minimum": 20,
+              "median": 39.0,
+              "maximum": 1695
+            },
+            "serialized_to_publication_ms": {
+              "count": 18,
+              "minimum": 166,
+              "median": 378.5,
+              "maximum": 1078
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4114,
+              "median": 4524.0,
+              "maximum": 6688
+            },
+            "cold_cpu_ms": {
+              "count": 2,
+              "minimum": 4593,
+              "median": 4685.0,
+              "maximum": 4777
+            },
+            "module_ids": [
+              "cc744572b942dab69776da15284c98d4",
+              "d9ba33951f7d3d91efef02cf3321dc59",
+              "fc478aca564968275818a4d7af497ac3"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/all": {
+          "a": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 4308,
+              "median": 4620,
+              "maximum": 6725
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 9624,
+              "median": 10551,
+              "maximum": 15338
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6823,
+              "median": 8607,
+              "maximum": 13178
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 25,
+              "median": 43,
+              "maximum": 1800
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 557,
+              "median": 1055,
+              "maximum": 1594
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4308,
+              "median": 4600.5,
+              "maximum": 6725
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4701,
+              "median": 5384,
+              "maximum": 5784
+            },
+            "module_ids": [
+              "00c5fe2d8a051e1c6e47d049410a58e7",
+              "0bc8d2a49cfe66864fafa87472803719",
+              "64cbb90438278f56a7988cb09842b4df",
+              "f22aba59c9b505d76bfb96db6589d70f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 4464,
+              "median": 4794,
+              "maximum": 7152
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 9268,
+              "median": 10123,
+              "maximum": 14888
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6823,
+              "median": 8607,
+              "maximum": 13178
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 26,
+              "median": 44,
+              "maximum": 1800
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 296,
+              "median": 420,
+              "maximum": 1040
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4464,
+              "median": 4789.0,
+              "maximum": 7152
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4893,
+              "median": 5515,
+              "maximum": 6031
+            },
+            "module_ids": [
+              "0b4b1710a31745d35ba520adf18d887e",
+              "0ee7437c8772bf7e9d36582a3e96c806",
+              "170f4636aacd8e4d813731a34a468352",
+              "2e0093d3f222b121e8f9c53469c8f364",
+              "394b4d5f3a5237c18614e1340488a180",
+              "7cd499000f26312d9ff722fa18a5e39e",
+              "f8c3c7a224ded842598af0960aa3113f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        },
+        "preparer-a-secondary/4/published": {
+          "a": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 4308,
+              "median": 4620,
+              "maximum": 6725
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 9624,
+              "median": 10551,
+              "maximum": 15338
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6823,
+              "median": 8607,
+              "maximum": 13178
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 25,
+              "median": 43,
+              "maximum": 1800
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 557,
+              "median": 1055,
+              "maximum": 1594
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4308,
+              "median": 4600.5,
+              "maximum": 6725
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4701,
+              "median": 5384,
+              "maximum": 5784
+            },
+            "module_ids": [
+              "00c5fe2d8a051e1c6e47d049410a58e7",
+              "0bc8d2a49cfe66864fafa87472803719",
+              "64cbb90438278f56a7988cb09842b4df",
+              "f22aba59c9b505d76bfb96db6589d70f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          },
+          "b": {
+            "count": 19,
+            "cpu_ms": {
+              "count": 19,
+              "minimum": 4464,
+              "median": 4794,
+              "maximum": 7152
+            },
+            "wall_ms": {
+              "count": 19,
+              "minimum": 9268,
+              "median": 10123,
+              "maximum": 14888
+            },
+            "correlations_ms": {
+              "count": 19,
+              "minimum": 6823,
+              "median": 8607,
+              "maximum": 13178
+            },
+            "commitments_ms": {
+              "count": 19,
+              "minimum": 26,
+              "median": 44,
+              "maximum": 1800
+            },
+            "serialized_to_publication_ms": {
+              "count": 19,
+              "minimum": 296,
+              "median": 420,
+              "maximum": 1040
+            },
+            "warm_cpu_ms": {
+              "count": 16,
+              "minimum": 4464,
+              "median": 4789.0,
+              "maximum": 7152
+            },
+            "cold_cpu_ms": {
+              "count": 3,
+              "minimum": 4893,
+              "median": 5515,
+              "maximum": 6031
+            },
+            "module_ids": [
+              "0b4b1710a31745d35ba520adf18d887e",
+              "0ee7437c8772bf7e9d36582a3e96c806",
+              "170f4636aacd8e4d813731a34a468352",
+              "2e0093d3f222b121e8f9c53469c8f364",
+              "394b4d5f3a5237c18614e1340488a180",
+              "7cd499000f26312d9ff722fa18a5e39e",
+              "f8c3c7a224ded842598af0960aa3113f"
+            ],
+            "request_colos": [],
+            "load_shed_jobs": 0
+          }
+        }
+      },
+      "pool_target_respected": true,
+      "authority_version_coverage_complete": true,
+      "trace_coverage_complete": true
+    }
+  ],
+  "independent_signature_checks": {
+    "verified": 278,
+    "altered_messages_rejected": 278
+  },
+  "observed_material_checks": {
+    "no_reuse": true,
+    "distinct_a_pairs": 734,
+    "distinct_b_pairs": 734,
+    "scope": "Every retained setup and load take event. Missing take or retirement events remain an observation limit."
+  },
+  "failed_operation_retired_pairs_without_observed_take": 94,
+  "unaccounted_readiness_losses": {
+    "limit": "Temporal fit supports readiness loss. It does not prove physical expiry pruning or its time. These IDs stay unaccounted in the primary ledger.",
+    "pairs": [
+      {
+        "phase": "precondition",
+        "pair": "1f1a84fa65a4bfc899d5907ec0a351b748d50a6e6d2ff41e858439045d664a47",
+        "key": "297dc4dd07e2192f7c1bd9f9be701e029fa932e332930dc1cfca1283f3f47e24",
+        "epoch": 2,
+        "expires_at_ms": 1792982028974,
+        "preparation": "67b2c307bd0db76ad190674d7251a7c57ae28e5448bd650472dc8db8a78b68d8",
+        "ordinal": 4,
+        "last_present_at_ms": 1792981986611,
+        "first_absent_after_last_presence_at_ms": 1792982017843,
+        "remaining_ms_at_first_absence": 11131,
+        "fits_thirty_second_readiness_margin": true
+      },
+      {
+        "phase": "precondition",
+        "pair": "6a52aa99d478c901ab0cf5036bcd8f7dc916fdc19205d10747155b4d1a8e6a55",
+        "key": "297dc4dd07e2192f7c1bd9f9be701e029fa932e332930dc1cfca1283f3f47e24",
+        "epoch": 2,
+        "expires_at_ms": 1792982028974,
+        "preparation": "67b2c307bd0db76ad190674d7251a7c57ae28e5448bd650472dc8db8a78b68d8",
+        "ordinal": 5,
+        "last_present_at_ms": 1792981986611,
+        "first_absent_after_last_presence_at_ms": 1792982017843,
+        "remaining_ms_at_first_absence": 11131,
+        "fits_thirty_second_readiness_margin": true
+      },
+      {
+        "phase": "precondition",
+        "pair": "90415b41e0cadbf408e8f369a0140ffb2a8b3825fa37bab377bcb02c964f52b2",
+        "key": "297dc4dd07e2192f7c1bd9f9be701e029fa932e332930dc1cfca1283f3f47e24",
+        "epoch": 2,
+        "expires_at_ms": 1792982028974,
+        "preparation": "67b2c307bd0db76ad190674d7251a7c57ae28e5448bd650472dc8db8a78b68d8",
+        "ordinal": 7,
+        "last_present_at_ms": 1792981986611,
+        "first_absent_after_last_presence_at_ms": 1792982017843,
+        "remaining_ms_at_first_absence": 11131,
+        "fits_thirty_second_readiness_margin": true
+      },
+      {
+        "phase": "precondition",
+        "pair": "a069364b913cdda86289f6dbee0df212e9ca88b7bc2ec3712639be617752dd55",
+        "key": "297dc4dd07e2192f7c1bd9f9be701e029fa932e332930dc1cfca1283f3f47e24",
+        "epoch": 2,
+        "expires_at_ms": 1792982028974,
+        "preparation": "67b2c307bd0db76ad190674d7251a7c57ae28e5448bd650472dc8db8a78b68d8",
+        "ordinal": 6,
+        "last_present_at_ms": 1792981986611,
+        "first_absent_after_last_presence_at_ms": 1792982017843,
+        "remaining_ms_at_first_absence": 11131,
+        "fits_thirty_second_readiness_margin": true
+      },
+      {
+        "phase": "software-precondition",
+        "pair": "849b28528c49bd47bcea8873a597ff7b217bc833fd38f373d991cee53aedec30",
+        "key": "6c38498187402acea399e681799c4b20ef450ca11e86d8e37d5c6ec922b7572a",
+        "epoch": 2,
+        "expires_at_ms": 1792986677316,
+        "last_present_at_ms": 1792986644097,
+        "first_absent_after_last_presence_at_ms": 1792986649136,
+        "remaining_ms_at_first_absence": 28180,
+        "fits_thirty_second_readiness_margin": true
+      }
+    ]
+  },
+  "reported_failure_after_durable_publication": {
+    "phase": "software-precondition",
+    "job": "0da022fb83dc0d385cbef4c1a63b1f83e4d399b024b03f506fb4b86f8b6df067",
+    "pairs": 2,
+    "later_verified_operation": "fb9111259e1c3f419803d2c1a8a2730d349ebcabf9936356f1a9328aa2dec42f",
+    "exact_final_transport_failure": "unknown",
+    "status": "priority follow-up"
+  },
+  "recovered_software_client_result": {
+    "server_signature_verified": true,
+    "original_client_result": "failed",
+    "request_resubmitted": false
+  },
+  "local_checks": {
+    "native_bridge": {
+      "exact_ciphertext_cases": 42,
+      "provider_error_propagation": true,
+      "real_wasm_replay_passed": true
+    },
+    "native_durable_worker": true,
+    "software_batch_durable_worker": true,
+    "selected_baseline_canonical_gateway_lifecycle": true,
+    "bloat": {
+      "passed": false,
+      "inherited_rust_duplicated_lines": 13972,
+      "baseline": 13754,
+      "baseline_changed": false
+    }
+  },
+  "offline_replay": {
+    "passed": true,
+    "checks": [
+      {
+        "phase": "precondition",
+        "qualified": false
+      },
+      {
+        "phase": "control",
+        "qualified": true
+      },
+      {
+        "phase": "candidate",
+        "qualified": false
+      },
+      {
+        "phase": "software-precondition",
+        "qualified": false
+      },
+      {
+        "phase": "software-batches",
+        "qualified": false
+      },
+      {
+        "script": "verify_hosted.mjs",
+        "matched": true
+      },
+      {
+        "script": "collect_failed_material.py",
+        "matched": true
+      },
+      {
+        "script": "audit_material.py",
+        "matched": true
+      },
+      {
+        "script": "profile_failures.py",
+        "matched": true
+      },
+      {
+        "script": "analyze_readiness_losses.py",
+        "matched": true
+      },
+      {
+        "script": "analyze_parallel.py",
+        "matched": true
+      },
+      {
+        "script": "verify_registration_bindings.py",
+        "passed": true
+      },
+      {
+        "script": "verify_bridge_ciphertexts.mjs",
+        "passed": true
+      }
+    ]
+  },
+  "archive": {
+    "path": "ml-dsa-65-aes-batches-20261026.tar.gz",
+    "bytes": 16056076,
+    "sha256": "df743a5aa1748ba796a232358bb4f02601a38a70530030b0b50ca583e0fa2120",
+    "files": 267,
+    "secret_exclusion": {
+      "method": "Public whitelist plus exact literals, nested role keys, hex variants, and decoded credential bytes. Private tails and fixture stores excluded.",
+      "patterns_checked": 24,
+      "fixture_key_files_checked": 26,
+      "matches": 0
+    }
+  },
+  "cleanup": [
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-router",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-a",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-b",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-preparer-a",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-preparer-b",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-preparer-a-secondary",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-preparer-b-secondary",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-aes-1026-b89d7d-front",
+      "absent": true,
+      "exit_code": 1
+    }
+  ],
+  "human_report": {
+    "path": "docs/router-ab/ml-dsa-65-aes-batches-report.md",
+    "sha256": "9cc1fe6f6d1f50cadaa776c30d1d45feb4696b18a70662488869621cd1e0a192"
+  }
+}

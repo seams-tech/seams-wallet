@@ -5,13 +5,13 @@ import { GatewayTransport, signingAssertion } from './mlDsaPublicSigning.e2e.mjs
 const origin = 'https://wallet.example.test';
 const relayerUrl = 'https://gateway.example.test';
 
-async function activatedAuthority(input, kind, key, label, permissions, keyFamily) {
+async function activatedAuthority(input, kind, key, label, permissions, signerSet) {
   const original = input.owner.authority.signerActivations.ed25519.signer;
   const fixture = await input.api.buildLinkedDeviceManagementAuthorityFixture({
     label,
     provenance: kind,
     permissions,
-    keyFamily,
+    keyFamily: signerSet === 'wallet_signers' ? 'ed25519' : signerSet,
     sourceAuthorityId: input.owner.authority.authorityId,
     ed25519Signer: original,
     credentialPublicKeyB64u: key.publicKey,
@@ -23,8 +23,30 @@ async function activatedAuthority(input, kind, key, label, permissions, keyFamil
       credentialIdB64u: key.credentialId,
     },
   });
+  if (signerSet === 'wallet_signers') {
+    const store = new input.api.D1WalletAuthorityStore({
+      database: input.database,
+      scope: input.scope,
+    });
+    const source = await store.readById(input.owner.authority.authorityId);
+    assert.equal(source?.state, 'active');
+    assert.ok(source.signerActivations.mlDsa);
+    const activations = source.signerActivations.mlDsa.filter(
+      selectedSigner.bind(undefined, input.signingKeyId),
+    );
+    assert.equal(activations.length, 1);
+    return input.api.seedRetainedMlDsaOwner({
+      database: input.database,
+      scope: input.scope,
+      owner: fixture,
+      signer: activations[0].signer,
+    });
+  }
   await input.api.seedOwner(input.database, input.scope, fixture);
   return fixture;
+}
+function selectedSigner(signingKeyId, activation) {
+  return activation.signer.mlDsaSigningKeyId === signingKeyId;
 }
 async function inventory(input, key, counter = 1) {
   const prepared = await input.api.prepareMlDsaSignerInventory({
@@ -164,7 +186,7 @@ export async function verifyMlDsaRetainedSignerLifecycle(input) {
       recoveredKey,
       'ml-dsa-recovered-owner',
       input.api.buildFullOwnerPermissionsV1(),
-      'ed25519',
+      'wallet_signers',
     );
     const future = await input.api.prepareMlDsaSignerInventory({
       relayerUrl,
@@ -220,7 +242,7 @@ export async function verifyMlDsaRetainedSignerLifecycle(input) {
       linkedKey,
       'ml-dsa-linked-owner',
       input.api.buildFullOwnerPermissionsV1(),
-      'ed25519',
+      'wallet_signers',
     );
     const linkedInventory = await inventory(input, linkedKey);
     assert.equal(linkedInventory.kind, 'inventory', JSON.stringify(linkedInventory));
@@ -239,18 +261,18 @@ export async function verifyMlDsaRetainedSignerLifecycle(input) {
     assert.equal((await inventory(input, signingOnlyKey)).kind, 'refused');
     await rejectSigning(input, signingOnlyKey);
     checks.signingOnlyDeviceCannotDiscoverOrSignMlDsa = true;
-    const ecdsaOnlyKey = input.credentialKey();
+    const ed25519OnlyKey = input.credentialKey();
     await activatedAuthority(
       input,
       'device_link',
-      ecdsaOnlyKey,
-      'ml-dsa-linked-ecdsa-only',
+      ed25519OnlyKey,
+      'ml-dsa-linked-ed25519-only',
       input.api.buildFullOwnerPermissionsV1(),
-      'ecdsa_secp256k1',
+      'ed25519',
     );
-    assert.equal((await inventory(input, ecdsaOnlyKey)).kind, 'refused');
-    await rejectSigning(input, ecdsaOnlyKey);
-    checks.linkedDeviceWithoutNearActivationCannotSign = true;
+    assert.equal((await inventory(input, ed25519OnlyKey)).kind, 'refused');
+    await rejectSigning(input, ed25519OnlyKey);
+    checks.linkedDeviceWithoutMlDsaActivationCannotSign = true;
 
     const linkedSignature = await signRetainedKey(input, linkedKey);
     assert.ok(linkedSignature.retries.length > 0, 'Linking must preserve the wallet cooldown');

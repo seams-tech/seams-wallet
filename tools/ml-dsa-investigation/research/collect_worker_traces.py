@@ -131,6 +131,28 @@ def public_stage(stage):
     return result
 
 
+def public_benchmark_request(value, timestamp):
+    if value.get("event") != "ml_dsa_benchmark_request_v1" or not public_time(timestamp):
+        return None
+    wallet = value.get("wallet")
+    request = value.get("request")
+    operation = value.get("operation")
+    stage = value.get("stage")
+    status = value.get("http_status")
+    if not public_counter(wallet) or not 0 <= wallet <= 7:
+        return None
+    if not isinstance(request, str) or re.fullmatch("[0-9a-f]{32}", request) is None:
+        return None
+    if not public_id(operation) or not public_counter(value.get("at_ms")):
+        return None
+    if stage not in ("created", "dispatch_started", "response_headers", "response_decoded", "failed", "watchdog_interrupted"):
+        return None
+    if status is not None and (type(status) is not int or not 100 <= status <= 599):
+        return None
+    return {"wallet": wallet, "request": request, "operation": operation, "stage": stage,
+            "at_ms": value["at_ms"], "http_status": status, "log_timestamp_ms": timestamp}
+
+
 def public_router_trace(value, timestamp):
     if value.get("event") != "ml_dsa_router_trace_v1" or not public_time(timestamp):
         return None
@@ -570,6 +592,9 @@ def records(path, role):
         service_call_id = headers.get("x-seams-trace-id")
         if not public_call_id(service_call_id):
             service_call_id = None
+        signing_operation = headers.get("x-ml-dsa-operation")
+        if not public_id(signing_operation):
+            signing_operation = None
         registration_context = public_registration_context(headers)
         url = urllib.parse.urlsplit(request.get("url", ""))
         query = urllib.parse.parse_qs(url.query)
@@ -587,6 +612,7 @@ def records(path, role):
         signing = []
         signing_traces = []
         router_traces = []
+        benchmark_requests = []
         registration_links = []
         wait_traces = []
         durable_boundaries = []
@@ -641,6 +667,9 @@ def records(path, role):
                 stage_trace = public_stage_trace(value, log.get("timestamp"))
                 if stage_trace is not None:
                     stage_traces.append(stage_trace)
+                benchmark_request = public_benchmark_request(value, log.get("timestamp"))
+                if benchmark_request is not None:
+                    benchmark_requests.append(benchmark_request)
                 router_trace = public_router_trace(value, log.get("timestamp"))
                 if router_trace is not None:
                     router_traces.append(router_trace)
@@ -772,6 +801,7 @@ def records(path, role):
             "role": role,
             "http_request": request_id,
             "service_call_id": service_call_id,
+            "signing_operation": signing_operation,
             "registration_context": registration_context,
             "registration_links": registration_links,
             "wait_traces": wait_traces,
@@ -805,6 +835,7 @@ def records(path, role):
             "signing": signing,
             "signing_traces": signing_traces,
             "router_traces": router_traces,
+            "benchmark_requests": benchmark_requests,
             "stage_traces": stage_traces,
             "commitment_batches": commitment_batches,
             "socket_completion": socket_completion,
