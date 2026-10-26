@@ -1,4 +1,8 @@
 import type { WalletHostSessionCommands } from '../createSessionCommands';
+import type {
+  AuthMethodCaptureMount,
+  AuthMethodCaptureSettlement,
+} from '@/core/authMethods/hostPlugin';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { RegistrationResult } from '@/core/types/seams';
 import {
@@ -841,7 +845,7 @@ export class AuthMenuSession {
       throw new Error('VoiceID login was cancelled.');
   };
 
-  private readonly mountVoiceCapture = (element: HTMLElement): (() => void) => {
+  private readonly mountVoiceCapture: AuthMethodCaptureMount = (element) => {
     this.assertVoiceLoginActive();
     this.measurementReporter?.disconnect();
     if (this.surface) {
@@ -862,11 +866,17 @@ export class AuthMenuSession {
     return this.restoreVoiceCapture.bind(this, element);
   };
 
-  private restoreVoiceCapture(element: HTMLElement): void {
+  private restoreVoiceCapture(element: HTMLElement, settlement: AuthMethodCaptureSettlement): void {
     element.remove();
     this.voiceCapture = null;
     this.measurementReporter?.disconnect();
-    if (this.stateValue.kind === 'complete' || !this.surface) return;
+    // An unlock that played its own success keeps the menu hidden; the session completes next.
+    if (settlement === 'succeeded') return;
+    this.revealMenu();
+  }
+
+  private revealMenu(): void {
+    if (this.stateValue.kind === 'complete' || !this.surface || !this.surface.element.hidden) return;
     this.surface.element.hidden = false;
     this.surface.element.inert = false;
     this.surface.element.animate(
@@ -912,13 +922,17 @@ export class AuthMenuSession {
       );
       this.assertVoiceLoginActive();
       if (!result.success) throw new Error(result.error);
-      this.complete({
-        kind: 'authenticated',
-        authMenuSessionId: this.identity.authMenuSessionId,
-        walletId: result.walletId,
-        method: 'voiceid',
-      });
+      this.complete(
+        {
+          kind: 'authenticated',
+          authMenuSessionId: this.identity.authMenuSessionId,
+          walletId: result.walletId,
+          method: 'voiceid',
+        },
+        'capture',
+      );
     } catch (error) {
+      this.revealMenu();
       if (this.state.kind !== 'complete') {
         this.stateValue = {
           kind: 'preparing',
@@ -3593,11 +3607,13 @@ export class AuthMenuSession {
     );
   }
 
-  private complete(outcome: HostedAuthMenuOutcome): void {
+  /** `capture` means a capture surface already played the success, so the menu finishes at once. */
+  private complete(outcome: HostedAuthMenuOutcome, successView: 'menu' | 'capture' = 'menu'): void {
     if (this.stateValue.kind === 'complete') return;
     const lastView = this.surface ? this.currentViewModel() : null;
     this.stateValue = { kind: 'complete', outcome };
     if (
+      successView === 'menu' &&
       lastView &&
       isAuthMenuSuccessOutcome(outcome) &&
       this.showSuccess(lastView, outcome, 'shown')

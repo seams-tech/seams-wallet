@@ -225,7 +225,17 @@ const CSS = `
   max-width: 100%;
   height: 64px;
   margin: auto;
+  overflow: visible;
 }
+.seams-voiceid-ribbon .seams-voiceid-ribbon-check { stroke: var(--seams-colors-colorBackground, #192024); }
+.seams-voiceid-prompt .seams-voiceid-phrase.seams-voiceid-success-headline {
+  display: grid;
+  align-content: end;
+  font-size: 18px;
+  letter-spacing: normal;
+  line-height: 1.4;
+}
+.seams-voiceid-prompt .seams-voiceid-status.seams-voiceid-success-message { font-size: 0.8125rem; }
 /* The glow is decorative and cannot intercept record, retry or cancel controls. */
 .seams-voiceid-glow { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0; }
 .seams-voiceid-beam { width: 100%; height: 100%; border-radius: inherit; }
@@ -429,6 +439,7 @@ export class VoicePrompt {
       }
       case 'processing':
         this.element.dataset.capture = 'processing';
+        this.lockLayout();
         this.visual.checking();
         this.status.textContent = 'Checking your voice…';
         return;
@@ -448,7 +459,27 @@ export class VoicePrompt {
     this.visual.accept();
   }
 
+  /** Plays the unlock success in place: the ring seals while the copy changes in the same rows. */
+  async succeed(headline: string, message: string): Promise<void> {
+    if (this.disposed) return;
+    this.element.dataset.capture = 'succeeded';
+    this.record.hidden = true;
+    this.details.hidden = true;
+    const sealed = this.visual.succeed();
+    // The new copy arrives as the seal lands, as in the auth menu's success view.
+    await Promise.all([this.title, this.phrase, this.status].map(fadeOutLater));
+    if (this.disposed) return;
+    this.phrase.textContent = headline;
+    this.phrase.classList.add('seams-voiceid-success-headline');
+    this.status.textContent = message;
+    this.status.classList.add('seams-voiceid-success-message');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const part of [this.phrase, this.status]) fadeIn(part, reduced);
+    await sealed;
+  }
+
   ready(message: string): void {
+    this.unlockLayout();
     this.visual.ready();
     this.element.dataset.capture = 'ready';
     this.status.textContent = message;
@@ -460,6 +491,39 @@ export class VoicePrompt {
     this.disposed = true;
     this.visual.stop();
   }
+
+  /** The ribbon turns into the ring and the copy may change, so the card's rows hold their size. */
+  private lockLayout(): void {
+    for (const part of [this.element, this.phrase, this.status])
+      part.style.minHeight = `${part.getBoundingClientRect().height}px`;
+    this.element.style.height = this.element.style.minHeight;
+  }
+
+  private unlockLayout(): void {
+    for (const part of [this.element, this.phrase, this.status]) part.style.minHeight = '';
+    this.element.style.height = '';
+  }
+}
+
+const SUCCESS_COPY_DELAY_MS = 450;
+
+function fadeOutLater(element: HTMLElement): Promise<unknown> {
+  return element.animate([{ opacity: 1 }, { opacity: 0 }], {
+    delay: SUCCESS_COPY_DELAY_MS,
+    duration: 150,
+    easing: 'ease-in',
+    fill: 'forwards',
+  }).finished;
+}
+
+function fadeIn(element: HTMLElement, reduced: boolean): void {
+  element.animate(
+    [
+      { opacity: 0, transform: reduced ? 'none' : 'translateY(4px)' },
+      { opacity: 1, transform: 'none' },
+    ],
+    { duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'forwards' },
+  );
 }
 
 function assertNever(value: never): never {

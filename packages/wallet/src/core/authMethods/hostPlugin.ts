@@ -31,7 +31,12 @@ export type AuthMethodSessionInstaller = (input: {
   readonly near: AuthMethodNearInstallation;
 }) => Promise<AuthMethodUnlockSuccess>;
 
-export type AuthMethodCaptureMount = (element: HTMLElement) => () => void;
+/** How a mounted capture ended: `succeeded` means it already showed the unlock success itself. */
+export type AuthMethodCaptureSettlement = 'succeeded' | 'closed';
+
+export type AuthMethodCaptureMount = (
+  element: HTMLElement,
+) => (settlement: AuthMethodCaptureSettlement) => void;
 
 /** A person who closes the activation surface has made a choice; it is not an error. */
 export type AuthMethodActivationResult =

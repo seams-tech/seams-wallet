@@ -1,5 +1,9 @@
 import { VoiceSpeakerMismatchError } from '../browser/verificationError';
-import type { AuthMethodCaptureMount } from '@/core/authMethods/hostPlugin';
+import type {
+  AuthMethodCaptureMount,
+  AuthMethodCaptureSettlement,
+} from '@/core/authMethods/hostPlugin';
+import { authMenuSuccessCopy } from '@/SeamsWeb/walletIframe/host/auth-menu/domain';
 import type { UiConfirmSurfaceMeasurementBinding } from '@/core/signingEngine/uiConfirm/uiConfirm.types';
 import {
   createWalletIframeSurfaceMeasurementReporter,
@@ -37,7 +41,11 @@ type CaptureState<T> =
   | { kind: 'preparing' }
   | { kind: 'ready'; capture: PreparedRecording<T> }
   | { kind: 'capturing' }
+  | { kind: 'succeeding' }
   | { kind: 'closed' };
+// The unlock success holds and fades on the auth menu's clock.
+const SUCCESS_HOLD_MS = 1300;
+const SUCCESS_FADE_MS = 240;
 class VoiceIdCaptureSurface<T> {
   readonly result: Promise<T>;
   private readonly completion = new WorkerDeferred<T>();
@@ -48,10 +56,11 @@ class VoiceIdCaptureSurface<T> {
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
   private readonly unlockFrame: VoiceUnlockFrame | null;
-  private readonly unmountCapture: (() => void) | null;
+  private readonly unmountCapture: ((settlement: AuthMethodCaptureSettlement) => void) | null;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
   private state: CaptureState<T> = { kind: 'preparing' };
+  private settlement: AuthMethodCaptureSettlement = 'closed';
   private expiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -110,7 +119,7 @@ class VoiceIdCaptureSurface<T> {
     this.unlockFrame?.dispose();
     this.prompt.dispose();
     this.element.remove();
-    this.unmountCapture?.();
+    this.unmountCapture?.(this.settlement);
   }
 
   private async initialize(prepare: CapturePreparation<T>): Promise<void> {
@@ -164,6 +173,7 @@ class VoiceIdCaptureSurface<T> {
       // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
+      if (this.unlockFrame) await this.showUnlocked();
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
     } catch (error: unknown) {
@@ -194,15 +204,39 @@ class VoiceIdCaptureSurface<T> {
     }
   }
 
+  /**
+   * The wallet is already unlocked: the card plays the success in place, keeps
+   * its height, then fades out. The menu behind it is not shown again.
+   */
+  private async showUnlocked(): Promise<void> {
+    this.state = { kind: 'succeeding' };
+    this.settlement = 'succeeded';
+    if (this.expiryTimer !== null) clearTimeout(this.expiryTimer);
+    this.expiryTimer = null;
+    this.cancelButton.disabled = true;
+    const startedAt = performance.now();
+    const copy = authMenuSuccessCopy('authenticated');
+    await this.prompt.succeed(copy.headline, copy.message);
+    const hold = Math.max(0, SUCCESS_HOLD_MS - (performance.now() - startedAt));
+    await this.element.animate(
+      [
+        { opacity: 1 },
+        { opacity: 1, offset: hold / (hold + SUCCESS_FADE_MS), easing: 'ease-in' },
+        { opacity: 0 },
+      ],
+      { duration: hold + SUCCESS_FADE_MS, fill: 'forwards' },
+    ).finished;
+  }
+
   private readonly cancel = (): void => {
-    if (this.state.kind === 'closed') return;
+    if (this.state.kind === 'closed' || this.state.kind === 'succeeding') return;
     this.state = { kind: 'closed' };
     this.controller.abort();
     this.completion.reject(new VoiceIdCaptureCancelledError());
   };
 
   private readonly expire = (): void => {
-    if (this.state.kind === 'closed') return;
+    if (this.state.kind === 'closed' || this.state.kind === 'succeeding') return;
     this.state = { kind: 'closed' };
     this.controller.abort();
     this.completion.reject(new Error('VoiceID challenge expired. Start unlock again.'));

@@ -5,8 +5,9 @@ import path from 'node:path';
 import type {} from '../../fixtures/ui/VoicePromptProbe';
 
 test('shared VoiceID visual reacts, settles, changes theme and disposes', runVisualJourney);
+test('silent VoiceID line breathes, is drawn into the loading ring and seals in place', runSuccessJourney);
 
-async function runVisualJourney({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+async function openProbe(page: Page): Promise<string[]> {
   const chunks: { fileName: string; code: string }[] = JSON.parse(execFileSync(process.execPath, [
     path.resolve(import.meta.dirname, '../../scripts/build-preact-probe.mjs'),
     'VoicePromptProbe.ts',
@@ -17,6 +18,45 @@ async function runVisualJourney({ page }: { page: Page }, testInfo: TestInfo): P
   await page.goto('http://voice-visual.test/');
   await page.waitForFunction(probeReady);
   await page.evaluate(mount);
+  return errors;
+}
+
+async function runSuccessJourney({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+  const errors = await openProbe(page);
+  const prompt = page.locator('.seams-voiceid-prompt');
+  const ribbon = page.locator('.seams-voiceid-ribbon');
+  const mainLine = ribbon.locator('path').last();
+  const [track, seal] = [ribbon.locator('circle').nth(1), ribbon.locator('circle').nth(2)];
+  await page.evaluate(silent);
+  const silentLine = await mainLine.getAttribute('d');
+  // With no voice, the line still moves, so the card does not look stalled.
+  await expect(mainLine).not.toHaveAttribute('d', silentLine!);
+  const listeningBox = await prompt.boundingBox();
+  await page.evaluate(checking);
+  await expect(mainLine).toHaveAttribute('opacity', '0');
+  await page.waitForTimeout(360);
+  await prompt.screenshot({ path: testInfo.outputPath('voiceid-capture.png') });
+  await expect(track).toHaveAttribute('opacity', '0.1');
+  await page.waitForTimeout(700);
+  await prompt.screenshot({ path: testInfo.outputPath('voiceid-spinner.png') });
+  await page.evaluate(succeed);
+  await expect(prompt.getByText('You’re in', { exact: true })).toBeVisible();
+  await expect(prompt.getByRole('status')).toHaveText('Your wallet is unlocked.');
+  await expect(seal).toHaveAttribute('r', '22.50');
+  await prompt.screenshot({ path: testInfo.outputPath('voiceid-sealed.png') });
+  // The card keeps its height from listening to the seal, so the frame never jumps.
+  expect((await prompt.boundingBox())?.height).toBeCloseTo(listeningBox?.height ?? 0, 1);
+  expect(errors).toEqual([]);
+  expect(await page.evaluate(readViolations)).toEqual([]);
+  await writeFile(testInfo.outputPath('voiceid-success-motion.json'), JSON.stringify({
+    status: 'passed', activity: 'synthetic_recorder_events', microphoneRequests: 0,
+    states: ['silent_listening', 'capture', 'spinner', 'sealed'],
+    heightPx: listeningBox?.height, authorizationTested: false, strictStyleCsp: true,
+  }, null, 2));
+}
+
+async function runVisualJourney({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+  const errors = await openProbe(page);
   const ribbon = page.locator('.seams-voiceid-ribbon');
   const mainLine = ribbon.locator('path').last();
   const resting = await mainLine.getAttribute('d');
@@ -63,7 +103,9 @@ function recordError(errors: string[], error: Error): void { errors.push(error.m
 function probeReady(): boolean { return Boolean(window.voicePromptProbe); }
 function mount(): void { window.voicePromptProbe.mount(); }
 function listen(): void { window.voicePromptProbe.listen(); }
+function silent(): void { window.voicePromptProbe.silent(); }
 function checking(): void { window.voicePromptProbe.checking(); }
+function succeed(): Promise<void> { return window.voicePromptProbe.succeed(); }
 function retry(): void { window.voicePromptProbe.retry(); }
 function light(): void { window.voicePromptProbe.light(); }
 

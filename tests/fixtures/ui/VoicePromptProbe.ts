@@ -36,9 +36,16 @@ function stopTimer(): void {
   if (timer !== null) clearInterval(timer);
   timer = null;
 }
+function silent(): void {
+  stopTimer();
+  prompt?.capture({ kind: 'listening' });
+}
 function checking(): void {
   stopTimer();
   prompt?.capture({ kind: 'processing' });
+}
+async function succeed(): Promise<void> {
+  await prompt?.succeed('You’re in', 'Your wallet is unlocked.');
 }
 function retry(): void {
   stopTimer();
@@ -54,13 +61,15 @@ function dispose(): void {
 function light(): void {
   document.documentElement.dataset.theme = 'light';
 }
-window.voicePromptProbe = { mount, listen, checking, retry, light, securityViolations };
+window.voicePromptProbe = { mount, listen, silent, checking, succeed, retry, light, securityViolations };
 declare global {
   interface Window {
     voicePromptProbe: {
       mount(): void;
       listen(): void;
+      silent(): void;
       checking(): void;
+      succeed(): Promise<void>;
       retry(): void;
       light(): void;
       securityViolations(): readonly string[];
