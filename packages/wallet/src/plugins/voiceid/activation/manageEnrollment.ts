@@ -3,8 +3,11 @@ import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferre
 import { enrollBrowserVoice } from '../browser/enrollment';
 import {
   commitVoiceEnrollment,
+  MAX_AGE_MS,
+  MAX_USES,
   readVoiceEnrollment,
   readImportableVoiceBaseline,
+  type VoiceEnrollment,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
 } from '../browser/enrollmentStore';
@@ -12,6 +15,16 @@ import { ConfirmedVoiceChange, prepareVoiceOwner } from './ownerConfirmation';
 import { toError } from '@shared/utils/errors';
 
 type ManagementAction = 'replace' | 'improve' | 'reset' | 'import';
+// `frame` carries the pending or error state; `detail` shows its message.
+type ActionView = Readonly<{
+  button: HTMLButtonElement;
+  title: HTMLElement;
+  detail: HTMLElement;
+  frame: HTMLElement;
+}>;
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const PASSKEY_PROMPT = 'Confirm with your passkey to continue.';
 
 export async function manageVoiceEnrollment(
   context: RegistrationWebContext,
@@ -32,10 +45,11 @@ class VoiceEnrollmentManagement {
   private readonly completion = new WorkerDeferred<void>();
   readonly result = this.completion.promise;
   private readonly element = document.createElement('div');
+  private readonly enrollment = document.createElement('div');
+  private readonly enrollmentValue = document.createElement('span');
+  private readonly startOver = document.createElement('p');
   private readonly status = document.createElement('p');
-  private readonly improve: HTMLButtonElement;
-  private readonly reset: HTMLButtonElement;
-  private readonly importButton: HTMLButtonElement;
+  private readonly actions: Readonly<Record<ManagementAction, ActionView>>;
   private busy = false;
   private closed = false;
 
@@ -46,64 +60,103 @@ class VoiceEnrollmentManagement {
     private readonly signal: AbortSignal,
   ) {
     this.element.className = 'seams-voiceid-prompt seams-voiceid-management';
+    const header = document.createElement('div');
+    header.className = 'seams-voiceid-management-header';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'seams-voiceid-management-back';
+    back.setAttribute('aria-label', 'Back');
+    back.append(chevron('M15 6l-6 6 6 6', 20));
+    back.addEventListener('click', this.cancel);
     const heading = document.createElement('h2');
     heading.textContent = 'Manage voice';
-    const description = document.createElement('p');
-    description.className = 'seams-voiceid-management-intro';
-    description.textContent =
-      'Manage your voice enrollment on this device. Each change requires your passkey.';
+    header.append(back, heading);
+    const intro = document.createElement('p');
+    intro.className = 'seams-voiceid-management-intro';
+    intro.textContent = 'Voice unlock on this device. Each change asks for your passkey.';
+    this.element.append(header, intro, this.enrollmentRow());
+    this.actions = {
+      reset: this.resetAction(),
+      improve: this.action('improve', 'Improve recognition', true),
+      import: this.action('import', 'Use saved enrollment', false),
+      replace: this.startOverAction(),
+    };
     this.status.setAttribute('role', 'status');
-    this.element.append(heading, description);
-    this.improve = this.action(
-      'Improve voice recognition',
-      'Add three samples while keeping your original enrollment.',
-      'improve',
-    );
-    this.reset = this.action(
-      'Reset voice improvements',
-      'Remove added samples and use your original enrollment.',
-      'reset',
-    );
-    this.importButton = this.action(
-      'Use existing voice enrollment',
-      'Import your saved voice for this wallet.',
-      'import',
-    );
-    this.action('Record voice again', 'Replace your enrollment with three new samples.', 'replace');
-    const note = document.createElement('p');
-    note.className = 'seams-voiceid-management-note';
-    const badge = document.createElement('span');
-    badge.textContent = 'Experimental';
-    note.append(badge, 'Improvements expire after 24 hours or 32 voice checks.');
-    this.element.append(note);
-    const cancel = document.createElement('button');
-    cancel.type = 'button';
-    cancel.textContent = 'Cancel';
-    cancel.className = 'seams-voiceid-management-cancel';
-    cancel.addEventListener('click', this.cancel);
-    this.element.append(this.status, cancel);
+    this.element.append(this.status);
+    this.enrollmentValue.textContent = 'Checking…';
+    this.actions.import.button.hidden = true;
+    this.render(null, false, false);
     this.parent.replaceChildren(this.element);
     this.signal.addEventListener('abort', this.cancel, { once: true });
     void this.refresh();
-    cancel.focus();
+    back.focus();
   }
 
-  private action(label: string, detail: string, action: ManagementAction): HTMLButtonElement {
+  private enrollmentRow(): HTMLElement {
+    this.enrollment.className = 'seams-voiceid-management-enrollment';
+    const label = document.createElement('span');
+    label.textContent = 'Enrollment';
+    this.enrollmentValue.className = 'seams-voiceid-management-value';
+    const summary = document.createElement('span');
+    summary.className = 'seams-voiceid-management-summary';
+    summary.append(this.enrollmentValue);
+    this.enrollment.append(label, summary);
+    return this.enrollment;
+  }
+
+  private resetAction(): ActionView {
     const button = document.createElement('button');
     button.type = 'button';
-    button.setAttribute('aria-label', label);
+    button.className = 'seams-voiceid-management-reset';
+    button.textContent = 'Reset';
+    button.setAttribute('aria-label', 'Reset improvements');
+    button.addEventListener('click', this.begin.bind(this, 'reset'));
+    const detail = document.createElement('span');
+    detail.className = 'seams-voiceid-management-limits';
+    this.enrollment.querySelector('.seams-voiceid-management-summary')?.append(detail);
+    this.enrollment.append(button);
+    return { button, title: button, detail, frame: this.enrollment };
+  }
+
+  private startOverAction(): ActionView {
+    this.startOver.className = 'seams-voiceid-management-section';
+    this.startOver.textContent = 'Start over';
+    this.element.append(this.startOver);
+    return this.action('replace', 'Record voice again', false);
+  }
+
+  private action(action: ManagementAction, label: string, experimental: boolean): ActionView {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'seams-voiceid-management-action';
+    const text = document.createElement('span');
+    const heading = document.createElement('span');
+    heading.className = 'seams-voiceid-management-action-heading';
     const title = document.createElement('span');
-    title.className = 'seams-voiceid-management-action-title';
+    title.id = `seams-voiceid-management-${action}-title`;
     title.textContent = label;
-    const description = document.createElement('span');
-    description.className = 'seams-voiceid-management-action-detail';
-    description.textContent = detail;
-    button.append(title, description);
-    button.className = 'seams-voiceid-record';
+    heading.append(title);
+    const described: string[] = [];
+    if (experimental) {
+      const chip = document.createElement('span');
+      chip.id = `seams-voiceid-management-${action}-chip`;
+      chip.className = 'seams-voiceid-management-chip';
+      chip.textContent = 'Experimental';
+      heading.append(chip);
+      described.push(chip.id);
+    }
+    const detail = document.createElement('span');
+    detail.id = `seams-voiceid-management-${action}-detail`;
+    detail.className = 'seams-voiceid-management-action-detail';
+    described.push(detail.id);
+    text.append(heading, detail);
+    button.append(text, chevron('M9 6l6 6-6 6', 16));
+    button.setAttribute('aria-labelledby', title.id);
+    button.setAttribute('aria-describedby', described.join(' '));
     button.disabled = true;
     button.addEventListener('click', this.begin.bind(this, action));
     this.element.append(button);
-    return button;
+    return { button, title, detail, frame: button };
   }
 
   private async refresh(): Promise<void> {
@@ -111,23 +164,66 @@ class VoiceEnrollmentManagement {
       const enrollment = await readVoiceEnrollment(this.scope);
       const previous = enrollment ? null : await readImportableVoiceBaseline();
       if (this.closed) return;
-      for (const button of this.element.querySelectorAll('button')) button.disabled = false;
-      this.improve.disabled = enrollment === null;
-      this.reset.disabled = enrollment === null || enrollment.adaptation.kind === 'baseline';
-      this.importButton.hidden = previous === null;
+      this.render(enrollment, previous !== null, true);
     } catch (error) {
       this.completion.reject(toError(error));
     }
   }
 
+  private render(enrollment: VoiceEnrollment | null, importable: boolean, ready: boolean): void {
+    const adaptation = enrollment?.adaptation ?? null;
+    const { improve, reset, import: importAction, replace } = this.actions;
+    if (ready) {
+      this.enrollment.dataset.enrollment = adaptation?.kind ?? 'missing';
+      this.enrollmentValue.textContent =
+        adaptation === null
+          ? 'Not on this device'
+          : adaptation.kind === 'adapted'
+            ? 'Improved'
+            : 'Original';
+      improve.button.hidden = enrollment === null;
+      importAction.button.hidden = !importable;
+    }
+    reset.button.hidden = adaptation?.kind !== 'adapted';
+    reset.detail.textContent = adaptation?.kind === 'adapted' ? remainingLimits(adaptation) : '';
+    improve.title.textContent =
+      adaptation?.kind === 'adapted' ? 'Improve again' : 'Improve recognition';
+    improve.detail.textContent =
+      adaptation?.kind === 'adapted'
+        ? 'Replace the added samples. The limits start again.'
+        : `Add three samples. Your original stays. Ends after ${MAX_AGE_MS / 3_600_000} hours or ${MAX_USES} checks.`;
+    importAction.detail.textContent = 'Import the voice enrollment saved in this browser.';
+    replace.detail.textContent =
+      adaptation?.kind === 'adapted'
+        ? 'Replace your enrollment and remove improvements.'
+        : 'Replace your enrollment with three new samples.';
+    this.startOver.hidden = improve.button.hidden && importAction.button.hidden;
+    for (const view of Object.values(this.actions)) {
+      delete view.frame.dataset.state;
+      view.button.disabled = !ready;
+    }
+    this.status.textContent = '';
+    delete this.status.dataset.placement;
+  }
+
+  // Shows a message in the action's own row and announces it. A hidden row
+  // leaves the message visible in the dialog's status line instead.
+  private show(action: ManagementAction, state: 'pending' | 'error', message: string): void {
+    const view = this.actions[action];
+    this.status.textContent = message;
+    if (view.button.hidden) {
+      this.status.dataset.placement = 'dialog';
+      return;
+    }
+    view.frame.dataset.state = state;
+    view.detail.textContent = message;
+  }
+
   private begin(action: ManagementAction): void {
     if (this.busy || this.closed) return;
     this.busy = true;
-    for (const button of this.element.querySelectorAll<HTMLButtonElement>(
-      'button.seams-voiceid-record',
-    ))
-      button.disabled = true;
-    this.status.textContent = 'Confirm this change with your passkey.';
+    for (const view of Object.values(this.actions)) view.button.disabled = true;
+    this.show(action, 'pending', PASSKEY_PROMPT);
     void this.perform(action);
   }
 
@@ -191,9 +287,13 @@ class VoiceEnrollmentManagement {
     } catch (error) {
       if (this.closed) return;
       this.parent.replaceChildren(this.element);
-      this.status.textContent =
-        error instanceof Error ? error.message : 'VoiceID could not be updated.';
       await this.refresh();
+      if (!this.closed)
+        this.show(
+          action,
+          'error',
+          error instanceof Error ? error.message : 'VoiceID could not be updated.',
+        );
     } finally {
       this.busy = false;
     }
@@ -211,4 +311,31 @@ class VoiceEnrollmentManagement {
     this.signal.removeEventListener('abort', this.cancel);
     this.element.remove();
   }
+}
+
+function remainingLimits(adaptation: { expiresAtMs: number; remainingUses: number }): string {
+  const ms = Math.max(0, adaptation.expiresAtMs - Date.now());
+  const time =
+    ms >= 3_600_000
+      ? `${Math.floor(ms / 3_600_000)} h`
+      : `${Math.max(1, Math.ceil(ms / 60_000))} min`;
+  const checks = adaptation.remainingUses === 1 ? '1 check' : `${adaptation.remainingUses} checks`;
+  return `${checks} or ${time} left`;
+}
+
+function chevron(path: string, size: number): SVGSVGElement {
+  const icon = document.createElementNS(SVG_NS, 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', String(size));
+  icon.setAttribute('height', String(size));
+  icon.setAttribute('aria-hidden', 'true');
+  const line = document.createElementNS(SVG_NS, 'path');
+  line.setAttribute('d', path);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', 'currentColor');
+  line.setAttribute('stroke-width', '1.75');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('stroke-linejoin', 'round');
+  icon.append(line);
+  return icon;
 }

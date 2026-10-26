@@ -88,8 +88,10 @@ the existing custody envelope. Cancellation preserves the prior stored record.
 
 ## Manual adaptive enrollment
 
-Manage voice provides Improve voice recognition, Reset voice improvements, and
-Record voice again. Each action requires a fresh passkey confirmation. The trusted
+Manage voice shows whether the enrollment is original or improved, and the
+remaining checks and time of an improvement. It provides Improve recognition,
+Reset improvements, and Record voice again, and shows only the actions that apply.
+Each action requires a fresh passkey confirmation. The trusted
 Wallet validates the assertion's signature, challenge, origin, RP ID, user presence,
 and user verification. ES256 passkey credentials use the existing public-key crypto
 worker for COSE and signature decoding, then WebCrypto for signature verification. No credential PRF

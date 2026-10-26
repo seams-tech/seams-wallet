@@ -168,7 +168,15 @@ An old unlocked session or a replayed assertion cannot authorize a change.
 The owner session is checked with the server before confirmation and before saving.
 Management does not consume or renew signing quota.
 
-**Improve voice recognition** collects three phrase-matched recordings with a normal
+Manage voice shows whether the enrollment is original or improved. An improved
+enrollment also shows its remaining voice checks and time. The dialog shows only
+the actions that apply: **Improve recognition** for a present enrollment (labelled
+**Improve again** when improved), **Reset improvements** for an improved enrollment,
+and **Use saved enrollment** when the enrollment is missing and an importable record
+exists. **Record voice again** is always available. A pending passkey confirmation
+or an error appears in the row of its action. Back closes the dialog.
+
+**Improve recognition** collects three phrase-matched recordings with a normal
 background estimate. Each must match the immutable baseline at 0.5 and remain
 consistent with the other new samples. The effective template combines 80% baseline
 with 20% normalized supplemental mean, then normalizes that combination. Its cosine
@@ -179,7 +187,7 @@ Each use is reserved atomically before the speaker decision, including rejected
 attempts. The last reserved use can use the adapted template. Later checks use the
 baseline. Expired or invalid supplemental data is ignored and removed at the next
 enrollment read or template use. Expiry never renews through use. Corrupt baseline or identity data fails closed.
-**Reset voice improvements** removes supplements. **Record voice again** explicitly
+**Reset improvements** removes supplements. **Record voice again** explicitly
 replaces the baseline and clears supplements after all three recordings succeed.
 
 Changes commit atomically against the captured generation and revision. Cancellation,
@@ -189,7 +197,7 @@ enrollment. The enrollment record is limited to 32 KiB. Audio and temporary vect
 are discarded after processing; diagnostics contain no embeddings.
 
 The previous browser-wide enrollment is available only through an explicit,
-passkey-confirmed **Use existing voice enrollment** action. Verification never falls
+passkey-confirmed **Use saved enrollment** action. Verification never falls
 back to it. Import preserves its baseline for the selected wallet method; it does
 not silently grant that enrollment to other wallets. Import deletes the old record
 when all known active VoiceID methods have scoped enrollments. Otherwise, it remains

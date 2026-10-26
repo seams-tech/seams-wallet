@@ -56,9 +56,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId),
     ).rejects.toThrow('Scoped voice enrollment is unavailable');
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await wallet
-      .getByRole('button', { name: 'Use existing voice enrollment', exact: true })
-      .click();
+    await wallet.getByRole('button', { name: 'Use saved enrollment', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
     const importedEnrollment = await wallet
       .locator('body')
@@ -134,32 +132,37 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     ).toBeVisible();
     await wallet.locator('body').evaluate(useNaturalPhrases);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
-    await wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }).click();
+    const enrollmentState = wallet.locator('.seams-voiceid-management-enrollment');
+    await expect(enrollmentState).toContainText('Original');
+    await expect(
+      wallet.getByRole('button', { name: 'Reset improvements', exact: true }),
+    ).toHaveCount(0);
+    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled({
       timeout: 30_000,
     });
     await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
     await wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }).click();
     await expect(
-      wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }),
+      wallet.getByRole('button', { name: 'Improve recognition', exact: true }),
     ).toBeEnabled();
     expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
       baseline,
     );
     await wallet.locator('body').evaluate(replayPasskey);
-    await wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }).click();
+    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
       'The passkey confirmation belongs to another operation.',
     );
     await wallet.locator('body').evaluate(corruptPasskey);
-    await wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }).click();
+    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management [role="status"]')).toHaveText(
       'Passkey confirmation signature is invalid.',
     );
     expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
       baseline,
     );
-    await wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }).click();
+    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
     await expect
       .poll(wallet.locator('body').evaluate.bind(wallet.locator('body'), microphoneStates))
@@ -173,7 +176,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     );
     const cancelManagement = wallet
       .locator('.seams-voiceid-management')
-      .getByRole('button', { name: 'Cancel', exact: true });
+      .getByRole('button', { name: 'Back', exact: true });
     if (await cancelManagement.isVisible()) await cancelManagement.click();
     const settingsClose = page.getByRole('button', { name: 'Close wallet settings', exact: true });
     if (await settingsClose.isVisible()) await settingsClose.click();
@@ -183,7 +186,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await openSettings(page);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
     const ownerSession = (await page.evaluate(session)).authentication;
-    await wallet.getByRole('button', { name: 'Improve voice recognition', exact: true }).click();
+    await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await enrollBrowserMicrophone(page);
     const improved = await wallet
       .locator('body')
@@ -226,10 +229,13 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
     await openSettings(page);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+    await expect(enrollmentState).toContainText('Improved');
+    await expect(enrollmentState).toContainText('30 checks or');
+    await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
     await wallet
       .locator('.seams-voiceid-management')
       .screenshot({ path: testInfo.outputPath('voiceid-adaptation-management.png') });
-    await wallet.getByRole('button', { name: 'Reset voice improvements', exact: true }).click();
+    await wallet.getByRole('button', { name: 'Reset improvements', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
     const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
     expect(reset).toMatchObject({

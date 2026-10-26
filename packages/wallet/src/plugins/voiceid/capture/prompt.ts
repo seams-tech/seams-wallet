@@ -53,68 +53,157 @@ const CSS = `
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 1.375rem;
   border-radius: var(--seams-shape-card, 1.5rem);
   text-align: start;
   font-size: 0.875rem;
   line-height: 1.5;
 }
+.seams-voiceid-management-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: -0.5rem;
+}
 .seams-voiceid-management h2 {
   margin: 0;
   color: var(--seams-colors-textPrimary, #eff2f3);
   font-size: 1.375rem;
-  font-weight: 500;
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.25;
 }
 .seams-voiceid-management .seams-voiceid-management-intro {
-  margin: 0 0 0.5rem;
+  margin: -0.125rem 0 0.25rem;
   color: var(--seams-colors-textSecondary, #9cabb3);
 }
 .seams-voiceid-management button {
   appearance: none;
-  width: 100%;
-  min-height: 44px;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
-  border-radius: var(--seams-shape-control, 10px);
-  background: transparent;
+  margin: 0;
   color: var(--seams-colors-textPrimary, #eff2f3);
-  text-align: start;
   font: inherit;
   transition: background-color 140ms ease;
 }
-.seams-voiceid-management .seams-voiceid-record { border-radius: 0.75rem; }
-.seams-voiceid-management-action-title { display: block; font-weight: 600; }
-.seams-voiceid-management-action-detail {
-  display: block;
-  margin-top: 0.25rem;
-  color: var(--seams-colors-textSecondary, #9cabb3);
-  font-size: 0.8125rem;
-}
 .seams-voiceid-management button:disabled { opacity: 0.5; cursor: default; }
-.seams-voiceid-management .seams-voiceid-management-cancel { text-align: center; font-weight: 600; }
-.seams-voiceid-management .seams-voiceid-management-note {
+.seams-voiceid-management .seams-voiceid-management-back {
   display: grid;
-  justify-items: start;
-  gap: 0.5rem;
-  margin: 0.25rem 0;
-  padding: 0.75rem 0.9rem;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+}
+.seams-voiceid-management-enrollment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.125rem 0.75rem;
+  padding: 0.75rem 0.875rem;
   border-radius: 0.75rem;
   background: var(--seams-colors-surface, #202b31);
   color: var(--seams-colors-textSecondary, #9cabb3);
+}
+.seams-voiceid-management-summary { text-align: end; }
+.seams-voiceid-management-value { color: var(--seams-colors-textPrimary, #eff2f3); font-weight: 500; }
+.seams-voiceid-management-limits:not(:empty)::before { content: ' · '; }
+.seams-voiceid-management-enrollment[data-enrollment="adapted"] > .seams-voiceid-management-summary {
+  grid-area: 2 / 1;
+  text-align: start;
   font-size: 0.8125rem;
 }
-.seams-voiceid-management-note span {
-  padding: 0.1875rem 0.5rem;
+.seams-voiceid-management-enrollment > .seams-voiceid-management-reset { grid-area: 1 / 2 / 3; }
+.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-value { display: none; }
+.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-limits::before { content: none; }
+.seams-voiceid-management .seams-voiceid-management-reset {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.seams-voiceid-management .seams-voiceid-management-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: start;
+}
+.seams-voiceid-management-action > svg { color: var(--seams-colors-textSecondary, #9cabb3); }
+.seams-voiceid-management-action-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-weight: 600;
+}
+.seams-voiceid-management-chip {
+  padding: 0.125rem 0.5rem;
   border-radius: 6px;
   background: color-mix(in srgb, var(--seams-colors-textPrimary, #eff2f3), transparent 93%);
-  color: var(--seams-colors-textPrimary, #eff2f3);
   font-size: 0.75rem;
   font-weight: 500;
 }
-.seams-voiceid-management [role="status"] { margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
-.seams-voiceid-management [role="status"]:empty { display: none; }
+.seams-voiceid-management-action-detail {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.8125rem;
+}
+.seams-voiceid-management .seams-voiceid-management-action[data-state="pending"] {
+  opacity: 1;
+  border-color: var(--seams-colors-borderHover, #46545b);
+  background: var(--seams-colors-surface, #202b31);
+}
+.seams-voiceid-management-action[data-state="pending"] > svg { visibility: hidden; }
+.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-action-detail,
+.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-limits {
+  color: var(--seams-colors-textPrimary, #eff2f3);
+}
+.seams-voiceid-management [data-state="error"] .seams-voiceid-management-action-detail,
+.seams-voiceid-management [data-state="error"] .seams-voiceid-management-limits {
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+}
+.seams-voiceid-management .seams-voiceid-management-section {
+  margin: 0.5rem 0 -0.25rem;
+  padding-inline-start: 0.125rem;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The status line is read by assistive technology; a message for a hidden row is also shown. */
+.seams-voiceid-prompt.seams-voiceid-management > [role="status"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.seams-voiceid-prompt.seams-voiceid-management > [role="status"][data-placement="dialog"] {
+  position: relative;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  color: var(--seams-colors-error, oklch(0.74 0.166 19));
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+[dir='rtl'] .seams-voiceid-management svg { transform: scaleX(-1); }
 @media (hover: hover) {
   .seams-voiceid-management button:hover:not(:disabled) {
     background: var(--seams-colors-surface2, var(--seams-colors-surface, #202b31));

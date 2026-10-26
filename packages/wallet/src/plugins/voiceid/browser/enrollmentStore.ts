@@ -29,8 +29,8 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 
 const OLD_ENROLLMENT_KEY = 'voiceid-browser-enrollment-v1';
-const MAX_AGE_MS = 24 * 60 * 60 * 1_000;
-const MAX_USES = 32;
+export const MAX_AGE_MS = 24 * 60 * 60 * 1_000;
+export const MAX_USES = 32;
 const SUPPLEMENT_WEIGHT = 0.2;
 const MINIMUM_BASELINE_COSINE = 0.98;
 const MAX_RECORD_BYTES = 32_768;
