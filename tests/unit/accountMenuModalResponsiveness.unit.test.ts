@@ -35,6 +35,7 @@ async function mountAuthenticationMethods(
       const seams = {
         configs: {
           wallet: { iframe: { rpIdOverride: 'wallet.example.localhost' } },
+          authMethods: [],
         },
         auth: {
           unlock: async () => {
