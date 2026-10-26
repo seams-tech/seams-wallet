@@ -54,19 +54,19 @@ export class ExternalNearWalletPicker extends Component<
         <h2>Choose your NEAR wallet</h2>
         <p className="seams-near-network">NEAR {this.props.controller.network}</p>
         <div className="seams-near-wallets">
-          <button type="button" disabled={busy || hotUnavailable} onClick={this.connectHot}>
-            <span className="seams-near-icon" aria-hidden="true">
-              🔥
-            </span>
-            <strong>HOT Wallet</strong>
-            <small>{hotUnavailable ? 'Mainnet only' : 'Browser extension'}</small>
-          </button>
           <button type="button" disabled={busy} onClick={this.connectMeteor}>
             <span className="seams-near-icon seams-near-meteor" aria-hidden="true">
               M
             </span>
             <strong>Meteor Wallet</strong>
             <small>Browser extension</small>
+          </button>
+          <button type="button" disabled={busy || hotUnavailable} onClick={this.connectHot}>
+            <span className="seams-near-icon" aria-hidden="true">
+              🔥
+            </span>
+            <strong>HOT Wallet</strong>
+            <small>{hotUnavailable ? 'Mainnet only' : 'Browser extension'}</small>
           </button>
           <button type="button" disabled={busy} onClick={this.connectIntear}>
             <span className="seams-near-icon seams-near-intear" aria-hidden="true">

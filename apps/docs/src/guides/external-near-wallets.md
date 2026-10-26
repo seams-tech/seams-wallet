@@ -29,6 +29,9 @@ A configured network is an implemented adapter path, not a claim of real-wallet
 verification. HOT has no qualified testnet path. The picker disables HOT on testnet.
 Intear uses a popup even when the other choices use extensions.
 
+Meteor is the first rollout target; HOT follows. Real HOT and Intear checks remain
+pending until suitable wallet accounts are available.
+
 ## Integration boundary
 
 The external connector runs in the application document. It needs no
