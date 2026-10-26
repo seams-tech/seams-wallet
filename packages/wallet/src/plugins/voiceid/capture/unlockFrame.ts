@@ -51,7 +51,7 @@ const CSS = `
 }
 .seams-voiceid-unlock-back:focus-visible {
   outline: none;
-  background: var(--seams-colors-surface, #202b31);
+  color: var(--seams-colors-textPrimary, #eff2f3);
 }
 .seams-voiceid-unlock .seams-voiceid-prompt {
   width: 100%;
@@ -85,7 +85,7 @@ const CSS = `
 }
 @media (hover: hover) {
   .seams-voiceid-unlock-back:hover {
-    background: var(--seams-colors-surface, #202b31);
+    color: var(--seams-colors-textPrimary, #eff2f3);
   }
 }
 `;
