@@ -16,7 +16,19 @@ import {
 import type { AddedMlDsaSignerCapability } from '@/core/types/seams';
 import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import type { MlDsaNearEnrollmentOutcome } from '@/core/signingEngine/walletCustody/mlDsaEnrollment';
+import { AccountMenuScreen } from './AccountMenuScreen';
+import { SigningKeyDetails } from './SigningKeyDetails';
 import './SigningKeysSection.css';
+
+export type NearSigningKeysScreen =
+  | { readonly kind: 'list' }
+  | { readonly kind: 'add' }
+  | { readonly kind: 'ed25519' }
+  | { readonly kind: 'ml_dsa_65'; readonly signingKeyId: string };
+type Navigation = {
+  readonly screen: NearSigningKeysScreen;
+  readonly onNavigate: (screen: NearSigningKeysScreen) => void;
+};
 
 type KeyRow =
   | {
@@ -54,7 +66,8 @@ export function NearSigningKeysSection(
     readonly nearAccountId: string;
     readonly publicKey: string;
     readonly readiness: WalletSessionCapabilityLaneReadiness;
-  } & ExportHooks,
+  } & ExportHooks &
+    Navigation,
 ) {
   const { seams } = useSeams();
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
@@ -71,23 +84,25 @@ export function NearSigningKeysSection(
     [seams, props.walletId, props.nearAccountId, props.onExportKeyError, props.onExportKeyEvent],
   );
   useEffect(startMetadataRead.bind(null, context), [context]);
+  if (props.screen.kind !== 'list') {
+    return renderScreen(context, state, props);
+  }
   return (
     <div className="seams-signing-keys">
       <p className="seams-account-description">
         <WalletText copy="NEAR signing keys" />
       </p>
       <p className="seams-signing-key-account">{props.nearAccountId}</p>
-      <div className="seams-signing-key-row">
+      <div className="seams-signing-key-row" role="group" aria-label="Ed25519 signing key">
         <strong>Ed25519</strong>
         <span>
-          <WalletText
-            copy={
-              state.kind === 'ready' && state.preference.kind === 'ed25519'
-                ? 'Default signing key'
-                : signingKeyReadinessLabel(props.readiness)
-            }
-          />
+          <WalletText copy={signingKeyReadinessLabel(props.readiness)} />
         </span>
+        {state.kind === 'ready' && state.preference.kind === 'ed25519' ? (
+          <small className="seams-signing-key-default">
+            <WalletText copy="Default signing key" />
+          </small>
+        ) : null}
         <button
           type="button"
           className="seams-account-action"
@@ -100,27 +115,16 @@ export function NearSigningKeysSection(
         >
           <WalletText copy="Make default" />
         </button>
-        <details>
-          <summary>
-            <WalletText copy="Key details" />
-          </summary>
-          <textarea
-            className="seams-signing-key-fingerprint"
-            aria-label="Ed25519 public key"
-            rows={3}
-            readOnly
-            value={props.publicKey}
-          />
-          <button
-            type="button"
-            className="seams-account-action"
-            onClick={exportEd25519.bind(null, context)}
-          >
-            <WalletText copy="Export key" />
-          </button>
-        </details>
+        <button
+          type="button"
+          className="seams-account-action"
+          disabled={state.kind === 'working' || state.kind === 'loading'}
+          onClick={props.onNavigate.bind(null, { kind: 'ed25519' })}
+        >
+          <WalletText copy="Key details" />
+        </button>
       </div>
-      {renderState(context, state)}
+      {renderState(context, state, props.onNavigate)}
     </div>
   );
 }
@@ -273,7 +277,11 @@ async function exportSigner(context: Context, signer: AddedMlDsaSignerCapability
     context.busy.current = false;
   }
 }
-function renderState(context: Context, state: ViewState): React.ReactNode {
+function renderState(
+  context: Context,
+  state: ViewState,
+  onNavigate: Navigation['onNavigate'],
+): React.ReactNode {
   switch (state.kind) {
     case 'loading':
       return (
@@ -303,29 +311,15 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
     case 'ready':
       return (
         <>
-          {state.rows.map(renderKey.bind(null, context, state.preference))}
+          {state.rows.map(renderKey.bind(null, context, state.preference, onNavigate))}
           {state.rows.length === 0 ? (
-            <>
-              <div className="seams-account-inset">
-                <WalletText copy="Add an ML-DSA-65 signing key to this account. You can recover it with your existing wallet recovery method." />
-              </div>
-              <p className="seams-account-description">
-                <WalletText copy="Setup creates a signer, then asks you to approve adding a full-access key on NEAR. Existing keys remain valid." />
-              </p>
-              <label>
-                <WalletText copy="Signer type" />
-                <select aria-label="Signer type" defaultValue="ml_dsa_65">
-                  <option value="ml_dsa_65">ML-DSA-65</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="seams-account-action primary"
-                onClick={addSigner.bind(null, context)}
-              >
-                <WalletText copy="Add signer" />
-              </button>
-            </>
+            <button
+              type="button"
+              className="seams-account-action primary"
+              onClick={onNavigate.bind(null, { kind: 'add' })}
+            >
+              <WalletText copy="Add signer" />
+            </button>
           ) : null}
           <button
             type="button"
@@ -343,6 +337,7 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
 function renderKey(
   context: Context,
   preference: NearSignerPreference,
+  onNavigate: Navigation['onNavigate'],
   row: KeyRow,
 ): React.ReactNode {
   if (row.kind === 'pending')
@@ -373,11 +368,16 @@ function renderKey(
         <WalletText copy={enrollmentLabel(row.enrollment)} />
       </span>
       {preferred ? (
-        <small>
+        <small className="seams-signing-key-default">
           <WalletText copy="Default signing key" />
         </small>
       ) : null}
       <small>{row.signer.signingKeyId}</small>
+      {canActivate ? (
+        <p className="seams-account-description">
+          <WalletText copy="Next, approve a full-access key on NEAR. This key can authorize any transaction for this account." />
+        </p>
+      ) : null}
       {canActivate ? (
         <button
           type="button"
@@ -399,28 +399,16 @@ function renderKey(
           <WalletText copy="Make default" />
         </button>
       ) : null}
-      <details>
-        <summary>
-          <WalletText copy="Key details" />
-        </summary>
-        <p className="seams-account-description">
-          <WalletText copy="Export contains the standard FIPS ML-DSA seed." />
-        </p>
-        <textarea
-          className="seams-signing-key-fingerprint"
-          aria-label="ML-DSA public key (base64url)"
-          rows={3}
-          readOnly
-          value={row.signer.publicKeyB64u}
-        />
-        <button
-          type="button"
-          className="seams-account-action"
-          onClick={exportSigner.bind(null, context, row.signer)}
-        >
-          <WalletText copy="Export key" />
-        </button>
-      </details>
+      <button
+        type="button"
+        className="seams-account-action"
+        onClick={onNavigate.bind(null, {
+          kind: 'ml_dsa_65',
+          signingKeyId: row.signer.signingKeyId,
+        })}
+      >
+        <WalletText copy="Key details" />
+      </button>
     </div>
   );
 }
@@ -487,4 +475,118 @@ async function exportEd25519(context: Context): Promise<void> {
   } finally {
     context.busy.current = false;
   }
+}
+
+function renderScreen(
+  context: Context,
+  state: ViewState,
+  props: Navigation & {
+    readonly publicKey: string;
+    readonly readiness: WalletSessionCapabilityLaneReadiness;
+  },
+): React.ReactNode {
+  const back = props.onNavigate.bind(null, { kind: 'list' });
+  if (props.screen.kind === 'ed25519') {
+    return (
+      <SigningKeyDetails
+        title="Ed25519"
+        account={context.nearAccountId}
+        status={signingKeyReadinessLabel(props.readiness)}
+        publicKey={props.publicKey}
+        publicKeyLabel="Ed25519 public key"
+        keyId={null}
+        onBack={back}
+        onExport={exportEd25519.bind(null, context)}
+      >
+        {state.kind === 'failed' ? <p role="alert">{state.message}</p> : null}
+      </SigningKeyDetails>
+    );
+  }
+  if (state.kind !== 'ready') {
+    return (
+      <AccountMenuScreen title="Signing key setup" onBack={back}>
+        {renderState(context, state, props.onNavigate)}
+      </AccountMenuScreen>
+    );
+  }
+  switch (props.screen.kind) {
+    case 'list':
+      return renderState(context, state, props.onNavigate);
+    case 'add':
+      if (state.rows.length > 0) {
+        return (
+          <AccountMenuScreen title="Add key to NEAR" onBack={back}>
+            <p className="seams-signing-key-account">{context.nearAccountId}</p>
+            {state.rows.map(renderKey.bind(null, context, state.preference, props.onNavigate))}
+            <button type="button" className="seams-account-action" onClick={back}>
+              <WalletText copy="Back to signing keys" />
+            </button>
+          </AccountMenuScreen>
+        );
+      }
+      return (
+        <AccountMenuScreen title="Add signing key" onBack={back}>
+          <p className="seams-signing-key-account">{context.nearAccountId}</p>
+          <div className="seams-signing-key-row">
+            <strong>Ed25519</strong>
+            <span>
+              <WalletText copy="Already added to this account" />
+            </span>
+          </div>
+          <div className="seams-signing-key-row">
+            <strong>ML-DSA-65</strong>
+            <span>
+              <WalletText copy="Post-quantum signatures for NEAR" />
+            </span>
+          </div>
+          <p className="seams-account-description">
+            <WalletText copy="Create your key, then approve adding a full-access key on NEAR. Your existing keys stay active." />
+          </p>
+          <p className="seams-account-description">
+            <WalletText copy="Your existing wallet recovery restores this key. Your default signing key stays the same." />
+          </p>
+          <button
+            type="button"
+            className="seams-account-action primary"
+            onClick={addSigner.bind(null, context)}
+          >
+            <WalletText copy="Create key" />
+          </button>
+          <button type="button" className="seams-account-action" onClick={back}>
+            <WalletText copy="Cancel" />
+          </button>
+        </AccountMenuScreen>
+      );
+    case 'ml_dsa_65': {
+      const signingKeyId = props.screen.signingKeyId;
+      const row = state.rows.find(matchesSigningKey.bind(null, signingKeyId));
+      if (!row || row.kind !== 'published') {
+        return (
+          <AccountMenuScreen title="Key details" onBack={back}>
+            <p role="status">
+              <WalletText copy="This key is unavailable. Check signing key status again." />
+            </p>
+          </AccountMenuScreen>
+        );
+      }
+      return (
+        <SigningKeyDetails
+          title="ML-DSA-65"
+          account={context.nearAccountId}
+          status={enrollmentLabel(row.enrollment)}
+          publicKey={row.signer.publicKeyB64u}
+          publicKeyLabel="ML-DSA public key (base64url)"
+          keyId={row.signer.signingKeyId}
+          exportNote="Export contains the standard FIPS ML-DSA seed."
+          onBack={back}
+          onExport={exportSigner.bind(null, context, row.signer)}
+        />
+      );
+    }
+    default:
+      return assertNever(props.screen);
+  }
+}
+function matchesSigningKey(signingKeyId: string, row: KeyRow): boolean {
+  return row.kind === 'published' && row.signer.signingKeyId === signingKeyId;
 }

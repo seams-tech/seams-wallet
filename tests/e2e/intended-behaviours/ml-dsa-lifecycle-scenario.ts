@@ -342,6 +342,7 @@ async function publishAcrossReload(
   await openSigningKeys(page);
   const publishing = autoConfirmWalletIframeUntil(page, pendingRequest, { timeoutMs: 120_000 });
   await page.getByRole('button', { name: 'Add signer', exact: true }).click();
+  await page.getByRole('button', { name: 'Create key', exact: true }).click();
   await publishing;
   await harness.refreshPagePreservingWalletStorage();
   await page.unroute(pattern, abortPublication);
@@ -676,11 +677,13 @@ async function signFromDefaultPicker(
   };
   const resultPromise = page.evaluate(invokeSettingsSigning, command);
   const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
-  const picker = frame.getByRole('combobox', { name: 'Signing key', exact: true });
-  await expect(picker).toHaveValue(signer.signingKeyId);
-  await picker.selectOption('ed25519');
-  await expect(picker).toHaveValue('ed25519');
-  await picker.selectOption(signer.signingKeyId);
+  const picker = frame.getByRole('group', { name: 'Signing key', exact: true });
+  await expect(picker).toContainText('ML-DSA');
+  await picker.getByRole('button', { name: 'Change', exact: true }).click();
+  await picker.getByRole('radio', { name: /Ed25519/ }).click();
+  await expect(picker.locator('strong')).toContainText('Ed25519');
+  await picker.getByRole('button', { name: 'Change', exact: true }).click();
+  await picker.getByRole('radio', { name: /ML-DSA/ }).click();
   await expect(frame.getByText(/up to 2 operations over up to 601 seconds/)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-picker.png') });
   await frame.getByRole('button', { name: 'Approve transaction', exact: true }).click();

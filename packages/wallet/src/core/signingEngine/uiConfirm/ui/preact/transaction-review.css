@@ -958,19 +958,59 @@
 
 .seams-signing-key-choice {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.75rem;
   margin-block: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--seams-colors-borderPrimary, currentColor);
+  border-radius: 0.75rem;
 }
-.seams-signing-key-choice select {
+.seams-signing-key-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.seams-signing-key-summary > span {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.seams-signing-key-choice button {
   color: inherit;
   background: transparent;
-  border: 1px solid currentColor;
+  border: 0;
   border-radius: 0.5rem;
   padding: 0.65rem;
   font: inherit;
-  width: 100%;
+  cursor: pointer;
 }
-.seams-signing-key-choice select:focus-visible {
+.seams-signing-key-choice button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.seams-signing-key-choice fieldset {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+.seams-signing-key-choice legend {
+  margin-bottom: 0.5rem;
+}
+.seams-signing-key-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--seams-colors-borderPrimary, currentColor);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.seams-signing-key-choice :is(button, input):focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }
