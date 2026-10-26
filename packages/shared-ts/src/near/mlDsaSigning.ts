@@ -77,7 +77,7 @@ export type MlDsaSigningOutcome = ReadonlyExclusiveUnion<
   | {
       readonly kind: 'retry';
       readonly retryAtMs: number;
-      readonly reason: 'unavailable' | 'running';
+      readonly reason: 'empty_pool' | 'service_capacity' | 'wallet_cooldown' | 'running';
     }
   | MlDsaSigningFailure
 >;

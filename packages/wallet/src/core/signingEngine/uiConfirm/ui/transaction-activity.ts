@@ -1,7 +1,18 @@
 import { isWalletFlowEvent } from '@/core/types/sdkSentEvents';
-import type { ChildToParentEnvelope, ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
-import type { ReceiptProgress, TransactionReceiptModel, TransactionReceiptState, TransactionReceiptView } from './transaction-receipt';
-import { parseOwnerNearOutcome, type OwnerNearOutcome } from '@/SeamsWeb/walletIframe/shared/ownerNearOperation';
+import type {
+  ChildToParentEnvelope,
+  ParentToChildEnvelope,
+} from '@/SeamsWeb/walletIframe/shared/messages';
+import type {
+  ReceiptProgress,
+  TransactionReceiptModel,
+  TransactionReceiptState,
+  TransactionReceiptView,
+} from './transaction-receipt';
+import {
+  parseOwnerNearOutcome,
+  type OwnerNearOutcome,
+} from '@/SeamsWeb/walletIframe/shared/ownerNearOperation';
 import { nearTransactionRejectionMessage } from '@/core/rpcClients/near/nearTransactionRejection';
 
 type ReceiptSurface = {
@@ -20,36 +31,59 @@ type Activity = {
   signingHash: string | null;
   /** An owner NEAR operation reports a typed outcome instead of an action result. */
   owner: boolean;
+  cancelRequest: () => void;
 };
 
 // The hosted wallet has one foreground surface. A newer request replaces its receipt.
 let activity: Activity | null = null;
 
-export function beginTransactionActivity(request: ParentToChildEnvelope, post: Activity['post']): void {
+export function beginTransactionActivity(
+  request: ParentToChildEnvelope,
+  post: Activity['post'],
+  cancelRequest: (requestId: string) => void,
+): void {
   if (!request.requestId) return;
   switch (request.type) {
-    case 'PM_SIGN_TX_WITH_ACTIONS': case 'PM_SIGN_AND_SEND_TX':
-    case 'PM_SIGN_DELEGATE_ACTION': case 'PM_SIGN_NEP413': case 'PM_SIGN_TEMPO':
+    case 'PM_SIGN_TX_WITH_ACTIONS':
+    case 'PM_SIGN_AND_SEND_TX':
+    case 'PM_SIGN_DELEGATE_ACTION':
+    case 'PM_SIGN_NEP413':
+    case 'PM_SIGN_TEMPO':
       activity?.surface?.dispose();
       activity = {
-        requestId: request.requestId, post, surface: null, view: 'expanded', retained: false, signingHash: null,
+        requestId: request.requestId,
+        post,
+        cancelRequest: cancelRequest.bind(null, request.requestId),
+        surface: null,
+        view: 'expanded',
+        retained: false,
+        signingHash: null,
         owner: false,
-        progress: request.type === 'PM_SIGN_NEP413'
-          ? { subject: 'message', state: { kind: 'signing' } }
-          : { subject: 'transaction', state: { kind: 'signing' } },
+        progress:
+          request.type === 'PM_SIGN_NEP413'
+            ? { subject: 'message', state: { kind: 'signing' } }
+            : { subject: 'transaction', state: { kind: 'signing' } },
       };
       return;
     // Only the owner's approval and cancel sign a transaction; recovery and retirement do not.
     case 'PM_OWNER_NEAR_TRANSACTION':
-      if (request.payload?.action !== 'approve' && request.payload?.action !== 'cancel_submitted') return;
+      if (request.payload?.action !== 'approve' && request.payload?.action !== 'cancel_submitted')
+        return;
       activity?.surface?.dispose();
       activity = {
-        requestId: request.requestId, post, surface: null, view: 'expanded', retained: false, signingHash: null,
+        requestId: request.requestId,
+        post,
+        cancelRequest: cancelRequest.bind(null, request.requestId),
+        surface: null,
+        view: 'expanded',
+        retained: false,
+        signingHash: null,
         owner: true,
         progress: { subject: 'transaction', state: { kind: 'signing' } },
       };
       return;
-    default: return;
+    default:
+      return;
   }
 }
 
@@ -67,8 +101,21 @@ function publishActivity(): void {
     activity = null;
     return;
   }
-  activity.surface.showReceipt({ ...activity.progress, view: activity.view, onView: changeView, onDismiss: dismissActivity });
-  activity.post({ type: 'TRANSACTION_ACTIVITY', requestId: activity.requestId, payload: activity.view });
+  activity.surface.showReceipt({
+    ...activity.progress,
+    view: activity.view,
+    onView: changeView,
+    onDismiss: dismissActivity,
+    cancellation:
+      activity.progress.state.kind === 'waiting'
+        ? { kind: 'available', cancel: cancelWaitingActivity }
+        : { kind: 'unavailable' },
+  });
+  activity.post({
+    type: 'TRANSACTION_ACTIVITY',
+    requestId: activity.requestId,
+    payload: activity.view,
+  });
 }
 
 function changeView(view: TransactionReceiptView): void {
@@ -81,7 +128,8 @@ function dismissActivity(): void {
   const current = activity;
   activity = null;
   current?.surface?.dispose();
-  if (current?.retained) current.post({ type: 'TRANSACTION_ACTIVITY', requestId: current.requestId, payload: 'closed' });
+  if (current?.retained)
+    current.post({ type: 'TRANSACTION_ACTIVITY', requestId: current.requestId, payload: 'closed' });
 }
 
 export function setTransactionActivityView(requestId: string, view: 'toast' | 'closed'): void {
@@ -91,15 +139,23 @@ export function setTransactionActivityView(requestId: string, view: 'toast' | 'c
 }
 
 // Signing, signed and failed are common to both subjects; the subject never changes.
-function settleActivity(current: Activity, state: { kind: 'signed' } | { kind: 'failed'; message: string }): void {
-  current.progress = current.progress.subject === 'message'
-    ? { subject: 'message', state }
-    : { subject: 'transaction', state: state.kind === 'failed' ? { ...state, hash: null } : state };
+function settleActivity(
+  current: Activity,
+  state: { kind: 'signed' } | { kind: 'failed'; message: string },
+): void {
+  current.progress =
+    current.progress.subject === 'message'
+      ? { subject: 'message', state }
+      : {
+          subject: 'transaction',
+          state: state.kind === 'failed' ? { ...state, hash: null } : state,
+        };
 }
 
 // Network stages exist only for a transaction. A message activity ignores them.
 function advanceTransaction(current: Activity, state: TransactionReceiptState): void {
-  if (current.progress.subject === 'transaction') current.progress = { subject: 'transaction', state };
+  if (current.progress.subject === 'transaction')
+    current.progress = { subject: 'transaction', state };
 }
 
 function stringField(value: unknown, key: string): string | null {
@@ -109,7 +165,12 @@ function stringField(value: unknown, key: string): string | null {
 }
 
 export function observeTransactionActivity(message: ChildToParentEnvelope): void {
-  if (!activity || message.requestId !== activity.requestId) return;
+  if (
+    !activity ||
+    message.requestId !== activity.requestId ||
+    activity.progress.state.kind === 'cancelled'
+  )
+    return;
   if (message.type === 'PM_RESULT' && activity.owner) {
     const receipt = ownerOutcomeReceipt(message.payload?.result);
     if (!receipt) return;
@@ -117,41 +178,92 @@ export function observeTransactionActivity(message: ChildToParentEnvelope): void
   } else if (message.type === 'PM_RESULT') {
     const result: unknown = message.payload?.result;
     activity.signingHash = stringField(result, 'rawTxHex');
-    if (activity.progress.state.kind === 'signing') settleActivity(activity, { kind: 'signed' });
+    if (activity.progress.state.kind === 'signing' || activity.progress.state.kind === 'waiting')
+      settleActivity(activity, { kind: 'signed' });
     if (result && typeof result === 'object' && Reflect.get(result, 'success') === false) {
-      settleActivity(activity, { kind: 'failed', message: stringField(result, 'error') ?? 'The operation did not complete.' });
+      settleActivity(activity, {
+        kind: 'failed',
+        message: stringField(result, 'error') ?? 'The operation did not complete.',
+      });
     }
     const nearReceipt = nearResultReceipt(result);
     if (nearReceipt) advanceTransaction(activity, nearReceipt);
-  } else if (message.type === 'PROGRESS' && isWalletFlowEvent(message.payload) && message.payload.flow === 'signing') {
+  } else if (
+    message.type === 'PROGRESS' &&
+    isWalletFlowEvent(message.payload) &&
+    message.payload.flow === 'signing'
+  ) {
     const event = message.payload;
     const hash = stringField(event.data, 'txHash') ?? stringField(event.data, 'txId');
     const { kind } = activity.progress.state;
     if (kind === 'confirmed' || kind === 'reverted') return;
     switch (event.phase) {
-      case 'signing.transaction.signed': settleActivity(activity, { kind: 'signed' }); break;
-      case 'signing.broadcast.started': advanceTransaction(activity, { kind: 'broadcasting' }); break;
-      case 'signing.broadcast.accepted': advanceTransaction(activity, { kind: 'submitted', hash }); break;
-      case 'signing.receipt.finalized': advanceTransaction(activity, { kind: 'confirmed', hash }); break;
-      case 'signing.receipt.reverted': advanceTransaction(activity, { kind: 'reverted', hash, message: 'The network reverted this transaction. Network fees may still apply.' }); break;
-      case 'signing.failed': case 'signing.broadcast.rejected':
-        if (activity.progress.subject === 'message') settleActivity(activity, { kind: 'failed', message: event.message });
+      case 'signing.wait.material':
+      case 'signing.wait.capacity':
+      case 'signing.wait.cooldown': {
+        if (kind !== 'signing' && kind !== 'waiting') return;
+        const reason =
+          event.phase === 'signing.wait.material'
+            ? 'material'
+            : event.phase === 'signing.wait.capacity'
+              ? 'capacity'
+              : 'cooldown';
+        advanceTransaction(activity, { kind: 'waiting', reason, message: event.message });
+        break;
+      }
+      case 'signing.commit.started':
+        if (kind !== 'waiting') return;
+        advanceTransaction(activity, { kind: 'signing' });
+        break;
+      case 'signing.transaction.signed':
+        settleActivity(activity, { kind: 'signed' });
+        break;
+      case 'signing.broadcast.started':
+        advanceTransaction(activity, { kind: 'broadcasting' });
+        break;
+      case 'signing.broadcast.accepted':
+        advanceTransaction(activity, { kind: 'submitted', hash });
+        break;
+      case 'signing.receipt.finalized':
+        advanceTransaction(activity, { kind: 'confirmed', hash });
+        break;
+      case 'signing.receipt.reverted':
+        advanceTransaction(activity, {
+          kind: 'reverted',
+          hash,
+          message: 'The network reverted this transaction. Network fees may still apply.',
+        });
+        break;
+      case 'signing.failed':
+      case 'signing.broadcast.rejected':
+        if (activity.progress.subject === 'message')
+          settleActivity(activity, { kind: 'failed', message: event.message });
         else advanceTransaction(activity, { kind: 'failed', hash, message: event.message });
         break;
-      default: return;
+      default:
+        return;
     }
   } else return;
   publishActivity();
 }
 
 export function failTransactionActivity(requestId: string | undefined, error: unknown): void {
-  if (!activity || activity.requestId !== requestId) return;
-  settleActivity(activity, { kind: 'failed', message: error instanceof Error ? error.message : 'The operation did not complete.' });
+  if (!activity || activity.requestId !== requestId || activity.progress.state.kind === 'cancelled')
+    return;
+  settleActivity(activity, {
+    kind: 'failed',
+    message: error instanceof Error ? error.message : 'The operation did not complete.',
+  });
   publishActivity();
 }
 
 export function transactionBroadcastStarted(signedTransaction: string): void {
-  if (!activity || activity.signingHash !== signedTransaction || activity.progress.state.kind !== 'signed') return;
+  if (
+    !activity ||
+    activity.signingHash !== signedTransaction ||
+    activity.progress.state.kind !== 'signed'
+  )
+    return;
   advanceTransaction(activity, { kind: 'broadcasting' });
   publishActivity();
 }
@@ -193,12 +305,22 @@ function nearResultReceipt(value: unknown): TransactionReceiptState | null {
   if (kind === 'unresolved' && error && Reflect.get(value, 'rejection')) return { kind: 'rejected', hash, message: error };
   if (kind === 'reverted' && error) return { kind: 'reverted', hash, message: error };
   const outcome: unknown = Reflect.get(value, 'result');
-  const status: unknown = outcome && typeof outcome === 'object' ? Reflect.get(outcome, 'status') : null;
+  const status: unknown =
+    outcome && typeof outcome === 'object' ? Reflect.get(outcome, 'status') : null;
   if (status && typeof status === 'object') {
     if (Object.hasOwn(status, 'SuccessValue')) return { kind: 'confirmed', hash };
-    if (Object.hasOwn(status, 'Failure')) return { kind: 'reverted', hash, message: 'The network could not execute this transaction. Network fees may still apply.' };
+    if (Object.hasOwn(status, 'Failure'))
+      return {
+        kind: 'reverted',
+        hash,
+        message: 'The network could not execute this transaction. Network fees may still apply.',
+      };
   }
-  return { kind: 'unknown', hash, message: 'Submitted to the network. The response did not include a final execution outcome.' };
+  return {
+    kind: 'unknown',
+    hash,
+    message: 'Submitted to the network. The response did not include a final execution outcome.',
+  };
 }
 
 export function observeTransactionLifecycleReport(request: ParentToChildEnvelope): void {
@@ -212,17 +334,48 @@ export function observeTransactionLifecycleReport(request: ParentToChildEnvelope
       if (!payload || payload.signedResult.rawTxHex !== activity.signingHash) return;
       const { kind } = activity.progress.state;
       if (kind === 'confirmed' || kind === 'reverted') return;
-      if (request.type === 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED') advanceTransaction(activity, { kind: 'submitted', hash: request.payload?.txHash ?? null });
+      if (request.type === 'PM_REPORT_TEMPO_BROADCAST_ACCEPTED')
+        advanceTransaction(activity, { kind: 'submitted', hash: request.payload?.txHash ?? null });
       else if (request.type === 'PM_REPORT_TEMPO_FINALIZED') {
-        advanceTransaction(activity, request.payload?.receiptStatus === 'reverted'
-          ? { kind: 'reverted', hash: request.payload.txHash ?? null, message: 'The network reverted this transaction. Network fees may still apply.' }
-          : request.payload?.receiptStatus === 'success'
-            ? { kind: 'confirmed', hash: request.payload.txHash ?? null }
-            : { kind: 'unknown', hash: request.payload?.txHash ?? null, message: 'The network response did not include an execution status.' });
-      } else advanceTransaction(activity, { kind: 'unknown', hash: null, message: 'The transaction did not complete as expected. Check its network status before retrying.' });
+        advanceTransaction(
+          activity,
+          request.payload?.receiptStatus === 'reverted'
+            ? {
+                kind: 'reverted',
+                hash: request.payload.txHash ?? null,
+                message: 'The network reverted this transaction. Network fees may still apply.',
+              }
+            : request.payload?.receiptStatus === 'success'
+              ? { kind: 'confirmed', hash: request.payload.txHash ?? null }
+              : {
+                  kind: 'unknown',
+                  hash: request.payload?.txHash ?? null,
+                  message: 'The network response did not include an execution status.',
+                },
+        );
+      } else
+        advanceTransaction(activity, {
+          kind: 'unknown',
+          hash: null,
+          message:
+            'The transaction did not complete as expected. Check its network status before retrying.',
+        });
       publishActivity();
       return;
     }
-    default: return;
+    default:
+      return;
   }
+}
+
+function cancelWaitingActivity(): void {
+  if (
+    !activity ||
+    activity.progress.subject !== 'transaction' ||
+    activity.progress.state.kind !== 'waiting'
+  )
+    return;
+  activity.cancelRequest();
+  activity.progress = { subject: 'transaction', state: { kind: 'cancelled' } };
+  publishActivity();
 }

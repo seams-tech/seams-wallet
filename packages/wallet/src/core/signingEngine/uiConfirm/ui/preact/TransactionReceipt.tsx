@@ -294,6 +294,11 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             </div>
           </dl>
         </ReviewDisclosure>
+        {receipt.cancellation.kind === 'available' ? (
+          <button type="button" class="seams-receipt-primary" onClick={receipt.cancellation.cancel}>
+            <WalletText copy="Cancel request" />
+          </button>
+        ) : null}
         <button type="button" class="seams-receipt-primary" onClick={this.close}>
           {pending ? (
             <WalletText message="Continue in background" />
@@ -360,7 +365,7 @@ function ReceiptSteps({ state }: { state: TransactionReceiptState }) {
         label={walletText(locale, 'Signed')}
         activeLabel="Signing"
         complete={completedStages >= 1}
-        active={state.kind === 'signing'}
+        active={state.kind === 'signing' || state.kind === 'waiting'}
       />
       <ReceiptStep
         stage="broadcast"
@@ -426,7 +431,10 @@ function MessageReceiptFields({ model }: { model: TransactionReviewData['model']
               <CopyReviewValue
                 value={field.copyValue ?? field.value}
                 address
-                label={walletDisplayText(locale, `Copy ${field.label.toLowerCase()} address ${field.value}`)}
+                label={walletDisplayText(
+                  locale,
+                  `Copy ${field.label.toLowerCase()} address ${field.value}`,
+                )}
               />
             </dd>
           )}

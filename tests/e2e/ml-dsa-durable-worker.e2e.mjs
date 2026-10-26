@@ -62,6 +62,7 @@ const bindings = {
   ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
   ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
 };
+let takeFaultEnabled = false;
 const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
 function delayAuthorization(resolve) { setTimeout(resolve, 200); }
@@ -143,6 +144,35 @@ export class PublicationBarrier {
     }
     return response;
   }
+}
+export class TakeBarrier {
+  constructor(state, env) { this.state = state; this.env = env; this.role = 'b'; }
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    if (path === '/arm') { await this.state.storage.put('armed', true); return new Response('Armed'); }
+    if (path === '/lost') return Response.json(await this.state.storage.get('lost') ?? null);
+    if (path === '/takes') return Response.json(await this.state.storage.get('takes') ?? []);
+    const command = await request.clone().json();
+    const namespace = this.role === 'a' ? this.env.REAL_A : this.env.REAL_B;
+    const id = namespace.idFromName(this.env.POOL_NAME);
+    const response = await namespace.get(id).fetch(request);
+    if ((command.command === 'load_signing_inputs' || command.command === 'take') && response.status === 200) {
+      const takes = await this.state.storage.get('takes') ?? [];
+      takes.push({ operation: command.permit.request.operation,
+        material: command.command === 'take' ? command.batch : command.permit.batches[0] });
+      await this.state.storage.put('takes', takes);
+    }
+    if ((command.command === 'load_signing_inputs' || command.command === 'take')
+        && response.status === 200 && await this.state.storage.get('armed')) {
+      await this.state.storage.delete('armed');
+      await this.state.storage.put('lost', command.permit);
+      return new Response('Lost reply after durable consumption', { status: 503 });
+    }
+    return response;
+  }
+}
+export class TakeBarrierA extends TakeBarrier {
+  constructor(state, env) { super(state, env); this.role = 'a'; }
 }
 export class AdmissionBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
@@ -333,6 +363,7 @@ try {
   assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth), emptyReplay);
   observations.emptyPoolRetryPreservesOperationAndSignature = true;
   observations.expiredUnadmittedRecovery = await checkExpiredUnadmittedRecovery(emptyInput.request);
+  observations.unopenedAfterFailure = await checkUnopenedAfterFailure();
   await waitReady(policy.refill_target_batches);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(policy.refill_target_batches);
@@ -779,8 +810,13 @@ function workers() {
       name: 'publication-barrier',
       modules: true,
       script: publicationBarrierScript,
+      bindings: { POOL_NAME: fixturePoolName() },
       durableObjects: {
         BARRIER: { className: 'PublicationBarrier', useSQLite: true },
+        TAKE_BARRIER: { className: 'TakeBarrier', useSQLite: true },
+        TAKE_BARRIER_A: { className: 'TakeBarrierA', useSQLite: true },
+        REAL_A: { className: 'RouterAbMlDsaPoolDurableObject', scriptName: 'a' },
+        REAL_B: { className: 'RouterAbMlDsaPoolDurableObject', scriptName: 'b' },
         ADMISSION_BARRIER: { className: 'AdmissionBarrier', useSQLite: true },
         REAL_ADMISSION: { className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router' },
       },
@@ -818,6 +854,9 @@ function roleWorker(role, index) {
     },
     serviceBindings: { DERIVER_B: 'b' },
   };
+  if (takeFaultEnabled) {
+    worker.durableObjects.ML_DSA_POOL_DO = { className: role === 'a' ? 'TakeBarrierA' : 'TakeBarrier', scriptName: 'publication-barrier' };
+  }
   if (role === 'a') {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
@@ -1498,3 +1537,72 @@ function protocolFrame(payload, sequence, acknowledged) {
 function checkProtocolReply(message, payload, sequence, acknowledged) {
   assert.deepEqual(Buffer.from(message.data), protocolFrame(payload, sequence, acknowledged));
 }
+
+function fixturePoolName() {
+  const wallet = records[0].activation.key.wallet;
+  const ordered = { org: wallet.org, project: wallet.project, environment: wallet.environment, wallet: wallet.wallet };
+  return 'ml-dsa-pool-' + createHash('sha256').update('wallet').update(JSON.stringify(ordered)).digest('hex');
+}
+async function dispatchFixtureMessage(label) {
+  const message = digest(Array.from(Buffer.from(label)));
+  const owner = await admission.mlDsaOwnerFixture(records[0], new Uint8Array(message), label);
+  assert.equal(owner.admitted.kind, 'prepared');
+  const router = await runtime.getWorker('router');
+  const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), owner.admitted.operation);
+  assert.equal(response.status, 200, await response.clone().text());
+  return { message, operation: JSON.parse(owner.admitted.operation.encode()).request.operation, result: await response.json() };
+}
+async function checkUnopenedAfterFailure() {
+  await waitReady(policy.refill_target_batches);
+  await new Promise(waitForQuietPool);
+  await runtime.dispose();
+  takeFaultEnabled = true;
+  runtime = createRuntime();
+  await runtime.ready;
+  const namespace = await runtime.getDurableObjectNamespace('TAKE_BARRIER', 'publication-barrier');
+  const barrier = namespace.get(namespace.idFromName(fixturePoolName()));
+  assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
+  const failed = await dispatchFixtureMessage('retained-after-failure');
+  assert.equal(failed.result.status, 'existing');
+  assert.equal(failed.result.operation.state, 'failed');
+  const lost = await (await barrier.fetch('https://fault.internal/lost')).json();
+  assert.ok(lost && lost.batches.length === policy.refill_target_batches);
+  const rows = await inventories();
+  const oldIds = new Set(lost.batches.map(batchId));
+  const paired = rows[0].ready.filter(batchInSet.bind(null, new Set(rows[1].ready.map(batchId))));
+  const retained = paired.filter(batchInSet.bind(null, oldIds));
+  assert.ok(retained.length >= policy.minimum_ready_batches, 'Unopened pairs were discarded after failure');
+  assert.ok(!retained.some(batchInSet.bind(null, new Set([batchId(lost.batches[0])]))), 'Consumed first pair was reused');
+  for (const role of ['a','b']) {
+    assert.notEqual((await raw(role, '/router-ab/ml-dsa/role', {command:'take',permit:lost,batch:retained[0]}, serviceAuth)).status, 200);
+  }
+  await new Promise(waitForQuietPool);
+  const fresh = await dispatchFixtureMessage('fresh-after-retained-failure');
+  assert.equal(fresh.result.operation.state, 'succeeded');
+  verifyStandardSignature(records[0].public_key, fresh.message, [], fresh.result.operation.signature);
+  const aNamespace = await runtime.getDurableObjectNamespace('TAKE_BARRIER_A', 'publication-barrier');
+  const aBarrier = aNamespace.get(aNamespace.idFromName(fixturePoolName()));
+  const aTakes = await (await aBarrier.fetch('https://fault.internal/takes')).json();
+  const bTakes = await (await barrier.fetch('https://fault.internal/takes')).json();
+  const retainedIds = new Set(retained.map(batchId));
+  const freshId = batchId(fresh.operation);
+  const aConsumed = aTakes.filter(retainedTake.bind(null, freshId, retainedIds)).map(takenId).sort();
+  const bConsumed = bTakes.filter(retainedTake.bind(null, freshId, retainedIds)).map(takenId).sort();
+  assert.ok(aConsumed.length > 0, 'Fresh signature did not consume retained material');
+  assert.deepEqual(aConsumed, bConsumed, 'Both roles must confirm the retained takes');
+  assert.equal(new Set(aConsumed).size, aConsumed.length);
+  await runtime.dispose();
+  takeFaultEnabled = false;
+  runtime = createRuntime();
+  await runtime.ready;
+  return { retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
+    failedOperation: batchId(failed.operation), freshOperation: freshId, retainedIds: [...retainedIds],
+    committedTakesA: aConsumed, committedTakesB: bConsumed,
+    lostReplyAfterConsumption: true, oldTakeRejected: true, freshSignatureVerifiedByOpenSsl: true,
+    messageHex: Buffer.from(fresh.message).toString('hex'), signatureHex: Buffer.from(fresh.result.operation.signature).toString('hex') };
+}
+
+function retainedTake(operation, retained, event) {
+  return batchId(event.operation) === operation && retained.has(batchId(event.material));
+}
+function takenId(event) { return batchId(event.material); }

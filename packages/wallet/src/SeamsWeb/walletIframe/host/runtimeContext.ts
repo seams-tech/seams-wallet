@@ -55,6 +55,7 @@ export type WalletHostRuntimeRequest = {
   req: ParentToChildEnvelope;
   post(msg: ChildToParentEnvelope): void;
   isCancelled(requestId: string | undefined): boolean;
+  cancelRequest(requestId: string): void;
   respondIfCancelled(requestId: string | undefined): boolean;
 };
 
@@ -363,7 +364,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   const ctx = syncRuntimeContext(input.state);
   const observer = ensureSessionObserver(ctx, getRequestWalletRuntime(ctx, input));
   observer.beginOperation();
-  beginTransactionActivity(input.req, input.post);
+  beginTransactionActivity(input.req, input.post, input.cancelRequest);
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
     : null;

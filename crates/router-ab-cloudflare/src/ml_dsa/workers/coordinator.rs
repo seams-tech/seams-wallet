@@ -200,11 +200,27 @@ async fn release_pair(
         batches: batches.clone(),
     };
     let (a, b) = futures::join!(
-        role_call::<Vec<[u8; 32]>>(env, "DERIVER_A", &fence),
-        role_call::<Vec<[u8; 32]>>(env, "DERIVER_B", &fence)
+        role_call::<pool::FencedBatches>(env, "DERIVER_A", &fence),
+        role_call::<pool::FencedBatches>(env, "DERIVER_B", &fence)
     );
-    let mut consumed_union = a?;
-    for id in b? {
+    let a = a?;
+    let b = b?;
+    let digest = request.digest()?;
+    if a.request_digest != digest
+        || b.request_digest != digest
+        || a.batches != batches
+        || b.batches != batches
+    {
+        return Err(invalid("ML-DSA fence scope changed"));
+    }
+    let unopened_intersection = a
+        .unopened
+        .iter()
+        .filter(|id| b.unopened.contains(id))
+        .copied()
+        .collect();
+    let mut consumed_union = a.consumed;
+    for id in b.consumed {
         if !consumed_union.contains(&id) {
             consumed_union.push(id);
         }
@@ -214,6 +230,7 @@ async fn release_pair(
         batches,
         settlement,
         consumed_union,
+        unopened_intersection,
     };
     let (a, b) = futures::join!(
         role_call::<bool>(env, "DERIVER_A", &command),

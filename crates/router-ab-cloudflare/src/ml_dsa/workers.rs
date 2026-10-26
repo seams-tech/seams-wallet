@@ -229,6 +229,7 @@ pub enum RoleCommand {
         batches: Vec<[u8; 32]>,
         settlement: pool::Settlement,
         consumed_union: Vec<[u8; 32]>,
+        unopened_intersection: Vec<[u8; 32]>,
     },
 }
 impl RoleCommand {
@@ -1082,8 +1083,17 @@ async fn execute_role(
             batches,
             settlement,
             consumed_union,
+            unopened_intersection,
         } => {
-            pool::release(store, &request, &batches, settlement, &consumed_union).await?;
+            pool::release(
+                store,
+                &request,
+                &batches,
+                settlement,
+                &consumed_union,
+                &unopened_intersection,
+            )
+            .await?;
             json(true)
         }
     }

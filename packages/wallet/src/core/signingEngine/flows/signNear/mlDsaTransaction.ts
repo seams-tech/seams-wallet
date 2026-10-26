@@ -63,8 +63,48 @@ type Dependencies = {
 
 type SigningDispatch = { kind: 'approved' | 'dispatched' };
 
-function markDispatched(dispatch: SigningDispatch): void {
+function markDispatched(dispatch: SigningDispatch, input: MlDsaNearTransactionInput): void {
   dispatch.kind = 'dispatched';
+  emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
+    phase: SigningEventPhase.STEP_10_COMMIT_STARTED,
+    status: 'running',
+    interaction: { kind: 'none', overlay: 'none' },
+  });
+}
+function publishSigningWait(
+  input: MlDsaNearTransactionInput,
+  retry: Parameters<Parameters<typeof executeMlDsaSigningUntilSettled>[0]['onRetry']>[0],
+  seconds: number,
+): void {
+  let phase: SigningEventPhase;
+  let message: string;
+  switch (retry.reason) {
+    case 'empty_pool':
+      phase = SigningEventPhase.STEP_10_WAITING_FOR_MATERIAL;
+      message = 'Preparing signing material. This approved request will retry automatically.';
+      break;
+    case 'service_capacity':
+      phase = SigningEventPhase.STEP_10_WAITING_FOR_CAPACITY;
+      message = 'The signing service is busy. This approved request will retry automatically.';
+      break;
+    case 'wallet_cooldown':
+      phase = SigningEventPhase.STEP_10_WAITING_FOR_COOLDOWN;
+      message = `This wallet can retry ML-DSA signing in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}. Signing material must also be available.`;
+      break;
+    case 'running':
+      return;
+    default:
+      return assertNeverRetryReason(retry.reason);
+  }
+  emitNearSigningEvent(input.options.onEvent, input.nearAccount.accountId, {
+    phase,
+    message,
+    status: 'running',
+    interaction: { kind: 'none', overlay: 'none' },
+  });
+}
+function assertNeverRetryReason(reason: never): never {
+  throw new Error(`Unsupported signing wait: ${String(reason)}`);
 }
 
 export async function signMlDsaNearTransaction(
@@ -203,7 +243,8 @@ export async function signMlDsaNearTransaction(
       request,
       deadlineAtMs: signingDeadline,
       shouldAbort: input.shouldAbort,
-      onDispatch: markDispatched.bind(null, dispatch),
+      onDispatch: markDispatched.bind(null, dispatch, input),
+      onRetry: publishSigningWait.bind(null, input),
     });
     if (result.kind === 'refused') {
       forgetMlDsaTransactionApproval(approval);

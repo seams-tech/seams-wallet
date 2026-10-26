@@ -1,4 +1,6 @@
 export type TransactionReceiptState =
+  | { kind: 'waiting'; reason: 'material' | 'capacity' | 'cooldown'; message: string; hash?: never }
+  | { kind: 'cancelled'; hash?: never; message?: never }
   | { kind: 'signing'; hash?: never; message?: never }
   | { kind: 'signed'; hash?: never; message?: never }
   | { kind: 'broadcasting'; hash?: never; message?: never }
@@ -26,11 +28,16 @@ export type TransactionReceiptModel = ReceiptProgress & {
   view: TransactionReceiptView;
   onView: (view: TransactionReceiptView) => void;
   onDismiss: () => void;
+  cancellation:
+    | { readonly kind: 'available'; readonly cancel: () => void }
+    | { readonly kind: 'unavailable'; readonly cancel?: never };
 };
 
 export function receiptIsPending(receipt: ReceiptProgress): boolean {
   const { kind } = receipt.state;
-  return kind === 'signing' || kind === 'broadcasting' || kind === 'submitted';
+  return (
+    kind === 'waiting' || kind === 'signing' || kind === 'broadcasting' || kind === 'submitted'
+  );
 }
 
 export function receiptIsComplete(receipt: ReceiptProgress): boolean {
@@ -42,13 +49,24 @@ export function receiptCompletedStages(receipt: ReceiptProgress): 0 | 1 | 2 | 3 
   if (receipt.subject === 'message') return receipt.state.kind === 'signed' ? 3 : 0;
   const { state } = receipt;
   switch (state.kind) {
-    case 'signing': return 0;
-    case 'signed': case 'broadcasting': return 1;
-    case 'submitted': case 'reverted': return 2;
-    case 'confirmed': return 3;
-    case 'rejected': return 1;
-    case 'failed': case 'unknown': return state.hash ? 2 : 0;
-    default: return assertNever(state);
+    case 'waiting':
+    case 'cancelled':
+    case 'signing':
+      return 0;
+    case 'signed':
+    case 'broadcasting':
+    case 'rejected':
+      return 1;
+    case 'submitted':
+    case 'reverted':
+      return 2;
+    case 'confirmed':
+      return 3;
+    case 'failed':
+    case 'unknown':
+      return state.hash ? 2 : 0;
+    default:
+      return assertNever(state);
   }
 }
 
@@ -60,16 +78,30 @@ export function receiptHeading(receipt: ReceiptProgress): string {
   if (receipt.subject === 'message') return messageHeading(receipt.state);
   const { state } = receipt;
   switch (state.kind) {
-    case 'signing': return 'Signing transaction';
-    case 'signed': return 'Signature ready';
-    case 'broadcasting': return 'Broadcasting transaction';
-    case 'submitted': return 'Waiting for confirmation';
-    case 'confirmed': return 'Transaction complete';
-    case 'failed': return 'Transaction failed';
-    case 'reverted': return 'Transaction reverted';
-    case 'rejected': return 'Rejected by NEAR';
-    case 'unknown': return 'Confirmation unavailable';
-    default: return assertNever(state);
+    case 'waiting':
+      return waitingHeading(state.reason);
+    case 'cancelled':
+      return 'Signing request cancelled';
+    case 'signing':
+      return 'Signing transaction';
+    case 'signed':
+      return 'Signature ready';
+    case 'broadcasting':
+      return 'Broadcasting transaction';
+    case 'submitted':
+      return 'Waiting for confirmation';
+    case 'confirmed':
+      return 'Transaction complete';
+    case 'failed':
+      return 'Transaction failed';
+    case 'reverted':
+      return 'Transaction reverted';
+    case 'rejected':
+      return 'Rejected by NEAR';
+    case 'unknown':
+      return 'Confirmation unavailable';
+    default:
+      return assertNever(state);
   }
 }
 
@@ -77,34 +109,69 @@ export function receiptDescription(receipt: ReceiptProgress): string {
   if (receipt.subject === 'message') return messageDescription(receipt.state);
   const { state } = receipt;
   switch (state.kind) {
-    case 'signing': return 'Preparing your signed transaction.';
-    case 'signed': return 'Signature created, ready to broadcast.';
-    case 'broadcasting': return 'Submitting your signed transaction to the network.';
-    case 'submitted': return 'Submitted to the network. Waiting for the receipt.';
-    case 'confirmed': return 'The network confirmed your transaction.';
-    case 'failed': case 'reverted': case 'rejected': case 'unknown': return state.message;
-    default: return assertNever(state);
+    case 'waiting':
+      return state.message;
+    case 'cancelled':
+      return 'No further signing retries will start. Nothing will be submitted by this request.';
+    case 'signing':
+      return 'Preparing your signed transaction.';
+    case 'signed':
+      return 'Signature created, ready to broadcast.';
+    case 'broadcasting':
+      return 'Submitting your signed transaction to the network.';
+    case 'submitted':
+      return 'Submitted to the network. Waiting for the receipt.';
+    case 'confirmed':
+      return 'The network confirmed your transaction.';
+    case 'failed':
+    case 'reverted':
+    case 'rejected':
+    case 'unknown':
+      return state.message;
+    default:
+      return assertNever(state);
   }
 }
 
 function messageHeading(state: MessageReceiptState): string {
   switch (state.kind) {
-    case 'signing': return 'Signing message';
-    case 'signed': return 'Message signed';
-    case 'failed': return 'Signature failed';
-    default: return assertNever(state);
+    case 'signing':
+      return 'Signing message';
+    case 'signed':
+      return 'Message signed';
+    case 'failed':
+      return 'Signature failed';
+    default:
+      return assertNever(state);
   }
 }
 
 function messageDescription(state: MessageReceiptState): string {
   switch (state.kind) {
-    case 'signing': return 'Preparing your message signature.';
-    case 'signed': return 'Signed off-chain. Nothing was sent to the network.';
-    case 'failed': return state.message;
-    default: return assertNever(state);
+    case 'signing':
+      return 'Preparing your message signature.';
+    case 'signed':
+      return 'Signed off-chain. Nothing was sent to the network.';
+    case 'failed':
+      return state.message;
+    default:
+      return assertNever(state);
   }
 }
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected transaction receipt state: ${String(value)}`);
+}
+
+function waitingHeading(reason: 'material' | 'capacity' | 'cooldown'): string {
+  switch (reason) {
+    case 'material':
+      return 'Preparing your signature';
+    case 'capacity':
+      return 'Waiting for signing capacity';
+    case 'cooldown':
+      return 'Signing cooldown';
+    default:
+      return assertNever(reason);
+  }
 }

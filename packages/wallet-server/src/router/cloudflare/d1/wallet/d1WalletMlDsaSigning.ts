@@ -727,7 +727,7 @@ export class D1WalletMlDsaSigning {
         // A completed operation releases capacity before its lease deadline.
         retryAtMs = Math.min(retryAtMs, Date.now() + 500);
       }
-      return { kind: 'retry', reason: 'unavailable', retryAtMs };
+      return { kind: 'retry', reason: raw.reason, retryAtMs };
     }
     if (raw.status !== 'existing') throw new Error('Invalid Router operation');
     const operation = requireRecord(raw.operation, 'ML-DSA operation');
