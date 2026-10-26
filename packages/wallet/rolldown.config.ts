@@ -552,6 +552,10 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/transaction-display/tree.ts',
       'src/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.ts',
       'src/core/signingEngine/uiConfirm/ui/confirm-surface-resize.ts',
+      // The VoiceID card is reached only through the lazy host plugin; the homepage
+      // showcase imports its prompt and unlock frame by path.
+      'src/plugins/voiceid/capture/prompt.ts',
+      'src/plugins/voiceid/capture/unlockFrame.ts',
       // React entries share this module tree, so an app that imports both `@seams/wallet`
       // and `@seams/wallet/react` loads each SDK module once.
       'src/react/index.ts',
