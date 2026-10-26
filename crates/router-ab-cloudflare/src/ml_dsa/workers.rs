@@ -186,6 +186,9 @@ pub enum RoleCommand {
     LoadSigningInputs {
         permit: Permit,
     },
+    PublicationRecorded {
+        job: refill::Job,
+    },
     Inspect {
         key: KeyScope,
         batches: Vec<[u8; 32]>,
@@ -235,7 +238,7 @@ impl RoleCommand {
             Self::InitializeRegistrationStorage { claim }
             | Self::InstallRegistrationStock { claim, .. } => &claim.request.wallet,
             Self::Put { binding, .. } => &binding.key.wallet,
-            Self::StartRefill { job } => &job.key.wallet,
+            Self::StartRefill { job } | Self::PublicationRecorded { job } => &job.key.wallet,
             Self::CheckMaterial { activation } => &activation.key.wallet,
             Self::InstallMaterial { record } => &record.activation.key.wallet,
             Self::LoadSigningInputs { permit } | Self::Take { permit, .. } => {
@@ -899,6 +902,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
         RoleCommand::CheckMaterial { .. }
         | RoleCommand::Inventory { .. }
         | RoleCommand::RefillStatus { .. }
+        | RoleCommand::PublicationRecorded { .. }
         | RoleCommand::Inspect { .. }
         | RoleCommand::RetireUnpaired { .. } => return Ok(()),
     };
@@ -964,6 +968,10 @@ async fn execute_role(
                 sealed,
             })
         }
+        RoleCommand::PublicationRecorded { job } => json(
+            pool::publication_recorded(store, &job.key, &job.batch_ids(), job.material_expires_at_ms)
+                .await?,
+        ),
         RoleCommand::Inspect { key, batches } => json(pool::inspect(store, &key, &batches).await?),
         RoleCommand::RetireUnpaired { key, batches } => {
             pool::retire_unpaired(store, &key, &batches).await?;

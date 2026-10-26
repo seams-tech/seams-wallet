@@ -1,7 +1,11 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: reconcile post-publication completion errors, primary-B loadShed, and interrupted response delivery.
+Current priority: hosted qualification of durable publication reconciliation, primary-B loadShed, and interrupted response delivery.
+The [publication completion fix](ml-dsa-65-publication-completion-report.md) passes the composed local Worker lifecycle.
+Exact historical publication evidence survives consumption and prevents false failure after a lost final reply.
+Inspection errors preserve recovery. Lease expiry keeps the existing interrupted-job behavior.
+The eight-Worker Cloudflare rerun awaits approval for its fresh credentials and destinations.
 The current upper targets are roughly ten seconds for registration and eight seconds for signing.
 Prioritize verified signatures per minute including reserve restoration, preparation cost per signature, and empty-pool waits.
 Keep the five-second measurements for comparison. Recovery, FIPS export, two-at-once consumption, and per-wallet capacity stay unchanged.
