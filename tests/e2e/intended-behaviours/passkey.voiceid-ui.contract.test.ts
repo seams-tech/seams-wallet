@@ -214,16 +214,18 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     const settingsClose = page.getByRole('button', { name: 'Close wallet settings', exact: true });
     if (await settingsClose.isVisible()) await settingsClose.click();
     await page.getByTestId('asset-open-auth-menu').click();
-    await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
-    await expect.poll(readAuthentication.bind(null, page)).toBe('passkey');
+    await wallet.locator('[data-auth-menu-voiceid]').click();
+    await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
     await openSettings(page);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
+    const passkeyCount = await wallet.locator('body').evaluate(readPasskeyRequests);
     const ownerSession = (await page.evaluate(session)).authentication;
     await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
     await collectWithRejectedThirdSample(page, identity.walletId, testInfo);
     const improved = await wallet
       .locator('body')
       .evaluate(readEnrollmentSummary, identity.walletId);
+    expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeyCount + 1);
     expect(improved).toMatchObject({
       baselineHash: baseline.baselineHash,
       generation: baseline.generation,
@@ -232,7 +234,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       hasLifetimeLimits: false,
     });
     expect(improved.serializedBytes).toBeLessThanOrEqual(32_768);
-    expect(await readAuthentication(page)).toBe('passkey');
+    expect(await readAuthentication(page)).toBe('voiceid');
     expect((await page.evaluate(session)).authentication).toEqual(ownerSession);
     await wallet
       .locator('body')
@@ -363,6 +365,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
         invalidPasskeySignatureRejected: true,
         lockDuringCaptureReleasedMicrophone: true,
         ownerSessionUnchanged: true,
+        voiceSessionManagementWithOnePasskeyProof: true,
         removalDeletedEnrollment: true,
         lifetimeBoundarySetup:
           'existing samples survive retired expiry/count metadata and remain across reload',
@@ -524,4 +527,8 @@ async function collectWithRejectedThirdSample(
     0,
     { timeout: 30_000 },
   );
+}
+
+function readPasskeyRequests(): number {
+  return window.voiceIdPasskeyRequests();
 }

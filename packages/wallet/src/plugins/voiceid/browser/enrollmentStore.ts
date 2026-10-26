@@ -1,4 +1,5 @@
 import type { IDBPTransaction } from 'idb';
+import type { Variant } from '@shared/utils/variant';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES as stores } from '@/core/indexedDB/schemaNames';
 import {
@@ -69,14 +70,21 @@ export type VoiceEnrollmentSnapshot =
   | { readonly kind: 'missing'; readonly enrollment?: never }
   | { readonly kind: 'present'; readonly enrollment: VoiceEnrollment };
 
-export type VoiceOwnerGuard = Readonly<{
-  ownerMethodId: WalletAuthMethodId;
-  walletSessionId: WalletSessionId;
-  lockGeneration: number;
-  expiresAtMs: number;
-  availabilityRevision: string;
-  target: 'activating' | 'enrolled';
-}>;
+export type VoiceOwnerGuard = Readonly<
+  {
+    sessionMethodId: WalletAuthMethodId;
+    walletSessionId: WalletSessionId;
+    lockGeneration: number;
+    expiresAtMs: number;
+    availabilityRevision: string;
+  } & (
+    | { target: 'activating'; confirmationMethodId?: never }
+    | { target: 'enrolled'; confirmationMethodId: WalletAuthMethodId }
+  )
+>;
+
+export type VoiceChangeGuard = Variant<VoiceOwnerGuard, 'target', 'enrolled'>;
+export type VoiceActivationGuard = Variant<VoiceOwnerGuard, 'target', 'activating'>;
 
 export function voiceEnrollmentScope(
   device: BrowserVoiceDevice,
@@ -299,7 +307,7 @@ async function assertLifecycle(
     )
       throw new Error('Full owner authority is required to change VoiceID enrollment.');
     const owner = parseWalletAuthMethodV2StorageRow(
-      await transaction.objectStore(stores.walletAuthMethods).get(guard.ownerMethodId),
+      await transaction.objectStore(stores.walletAuthMethods).get(guard.sessionMethodId),
     );
     if (
       guard.expiresAtMs <= Date.now() ||
@@ -307,14 +315,28 @@ async function assertLifecycle(
       !selection ||
       selection.record.lockState !== 'unlocked' ||
       selection.record.lockGeneration !== guard.lockGeneration ||
-      selection.record.walletAuthMethodId !== guard.ownerMethodId ||
+      selection.record.walletAuthMethodId !== guard.sessionMethodId ||
       !owner ||
       owner.record.status !== 'active' ||
-      owner.record.kind === 'voiceid' ||
+      (guard.target === 'activating' && owner.record.kind === 'voiceid') ||
       owner.record.walletId !== scope.walletId ||
       owner.record.walletAuthorityId !== scope.authorityId
     ) {
       throw new Error('The owner session changed or expired. Start again.');
+    }
+    if (guard.target === 'enrolled') {
+      const confirmer = parseWalletAuthMethodV2StorageRow(
+        await transaction.objectStore(stores.walletAuthMethods).get(guard.confirmationMethodId),
+      );
+      if (
+        !confirmer ||
+        confirmer.record.kind !== 'passkey' ||
+        confirmer.record.status !== 'active' ||
+        confirmer.record.walletId !== scope.walletId ||
+        confirmer.record.walletAuthorityId !== scope.authorityId
+      ) {
+        throw new Error('The confirming passkey changed or was removed. Start again.');
+      }
     }
   }
 }
@@ -443,6 +465,8 @@ export async function commitVoiceEnrollment(
     if (guard.target !== 'activating' || snapshot.kind !== 'missing')
       throw new Error('VoiceID activation cannot replace an enrollment.');
   } else {
+    if (guard.target !== 'enrolled')
+      throw new Error('VoiceID changes require a confirmation guard.');
     await change.confirmation.consume(scope, guard, snapshot, change.kind, signal);
   }
   if (change.kind === 'import' && (guard.target !== 'enrolled' || snapshot.kind !== 'missing')) {

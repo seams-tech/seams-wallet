@@ -2,6 +2,12 @@
 
 Status: implemented and composed browser contracts pass. Live Arc settlement remains a manual acceptance step. Authorized 2026-10-26.
 
+## Release target
+
+VoiceID targets SDK **0.24.0**. Publish SDK **0.23.0** first without this feature.
+Keep VoiceID changes on this feature branch until the 0.23.0 release is complete.
+The 0.24.0 release must include matching Wallet host, SDK, and Wallet server code.
+
 ## First supported behavior
 
 An owner with an active local VoiceID method and an existing ECDSA signer can unlock
@@ -69,7 +75,7 @@ cases above, with repeatable JSON evidence. Finish with an explicit live testnet
 self-transfer and verify its chain receipt. Deterministic RPC tests and live chain
 execution must be labeled separately.
 
-Before the next SDK release, remove the user-facing **Recording details** expander
+Before SDK 0.24.0, remove the user-facing **Recording details** expander
 and its technical diagnostic text from VoiceID prompts. Keep it during the current
 debugging work. Released prompts retain concise failure guidance and retry controls.
 Update browser checks to verify that the expander is absent from released UI.

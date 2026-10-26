@@ -43,15 +43,17 @@ type CurrentAuthorityInventory =
       readonly kind: 'linked_authority';
       readonly deviceId: string;
       readonly methods: readonly AuthenticationMethodView[];
-    }
-  | {
-      readonly kind: 'local_selection';
-      readonly methods: readonly [AuthenticationMethodView];
     };
 
 type LoadState =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'loading'; readonly inventory: CurrentAuthorityInventory }
+  | {
+      readonly kind: 'loading';
+      readonly inventory: {
+        readonly kind: 'local_selection';
+        readonly methods: readonly [AuthenticationMethodView];
+      };
+    }
   | { readonly kind: 'loaded'; readonly inventory: CurrentAuthorityInventory }
   | { readonly kind: 'error'; readonly message: string };
 
@@ -239,12 +241,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     loginState.isLoggedIn && loginState.currentAuthMethod.kind === 'selected'
       ? String(loginState.currentAuthMethod.binding.walletAuthMethodId)
       : null;
-  // Adding Email OTP proves the wallet with the selected passkey first.
-  const passkeySession =
-    loginState.isLoggedIn &&
-    loginState.currentAuthMethod.kind === 'selected' &&
-    loginState.currentAuthMethod.binding.kind === 'passkey';
-
   const loadInventory = React.useCallback(async () => {
     if (!walletId) {
       setLoadState({ kind: 'error', message: 'Wallet identity is unavailable. Try again.' });
@@ -259,13 +255,15 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       setLoadState({ kind: 'error', message: 'Unlock this wallet to manage authentication.' });
       return;
     }
-    const localInventory: CurrentAuthorityInventory = {
-      kind: 'local_selection',
-      methods: [selectedMethodView(currentLoginState.currentAuthMethod.binding)],
-    };
     const sequence = loadSequence.current + 1;
     loadSequence.current = sequence;
-    setLoadState({ kind: 'loading', inventory: localInventory });
+    setLoadState({
+      kind: 'loading',
+      inventory: {
+        kind: 'local_selection',
+        methods: [selectedMethodView(currentLoginState.currentAuthMethod.binding)],
+      },
+    });
     try {
       const result = await seamsRef.current.devices.list({
         walletId,
@@ -282,7 +280,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       }
     } catch (error: unknown) {
       if (loadSequence.current === sequence) {
-        setLoadState({ kind: 'loaded', inventory: localInventory });
+        setLoadState({ kind: 'error', message: errorMessage(error) });
       }
     }
   }, [selectedWalletAuthMethodId, walletId]);
@@ -381,10 +379,8 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const hasEmailOtp = methods.some((method) => method.kind === 'email_otp');
   const hasVoiceId = methods.some((method) => method.kind === 'voiceid');
   const voiceIdConfigured = seams.configs.authMethods.some(isVoiceIdPlugin);
-  const canManageMethods =
-    loadState.kind === 'loaded' && loadState.inventory.kind !== 'local_selection';
-  const actionInProgress =
-    actionState.kind === 'adding' || actionState.kind === 'revoking';
+  const canManageMethods = loadState.kind === 'loaded';
+  const actionInProgress = actionState.kind === 'adding' || actionState.kind === 'revoking';
   const addingEmail = actionState.kind === 'adding' && actionState.method === 'email_otp';
   const emailError =
     actionState.kind === 'error' && actionState.field === 'email' ? actionState.message : null;
@@ -561,14 +557,10 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   <AuthenticationMethodRow
                     kind="email_otp"
                     title={walletText(locale, 'Email OTP')}
-                    description={
-                      canManageMethods && !passkeySession
-                        ? walletText(locale, 'Unlock with a passkey to add Email OTP.')
-                        : walletText(
-                            locale,
-                            'Use a one-time code from your email to unlock the wallet.',
-                          )
-                    }
+                    description={walletText(
+                      locale,
+                      'Use a one-time code from your email to unlock the wallet.',
+                    )}
                     action={
                       emailFormOpen ? null : (
                         <button
@@ -576,7 +568,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                           type="button"
                           className="seams-auth-method-text-action"
                           aria-label={walletText(locale, 'Add Email OTP')}
-                          disabled={actionInProgress || !canManageMethods || !passkeySession}
+                          disabled={actionInProgress || !canManageMethods}
                           onClick={() => setEmailFormOpen(true)}
                         >
                           <WalletText message="Add" />

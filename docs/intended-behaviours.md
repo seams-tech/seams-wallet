@@ -164,6 +164,11 @@ an owner unlock and three new samples. Re-enrollment preserves the existing loca
 envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB,
 scoped to its wallet, authority, method, and device key.
 
+Adding an EVM account from Accounts requests one fresh passkey proof. Successful
+setup displays the returned public address and refreshes the session state. It
+does not automatically unlock again. A later wallet action obtains any required
+new session authorization through the selected authentication method.
+
 ### Explicit voice improvements
 
 Authentication methods lists each active method as a card. The method that
@@ -177,7 +182,18 @@ The Wallet verifies the signature locally against the stored active passkey and 
 the assertion to the operation, origin, exact enrollment revision, and owner selection.
 An old unlocked session or a replayed assertion cannot authorize a change.
 The owner session is checked with the server before confirmation and before saving.
+The selected session may use VoiceID. Opening Manage voice does not require a
+separate passkey unlock. Each change uses one fresh passkey confirmation from the
+same authority and preserves the selected session. The server's active-method
+inventory must still contain that exact passkey before confirmation and saving.
 Management does not consume or renew signing quota.
+
+Authentication methods loads the active authority inventory through the selected
+session, including a VoiceID session. A failed inventory request displays an error.
+It cannot present the selected method alone as the complete inventory. A VoiceID
+session with an active passkey can add Email OTP through that passkey's fresh
+addition proof. The intent binds the proving method and authority. It does not
+require an unrelated passkey session or switch the selected authentication method.
 
 Manage voice shows whether the enrollment is original or improved. An improved
 enrollment shows that its added samples are saved on this device. The dialog shows only

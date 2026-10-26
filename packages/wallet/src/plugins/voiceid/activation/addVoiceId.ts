@@ -83,7 +83,6 @@ async function prepareActivation(
     selected.selection.lockState !== 'unlocked' ||
     selected.selection.walletId !== walletId ||
     selected.authMethod.status !== 'active' ||
-    (selected.authMethod.kind !== 'passkey' && selected.authMethod.kind !== 'email_otp') ||
     selected.authMethod.walletId !== walletId ||
     selected.authMethod.walletAuthorityId !== selected.authority.authorityId ||
     selected.authority.state !== 'active' ||
@@ -122,6 +121,9 @@ async function prepareActivation(
         context,
       };
     }
+  }
+  if (selected.authMethod.kind === 'voiceid') {
+    throw new Error('An existing local VoiceID enrollment is required for management.');
   }
   const store = new VoiceIdActivationStore(IndexedDBManager);
   const pending = await store.listPending(walletId);

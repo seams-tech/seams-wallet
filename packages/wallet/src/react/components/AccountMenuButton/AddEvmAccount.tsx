@@ -11,15 +11,22 @@ type Seams = ReturnType<typeof useSeams>['seams'];
 type Targets = readonly [ThresholdEcdsaChainTarget, ...ThresholdEcdsaChainTarget[]];
 type ActionState =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'adding' | 'unlocking' | 'added'; readonly walletId: string }
+  | { readonly kind: 'adding'; readonly walletId: string }
   | {
-      readonly kind: 'failed' | 'unlock_required';
+      readonly kind: 'added';
+      readonly walletId: string;
+      readonly evmAddress: string;
+      readonly nearAccountId: string | null;
+    }
+  | {
+      readonly kind: 'failed';
       readonly walletId: string;
       readonly message: string;
     };
 
 type SetupContext = {
   readonly seams: Seams;
+  readonly nearAccountId: string | null;
   readonly mounted: React.MutableRefObject<boolean>;
   readonly setState: React.Dispatch<React.SetStateAction<ActionState>>;
   readonly refreshSession: ReturnType<typeof useSeams>['refreshSession'];
@@ -42,40 +49,14 @@ function assertCurrentWallet(context: SetupContext, walletId: string): void {
   }
 }
 
-async function finishSetup(context: SetupContext, walletId: string): Promise<void> {
-  if (!context.mounted.current) return;
-  context.setState({ kind: 'unlocking', walletId });
-  try {
-    assertCurrentWallet(context, walletId);
-    const session = await context.seams.auth.getSession(walletId);
-    assertCurrentWallet(context, walletId);
-    if (
-      session.authentication.kind !== 'authenticated' ||
-      session.authentication.walletId !== walletId
-    ) {
-      const unlocked = await context.seams.auth.unlock(walletId);
-      if (!unlocked.success) throw new Error(unlocked.error);
-    }
-    assertCurrentWallet(context, walletId);
-    await context.refreshSession(walletId);
-    assertCurrentWallet(context, walletId);
-    context.setState({ kind: 'added', walletId });
-  } catch (error) {
-    if (context.mounted.current)
-      context.setState({ kind: 'unlock_required', walletId, message: setupError(error) });
-  }
-}
-
 async function addAccount(
   context: SetupContext,
   state: ActionState,
   walletId: string,
   targets: Targets,
 ): Promise<void> {
-  if (state.kind === 'adding' || state.kind === 'unlocking') return;
+  if (state.kind === 'adding') return;
   if (state.kind === 'added' && state.walletId === walletId) return;
-  if (state.kind === 'unlock_required' && state.walletId === walletId)
-    return finishSetup(context, walletId);
   context.setState({ kind: 'adding', walletId });
   try {
     const rpId =
@@ -90,21 +71,43 @@ async function addAccount(
       },
     });
     if (!result.success) throw new Error(result.error);
+    if (
+      result.kind !== 'wallet_signer_added' ||
+      result.capabilities[0].kind !== 'evm_family_ecdsa'
+    ) {
+      throw new Error('The wallet did not return an EVM account.');
+    }
+    assertCurrentWallet(context, walletId);
+    context.setState({
+      kind: 'added',
+      walletId,
+      evmAddress: result.capabilities[0].thresholdEcdsaEthereumAddress,
+      nearAccountId: context.nearAccountId,
+    });
   } catch (error) {
     if (context.mounted.current)
       context.setState({ kind: 'failed', walletId, message: setupError(error) });
     return;
   }
-  await finishSetup(context, walletId);
+  // Adding a signer changes the authority. Refresh its state without requesting
+  // another proof. The next wallet action obtains its own current authorization.
+  await context.refreshSession(walletId);
 }
 
 /** The menu owns setup across navigation between its screens. */
 export function useEvmAccountSetup() {
-  const { seams, refreshSession } = useSeams();
+  const { seams, refreshSession, loginState } = useSeams();
   const [state, setState] = useState<ActionState>({ kind: 'idle' });
   const mounted = useRef(false);
   useEffect(trackMount.bind(null, mounted), [mounted]);
-  return { state, add: addAccount.bind(null, { seams, refreshSession, mounted, setState }, state) };
+  return {
+    state,
+    add: addAccount.bind(
+      null,
+      { seams, refreshSession, mounted, setState, nearAccountId: loginState.nearAccountId },
+      state,
+    ),
+  };
 }
 
 export function AddEvmAccount({
@@ -119,13 +122,12 @@ export function AddEvmAccount({
     seams.configs.network.chains,
   ]);
   const state = setup.state;
-  const busy = state.kind === 'adding' || state.kind === 'unlocking';
+  const busy = state.kind === 'adding';
   const current = state.kind !== 'idle' && state.walletId === walletId;
-  const needsUnlock = current && state.kind === 'unlock_required';
   if (
     !targets ||
     (!busy &&
-      !needsUnlock &&
+      !(current && state.kind === 'added') &&
       (loginState.walletId !== walletId ||
         accountMenuCapabilitiesForLoginState(loginState).kind !== 'owner'))
   )
@@ -136,29 +138,28 @@ export function AddEvmAccount({
         <WalletText message="EVM account added." />
       </p>
     );
-  if (loginState.thresholdEcdsaEthereumAddress && !busy && !needsUnlock) return null;
+  if (loginState.thresholdEcdsaEthereumAddress && !busy) return null;
   const hasPasskey = loginState.authMethods.some(isPasskey);
   let actionLabel = <WalletText message="Add EVM account" />;
   if (busy) actionLabel = <WalletText message="Adding EVM account…" />;
-  else if (needsUnlock) actionLabel = <WalletText message="Unlock with passkey" />;
   return (
     <div>
       <button
         type="button"
         className="seams-account-action primary"
-        disabled={busy || (!hasPasskey && !needsUnlock)}
+        disabled={busy || !hasPasskey}
         onClick={setup.add.bind(null, walletId, targets)}
       >
         {actionLabel}
       </button>
       <p className="seams-account-note" role={busy ? 'status' : undefined}>
-        {hasPasskey || busy || needsUnlock ? (
+        {hasPasskey || busy ? (
           <WalletText message="Enable this app’s EVM networks with your passkey." />
         ) : (
           <WalletText message="Add a passkey in Authentication methods first." />
         )}
       </p>
-      {current && (state.kind === 'failed' || state.kind === 'unlock_required') ? (
+      {current && state.kind === 'failed' ? (
         <p className="seams-account-error" role="alert">
           <WalletText copy={state.message} />
         </p>

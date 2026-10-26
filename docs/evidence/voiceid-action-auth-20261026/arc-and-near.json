@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "profile": "add_ecdsa_after_voice",
+  "nearTransfers": [
+    {
+      "signedTransactionB64": "QAAAAGEzOWEyMWU5NGMyODYyNGVlMTk4ODIwMmJlMzQyZGUwMjdmMDg1NWFhYjgyYzQ3MWZlMTIzZDhjMWZiZWFkM2IAo5oh6UwoYk7hmIICvjQt4CfwhVqrgsRx/hI9jB++rTsCAAAAAAAAAEAAAABhMzlhMjFlOTRjMjg2MjRlZTE5ODgyMDJiZTM0MmRlMDI3ZjA4NTVhYWI4MmM0NzFmZTEyM2Q4YzFmYmVhZDNiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA0BRuqtDOeBdAGFzCQUkfHM+ytiIJ928mBrWmqC+P4u8fF7Yyz6SPS9oWqj7VrRuoBkCMqrrn3ordD/cwwCpvDA==",
+      "signedTransactionSha256": "a6a7d5fc693de9a9747957270b4f7ab6566f2cd282e9ad0b8dbd73f830d1378d",
+      "signerId": "a39a21e94c28624ee1988202be342de027f0855aab82c471fe123d8c1fbead3b",
+      "receiverId": "a39a21e94c28624ee1988202be342de027f0855aab82c471fe123d8c1fbead3b",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "network": "deterministic_arc_rpc",
+  "signing": "real_ecdsa_mpc",
+  "inference": "real_redimnet_b1_and_aurora",
+  "speakerThreshold": 0.5,
+  "blockedFeeLookup": "{\"kind\":\"failed\",\"message\":\"Could not reach https://rpc.testnet.arc.io to estimate Arc fees. Check your connection and whether a browser extension or DevTools rule blocks this address.\"}",
+  "ownerAddress": "0x06d9166625a3bffe344c19b6fa81403e3cf457b4",
+  "walletId": "swift-eagle-znen26",
+  "transactions": [
+    {
+      "hash": "0x565f8781111ae7380c87a12046a94574ecb05ac329af90616027c1c28eb85324",
+      "raw": "0x02f869834cef52808084773594008252089406d9166625a3bffe344c19b6fa81403e3cf457b40180c080a07a90e7498620cb4fed1ba3a52c385d04ca98b60c548120034f1219cd44f60059a016426113feb57b53b06a015272c9319a064f3e031efbee4b2dd47f90936e893e",
+      "sender": "0x06D9166625A3BFfE344C19B6fA81403e3CF457b4",
+      "to": "0x06d9166625a3bffe344c19b6fa81403e3cf457b4",
+      "value": "1",
+      "chainId": 5042002,
+      "nonce": 0
+    }
+  ],
+  "cancellationPreventedSecondTransfer": true,
+  "signerSetup": "accounts_menu_from_voiceid_session_with_passkey"
+}

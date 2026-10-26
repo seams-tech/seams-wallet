@@ -120,10 +120,22 @@ const walletMessages = [
   ['Add EVM account', 'EVM アカウントを追加'],
   ['Adding EVM account…', 'EVM アカウントを追加中…'],
   ['EVM account added.', 'EVM アカウントを追加しました。'],
-  ['Account added. Open this wallet again to finish setup.', 'アカウントを追加しました。このウォレットを開き直して設定を完了してください。'],
-  ['Enable this app’s EVM networks with your passkey.', 'パスキーでこのアプリの EVM ネットワークを有効にします。'],
-  ['Add a passkey in Authentication methods first.', '先に「認証方法」でパスキーを追加してください。'],
-  ['The account could not be added. Try again.', 'アカウントを追加できませんでした。もう一度お試しください。'],
+  [
+    'Account added. Open this wallet again to finish setup.',
+    'アカウントを追加しました。このウォレットを開き直して設定を完了してください。',
+  ],
+  [
+    'Enable this app’s EVM networks with your passkey.',
+    'パスキーでこのアプリの EVM ネットワークを有効にします。',
+  ],
+  [
+    'Add a passkey in Authentication methods first.',
+    '先に「認証方法」でパスキーを追加してください。',
+  ],
+  [
+    'The account could not be added. Try again.',
+    'アカウントを追加できませんでした。もう一度お試しください。',
+  ],
   ['View accounts on block explorers', 'ブロックエクスプローラーでアカウントを表示'],
   ['Export keys', '鍵をエクスポート'],
   ['Export wallet signing keys', 'ウォレットの署名鍵をエクスポート'],
@@ -596,10 +608,6 @@ const walletMessages = [
   [
     'Use a one-time code from your email to unlock the wallet.',
     'メールに届くワンタイムコードでウォレットのロックを解除します。',
-  ],
-  [
-    'Unlock with a passkey to add Email OTP.',
-    'メール認証を追加するには、パスキーでロックを解除してください。',
   ],
   [
     'Next, confirm with your passkey. Then enter the code that we email to this address.',

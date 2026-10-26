@@ -217,10 +217,9 @@ const AccountMenuButtonInner: React.FC<
   const [screen, setScreen] = useState<AccountMenuRoute>('overview');
   const accountSetup = useEvmAccountSetup();
   const accountSetupState = accountSetup.state;
-  const accountSetupRunning =
-    accountSetupState.kind === 'adding' || accountSetupState.kind === 'unlocking';
+  const accountSetupRunning = accountSetupState.kind === 'adding';
   const accountsWalletId =
-    (accountSetupRunning || accountSetupState.kind === 'unlock_required') && walletId === null
+    (accountSetupRunning || accountSetupState.kind === 'added') && walletId === null
       ? accountSetupState.walletId
       : walletId;
   const [recoveryCodesOpen, setRecoveryCodesOpen] = useState(false);
@@ -248,11 +247,11 @@ const AccountMenuButtonInner: React.FC<
 
   useEffect(() => {
     const switchedWallet =
-      accountSetupRunning && walletId !== null && walletId !== accountSetupState.walletId;
+      accountSetupState.kind !== 'idle' &&
+      walletId !== null &&
+      walletId !== accountSetupState.walletId;
     if (
-      (!canManageLinkedDevices &&
-        !accountSetupRunning &&
-        accountSetupState.kind !== 'unlock_required') ||
+      (!canManageLinkedDevices && !accountSetupRunning && accountSetupState.kind !== 'added') ||
       switchedWallet
     ) {
       setScreen('overview');
@@ -414,14 +413,19 @@ const AccountMenuButtonInner: React.FC<
     const nearExplorer = resolvePrimaryExplorerUrl(chains, 'near') || nearExplorerBaseUrl;
     const tempoExplorer = resolvePrimaryExplorerUrl(chains, 'tempo');
     const evmExplorer = resolvePrimaryExplorerUrl(chains, 'evm');
-    const evmAddress = loginState.thresholdEcdsaEthereumAddress;
+    const completedSetup =
+      accountSetupState.kind === 'added' && accountsWalletId === accountSetupState.walletId
+        ? accountSetupState
+        : null;
+    const evmAddress = completedSetup?.evmAddress ?? loginState.thresholdEcdsaEthereumAddress;
+    const accountNearId = nearAccountId ?? completedSetup?.nearAccountId;
 
-    if (nearAccountId && nearExplorer) {
+    if (accountNearId && nearExplorer) {
       rows.push({
         id: 'near',
         label: 'NEAR',
-        address: nearAccountId,
-        href: `${nearExplorer}/address/${nearAccountId}`,
+        address: accountNearId,
+        href: `${nearExplorer}/address/${accountNearId}`,
       });
     }
     if (evmAddress && tempoExplorer) {
@@ -441,7 +445,14 @@ const AccountMenuButtonInner: React.FC<
       });
     }
     return rows;
-  }, [seams, nearAccountId, nearExplorerBaseUrl, loginState.thresholdEcdsaEthereumAddress]);
+  }, [
+    seams,
+    nearAccountId,
+    nearExplorerBaseUrl,
+    loginState.thresholdEcdsaEthereumAddress,
+    accountSetupState,
+    accountsWalletId,
+  ]);
 
   // Menu items configuration with context-aware handlers
   const MENU_ITEMS: MenuItem[] = useMemo(() => {
@@ -607,11 +618,7 @@ const AccountMenuButtonInner: React.FC<
         </p>
         <AccountsSection rows={accountsRows} />
         {accountsWalletId ? (
-          <AddEvmAccount
-            key={accountsWalletId}
-            walletId={accountsWalletId}
-            setup={accountSetup}
-          />
+          <AddEvmAccount key={accountsWalletId} walletId={accountsWalletId} setup={accountSetup} />
         ) : null}
       </AccountMenuScreen>
     ),

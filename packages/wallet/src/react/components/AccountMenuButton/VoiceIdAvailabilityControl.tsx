@@ -15,7 +15,6 @@ type VoiceIdAvailability = Readonly<{
   state: ViewState;
   ready: boolean;
   enabled: boolean;
-  passkeySelected: boolean;
   toggle: (() => Promise<void>) | undefined;
   manage: (() => Promise<void>) | undefined;
 }>;
@@ -52,7 +51,7 @@ export function VoiceIdMethodRow({
           <button
             type="button"
             className="seams-auth-method-text-action"
-            disabled={disabled || !voice.ready || !voice.passkeySelected || !voice.enabled}
+            disabled={disabled || !voice.ready || !voice.enabled}
             onClick={voice.manage}
           >
             Manage voice
@@ -140,13 +139,9 @@ function useVoiceIdAvailability(
   walletId: string,
   onChanged: () => Promise<void>,
 ): VoiceIdAvailability {
-  const { seams, refreshSession, loginState } = useSeams();
+  const { seams, refreshSession } = useSeams();
   const [state, setState] = React.useState<ViewState>({ kind: 'loading' });
   React.useEffect(loadAvailability.bind(null, seams, walletId, setState), [seams, walletId]);
-  const passkeySelected =
-    loginState.isLoggedIn &&
-    loginState.currentAuthMethod.kind === 'selected' &&
-    loginState.currentAuthMethod.binding.kind === 'passkey';
   const ready = state.kind === 'ready';
   const change = ready
     ? changeAvailability.bind(
@@ -163,7 +158,6 @@ function useVoiceIdAvailability(
     state,
     ready,
     enabled: (ready || state.kind === 'updating') && state.availability.kind === 'enabled',
-    passkeySelected,
     toggle: change?.bind(null, 'toggle'),
     manage: change?.bind(null, 'manage'),
   };
@@ -182,9 +176,7 @@ function voiceIdStatus(voice: VoiceIdAvailability): { text: string; tone?: 'erro
       switch (voice.state.availability.kind) {
         case 'enabled':
           return {
-            text: voice.passkeySelected
-              ? 'On in this browser'
-              : 'On in this browser. Unlock with a passkey to manage your voice.',
+            text: 'On in this browser',
           };
         case 'disabled':
           return { text: 'Off in this browser. Turn it on to manage your voice.' };

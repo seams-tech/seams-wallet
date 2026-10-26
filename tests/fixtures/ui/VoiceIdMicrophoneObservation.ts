@@ -13,6 +13,7 @@ const originalCredentialGet = navigator.credentials.get.bind(navigator.credentia
 const originalCredentialCreate = navigator.credentials.create.bind(navigator.credentials);
 let registrationAlgorithm: -7 | -257 = -7;
 let lastAssertion: PublicKeyCredential | null = null;
+let passkeyRequests = 0;
 let replayAssertion = false;
 let corruptAssertion = false;
 let savedAdaptation: { walletId: string; generation: string; value: unknown } | null = null;
@@ -25,6 +26,7 @@ async function observedCredentialGet(
     if (!lastAssertion) throw new Error('No passkey assertion is available to replay');
     return lastAssertion;
   }
+  passkeyRequests += 1;
   const credential = await originalCredentialGet(options);
   if (
     corruptAssertion &&
@@ -213,6 +215,7 @@ declare global {
     voiceIdMicrophoneStates: typeof microphoneStates;
     voiceIdCancelNextEnrollmentSave: typeof cancelNextEnrollmentSave;
     voiceIdEnrollmentSummary: typeof enrollmentSummary;
+    voiceIdPasskeyRequests: typeof readPasskeyRequests;
     voiceIdReplayNextPasskey: typeof replayNextPasskey;
     voiceIdCorruptNextPasskey: typeof corruptNextPasskey;
     voiceIdRequireRsaPasskey: typeof requireRsaPasskey;
@@ -228,6 +231,7 @@ window.voiceIdNextDelayedAudio = useNextDelayedAudio;
 window.voiceIdMicrophoneStates = microphoneStates;
 window.voiceIdCancelNextEnrollmentSave = cancelNextEnrollmentSave;
 window.voiceIdEnrollmentSummary = enrollmentSummary;
+window.voiceIdPasskeyRequests = readPasskeyRequests;
 window.voiceIdReplayNextPasskey = replayNextPasskey;
 window.voiceIdCorruptNextPasskey = corruptNextPasskey;
 window.voiceIdRequireRsaPasskey = requireRsaPasskey;
@@ -397,3 +401,7 @@ declare global {
 Worklet.prototype.addModule = observedWorkletAddModule;
 window.voiceIdHoldNextWorklet = holdNextWorklet;
 window.voiceIdReleaseWorklet = releaseHeldWorklet;
+
+function readPasskeyRequests(): number {
+  return passkeyRequests;
+}

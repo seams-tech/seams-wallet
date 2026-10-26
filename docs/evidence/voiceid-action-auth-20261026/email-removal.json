@@ -1,0 +1,9 @@
+{
+  "kind": "auth_method_menu_removal_e2e_v1",
+  "hostOwnedEmailProof": true,
+  "operationBoundChallenges": 1,
+  "activeMethodsBefore": 2,
+  "activeMethodsAfter": 1,
+  "signedWithSurvivingEmailMethod": true,
+  "reproduce": "SEAMS_INTENDED_PRODUCTION=1 SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs --require-google-token -- e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts --grep 'account menu removes an added passkey through the wallet email prompt and preserves signing'"
+}

@@ -112,8 +112,8 @@ async function addPasskeyWalletAuthMethodInternal(args: {
   }
 
   /* The intent names the source it is minted for, so the fresh assertion
-     taken over its digest binds the wallet, authority, source method, source
-     session, authority state, and the server-allocated target method id. */
+     taken over its digest binds the wallet, authority, source method,
+     authority state, and the server-allocated target method id. */
   const sourceClaim = await resolveAddAuthMethodSourceClaimV1(args.walletId);
   if (sourceClaim.kind !== 'resolved') {
     throw new Error(`Wallet add-passkey requires a selected active source: ${sourceClaim.reason}`);
@@ -169,9 +169,6 @@ async function addPasskeyWalletAuthMethodInternal(args: {
       intentResponse,
       ...(args.options ? { options: args.options } : {}),
     });
-  }
-  if (sourceClaim.sourceAuthMethod.kind === 'voiceid') {
-    throw new Error('Wallet add-passkey requires an existing passkey or Email OTP owner method');
   }
   const allowCredentials = addAuthMethodSourcePasskeyAllowCredentials(sourceClaim.sourceAuthMethod);
   const credential = await args.context.signingEngine.getAuthenticationCredentialsSerialized({

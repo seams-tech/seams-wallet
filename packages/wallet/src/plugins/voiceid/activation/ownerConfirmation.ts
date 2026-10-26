@@ -1,8 +1,14 @@
+import { parseLinkedDeviceListResultV1, type OwnerDeviceSummaryV1 } from '@shared/device-linking';
+import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { decodeCBOR } from '@levischuck/tiny-cbor';
 import type { WorkerOperationContext } from '@/core/signingEngine/workerManager/executeWorkerOperation';
 import { createRelayerExactWalletSessionStatusPort } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import { fetchWithWalletHomeDiscovery } from '@/core/rpcClients/relayer/relayerHttp';
+import {
+  buildWalletSessionAuthorizationHeaders,
+  normalizeRelayerBaseUrl,
+  fetchWithWalletHomeDiscovery,
+} from '@/core/rpcClients/relayer/relayerHttp';
 import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import {
   availabilityKey,
@@ -21,10 +27,20 @@ import {
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
   type VoiceOwnerGuard,
+  type VoiceChangeGuard,
+  type VoiceActivationGuard,
 } from '../browser/enrollmentStore';
 
 type VoiceChangeAction = 'replace' | 'improve' | 'reset' | 'import';
 
+export function prepareVoiceOwner(
+  scope: VoiceEnrollmentScope,
+  target: 'enrolled',
+): Promise<VoiceChangeGuard>;
+export function prepareVoiceOwner(
+  scope: VoiceEnrollmentScope,
+  target: 'activating',
+): Promise<VoiceActivationGuard>;
 export async function prepareVoiceOwner(
   scope: VoiceEnrollmentScope,
   target: VoiceOwnerGuard['target'],
@@ -33,7 +49,7 @@ export async function prepareVoiceOwner(
   if (
     selected.kind !== 'resolved' ||
     selected.selection.lockState !== 'unlocked' ||
-    selected.authMethod.kind === 'voiceid' ||
+    (target === 'activating' && selected.authMethod.kind === 'voiceid') ||
     selected.authMethod.status !== 'active' ||
     selected.authority.authorityId !== scope.authorityId
   ) {
@@ -49,21 +65,65 @@ export async function prepareVoiceOwner(
   const availability = parseStoredAuthMethodAvailability(
     await IndexedDBManager.getAppState(availabilityKey(scope.walletId, scope.walletAuthMethodId)),
   );
-  const guard: VoiceOwnerGuard = {
-    ownerMethodId: selected.authMethod.walletAuthMethodId,
-    walletSessionId: session.operationCredential.walletSessionId,
-    lockGeneration: selected.selection.lockGeneration,
-    expiresAtMs: Math.min(session.record.expiresAtMs, Date.now() + 5 * 60_000),
-    availabilityRevision: availability.revision,
-    target,
-  };
+  let guard: VoiceOwnerGuard;
+  if (target === 'activating') {
+    guard = {
+      target,
+      sessionMethodId: selected.authMethod.walletAuthMethodId,
+      walletSessionId: session.operationCredential.walletSessionId,
+      lockGeneration: selected.selection.lockGeneration,
+      expiresAtMs: Math.min(session.record.expiresAtMs, Date.now() + 5 * 60_000),
+      availabilityRevision: availability.revision,
+    };
+  } else {
+    const methods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(scope.walletId);
+    const passkey = methods.find(isConfirmingPasskey.bind(null, scope));
+    if (!passkey)
+      throw new Error('Add a passkey to this authority before changing your voice enrollment.');
+    guard = {
+      target,
+      sessionMethodId: selected.authMethod.walletAuthMethodId,
+      confirmationMethodId: passkey.walletAuthMethodId,
+      walletSessionId: session.operationCredential.walletSessionId,
+      lockGeneration: selected.selection.lockGeneration,
+      expiresAtMs: Math.min(session.record.expiresAtMs, Date.now() + 5 * 60_000),
+      availabilityRevision: availability.revision,
+    };
+  }
   await assertVoiceOwner(scope, guard);
   return guard;
 }
 
+function isConfirmingPasskey(
+  scope: VoiceEnrollmentScope,
+  method: WalletAuthMethodRecordV2,
+): boolean {
+  return (
+    method.kind === 'passkey' &&
+    method.status === 'active' &&
+    method.walletId === scope.walletId &&
+    method.walletAuthorityId === scope.authorityId
+  );
+}
+
+function matchesConfirmingPasskey(
+  scope: VoiceEnrollmentScope,
+  guard: VoiceChangeGuard,
+  credentialId: string,
+  owner: OwnerDeviceSummaryV1,
+): boolean {
+  return (
+    owner.walletId === scope.walletId &&
+    owner.walletAuthorityId === scope.authorityId &&
+    owner.credential.kind === 'passkey' &&
+    owner.credential.walletAuthMethodId === guard.confirmationMethodId &&
+    owner.credential.credentialIdB64u === credentialId
+  );
+}
+
 function changeBinding(
   scope: VoiceEnrollmentScope,
-  guard: VoiceOwnerGuard,
+  guard: VoiceChangeGuard,
   snapshot: VoiceEnrollmentSnapshot,
   action: VoiceChangeAction,
 ): string {
@@ -74,7 +134,8 @@ function changeBinding(
     scope.authorityId,
     scope.walletAuthMethodId,
     scope.deviceKeyId,
-    guard.ownerMethodId,
+    guard.sessionMethodId,
+    guard.confirmationMethodId,
     guard.walletSessionId,
     guard.lockGeneration,
     guard.availabilityRevision,
@@ -97,7 +158,7 @@ export class ConfirmedVoiceChange {
   static async request(
     context: RegistrationWebContext,
     scope: VoiceEnrollmentScope,
-    guard: VoiceOwnerGuard,
+    guard: VoiceChangeGuard,
     snapshot: VoiceEnrollmentSnapshot,
     action: VoiceChangeAction,
     signal: AbortSignal,
@@ -110,7 +171,7 @@ export class ConfirmedVoiceChange {
       guard,
     );
     await assertCurrentOwner(signal);
-    const owner = await IndexedDBManager.getWalletAuthMethodV2(guard.ownerMethodId);
+    const owner = await IndexedDBManager.getWalletAuthMethodV2(guard.confirmationMethodId);
     if (
       !owner ||
       owner.kind !== 'passkey' ||
@@ -119,7 +180,7 @@ export class ConfirmedVoiceChange {
       owner.walletAuthorityId !== scope.authorityId ||
       owner.rpId !== context.signingEngine.getRpId()
     ) {
-      throw new Error('Unlock with a passkey before changing your voice enrollment.');
+      throw new Error('The confirming passkey is unavailable for this wallet.');
     }
     const binding = changeBinding(scope, guard, snapshot, action);
     const challenge = await sha256DigestB64u(
@@ -189,7 +250,7 @@ export class ConfirmedVoiceChange {
 
   async consume(
     scope: VoiceEnrollmentScope,
-    guard: VoiceOwnerGuard,
+    guard: VoiceChangeGuard,
     snapshot: VoiceEnrollmentSnapshot,
     action: VoiceChangeAction,
     signal: AbortSignal,
@@ -212,19 +273,19 @@ export class ConfirmedVoiceChange {
 async function assertServerOwner(
   relayerUrl: string,
   scope: VoiceEnrollmentScope,
-  guard: VoiceOwnerGuard,
+  guard: VoiceChangeGuard,
   signal: AbortSignal,
 ): Promise<void> {
   const session = await walletSessionAuthorizations.readExactWithOperationCredential({
     walletId: scope.walletId,
     authorityId: scope.authorityId,
-    authMethodId: guard.ownerMethodId,
+    authMethodId: guard.sessionMethodId,
   });
   if (
     session.kind !== 'found' ||
     session.operationCredential.walletSessionId !== guard.walletSessionId
   ) {
-    throw new Error('The owner session changed. Unlock with a passkey and try again.');
+    throw new Error('The owner session changed. Unlock this wallet and try again.');
   }
   signal.throwIfAborted();
   const status = await createRelayerExactWalletSessionStatusPort({
@@ -236,9 +297,37 @@ async function assertServerOwner(
     (status.status !== 'active' && status.status !== 'exhausted') ||
     status.authorization.walletId !== scope.walletId ||
     status.authorization.authorityId !== scope.authorityId ||
-    status.authorization.authMethodId !== guard.ownerMethodId
+    status.authorization.authMethodId !== guard.sessionMethodId
   ) {
-    throw new Error('The owner session is unavailable. Unlock with a passkey and try again.');
+    throw new Error('The owner session is unavailable. Unlock this wallet and try again.');
+  }
+  const confirmer = await IndexedDBManager.getWalletAuthMethodV2(guard.confirmationMethodId);
+  if (!confirmer || confirmer.kind !== 'passkey' || !isConfirmingPasskey(scope, confirmer)) {
+    throw new Error('The confirming passkey is unavailable.');
+  }
+  const query = new URLSearchParams({ walletId: scope.walletId, limit: '50', cursor: '' });
+  const response = await fetchOwnerStatus(
+    signal,
+    `${normalizeRelayerBaseUrl(relayerUrl)}/wallet/device-linking/v1/devices?${query}`,
+    {
+      headers: buildWalletSessionAuthorizationHeaders(session.operationCredential),
+    },
+  );
+  if (!response.ok)
+    throw new Error('Could not verify the confirming passkey with the wallet service.');
+  const { ok, ...inventoryFields } = requireRecord(
+    await response.json(),
+    'Wallet method inventory',
+  );
+  if (ok !== true)
+    throw new Error('Could not verify the confirming passkey with the wallet service.');
+  const inventory = parseLinkedDeviceListResultV1(inventoryFields);
+  if (
+    !inventory.ownerDevices.some(
+      matchesConfirmingPasskey.bind(null, scope, guard, confirmer.credentialIdB64u),
+    )
+  ) {
+    throw new Error('The confirming passkey was removed or belongs to another authority.');
   }
   signal.throwIfAborted();
 }

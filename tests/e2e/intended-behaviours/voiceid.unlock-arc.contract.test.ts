@@ -38,7 +38,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       expect(await page.evaluate(unlock, method.walletAuthMethodId)).toMatchObject({
         success: true,
       });
+      const passkeysBefore = await wallet.locator('body').evaluate(readPasskeyRequests);
       await addEvmFromAccountsMenu(page, testInfo);
+      expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeysBefore + 1);
     }
     const owner = await page.evaluate(session);
     if (owner.appIdentity.kind !== 'resolved' || !owner.appIdentity.thresholdEcdsaEthereumAddress)
@@ -199,4 +201,8 @@ async function verifyBlockedFeeLookup(page: Page, testInfo: TestInfo): Promise<s
   } finally {
     await page.unroute(endpoint, blockFeeLookup);
   }
+}
+
+function readPasskeyRequests(): number {
+  return window.voiceIdPasskeyRequests();
 }

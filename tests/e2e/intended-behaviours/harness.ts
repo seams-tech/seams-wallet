@@ -5524,6 +5524,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('passkey.voiceid-ui.contract.test.ts') ||
     /voiceid\.unlock-(?:near|arc)\.contract\.test\.ts$/u.test(normalized) ||
     normalized.endsWith('voiceid.noise.contract.test.ts') ||
+    normalized.endsWith('voiceid.add-email-otp.contract.test.ts') ||
     normalized.endsWith('voiceid.live-page.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
