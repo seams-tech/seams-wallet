@@ -354,7 +354,9 @@ export class VoicePrompt {
     }
     stylesheet.ensureBase();
     this.element = document.createElement('section');
-    this.element.className = 'seams-wallet-ui seams-voiceid-prompt';
+    // A wallet surface always hosts the card. Without its own seams-wallet-ui class the
+    // card keeps that surface's theme instead of resetting to the default tokens.
+    this.element.className = 'seams-voiceid-prompt';
     this.element.setAttribute('aria-label', label);
     this.title = document.createElement('h2');
     this.title.textContent = 'Read aloud';
