@@ -11,7 +11,7 @@
   padding: 0;
   border: 0;
 }
-.seams-transaction-review + .seams-transaction-group {
+.seams-transaction-review-setting + .seams-transaction-group {
   padding-top: 40px;
   border-top: 1px solid var(--seams-colors-borderPrimary);
 }
@@ -101,16 +101,18 @@
   cursor: not-allowed;
 }
 
-/* The switch row uses the card grid, so its edge lines up with the cards. */
-.seams-transaction-review {
+/* The switch row uses the card grid, so its edge lines up with the cards. It has its
+   own class: the transaction confirmer's review is .seams-transaction-review, and a
+   page that loads both must not lay that review out on this grid. */
+.seams-transaction-review-setting {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 16px;
 }
-.seams-transaction-review > * {
+.seams-transaction-review-setting > * {
   grid-column: span 2;
 }
-.seams-transaction-review > p {
+.seams-transaction-review-setting > p {
   margin: 0;
   padding-inline: 4px;
   color: var(--seams-colors-textSecondary);
@@ -266,7 +268,7 @@
 }
 
 @media (max-width: 600px) {
-  [data-presentation='page'] .seams-transaction-review > * {
+  [data-presentation='page'] .seams-transaction-review-setting > * {
     grid-column: 1 / -1;
   }
   [data-presentation='page'] .seams-transaction-review-row {
@@ -315,7 +317,7 @@
   gap: 16px;
   padding-bottom: 4px;
 }
-[data-presentation='menu'] .seams-transaction-review + .seams-transaction-group {
+[data-presentation='menu'] .seams-transaction-review-setting + .seams-transaction-group {
   padding-top: 16px;
 }
 [data-presentation='menu'] .seams-transaction-group legend {
@@ -380,10 +382,10 @@
 [data-presentation='menu'] [data-preview='drawer'] .seams-tp-panel {
   padding-top: 7px;
 }
-[data-presentation='menu'] .seams-transaction-review > * {
+[data-presentation='menu'] .seams-transaction-review-setting > * {
   grid-column: 1 / -1;
 }
-[data-presentation='menu'] .seams-transaction-review {
+[data-presentation='menu'] .seams-transaction-review-setting {
   gap: 8px;
 }
 [data-presentation='menu'] .seams-transaction-review-row {
@@ -395,7 +397,7 @@
   font-size: 14px;
 }
 [data-presentation='menu'] .seams-transaction-review-text > span,
-[data-presentation='menu'] .seams-transaction-review > p {
+[data-presentation='menu'] .seams-transaction-review-setting > p {
   font-size: 12px;
   line-height: 1.4;
 }
