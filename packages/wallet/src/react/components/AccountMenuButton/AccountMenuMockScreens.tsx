@@ -75,7 +75,13 @@ function deviceRow(
     />
   );
 }
-function MethodTiles({ methods }: { methods: DeviceMethods }): React.JSX.Element {
+function MethodTiles({
+  methods,
+  inUse,
+}: {
+  methods: DeviceMethods;
+  inUse?: 'passkey';
+}): React.JSX.Element {
   const locale = useWalletLocale();
   return (
     <ul
@@ -87,6 +93,7 @@ function MethodTiles({ methods }: { methods: DeviceMethods }): React.JSX.Element
           kind="passkey"
           title={walletText(locale, 'Passkey')}
           description={walletText(locale, 'Touch ID · This device')}
+          chip={inUse === 'passkey' ? walletText(locale, 'In use now') : undefined}
         />
       ) : null}
       {methods !== 'passkey' ? (
@@ -205,8 +212,8 @@ export function AccountMenuMockScreens({
     case 'methods':
       return (
         <AccountMenuScreen title={walletText(locale, 'Authentication methods')} onBack={back}>
-          <AuthenticationMethodsView walletLabel={walletId} status="Active">
-            <MethodTiles methods="both" />
+          <AuthenticationMethodsView walletLabel={walletId}>
+            <MethodTiles methods="both" inUse="passkey" />
           </AuthenticationMethodsView>
         </AccountMenuScreen>
       );

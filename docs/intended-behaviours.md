@@ -166,7 +166,11 @@ scoped to its wallet, authority, method, and device key.
 
 ### Explicit voice improvements
 
-Authentication methods exposes **Manage voice** for an existing local VoiceID method.
+Authentication methods lists each active method as a card. The method that
+unlocked this session shows **In use now**. The VoiceID card holds its switch for
+this browser, its state, **Manage voice**, and **Remove**. Closing Manage voice or
+the activation surface is a choice, not an error: `registration.activateAuthMethod`
+returns `{ kind: 'cancelled' }`, and the card shows no message.
 The Wallet opens management directly. Improvement, reset, re-recording, and import
 require a fresh user-verified passkey assertion from the selected owner authority.
 The Wallet verifies the signature locally against the stored active passkey and binds

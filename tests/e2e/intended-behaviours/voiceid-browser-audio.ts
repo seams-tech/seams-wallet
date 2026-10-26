@@ -2,6 +2,11 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
+import type {} from '../../intended-app/src/voiceIdHelpers';
+
+type VoiceIdActivation = Awaited<
+  ReturnType<NonNullable<Window['__seamsIntendedVoiceId']>['activate']>
+>;
 
 export const voiceIdBrowserAudio = {
   launchOptions: {
@@ -48,6 +53,14 @@ export async function enrollBrowserMicrophone(page: Page): Promise<void> {
       ).toHaveCount(0, { timeout: 30_000 });
     }
   }
+}
+
+/** A completed enrollment must report an activated method, not a closed surface. */
+export function requireActivatedVoiceId(
+  activation: VoiceIdActivation,
+): Extract<VoiceIdActivation, { kind: 'activated' }> {
+  if (activation.kind !== 'activated') throw new Error('VoiceID activation was cancelled.');
+  return activation;
 }
 
 async function servePhraseAudio(route: Route): Promise<void> {

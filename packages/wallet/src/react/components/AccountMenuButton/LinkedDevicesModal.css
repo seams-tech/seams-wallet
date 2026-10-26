@@ -620,15 +620,106 @@
   display: none;
 }
 
-.seams-voiceid-availability { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
-.seams-voiceid-availability [role="status"] { font-size: 0.7rem; max-width: 12rem; min-height: 2.1rem; }
-.seams-voiceid-availability[data-setup="true"] { align-items: flex-start; padding-block: 0.75rem; }
+/* VoiceID setup under "Add a method": title, switch, state and note in one column. */
+.seams-voiceid-availability {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding-block: 0.75rem;
+}
+.seams-voiceid-availability [role='status'] {
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.8125rem;
+}
+.seams-voiceid-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
 
-.seams-auth-method-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+/* Each method is a card: icon, name and state, one trailing control, then an
+   optional footer for further actions or a removal confirmation. */
+.seams-auth-methods-modal-content .seams-account-menu-section > .seams-account-method-tiles {
+  margin-top: 0;
+}
+.seams-auth-methods-modal-content
+  .seams-account-method-tiles
+  .seams-linked-devices-modal-item--row {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.875rem;
+}
+.seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-icon {
+  align-self: center;
+}
+.seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-main {
+  justify-content: flex-start;
+}
+.seams-auth-method-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  margin: 0.75rem -0.875rem -0.75rem;
+  padding: 0.25rem 0.875rem;
+  border-top: 1px solid var(--seams-colors-borderPrimary);
+}
+.seams-auth-method-footer > .seams-linked-devices-modal-confirm {
+  flex: 1;
+  margin: 0;
+  padding-block: 0.5rem;
+}
 
-.seams-auth-method-actions > .seams-linked-devices-modal-remove { align-self: flex-end; }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-item-content { align-self: start; padding-block-start: 0.25rem; }
-.seams-voiceid-manage { border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.75rem; padding: 0.25rem 0; cursor: pointer; }
-.seams-voiceid-manage:disabled { opacity: 0.5; cursor: default; }
-
-.seams-voiceid-controls { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+/* Quiet text actions; Remove carries the error tone, mixed toward the text
+   colour so it keeps its contrast on both themes. */
+.seams-auth-method-text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-height: 2.25rem;
+  margin-inline: -0.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.seams-auth-method-text-action > svg {
+  color: var(--seams-colors-textSecondary);
+}
+[dir='rtl'] .seams-auth-method-text-action > svg {
+  transform: scaleX(-1);
+}
+.seams-auth-method-text-action[data-tone='danger'],
+.seams-linked-devices-modal-item-detail [data-tone='error'],
+.seams-voiceid-availability [data-tone='error'] {
+  color: color-mix(in oklab, var(--seams-colors-error) 65%, var(--seams-colors-textPrimary));
+}
+.seams-auth-method-text-action:hover:not(:disabled) {
+  background: var(--seams-colors-surface2, var(--seams-colors-surface));
+}
+.seams-auth-method-text-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.seams-auth-method-text-action:focus-visible {
+  outline: 2px solid var(--seams-colors-textPrimary);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .seams-auth-method-text-action {
+    min-height: 2.75rem;
+  }
+}

@@ -7,11 +7,15 @@ import { HoverArrowIcon } from './icons/HoverArrowIcon';
 type AuthenticationMethodRowProps = {
   kind: 'passkey' | 'email_otp' | 'voiceid';
   title: string;
-  description: string;
-  status?: string;
+  /** Plain copy is localized; an element carries its own live region or tone. */
+  description: string | React.ReactElement;
+  chip?: string;
   /** Replaces the method's default icon, as for a linked device. */
   icon?: React.ReactNode;
+  /** The row's one trailing control, such as Remove or a switch. */
   action?: React.ReactNode;
+  /** Full-width actions or a confirmation under a divider. */
+  footer?: React.ReactNode;
   onSelect?: () => void;
   children?: React.ReactNode;
 };
@@ -44,9 +48,10 @@ export function AuthenticationMethodRow({
   kind,
   title,
   description,
-  status = 'Active',
+  chip,
   icon,
   action,
+  footer,
   onSelect,
   children,
 }: AuthenticationMethodRowProps): React.JSX.Element {
@@ -59,9 +64,7 @@ export function AuthenticationMethodRow({
             <strong>
               <WalletText copy={title} />
             </strong>
-            <small>
-              <WalletText copy={description} />
-            </small>
+            <small>{renderDescription(description)}</small>
           </div>
           <HoverArrowIcon />
         </button>
@@ -69,7 +72,10 @@ export function AuthenticationMethodRow({
     );
   }
   return (
-    <li className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row">
+    <li
+      className="seams-linked-devices-modal-item seams-linked-devices-modal-item--row"
+      data-auth-method={kind}
+    >
       <span className="seams-linked-devices-modal-item-icon" aria-hidden="true">
         {icon ?? methodIcon(kind)}
       </span>
@@ -78,16 +84,23 @@ export function AuthenticationMethodRow({
           <span className="seams-linked-devices-modal-item-name">
             <WalletText copy={title} />
           </span>
-          <span className="seams-linked-devices-modal-standing tone-active">
-            <WalletText copy={status} />
-          </span>
+          {chip ? (
+            <span className="seams-linked-devices-modal-standing tone-active">
+              <WalletText copy={chip} />
+            </span>
+          ) : null}
         </div>
         <div className="seams-linked-devices-modal-item-detail">
-          <WalletText copy={description} />
+          {renderDescription(description)}
         </div>
         {children}
       </div>
       {action}
+      {footer ? <div className="seams-auth-method-footer">{footer}</div> : null}
     </li>
   );
+}
+
+function renderDescription(description: string | React.ReactElement): React.ReactNode {
+  return typeof description === 'string' ? <WalletText copy={description} /> : description;
 }

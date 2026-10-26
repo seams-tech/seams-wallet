@@ -198,7 +198,7 @@ class VoiceIdCaptureSurface<T> {
     if (this.state.kind === 'closed') return;
     this.state = { kind: 'closed' };
     this.controller.abort();
-    this.completion.reject(new Error('VoiceID capture was cancelled.'));
+    this.completion.reject(new VoiceIdCaptureCancelledError());
   };
 
   private readonly expire = (): void => {
@@ -207,6 +207,13 @@ class VoiceIdCaptureSurface<T> {
     this.controller.abort();
     this.completion.reject(new Error('VoiceID challenge expired. Start unlock again.'));
   };
+}
+
+export class VoiceIdCaptureCancelledError extends Error {
+  constructor() {
+    super('VoiceID capture was cancelled.');
+    this.name = 'VoiceIdCaptureCancelledError';
+  }
 }
 
 export async function showVoiceIdCaptureSurface<T>(input: {

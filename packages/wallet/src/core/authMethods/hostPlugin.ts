@@ -33,10 +33,14 @@ export type AuthMethodSessionInstaller = (input: {
 
 export type AuthMethodCaptureMount = (element: HTMLElement) => () => void;
 
-export type AuthMethodActivationResult = Readonly<{
-  walletId: WalletId;
-  walletAuthMethodId: WalletAuthMethodId;
-}>;
+/** A person who closes the activation surface has made a choice; it is not an error. */
+export type AuthMethodActivationResult =
+  | Readonly<{
+      kind: 'activated';
+      walletId: WalletId;
+      walletAuthMethodId: WalletAuthMethodId;
+    }>
+  | Readonly<{ kind: 'cancelled'; walletId?: never; walletAuthMethodId?: never }>;
 
 export type AuthMethodApprovalResult =
   | { readonly kind: 'approved'; readonly message?: never }

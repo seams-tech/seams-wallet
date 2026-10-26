@@ -29,7 +29,9 @@ export function AccountMenuDeviceDetails({
           <WalletText copy={description} />
         </p>
       </div>
-      <dl className="seams-account-inset">{details.map(renderDetail)}</dl>
+      {details.length > 0 ? (
+        <dl className="seams-account-inset">{details.map(renderDetail)}</dl>
+      ) : null}
       {children}
     </>
   );

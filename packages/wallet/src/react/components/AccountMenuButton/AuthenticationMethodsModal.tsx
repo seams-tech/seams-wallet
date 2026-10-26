@@ -1,4 +1,4 @@
-import { VoiceIdAvailabilityControl } from './VoiceIdAvailabilityControl';
+import { VoiceIdAvailabilityControl, VoiceIdMethodRow } from './VoiceIdAvailabilityControl';
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletText, walletDisplayText } from '@/core/ui/messages';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
@@ -91,7 +91,7 @@ function methodView(credential: LinkedOwnerCredentialMetadataV1): Authentication
         walletAuthMethodId: String(credential.walletAuthMethodId),
         presentation: {
           kind: 'passkey',
-          description: provider ? `${provider} passkey` : credential.device.label,
+          description: provider ?? credential.device.label,
         },
       };
     }
@@ -208,18 +208,6 @@ function methodDescription(method: AuthenticationMethodView): string {
       return 'Email OTP';
     case 'voiceid':
       return 'Voice unlock on this device';
-  }
-}
-
-function inventoryStatus(state: LoadState): string {
-  switch (state.kind) {
-    case 'idle':
-    case 'loading':
-      return 'Checking methods…';
-    case 'error':
-      return 'Unavailable';
-    case 'loaded':
-      return state.inventory.kind === 'local_selection' ? 'Unlock to manage' : 'Active';
   }
 }
 
@@ -400,10 +388,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
       titleId="seams-auth-methods-modal-title"
       title={walletText(locale, 'Authentication methods')}
     >
-      <AuthenticationMethodsView
-        walletLabel={walletId ?? 'Wallet'}
-        status={inventoryStatus(loadState)}
-      >
+      <AuthenticationMethodsView walletLabel={walletId ?? 'Wallet'}>
         <div className="seams-linked-devices-modal-body" aria-busy={loadState.kind === 'loading'}>
           {loadState.kind === 'idle' ? (
             <div className="seams-linked-devices-modal-placeholder" role="status">
@@ -430,8 +415,11 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
           {inventory ? (
             <section
               className="seams-account-menu-section"
-              aria-label={walletText(locale, 'Active authentication methods')}
+              aria-labelledby="seams-auth-methods-active"
             >
+              <h3 id="seams-auth-methods-active" className="seams-account-menu-section-label">
+                <WalletText message="Active authentication methods" />
+              </h3>
               <ul className="seams-account-method-tiles">
                 {methods.map((method) => {
                   const confirming =
@@ -440,73 +428,84 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   const revoking =
                     actionState.kind === 'revoking' &&
                     actionState.method.walletAuthMethodId === method.walletAuthMethodId;
-                  return (
+                  const title = walletDisplayText(locale, methodTitle(method));
+                  const chip =
+                    method.walletAuthMethodId === selectedWalletAuthMethodId
+                      ? 'In use now'
+                      : undefined;
+                  const remove =
+                    !confirming && canManageMethods && methods.length > 1 ? (
+                      <button
+                        type="button"
+                        className="seams-auth-method-text-action"
+                        data-tone="danger"
+                        disabled={actionInProgress}
+                        aria-label={walletDisplayText(locale, `Remove ${methodTitle(method)}`)}
+                        onClick={() => setActionState({ kind: 'confirming_revoke', method })}
+                      >
+                        {revoking ? (
+                          <WalletText message="Removing…" />
+                        ) : (
+                          <WalletText message="Remove" />
+                        )}
+                      </button>
+                    ) : null;
+                  const confirmation = confirming ? (
+                    <div className="seams-linked-devices-modal-confirm">
+                      <span>
+                        <WalletText
+                          message="Remove {value0} from this device? You will need the other active method to unlock it."
+                          values={{ value0: title }}
+                        />
+                      </span>
+                      <div className="seams-linked-devices-modal-confirm-actions">
+                        <button
+                          type="button"
+                          className="seams-linked-devices-modal-secondary"
+                          onClick={() => setActionState({ kind: 'idle' })}
+                        >
+                          <WalletText message="Keep it" />
+                        </button>
+                        <button
+                          type="button"
+                          className="seams-linked-devices-modal-danger"
+                          onClick={() => void revokeMethod()}
+                        >
+                          <WalletText message="Remove method" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : null;
+                  const hint =
+                    methods.length > 1 ? null : (
+                      <span className="seams-linked-devices-modal-item-detail">
+                        <WalletText message="Add another method before removing this one." />
+                      </span>
+                    );
+                  return method.kind === 'voiceid' && voiceIdConfigured && walletId ? (
+                    <VoiceIdMethodRow
+                      key={method.walletAuthMethodId}
+                      walletId={walletId}
+                      onChanged={loadInventory}
+                      disabled={actionInProgress}
+                      title={title}
+                      chip={chip}
+                      remove={remove}
+                      confirmation={confirmation}
+                    >
+                      {hint}
+                    </VoiceIdMethodRow>
+                  ) : (
                     <AuthenticationMethodRow
                       key={method.walletAuthMethodId}
                       kind={method.kind}
-                      title={walletDisplayText(locale, methodTitle(method))}
-                      status={method.kind === 'voiceid' ? 'Enrolled' : 'Active'}
+                      title={title}
+                      chip={chip}
                       description={walletDisplayText(locale, methodDescription(method))}
-                      action={
-                        <div className="seams-auth-method-actions">
-                          {method.kind === 'voiceid' && voiceIdConfigured && walletId ? (
-                            <VoiceIdAvailabilityControl
-                              walletId={walletId}
-                              onChanged={loadInventory}
-                              disabled={actionInProgress}
-                            />
-                          ) : null}
-                          {!confirming && canManageMethods && methods.length > 1 ? (
-                            <button
-                              type="button"
-                              className="seams-linked-devices-modal-secondary seams-linked-devices-modal-remove"
-                              disabled={actionInProgress}
-                              aria-label={walletDisplayText(
-                                locale,
-                                `Remove ${methodTitle(method)}`,
-                              )}
-                              onClick={() => setActionState({ kind: 'confirming_revoke', method })}
-                            >
-                              {revoking ? (
-                                <WalletText message="Removing…" />
-                              ) : (
-                                <WalletText message="Remove" />
-                              )}
-                            </button>
-                          ) : null}
-                        </div>
-                      }
+                      action={remove}
+                      footer={confirmation}
                     >
-                      {confirming ? (
-                        <div className="seams-linked-devices-modal-confirm">
-                          <span>
-                            <WalletText
-                              message="Remove {value0} from this device? You will need the other active method to unlock it."
-                              values={{ value0: walletDisplayText(locale, methodTitle(method)) }}
-                            />
-                          </span>
-                          <div className="seams-linked-devices-modal-confirm-actions">
-                            <button
-                              type="button"
-                              className="seams-linked-devices-modal-secondary"
-                              onClick={() => setActionState({ kind: 'idle' })}
-                            >
-                              <WalletText message="Keep it" />
-                            </button>
-                            <button
-                              type="button"
-                              className="seams-linked-devices-modal-danger"
-                              onClick={() => void revokeMethod()}
-                            >
-                              <WalletText message="Remove method" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : methods.length > 1 ? null : (
-                        <span className="seams-linked-devices-modal-item-detail">
-                          <WalletText message="Add another method before removing this one." />
-                        </span>
-                      )}
+                      {hint}
                     </AuthenticationMethodRow>
                   );
                 })}
@@ -527,7 +526,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   walletId={walletId}
                   onChanged={loadInventory}
                   disabled={actionInProgress || !canManageMethods}
-                  setup
                 />
               ) : null}
               {!hasPasskey ? (

@@ -19,6 +19,8 @@ operation; it cannot silently bypass voice approval.
 
 After a passkey or Email OTP owner unlock, call
 `registration.activateAuthMethod({ walletId, method: 'voiceid' })`.
+It resolves with `{ kind: 'activated', walletId, walletAuthMethodId }`, or with
+`{ kind: 'cancelled' }` when the person closes the Wallet surface.
 The Wallet requests microphone permission and enrolls this wallet method through three
 Record clicks. For an existing method, the same command opens Manage voice. Later use `auth.unlockWithAuthMethod` with that wallet and method
 ID. A VoiceID-selected NEAR testnet transfer requires Confirm and a fresh voice match.
@@ -218,7 +220,8 @@ and timestamp. No audio or transcript is saved or sent by these diagnostics.
 
 ## Settings and SeamsAuthMenu
 
-Authentication methods shows **Manage voice** beside the VoiceID enable/disable switch.
+The VoiceID card in Authentication methods shows the enable/disable switch, the
+state in this browser, and **Manage voice**.
 Management requires an enabled VoiceID method and a selected passkey owner session. Use
 `registration.getAuthMethodAvailability({ walletId, method: 'voiceid' })` to read
 `not_enrolled`, `enabled`, or `disabled`. Use

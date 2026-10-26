@@ -3,6 +3,7 @@ import {
   voiceIdBrowserAudio,
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
+  requireActivatedVoiceId,
 } from './voiceid-browser-audio';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -51,7 +52,7 @@ async function verifyUnlock(
   expect(activationDialogMs).toBeLessThan(1_000);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
-  const method = await activation;
+  const method = requireActivatedVoiceId(await activation);
   expect(method.walletId).toBe(identity.walletId);
 
   await page.evaluate(lock);

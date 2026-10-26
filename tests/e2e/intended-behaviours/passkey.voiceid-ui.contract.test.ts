@@ -124,11 +124,14 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     const baseline = await wallet
       .locator('body')
       .evaluate(readEnrollmentSummary, identity.walletId);
-    const manageControl = page.locator('.seams-voiceid-controls');
-    await expect(manageControl.getByRole('switch')).toBeVisible();
-    await expect(
-      manageControl.getByRole('button', { name: 'Manage voice', exact: true }),
-    ).toBeVisible();
+    const voiceRow = page.locator('[data-auth-method="voiceid"]');
+    await expect(voiceRow.getByRole('switch')).toBeVisible();
+    await voiceRow.getByRole('button', { name: 'Manage voice', exact: true }).click();
+    await wallet
+      .locator('.seams-voiceid-management')
+      .getByRole('button', { name: 'Back', exact: true })
+      .click();
+    await expect(voiceRow.getByRole('status')).toHaveText('On in this browser');
     await wallet.locator('body').evaluate(useNaturalPhrases);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
     const enrollmentState = wallet.locator('.seams-voiceid-management-enrollment');
@@ -300,6 +303,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       walletSigner: 'ed25519_yao',
       passkeyCoseAlgorithm: passkeyAlgorithm === 'rs256' ? -257 : -7,
       settings: 'enroll_disable_reenable_and_lock_active_voice_session',
+      managementBackLeavesNoMessage: true,
       login: 'one_wallet_with_method_choices_and_cancel_restores_menu',
       disabledSdkUnlockRejected: true,
       reenrollmentPreservedMethodId: true,

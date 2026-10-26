@@ -34,7 +34,11 @@ import {
 import { secureRandomId } from '@shared/utils/secureRandomId';
 import type { Variant } from '@shared/utils/variant';
 
-type AddVoiceIdResult = Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>;
+type AddVoiceIdResult = Variant<
+  Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>,
+  'kind',
+  'activated'
+>;
 
 type PreparedVoiceIdActivation =
   | {
@@ -186,7 +190,11 @@ async function managePreparedVoiceId(
   const scope = await resolveVoiceEnrollmentScope(prepared.walletId, prepared.walletAuthMethodId);
   await manageVoiceEnrollment(prepared.context, scope, signal);
   signal.throwIfAborted();
-  return { walletId: prepared.walletId, walletAuthMethodId: prepared.walletAuthMethodId };
+  return {
+    kind: 'activated',
+    walletId: prepared.walletId,
+    walletAuthMethodId: prepared.walletAuthMethodId,
+  };
 }
 
 async function activatePreparedVoiceId(
@@ -207,6 +215,7 @@ async function activatePreparedVoiceId(
     persistActive: prepared.store.persistActive.bind(prepared.store),
   });
   return {
+    kind: 'activated',
     walletId: outcome.authMethod.walletId,
     walletAuthMethodId: outcome.authMethod.walletAuthMethodId,
   };

@@ -8,6 +8,7 @@ import {
 import {
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
+  requireActivatedVoiceId,
   voiceIdBrowserAudio,
 } from './voiceid-browser-audio';
 import {
@@ -37,7 +38,7 @@ async function verifyTransfer(
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
-  const method = await activation;
+  const method = requireActivatedVoiceId(await activation);
   const unlocking = page.evaluate(unlockWithVoice, method.walletAuthMethodId);
   await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   expect(await unlocking).toMatchObject({ success: true });

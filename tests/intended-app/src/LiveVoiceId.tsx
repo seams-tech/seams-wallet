@@ -326,12 +326,14 @@ async function executeCommand(seams: Seams, command: Command): Promise<WalletId>
       if (result.kind !== 'acknowledged') throw new Error(result.message);
       return command.walletId;
     }
-    case 'activate':
-      await seams.registration.activateAuthMethod({
+    case 'activate': {
+      const activation = await seams.registration.activateAuthMethod({
         walletId: command.walletId,
         method: 'voiceid',
       });
+      if (activation.kind === 'cancelled') throw new Error('VoiceID activation was cancelled.');
       return command.walletId;
+    }
     case 'voice_unlock': {
       const result = await seams.auth.unlockWithAuthMethod({
         walletId: command.walletId,

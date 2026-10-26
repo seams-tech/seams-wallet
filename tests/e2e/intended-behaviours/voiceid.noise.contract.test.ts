@@ -13,6 +13,7 @@ import {
   voiceIdBrowserAudio,
   allowBrowserMicrophone,
   enrollBrowserMicrophone,
+  requireActivatedVoiceId,
 } from './voiceid-browser-audio';
 import {
   readNearIdentity,
@@ -48,7 +49,7 @@ async function verifyNoise(
   const activation = page.evaluate(activate);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await enrollBrowserMicrophone(page);
-  const method = await activation;
+  const method = requireActivatedVoiceId(await activation);
   await harness.lockWallet();
   await wallet.locator('body').evaluate(holdNextWorklet);
   const cancelledUnlock = page
