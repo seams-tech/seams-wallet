@@ -125,6 +125,16 @@ export class VoiceUnlockFrame {
     );
     element.append(this.footer);
   }
+  /** After an unlock the back control cannot act, so it fades and the success centers under the origin. */
+  succeed(): Readonly<{ top: number; bottom: number }> {
+    const back = this.prompt.cancel;
+    back.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 150,
+      easing: 'ease-in',
+      fill: 'forwards',
+    });
+    return { top: back.getBoundingClientRect().top, bottom: this.footer.getBoundingClientRect().top };
+  }
   dispose(): void {
     render(null, this.prompt.cancel);
     render(null, this.footer);

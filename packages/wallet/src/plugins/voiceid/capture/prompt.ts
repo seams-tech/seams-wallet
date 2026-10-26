@@ -459,13 +459,21 @@ export class VoicePrompt {
     this.visual.accept();
   }
 
-  /** Plays the unlock success in place: the ring seals while the copy changes in the same rows. */
-  async succeed(headline: string, message: string): Promise<void> {
+  /**
+   * Plays the unlock success in place: the ring seals while the copy changes in
+   * the same rows, and the group moves to the middle of `area` (the card by default).
+   */
+  async succeed(
+    headline: string,
+    message: string,
+    area: SuccessArea = this.element.getBoundingClientRect(),
+  ): Promise<void> {
     if (this.disposed) return;
     this.element.dataset.capture = 'succeeded';
     this.record.hidden = true;
     this.details.hidden = true;
     const sealed = this.visual.succeed();
+    this.centerSuccess(area);
     // The new copy arrives as the seal lands, as in the auth menu's success view.
     await Promise.all([this.title, this.phrase, this.status].map(fadeOutLater));
     if (this.disposed) return;
@@ -499,11 +507,28 @@ export class VoicePrompt {
     this.element.style.height = this.element.style.minHeight;
   }
 
+  /**
+   * The rows keep their locked size, so the headline, ring and message move as
+   * one group until the ring sits in the middle of the free space.
+   */
+  private centerSuccess(area: SuccessArea): void {
+    const ring = this.visual.element.getBoundingClientRect();
+    const lift = (area.top + area.bottom - ring.top - ring.bottom) / 2;
+    for (const part of [this.title, this.phrase, this.visual.element, this.status])
+      part.animate([{ translate: '0 0' }, { translate: `0 ${lift}px` }], {
+        duration: 600,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+        fill: 'forwards',
+      });
+  }
+
   private unlockLayout(): void {
     for (const part of [this.element, this.phrase, this.status]) part.style.minHeight = '';
     this.element.style.height = '';
   }
 }
+
+type SuccessArea = Readonly<{ top: number; bottom: number }>;
 
 const SUCCESS_COPY_DELAY_MS = 450;
 

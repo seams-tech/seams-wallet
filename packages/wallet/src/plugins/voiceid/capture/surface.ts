@@ -173,7 +173,7 @@ class VoiceIdCaptureSurface<T> {
       // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
-      if (this.unlockFrame) await this.showUnlocked();
+      if (this.unlockFrame) await this.showUnlocked(this.unlockFrame);
       this.state = { kind: 'closed' };
       this.completion.resolve(result);
     } catch (error: unknown) {
@@ -208,7 +208,7 @@ class VoiceIdCaptureSurface<T> {
    * The wallet is already unlocked: the card plays the success in place, keeps
    * its height, then fades out. The menu behind it is not shown again.
    */
-  private async showUnlocked(): Promise<void> {
+  private async showUnlocked(frame: VoiceUnlockFrame): Promise<void> {
     this.state = { kind: 'succeeding' };
     this.settlement = 'succeeded';
     if (this.expiryTimer !== null) clearTimeout(this.expiryTimer);
@@ -216,7 +216,7 @@ class VoiceIdCaptureSurface<T> {
     this.cancelButton.disabled = true;
     const startedAt = performance.now();
     const copy = authMenuSuccessCopy('authenticated');
-    await this.prompt.succeed(copy.headline, copy.message);
+    await this.prompt.succeed(copy.headline, copy.message, frame.succeed());
     const hold = Math.max(0, SUCCESS_HOLD_MS - (performance.now() - startedAt));
     await this.element.animate(
       [

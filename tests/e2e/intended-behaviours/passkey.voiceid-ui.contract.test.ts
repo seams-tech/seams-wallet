@@ -92,11 +92,10 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       'succeeded',
       { timeout: 20_000 },
     );
-    await expect(
-      wallet.locator('.seams-voiceid-prompt .seams-voiceid-ribbon circle').nth(2),
-    ).toHaveAttribute('r', '22.50');
+    // The success sits in the middle of the card below the origin, not low under an empty top.
+    expect(await wallet.locator('.seams-voiceid-unlock').evaluate(readSealedOffset)).toBeLessThan(2);
     await wallet
-      .locator('.seams-voiceid-prompt')
+      .locator('.seams-voiceid-unlock')
       .screenshot({ path: testInfo.outputPath('voiceid-unlock-sealed.png') });
     await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
     await expect(page.locator('[data-seams-auth-menu-host="true"]')).toHaveCount(0);
@@ -390,6 +389,23 @@ function watchMenuStates(): void {
 function readMenuStates(): string[] {
   if (!window.voiceIdMenuStates) throw new Error('Menu watcher is unavailable');
   return window.voiceIdMenuStates;
+}
+/** Resolves on the frame the seal settles, before the card fades, with the seal's distance from the card middle. */
+function readSealedOffset(card: Element): Promise<number> {
+  return new Promise((resolve) => {
+    const settle = (): void => {
+      const seal = card.querySelectorAll('.seams-voiceid-ribbon circle')[2];
+      const back = card.querySelector('.seams-voiceid-unlock-back');
+      const footer = card.querySelector('.seams-voiceid-unlock-footer');
+      if (!seal || !back || !footer || seal.getAttribute('r') !== '22.50') return;
+      observer.disconnect();
+      const [sealBox, backBox, footerBox] = [seal, back, footer].map((part) => part.getBoundingClientRect());
+      resolve(Math.abs(sealBox.top + sealBox.height / 2 - (backBox.top + footerBox.top) / 2));
+    };
+    const observer = new MutationObserver(settle);
+    observer.observe(card, { subtree: true, attributes: true, attributeFilter: ['r'] });
+    settle();
+  });
 }
 function isMenuVisible(state: string): boolean {
   return state.startsWith('menu:');
