@@ -2,7 +2,7 @@ import { createElement, render, type ComponentType } from 'preact';
 import { VoiceBeam, type VoiceBeamProps } from 'voice-glow';
 import { getDefaultCspNonce } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { VoiceActivityEvent } from '../browser/microphone';
-import { VoiceRibbon } from '../browser/ribbon';
+import { VoiceRibbon, type VoiceCheckingStyle } from '../browser/ribbon';
 
 // The iframe build maps VoiceBeam's React imports to Preact; the public React export is unchanged.
 const VoiceBeamView = VoiceBeam as unknown as ComponentType<VoiceBeamProps>;
@@ -19,9 +19,9 @@ export class VoiceVisual {
   private phase: VisualPhase = 'idle';
   private disposed = false;
 
-  constructor(document: Document, prompt: HTMLElement) {
+  constructor(document: Document, prompt: HTMLElement, checking: VoiceCheckingStyle) {
     this.prompt = prompt;
-    this.ribbon = new VoiceRibbon(document);
+    this.ribbon = new VoiceRibbon(document, checking);
     this.element = this.ribbon.element;
     this.glow = document.createElement('div');
     this.glow.className = 'seams-voiceid-glow';

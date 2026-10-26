@@ -4,6 +4,7 @@ import {
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceCaptureEvent } from '../browser/microphone';
+import type { VoiceCheckingStyle } from '../browser/ribbon';
 import { VoiceVisual } from './visual';
 
 const CSS = `
@@ -336,7 +337,12 @@ export class VoicePrompt {
   private readonly detailText: HTMLParagraphElement;
   private disposed = false;
 
-  constructor(document: Document, label: string, phrase: SpokenPhrase) {
+  constructor(
+    document: Document,
+    label: string,
+    phrase: SpokenPhrase,
+    checking: VoiceCheckingStyle = 'ring',
+  ) {
     let stylesheet = styles.get(document);
     if (!stylesheet) {
       stylesheet = createCspStylesheetManager({
@@ -357,7 +363,7 @@ export class VoicePrompt {
     this.phrase.dataset.voiceidPhrase = '';
     this.phrase.setAttribute('aria-live', 'polite');
     this.setPhrase(phrase);
-    this.visual = new VoiceVisual(document, this.element);
+    this.visual = new VoiceVisual(document, this.element, checking);
     this.status = document.createElement('p');
     this.status.className = 'seams-voiceid-status';
     this.status.setAttribute('role', 'status');

@@ -689,6 +689,31 @@
   border: 1px solid var(--seams-colors-borderPrimary);
   box-shadow: 0 16px 32px -16px rgb(0 0 0 / 0.22);
 }
+/* The replaced auth method capture stays in place above the receipt while it fades. */
+:where(.seams-wallet-ui) .seams-receipt-capture-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2;
+  box-sizing: border-box;
+}
+/* Moving the capture re-inserts it; its own entry transitions must not replay.
+   Two classes outrank the capture's single-class transition rules. */
+.seams-wallet-ui .seams-receipt-capture-ghost * {
+  transition: none;
+}
+/* Its progress line has left as travelling segments. */
+.seams-wallet-ui .seams-receipt-capture-ghost [data-seams-progress-line] {
+  visibility: hidden;
+}
+/* The capture's segments travel into the receipt's tracks, which wait hidden. */
+:where(.seams-wallet-ui) .seams-receipt-segment {
+  position: fixed;
+  pointer-events: none;
+  z-index: 3;
+}
+:where(.seams-wallet-ui[data-receipt-segments]) .seams-receipt-track {
+  visibility: hidden;
+}
 :where(.seams-wallet-ui[data-confirmation-kind='transaction']) .seams-confirmation-drawer {
   --seams-drawer__max-width: 390px;
 }

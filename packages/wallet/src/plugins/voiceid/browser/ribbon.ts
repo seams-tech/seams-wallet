@@ -31,6 +31,15 @@ const HALF_ARC = (RING_ARC * TAU * RING_RADIUS) / 2;
 // up, the bottom arc the rest by slowing, so no end ever moves backward.
 const JOIN_MS = 450;
 const JOIN_LEAD_SHARE = 0.75;
+// Signing checks with segments instead: the wave flattens, two gaps open at the
+// thirds, and the three segments pulse in turn. They become the receipt's tracks.
+const SPLIT_FLATTEN_MS = 200;
+const SPLIT_OPEN_MS = 200;
+const SEGMENT_GAP = 8;
+const PULSE_MS = 900;
+const PULSE_STAGGER_MS = 150;
+const PULSE_FLOOR = 0.35;
+const LINE_REST_OPACITY = 0.55;
 // Success follows the auth menu's success ring: close, seal, check.
 const SUCCESS_MS = 1140;
 const SEAL_RADIUS = 22.5;
@@ -42,14 +51,18 @@ const easeSeal = cubicBezier(0.34, 1.56, 0.64, 1);
 const easeOut = cubicBezier(0.2, 0, 0, 1);
 
 type RibbonPhase = 'idle' | 'listening' | 'processing';
+/** How the line shows that the voice is being checked. */
+export type VoiceCheckingStyle = 'ring' | 'segments';
 type Arc = Readonly<{ start: number; sweep: number }>;
 type Stage =
   | Readonly<{ kind: 'line' }>
   | Readonly<{ kind: 'capture'; startedAt: number; amplitude: number }>
+  | Readonly<{ kind: 'segments'; startedAt: number; amplitude: number }>
   | Readonly<{ kind: 'spin'; startedAt: number; base: number }>
   | Readonly<{ kind: 'success'; startedAt: number; from: Arc }>
   | Readonly<{ kind: 'sealed' }>;
 type CaptureStage = Variant<Stage, 'kind', 'capture'>;
+type SegmentsStage = Variant<Stage, 'kind', 'segments'>;
 type SpinStage = Variant<Stage, 'kind', 'spin'>;
 type SuccessStage = Variant<Stage, 'kind', 'success'>;
 
@@ -76,7 +89,10 @@ export class VoiceRibbon {
   private level = 0;
   private stopped = false;
 
-  constructor(document: Document) {
+  constructor(
+    document: Document,
+    private readonly checking: VoiceCheckingStyle = 'ring',
+  ) {
     this.element = document.createElementNS(SVG_NAMESPACE, 'svg');
     this.element.classList.add('seams-voiceid-ribbon');
     this.element.setAttribute('viewBox', `0 0 ${WIDTH} 64`);
@@ -100,6 +116,12 @@ export class VoiceRibbon {
       ring.setAttribute('cy', String(MID));
     }
     this.track.setAttribute('r', String(RING_RADIUS));
+    // A receipt that follows takes these segments over as its progress tracks.
+    if (checking === 'segments') {
+      this.element.dataset.seamsProgressLine = '';
+      for (const [index, segment] of [this.top, this.middle, this.bottom].entries())
+        segment.dataset.seamsProgressSegment = String(index);
+    }
     // The listening line stays the last path, above the ring parts it replaces.
     for (let layer = 3; layer >= 0; layer -= 1)
       this.lines.push(this.append(document, 'path', layer === 0 ? '1' : '0.65'));
@@ -111,7 +133,8 @@ export class VoiceRibbon {
   setPhase(phase: RibbonPhase): void {
     if (phase === 'processing' && this.stage.kind === 'line') {
       const amplitude = Math.max(this.level, this.idleAmplitude(performance.now()));
-      this.stage = { kind: 'capture', startedAt: performance.now(), amplitude };
+      const kind = this.checking === 'segments' ? 'segments' : 'capture';
+      this.stage = { kind, startedAt: performance.now(), amplitude };
     } else if (phase !== 'processing') {
       this.stage = { kind: 'line' };
       this.settle();
@@ -197,7 +220,9 @@ export class VoiceRibbon {
     this.level += (this.target - this.level) * (1 - Math.exp(-dt / (this.target > this.level ? 55 : 200)));
     if (!this.motion.matches) this.position += dt * (0.0012 + this.level * 0.003);
     this.paint(time);
+    // A ribbon that has left the document stops drawing; a later phase or activity wakes it.
     const resting =
+      !this.element.isConnected ||
       this.stage.kind === 'sealed' ||
       (this.stage.kind === 'line' && this.phase === 'idle' && this.level <= 0.001);
     if (!resting) this.frame = requestAnimationFrame(this.draw);
@@ -219,6 +244,9 @@ export class VoiceRibbon {
       case 'capture':
         this.paintCapture(time, this.stage);
         return;
+      case 'segments':
+        this.paintSegments(time, this.stage);
+        return;
       case 'spin':
         this.paintArc(this.spinnerArc(time, this.stage), 1);
         return;
@@ -235,8 +263,33 @@ export class VoiceRibbon {
     for (let index = 0; index < this.lines.length; index += 1) {
       const layer = 3 - index;
       this.lines[index].setAttribute('d', this.linePath(layer, amplitude, 0, WIDTH, 1));
-      this.lines[index].setAttribute('opacity', String(layer === 0 ? 0.55 + amplitude * 0.4 : 0.1 + amplitude * 0.1));
+      this.lines[index].setAttribute('opacity', String(layer === 0 ? LINE_REST_OPACITY + amplitude * 0.4 : 0.1 + amplitude * 0.1));
     }
+  }
+
+  private paintSegments(time: number, stage: SegmentsStage): void {
+    const elapsed = time - stage.startedAt;
+    if (!this.motion.matches && elapsed < SPLIT_FLATTEN_MS) {
+      this.paintLine(stage.amplitude * (1 - easeOut(elapsed / SPLIT_FLATTEN_MS)));
+      return;
+    }
+    const split = elapsed - SPLIT_FLATTEN_MS;
+    const gap = SEGMENT_GAP * (this.motion.matches ? 1 : easeOut(clamp01(split / SPLIT_OPEN_MS)));
+    const width = (WIDTH - 2 * gap) / 3;
+    for (const [index, segment] of [this.top, this.middle, this.bottom].entries()) {
+      const start = index * (width + gap);
+      segment.setAttribute('d', `M${start.toFixed(2)} ${MID}H${(start + width).toFixed(2)}`);
+      segment.setAttribute('stroke-width', '1');
+      segment.setAttribute('opacity', this.segmentOpacity(split, index));
+    }
+  }
+
+  /** Each segment brightens one beat after the one before it, from the resting line's opacity. */
+  private segmentOpacity(split: number, index: number): string {
+    if (this.motion.matches) return '0.8';
+    const beat = 0.5 + 0.5 * Math.cos((TAU * (split - index * PULSE_STAGGER_MS)) / PULSE_MS);
+    const pulse = PULSE_FLOOR + (1 - PULSE_FLOOR) * beat;
+    return lerp(LINE_REST_OPACITY, pulse, easeOut(clamp01(split / SPLIT_OPEN_MS))).toFixed(3);
   }
 
   private paintCapture(time: number, stage: CaptureStage): void {
@@ -253,7 +306,7 @@ export class VoiceRibbon {
     const exitSpeed = turnSpeed(false) * RING_RADIUS * CAPTURE_MS;
     const tail = hermite(progress, RING_ENTRY, exitSpeed);
     const head = BEND_START + hermite(progress, RING_ENTRY + HALF_ARC - BEND_START, exitSpeed);
-    const lineOpacity = 0.55 + amplitude * 0.4;
+    const lineOpacity = LINE_REST_OPACITY + amplitude * 0.4;
     for (const [half, turned] of [[this.top, false], [this.bottom, true]] as const) {
       half.setAttribute('d', this.halfPath(tail, head, turned, amplitude, waveScale));
       half.setAttribute('stroke-width', lerp(1, 2, settled).toFixed(2));

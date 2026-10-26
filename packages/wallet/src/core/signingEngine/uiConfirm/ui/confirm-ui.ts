@@ -420,10 +420,11 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
         });
         return;
       }
+      // The capture stays on screen until the receipt takes it over, so the
+      // hand-off never shows an empty card.
       if (this.admission?.authMethodApprovalMessages)
         this.view?.update({
           preparing: false,
-          authMethodCapture: null,
           authMethodApprovalMessage: this.admission.authMethodApprovalMessages.approved,
         });
       this.publishDecision(decision);
