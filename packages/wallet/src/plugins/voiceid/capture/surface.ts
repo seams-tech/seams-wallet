@@ -83,7 +83,7 @@ class VoiceIdCaptureSurface<T> {
     this.unlockFrame =
       purpose === 'unlock' ? new VoiceUnlockFrame(this.element, this.prompt) : null;
     this.status = this.prompt.status;
-    this.status.textContent = 'Preparing VoiceID…';
+    this.status.textContent = 'Loading VoiceID…';
     this.prompt.title.textContent = 'VoiceID';
     this.element.dataset.preparation = 'loading';
     this.activateButton = this.prompt.record;

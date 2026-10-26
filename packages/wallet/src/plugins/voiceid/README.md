@@ -173,10 +173,17 @@ and disconnects when the prompt closes.
 
 The lazy host entry contains the prompt shell. It mounts the modal and yields a
 frame before importing the unlock or activation implementation. The card shows
-Preparing VoiceID and allows cancellation while its recording button is disabled.
+Loading VoiceID and allows cancellation while its recording button is disabled.
 Unlock then prepares its core session installer, including lock cleanup and a new
 lock generation. It checks local state, loads the cached model if needed, and
-requests its server challenge. Model progress appears inside the same card.
+requests its server challenge. One cumulative indicator covers the engine WASM
+and all three models inside the same card. Verified cached bytes count toward the
+same total. All four downloads finish before the card shows “Preparing VoiceID…”
+and creates inference sessions. The streamed engine bytes go directly to ONNX
+Runtime, so initialization does not fetch that binary again. The engine uses the
+same hash-verified browser cache as the models. If storage is unavailable, loading
+still works for the current session. Transaction approval uses the same preparation
+before starting its bounded recording attempt.
 The lightweight shell itself still needs its first module download.
 Unlock starts listening automatically after preparation. The initial Unlock with
 VoiceID action opens this flow. Back cancels capture and returns to the login menu.

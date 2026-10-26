@@ -1,5 +1,6 @@
 import { VoicePrompt } from './prompt';
 import { newSpokenPhrase } from '../browser/phrase';
+import { prepareVoiceModelWithProgress } from '../browser/progress';
 import type { AuthMethodApprovalResult } from '@/core/authMethods/hostPlugin';
 import type { ParentToChildEnvelope } from '@/SeamsWeb/walletIframe/shared/messages';
 import {
@@ -26,6 +27,7 @@ export type VoiceIdPolicy =
 
 type ApprovalState =
   | { readonly kind: 'pending' }
+  | { readonly kind: 'preparing' }
   | {
       readonly kind: 'listening';
       readonly binding: VoiceBinding;
@@ -215,7 +217,8 @@ export class VoiceIdApproval {
     ) {
       throw new Error('Open the Wallet review and select Confirm to start voice capture.');
     }
-    let attempt = this.beginAttempt(signal);
+    this.state = { kind: 'preparing' };
+    this.prompt.status.textContent = 'Loading VoiceID…';
     try {
       const selected = await IndexedDBManager.resolveSelectedWalletAuthority(this.walletId);
       if (
@@ -229,6 +232,9 @@ export class VoiceIdApproval {
         this.walletId,
         selected.authMethod.walletAuthMethodId,
       );
+      await prepareVoiceModelWithProgress(this.prompt.progress);
+      this.prompt.progress.replaceChildren();
+      let attempt = this.beginAttempt(signal);
       for (;;) {
         const { binding, deadline, remaining } = attempt;
         const outcome = await listenForVoiceApproval(

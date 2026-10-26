@@ -1,20 +1,16 @@
-import { BrowserInferenceModel, type VoiceModelProgress } from './inference';
+import { BrowserInferenceModel } from './inference';
 
 const MODEL_HASH = 'e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269';
 export const VOICE_MODEL_ID = `redimnet-b1:${MODEL_HASH}`;
 // Prototype threshold: next tenth above the 4s calibration maximum impostor score (0.4417).
 export const VOICE_MATCH_THRESHOLD = 0.5;
-const model = new BrowserInferenceModel({
+export const voiceModel = new BrowserInferenceModel({
   path: '/sdk/voiceid/redimnet-b1.onnx', sha256: MODEL_HASH,
   bytes: 8_859_593, label: 'Speaker verification',
 });
 
-export async function prepareVoiceModel(onProgress?: (progress: VoiceModelProgress) => void) {
-  return await model.prepare(onProgress);
-}
-
 export async function voiceEmbedding(samples: Float32Array): Promise<number[]> {
-  const model = await prepareVoiceModel();
+  const model = await voiceModel.prepare();
   const ort = await import('onnxruntime-web/wasm');
   const tensor = new ort.Tensor('float32', samples, [1, samples.length]);
   try {

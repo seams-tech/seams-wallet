@@ -1,11 +1,8 @@
 import type { InferenceSession } from 'onnxruntime-web';
 
 type ModelAsset = Readonly<{ path: string; sha256: string; bytes: number; label: string }>;
-export type VoiceModelProgress =
-  | { kind: 'checking_cache'; label: string }
-  | { kind: 'downloading'; label: string; received: number; total: number }
-  | { kind: 'preparing'; label: string; storage: 'browser' | 'session' }
-  | { kind: 'ready'; label: string; storage: 'browser' | 'session' };
+export type VoiceAssetProgress =
+  { kind: 'checking_cache' } | { kind: 'downloading'; received: number } | { kind: 'ready' };
 const CACHE_NAME = 'seams-voiceid-models-v1';
 
 async function openModelCache(): Promise<Cache | null> {
@@ -16,34 +13,39 @@ async function openModelCache(): Promise<Cache | null> {
   }
 }
 
-export class BrowserInferenceModel {
-  private session: Promise<InferenceSession> | null = null;
-  private progress: VoiceModelProgress;
-  private readonly listeners = new Set<(progress: VoiceModelProgress) => void>();
+class BrowserInferenceAsset {
+  private pending: Promise<ArrayBuffer> | null = null;
+  private progress: VoiceAssetProgress = { kind: 'checking_cache' };
+  private readonly listeners = new Set<(progress: VoiceAssetProgress) => void>();
 
-  constructor(private readonly asset: ModelAsset) {
-    this.progress = { kind: 'checking_cache', label: asset.label };
+  constructor(private readonly asset: ModelAsset) {}
+
+  get size(): number {
+    return this.asset.bytes;
   }
 
-  async prepare(onProgress?: (progress: VoiceModelProgress) => void): Promise<InferenceSession> {
+  async download(onProgress?: (progress: VoiceAssetProgress) => void): Promise<ArrayBuffer> {
     if (onProgress) {
       this.listeners.add(onProgress);
       onProgress(this.progress);
     }
     try {
-      if (!this.session) this.session = this.load().catch(this.failed);
-      return await this.session;
+      if (!this.pending) this.pending = this.bytes().catch(this.failed);
+      const bytes = await this.pending;
+      this.publish({ kind: 'ready' });
+      return bytes;
     } finally {
       if (onProgress) this.listeners.delete(onProgress);
     }
   }
 
   private readonly failed = (error: unknown): never => {
-    this.session = null;
+    this.pending = null;
+    this.progress = { kind: 'checking_cache' };
     throw error;
   };
 
-  private publish(progress: VoiceModelProgress): void {
+  private publish(progress: VoiceAssetProgress): void {
     this.progress = progress;
     for (const listener of this.listeners) listener(progress);
   }
@@ -56,24 +58,25 @@ export class BrowserInferenceModel {
     return hex === this.asset.sha256;
   }
 
-  private async bytes(): Promise<{ bytes: ArrayBuffer; storage: 'browser' | 'session' }> {
+  private async bytes(): Promise<ArrayBuffer> {
     const { label, path, sha256 } = this.asset;
-    this.publish({ kind: 'checking_cache', label });
+    this.publish({ kind: 'checking_cache' });
     const cache = await openModelCache();
     const cacheKey = new URL(`${path}?sha256=${sha256}`, location.origin).href;
     try {
       const response = await cache?.match(cacheKey);
       if (response) {
         const bytes = await response.arrayBuffer();
-        if (await this.valid(bytes)) return { bytes, storage: 'browser' };
+        if (await this.valid(bytes)) return bytes;
         await cache?.delete(cacheKey);
       }
     } catch {
       // Cache access can fail in restricted browser storage.
     }
-    this.publish({ kind: 'downloading', label, received: 0, total: this.asset.bytes });
+    this.publish({ kind: 'downloading', received: 0 });
     const response = await fetch(path, { credentials: 'omit', cache: 'force-cache' });
-    if (!response.ok || !response.body) throw new Error(`${label} is unavailable from this Wallet.`);
+    if (!response.ok || !response.body)
+      throw new Error(`${label} is unavailable from this Wallet.`);
     const reader = response.body.getReader();
     const bytes = new Uint8Array(this.asset.bytes);
     let received = 0;
@@ -81,10 +84,11 @@ export class BrowserInferenceModel {
       while (true) {
         const chunk = await reader.read();
         if (chunk.done) break;
-        if (received + chunk.value.length > bytes.length) throw new Error(`${label} size is invalid.`);
+        if (received + chunk.value.length > bytes.length)
+          throw new Error(`${label} size is invalid.`);
         bytes.set(chunk.value, received);
         received += chunk.value.length;
-        this.publish({ kind: 'downloading', label, received, total: bytes.length });
+        this.publish({ kind: 'downloading', received });
       }
     } finally {
       await reader.cancel();
@@ -93,23 +97,50 @@ export class BrowserInferenceModel {
     if (!(await this.valid(bytes.buffer))) throw new Error(`${label} integrity check failed.`);
     if (cache) {
       try {
-        await cache.put(cacheKey, new Response(bytes, { headers: { 'Content-Type': 'application/octet-stream' } }));
-        return { bytes: bytes.buffer, storage: 'browser' };
+        await cache.put(
+          cacheKey,
+          new Response(bytes, { headers: { 'Content-Type': 'application/octet-stream' } }),
+        );
       } catch {
         // Inference remains available for this session if storage is full.
       }
     }
-    return { bytes: bytes.buffer, storage: 'session' };
+    return bytes.buffer;
   }
+}
+
+// These bytes match the pinned onnxruntime-web dependency shipped by the Wallet host.
+export const voiceInferenceEngine = new BrowserInferenceAsset({
+  path: '/sdk/ort-wasm-simd-threaded.wasm',
+  sha256: '3398c10d07d229bd91b364548e130e0e51a8e5704b88c7c083ebbeb78842dee2',
+  bytes: 14_239_897,
+  label: 'VoiceID engine',
+});
+
+export class BrowserInferenceModel {
+  readonly asset: BrowserInferenceAsset;
+  private session: Promise<InferenceSession> | null = null;
+
+  constructor(asset: ModelAsset) {
+    this.asset = new BrowserInferenceAsset(asset);
+  }
+
+  prepare(): Promise<InferenceSession> {
+    if (!this.session) this.session = this.load().catch(this.failed);
+    return this.session;
+  }
+
+  private readonly failed = (error: unknown): never => {
+    this.session = null;
+    throw error;
+  };
 
   private async load(): Promise<InferenceSession> {
     const ort = await import('onnxruntime-web/wasm');
     ort.env.wasm.numThreads = 1;
     ort.env.wasm.wasmPaths = new URL('/sdk/', location.origin).href;
-    const model = await this.bytes();
-    this.publish({ kind: 'preparing', label: this.asset.label, storage: model.storage });
-    const session = await ort.InferenceSession.create(model.bytes, { executionProviders: ['wasm'] });
-    this.publish({ kind: 'ready', label: this.asset.label, storage: model.storage });
-    return session;
+    ort.env.wasm.wasmBinary = await voiceInferenceEngine.download();
+    const bytes = await this.asset.download();
+    return await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
   }
 }

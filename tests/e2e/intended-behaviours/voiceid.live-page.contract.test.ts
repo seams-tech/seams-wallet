@@ -90,7 +90,7 @@ async function verifyLivePage(
   expect(assets.inference).toHaveLength(0);
   await page.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-  await expect(wallet.getByRole('progressbar', { name: 'VoiceID model download' })).toBeVisible();
+  await expect(wallet.getByRole('progressbar', { name: 'VoiceID download' })).toBeVisible();
   await expect(wallet.locator('.seams-voiceid-model-download')).toHaveAttribute(
     'data-state',
     'downloading',

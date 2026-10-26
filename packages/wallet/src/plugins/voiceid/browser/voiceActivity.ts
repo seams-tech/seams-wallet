@@ -1,19 +1,15 @@
-import { BrowserInferenceModel, type VoiceModelProgress } from './inference';
+import { BrowserInferenceModel } from './inference';
 import type { InferenceSession } from 'onnxruntime-web';
 
-const model = new BrowserInferenceModel({
+export const voiceActivityModel = new BrowserInferenceModel({
   path: '/sdk/voiceid/silero-vad.onnx',
   sha256: '2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f',
   bytes: 2_327_524,
   label: 'Speech detection',
 });
 
-export function prepareVoiceActivity(onProgress?: (progress: VoiceModelProgress) => void) {
-  return model.prepare(onProgress);
-}
-
 export async function createVoiceActivity(): Promise<VoiceActivity> {
-  return new VoiceActivity(await prepareVoiceActivity(), await import('onnxruntime-web/wasm'));
+  return new VoiceActivity(await voiceActivityModel.prepare(), await import('onnxruntime-web/wasm'));
 }
 
 class VoiceActivity {

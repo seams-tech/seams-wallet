@@ -1,25 +1,37 @@
-import { prepareVoiceActivity } from './voiceActivity';
-import { prepareVoiceModel } from './model';
-import { preparePhraseModel } from './phrase';
-import type { VoiceModelProgress } from './inference';
+import { voiceActivityModel } from './voiceActivity';
+import { voiceModel } from './model';
+import { phraseModel } from './phrase';
+import { voiceInferenceEngine, type VoiceAssetProgress } from './inference';
 
-// Models saved in this browser load within a frame or two. The progress appears only
-// for a load that takes longer, so a cached load never adds a row and resizes the card.
+// Avoid flashing an indicator when the prepared sessions are already in memory.
 const REVEAL_DELAY_MS = 300;
+const MODELS = [voiceModel, phraseModel, voiceActivityModel];
+const ASSETS = [voiceInferenceEngine, ...MODELS.map(modelAsset)];
+
+function modelAsset(model: typeof voiceModel) {
+  return model.asset;
+}
+
+function assetSize(total: number, asset: (typeof ASSETS)[number]): number {
+  return total + asset.size;
+}
 
 class VoiceModelDownload {
   readonly element = document.createElement('section');
   private readonly status = document.createElement('p');
   private readonly meter = document.createElement('progress');
   private readonly reveal: ReturnType<typeof setTimeout>;
+  private readonly received = new Map<(typeof ASSETS)[number], number>();
+  private readonly total = ASSETS.reduce(assetSize, 0);
 
   constructor(parent: HTMLElement) {
     this.element.className = 'seams-voiceid-model-download';
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
-    this.meter.setAttribute('aria-label', 'VoiceID model download');
+    this.meter.setAttribute('aria-label', 'VoiceID download');
     this.meter.style.width = '100%';
     this.element.append(this.status, this.meter);
+    this.status.textContent = 'Loading saved VoiceID…';
     this.reveal = setTimeout(parent.append.bind(parent, this.element), REVEAL_DELAY_MS);
   }
 
@@ -28,38 +40,50 @@ class VoiceModelDownload {
     clearTimeout(this.reveal);
   };
 
-  readonly update = (state: VoiceModelProgress): void => {
-    this.element.dataset.state = state.kind;
-    this.meter.hidden = state.kind === 'ready';
-    this.meter.removeAttribute('value');
+  readonly update = (asset: (typeof ASSETS)[number], state: VoiceAssetProgress): void => {
     switch (state.kind) {
       case 'checking_cache':
-        this.status.textContent = `Loading saved ${state.label.toLowerCase()}…`;
         return;
       case 'downloading':
-        this.meter.max = state.total;
-        this.meter.value = state.received;
-        this.status.textContent = `Downloading ${state.label.toLowerCase()}: ${(state.received / 1_000_000).toFixed(1)} of ${(state.total / 1_000_000).toFixed(1)} MB · ${Math.floor(state.received / state.total * 100)}%`;
-        return;
-      case 'preparing':
-        this.status.textContent = `Preparing ${state.label.toLowerCase()} on this device…`;
-        return;
+        this.received.set(asset, state.received);
+        this.element.dataset.state = 'downloading';
+        break;
       case 'ready':
-        this.status.textContent = state.storage === 'browser'
-          ? `${state.label} is ready. The model is saved in this browser.`
-          : `${state.label} is ready for this session. This browser could not save the model.`;
-        return;
+        this.received.set(asset, asset.size);
+        break;
+      default:
+        state satisfies never;
     }
-    state satisfies never;
+    if (this.element.dataset.state !== 'downloading') return;
+    let received = 0;
+    for (const bytes of this.received.values()) received += bytes;
+    this.meter.max = this.total;
+    this.meter.value = received;
+    this.status.textContent = `Downloading VoiceID: ${(received / 1_000_000).toFixed(1)} of ${(this.total / 1_000_000).toFixed(1)} MB · ${Math.floor((received / this.total) * 100)}%`;
   };
+
+  preparing(): void {
+    this.element.dataset.state = 'preparing';
+    this.meter.removeAttribute('value');
+    this.status.textContent = 'Preparing VoiceID…';
+  }
+
+  ready(): void {
+    this.element.dataset.state = 'ready';
+    this.meter.hidden = true;
+    this.status.textContent = 'VoiceID is ready.';
+  }
 }
 
 export async function prepareVoiceModelWithProgress(parent: HTMLElement): Promise<void> {
   const component = new VoiceModelDownload(parent);
   try {
-    await prepareVoiceModel(component.update);
-    await preparePhraseModel(component.update);
-    await prepareVoiceActivity(component.update);
+    for (const asset of ASSETS) {
+      await asset.download(component.update.bind(component, asset));
+    }
+    component.preparing();
+    for (const model of MODELS) await model.prepare();
+    component.ready();
   } finally {
     component.settle();
   }

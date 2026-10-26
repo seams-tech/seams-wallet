@@ -432,6 +432,15 @@ was already cached. The browser contract
 [`auth-method-plugin.contract.test.ts`](../tests/e2e/intended-behaviours/auth-method-plugin.contract.test.ts)
 verifies these transitions and writes the fetched chunk list as a JSON artifact.
 
+VoiceID prepares its inference engine and three models only after an explicit
+VoiceID action. One cumulative download indicator covers their verified bytes.
+Its percentage does not restart between assets. After download completes, the
+card shows “Preparing VoiceID…” until all inference sessions are ready. Capture
+starts only after preparation. Cached assets are verified before reuse; an invalid
+entry is downloaded again. Storage failure leaves session-only operation available.
+The [loading browser journey](../tests/wallet-ui/voiceid-loading.browser.test.ts)
+uses real models, throttled downloads, a failed request, cache corruption, and reload.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work

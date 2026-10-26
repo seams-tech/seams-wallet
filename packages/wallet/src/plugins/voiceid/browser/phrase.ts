@@ -1,8 +1,8 @@
-import { BrowserInferenceModel, type VoiceModelProgress } from './inference';
+import { BrowserInferenceModel } from './inference';
 import { SPOKEN_PHRASES, PHRASE_TOKEN_PIECES } from './phraseVocabulary';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
-const model = new BrowserInferenceModel({
+export const phraseModel = new BrowserInferenceModel({
   path: '/sdk/voiceid/aurora-int8.onnx',
   sha256: '83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6',
   bytes: 1_342_384,
@@ -23,10 +23,6 @@ export function newSpokenPhrase(previous: SpokenPhrase | null): SpokenPhrase {
   } while (phrase === previous || phrase === lastIssuedPhrase);
   lastIssuedPhrase = phrase;
   return phrase;
-}
-
-export async function preparePhraseModel(onProgress?: (progress: VoiceModelProgress) => void) {
-  return await model.prepare(onProgress);
 }
 
 type PhraseRecognition =
@@ -226,7 +222,7 @@ export async function checkSpokenPhrase(
   samples: Float32Array,
   expected: SpokenPhrase,
 ): Promise<PhraseCheck> {
-  const session = await preparePhraseModel();
+  const session = await phraseModel.prepare();
   const ort = await import('onnxruntime-web/wasm');
   const input = new ort.Tensor('float32', samples, [1, samples.length]);
   try {
