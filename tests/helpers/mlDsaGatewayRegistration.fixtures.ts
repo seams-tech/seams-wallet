@@ -1,3 +1,5 @@
+import { extendWalletAuthorityWithMlDsa65SignerV1 } from '../../packages/shared-ts/src/authorization/walletAuthority';
+import type { ExactAdministeredMlDsa65SignerV1 } from '../../packages/shared-ts/src/device-linking/delegatedActivationPlan';
 import type { D1DatabaseLike } from '../../packages/wallet-server/src/storage/tenantRoute';
 import type { CloudflareD1VersionedJsonRecordScopeV1 } from '../../packages/wallet-server/src/router/cloudflare/d1/versionedJson/d1VersionedJsonRecordStore';
 import {
@@ -69,7 +71,7 @@ export async function gatewayOwner(input: {
 export async function seedOwner(
   database: D1DatabaseLike,
   scope: CloudflareD1VersionedJsonRecordScopeV1,
-  owner: LinkedDeviceManagementAuthorityFixture,
+  owner: Pick<LinkedDeviceManagementAuthorityFixture, 'authority' | 'authMethod'>,
 ) {
   await database.batch([
     prepareD1WalletPutSubjectStatement({
@@ -93,6 +95,24 @@ export async function seedOwner(
       },
     }),
   ]);
+}
+
+export async function seedRetainedMlDsaOwner(input: {
+  readonly database: D1DatabaseLike;
+  readonly scope: CloudflareD1VersionedJsonRecordScopeV1;
+  readonly owner: LinkedDeviceManagementAuthorityFixture;
+  readonly signer: ExactAdministeredMlDsa65SignerV1;
+}) {
+  const owner = {
+    authority: await extendWalletAuthorityWithMlDsa65SignerV1({
+      authority: input.owner.authority,
+      signer: input.signer,
+      now: Date.now(),
+    }),
+    authMethod: input.owner.authMethod,
+  };
+  await seedOwner(input.database, input.scope, owner);
+  return owner;
 }
 
 function recoveryWrap(now: number, raw: unknown) {
