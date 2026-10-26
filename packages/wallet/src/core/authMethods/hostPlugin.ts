@@ -53,7 +53,6 @@ export type AuthMethodApprovalResult =
 
 export interface AuthMethodReviewApproval {
   readonly messages: Readonly<{
-    prompt: string;
     approved: string;
     confirm?: string;
   }>;

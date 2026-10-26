@@ -124,7 +124,6 @@ export class VoiceIdApproval {
   readonly surface: HTMLElement;
   get messages() {
     return {
-      prompt: 'Read one short phrase to approve this transfer.',
       confirm: 'Confirm with VoiceID',
       approved: 'Voice approved this operation.',
     };
@@ -179,18 +178,7 @@ export class VoiceIdApproval {
     ) {
       throw new Error('Open the Wallet review and select Confirm to start voice capture.');
     }
-    const remaining = Math.min(25_000, this.reviewExpiresAtMs - Date.now());
-    if (remaining < 250 || signal.aborted)
-      throw new Error('This voice review has expired or closed.');
-    const binding = Object.freeze({
-      attemptId: crypto.randomUUID(),
-      operationHash: this.operationHash,
-      expiresAtMs: Date.now() + remaining,
-    });
-    const deadline = performance.now() + remaining;
-    this.prompt.setPhrase(this.phrase);
-    this.prompt.status.textContent = 'Opening microphone…';
-    this.state = { kind: 'listening', binding, deadline, signal };
+    let attempt = this.beginAttempt(signal);
     try {
       const selected = await IndexedDBManager.resolveSelectedWalletAuthority(this.walletId);
       if (
@@ -204,36 +192,84 @@ export class VoiceIdApproval {
         this.walletId,
         selected.authMethod.walletAuthMethodId,
       );
-      const outcome = await listenForVoiceApproval(
-        scope,
-        binding,
-        remaining,
-        signal,
-        this.prompt.capture,
-        this.phrase,
-      );
-      this.assertListening(binding);
-      if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {
-        throw new Error('Voice approval expired or closed.');
-      }
-      switch (outcome.kind) {
-        case 'approved':
-          this.state = { kind: 'approved', binding, deadline, signal };
-          return outcome;
-        case 'retry':
-          this.phrase = newSpokenPhrase(this.phrase);
-          this.state = { kind: 'pending' };
-          return {
-            kind: 'retry',
-            message: `${outcome.message} Select Confirm to try a new phrase.`,
-          };
-        default:
-          return assertNever(outcome);
+      for (;;) {
+        const { binding, deadline, remaining } = attempt;
+        const outcome = await listenForVoiceApproval(
+          scope,
+          binding,
+          remaining,
+          signal,
+          this.prompt.capture,
+          this.phrase,
+        );
+        this.assertListening(binding);
+        if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {
+          throw new Error('Voice approval expired or closed.');
+        }
+        switch (outcome.kind) {
+          case 'approved':
+            this.state = { kind: 'approved', binding, deadline, signal };
+            return outcome;
+          case 'retry':
+            // A miss keeps the card open with a new phrase. Try again is the
+            // gesture that lets the browser open the microphone once more.
+            this.phrase = newSpokenPhrase(this.phrase);
+            this.prompt.setPhrase(this.phrase);
+            this.prompt.record.textContent = 'Try again';
+            this.prompt.ready(outcome.message);
+            await this.waitForRetry(signal);
+            attempt = this.beginAttempt(signal);
+            break;
+          default:
+            return assertNever(outcome);
+        }
       }
     } catch (error) {
       this.state = { kind: 'closed' };
       throw error;
     }
+  }
+
+  /** Binds one listening attempt to the operation and to what remains of the review. */
+  private beginAttempt(signal: AbortSignal): Readonly<{
+    binding: VoiceBinding;
+    deadline: number;
+    remaining: number;
+  }> {
+    const remaining = Math.min(25_000, this.reviewExpiresAtMs - Date.now());
+    if (remaining < 250 || signal.aborted)
+      throw new Error('This voice review has expired or closed.');
+    const binding = Object.freeze({
+      attemptId: crypto.randomUUID(),
+      operationHash: this.operationHash,
+      expiresAtMs: Date.now() + remaining,
+    });
+    const deadline = performance.now() + remaining;
+    this.prompt.record.hidden = true;
+    this.prompt.status.textContent = 'Opening microphone…';
+    this.state = { kind: 'listening', binding, deadline, signal };
+    return { binding, deadline, remaining };
+  }
+
+  /** Resolves when the person selects Try again; rejects when the review closes or expires. */
+  private waitForRetry(signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const record = this.prompt.record;
+      const settle = (retry: boolean): void => {
+        clearTimeout(expiry);
+        record.removeEventListener('click', tryAgain);
+        signal.removeEventListener('abort', close);
+        if (retry) resolve();
+        else reject(new Error('This voice review has expired or closed.'));
+      };
+      const tryAgain = settle.bind(null, true);
+      const close = settle.bind(null, false);
+      const expiry = setTimeout(close, Math.max(0, this.reviewExpiresAtMs - Date.now()));
+      record.addEventListener('click', tryAgain);
+      signal.addEventListener('abort', close);
+      if (signal.aborted) close();
+      record.focus();
+    });
   }
 
   consume(): void {

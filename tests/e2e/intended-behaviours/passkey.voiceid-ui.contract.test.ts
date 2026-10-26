@@ -106,6 +106,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     expect(menuStates.slice(succeeded).filter(isMenuVisible)).toEqual([]);
     await startReviewedTransfer(page);
     await expect(wallet.locator('button.confirm')).toHaveText('Confirm with VoiceID');
+    await wallet.locator('body').evaluate(useWrongPhrase);
     await wallet.locator('button.confirm').click();
     await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
       'data-capture',
@@ -114,6 +115,16 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await wallet
       .locator('.seams-voiceid-prompt')
       .screenshot({ path: testInfo.outputPath('voiceid-signing.png') });
+    // A missed phrase keeps the VoiceID card open with a new phrase, not the review.
+    const tryAgain = wallet
+      .locator('.seams-voiceid-prompt')
+      .getByRole('button', { name: 'Try again', exact: true });
+    await expect(tryAgain).toBeVisible({ timeout: 20_000 });
+    await expect(wallet.locator('.seams-review-content')).toHaveCount(0);
+    await wallet
+      .locator('.seams-voiceid-prompt')
+      .screenshot({ path: testInfo.outputPath('voiceid-signing-retry.png') });
+    await tryAgain.click();
     await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
       'data-state',
       'submitted',
@@ -362,6 +373,9 @@ function microphoneStates(): MediaStreamTrackState[] {
 }
 function useNaturalPhrases(): void {
   window.voiceIdUseNaturalPhrases();
+}
+function useWrongPhrase(): void {
+  window.voiceIdUseNextWrongPhrase();
 }
 function changeAdaptationBoundary(
   _body: HTMLElement,

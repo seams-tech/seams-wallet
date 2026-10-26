@@ -834,8 +834,6 @@ function mountHostElement({
       loading,
       title: summary?.title ?? (summary?.delegate ? 'Sign Delegate Action' : undefined),
       body: summary?.body,
-      authMethodApprovalMessage: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
-        ?.authMethodApprovalMessages?.prompt,
       confirmText: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
         ?.authMethodApprovalMessages?.confirm,
       signingAuthMode,
