@@ -93,6 +93,11 @@ The user reported successful VoiceID approvals on Arc and NEAR on October 26,
   one yoctoNEAR to the same signing account.
   Raw evidence: [transaction and outcomes](near-live-transaction.json).
 
+The user also confirmed another normal-paced Arc approval:
+[transaction 0xba27…524a](https://explorer.testnet.arc.io/tx/0xba27b74748e9309d35d6a5cb967521d4a5dc06db286c453d78bcd4468d9b524a).
+The RPC returned receipt status `0x1`, with the same wallet address as sender and
+recipient. See the [second live receipt](arc-second-live-receipt.json).
+
 Voice approval is user-reported. The RPC evidence independently verifies settlement.
 These live transfers are separate from the deterministic browser-test transactions.
 
