@@ -26,6 +26,16 @@ Seamsパッケージは、少数の公開インポートパスを提供します
 ブラウザーSDKとサーバーSDKは**0.22.0**を使用します。復元CLIは**0.21.0**です。
 導入とデプロイの要件は、[リリース 0.22.0](/ja/releases)を参照してください。
 
+## 準備中のNEARコネクター {#prepared-near-connector}
+
+次のインポート先は`dev`に実装済みですが、**npmリリース0.22.0には含まれていません**。
+提供状況、実装例、結果の分岐は[外部NEARウォレット](/ja/guides/external-near-wallets)を参照してください。
+
+| インポート先                        | 公開API                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| `@seams/wallet/external-near`       | `ExternalNearController`、`nearWalletName`、外部NEARの状態・結果の型。 |
+| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker`、`useExternalNear`。                        |
+
 ## 状態と失敗のリファレンス {#state-and-failure-references}
 
 - [設定](/ja/reference/configuration)

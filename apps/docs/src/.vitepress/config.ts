@@ -64,6 +64,7 @@ const guidesSection: DefaultTheme.SidebarItem = {
     { text: 'Overview', link: '/guides/' },
     { text: 'Authentication', link: '/guides/authentication' },
     { text: 'Embedded wallets', link: '/guides/embedded-wallets' },
+    { text: 'External NEAR wallets', link: '/guides/external-near-wallets' },
     { text: 'Policies and mandates', link: '/guides/policies-and-mandates' },
     {
       text: 'Wallet sessions and signing lanes',

@@ -19,6 +19,8 @@ description: Seamsウォレットの導入に必要な設定、処理の流れ�
 
 - [認証](/ja/guides/authentication)：認証要素の選択と、キャンセル、期限切れ、再試行の状態の扱い。
 - [組み込みウォレット](/ja/guides/embedded-wallets)：ウォレットの認証情報と署名ランタイムをウォレットオリジン内に維持。
+- [外部NEARウォレット](/ja/guides/external-near-wallets)：Meteor、HOT、Intear向けの開発プレビュー。Seamsへのログインは不要で、承認は外部ウォレットが行います。
+
 - [外部EVMウォレット](/ja/guides/external-evm-wallets)：秘密鍵を拡張機能内に保持したまま、MetaMask、Rabby、PhantomのEVMアカウントを接続。
 - [ポリシーと委任条件](/ja/guides/policies-and-mandates)：各操作を明示的な主体、対象、利用上限に紐づける。
 - [ウォレットセッションと署名レーン](/ja/guides/wallet-sessions-and-signing-lanes)：署名処理の全体で同じセッション識別情報を使用。

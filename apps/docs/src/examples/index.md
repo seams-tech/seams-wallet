@@ -5,8 +5,12 @@ description: Start with a working Seams wallet, then add signing, recovery, devi
 
 # Examples
 
-You can copy these examples into an application. Configure the provider first. Then
-register or unlock a wallet. Choose the operation your product needs.
+You can copy these examples into an application. For a Seams wallet, configure the
+provider first, then register or unlock a wallet. Choose the operation your product needs.
+
+For external NEAR wallets, use the [compiled connector example](/guides/external-near-wallets#react-example).
+It is a development preview with separate imports and no Seams provider requirement.
+The prerequisites below apply to Seams wallet examples.
 
 ## Prerequisites
 
@@ -19,7 +23,7 @@ pnpm add @seams/wallet@0.22.0
 
 <<< ./setup.tsx
 
-The examples target release **0.22.0** and iframe protocol **16.0.0**.
+The Seams wallet examples below target release **0.22.0** and iframe protocol **16.0.0**.
 The setup configures NEAR and Tempo testnets. The
 Ethereum Sepolia example requires adding that chain as shown in the [signing
 guide](/examples/signing#execute-an-evm-family-transaction).

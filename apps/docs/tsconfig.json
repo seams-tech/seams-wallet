@@ -10,7 +10,13 @@
     "types": ["vite/client", "react", "react-dom"],
     "paths": {
       "@seams/wallet": ["../../packages/wallet/dist/types/wallet/src/index.d.ts"],
-      "@seams/wallet/*": ["../../packages/wallet/dist/types/wallet/src/*"]
+      "@seams/wallet/*": ["../../packages/wallet/dist/types/wallet/src/*"],
+      "@seams/wallet/external-near": [
+        "../../packages/wallet/dist/types/wallet/src/externalNear/index.d.ts"
+      ],
+      "@seams/wallet/react/external-near": [
+        "../../packages/wallet/dist/types/wallet/src/react/externalNear.d.ts"
+      ]
     }
   },
   "include": [

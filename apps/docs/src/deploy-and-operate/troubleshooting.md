@@ -123,3 +123,18 @@ not prove all historical ciphertext is unrecoverable.
 Collect release, environment, browser, operation ID, public error code, event
 phase/status, and redacted console or network evidence. Exclude credentials,
 tokens, assertions, OTPs, recovery data, and key material.
+
+## External NEAR wallets
+
+**Boundary:** application document and selected external wallet.
+The connector is a development preview; npm `0.22.0` cannot resolve its new imports.
+See [availability and integration](/guides/external-near-wallets).
+
+- Meteor may inject its page API after initial load. Retry after initialization in the correct browser profile. A toolbar icon alone does not prove page API readiness.
+- HOT is mainnet-only in this connector. The testnet picker intentionally disables it.
+- Intear needs a popup allowed for the app origin. The connector accepts only its fixed wallet origin and the exact request window.
+- After disconnect, read a new connected snapshot before signing. A stale snapshot returns `connection_changed`.
+- Preserve a returned hash and use `checkOutcome` for unresolved execution. For `submission_unknown`, check wallet activity before any new send.
+
+An external connection does not create a Seams login. Use external connection
+state to enable external transaction controls.

@@ -36,6 +36,15 @@ cancellation, policy denial, transport failure, broadcast acceptance, and
 finalization as separate outcomes where the operation exposes them. Show the
 user the recovery action associated with the current branch.
 
+## External NEAR connector
+
+The [development-preview connector](/guides/external-near-wallets#outcomes-and-retry-rules)
+returns `ExternalNearResult<T>` from connection and submission calls. Check `ok`
+before reading `value`. Keep a successful submission for `checkOutcome`.
+`unresolved` permits a status recheck. `submission_unknown` requires wallet or
+chain-history review before another send. Neither result permits automatic resend.
+External connection results do not establish a Seams Wallet Session.
+
 ## Key export
 
 `seams.keys.exportKey()` returns `{ kind: 'exported' }` after the wallet-origin

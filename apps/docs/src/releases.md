@@ -100,3 +100,15 @@ Verify the release identity of each deployed service. Package publication and
 hosted deployment are separate steps. Follow the
 [production checklist](/deploy-and-operate/production-checklist) and verify the
 [recovery CLI](/deploy-and-operate/recovery-cli) before relying on recovery tooling.
+
+## Prepared NEAR connector
+
+Checked on **2026-10-26**: npm's latest browser SDK is `0.22.0`.
+The external NEAR connector is implemented on `dev` and is **not part of that release**.
+No new package version or deployment is claimed here.
+
+The [connector guide](/guides/external-near-wallets) covers Meteor, HOT, and Intear,
+the two new package entry points, and compiled development examples.
+Real Meteor testnet connection and a zero-deposit transaction passed final execution
+and exact contract readback. HOT and Intear real-wallet checks remain pending.
+Publication and private-app adoption still need an exact SDK release.

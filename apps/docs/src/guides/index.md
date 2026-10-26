@@ -25,6 +25,8 @@ before release. Each guide explains the application's responsibilities.
   cancellation, expiry, and retry states.
 - [Embedded wallets](/guides/embedded-wallets) — keep wallet credentials and
   signing runtime on the wallet origin.
+- [External NEAR wallets](/guides/external-near-wallets) — development preview for Meteor, HOT, and Intear, with external approval and no Seams login.
+
 - [External EVM wallets](/guides/external-evm-wallets) — connect MetaMask, Rabby,
   or Phantom EVM accounts while leaving their keys in the wallet extension.
 - [Policies and mandates](/guides/policies-and-mandates) — bind each operation

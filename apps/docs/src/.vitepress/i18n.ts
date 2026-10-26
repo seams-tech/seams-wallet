@@ -81,6 +81,7 @@ const japaneseSidebarLabels: Record<string, string> = {
   Overview: '概要',
   Authentication: '認証',
   'Embedded wallets': '組み込みウォレット',
+  'External NEAR wallets': '外部NEARウォレット',
   'Policies and mandates': 'ポリシーと委任条件',
   'Wallet sessions and signing lanes': 'ウォレットセッションと署名レーン',
   'Delegated agents': '権限を委任したエージェント',

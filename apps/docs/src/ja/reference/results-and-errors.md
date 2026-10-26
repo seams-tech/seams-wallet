@@ -32,6 +32,15 @@ NEARの準備待ちの場合は状態を監視し、準備完了の分岐から�
 `ActionResult`、`SignNEP413MessageResult`、EVM系の結果は、各操作が公開する範囲で、キャンセル、ポリシーによる拒否、通信失敗、送信受理、確定を別の結果として保持します。
 現在の分岐に対応する対処方法を、ユーザーに表示してください。
 
+## 外部NEARコネクター {#external-near-connector}
+
+[開発プレビューのコネクター](/ja/guides/external-near-wallets#outcomes-and-retry-rules)は、接続と送信から`ExternalNearResult<T>`を返します。
+`value`を読む前に`ok`を確認してください。送信成功時の結果は`checkOutcome`のために保持します。
+`unresolved`では状態を再確認できます。
+`submission_unknown`では、次の送信前にウォレットまたはチェーンの履歴を確認します。
+どちらの結果でも自動再送信は行わないでください。
+外部接続の結果はSeamsのWallet Sessionを作成しません。
+
 ## 鍵のエクスポート {#key-export}
 
 `seams.keys.exportKey()`は、ウォレットオリジンのビューアーが開くと、`{ kind: 'exported' }`を返します。

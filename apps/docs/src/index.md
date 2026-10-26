@@ -5,9 +5,16 @@ description: Install Seams, create a wallet, and sign your first operation.
 
 # Start here
 
-Create a wallet and sign a transaction before you add recovery, linked devices, or
-delegated authority. You need a React app and a Seams project with a wallet origin,
-relayer URL, and managed-registration credentials.
+For a Seams threshold wallet, create a wallet and sign a transaction before adding
+recovery, linked devices, or delegated authority. This quickstart needs a React app
+and a Seams project with a wallet origin, relayer URL, and managed-registration credentials.
+
+## Choose your wallet path
+
+The steps below create a Seams threshold wallet. To let users bring Meteor,
+HOT Wallet, or Intear Wallet, use the [external NEAR connector](/guides/external-near-wallets).
+That path needs no Seams provider or login. It is a development preview and is
+not included in the published `0.22.0` package.
 
 ## 1. Install the SDK
 

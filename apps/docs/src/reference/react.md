@@ -5,24 +5,31 @@ description: Providers, hooks, components, hosted auth surfaces, and theme expor
 
 # React SDK
 
-Import React integrations from `@seams/wallet/react` and place consumers inside a
+For Seams authentication and custody, import React integrations from `@seams/wallet/react` and place consumers inside a
 `SeamsWebProvider` or `SeamsContextProvider`.
 
 ```tsx [Import example]
 import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
 ```
 
+## External NEAR bindings
+
+The development preview uses `@seams/wallet/react/external-near`.
+Its picker and hook require an `ExternalNearController`, independently of the
+Seams providers below. The picker disconnects on unmount; the hook only subscribes.
+See the [compiled example and availability notice](/guides/external-near-wallets#react-example).
+
 ## Providers and hooks
 
-| Export                                            | Purpose                                                 |
-| ------------------------------------------------- | ------------------------------------------------------- |
-| `SeamsWebProvider`                                | Creates and owns the SDK client for a React subtree.    |
-| `SeamsContextProvider`                            | Supplies an existing context value.                     |
+| Export                                            | Purpose                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------ |
+| `SeamsWebProvider`                                | Creates and owns the SDK client for a React subtree.                     |
+| `SeamsContextProvider`                            | Supplies an existing context value.                                      |
 | `useSeams`                                        | Authentication, lifecycle state, and the current wallet's bound signers. |
-| `useWalletAuth`                                   | The sign-in, sign-out, and registration slice.          |
-| `useWalletDevices`                                | The linked-device slice.                                |
-| `useDeviceLinking`                                | Runs the approving-device side of a link flow.          |
-| `useNearClient`, `useAccountInput`, `useQRCamera` | Focused integration helpers.                            |
+| `useWalletAuth`                                   | The sign-in, sign-out, and registration slice.                           |
+| `useWalletDevices`                                | The linked-device slice.                                                 |
+| `useDeviceLinking`                                | Runs the approving-device side of a link flow.                           |
+| `useNearClient`, `useAccountInput`, `useQRCamera` | Focused integration helpers.                                             |
 
 ### `useSeams`
 

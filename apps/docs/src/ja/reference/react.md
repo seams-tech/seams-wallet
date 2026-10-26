@@ -5,11 +5,18 @@ description: '@seams/wallet/reactが提供するプロバイダー、フック�
 
 # React SDK {#react-sdk}
 
-React向けの機能を`@seams/wallet/react`からインポートし、利用するコンポーネントを`SeamsWebProvider`または`SeamsContextProvider`内に配置します。
+Seamsの認証と鍵管理に使うReact向けの機能を`@seams/wallet/react`からインポートし、利用するコンポーネントを`SeamsWebProvider`または`SeamsContextProvider`内に配置します。
 
 ```tsx [インポート例]
 import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/react';
 ```
+
+## 外部NEAR向けのReact機能 {#external-near-bindings}
+
+開発プレビューでは`@seams/wallet/react/external-near`を使用します。
+セレクターとフックには`ExternalNearController`が必要ですが、以下のSeamsプロバイダーは不要です。
+セレクターはアンマウント時に切断します。フックは購読だけを行います。
+[実装例と提供状況](/ja/guides/external-near-wallets#react-example)を確認してください。
 
 ## プロバイダーとフック {#providers-and-hooks}
 

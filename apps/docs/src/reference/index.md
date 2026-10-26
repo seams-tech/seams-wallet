@@ -9,16 +9,16 @@ This reference describes **@seams/wallet 0.22.0**. The Seams package provides a 
 of public import paths. Start with the browser or React API. Use lower-level import
 paths only when your integration manages the corresponding runtime or protocol.
 
-| Import path                                    | Use it for                                                                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [`@seams/wallet`](/reference/core)                | Browser SDK configuration, registration, authentication, signing, recovery, devices, and public result types. |
-| [`@seams/wallet/react`](/reference/react)         | Providers, hooks, auth and profile components, QR flows, and theme tokens.                                    |
-| [`@seams/wallet/advanced`](/reference/advanced)   | Exact identity builders, RPC clients, encoders, and other low-level integration helpers.                      |
-| [`@seams/wallet/threshold`](/reference/threshold) | Stable threshold session-policy and cryptographic constants.                                                  |
-| [`@seams/wallet/runtime`](/reference/runtime)     | Building a custom signing runtime from explicit platform ports.                                               |
-| [`@seams/wallet/external-evm`](/guides/external-evm-wallets) | Connecting browser EVM wallet extensions independently of Seams custody. |
-| [`@seams/wallet-server`](/reference/server) | Server services, Workers, migrations, and local runtime entry points. |
-| [`@seams/wallet-cli`](/deploy-and-operate/recovery-cli) | Signed native backup verification and tenant-root recovery tooling. |
+| Import path                                                  | Use it for                                                                                                    |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [`@seams/wallet`](/reference/core)                           | Browser SDK configuration, registration, authentication, signing, recovery, devices, and public result types. |
+| [`@seams/wallet/react`](/reference/react)                    | Providers, hooks, auth and profile components, QR flows, and theme tokens.                                    |
+| [`@seams/wallet/advanced`](/reference/advanced)              | Exact identity builders, RPC clients, encoders, and other low-level integration helpers.                      |
+| [`@seams/wallet/threshold`](/reference/threshold)            | Stable threshold session-policy and cryptographic constants.                                                  |
+| [`@seams/wallet/runtime`](/reference/runtime)                | Building a custom signing runtime from explicit platform ports.                                               |
+| [`@seams/wallet/external-evm`](/guides/external-evm-wallets) | Connecting browser EVM wallet extensions independently of Seams custody.                                      |
+| [`@seams/wallet-server`](/reference/server)                  | Server services, Workers, migrations, and local runtime entry points.                                         |
+| [`@seams/wallet-cli`](/deploy-and-operate/recovery-cli)      | Signed native backup verification and tenant-root recovery tooling.                                           |
 
 The package also publishes focused React component subpaths and the hosted
 wallet HTML asset. Those surfaces are documented on the [React
@@ -27,6 +27,16 @@ pages.
 
 The browser and server SDKs use **0.22.0**. The recovery CLI uses **0.21.0**.
 See [Release 0.22.0](/releases) for integration and deployment requirements.
+
+## Prepared NEAR connector
+
+These entry points are implemented on `dev` and are **absent from npm release 0.22.0**.
+See [external NEAR wallets](/guides/external-near-wallets) for availability, examples, and result branches.
+
+| Import path                         | Exports                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------- |
+| `@seams/wallet/external-near`       | `ExternalNearController`, `nearWalletName`, and external NEAR state/result types. |
+| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker` and `useExternalNear`.                                 |
 
 ## State and failure references
 

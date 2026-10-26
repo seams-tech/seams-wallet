@@ -96,3 +96,15 @@ const { unlock, lock, wallet } = useSeams();
 
 デプロイした各サービスのリリース識別情報を確認してください。パッケージの公開とホスト環境へのデプロイは別の手順です。
 [本番環境の確認事項](/ja/deploy-and-operate/production-checklist)に従い、復元ツールに依存する前に[復元CLI](/ja/deploy-and-operate/recovery-cli)を確認してください。
+
+## 準備中のNEARコネクター {#prepared-near-connector}
+
+**2026-10-26**に確認したnpmの最新ブラウザーSDKは`0.22.0`です。
+外部NEARコネクターは`dev`に実装済みですが、**このリリースには含まれていません**。
+新しいパッケージの公開やデプロイが完了したことを示すものではありません。
+
+[コネクターガイド](/ja/guides/external-near-wallets)には、Meteor、HOT、Intear、
+2つの新しいインポート先、開発版に対してコンパイルした実装例があります。
+実際のMeteor拡張機能で、テストネット接続、ゼロデポジット取引の最終実行、コントラクトの正確な読み戻しを検証しました。
+HOTとIntearの実ウォレット検証は未実施です。
+公開と非公開アプリへの導入には、正確なSDKリリースバージョンが必要です。
