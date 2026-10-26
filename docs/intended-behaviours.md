@@ -2542,3 +2542,22 @@ For signing prepare/finalize and ECDSA refill requests, an HTTP 409 with code
 The retry uses the same public URL, serialized body, operation identity, bearer
 token, and abort signal. It cannot retry again. Authentication, revocation, quota,
 other conflicts, and network failures do not trigger this routing retry.
+
+## External NEAR extension accounts
+
+The external NEAR controller connects directly to Meteor's extension transport.
+It does not consume wallet announcements or a remotely updated connector registry.
+The adapter captures the injected transport and rejects replacement before operations.
+This boundary assumes the application document is trusted, as with EVM extensions.
+It does not authenticate arbitrary code running in the same document.
+
+External accounts never authorize Seams custody. Transfers and function calls use
+Meteor approval with function-call-key signing disabled. Connection state stays
+in memory. Disconnect invalidates prepared operations. Late submissions retain
+their captured account and network. Transport failure after dispatch returns
+`submission_unknown` without a retry. Status checks use the configured network's
+RPC and require matching transaction identity and final execution.
+
+The browser contract `tests/wallet-ui/external-near.browser.test.ts` writes
+`external-near-observations.json`. It uses a controlled provider for failure cases.
+Real Meteor extension and testnet acceptance remain required before release.

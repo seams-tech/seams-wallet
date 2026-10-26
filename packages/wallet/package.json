@@ -66,6 +66,16 @@
       "import": "./dist/esm/SeamsWeb/walletIframe/client/html.js",
       "default": "./dist/esm/SeamsWeb/walletIframe/client/html.js",
       "types": "./dist/types/wallet/src/SeamsWeb/walletIframe/client/html.d.ts"
+    },
+    "./external-near": {
+      "types": "./dist/types/wallet/src/externalNear/index.d.ts",
+      "import": "./dist/esm/externalNear/index.js",
+      "default": "./dist/esm/externalNear/index.js"
+    },
+    "./react/external-near": {
+      "types": "./dist/types/wallet/src/react/externalNear.d.ts",
+      "import": "./dist/esm/react/externalNear.js",
+      "default": "./dist/esm/react/externalNear.js"
     }
   },
   "files": [
@@ -100,6 +110,12 @@
       ],
       "react/*": [
         "dist/types/wallet/src/react/*"
+      ],
+      "external-near": [
+        "dist/types/wallet/src/externalNear/index.d.ts"
+      ],
+      "react/external-near": [
+        "dist/types/wallet/src/react/externalNear.d.ts"
       ]
     }
   },
@@ -178,6 +194,8 @@
     }
   },
   "dependencies": {
+    "@meteorwallet/sdk": "3.24.0",
+    "@near-js/transactions": "2.2.5",
     "@near-js/types": "^2.4.0",
     "bs58": "^6.0.0",
     "idb": "^8.0.3",

@@ -117,6 +117,7 @@ const external = [
   'react-dom',
   'react/jsx-runtime',
   'voice-glow',
+  '@meteorwallet/sdk',
   /^preact(?:\/.*)?$/,
 
   // All @near-js packages
@@ -503,6 +504,7 @@ const configs = [
     input: [
       'src/index.ts',
       'src/externalEvm/index.ts',
+      'src/externalNear/index.ts',
       'src/advanced.ts',
       'src/runtime.ts',
       'src/SeamsWeb/index.ts',
@@ -556,6 +558,7 @@ const configs = [
       // Ensure public subpath entrypoints exist in dist even when re-exports are flattened.
       'src/react/components/HostedSeamsAuthMenu/public.ts',
       'src/react/externalEvm.tsx',
+      'src/react/externalNear.tsx',
     ],
     output: {
       dir: BUILD_PATHS.BUILD.ESM,
