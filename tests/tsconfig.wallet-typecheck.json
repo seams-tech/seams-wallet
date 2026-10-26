@@ -2,6 +2,7 @@
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
     "typecheck/voice-assistant-card.typecheck.ts",
+    "typecheck/voiceid-enrollment-store.typecheck.ts",
     "typecheck/wallet-locale.typecheck.ts",
     "typecheck/wallet-object-addresses.typecheck.ts",
     "typecheck/yao-registration-ceremony.typecheck.ts",
