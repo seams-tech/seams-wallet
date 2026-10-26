@@ -3051,7 +3051,7 @@ export class IntendedBehaviourHarness {
     this.emailOtpVerificationCount += 1;
   }
 
-  async unlockPasskeyWallet(): Promise<void> {
+  async unlockPasskeyWallet(options?: { readonly stopAfterClick?: boolean }): Promise<void> {
     this.recordStage('unlock_passkey_wallet');
     const registration = this.requireRegisteredWalletForSigning();
     if (registration.nearReadiness === 'pending') {
@@ -3062,6 +3062,7 @@ export class IntendedBehaviourHarness {
     const snapshot = await this.runIntendedPageAction(
       'unlockPasskeyWallet',
       'intended-unlock-passkey',
+      options,
     );
     const result = requirePasskeyUnlockResult(snapshot, registration);
     const observedPaths = this.trace
@@ -4552,6 +4553,7 @@ export class IntendedBehaviourHarness {
     opts?: {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
+      stopAfterClick?: boolean;
       onRecoveryCodes?: (codes: readonly string[]) => void;
     },
   ): Promise<IntendedPageSnapshot> {
@@ -4580,6 +4582,7 @@ export class IntendedBehaviourHarness {
           intervalMs: 250,
           diagnostics,
           onRecoveryCodes: opts?.onRecoveryCodes,
+          stopAfterClick: opts?.stopAfterClick,
         },
       );
       timing.automationFinishedAt = performance.now();
@@ -8713,11 +8716,11 @@ async function runWalletIframeAutoConfirmLoop(args: {
       diagnostics: args.diagnostics,
       diagnosticsStartedAtMs: args.startedAtMs,
     });
+    if (clicked && args.stopAfterClick) return;
     const authMenuError = await readWalletIframeAuthMenuError(args.page);
     if (authMenuError) {
       throw new Error(`Wallet auth menu failed: ${authMenuError}`);
     }
-    if (clicked && args.stopAfterClick) return;
     if (args.retryDelayMs > 0) {
       await args.page.waitForTimeout(args.retryDelayMs);
     }

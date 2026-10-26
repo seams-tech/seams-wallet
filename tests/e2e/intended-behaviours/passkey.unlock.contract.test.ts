@@ -226,7 +226,10 @@ async function verifyUnlockNetworkFailureRecovery(
   const url = '**/wallet/unlock/verify';
   await context.route(url, route);
   try {
-    await Promise.all([harness.unlockPasskeyWallet(), failure.retryFromVisibleError(page)]);
+    await Promise.all([
+      harness.unlockPasskeyWallet({ stopAfterClick: true }),
+      failure.retryFromVisibleError(page),
+    ]);
   } finally {
     await context.unroute(url, route);
   }

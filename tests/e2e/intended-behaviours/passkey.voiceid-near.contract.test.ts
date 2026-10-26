@@ -40,7 +40,6 @@ async function verifyTransfer(
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   const unlocking = page.evaluate(unlockWithVoice, method.walletAuthMethodId);
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   expect(await unlocking).toMatchObject({ success: true });
   const evidence = new VoiceIdNearSigningEvidence(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',

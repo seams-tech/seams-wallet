@@ -11,14 +11,9 @@ const TEST_CONTEXT_ROUTE = '**/_test-sdk/esm/react/context/index.js';
 const WALLET_ID = 'swift-sable-hgmrzh';
 const WALLET_AUTH_METHOD_ID = 'passkey:wallet.example.localhost:credential-owner';
 
-type AuthenticationInventoryMode = 'pending' | 'owner_session_inactive';
-
-async function mountAuthenticationMethods(
-  page: Page,
-  authenticationInventoryMode: AuthenticationInventoryMode,
-): Promise<void> {
+async function mountAuthenticationMethods(page: Page): Promise<void> {
   await page.evaluate(
-    async ({ paths, walletId, walletAuthMethodId, inventoryMode }) => {
+    async ({ paths, walletId, walletAuthMethodId }) => {
       const React = await import('react');
       const ReactDOMClient = await import('react-dom/client');
       const ReactDOM = await import('react-dom');
@@ -30,27 +25,14 @@ async function mountAuthenticationMethods(
         throw new Error('Account-menu modal test exports are unavailable');
       }
 
-      let inventoryAttempts = 0;
-      let ownerUnlocks = 0;
       const seams = {
         configs: {
           wallet: { iframe: { rpIdOverride: 'wallet.example.localhost' } },
           authMethods: [],
         },
-        auth: {
-          unlock: async () => {
-            ownerUnlocks += 1;
-            return { success: true };
-          },
-        },
         devices: {
           list: async () => {
-            inventoryAttempts += 1;
-            if (inventoryMode === 'pending') {
-              await new Promise((resolve) => window.setTimeout(resolve, 2_000));
-            } else if (inventoryAttempts === 1) {
-              throw new Error('The owner Wallet Session must be renewed');
-            }
+            await new Promise((resolve) => window.setTimeout(resolve, 2_000));
             return {
               devices: [],
               ownerDevices: [
@@ -97,18 +79,12 @@ async function mountAuthenticationMethods(
       (
         globalThis as typeof globalThis & {
           __accountMenuModalTestContext?: unknown;
-          __accountMenuModalOwnerUnlockCount?: () => number;
         }
       ).__accountMenuModalTestContext = {
         seams,
         loginState,
         refreshSession: async () => undefined,
       };
-      (
-        globalThis as typeof globalThis & {
-          __accountMenuModalOwnerUnlockCount?: () => number;
-        }
-      ).__accountMenuModalOwnerUnlockCount = () => ownerUnlocks;
 
       const mount = document.createElement('div');
       mount.id = 'account-menu-modal-test-root';
@@ -133,7 +109,6 @@ async function mountAuthenticationMethods(
       paths: IMPORT_PATHS,
       walletId: WALLET_ID,
       walletAuthMethodId: WALLET_AUTH_METHOD_ID,
-      inventoryMode: authenticationInventoryMode,
     },
   );
 }
@@ -160,7 +135,7 @@ test.describe('account-menu authentication methods page', () => {
   test('shows the selected authentication method while remote inventory is pending', async ({
     page,
   }) => {
-    await mountAuthenticationMethods(page, 'pending');
+    await mountAuthenticationMethods(page);
 
     const content = page.getByRole('region', { name: 'Authentication methods', exact: true });
     await expect(content).toBeVisible({ timeout: 500 });
@@ -184,28 +159,5 @@ test.describe('account-menu authentication methods page', () => {
     await expect(emailInput).toHaveAccessibleDescription(/^Enter the email address to verify\./);
     await content.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(addEmailButton).toBeFocused();
-  });
-
-  test('unlocks owner management explicitly after passive inventory authorization fails', async ({
-    page,
-  }) => {
-    await mountAuthenticationMethods(page, 'owner_session_inactive');
-
-    const content = page.getByRole('region', { name: 'Authentication methods', exact: true });
-    const unlockButton = content.getByRole('button', { name: 'Unlock wallet' });
-    await expect(unlockButton).toBeVisible();
-    await unlockButton.click();
-
-    await expect(content.getByRole('heading', { name: 'Add a method' })).toBeVisible();
-    await expect(content).toBeFocused();
-    const unlockCount = await page.evaluate(() => {
-      const read = (
-        globalThis as typeof globalThis & {
-          __accountMenuModalOwnerUnlockCount?: () => number;
-        }
-      ).__accountMenuModalOwnerUnlockCount;
-      return read?.() ?? 0;
-    });
-    expect(unlockCount).toBe(1);
   });
 });

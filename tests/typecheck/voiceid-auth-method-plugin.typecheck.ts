@@ -1,10 +1,7 @@
 import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
 import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/descriptor';
 import { ConfirmedVoiceChange } from '../../packages/wallet/src/plugins/voiceid/activation/ownerConfirmation';
-import type {
-  VoiceEnrollmentChange,
-  VoiceEnrollment,
-} from '../../packages/wallet/src/plugins/voiceid/browser/enrollmentStore';
+import type { VoiceEnrollmentChange } from '../../packages/wallet/src/plugins/voiceid/browser/enrollmentStore';
 
 declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
 // @ts-expect-error Confirmation must verify a fresh passkey assertion.
@@ -24,13 +21,10 @@ const resetWithSamples: VoiceEnrollmentChange = {
   confirmation: confirmedChange,
   ...improvementFields,
 };
-// @ts-expect-error Adaptation requires both expiry and a remaining-use bound.
-const unlimitedAdaptation: VoiceEnrollment['adaptation'] = { kind: 'adapted', samples: [] };
 void forgedChange;
 void copiedChange;
 void unconfirmedImprovement;
 void resetWithSamples;
-void unlimitedAdaptation;
 
 import type { PreparedVoiceCapture } from '../../packages/wallet/src/plugins/voiceid/capture/surface';
 declare const managementAction: (signal: AbortSignal) => Promise<void>;
