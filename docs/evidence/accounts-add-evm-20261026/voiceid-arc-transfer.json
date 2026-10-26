@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "profile": "add_ecdsa_after_voice",
+  "nearTransfers": [
+    {
+      "signedTransactionB64": "QAAAADgyOThjYzgxNmMzNmUwZjg4MjY5ZTQyZTE5OGNhZTY5Yzc1ODZlY2MwN2U5YzViMGU0NGVkY2UzNjI2NjhhMmIAgpjMgWw24PiCaeQuGYyuacdYbswH6cWw5E7c42JmiisCAAAAAAAAAEAAAAA4Mjk4Y2M4MTZjMzZlMGY4ODI2OWU0MmUxOThjYWU2OWM3NTg2ZWNjMDdlOWM1YjBlNDRlZGNlMzYyNjY4YTJiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAADv287ET3FAMYLu4yNq97SnrdOwLmNHrwilDxxLu6Qs7fyQhOZlhpO6oV2r0wjXBr4tprEEhVc8Mckk24hPC5Dw==",
+      "signedTransactionSha256": "a6a67520106e5f46f03a4725e15311f2411faa617000550532e8bd5f34da4574",
+      "signerId": "8298cc816c36e0f88269e42e198cae69c7586ecc07e9c5b0e44edce362668a2b",
+      "receiverId": "8298cc816c36e0f88269e42e198cae69c7586ecc07e9c5b0e44edce362668a2b",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "network": "deterministic_arc_rpc",
+  "signing": "real_ecdsa_mpc",
+  "inference": "real_redimnet_b1_and_aurora",
+  "speakerThreshold": 0.5,
+  "ownerAddress": "0x8415567cbd7149a9e4d0fc8ee17dc4ee271ca5c1",
+  "walletId": "verdant-garden-qfu593",
+  "transactions": [
+    {
+      "hash": "0x92d8f2da30baea29cce8d9c645b81499fe55514057e85225faf9ceb8fde19ae6",
+      "raw": "0x02f869834cef5280808477359400825208948415567cbd7149a9e4d0fc8ee17dc4ee271ca5c10180c080a001e91dc887b79aa6d512a1e40787c6947dadc3c8cca5d2d8a4eb6716e37fab89a065ec5c7e95928ed4ca279f362cde00db72c3428a40501cb7199be4ab08f9fb48",
+      "sender": "0x8415567CbD7149a9e4d0fC8EE17DC4EE271Ca5c1",
+      "to": "0x8415567cbd7149a9e4d0fc8ee17dc4ee271ca5c1",
+      "value": "1",
+      "chainId": 5042002,
+      "nonce": 0
+    }
+  ],
+  "cancellationPreventedSecondTransfer": true,
+  "signerSetup": "accounts_menu_from_voiceid_session_with_passkey"
+}

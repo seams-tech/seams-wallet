@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
 import {
   allowBrowserMicrophone,
@@ -33,7 +33,13 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await wallet.locator('body').evaluate(useNaturalPhrases);
     await enrollBrowserMicrophone(page);
     const method = requireActivatedVoiceId(await activation);
-    if (profile === 'add_ecdsa_after_voice') await harness.addPasskeyEcdsaWalletSigner();
+    if (profile === 'add_ecdsa_after_voice') {
+      await harness.lockWallet();
+      expect(await page.evaluate(unlock, method.walletAuthMethodId)).toMatchObject({
+        success: true,
+      });
+      await addEvmFromAccountsMenu(page, testInfo);
+    }
     const owner = await page.evaluate(session);
     if (owner.appIdentity.kind !== 'resolved' || !owner.appIdentity.thresholdEcdsaEthereumAddress)
       throw new Error('ECDSA owner identity is unavailable');
@@ -111,6 +117,10 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       walletId: method.walletId,
       transactions: rpc.transactions,
       cancellationPreventedSecondTransfer: true,
+      signerSetup:
+        profile === 'add_ecdsa_after_voice'
+          ? 'accounts_menu_from_voiceid_session_with_passkey'
+          : 'registration',
     });
   });
 }
@@ -124,4 +134,30 @@ function unlock(id: string) {
 }
 function useNaturalPhrases() {
   window.voiceIdUseNaturalPhrases();
+}
+
+async function addEvmFromAccountsMenu(page: Page, testInfo: TestInfo): Promise<void> {
+  const menu = page.getByTestId('intended-account-menu');
+  await menu.getByRole('button', { name: 'Show account menu', exact: true }).click();
+  await menu.locator('[aria-haspopup="menu"]').click();
+  await page.getByRole('button', { name: /Accounts/ }).click();
+  const accounts = page.getByRole('region', { name: 'Accounts', exact: true });
+  await expect(
+    accounts.getByRole('button', { name: 'Add EVM account', exact: true }),
+  ).toBeEnabled();
+  await menu
+    .locator('.seams-profile-button-morphable')
+    .screenshot({ path: testInfo.outputPath('accounts-before-evm.png'), animations: 'disabled' });
+  await accounts.getByRole('button', { name: 'Add EVM account', exact: true }).click();
+  await expect(accounts.getByText('EVM account added.', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(accounts.getByRole('link')).toHaveCount(3);
+  await expect(accounts.getByRole('button', { name: 'Add EVM account', exact: true })).toHaveCount(
+    0,
+  );
+  await menu
+    .locator('.seams-profile-button-morphable')
+    .screenshot({ path: testInfo.outputPath('accounts-with-evm.png'), animations: 'disabled' });
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
 }

@@ -34,6 +34,7 @@ import { parseVerifiedEmailAddress } from '@shared/utils/domainIds';
 import { WALLET_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { WalletSettingsLayout, WalletSettingsHeader } from './WalletSettingsLayout';
 import { AccountsSection } from './AccountsSection';
+import { AddEvmAccount, useEvmAccountSetup } from './AddEvmAccount';
 import { ExportKeysScreen } from './ExportKeysScreen';
 import { ExportKeysSection } from './ExportKeysSection';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
@@ -214,6 +215,14 @@ const AccountMenuButtonInner: React.FC<
   // Local state for modals/expanded sections
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [screen, setScreen] = useState<AccountMenuRoute>('overview');
+  const accountSetup = useEvmAccountSetup();
+  const accountSetupState = accountSetup.state;
+  const accountSetupRunning =
+    accountSetupState.kind === 'adding' || accountSetupState.kind === 'unlocking';
+  const accountsWalletId =
+    (accountSetupRunning || accountSetupState.kind === 'unlock_required') && walletId === null
+      ? accountSetupState.walletId
+      : walletId;
   const [recoveryCodesOpen, setRecoveryCodesOpen] = useState(false);
   const [exportLoadingChain, setExportLoadingChain] = useState<ExportChain | null>(null);
   const [currentConfirmConfig, setCurrentConfirmConfig] = useState<ConfirmationConfig | null>(null);
@@ -238,10 +247,17 @@ const AccountMenuButtonInner: React.FC<
   }, [handleClose]);
 
   useEffect(() => {
-    if (!canManageLinkedDevices) {
+    const switchedWallet =
+      accountSetupRunning && walletId !== null && walletId !== accountSetupState.walletId;
+    if (
+      (!canManageLinkedDevices &&
+        !accountSetupRunning &&
+        accountSetupState.kind !== 'unlock_required') ||
+      switchedWallet
+    ) {
       setScreen('overview');
     }
-  }, [canManageLinkedDevices]);
+  }, [canManageLinkedDevices, accountSetupRunning, accountSetupState, walletId]);
 
   // Keep local view state in sync with SDK preferences (mirrors wallet host in iframe mode)
   useEffect(() => {
@@ -431,12 +447,12 @@ const AccountMenuButtonInner: React.FC<
   const MENU_ITEMS: MenuItem[] = useMemo(() => {
     const items: MenuItem[] = [];
 
-    if (accountsRows.length > 0) {
+    if (accountsRows.length > 0 || loginState.isLoggedIn) {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.ACCOUNTS,
         icon: <GlobeIcon />,
         label: 'Accounts',
-        description: 'View accounts on block explorers',
+        description: 'View or add accounts',
         disabled: !loginState.isLoggedIn,
         onClick: setScreen.bind(null, 'accounts'),
         keepOpenOnClick: true,
@@ -590,6 +606,13 @@ const AccountMenuButtonInner: React.FC<
           <WalletText message="Your addresses across networks." />
         </p>
         <AccountsSection rows={accountsRows} />
+        {accountsWalletId ? (
+          <AddEvmAccount
+            key={accountsWalletId}
+            walletId={accountsWalletId}
+            setup={accountSetup}
+          />
+        ) : null}
       </AccountMenuScreen>
     ),
     'export-keys': (

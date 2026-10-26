@@ -537,6 +537,16 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Export keys opens shared NEAR/EVM selection; preview choices display an
   authentication-required summary without exporting secrets.
 
+- Accounts offers **Add EVM account** when this wallet has no ECDSA address and
+  the app configures EVM or Tempo networks. The action uses the existing add-signer
+  operation and requests a fresh passkey confirmation. If the expanded signer set
+  invalidates the current session, it finishes by unlocking the updated wallet with
+  a passkey. The Accounts screen stays open through setup.
+  An owner without a passkey sees a disabled action and directions to Authentication methods.
+  Setup preserves the wallet and voice enrollment. Success refreshes the session and
+  shows the configured account addresses. Duplicate submission stays disabled during setup.
+  Setup remains pending across menu navigation. A newer wallet selection supersedes
+  pending session reads, so they cannot select the previous wallet again.
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate
   through the hosted authentication menu before accessing wallet settings.

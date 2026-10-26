@@ -44,7 +44,7 @@ function renderReview(controls: TransactionReviewControls): React.ReactNode {
 function requireAddress(value: string | null): `0x${string}` {
   if (!value || !/^0x[0-9a-fA-F]{40}$/.test(value) || !value.startsWith('0x')) {
     throw new Error(
-      'This wallet has no ECDSA address. Add its EVM signer with your passkey first.',
+      'This wallet has no EVM account. Open Accounts in wallet settings, then select Add EVM account.',
     );
   }
   return `0x${value.slice(2)}`;

@@ -20,7 +20,7 @@ type Operation =
 type Command =
   | { kind: 'register' }
   | {
-      kind: 'add_evm' | 'owner_unlock' | 'backup' | 'activate' | 'lock' | 'refresh';
+      kind: 'owner_unlock' | 'backup' | 'activate' | 'lock' | 'refresh';
       walletId: WalletId;
     }
   | { kind: 'voice_unlock'; walletId: WalletId; walletAuthMethodId: string };
@@ -93,7 +93,7 @@ export function LiveVoiceId(): React.ReactNode {
         <dd data-testid="live-voiceid-method">{voiceStatus}</dd>
         <dt>EVM address</dt>
         <dd data-testid="live-voiceid-evm-address">
-          {identity?.thresholdEcdsaEthereumAddress ?? 'Add an EVM signer to this wallet'}
+          {identity?.thresholdEcdsaEthereumAddress ?? 'Add an EVM account in wallet settings'}
         </dd>
         <dt>NEAR account</dt>
         <dd data-testid="live-voiceid-account" style={{ overflowWrap: 'anywhere' }}>
@@ -141,16 +141,6 @@ export function LiveVoiceId(): React.ReactNode {
           }
         >
           {voice ? 'Enroll voice again' : 'Activate VoiceID'}
-        </button>
-        <button
-          disabled={busy || !ownerUnlocked || Boolean(identity?.thresholdEcdsaEthereumAddress)}
-          onClick={
-            target.kind === 'selected'
-              ? perform.bind(null, { kind: 'add_evm', walletId: target.walletId })
-              : undefined
-          }
-        >
-          Add EVM signer with passkey
         </button>
         <output
           role={operation.kind === 'failed' ? 'alert' : 'status'}
@@ -332,24 +322,6 @@ async function executeCommand(seams: Seams, command: Command): Promise<WalletId>
       if (!result.success) throw new Error(result.error);
       return result.walletId;
     }
-    case 'add_evm': {
-      const result = await seams.registration.addSigner({
-        walletId: command.walletId,
-        rpId: new URL(seams.configs.wallet.iframe.origin).hostname,
-        signerSelection: {
-          mode: 'ecdsa',
-          ecdsa: {
-            participantIds: [1, 2],
-            chainTargets: [
-              { kind: 'evm', namespace: 'eip155', networkSlug: 'arc-testnet', chainId: 5_042_002 },
-              { kind: 'tempo', networkSlug: 'tempo-testnet', chainId: 42_431 },
-            ],
-          },
-        },
-      });
-      if (!result.success) throw new Error(result.error);
-      return command.walletId;
-    }
     case 'owner_unlock': {
       const result = await seams.auth.unlock(command.walletId);
       if (!result.success) throw new Error(result.error);
@@ -394,8 +366,6 @@ function commandLabel(command: Command): string {
   switch (command.kind) {
     case 'register':
       return 'Wallet setup failed';
-    case 'add_evm':
-      return 'EVM signer setup failed';
     case 'owner_unlock':
       return 'Passkey unlock failed';
     case 'backup':
@@ -417,8 +387,6 @@ function successMessage(command: Command): string {
   switch (command.kind) {
     case 'register':
       return 'Test wallet created. Save recovery codes, then activate VoiceID.';
-    case 'add_evm':
-      return 'EVM signer added. Lock the wallet, then unlock with VoiceID.';
     case 'owner_unlock':
       return 'Owner unlocked. Activate VoiceID next.';
     case 'backup':
