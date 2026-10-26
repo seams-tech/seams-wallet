@@ -2,6 +2,8 @@ import { ExternalNearController } from '../../packages/wallet/dist/esm/externalN
 
 const rpc = 'https://rpc.testnet.near.org';
 const controller = new ExternalNearController('testnet', rpc);
+const hotController = new ExternalNearController('mainnet', 'https://rpc.mainnet.near.org');
+const hotResult = document.getElementById('hot-result');
 const availability = document.getElementById('availability');
 const result = document.getElementById('result');
 let submission = null;
@@ -18,6 +20,18 @@ document.getElementById('disconnect').addEventListener('click', disconnect);
 document.getElementById('greeting').addEventListener('click', sendGreeting);
 document.getElementById('check').addEventListener('click', checkOutcome);
 window.addEventListener('pagehide', disconnect);
+document.getElementById('hot').addEventListener('click', connectHot);
+document.getElementById('hot-disconnect').addEventListener('click', disconnectHot);
+window.addEventListener('pagehide', disconnectHot);
+async function connectHot() {
+  detectWallets();
+  hotResult.textContent = 'Waiting for HOT account approval…';
+  hotResult.textContent = JSON.stringify(await hotController.connect('hot'), null, 2);
+}
+function disconnectHot() {
+  hotController.disconnect();
+  hotResult.textContent = 'Disconnected locally.';
+}
 async function connectMeteor() {
   await connect('meteor');
 }
