@@ -7,7 +7,7 @@ import {
   type ActionArgs,
   type TransactionInput,
 } from '../core/types/actions';
-import type { ExternalNearConnection, ExternalNearNetwork, NearExtensionProvider } from './types';
+import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } from './types';
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -39,7 +39,7 @@ function meteorAction(action: ActionArgs) {
   }
 }
 
-export class MeteorExtensionProvider implements NearExtensionProvider {
+export class MeteorExtensionProvider implements NearWalletProvider {
   private transport: unknown = Reflect.get(window, 'meteorCom');
   private client = new MeteorConnect();
   private assertExtension(): void {

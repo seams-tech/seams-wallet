@@ -1,3 +1,4 @@
+import { createNearWalletProvider, nearWalletName } from './wallets';
 import { connectedNear } from './types';
 import type { TransactionInput } from '../core/types/actions';
 import { executionStatus, parseAccounts, parseSubmission, validateTransaction } from './boundary';
@@ -8,7 +9,8 @@ import type {
   ExternalNearResult,
   ExternalNearSnapshot,
   ExternalNearSubmission,
-  NearExtensionProvider,
+  NearWalletProvider,
+  ExternalNearWalletId,
 } from './types';
 
 function failure(
@@ -27,7 +29,7 @@ export class ExternalNearController {
   private snapshot: ExternalNearSnapshot = { connection: { kind: 'disconnected' }, busy: false };
   private listeners = new Set<() => void>();
   private generation = 0;
-  private provider: NearExtensionProvider | null = null;
+  private provider: NearWalletProvider | null = null;
   private pending = false;
   constructor(
     readonly network: ExternalNearNetwork,
@@ -49,27 +51,36 @@ export class ExternalNearController {
     this.snapshot = Object.freeze({ connection, busy: this.pending });
     for (const listener of this.listeners) listener();
   }
-  async connect(): Promise<ExternalNearResult<ExternalNearConnection>> {
-    if (this.pending) return failure('pending_request', 'Complete the pending Meteor request.');
+  async connect(wallet: ExternalNearWalletId): Promise<ExternalNearResult<ExternalNearConnection>> {
+    if (this.pending) return failure('pending_request', 'Complete the pending wallet request.');
+    if (wallet === 'hot' && this.network !== 'mainnet') {
+      return failure('unavailable', 'HOT Wallet is available on mainnet only.');
+    }
+    this.disconnect();
     this.pending = true;
     const generation = ++this.generation;
     this.publish({ kind: 'connecting' });
     try {
-      if (!this.provider) {
-        const { MeteorExtensionProvider } = await import('./meteor');
-        this.provider = new MeteorExtensionProvider();
-      }
+      this.provider = await createNearWalletProvider(wallet);
       const accounts = parseAccounts(await this.provider.connect(this.network));
       if (generation !== this.generation)
         return failure('connection_changed', 'Wallet selection changed.');
       const accountId = accounts[0];
-      if (!accountId) return failure('unavailable', 'No Meteor account is available.');
-      const connection: ExternalNearConnection = connectedNear(accountId, this.network, generation);
+      if (!accountId) return failure('unavailable', 'No wallet account is available.');
+      const connection: ExternalNearConnection = connectedNear(
+        wallet,
+        accountId,
+        this.network,
+        generation,
+      );
       this.publish(connection);
       return { ok: true, value: connection };
     } catch {
       if (generation === this.generation) this.publish({ kind: 'disconnected' });
-      return failure('unavailable', 'Meteor did not connect. Unlock the extension and try again.');
+      return failure(
+        'unavailable',
+        `${nearWalletName(wallet)} did not connect. Check the wallet and network, then try again.`,
+      );
     } finally {
       this.pending = false;
       this.publish(this.snapshot.connection);
@@ -86,9 +97,9 @@ export class ExternalNearController {
     connection: ExternalNearConnection,
     input: TransactionInput,
   ): Promise<ExternalNearResult<ExternalNearSubmission>> {
-    if (this.pending) return failure('pending_request', 'Complete the pending Meteor request.');
+    if (this.pending) return failure('pending_request', 'Complete the pending wallet request.');
     if (connection !== this.snapshot.connection || !this.provider)
-      return failure('connection_changed', 'Reconnect Meteor before signing.');
+      return failure('connection_changed', 'Reconnect the wallet before signing.');
     let transaction: TransactionInput;
     try {
       transaction = validateTransaction(input);
@@ -101,7 +112,7 @@ export class ExternalNearController {
     try {
       const accounts = parseAccounts(await this.provider.accounts(this.network));
       if (connection !== this.snapshot.connection || !accounts.includes(connection.accountId))
-        return failure('connection_changed', 'Meteor account changed. Reconnect before signing.');
+        return failure('connection_changed', 'Wallet account changed. Reconnect before signing.');
       dispatched = true;
       const raw = await this.provider.send(connection, transaction);
       return { ok: true, value: parseSubmission(raw, connection) };
@@ -109,9 +120,9 @@ export class ExternalNearController {
       return dispatched
         ? failure(
             'submission_unknown',
-            'Submission is unknown. Check Meteor activity before sending again.',
+            'Submission is unknown. Check wallet activity before sending again.',
           )
-        : failure('unavailable', 'Meteor account is unavailable.');
+        : failure('unavailable', 'Wallet account is unavailable.');
     } finally {
       this.pending = false;
       this.publish(this.snapshot.connection);

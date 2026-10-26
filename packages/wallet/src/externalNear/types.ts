@@ -1,5 +1,7 @@
 import type { TransactionInput } from '../core/types/actions';
 
+export type ExternalNearWalletId = 'meteor' | 'hot' | 'intear';
+
 export type ExternalNearNetwork = 'mainnet' | 'testnet';
 export type ExternalNearResult<T> =
   | { readonly ok: true; readonly value: T; readonly code?: never; readonly message?: never }
@@ -18,13 +20,14 @@ export type ExternalNearResult<T> =
 const connectionBrand: unique symbol = Symbol('external NEAR connection');
 
 export function connectedNear(
+  wallet: ExternalNearWalletId,
   accountId: string,
   network: ExternalNearNetwork,
   generation: number,
 ): ExternalNearConnection {
   const connection: ExternalNearConnection = {
     kind: 'connected',
-    wallet: 'meteor',
+    wallet,
     accountId,
     network,
     generation,
@@ -38,7 +41,7 @@ export type ExternalNearConnection = Readonly<{
   [connectionBrand]: true;
   accountId: string;
   network: ExternalNearNetwork;
-  wallet: 'meteor';
+  wallet: ExternalNearWalletId;
   generation: number;
 }>;
 export type ExternalNearState =
@@ -60,7 +63,7 @@ export type ExternalNearOutcome =
   | { readonly kind: 'confirmed' | 'failed'; readonly submission: ExternalNearSubmission }
   | { readonly kind: 'unresolved'; readonly submission: ExternalNearSubmission };
 
-export interface NearExtensionProvider {
+export interface NearWalletProvider {
   connect(network: ExternalNearNetwork): Promise<unknown>;
   accounts(network: ExternalNearNetwork): Promise<unknown>;
   send(connection: ExternalNearConnection, transaction: TransactionInput): Promise<unknown>;

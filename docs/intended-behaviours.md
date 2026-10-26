@@ -2543,21 +2543,36 @@ The retry uses the same public URL, serialized body, operation identity, bearer
 token, and abort signal. It cannot retry again. Authentication, revocation, quota,
 other conflicts, and network failures do not trigger this routing retry.
 
-## External NEAR extension accounts
+## External NEAR accounts
 
-The external NEAR controller connects directly to Meteor's extension transport.
-It does not consume wallet announcements or a remotely updated connector registry.
-The adapter captures the injected transport and rejects replacement before operations.
-This boundary assumes the application document is trusted, as with EVM extensions.
-It does not authenticate arbitrary code running in the same document.
+The NEAR controller requires an explicit wallet: `meteor`, `hot`, or `intear`.
+Each adapter loads separately. Connections retain the selected wallet and generation.
+Switching wallets invalidates prepared requests. No adapter consumes unsolicited
+wallet-registry announcements.
 
-External accounts never authorize Seams custody. Transfers and function calls use
-Meteor approval with function-call-key signing disabled. Connection state stays
-in memory. Disconnect invalidates prepared operations. Late submissions retain
-their captured account and network. Transport failure after dispatch returns
-`submission_unknown` without a retry. Status checks use the configured network's
-RPC and require matching transaction identity and final execution.
+Meteor uses its extension SDK with an explicit extension target. HOT calls the
+captured `window.hotExtension` provider directly. Replacing either captured
+transport blocks subsequent requests. These boundaries assume trusted application
+code and cannot authenticate arbitrary scripts running in the same document.
 
-The browser contract `tests/wallet-ui/external-near.browser.test.ts` writes
-`external-near-observations.json`. It uses a controlled provider for failure cases.
-Real Meteor extension and testnet acceptance remain required before release.
+HOT is limited to mainnet because its documented API has no network selector.
+The testnet picker disables HOT and explains this limit. Meteor and Intear accept
+configured mainnet or testnet requests.
+
+Intear opens the fixed `https://wallet.intear.tech` origin. Responses must match
+both this origin and the request's popup window. The adapter removes listeners
+and closes the popup on success, error, closure, or timeout. Requests use an
+in-memory, non-extractable Ed25519 session key for protocol authentication.
+The key is never installed on chain. Requests omit function-call-key grants.
+The adapter rejects bridge sessions, wallet-origin changes, and unexpected grants.
+
+External accounts never authorize Seams custody. Transfers and function calls
+use wallet approval. State remains in memory. Late submissions retain their
+captured account and network. Transport failure after dispatch returns
+`submission_unknown` without a retry. Status checks require matching transaction
+identity and final execution from the configured network RPC.
+
+`tests/wallet-ui/external-near.browser.test.ts` produces wallet-specific JSON
+observations and picker screenshots. Controlled providers verify transport
+replacement, popup source binding, stale requests, and unknown submission.
+Real wallet qualification remains required before release.

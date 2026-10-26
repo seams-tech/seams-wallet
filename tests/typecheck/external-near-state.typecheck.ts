@@ -18,3 +18,12 @@ const result: ExternalNearResult<string> = { ok: true, value: 'signed', code: 'u
 void invalid;
 void session;
 void result;
+
+import type { ExternalNearWalletId } from '@/externalNear';
+const hot: ExternalNearWalletId = 'hot';
+const intear: ExternalNearWalletId = 'intear';
+// @ts-expect-error An unqualified wallet cannot become a selected provider.
+const unknownWallet: ExternalNearWalletId = 'ledger';
+void hot;
+void intear;
+void unknownWallet;
