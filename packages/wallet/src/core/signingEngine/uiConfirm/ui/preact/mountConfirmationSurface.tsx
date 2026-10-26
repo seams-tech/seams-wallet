@@ -687,7 +687,6 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         return {
           kind: 'transaction',
           capture: source.capture,
-          signingKeyChoice: closing ? null : source.signingKeyChoice,
           header: source.header,
           body: source.body,
           review: source.review,

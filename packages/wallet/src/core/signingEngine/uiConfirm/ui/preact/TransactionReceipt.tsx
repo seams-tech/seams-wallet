@@ -294,11 +294,6 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             </div>
           </dl>
         </ReviewDisclosure>
-        {receipt.cancellation.kind === 'available' ? (
-          <button type="button" class="seams-receipt-primary" onClick={receipt.cancellation.cancel}>
-            <WalletText copy="Cancel request" />
-          </button>
-        ) : null}
         <button type="button" class="seams-receipt-primary" onClick={this.close}>
           {pending ? (
             <WalletText message="Continue in background" />
@@ -306,6 +301,11 @@ export class TransactionReceipt extends Component<TransactionReceiptProps> {
             <WalletText message="Done" />
           )}
         </button>
+        {receipt.cancellation.kind === 'available' ? (
+          <button type="button" class="seams-receipt-secondary" onClick={receipt.cancellation.cancel}>
+            <WalletText copy="Cancel request" />
+          </button>
+        ) : null}
         {explorerHref && (
           <div id={this.explorerRowId} class="seams-receipt-explorer-row" ref={this.explorerRow}>
             <a

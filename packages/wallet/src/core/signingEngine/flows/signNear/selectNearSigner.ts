@@ -21,7 +21,6 @@ import { readDefaultNearSigner } from '../../walletCustody/nearSignerPreferences
 import { readNearSignerMetadata } from '../../walletCustody/nearSignerMetadata';
 import { buildNearDisplayModel } from '../../chains/near/display';
 import { mountConfirmUI, type MountedConfirmUIHandle } from '../../uiConfirm/ui/confirm-ui';
-import type { SigningKeyChoice } from '../../uiConfirm/ui/confirm-ui-types';
 
 type Choice = {
   readonly id: string;
@@ -125,7 +124,7 @@ export async function selectNearTransactionSigner(
     ctx: deps.ui,
     summary: {
       title: 'Review transaction',
-      body: 'Choose a signing key and approve this transaction.',
+      body: 'Approve this transaction.',
     },
     model: buildNearDisplayModel({ txSigningRequests, signerAccount: input.nearAccount.accountId }),
     txSigningRequests,
@@ -157,29 +156,11 @@ type Selection = {
   readonly handle: MountedConfirmUIHandle;
   readonly policy: MlDsaSigningSessionPolicy | null;
 };
-function displayChoice(choice: Choice): SigningKeyChoice['options'][number] {
-  return { id: choice.id, label: choice.label };
-}
 function updateChoice(selection: Selection): void {
   selection.handle.update({
     confirmText: 'Approve transaction',
-    body: reviewBody(selection),
-    signingKeyChoice: {
-      selected: selection.selected.id,
-      options: selection.choices.map(displayChoice),
-      onChange: changeChoice.bind(null, selection),
-    },
+    body: 'Approve this transaction.',
   });
-}
-function changeChoice(selection: Selection, id: string): void {
-  for (const choice of selection.choices) {
-    if (choice.id === id) {
-      selection.selected = choice;
-      updateChoice(selection);
-      return;
-    }
-  }
-  throw new Error('Unknown signing key selection');
 }
 function cancelSelectionIfRequested(
   input: NearSignerSelectionInput,
@@ -199,12 +180,6 @@ function requireSignerCapability(
         : CAPABILITY_KINDS.nearEd25519MpcSigning,
     operationKind: NEAR_ML_DSA_65_MPC_OPERATION_KINDS.signTransaction,
   });
-}
-
-function reviewBody(selection: Selection): string {
-  if (selection.selected.signer.kind !== 'near_ml_dsa_65' || selection.policy === null)
-    return 'Approve this transaction with the selected signing key. Authentication follows when required.';
-  return `Approve this transaction and, if needed, a signing session for this key: up to ${selection.policy.maxOperations} operations over up to ${Math.ceil(selection.policy.durationMs / 1000)} seconds. Failed operations consume one use. Authentication follows when required.`;
 }
 
 type ReviewedTransactionInput = Pick<

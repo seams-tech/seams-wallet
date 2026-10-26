@@ -12,14 +12,7 @@ export type ConfirmationUIMode = 'none' | 'modal' | 'drawer';
 
 // Public handle returned by mount/await helpers
 
-export type SigningKeyChoice = {
-  readonly selected: string;
-  readonly options: readonly { readonly id: string; readonly label: string }[];
-  readonly onChange: (id: string) => void;
-};
-
 export type ConfirmUIUpdate = {
-  signingKeyChoice?: SigningKeyChoice | null;
   model?: TxDisplayModel;
   securityContext?: Partial<UserConfirmSecurityContext>;
   appearance?: AppearanceConfig;
