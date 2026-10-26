@@ -85,8 +85,26 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await voiceDialog.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(voiceDialog).toHaveCount(0);
     await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
+    await wallet.locator('body').evaluate(watchMenuStates);
     await wallet.locator('[data-auth-menu-voiceid]').click();
+    await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute(
+      'data-capture',
+      'succeeded',
+      { timeout: 20_000 },
+    );
+    await expect(
+      wallet.locator('.seams-voiceid-prompt .seams-voiceid-ribbon circle').nth(2),
+    ).toHaveAttribute('r', '22.50');
+    await wallet
+      .locator('.seams-voiceid-prompt')
+      .screenshot({ path: testInfo.outputPath('voiceid-unlock-sealed.png') });
     await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
+    await expect(page.locator('[data-seams-auth-menu-host="true"]')).toHaveCount(0);
+    // The unlock plays its own success, so the login menu never returns behind or after it.
+    const menuStates = await wallet.locator('body').evaluate(readMenuStates);
+    const succeeded = menuStates.indexOf('no-menu:succeeded');
+    expect(succeeded).toBeGreaterThan(0);
+    expect(menuStates.slice(succeeded).filter(isMenuVisible)).toEqual([]);
     await startReviewedTransfer(page);
     await expect(wallet.locator('button.confirm')).toHaveText('Confirm with VoiceID');
     await wallet.locator('button.confirm').click();
@@ -305,6 +323,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       settings: 'enroll_disable_reenable_and_lock_active_voice_session',
       managementBackLeavesNoMessage: true,
       login: 'one_wallet_with_method_choices_and_cancel_restores_menu',
+      menuStatesThroughVoiceUnlock: menuStates,
       disabledSdkUnlockRejected: true,
       reenrollmentPreservedMethodId: true,
       explicitImport: { originalEnrollment, importedEnrollment, obsoleteRecordRemoved: true },
@@ -350,6 +369,35 @@ function changeAdaptationBoundary(
   input: { walletId: string; action: 'save' | 'last_use' | 'expired' | 'legacy' },
 ): Promise<void> {
   return window.voiceIdAdaptationBoundary(input);
+}
+function watchMenuStates(): void {
+  const states: string[] = [];
+  window.voiceIdMenuStates = states;
+  const record = (): void => {
+    const menu = document.querySelector<HTMLElement>('.seams-auth-menu-surface');
+    const capture = document.querySelector<HTMLElement>('.seams-voiceid-prompt')?.dataset.capture;
+    const state = `${menu && !menu.hidden ? 'menu' : 'no-menu'}:${capture ?? 'none'}`;
+    if (states.at(-1) !== state) states.push(state);
+  };
+  new MutationObserver(record).observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['hidden', 'data-capture'],
+  });
+  record();
+}
+function readMenuStates(): string[] {
+  if (!window.voiceIdMenuStates) throw new Error('Menu watcher is unavailable');
+  return window.voiceIdMenuStates;
+}
+function isMenuVisible(state: string): boolean {
+  return state.startsWith('menu:');
+}
+declare global {
+  interface Window {
+    voiceIdMenuStates?: string[];
+  }
 }
 async function unlockVoiceFromMenu(page: Page): Promise<void> {
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
