@@ -138,12 +138,6 @@ export class ConfirmationContent extends Component<{
   private renderTransaction(
     model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
   ): ComponentChildren {
-    if (model.capture)
-      return (
-        <div ref={this.root}>
-          <AuthMethodCapture element={model.capture} />
-        </div>
-      );
     const contentClass =
       this.props.variant === 'drawer'
         ? 'seams-confirmation-content seams-confirmation-content--drawer'
@@ -152,39 +146,22 @@ export class ConfirmationContent extends Component<{
       model.prompt.kind === 'email' && model.transaction.decision.kind === 'ready'
         ? { kind: 'form' as const, formId: this.otpFormId }
         : model.transaction.decision;
+    // A hosted capture keeps the review's toolbar and footer, so only the middle of
+    // the card changes between the review, the capture and the receipt.
+    if (model.capture)
+      return (
+        <div ref={this.root} class={contentClass}>
+          <div class="seams-review-content seams-review-content--capture">
+            {this.props.variant !== 'drawer' && this.renderToolbar(model, decision)}
+            <AuthMethodCapture element={model.capture} />
+            <WalletReceiptFooter />
+          </div>
+        </div>
+      );
     return (
       <div ref={this.root} class={contentClass}>
         <div class="seams-review-content">
-          {this.props.variant !== 'drawer' && (
-            <div class="seams-review-toolbar">
-              <div class="seams-review-origin">
-                {model.transaction.onBack && (
-                  <button
-                    type="button"
-                    aria-label={walletText(this.context, 'Back to review')}
-                    title={walletText(this.context, 'Back to review')}
-                    disabled={decision.kind === 'preparing'}
-                    onClick={model.transaction.onBack}
-                  >
-                    <ReviewIcon kind="back" />
-                  </button>
-                )}
-                <PadlockIcon />
-                {model.header.website.kind === 'ready' ? (
-                  model.header.website.text
-                ) : (
-                  <LoadingStatus label={walletText(this.context, 'Loading website')} />
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
-                onClick={model.transaction.onCancel}
-              >
-                <ReviewIcon kind="close" />
-              </button>
-            </div>
-          )}
+          {this.props.variant !== 'drawer' && this.renderToolbar(model, decision)}
           {model.review.model && (
             <div class="seams-review-eyebrow">
               {model.review.model.operations.length === 1 ? (
@@ -221,6 +198,43 @@ export class ConfirmationContent extends Component<{
           />
           <WalletReceiptFooter />
         </div>
+      </div>
+    );
+  }
+
+  /** The origin the request came from, with the review's back and close controls. */
+  private renderToolbar(
+    model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
+    decision: { readonly kind: string },
+  ): ComponentChildren {
+    return (
+      <div class="seams-review-toolbar">
+        <div class="seams-review-origin">
+          {model.transaction.onBack && (
+            <button
+              type="button"
+              aria-label={walletText(this.context, 'Back to review')}
+              title={walletText(this.context, 'Back to review')}
+              disabled={decision.kind === 'preparing'}
+              onClick={model.transaction.onBack}
+            >
+              <ReviewIcon kind="back" />
+            </button>
+          )}
+          <PadlockIcon />
+          {model.header.website.kind === 'ready' ? (
+            model.header.website.text
+          ) : (
+            <LoadingStatus label={walletText(this.context, 'Loading website')} />
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
+          onClick={model.transaction.onCancel}
+        >
+          <ReviewIcon kind="close" />
+        </button>
       </div>
     );
   }

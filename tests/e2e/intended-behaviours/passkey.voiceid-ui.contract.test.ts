@@ -123,7 +123,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       .locator('.seams-voiceid-prompt')
       .getByRole('button', { name: 'Try again', exact: true });
     await expect(tryAgain).toBeVisible({ timeout: 20_000 });
-    await expect(wallet.locator('.seams-review-content')).toHaveCount(0);
+    await expect(wallet.locator('.seams-review-title')).toHaveCount(0);
     await wallet
       .locator('.seams-voiceid-prompt')
       .screenshot({ path: testInfo.outputPath('voiceid-signing-retry.png') });

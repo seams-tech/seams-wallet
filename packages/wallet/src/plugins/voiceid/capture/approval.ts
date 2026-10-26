@@ -177,13 +177,10 @@ export class VoiceIdApproval {
     // The receipt that follows a signature takes the checking segments over as its tracks.
     this.prompt = new VoicePrompt(document, 'Approve transfer with VoiceID', this.phrase, 'segments');
     this.prompt.record.hidden = true;
+    // The confirmation card's toolbar closes the review, so the card has no close of its own.
+    this.prompt.cancel.hidden = true;
     this.surface = this.prompt.element;
-    this.prompt.cancel.addEventListener('click', this.cancelPrompt);
   }
-
-  private readonly cancelPrompt = (): void => {
-    this.surface.dispatchEvent(new Event('cancel', { bubbles: true, cancelable: true }));
-  };
 
   static forReview(
     review: TransactionReviewWire,

@@ -263,6 +263,8 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       let order = 0;
       for (const detail of details) {
         if (shared.has(detail)) continue;
+        // A capture's card had the same toolbar row, so the receipt's takes its place at once.
+        if (leaving && detail.matches('.seams-review-toolbar')) continue;
         this.receiptMotion.push(
           detail.animate(
             [
