@@ -338,8 +338,9 @@ async function adaptationBoundary(input: {
 }
 
 function currentPhrase(root: Document | ShadowRoot): string | null {
-  const prompt = root.querySelector('[data-voiceid-phrase]');
-  if (prompt) return prompt.getAttribute('data-voiceid-phrase');
+  for (const prompt of root.querySelectorAll('[data-voiceid-phrase]')) {
+    if (!prompt.closest('[inert], [aria-hidden="true"]')) return prompt.getAttribute('data-voiceid-phrase');
+  }
   for (const element of root.querySelectorAll('*')) {
     if (element.shadowRoot) {
       const nested = currentPhrase(element.shadowRoot);
