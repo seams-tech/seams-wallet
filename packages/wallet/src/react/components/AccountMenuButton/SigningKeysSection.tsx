@@ -21,7 +21,8 @@ import {
   REGISTRATION_NEAR_ED25519_YAO_DERIVATION_VERSION,
   type AddSignerSelection,
 } from '@shared/utils/registrationSignerPlan';
-import { NearSigningKeysSection } from './NearSigningKeysSection';
+import { SigningKeyDetails } from './SigningKeyDetails';
+import { NearSigningKeysSection, type NearSigningKeysScreen } from './NearSigningKeysSection';
 import './SigningKeysSection.css';
 
 type EcdsaKey = {
@@ -37,6 +38,14 @@ type Inventory = {
   readonly ecdsa: readonly EcdsaKey[];
   readonly additions: readonly AddableSigner[];
 };
+type Screen =
+  | { readonly kind: 'list' }
+  | {
+      readonly kind: 'near';
+      readonly view: Variant<NearSigningKeysScreen, 'kind', 'add' | 'ed25519' | 'ml_dsa_65'>;
+    }
+  | { readonly kind: 'ecdsa'; readonly key: EcdsaKey };
+
 type ViewState =
   | { readonly kind: 'loading' }
   | { readonly kind: 'ready'; readonly inventory: Inventory }
@@ -57,6 +66,7 @@ export function SigningKeysSection({
 }: { readonly walletId: string } & ExportHooks) {
   const { seams } = useSeams();
   const [state, setState] = useState<ViewState>({ kind: 'loading' });
+  const [screen, setScreen] = useState<Screen>({ kind: 'list' });
   const context = useMemo(
     createContext.bind(null, seams, walletId, setState, onExportKeyError, onExportKeyEvent),
     [seams, walletId, onExportKeyError, onExportKeyEvent],
@@ -65,9 +75,9 @@ export function SigningKeysSection({
   return (
     <div className="seams-signing-keys">
       <p className="seams-account-description">
-        <WalletText copy="Manage the signing keys for your accounts. Recovery and linked-device access use your wallet permissions." />
+        <WalletText copy="Manage the signing keys for your accounts. Your existing wallet recovery restores these keys. Full-owner linked devices have the same signer and export access." />
       </p>
-      {renderState(context, state)}
+      {renderState(context, state, screen, setScreen)}
     </div>
   );
 }
@@ -193,7 +203,12 @@ function isNearConfig(
 function targetForAddition(target: ReturnType<typeof listThresholdEcdsaProvisionTargets>[number]) {
   return target.chainTarget;
 }
-function renderState(context: Context, state: ViewState): React.ReactNode {
+function renderState(
+  context: Context,
+  state: ViewState,
+  screen: Screen,
+  setScreen: React.Dispatch<React.SetStateAction<Screen>>,
+): React.ReactNode {
   switch (state.kind) {
     case 'loading':
       return (
@@ -222,6 +237,20 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
       );
     case 'ready': {
       const identity = state.inventory.identity;
+      if (screen.kind === 'ecdsa') {
+        return (
+          <SigningKeyDetails
+            title="ECDSA"
+            account={identity.thresholdEcdsaEthereumAddress ?? screen.key.target.networkSlug}
+            status={signingKeyReadinessLabel(screen.key.readiness)}
+            publicKey={identity.thresholdEcdsaPublicKeyB64u ?? null}
+            publicKeyLabel="ECDSA public key (base64url)"
+            keyId={screen.key.id}
+            onBack={setScreen.bind(null, { kind: 'list' })}
+            onExport={exportEcdsa.bind(null, context, screen.key.target)}
+          />
+        );
+      }
       return (
         <>
           {identity.nearAccountId &&
@@ -229,6 +258,8 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
           state.inventory.nearReadiness ? (
             <section aria-label="NEAR signing keys">
               <NearSigningKeysSection
+                screen={screen.kind === 'near' ? screen.view : { kind: 'list' }}
+                onNavigate={navigateNear.bind(null, setScreen)}
                 walletId={context.walletId}
                 nearAccountId={identity.nearAccountId}
                 publicKey={identity.nearOperationalPublicKey}
@@ -238,7 +269,7 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
               />
             </section>
           ) : null}
-          {state.inventory.provisioning ? (
+          {screen.kind === 'list' && state.inventory.provisioning ? (
             <section aria-label="NEAR setup" className="seams-signing-key-row">
               <strong>NEAR</strong>
               <p role="status">
@@ -253,8 +284,12 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
               </button>
             </section>
           ) : null}
-          {state.inventory.ecdsa.map(renderEcdsa.bind(null, context, identity))}
-          {state.inventory.additions.map(renderAddition.bind(null, context))}
+          {screen.kind === 'list'
+            ? state.inventory.ecdsa.map(renderEcdsa.bind(null, identity, setScreen))
+            : null}
+          {screen.kind === 'list'
+            ? state.inventory.additions.map(renderAddition.bind(null, context))
+            : null}
         </>
       );
     }
@@ -263,8 +298,8 @@ function renderState(context: Context, state: ViewState): React.ReactNode {
   }
 }
 function renderEcdsa(
-  context: Context,
   identity: Inventory['identity'],
+  setScreen: React.Dispatch<React.SetStateAction<Screen>>,
   key: EcdsaKey,
 ): React.ReactNode {
   return (
@@ -279,30 +314,13 @@ function renderEcdsa(
       <span>
         <WalletText copy={signingKeyReadinessLabel(key.readiness)} />
       </span>
-      <details>
-        <summary>
-          <WalletText copy="Key details" />
-        </summary>
-        <p className="seams-signing-key-account">
-          <WalletText copy="Key ID" />: {key.id}
-        </p>
-        {identity.thresholdEcdsaPublicKeyB64u ? (
-          <textarea
-            className="seams-signing-key-fingerprint"
-            aria-label="ECDSA public key (base64url)"
-            rows={3}
-            readOnly
-            value={identity.thresholdEcdsaPublicKeyB64u}
-          />
-        ) : null}
-        <button
-          type="button"
-          className="seams-account-action"
-          onClick={exportEcdsa.bind(null, context, key.target)}
-        >
-          <WalletText copy="Export key" />
-        </button>
-      </details>
+      <button
+        type="button"
+        className="seams-account-action"
+        onClick={setScreen.bind(null, { kind: 'ecdsa', key })}
+      >
+        <WalletText copy="Key details" />
+      </button>
     </section>
   );
 }
@@ -373,5 +391,16 @@ function provisioningLabel(state: NearProvisioningState): string {
       return state.error;
     default:
       return assertNever(state);
+  }
+}
+
+function navigateNear(
+  setScreen: React.Dispatch<React.SetStateAction<Screen>>,
+  view: NearSigningKeysScreen,
+): void {
+  if (view.kind === 'list') {
+    setScreen({ kind: 'list' });
+  } else {
+    setScreen({ kind: 'near', view });
   }
 }

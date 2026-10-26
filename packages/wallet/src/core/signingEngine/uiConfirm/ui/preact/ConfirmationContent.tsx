@@ -300,25 +300,84 @@ class AuthMethodCapture extends Component<{ element: HTMLElement }> {
   }
 }
 
-function changeSigningKey(choice: SigningKeyChoice, event: Event): void {
-  if (event.currentTarget instanceof HTMLSelectElement) choice.onChange(event.currentTarget.value);
-}
-function signingKeyOption(option: SigningKeyChoice['options'][number]) {
-  return (
-    <option key={option.id} value={option.id}>
-      {option.label}
-    </option>
-  );
-}
-function SigningKeySelect({ choice }: { choice: SigningKeyChoice }) {
-  return (
-    <label class="seams-signing-key-choice">
-      <span>
-        <WalletText copy="Signing key" />
-      </span>
-      <select value={choice.selected} onChange={changeSigningKey.bind(null, choice)}>
-        {choice.options.map(signingKeyOption)}
-      </select>
+let nextSigningKeyChoiceId = 0;
+
+class SigningKeySelect extends Component<{ choice: SigningKeyChoice }, { choosing: boolean }> {
+  state = { choosing: false };
+  private readonly radioName = `signing-key-${++nextSigningKeyChoiceId}`;
+  private readonly changeButton = createRef<HTMLButtonElement>();
+  private readonly options = createRef<HTMLFieldSetElement>();
+
+  componentDidUpdate(
+    _previousProps: Readonly<{ choice: SigningKeyChoice }>,
+    previousState: Readonly<{ choosing: boolean }>,
+  ) {
+    if (previousState.choosing === this.state.choosing) return;
+    if (this.state.choosing) {
+      this.options.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
+    } else {
+      this.changeButton.current?.focus();
+    }
+  }
+
+  private open = (): void => {
+    this.setState({ choosing: true });
+  };
+  private close = (): void => {
+    this.setState({ choosing: false });
+  };
+  private choose = (id: string): void => {
+    this.props.choice.onChange(id);
+    this.close();
+  };
+
+  private renderOption = (option: SigningKeyChoice['options'][number]) => (
+    <label class="seams-signing-key-option" key={option.id}>
+      <input
+        type="radio"
+        name={this.radioName}
+        value={option.id}
+        checked={this.props.choice.selected === option.id}
+        onChange={this.choose.bind(this, option.id)}
+      />
+      <span>{option.label}</span>
     </label>
   );
+
+  render() {
+    const choice = this.props.choice;
+    const selected = choice.options.find(matchesChoice.bind(null, choice.selected));
+    return (
+      <div class="seams-signing-key-choice" role="group" aria-label="Signing key">
+        <div class="seams-signing-key-summary">
+          <span>
+            <WalletText copy="Signing key" />
+            <strong>{selected?.label ?? choice.selected}</strong>
+          </span>
+          <button
+            type="button"
+            ref={this.changeButton}
+            onClick={this.open}
+            disabled={this.state.choosing}
+          >
+            <WalletText copy="Change" />
+          </button>
+        </div>
+        {this.state.choosing ? (
+          <fieldset ref={this.options}>
+            <legend>
+              <WalletText copy="Choose a signing key" />
+            </legend>
+            {choice.options.map(this.renderOption)}
+            <button type="button" onClick={this.close}>
+              <WalletText copy="Cancel" />
+            </button>
+          </fieldset>
+        ) : null}
+      </div>
+    );
+  }
+}
+function matchesChoice(id: string, option: SigningKeyChoice['options'][number]): boolean {
+  return option.id === id;
 }

@@ -14,6 +14,14 @@ test('Signing keys adds NEAR to an ECDSA-only wallet and retains ECDSA signing',
   await openSigningKeys(page);
   await expect(page.getByRole('region', { name: /^ECDSA / }).first()).toBeVisible();
   await expect(page.getByRole('region', { name: 'NEAR signing keys', exact: true })).toHaveCount(0);
+  await page
+    .getByRole('region', { name: /^ECDSA / })
+    .first()
+    .getByRole('button', { name: 'Key details', exact: true })
+    .click();
+  const ecdsaDetails = page.getByRole('region', { name: 'ECDSA', exact: true });
+  await expect(ecdsaDetails.getByRole('button', { name: 'Export key', exact: true })).toBeVisible();
+  await ecdsaDetails.getByRole('button', { name: 'Back', exact: true }).click();
   const nearAddition = page
     .locator('.seams-signing-key-row')
     .filter({ hasText: 'Ed25519 · New NEAR account' });
@@ -25,6 +33,25 @@ test('Signing keys adds NEAR to an ECDSA-only wallet and retains ECDSA signing',
     .getByRole('button', { name: 'Add signer', exact: true })
     .click({ timeout: 10_000 });
   await adding;
+  const nearKeys = page.getByRole('region', { name: 'NEAR signing keys', exact: true });
+  await nearKeys.getByRole('button', { name: 'Add signer', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add signing key', exact: true })).toBeFocused();
+  await expect(
+    page.getByText(
+      'Your existing wallet recovery restores this key. Your default signing key stays the same.',
+    ),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await nearKeys
+    .getByRole('group', { name: 'Ed25519 signing key', exact: true })
+    .getByRole('button', { name: 'Key details', exact: true })
+    .click();
+  const edDetails = page.getByRole('region', { name: 'Ed25519', exact: true });
+  await expect(
+    edDetails.getByRole('textbox', { name: 'Ed25519 public key', exact: true }),
+  ).not.toHaveValue('');
+  await expect(edDetails.getByRole('button', { name: 'Export key', exact: true })).toBeVisible();
+  await edDetails.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('region', { name: /^ECDSA / }).first()).toBeVisible();
   await page
     .getByTestId('intended-account-menu')
@@ -41,6 +68,8 @@ test('Signing keys adds NEAR to an ECDSA-only wallet and retains ECDSA signing',
         ecdsaOnlySettings: true,
         addedNearThroughSettings: true,
         retainedEcdsaSigning: true,
+        keyDetailNavigation: true,
+        cancelledMlDsaCreation: true,
       },
       null,
       2,
