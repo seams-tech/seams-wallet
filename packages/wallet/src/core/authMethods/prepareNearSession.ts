@@ -1,5 +1,5 @@
 import type { AuthMethodSessionInstaller } from './hostPlugin';
-import { IndexedDBManager } from '@/core/indexedDB';
+import type { resolveAuthMethodSessionIdentity } from './sessionIdentity';
 import type { LoadWalletCustodyEd25519MaterialResultV1 } from '@/core/signingEngine/walletCustody/ed25519SeedMaterial';
 import {
   openWalletCustodyEd25519ActiveClientV1,
@@ -7,10 +7,6 @@ import {
 } from '@/core/signingEngine/walletCustody/openCustodyCache';
 import { buildOwnerRouterAbEd25519WalletSessionState } from '@/core/signingEngine/session/warmCapabilities/routerAbEd25519WalletSessionState';
 import { buildRouterAbEd25519SigningWalletSession } from '@/core/signingEngine/session/routerAbSigningWalletSession';
-import {
-  buildVoiceIdWalletAuthAuthority,
-  walletAuthAuthorityRef,
-} from '@shared/utils/walletAuthAuthority';
 import { base64UrlEncode } from '@shared/utils/base64';
 import { mpcMaterialActivationRefsEqual } from '@shared/utils/domainIds';
 import { nearEd25519SigningKeyIdFromString } from '@shared/utils/registrationIds';
@@ -18,6 +14,7 @@ import { ROUTER_AB_ED25519_NORMAL_SIGNING_STATE_KIND } from '@shared/utils/signi
 
 export async function prepareAuthMethodNearSession(input: {
   readonly unlocked: Parameters<AuthMethodSessionInstaller>[0];
+  readonly identity: Awaited<ReturnType<typeof resolveAuthMethodSessionIdentity>>;
   readonly relayerUrl: string;
   readonly loadMaterial: (input: {
     nearAccountId: string;
@@ -28,32 +25,17 @@ export async function prepareAuthMethodNearSession(input: {
   const { walletSession, operationCredential, custodyEnvelope, near, signal } = input.unlocked;
   if (signal.aborted) throw new Error('Wallet unlock was cancelled.');
   if (near.kind !== 'ready') throw new Error('This wallet has no active NEAR signer.');
-  const method = await IndexedDBManager.getWalletAuthMethodV2(walletSession.authMethodId);
-  const authority = await IndexedDBManager.getWalletAuthority(walletSession.authorityId);
+  const { method, authority, ref } = input.identity;
   const cap = near.capability;
   if (
-    !method ||
-    method.kind !== 'voiceid' ||
-    method.status !== 'active' ||
-    method.walletId !== walletSession.walletId ||
-    method.walletAuthorityId !== walletSession.authorityId ||
-    !authority ||
-    authority.state !== 'active' ||
-    authority.walletId !== walletSession.walletId ||
-    authority.authorityDigestB64u !== walletSession.authorityDigestB64u ||
-    authority.revocationEpoch !== walletSession.authorityRevocationEpoch ||
     !authority.signerActivations.ed25519 ||
     !mpcMaterialActivationRefsEqual(
       authority.signerActivations.ed25519.materialActivation,
       cap.materialActivation,
     ) ||
-    custodyEnvelope.walletId !== walletSession.walletId ||
-    custodyEnvelope.ownership.walletAuthMethodId !== method.walletAuthMethodId ||
-    custodyEnvelope.factor.kind !== 'voiceid' ||
-    custodyEnvelope.factor.deviceKeyId !== method.deviceKeyId ||
     cap.applicationBinding.wallet_id !== walletSession.walletId
   ) {
-    throw new Error('Wallet Session, device method, and NEAR custody do not match.');
+    throw new Error('NEAR capability does not match the Wallet Session authority.');
   }
   const loaded = await input.loadMaterial({
     nearAccountId: cap.nearAccountId,
@@ -118,13 +100,6 @@ export async function prepareAuthMethodNearSession(input: {
     });
     if (!signingSession.ok)
       throw new Error(`NEAR Wallet Session is invalid: ${signingSession.reason}`);
-    const ref = await walletAuthAuthorityRef({
-      authority: buildVoiceIdWalletAuthAuthority({
-        walletId: method.walletId,
-        walletAuthMethodId: method.walletAuthMethodId,
-        deviceKeyId: method.deviceKeyId,
-      }),
-    });
     const state = buildOwnerRouterAbEd25519WalletSessionState({
       walletId: walletSession.walletId,
       nearAccountId: cap.nearAccountId,

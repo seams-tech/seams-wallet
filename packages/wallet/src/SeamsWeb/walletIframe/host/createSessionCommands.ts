@@ -53,7 +53,7 @@ type WalletHostAuthContext = WalletAuthWebContext & {
   signingEngine: Pick<WalletIframeWarmupSurface, 'warmCriticalResources'> &
     PendingRegistrationRecoverySigningSurface &
     WalletIframeSurfaceMeasurementSurface &
-    Pick<WalletAuthenticationSurface, 'installAuthMethodNearSession'>;
+    Pick<WalletAuthenticationSurface, 'installAuthMethodSession'>;
 };
 
 export type WalletHostSessionCommands = Omit<WalletSessionCommands, 'unlockWithAuthMethod'> & {
@@ -118,7 +118,7 @@ async function prepareAuthMethodSession(
   const generation = await context.signingEngine.advanceWalletLockGeneration(walletId);
   signal.throwIfAborted();
   assertActive();
-  return context.signingEngine.installAuthMethodNearSession.bind(context.signingEngine, generation);
+  return context.signingEngine.installAuthMethodSession.bind(context.signingEngine, generation);
 }
 
 function allowActiveRequest(): void {}

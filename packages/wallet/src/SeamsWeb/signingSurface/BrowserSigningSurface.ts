@@ -1,4 +1,3 @@
-import { readAuthMethodEnabled } from '@/core/authMethods/availability';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import { isActiveEd25519WalletAuthorityV1 } from '@shared/authorization/walletAuthority';
 import type { EmailOtpWorkerOperationMap } from '@/core/signingEngine/workerManager/workerTypes';
@@ -24,7 +23,7 @@ import type {
   WalletAuthenticationState,
 } from '@/core/types/seams';
 import { WALLET_AUTH_METHODS, requirePersistedSignerAuthMethod } from '@shared/utils/signerDomain';
-import { prepareAuthMethodNearSession } from '@/core/authMethods/prepareNearSession';
+import { installAuthMethodSession } from '@/core/authMethods/installSession';
 import type { AuthMethodSessionInstaller, AuthMethodUnlockSuccess } from '@/core/authMethods/hostPlugin';
 import type { WebAuthnAuthenticationCredential } from '@/core/types';
 import type { UserPreferencesManager } from '@/core/signingEngine/session/userPreferences';
@@ -6199,131 +6198,24 @@ export class BrowserSigningSurface {
     return await this.enginePorts.ed25519YaoActiveClients.activate(material);
   }
 
-  async installAuthMethodNearSession(
+  async installAuthMethodSession(
     expectedLockGeneration: number,
     unlocked: Parameters<AuthMethodSessionInstaller>[0],
   ): Promise<AuthMethodUnlockSuccess> {
-    const factor = unlocked.custodyEnvelope.factor;
-    if (factor.kind !== 'voiceid') throw new Error('The device custody factor is invalid.');
-    const prepared = await prepareAuthMethodNearSession({
-      unlocked,
-      relayerUrl: this.seamsWebConfigs.network.relayer.url,
-      loadMaterial: this.loadWalletCustodyEd25519Material.bind(this),
-    });
-    try {
-      return await this.withExactEd25519MaterialOwner({
-        materialActivation: prepared.capability.materialActivation,
-        nearAccountId: prepared.capability.nearAccountId,
-        task: this.installPreparedAuthMethodNearSession.bind(
-          this,
-          expectedLockGeneration,
-          unlocked,
-          prepared,
-          factor.deviceKeyId,
-        ),
-      });
-    } catch (error) {
-      prepared.activeClient.dispose();
-      throw error;
-    }
-  }
-
-  private async installPreparedAuthMethodNearSession(
-    expectedLockGeneration: number,
-    unlocked: Parameters<AuthMethodSessionInstaller>[0],
-    prepared: Awaited<ReturnType<typeof prepareAuthMethodNearSession>>,
-    deviceKeyId: DigestB64u,
-  ): Promise<AuthMethodUnlockSuccess> {
-    const walletId = unlocked.walletSession.walletId;
-    try {
-      const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
-      if (
-        unlocked.signal.aborted ||
-        selected.kind !== 'resolved' ||
-        selected.selection.lockGeneration !== expectedLockGeneration
-      )
-        throw new Error('Wallet lock state changed during unlock.');
-    } catch (error) {
-      prepared.activeClient.dispose();
-      throw error;
-    }
-    const cap = prepared.capability;
-    try {
-      await this.clearVolatileWarmSigningMaterial(walletId);
-      if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
-      await walletSessionAuthorizations.writeExactWithOperationCredential({
-        record: unlocked.walletSession,
-        operationCredential: unlocked.operationCredential,
-      });
-      await this.activateVerifiedNearEd25519YaoMaterial({
-        activeClient: prepared.activeClient,
-        facts: nearEd25519YaoOperationMaterialFacts(prepared.state),
-      });
-      await this.upsertEd25519YaoPublicCapabilityLaneReference({
-        walletId,
-        nearAccountId: cap.nearAccountId,
-        nearEd25519SigningKeyId: nearEd25519SigningKeyIdFromString(
-          cap.applicationBinding.near_ed25519_signing_key_id,
-        ),
-        signerSlot: cap.applicationBinding.key_creation_signer_slot,
-        auth: {
-          kind: 'voiceid',
-          walletAuthMethodId: unlocked.walletSession.authMethodId,
-          deviceKeyId,
-        },
-        thresholdSessionId: cap.lifecycle.thresholdSessionId,
-        runtimePolicyScope: cap.runtimePolicyScope,
-        materialActivation: cap.materialActivation,
-        expiresAtMs: unlocked.walletSession.expiresAtMs,
-        remainingUses: prepared.state.remainingUses,
-      });
-      await establishUnlockedExportRootCapabilityWithWorkerV1(
-        this.walletCustodyCeremonyTransportV1(),
-        {
-          existingEnvelope: unlocked.custodyEnvelope,
-          existingFactorSecret: unlocked.factorSecret32,
-          walletId,
-          walletAuthMethodId: unlocked.walletSession.authMethodId,
-          walletSessionId: unlocked.operationCredential.walletSessionId,
-          expiresAtMs: unlocked.walletSession.expiresAtMs,
-        },
-      );
-      await this.activateAuthenticatedWalletState({
-        walletId,
-        nearAccountId: cap.nearAccountId,
-        signerSlot: cap.applicationBinding.key_creation_signer_slot,
+    return await installAuthMethodSession(
+      {
+        engine: this,
+        relayerUrl: this.seamsWebConfigs.network.relayer.url,
         nearClient: this.nearClient,
-      });
-      if (!(await readAuthMethodEnabled(walletId, unlocked.walletSession.authMethodId))) throw new Error('VoiceID is turned off in this browser.');
-      if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
-      await IndexedDBManager.markWalletSelectionUnlockedAtGeneration({
-        walletId,
-        walletAuthMethodId: unlocked.walletSession.authMethodId,
-        unlockedAtMs: Date.now(),
-        expectedLockGeneration,
-      });
-      if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
-      this.voiceIdNearSessions.set(walletId, prepared.state);
-      this.setWalletAuthenticated({ kind: 'authenticated', walletId, authMethod: 'voiceid' });
-      return {
-        success: true,
-        kind: 'near_wallet_unlocked',
-        walletId,
-        loggedInNearAccountId: cap.nearAccountId,
-        nearAccountId: cap.nearAccountId,
-        operationalPublicKey: `ed25519:${base58Encode(Uint8Array.from(cap.registeredPublicKey))}`,
-      };
-    } catch (error) {
-      prepared.activeClient.dispose();
-      await this.clearVolatileWarmSigningMaterial(walletId);
-      await walletSessionAuthorizations.clearWallet(walletId);
-      await this.destroyUnlockedWalletEd25519ExportRootCapabilitiesV1({
-        kind: 'wallet_session',
-        walletSessionId: unlocked.operationCredential.walletSessionId,
-      });
-      this.clearWalletAuthentication();
-      throw error;
-    }
+        transport: this.walletCustodyCeremonyTransportV1(),
+        rememberNearSession: this.voiceIdNearSessions.set.bind(
+          this.voiceIdNearSessions,
+          unlocked.walletSession.walletId,
+        ),
+      },
+      expectedLockGeneration,
+      unlocked,
+    );
   }
 
   async withExactEd25519MaterialOwner<T>(args: {

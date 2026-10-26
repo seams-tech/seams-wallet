@@ -116,8 +116,33 @@ void (voiceWithoutAuthority satisfies OwnerLaneScope);
 
 declare const ecdsaIdentity: ExactEcdsaSigningLaneIdentity;
 const ecdsaWithVoice = { ...ecdsaIdentity, auth: voiceIdLane };
-// @ts-expect-error The NEAR VoiceID plugin cannot construct an ECDSA signing identity.
 void (ecdsaWithVoice satisfies ExactEcdsaSigningLaneIdentity);
+const invalidEcdsaVoice = { ...ecdsaWithVoice, auth: voiceWithPasskeyFields };
+// @ts-expect-error ECDSA VoiceID keeps its own factor identity.
+void (invalidEcdsaVoice satisfies ExactEcdsaSigningLaneIdentity);
+import type { ConcreteEcdsaExportAvailableLane } from '@/core/signingEngine/flows/recovery/ecdsaExportMaterial';
+declare const exportLane: ConcreteEcdsaExportAvailableLane;
+const voiceExportLane = { ...exportLane, auth: voiceIdLane };
+// @ts-expect-error VoiceID transaction authorization does not enable key export.
+void (voiceExportLane satisfies ConcreteEcdsaExportAvailableLane);
+
+
+import type { ExactEcdsaSealedRuntime } from '@/core/signingEngine/session/material/ecdsaSealedRuntime';
+import type { VoiceIdWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
+declare const voiceAuthority: VoiceIdWalletAuthAuthority;
+declare const sealedRuntime: ExactEcdsaSealedRuntime;
+const voiceSealedRuntime = {
+  ...sealedRuntime,
+  authBinding: { kind: 'voiceid' as const, voiceIdAuthority: voiceAuthority },
+};
+// @ts-expect-error VoiceID uses the active session and durable material, with no sealed-session fallback.
+void (voiceSealedRuntime satisfies ExactEcdsaSealedRuntime);
+import type { ExactEcdsaRuntimeAuthBinding } from '@/core/signingEngine/session/material/ecdsaSealedRuntime';
+declare const runtimePasskey: Extract<ExactEcdsaRuntimeAuthBinding, { kind: 'passkey' }>;
+const crossedRuntime = { ...runtimePasskey, voiceIdAuthority: voiceAuthority };
+// @ts-expect-error A passkey runtime cannot carry a VoiceID authority through a spread.
+void (crossedRuntime satisfies ExactEcdsaRuntimeAuthBinding);
+
 
 // @ts-expect-error A retry must provide an actionable message.
 const missingRetryMessage: AuthMethodApprovalResult = { kind: 'retry' };

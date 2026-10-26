@@ -1,3 +1,4 @@
+import { walletSessionRefFromSession } from '@/boundary/walletRefs';
 import { TransactionReviewAdmission } from '@/core/signingEngine/uiConfirm/transactionReviewAdmission';
 import {
   voiceIdPolicyForRequest,
@@ -163,6 +164,19 @@ class WalletJourney {
     this.signingDelayMs = milliseconds;
   }
 
+  async checkArcPolicy(mode: ArcPolicyCase): Promise<{ accepted: boolean; frozen: boolean; error: string }> {
+    const request = arcRequest(mode);
+    try {
+      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'));
+      if (policy.kind !== 'required') throw new Error('Arc did not require voice approval');
+      let error = '';
+      try { policy.approval.consume(); } catch (failure) { error = errorText(failure); }
+      return { accepted: true, frozen: Object.isFrozen(request.payload?.request.tx), error };
+    } catch (failure) {
+      return { accepted: false, frozen: false, error: errorText(failure) };
+    }
+  }
+
   async requestMainnetApproval(): Promise<void> {
     const request = transferRequest(++this.generation, 10_000, '1000');
     await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'));
@@ -249,12 +263,37 @@ function transferRequest(generation: number, timeoutMs: number, amount: string):
   };
 }
 
+type ArcPolicyCase = 'transfer' | 'mainnet' | 'wrong_chain' | 'calldata' | 'creation' | 'access_list' | 'unreviewed';
+
+function arcRequest(mode: ArcPolicyCase): Variant<ParentToChildEnvelope, 'type', 'PM_SIGN_TEMPO'> {
+  const near = transferRequest(1, 10_000, '1');
+  return {
+    type: 'PM_SIGN_TEMPO', requestId: near.requestId,
+    ...(mode === 'unreviewed' ? {} : { transactionReview: near.transactionReview }),
+    payload: {
+      operationKind: 'evm_transaction',
+      walletSession: walletSessionRefFromSession({ walletId: 'owner.testnet' }),
+      chainTarget: { kind: 'evm', namespace: 'eip155', networkSlug: mode === 'mainnet' ? 'arc-mainnet' : 'arc-testnet', chainId: 5_042_002 },
+      request: {
+        chain: 'evm', kind: 'eip1559', senderSignatureAlgorithm: 'secp256k1',
+        tx: {
+          chainId: mode === 'wrong_chain' ? 1 : 5_042_002,
+          to: mode === 'creation' ? null : '0x1111111111111111111111111111111111111111',
+          value: 1n, data: mode === 'calldata' ? '0xa9059cbb' : '0x',
+          accessList: mode === 'access_list' ? [{ address: '0x1111111111111111111111111111111111111111', storageKeys: [] }] : [],
+          gasLimit: 21_000n, maxFeePerGas: 2n, maxPriorityFeePerGas: 0n,
+        },
+      },
+    },
+  };
+}
+
 function journeyConfiguration(network: 'near-testnet' | 'near-mainnet') {
   const config = buildConfigsFromEnv({
     authMethods: [voiceIdAuthMethod()],
     relayer: { url: location.origin },
     iframeWallet: { walletOrigin: location.origin },
-    chains: [{ network, rpcUrl: location.origin, explorerUrl: location.origin }],
+    chains: [{ network, rpcUrl: location.origin, explorerUrl: location.origin }, { network: 'arc-testnet', chainId: 5_042_002, rpcUrl: location.origin }],
   });
   return applyWalletConfigurationUpdate(
     { kind: 'unconfigured' },

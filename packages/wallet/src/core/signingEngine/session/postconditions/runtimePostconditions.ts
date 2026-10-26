@@ -46,7 +46,7 @@ type UsableRuntimeLaneIdentity =
       thresholdSessionId: string;
     }
   | {
-      authMethod: Exclude<SignerAuthMethod, 'voiceid'>;
+      authMethod: SignerAuthMethod;
       target: { curve: 'ecdsa'; chainTarget: ThresholdEcdsaChainTarget };
       authorizationId: WalletSessionAuthorizationId;
       materialActivationId: string;

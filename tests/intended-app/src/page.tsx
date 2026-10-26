@@ -39,6 +39,7 @@ import {
 } from './recoveryAdministrationProbe';
 import { ReviewedSigning } from './ReviewedSigning';
 import { ReviewedNearTransfer } from './ReviewedNearTransfer';
+import { ReviewedArcTransfer } from './ReviewedArcTransfer';
 import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
 import { IntendedVoiceIdHelpers } from './voiceIdHelpers';
 
@@ -756,6 +757,7 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
           }}
         />
         <ReviewedNearTransfer walletId={state.walletId} />
+        <ReviewedArcTransfer walletId={state.walletId} />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>

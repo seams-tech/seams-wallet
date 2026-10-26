@@ -244,7 +244,7 @@ export async function resolveEvmFamilyTransactionStepUp(
     emailOtpAuthBridge?: EvmFamilyEmailOtpTransactionSigningBridge;
   }> {
     if (args.ecdsaAuthorization === 'operation_step_up') {
-      if (args.capability.authority.factor.kind === 'voiceid') throw new Error('VoiceID supports NEAR signing only.');
+      if (args.capability.authority.factor.kind === 'voiceid') throw new Error('Unlock this wallet with VoiceID again before signing.');
       if (isPasskeyWalletAuthAuthority(args.capability.authority)) {
         return {
           signingAuthPlan: {

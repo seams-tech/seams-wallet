@@ -4,7 +4,7 @@ Enable with `authMethods: [voiceIdAuthMethod()]`. The descriptor is small and
 loads no model code. The trusted Wallet registry loads `host.ts` on first use.
 The plugin owns browser microphone capture, three-sample enrollment, ReDimNet B1
 speaker matching, AuroraASR phrase recognition, WebCrypto device credentials, and the existing server proof
-exchange. SDK core owns custody installation, quotas, and NEAR MPC signing.
+exchange. SDK core owns custody installation, quotas, and NEAR/ECDSA MPC signing.
 
 Availability and selection are separate. Configuring the descriptor does not apply
 voice approval to passkey or Email OTP signing. The Wallet selects policy from the
@@ -23,7 +23,7 @@ It resolves with `{ kind: 'activated', walletId, walletAuthMethodId }`, or with
 `{ kind: 'cancelled' }` when the person closes the Wallet surface.
 The Wallet requests microphone permission and enrolls this wallet method through three
 Record clicks. For an existing method, the same command opens Manage voice. Later use `auth.unlockWithAuthMethod` with that wallet and method
-ID. A VoiceID-selected NEAR testnet transfer requires Confirm and a fresh voice match.
+ID. A VoiceID-selected NEAR or Arc testnet transfer requires Confirm and a fresh voice match.
 The button confirms intent. Read the displayed phrase at a normal pace. Use Cancel to cancel.
 
 `browser/` contains capture, model inference, enrollment, and device storage.
@@ -101,7 +101,7 @@ output is requested. Confirmation authorizes one local enrollment change only.
 Both ES256 and RS256 passkey credentials are supported. RS256 uses WebCrypto and
 the existing small CBOR dependency for its RSA public key. These are passkey algorithms.
 Wallet transaction signers remain ECDSA/secp256k1 and Ed25519. VoiceID signing currently
-supports Ed25519-Yao NEAR testnet transfers. The server must still recognize the
+supports Ed25519-Yao NEAR transfers and native ECDSA Arc transfers on testnet. The server must still recognize the
 same owner session before confirmation and before saving; no signing quota is consumed.
 
 Enrollment storage binds wallet, authority, method, and device key. An atomic commit

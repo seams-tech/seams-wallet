@@ -95,12 +95,13 @@ type NearTransactionSigningLaneInput =
   | ({ auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }> } & Ed25519PasskeySigningLaneInput)
   | Ed25519EmailOtpTransactionSigningLaneInput;
 
-type EcdsaPasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
-  EcdsaPasskeySigningLaneInput;
+type EcdsaStoredTransactionSigningLaneInput = {
+  auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }>;
+} & EcdsaPasskeySigningLaneInput;
 type EcdsaEmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   EcdsaEmailOtpSigningLaneInput;
 type EcdsaTransactionSigningLaneInput =
-  | EcdsaPasskeyTransactionSigningLaneInput
+  | EcdsaStoredTransactionSigningLaneInput
   | EcdsaEmailOtpTransactionSigningLaneInput;
 
 export function buildEd25519PasskeySigningLane(
@@ -150,8 +151,8 @@ function buildEd25519EmailOtpSigningLane(
   });
 }
 
-function buildEcdsaPasskeySigningLane(
-  input: PasskeySigningLaneAuthInput & EcdsaPasskeySigningLaneInput,
+function buildEcdsaStoredSigningLane(
+  input: EcdsaStoredTransactionSigningLaneInput,
 ): EcdsaTransactionSigningLane {
   const selectedLane = selectedEcdsaLane({
     key: input.key,
@@ -251,8 +252,8 @@ function buildEcdsaTransactionSigningLane(
   if (isEcdsaEmailOtpTransactionSigningLaneInput(input)) {
     return buildEcdsaEmailOtpSigningLane(input);
   }
-  if (isEcdsaPasskeyTransactionSigningLaneInput(input)) {
-    return buildEcdsaPasskeySigningLane(input);
+  if (isEcdsaStoredTransactionSigningLaneInput(input)) {
+    return buildEcdsaStoredSigningLane(input);
   }
   input satisfies never;
   throw new Error('[SigningSession] unsupported ECDSA lane auth');
@@ -270,10 +271,10 @@ function isEd25519EmailOtpTransactionSigningLaneInput(
   return input.auth.kind === 'email_otp';
 }
 
-function isEcdsaPasskeyTransactionSigningLaneInput(
+function isEcdsaStoredTransactionSigningLaneInput(
   input: EcdsaTransactionSigningLaneInput,
-): input is EcdsaPasskeyTransactionSigningLaneInput {
-  return input.auth.kind === 'passkey';
+): input is EcdsaStoredTransactionSigningLaneInput {
+  return input.auth.kind === 'passkey' || input.auth.kind === 'voiceid';
 }
 
 function isEcdsaEmailOtpTransactionSigningLaneInput(

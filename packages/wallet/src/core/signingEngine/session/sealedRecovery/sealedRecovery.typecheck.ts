@@ -3,7 +3,9 @@ import type { ExactEcdsaSigningLaneIdentity } from '../identity/exactSigningLane
 import type { EcdsaThresholdKeyId } from '../keyMaterialBrands';
 import type { RestorePersistedSessionForSigningInput } from './sealedRecovery.types';
 
-declare const ecdsaLane: ExactEcdsaSigningLaneIdentity;
+declare const ecdsaLane: ExactEcdsaSigningLaneIdentity & {
+  auth: Exclude<ExactEcdsaSigningLaneIdentity['auth'], { kind: 'voiceid' }>;
+};
 declare const ecdsaThresholdKeyId: EcdsaThresholdKeyId;
 declare const chainTarget: ThresholdEcdsaChainTarget;
 declare const thresholdSessionId: string;

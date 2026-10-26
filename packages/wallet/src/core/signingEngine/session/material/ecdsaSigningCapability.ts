@@ -12,7 +12,7 @@ import type { ResolveSelectedWalletAuthorityResultV1 } from '@/core/indexedDB/se
 import type {
   ExactEcdsaCapabilityRuntime,
   ExactEcdsaDirectCapabilityRuntime,
-  ExactEcdsaSealedRuntimeAuthBinding,
+  ExactEcdsaRuntimeAuthBinding,
   ExactEcdsaWalletSessionRuntime,
 } from './ecdsaSealedRuntime';
 import type {
@@ -34,6 +34,7 @@ import {
   type WalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type {
+  ActiveVoiceIdWalletAuthMethodRecordV2,
   ActiveEmailOtpWalletAuthMethodRecordV2,
   ActivePasskeyWalletAuthMethodRecordV2,
   ActiveWalletAuthMethodRecordV2,
@@ -47,12 +48,22 @@ type ExactEvmFamilyWalletSessionAuthorizationBase = {
 };
 
 type ExactPasskeyWalletSessionRuntime = ExactEcdsaWalletSessionRuntime & {
-  readonly authBinding: Extract<ExactEcdsaSealedRuntimeAuthBinding, { readonly kind: 'passkey' }>;
+  readonly authBinding: Extract<ExactEcdsaRuntimeAuthBinding, { readonly kind: 'passkey' }>;
 };
 
 type ExactEmailOtpWalletSessionRuntime = ExactEcdsaWalletSessionRuntime & {
-  readonly authBinding: Extract<ExactEcdsaSealedRuntimeAuthBinding, { readonly kind: 'email_otp' }>;
+  readonly authBinding: Extract<ExactEcdsaRuntimeAuthBinding, { readonly kind: 'email_otp' }>;
 };
+
+type ExactVoiceIdWalletSessionRuntime = ExactEcdsaDirectCapabilityRuntime & {
+  readonly authBinding: Extract<ExactEcdsaRuntimeAuthBinding, { kind: 'voiceid' }>;
+};
+
+type ExactVoiceIdEvmFamilyWalletSessionAuthorization =
+  ExactEvmFamilyWalletSessionAuthorizationBase & {
+    readonly selectedAuthMethod: ActiveVoiceIdWalletAuthMethodRecordV2;
+    readonly runtime: ExactVoiceIdWalletSessionRuntime;
+  };
 
 type ExactPasskeyEvmFamilyWalletSessionAuthorization =
   ExactEvmFamilyWalletSessionAuthorizationBase & {
@@ -67,6 +78,7 @@ type ExactEmailOtpEvmFamilyWalletSessionAuthorization =
   };
 
 export type ExactEvmFamilyWalletSessionAuthorization =
+  | ExactVoiceIdEvmFamilyWalletSessionAuthorization
   | ExactPasskeyEvmFamilyWalletSessionAuthorization
   | ExactEmailOtpEvmFamilyWalletSessionAuthorization;
 
@@ -104,6 +116,7 @@ export type AuthorizedEcdsaPreprocessingCapability = {
   readonly authorization: {
     readonly kind: 'ecdsa_preprocessing_session';
   } & (
+    | Omit<ExactVoiceIdEvmFamilyWalletSessionAuthorization, 'kind'>
     | Omit<ExactPasskeyEvmFamilyWalletSessionAuthorization, 'kind'>
     | Omit<ExactEmailOtpEvmFamilyWalletSessionAuthorization, 'kind'>
   );
@@ -187,6 +200,8 @@ function capabilityAuthorityMatchesRuntime(args: {
   const capabilityAuthority = args.capability.authority;
   const runtimeBinding = args.runtime.authBinding;
   switch (runtimeBinding.kind) {
+    case 'voiceid':
+      return walletAuthAuthoritiesMatch(capabilityAuthority, runtimeBinding.voiceIdAuthority);
     case 'email_otp':
       return (
         isEmailOtpWalletAuthAuthority(capabilityAuthority) &&
@@ -210,6 +225,14 @@ function selectedAuthMethodMatchesRuntime(args: {
   readonly runtime: ExactEcdsaWalletSessionRuntime;
 }): boolean {
   switch (args.runtime.authBinding.kind) {
+    case 'voiceid':
+      return (
+        args.selectedAuthMethod.kind === 'voiceid' &&
+        args.selectedAuthMethod.walletAuthMethodId ===
+          args.runtime.authBinding.voiceIdAuthority.bindingId &&
+        args.selectedAuthMethod.deviceKeyId ===
+          args.runtime.authBinding.voiceIdAuthority.factor.deviceKeyId
+      );
     case 'email_otp':
       return (
         args.selectedAuthMethod.kind === 'email_otp' &&
@@ -326,6 +349,15 @@ export function exactAuthorizationMatchesCapability(args: {
   return true;
 }
 
+function isExactVoiceIdWalletSessionRuntime(
+  runtime: ExactEcdsaWalletSessionRuntime,
+): runtime is ExactVoiceIdWalletSessionRuntime {
+  return (
+    runtime.kind === 'exact_ecdsa_direct_capability_runtime_v1' &&
+    runtime.authBinding.kind === 'voiceid'
+  );
+}
+
 function isExactPasskeyWalletSessionRuntime(
   runtime: ExactEcdsaWalletSessionRuntime,
 ): runtime is ExactPasskeyWalletSessionRuntime {
@@ -367,12 +399,23 @@ function buildPreprocessingSessionBinding(
       runtime: input.runtime,
     };
   }
+  if (
+    isExactVoiceIdWalletSessionRuntime(input.runtime) &&
+    input.selected.authMethod.kind === 'voiceid'
+  ) {
+    return {
+      kind: 'ecdsa_preprocessing_session',
+      selectedAuthority: input.selected.authority,
+      selectedAuthMethod: input.selected.authMethod,
+      session: input.session,
+      operationCredential: input.operationCredential,
+      runtime: input.runtime,
+    };
+  }
   throw new Error('ECDSA preprocessing session auth method is inconsistent');
 }
 
-function directRuntimeAuthBinding(
-  authority: WalletAuthAuthority,
-): ExactEcdsaSealedRuntimeAuthBinding {
+function directRuntimeAuthBinding(authority: WalletAuthAuthority): ExactEcdsaRuntimeAuthBinding {
   if (isPasskeyWalletAuthAuthority(authority)) {
     return {
       kind: 'passkey',
@@ -389,7 +432,7 @@ function directRuntimeAuthBinding(
     };
   }
   if (isVoiceIdWalletAuthAuthority(authority)) {
-    throw new Error('VoiceID supports NEAR signing only.');
+    return { kind: 'voiceid', voiceIdAuthority: authority };
   }
   authority satisfies never;
   throw new Error('ECDSA authority is unsupported.');
@@ -430,11 +473,16 @@ export function buildExactEcdsaDirectCapabilityRuntime(args: {
 }
 
 function exactEcdsaAuthBindingsMatch(
-  left: ExactEcdsaSealedRuntimeAuthBinding,
-  right: ExactEcdsaSealedRuntimeAuthBinding,
+  left: ExactEcdsaRuntimeAuthBinding,
+  right: ExactEcdsaRuntimeAuthBinding,
 ): boolean {
   if (left.kind !== right.kind) return false;
   switch (left.kind) {
+    case 'voiceid':
+      return (
+        right.kind === 'voiceid' &&
+        walletAuthAuthoritiesMatch(left.voiceIdAuthority, right.voiceIdAuthority)
+      );
     case 'email_otp':
       return (
         right.kind === 'email_otp' &&
@@ -571,6 +619,19 @@ export function signingAuthorizationFromPreprocessing(
   if (
     isExactEmailOtpWalletSessionRuntime(runtime) &&
     authorization.selectedAuthMethod.kind === 'email_otp'
+  ) {
+    return {
+      kind: 'exact_evm_family_wallet_session_authorization_v1',
+      selectedAuthority: authorization.selectedAuthority,
+      selectedAuthMethod: authorization.selectedAuthMethod,
+      session: authorization.session,
+      operationCredential: authorization.operationCredential,
+      runtime,
+    };
+  }
+  if (
+    isExactVoiceIdWalletSessionRuntime(runtime) &&
+    authorization.selectedAuthMethod.kind === 'voiceid'
   ) {
     return {
       kind: 'exact_evm_family_wallet_session_authorization_v1',

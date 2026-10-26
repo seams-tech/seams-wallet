@@ -623,7 +623,7 @@ export interface SigningSessionSurface {
 }
 
 export interface WalletAuthenticationSurface {
-  installAuthMethodNearSession(
+  installAuthMethodSession(
     expectedLockGeneration: number,
     unlocked: Parameters<AuthMethodSessionInstaller>[0],
   ): Promise<AuthMethodUnlockSuccess>;

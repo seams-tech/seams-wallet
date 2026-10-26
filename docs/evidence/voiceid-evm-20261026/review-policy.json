@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "transport": "deterministic_perception_boundary",
+  "transactionBroadcast": false,
+  "cases": [
+    "mainnet_and_unreviewed_requests_rejected",
+    "arc_mainnet_rejected",
+    "arc_wrong_chain_rejected",
+    "arc_calldata_rejected",
+    "arc_creation_rejected",
+    "arc_access_list_rejected",
+    "arc_unreviewed_rejected",
+    "arc_transfer_frozen_and_requires_fresh_voice",
+    "signing_without_voice_rejected",
+    "voice_review_cannot_prepare_a_passkey_lane",
+    "operation_frozen_before_voice_approval"
+  ]
+}

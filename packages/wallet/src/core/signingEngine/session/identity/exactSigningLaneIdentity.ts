@@ -84,7 +84,7 @@ export type ExactEd25519ExportMaterialIdentity<
 export type ExactEcdsaSigningLaneIdentity = {
   readonly kind: 'exact_signing_lane';
   readonly signer: EvmFamilyEcdsaSignerBinding;
-  readonly auth: Exclude<SigningLaneAuthBinding, { kind: 'voiceid' }>;
+  readonly auth: SigningLaneAuthBinding;
 };
 
 export type ExactSigningLaneIdentity =
@@ -630,7 +630,6 @@ function parseExactSigningLaneIdentity(value: unknown): ExactSigningLaneIdentity
       });
     }
     case 'evm_family_ecdsa_signer':
-      if (auth.kind === 'voiceid') throw new Error('VoiceID supports NEAR signing only.');
       return exactEcdsaSigningLaneIdentity({
         signer: parseEvmFamilyEcdsaSignerBinding(signerRecord),
         auth,

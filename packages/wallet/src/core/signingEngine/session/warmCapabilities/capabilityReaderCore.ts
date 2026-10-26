@@ -33,12 +33,18 @@ import {
   resolveExactEd25519SealedSessionRuntimeForWallet,
   type Ed25519WalletSealedSessionRuntimeResolution,
 } from './ed25519SealedSessionRuntime';
-import type { ExactEcdsaSealedRuntimeAuthBinding } from '../material/ecdsaSealedRuntime';
+import type { ExactEcdsaRuntimeAuthBinding } from '../material/ecdsaSealedRuntime';
 
 function signingLaneAuthBindingFromEcdsaRuntime(
-  authBinding: ExactEcdsaSealedRuntimeAuthBinding,
+  authBinding: ExactEcdsaRuntimeAuthBinding,
 ): ExactEcdsaSigningLaneIdentity['auth'] {
   switch (authBinding.kind) {
+    case 'voiceid':
+      return {
+        kind: 'voiceid',
+        walletAuthMethodId: authBinding.voiceIdAuthority.bindingId,
+        deviceKeyId: authBinding.voiceIdAuthority.factor.deviceKeyId,
+      };
     case 'passkey':
       return {
         kind: 'passkey',

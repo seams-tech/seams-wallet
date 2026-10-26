@@ -98,7 +98,7 @@ type ConcreteAvailableEcdsaSigningLaneAuth =
       linkedOwner?: never;
     }
   | {
-      auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
+      auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' | 'voiceid' }>;
       resolvedKey?: never;
       linkedOwner?: never;
     };
@@ -247,9 +247,9 @@ type EcdsaCanonicalLaneSelection =
       candidateFacts: readonly EcdsaLaneRecordFact[];
     };
 
-export function availableEcdsaSigningLaneAuthMethod(
-  lane: Pick<ConcreteAvailableEcdsaSigningLane, 'auth'>,
-): 'passkey' | 'email_otp' {
+export function availableEcdsaSigningLaneAuthMethod<T extends Pick<ConcreteAvailableEcdsaSigningLane, 'auth'>>(
+  lane: T,
+): T['auth']['kind'] {
   return lane.auth.kind;
 }
 
@@ -1782,7 +1782,7 @@ function ownerAuthorityMatchesLane(
   lane: AvailableEcdsaSigningLane,
   scope: OwnerLaneScope,
 ): boolean {
-  const ownerAuthority = scope.auth.kind === 'email_otp' ? scope.ownerAuthority : undefined;
+  const ownerAuthority = scope.auth.kind === 'passkey' ? undefined : scope.ownerAuthority;
   if (!ownerAuthority) return true;
   if (lane.curve === 'ecdsa' && lane.source === 'active_wallet_authority') {
     return (

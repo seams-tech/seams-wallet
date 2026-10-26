@@ -61,9 +61,19 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
 
   await expect(page.evaluate(mainnetApproval)).rejects.toThrow('requires NEAR testnet');
   await expect(page.evaluate(unreviewedApproval)).rejects.toThrow(
-    'requires a reviewed NEAR transfer',
+    'requires a reviewed NEAR or Arc testnet transfer',
   );
   cases.push('mainnet_and_unreviewed_requests_rejected');
+  const arc = await page.evaluate(checkArcPolicy, 'transfer');
+  expect(arc.accepted).toBe(true);
+  expect(arc.frozen).toBe(true);
+  expect(arc.error).toContain('current voice approval');
+  for (const mode of ['mainnet', 'wrong_chain', 'calldata', 'creation', 'access_list', 'unreviewed'] as const) {
+    expect((await page.evaluate(checkArcPolicy, mode)).accepted).toBe(false);
+    cases.push(`arc_${mode}_rejected`);
+  }
+  cases.push('arc_transfer_frozen_and_requires_fresh_voice');
+
 
   await begin(page, 10_000);
   expect(await page.evaluate(tryPasskeySelection)).toContain('authentication method changed');
@@ -132,4 +142,8 @@ async function settled(page: Page, result: string, count: number): Promise<void>
 
 function tryPasskeySelection(): string {
   return window.voiceJourney.trySelectingPasskey();
+}
+
+function checkArcPolicy(mode: Parameters<Window['voiceJourney']['checkArcPolicy']>[0]) {
+  return window.voiceJourney.checkArcPolicy(mode);
 }

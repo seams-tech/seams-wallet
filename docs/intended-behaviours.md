@@ -108,7 +108,7 @@ authentication method from its trusted authority selection. Passkey and Email OT
 signing bypass VoiceID policy, UI, model, and inference-runtime loading, even when
 VoiceID is available or enrolled. Enrollment preserves the owner's current method.
 Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
-A VoiceID-selected wallet requires the enabled plugin and a reviewed NEAR transfer.
+A VoiceID-selected wallet requires the enabled plugin and a reviewed NEAR or Arc testnet transfer.
 The prepared signing method must match the admitted review policy. Switching between
 voice and built-in methods during preparation requires another review; a VoiceID lane cannot sign through a review without voice
 approval or through an unreviewed path.
@@ -303,12 +303,33 @@ an older unlock from committing. Failure leaves the wallet locked and clears
 volatile signing state. The plugin erases its factor buffer after installation.
 
 Missing custody requires another owner unlock. Reload requires a fresh VoiceID
-unlock. ECDSA signing and key export retain their supported owner methods.
+unlock. Key export retains its supported owner methods.
 
-### Reviewed NEAR transfers
+### Reviewed NEAR and Arc transfers
 
-This prototype supports one reviewed NEAR testnet transfer per request. Other
-signing routes and reviews without an expiry fail while VoiceID is enabled.
+This prototype supports one reviewed NEAR testnet transfer or one Arc testnet
+native EIP-1559 transfer per request. Arc must be configured with chain ID 5042002.
+The request requires an address recipient, empty calldata, and an empty access list.
+Mainnet, Tempo, token transfers, contract calls, contract creation, and reviews
+without an expiry fail when the selected method is VoiceID.
+
+VoiceID unlock also supports ECDSA-only wallets. After the factor opens the existing
+seed envelope, the installer resolves the exact authorized ECDSA material activation.
+It uses the existing same-authority continuity copy for a missing method projection.
+An active sibling method must belong to the same wallet authority. Existing voice
+enrollment and models remain unchanged. The ECDSA worker opens that material before
+unlock commits. Failure or a concurrent lock clears volatile material and the session.
+
+ECDSA signing pairs the durable material with the issued VoiceID Wallet Session and
+live quota status. It does not mint a second session or restore a passkey sealed
+session. The selected method, device, authority, activation, chain membership,
+revocation epoch, expiry, and quota must match. Expired or exhausted sessions require
+another VoiceID unlock. The signature must recover the wallet's original ECDSA address.
+
+The [Arc contract](../tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts)
+uses real browser voice inference and ECDSA MPC with deterministic Arc RPC responses.
+It verifies the signed self-transfer bytes and cancellation of a second review.
+A live-chain receipt is separate evidence.
 The Wallet freezes and hashes the complete request and execution configuration.
 Confirm replaces the review contents with the plugin's minimal voice prompt and
 starts browser speaker and phrase checks for that review. The Wallet retains the
