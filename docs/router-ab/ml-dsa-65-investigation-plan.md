@@ -1,7 +1,13 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: canceled-admission retirement, primary-B loadShed, and long publication waits.
+Current priority: measure the admission and refill performance candidate on Cloudflare.
+The [candidate](ml-dsa-65-admission-refill-report.md) reclaims untouched expired reservations only after exact Declined authority.
+It publishes each role's complete refill job in one bounded transaction. Consumption remains two candidates at a time.
+The real-Worker before/after test reproduces the old loss and retains all sixteen pairs with the candidate.
+A fresh verified signature consumes reclaimed material. All three signatures and the native lifecycle E2E pass.
+The hosted run awaits explicit approval for its eight new Workers and fresh test credentials.
+No hosted speed improvement is claimed. Measure the larger publication transaction and extra inventory scan before selecting them.
 The [publication completion fix](ml-dsa-65-publication-completion-report.md) passes the composed local Worker lifecycle.
 Exact historical publication evidence survives consumption and prevents false failure after a lost final reply.
 Inspection errors preserve recovery. Lease expiry keeps the existing interrupted-job behavior.

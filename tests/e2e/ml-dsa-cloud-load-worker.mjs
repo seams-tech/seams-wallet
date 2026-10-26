@@ -8,6 +8,8 @@ const PUBLIC_LOG_FIELDS = {
     'job', 'role', 'producer_slot', 'stage', 'topology_builds', 'topology_hits',
     'public_topology_bytes', 'active_crypto', 'module_instance', 'at_ms',
   ],
+  ml_dsa_expired_reservation_v1: ['operation', 'settlement', 'batches'],
+  ml_dsa_durable_boundary_v1: ['call_id', 'command', 'job', 'operation', 'stage', 'state', 'sequence', 'observation', 'at_ms'],
   ml_dsa_admission_stock_v1: ['operation', 'paired', 'minimum', 'stage'],
   ml_dsa_inventory_v1: ['key', 'epoch', 'ready_a', 'ready_b', 'reserved_a', 'reserved_b'],
   ml_dsa_signing_outcome_v1: ['operation', 'outcome'],

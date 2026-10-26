@@ -209,8 +209,7 @@ pub enum RoleCommand {
     },
     Put {
         job: refill::Job,
-        binding: Binding,
-        sealed: Sealed,
+        batches: Vec<(Binding, Sealed)>,
     },
     Inventory {
         key: KeyScope,
@@ -237,8 +236,9 @@ impl RoleCommand {
         match self {
             Self::InitializeRegistrationStorage { claim }
             | Self::InstallRegistrationStock { claim, .. } => &claim.request.wallet,
-            Self::Put { binding, .. } => &binding.key.wallet,
-            Self::StartRefill { job } | Self::PublicationRecorded { job } => &job.key.wallet,
+            Self::Put { job, .. }
+            | Self::StartRefill { job }
+            | Self::PublicationRecorded { job } => &job.key.wallet,
             Self::CheckMaterial { activation } => &activation.key.wallet,
             Self::InstallMaterial { record } => &record.activation.key.wallet,
             Self::LoadSigningInputs { permit } | Self::Take { permit, .. } => {
@@ -649,6 +649,11 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         if let Some(trace) = &trace {
             trace.mark("authorized");
         }
+        if let RoleCommand::Inventory { key, .. } = &command {
+            recover_expired_reservations(&self.env, &self.state, key)
+                .await
+                .map_err(protocol_error)?;
+        }
         let waking = matches!(command, RoleCommand::WakeRefill { .. });
         if role == Participant::A && !waking && preparation::refill_key(&command).is_some() {
             durable_trace::observe(
@@ -684,6 +689,46 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         preparation::alarm(&self.env, &self.state).await
     }
 }
+/// Network authority checks stay outside storage transactions and preserve unexposed material.
+async fn recover_expired_reservations(env: &Env, state: &State, key: &KeyScope) -> Result<()> {
+    let key = key.clone();
+    let now = crate::cloudflare_now_unix_ms_v1()?;
+    let expired = transaction(state, move |store| async move {
+        pool::expired_reservations(&store, &key, now).await
+    })
+    .await?;
+    for reservation in expired {
+        let status: Option<Status> = service_call(
+            env,
+            CallAuthority::Internal,
+            &AdmissionCommand::Lookup {
+                request: reservation.request.clone(),
+            },
+        )
+        .await?;
+        let settlement = match status {
+            Some(Status::Declined) => pool::Settlement::Declined,
+            // Once admitted, peer consumption can be unknown. Preserve conservative retirement.
+            Some(Status::Failed | Status::Succeeded { .. }) => pool::Settlement::Failed,
+            _ => continue,
+        };
+        let operation = reservation.request.operation;
+        let batches = reservation.batches.clone();
+        transaction(state, move |store| async move {
+            pool::settle_expired(&store, &reservation, settlement).await
+        })
+        .await?;
+        worker::console_log!(
+            "{}",
+            serde_json::json!({
+                "event": "ml_dsa_expired_reservation_v1", "operation": hex(&operation),
+                "settlement": settlement, "batches": batches.iter().map(|id| hex(id)).collect::<Vec<_>>(),
+            })
+        );
+    }
+    Ok(())
+}
+
 async fn role_transaction(
     state: &State,
     role: Participant,
@@ -969,8 +1014,13 @@ async fn execute_role(
             })
         }
         RoleCommand::PublicationRecorded { job } => json(
-            pool::publication_recorded(store, &job.key, &job.batch_ids(), job.material_expires_at_ms)
-                .await?,
+            pool::publication_recorded(
+                store,
+                &job.key,
+                &job.batch_ids(),
+                job.material_expires_at_ms,
+            )
+            .await?,
         ),
         RoleCommand::Inspect { key, batches } => json(pool::inspect(store, &key, &batches).await?),
         RoleCommand::RetireUnpaired { key, batches } => {
@@ -992,15 +1042,22 @@ async fn execute_role(
             pool::install_key(store, key).await?;
             json(true)
         }
-        RoleCommand::Put {
-            job,
-            binding,
-            sealed,
-        } => {
-            if binding.role != role {
-                return Err(invalid("ML-DSA material belongs to another role"));
+        RoleCommand::Put { job, batches } => {
+            let expected = job.batch_ids();
+            if batches.len() != expected.len()
+                || batches
+                    .iter()
+                    .zip(&expected)
+                    .any(|((binding, _), id)| binding.batch != *id || binding.role != role)
+            {
+                return Err(invalid(
+                    "ML-DSA publication differs from its complete role job",
+                ));
             }
-            refill::publish_role(store, &job, binding, sealed, now).await?;
+            // The transaction publishes the bounded job together or rolls back every pair.
+            for (binding, sealed) in batches {
+                refill::publish_role(store, &job, binding, sealed, now).await?;
+            }
             json(true)
         }
         RoleCommand::Inventory {
