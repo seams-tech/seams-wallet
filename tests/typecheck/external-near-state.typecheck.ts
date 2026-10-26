@@ -27,3 +27,25 @@ const unknownWallet: ExternalNearWalletId = 'ledger';
 void hot;
 void intear;
 void unknownWallet;
+
+import { ExternalNearController, type ExternalNearConfig } from '@/externalNear';
+// @ts-expect-error Applications must explicitly choose which wallets to enable.
+const missingWallets: ExternalNearConfig = {
+  network: 'testnet',
+  rpcUrl: 'https://rpc.testnet.near.org',
+};
+// @ts-expect-error A connecting state must retain the selected wallet identity.
+const missingPendingWallet: ExternalNearState = { kind: 'connecting' };
+const configured = new ExternalNearController({
+  network: 'testnet',
+  rpcUrl: 'https://rpc.testnet.near.org',
+  wallets: ['meteor'],
+});
+// @ts-expect-error An unsupported wallet cannot enter configuration through a spread.
+const invalidConfiguration: ExternalNearConfig = { ...missingWallets, wallets: ['ledger'] };
+// @ts-expect-error Consumers cannot mutate the controller's allowed-wallet snapshot.
+configured.getSnapshot().wallets.push('hot');
+// @ts-expect-error The setter accepts only known wallet identifiers.
+configured.setWallets(['ledger']);
+void missingPendingWallet;
+void invalidConfiguration;

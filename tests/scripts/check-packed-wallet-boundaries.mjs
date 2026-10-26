@@ -140,11 +140,14 @@ async function smokePackedEntries() {
   const externalNear = await import(
     path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/externalNear/index.js')
   );
-  const near = new externalNear.ExternalNearController('testnet', 'https://rpc.testnet.near.org');
+  const near = new externalNear.ExternalNearController({
+    network: 'testnet',
+    rpcUrl: 'https://rpc.testnet.near.org',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   assert.equal(near.getSnapshot().connection.kind, 'disconnected');
   near.disconnect();
   assert.equal(near.getSnapshot().busy, false);
-
 
   const authMenu = await import(
     path.join(

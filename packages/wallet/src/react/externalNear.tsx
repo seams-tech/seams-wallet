@@ -4,6 +4,7 @@ import {
   type ExternalNearController,
   type ExternalNearSnapshot,
   type ExternalNearWalletId,
+  type ExternalNearNetwork,
 } from '../externalNear';
 import './externalNear.css';
 
@@ -33,49 +34,30 @@ export class ExternalNearWalletPicker extends Component<
       message: result.ok ? `Connected to ${nearWalletName(wallet)}.` : result.message,
     });
   };
-  private connectMeteor = (): void => {
-    void this.connect('meteor');
-  };
-  private connectHot = (): void => {
-    void this.connect('hot');
-  };
-  private connectIntear = (): void => {
-    void this.connect('intear');
-  };
   private disconnect = (): void => {
     this.props.controller.disconnect();
     this.setState({ message: 'Disconnected from Seams. Manage site permissions in your wallet.' });
   };
   render() {
-    const { connection, busy } = this.state.snapshot;
-    const hotUnavailable = this.props.controller.network !== 'mainnet';
+    const { connection, busy, wallets } = this.state.snapshot;
+    const choices = [];
+    for (const wallet of wallets) {
+      choices.push(
+        <NearWalletButton
+          key={wallet}
+          wallet={wallet}
+          network={this.props.controller.network}
+          busy={busy}
+          onConnect={this.connect}
+        />,
+      );
+    }
     return (
       <section aria-label="Choose your NEAR wallet" className="seams-near-picker">
         <h2>Choose your NEAR wallet</h2>
         <p className="seams-near-network">NEAR {this.props.controller.network}</p>
-        <div className="seams-near-wallets">
-          <button type="button" disabled={busy} onClick={this.connectMeteor}>
-            <span className="seams-near-icon seams-near-meteor" aria-hidden="true">
-              M
-            </span>
-            <strong>Meteor Wallet</strong>
-            <small>Browser extension</small>
-          </button>
-          <button type="button" disabled={busy || hotUnavailable} onClick={this.connectHot}>
-            <span className="seams-near-icon" aria-hidden="true">
-              🔥
-            </span>
-            <strong>HOT Wallet</strong>
-            <small>{hotUnavailable ? 'Mainnet only' : 'Browser extension'}</small>
-          </button>
-          <button type="button" disabled={busy} onClick={this.connectIntear}>
-            <span className="seams-near-icon seams-near-intear" aria-hidden="true">
-              I
-            </span>
-            <strong>Intear Wallet</strong>
-            <small>Opens wallet.intear.tech</small>
-          </button>
-        </div>
+        <div className="seams-near-wallets">{choices}</div>
+        {wallets.length === 0 && <p>No NEAR wallets are enabled.</p>}
         {connection.kind === 'connected' && (
           <p>
             {nearWalletName(connection.wallet)} · {connection.accountId}
@@ -93,4 +75,32 @@ export class ExternalNearWalletPicker extends Component<
       </section>
     );
   }
+}
+
+const walletIcons: Record<ExternalNearWalletId, string> = { meteor: 'M', hot: '🔥', intear: 'I' };
+
+function NearWalletButton({
+  wallet,
+  network,
+  busy,
+  onConnect,
+}: {
+  wallet: ExternalNearWalletId;
+  network: ExternalNearNetwork;
+  busy: boolean;
+  onConnect: (wallet: ExternalNearWalletId) => Promise<void>;
+}) {
+  const unavailable = wallet === 'hot' && network !== 'mainnet';
+  let description = 'Browser extension';
+  if (wallet === 'intear') description = 'Opens wallet.intear.tech';
+  if (unavailable) description = 'Mainnet only';
+  return (
+    <button type="button" disabled={busy || unavailable} onClick={onConnect.bind(null, wallet)}>
+      <span className={`seams-near-icon seams-near-${wallet}`} aria-hidden="true">
+        {walletIcons[wallet]}
+      </span>
+      <strong>{nearWalletName(wallet)}</strong>
+      <small>{description}</small>
+    </button>
+  );
 }

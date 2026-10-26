@@ -1,6 +1,7 @@
 export { ExternalNearController } from './controller';
 export type {
   ExternalNearConnection,
+  ExternalNearConfig,
   ExternalNearWalletId,
   ExternalNearNetwork,
   ExternalNearOutcome,

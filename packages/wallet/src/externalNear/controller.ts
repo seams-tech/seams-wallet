@@ -4,6 +4,7 @@ import type { TransactionInput } from '../core/types/actions';
 import { executionStatus, parseAccounts, parseSubmission, validateTransaction } from './boundary';
 import type {
   ExternalNearConnection,
+  ExternalNearConfig,
   ExternalNearNetwork,
   ExternalNearOutcome,
   ExternalNearResult,
@@ -26,18 +27,38 @@ function failure(
 }
 
 export class ExternalNearController {
-  private snapshot: ExternalNearSnapshot = { connection: { kind: 'disconnected' }, busy: false };
+  private snapshot: ExternalNearSnapshot;
+  private enabledWallets: readonly ExternalNearWalletId[];
+  readonly network: ExternalNearNetwork;
+  private readonly rpcUrl: string;
   private listeners = new Set<() => void>();
   private generation = 0;
   private provider: NearWalletProvider | null = null;
   private pending = false;
-  constructor(
-    readonly network: ExternalNearNetwork,
-    private readonly rpcUrl: string,
-  ) {
-    const url = new URL(rpcUrl);
+  constructor(config: ExternalNearConfig) {
+    if (config.network !== 'mainnet' && config.network !== 'testnet') {
+      throw new Error('Use mainnet or testnet for the NEAR network.');
+    }
+    const url = new URL(config.rpcUrl);
     if (url.protocol !== 'https:' && url.protocol !== 'http:')
       throw new Error('Use an HTTP NEAR RPC URL.');
+    this.network = config.network;
+    this.rpcUrl = config.rpcUrl;
+    this.enabledWallets = normalizeWallets(config.wallets);
+    this.snapshot = Object.freeze<ExternalNearSnapshot>({
+      connection: { kind: 'disconnected' },
+      busy: false,
+      wallets: this.enabledWallets,
+    });
+  }
+  setWallets(wallets: readonly ExternalNearWalletId[]): void {
+    this.enabledWallets = normalizeWallets(wallets);
+    const connection = this.snapshot.connection;
+    if (connection.kind !== 'disconnected' && !this.enabledWallets.includes(connection.wallet)) {
+      this.disconnect();
+      return;
+    }
+    this.publish(connection);
   }
   getSnapshot = (): ExternalNearSnapshot => this.snapshot;
   subscribe = (listener: () => void): (() => void) => {
@@ -48,10 +69,12 @@ export class ExternalNearController {
     this.listeners.delete(listener);
   }
   private publish(connection: ExternalNearSnapshot['connection']): void {
-    this.snapshot = Object.freeze({ connection, busy: this.pending });
+    this.snapshot = Object.freeze({ connection, busy: this.pending, wallets: this.enabledWallets });
     for (const listener of this.listeners) listener();
   }
   async connect(wallet: ExternalNearWalletId): Promise<ExternalNearResult<ExternalNearConnection>> {
+    if (!this.enabledWallets.includes(wallet))
+      return failure('unavailable', 'This wallet is disabled for this application.');
     if (this.pending) return failure('pending_request', 'Complete the pending wallet request.');
     if (wallet === 'hot' && this.network !== 'mainnet') {
       return failure('unavailable', 'HOT Wallet is available on mainnet only.');
@@ -59,8 +82,10 @@ export class ExternalNearController {
     this.disconnect();
     this.pending = true;
     const generation = ++this.generation;
-    this.publish({ kind: 'connecting' });
+    this.publish({ kind: 'connecting', wallet });
     try {
+      if (generation !== this.generation)
+        return failure('connection_changed', 'Wallet selection changed.');
       const provider = await createNearWalletProvider(wallet, this.rpcUrl);
       if (generation !== this.generation) {
         provider.dispose();
@@ -167,4 +192,16 @@ export class ExternalNearController {
       return { kind: 'unresolved', submission };
     }
   }
+}
+
+function normalizeWallets(
+  wallets: readonly ExternalNearWalletId[],
+): readonly ExternalNearWalletId[] {
+  if (!Array.isArray(wallets)) throw new Error('Provide an explicit wallet list.');
+  const enabled: ExternalNearWalletId[] = [];
+  for (const wallet of wallets) {
+    nearWalletName(wallet);
+    if (!enabled.includes(wallet)) enabled.push(wallet);
+  }
+  return Object.freeze(enabled);
 }

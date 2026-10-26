@@ -50,6 +50,26 @@ Seamsウォレットも提供する場合は、選択中のウォレットの種
 Intearはポップアップへのリクエストを認証するため、メモリー内に一時鍵を作成します。
 この鍵をオンチェーンの署名鍵として登録することはありません。
 
+## 対応ウォレットを選ぶ {#choose-supported-wallets}
+
+各ウォレットは明示的に有効化します。コントローラーの`wallets`に指定してください。
+
+- `['meteor']`：Meteorだけを有効にします。
+- `['meteor', 'hot']`：MeteorとHOTをこの順序で有効にします。
+- `['meteor', 'hot', 'intear']`：3つすべてを有効にします。
+- `[]`：外部NEARウォレットをすべて無効にします。
+
+セレクターには、指定したウォレットだけを表示します。
+無効な選択肢に`connect`を呼ぶと、アダプターを読み込まず、現在の接続も変更せずに`unavailable`を返します。
+HOTは有効にしてもメインネット専用です。
+
+実行中に変更する場合は、`controller.setWallets(['meteor', 'hot'])`を呼びます。
+セレクターも自動で更新されます。接続済みまたは接続処理中のウォレットをリストから外すと、
+ローカルで切断し、準備中の操作を無効にします。送信済み取引の取り消しや、外部ウォレット側の権限の取り消しは行いません。
+
+コントローラーはリストをコピーし、重複するIDを除去して、指定順序を保持します。
+元の配列を書き換えても設定は変わりません。変更には`setWallets`を使用してください。
+
 ## Reactの実装例 {#react-example}
 
 まず組み込みのウォレットセレクターを使用します。
@@ -84,15 +104,16 @@ Seamsのプロバイダーは不要です。
 React向けの機能は`@seams/wallet/react/external-near`にあります。
 `@seams/wallet/react`とは別のインポート先です。
 
-| API                                           | 動作                                                                                                                             |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `new ExternalNearController(network, rpcUrl)` | `mainnet`または`testnet`と、そのネットワークのHTTP(S) RPC URLを設定します。不正なURLでは例外が発生します。                       |
-| `connect(wallet)`                             | `meteor`、`hot`、`intear`への接続を要求します。`ExternalNearResult<ExternalNearConnection>`を返します。                          |
-| `getSnapshot()`                               | `connection`と`busy`を取得します。接続状態は`disconnected`、`connecting`、`connected`のいずれかです。                            |
-| `subscribe(listener)`                         | スナップショットの変更を購読します。購読を解除する関数を返します。                                                               |
-| `sendTransaction(connection, input)`          | 現在の接続スナップショットを使用し、送金または関数呼び出しを送信します。`ExternalNearResult<ExternalNearSubmission>`を返します。 |
-| `checkOutcome(submission)`                    | 保存したハッシュ、アカウント、ネットワークに基づきRPCで状態を確認します。`confirmed`、`failed`、`unresolved`を返します。         |
-| `disconnect()`                                | ローカルの権限状態を消去し、アダプターを破棄して、保留中の処理を無効にします。                                                   |
+| API                                                        | 動作                                                                                                                             |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `new ExternalNearController({ network, rpcUrl, wallets })` | ネットワーク、そのHTTP(S) RPC URL、有効なウォレットのリストを必ず指定します。不正な設定では例外が発生します。                    |
+| `connect(wallet)`                                          | `meteor`、`hot`、`intear`への接続を要求します。`ExternalNearResult<ExternalNearConnection>`を返します。                          |
+| `setWallets(wallets)`                                      | 有効なウォレットを更新し、削除した接続中のウォレットを切断します。                                                               |
+| `getSnapshot()`                                            | `wallets`、`connection`、`busy`を取得します。接続状態は`disconnected`、`connecting`、`connected`のいずれかです。                 |
+| `subscribe(listener)`                                      | スナップショットの変更を購読します。購読を解除する関数を返します。                                                               |
+| `sendTransaction(connection, input)`                       | 現在の接続スナップショットを使用し、送金または関数呼び出しを送信します。`ExternalNearResult<ExternalNearSubmission>`を返します。 |
+| `checkOutcome(submission)`                                 | 保存したハッシュ、アカウント、ネットワークに基づきRPCで状態を確認します。`confirmed`、`failed`、`unresolved`を返します。         |
+| `disconnect()`                                             | ローカルの権限状態を消去し、アダプターを破棄して、保留中の処理を無効にします。                                                   |
 
 アカウントは、ウォレットの接続確認画面で選択します。
 接続済み状態には`wallet`、`accountId`、`network`、`generation`があります。

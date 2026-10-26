@@ -48,6 +48,27 @@ The wallet retains its signing keys and approval UI. The connector requests no
 on-chain function-call key. Intear creates an in-memory key to authenticate popup
 requests; this key never becomes an on-chain signing key.
 
+## Choose supported wallets
+
+Every wallet is opt-in. Configure the controller's `wallets` list:
+
+- `['meteor']` enables Meteor only.
+- `['meteor', 'hot']` enables Meteor and HOT, in that order.
+- `['meteor', 'hot', 'intear']` enables all three.
+- `[]` disables all external NEAR wallets.
+
+Only configured wallets appear in the picker. Calling `connect` for a disabled
+wallet returns `unavailable` without loading its adapter or changing the active
+connection. HOT still requires mainnet even when enabled.
+
+To change the selection at runtime, call `controller.setWallets(['meteor', 'hot'])`.
+The picker updates automatically. Removing an active or connecting wallet disconnects
+it locally and invalidates prepared operations. This does not undo a submitted
+transaction or revoke permissions in the external wallet.
+
+The controller copies the list, removes duplicate IDs, and preserves its order.
+Use `setWallets` to change it; mutating your original array has no effect.
+
 ## React example
 
 Start with the built-in wallet picker. It handles wallet selection, connection,
@@ -81,15 +102,16 @@ For a custom UI or a framework-independent application, import
 `ExternalNearController` from `@seams/wallet/external-near`. React bindings live at
 `@seams/wallet/react/external-near`; they are separate from `@seams/wallet/react`.
 
-| API                                           | Behavior                                                                                                                              |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `new ExternalNearController(network, rpcUrl)` | Configure `mainnet` or `testnet` and its HTTP(S) RPC URL. Invalid URL configuration throws.                                           |
-| `connect(wallet)`                             | Request a connection to `meteor`, `hot`, or `intear`. Return an `ExternalNearResult<ExternalNearConnection>`.                         |
-| `getSnapshot()`                               | Read `connection` and `busy`. Connection is `disconnected`, `connecting`, or `connected`.                                             |
-| `subscribe(listener)`                         | Observe snapshot changes. Return an unsubscribe function.                                                                             |
-| `sendTransaction(connection, input)`          | Submit transfers or function calls with the exact current connected snapshot. Return an `ExternalNearResult<ExternalNearSubmission>`. |
-| `checkOutcome(submission)`                    | Check the captured hash, account, and network through RPC. Return `confirmed`, `failed`, or `unresolved`.                             |
-| `disconnect()`                                | Clear local authority, dispose the adapter, and invalidate pending work.                                                              |
+| API                                                        | Behavior                                                                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `new ExternalNearController({ network, rpcUrl, wallets })` | Require a network, its HTTP(S) RPC URL, and an explicit wallet list. Invalid configuration throws.                                    |
+| `connect(wallet)`                                          | Request a connection to `meteor`, `hot`, or `intear`. Return an `ExternalNearResult<ExternalNearConnection>`.                         |
+| `setWallets(wallets)`                                      | Update the allowed wallets and disconnect a removed active wallet.                                                                    |
+| `getSnapshot()`                                            | Read `wallets`, `connection`, and `busy`. Connection is `disconnected`, `connecting`, or `connected`.                                 |
+| `subscribe(listener)`                                      | Observe snapshot changes. Return an unsubscribe function.                                                                             |
+| `sendTransaction(connection, input)`                       | Submit transfers or function calls with the exact current connected snapshot. Return an `ExternalNearResult<ExternalNearSubmission>`. |
+| `checkOutcome(submission)`                                 | Check the captured hash, account, and network through RPC. Return `confirmed`, `failed`, or `unresolved`.                             |
+| `disconnect()`                                             | Clear local authority, dispose the adapter, and invalidate pending work.                                                              |
 
 Choose the account in the wallet's connection prompt. Connected state contains
 `wallet`, `accountId`, `network`, and `generation`. The generation identifies the

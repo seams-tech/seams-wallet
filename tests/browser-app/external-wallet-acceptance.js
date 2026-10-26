@@ -1,8 +1,16 @@
 import { ExternalNearController } from '../../packages/wallet/dist/esm/externalNear/index.js';
 
 const rpc = 'https://rpc.testnet.near.org';
-const controller = new ExternalNearController('testnet', rpc);
-const hotController = new ExternalNearController('mainnet', 'https://rpc.mainnet.near.org');
+const controller = new ExternalNearController({
+  network: 'testnet',
+  rpcUrl: rpc,
+  wallets: ['meteor', 'intear'],
+});
+const hotController = new ExternalNearController({
+  network: 'mainnet',
+  rpcUrl: 'https://rpc.mainnet.near.org',
+  wallets: ['hot'],
+});
 const hotResult = document.getElementById('hot-result');
 const availability = document.getElementById('availability');
 const result = document.getElementById('result');

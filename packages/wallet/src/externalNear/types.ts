@@ -3,6 +3,12 @@ import type { TransactionInput } from '../core/types/actions';
 export type ExternalNearWalletId = 'meteor' | 'hot' | 'intear';
 
 export type ExternalNearNetwork = 'mainnet' | 'testnet';
+
+export type ExternalNearConfig = Readonly<{
+  network: ExternalNearNetwork;
+  rpcUrl: string;
+  wallets: readonly ExternalNearWalletId[];
+}>;
 export type ExternalNearResult<T> =
   | { readonly ok: true; readonly value: T; readonly code?: never; readonly message?: never }
   | {
@@ -47,13 +53,24 @@ export type ExternalNearConnection = Readonly<{
 export type ExternalNearState =
   | ExternalNearConnection
   | {
-      readonly kind: 'disconnected' | 'connecting';
+      readonly kind: 'disconnected';
       readonly accountId?: never;
       readonly network?: never;
       readonly wallet?: never;
       readonly generation?: never;
+    }
+  | {
+      readonly kind: 'connecting';
+      readonly wallet: ExternalNearWalletId;
+      readonly accountId?: never;
+      readonly network?: never;
+      readonly generation?: never;
     };
-export type ExternalNearSnapshot = Readonly<{ connection: ExternalNearState; busy: boolean }>;
+export type ExternalNearSnapshot = Readonly<{
+  connection: ExternalNearState;
+  busy: boolean;
+  wallets: readonly ExternalNearWalletId[];
+}>;
 export type ExternalNearSubmission = Readonly<{
   hash: string;
   accountId: string;

@@ -2545,6 +2545,19 @@ other conflicts, and network failures do not trigger this routing retry.
 
 ## External NEAR accounts
 
+Applications configure an explicit allowed-wallet list through
+`ExternalNearController({ network, rpcUrl, wallets })`. No wallet is enabled by
+omission. An empty list disables all connectors. The controller copies and freezes
+the list, removes duplicates, and preserves display order. Snapshots expose that
+same list to the picker.
+
+`setWallets` updates the allowed list. Removing a connected or connecting wallet
+disposes that connection and invalidates its pending operations. Other wallet-list
+changes preserve the selected connection. Disabled wallet requests return
+`unavailable` before loading any adapter and cannot interrupt an enabled connection.
+Network restrictions still apply to enabled wallets. Submitted hashes remain
+associated with their original account and network after configuration changes.
+
 The NEAR controller requires an explicit wallet: `meteor`, `hot`, or `intear`.
 Each adapter loads separately. Connections retain the selected wallet and generation.
 Switching wallets invalidates prepared requests. No adapter consumes unsolicited

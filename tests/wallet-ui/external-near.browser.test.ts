@@ -1,11 +1,15 @@
-import { test, expect, type Route } from '@playwright/test';
+import { test, expect, type Route, type Request } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { injectImportMap } from '../setup/bootstrap';
 
 async function exerciseConnections() {
   const path = '/_test-sdk/esm/externalNear/index.js';
   const { ExternalNearController } = await import(path);
-  const controller = new ExternalNearController('testnet', location.origin + '/near-rpc');
+  const controller = new ExternalNearController({
+    network: 'testnet',
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   const first = await controller.connect('meteor');
   if (!first.ok) throw new Error('Connection failed');
   window.postMessage({ type: 'near-wallet-injected', manifest: { id: 'meteor-wallet' } }, '*');
@@ -86,14 +90,22 @@ async function exerciseHot() {
   const { ExternalNearController } = await import(path);
   const fixture = Reflect.get(window, 'hotFixture');
   Reflect.set(window, 'hotExtension', { request: fixture.request });
-  const controller = new ExternalNearController('mainnet', location.origin + '/near-rpc');
+  const controller = new ExternalNearController({
+    network: 'mainnet',
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   const connected = await controller.connect('hot');
   if (!connected.ok) throw new Error('HOT connection failed');
   const transaction = { receiverId: 'bob.near', actions: [{ type: 'Transfer', amount: '1' }] };
   const sent = await controller.sendTransaction(connected.value, transaction);
   Reflect.set(window, 'hotExtension', { request: fixture.request });
   const replaced = await controller.sendTransaction(connected.value, transaction);
-  const testnet = new ExternalNearController('testnet', location.origin + '/near-rpc');
+  const testnet = new ExternalNearController({
+    network: 'testnet',
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   const unsupported = await testnet.connect('hot');
   controller.disconnect();
   return { wallet: connected.value.wallet, sent, replaced, unsupported, sends: fixture.sends };
@@ -121,7 +133,11 @@ test('HOT routes to its captured extension and rejects replacement and testnet',
 async function exerciseIntear() {
   const path = '/_test-sdk/esm/externalNear/index.js';
   const { ExternalNearController } = await import(path);
-  const controller = new ExternalNearController('testnet', location.origin + '/near-rpc');
+  const controller = new ExternalNearController({
+    network: 'testnet',
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   const connected = await controller.connect('intear');
   if (!connected.ok) throw new Error('Intear connection failed');
   const result = await controller.sendTransaction(connected.value, {
@@ -177,7 +193,10 @@ test('Intear binds popup responses to their source and keeps custody grants abse
   );
 });
 
-async function renderPicker() {
+async function renderPicker(config: {
+  network: 'mainnet' | 'testnet';
+  wallets: ('meteor' | 'hot' | 'intear')[];
+}) {
   const reactPath = 'react';
   const domPath = 'react-dom/client';
   const pickerPath = '/_test-sdk/esm/react/externalNear.js';
@@ -190,11 +209,13 @@ async function renderPicker() {
   root.style.maxWidth = '880px';
   root.style.fontFamily = 'system-ui';
   document.body.append(root);
-  createRoot(root).render(
-    React.createElement(ExternalNearWalletPicker, {
-      controller: new ExternalNearController('testnet', location.origin + '/near-rpc'),
-    }),
-  );
+  const controller = new ExternalNearController({
+    network: config.network,
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: config.wallets,
+  });
+  Reflect.set(window, 'configuredNearController', controller);
+  createRoot(root).render(React.createElement(ExternalNearWalletPicker, { controller }));
 }
 
 test('NEAR picker shows three wallets with explicit transport and network limits', async ({
@@ -203,7 +224,7 @@ test('NEAR picker shows three wallets with explicit transport and network limits
 }, testInfo) => {
   await injectImportMap(page, { frontendUrl: baseURL! });
   await page.goto(baseURL!);
-  await page.evaluate(renderPicker);
+  await page.evaluate(renderPicker, { network: 'testnet', wallets: ['meteor', 'hot', 'intear'] });
   await expect(page.getByRole('button', { name: 'HOT Wallet Mainnet only' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Meteor Wallet Browser extension' })).toBeEnabled();
   await expect(
@@ -221,7 +242,11 @@ test('NEAR picker shows three wallets with explicit transport and network limits
 async function beginIntearConnection() {
   const path = '/_test-sdk/esm/externalNear/index.js';
   const { ExternalNearController } = await import(path);
-  const controller = new ExternalNearController('testnet', location.origin + '/near-rpc');
+  const controller = new ExternalNearController({
+    network: 'testnet',
+    rpcUrl: location.origin + '/near-rpc',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   Reflect.set(window, 'pendingNearConnection', {
     controller,
     result: controller.connect('intear'),
@@ -298,7 +323,11 @@ async function replyWithMeteorBlock(route: Route): Promise<void> {
 async function exerciseMeteorWire() {
   const path = '/_test-sdk/esm/externalNear/index.js';
   const { ExternalNearController } = await import(path);
-  const controller = new ExternalNearController('testnet', location.origin + '/meteor-block');
+  const controller = new ExternalNearController({
+    network: 'testnet',
+    rpcUrl: location.origin + '/meteor-block',
+    wallets: ['meteor', 'hot', 'intear'],
+  });
   const connected = await controller.connect('meteor');
   if (!connected.ok) throw new Error('Meteor failed to connect');
   const sent = await controller.sendTransaction(connected.value, {
@@ -353,3 +382,101 @@ test('Meteor replays handshake inputs under one request identity and encodes the
     JSON.stringify(evidence, null, 2),
   );
 });
+
+function recordAdapterRequest(requests: string[], request: Request): void {
+  const path = new URL(request.url()).pathname;
+  const match = path.match(/externalNear\/(meteor|hot|intear)\.js$/);
+  if (match) requests.push(match[1]);
+}
+async function attemptDisabledWallets() {
+  const controller = Reflect.get(window, 'configuredNearController');
+  return {
+    hot: await controller.connect('hot'),
+    intear: await controller.connect('intear'),
+    snapshot: controller.getSnapshot(),
+  };
+}
+function setEnabledWallets(wallets: ('meteor' | 'hot' | 'intear')[]) {
+  const controller = Reflect.get(window, 'configuredNearController');
+  controller.setWallets(wallets);
+  return controller.getSnapshot();
+}
+async function removeConnectedWallet() {
+  const controller = Reflect.get(window, 'configuredNearController');
+  const connection = controller.getSnapshot().connection;
+  controller.setWallets(['hot']);
+  const stale = await controller.sendTransaction(connection, {
+    receiverId: 'guest.near',
+    actions: [{ type: 'Transfer', amount: '1' }],
+  });
+  return { stale, snapshot: controller.getSnapshot() };
+}
+async function disablePendingSelection() {
+  const controller = Reflect.get(window, 'configuredNearController');
+  const wallets = ['meteor'];
+  controller.setWallets(wallets);
+  wallets.push('intear');
+  const copiedWallets = controller.getSnapshot().wallets;
+  const pending = controller.connect('meteor');
+  controller.setWallets([]);
+  return { copiedWallets, result: await pending, snapshot: controller.getSnapshot() };
+}
+
+test('wallet configuration gates UI and adapter loading and revokes active and pending connections', async ({
+  page,
+  baseURL,
+}, testInfo) => {
+  const adapters: string[] = [];
+  page.on('request', recordAdapterRequest.bind(null, adapters));
+  await injectImportMap(page, { frontendUrl: baseURL! });
+  await page.route('**/externalNear/meteor.js', replyWithAdapter);
+  await page.goto(baseURL!);
+  await page.addScriptTag({ content: hotFixture });
+  await page.evaluate(installHotFixture);
+  await page.evaluate(renderPicker, { network: 'mainnet', wallets: ['meteor'] });
+  const meteor = page.getByRole('button', { name: 'Meteor Wallet Browser extension' });
+  const hot = page.getByRole('button', { name: 'HOT Wallet Browser extension' });
+  await expect(meteor).toBeVisible();
+  await expect(hot).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Intear Wallet/ })).toHaveCount(0);
+  const disabled = await page.evaluate(attemptDisabledWallets);
+  expect(disabled.hot.code).toBe('unavailable');
+  expect(disabled.intear.code).toBe('unavailable');
+  expect(adapters).toEqual([]);
+  await meteor.click();
+  await expect(page.getByText('Meteor Wallet · alice.testnet')).toBeVisible();
+  const disabledWhileConnected = await page.evaluate(attemptDisabledWallets);
+  expect(disabledWhileConnected.snapshot.connection.wallet).toBe('meteor');
+  const preserved = await page.evaluate(setEnabledWallets, ['hot', 'meteor', 'hot']);
+  expect(preserved.connection.wallet).toBe('meteor');
+  expect(preserved.wallets).toEqual(['hot', 'meteor']);
+  await expect(hot).toHaveCount(1);
+  const removed = await page.evaluate(removeConnectedWallet);
+  expect(removed.stale.code).toBe('connection_changed');
+  expect(removed.snapshot.connection.kind).toBe('disconnected');
+  await expect(meteor).toHaveCount(0);
+  await hot.click();
+  await expect(page.getByText('HOT Wallet · alice.near')).toBeVisible();
+  const empty = await page.evaluate(setEnabledWallets, []);
+  expect(empty.connection.kind).toBe('disconnected');
+  await expect(page.getByText('No NEAR wallets are enabled.')).toBeVisible();
+  const pending = await page.evaluate(disablePendingSelection);
+  expect(pending.copiedWallets).toEqual(['meteor']);
+  expect(pending.result.code).toBe('connection_changed');
+  expect(pending.snapshot.wallets).toEqual([]);
+  expect(pending.snapshot.busy).toBe(false);
+  expect(adapters).toEqual(['meteor', 'hot']);
+  await page.screenshot({ path: testInfo.outputPath('wallets-disabled.png') });
+  await writeFile(
+    testInfo.outputPath('wallet-configuration.json'),
+    JSON.stringify(
+      { disabled, disabledWhileConnected, preserved, removed, empty, pending, adapters },
+      null,
+      2,
+    ),
+  );
+});
+function installHotFixture(): void {
+  const fixture = Reflect.get(window, 'hotFixture');
+  Reflect.set(window, 'hotExtension', { request: fixture.request });
+}
