@@ -108,7 +108,7 @@ void disabledReview;
 import type {
   VoiceIdApproval,
   VoiceIdPolicy,
-} from '@/plugins/voiceid/capture/approval';
+} from '@voiceid/capture/approval';
 declare const voiceApproval: VoiceIdApproval;
 const requiredVoice: VoiceIdPolicy = { kind: 'required', approval: voiceApproval };
 // @ts-expect-error A required voice policy must carry its operation-bound approval.

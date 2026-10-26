@@ -57,8 +57,8 @@ def main():
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(mixed),
                     '-af', 'afftdn=nr=12:nf=-38', str(reduced)], check=True)
     cases['spectral_reduction'], _ = sf.read(reduced, dtype='float32')
-    speaker = ort.InferenceSession('packages/wallet/assets/voiceid/redimnet-b1.onnx')
-    phrase = ort.InferenceSession('packages/wallet/assets/voiceid/aurora-int8.onnx')
+    speaker = ort.InferenceSession('packages/voiceid/assets/redimnet-b1.onnx')
+    phrase = ort.InferenceSession('packages/voiceid/assets/aurora-int8.onnx')
     tokenizer = spm.SentencePieceProcessor(model_file=str(args.tokenizer))
     reference = speaker.run(None, {'samples': speech[None]})[0].reshape(-1)
     rows = []

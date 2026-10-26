@@ -24,11 +24,12 @@ React consumers.
 `VoiceAssistantCard` is a controlled card with the moving bottom lights from
 the Voice Assistant Card on transitions.dev. The light uses Jakub Antalik's
 MIT-licensed `voice-glow` engine. `VoiceBeam` exposes the same light for other
-React surfaces. Both exports are available from `@seams/wallet/react`.
+React surfaces. Both exports are available from the optional `@seams/voiceid/react` package.
 These presentation components work without `SeamsWebProvider`.
 
 ```tsx
-import { VoiceAssistantCard, type VoiceAssistantState } from '@seams/wallet/react';
+import { VoiceAssistantCard, type VoiceAssistantState } from '@seams/voiceid/react';
+import '@seams/voiceid/styles';
 import '@seams/wallet/react/styles';
 
 const state: VoiceAssistantState = {

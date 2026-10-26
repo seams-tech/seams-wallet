@@ -1,6 +1,6 @@
 import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
 import { parseWalletAuthMethodPlugins, type WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
-import { voiceIdAuthMethod } from '@/plugins/voiceid/descriptor';
+import { voiceIdAuthMethod } from '@voiceid/descriptor';
 
 let enabled: readonly WalletAuthMethodPlugin[] = [];
 

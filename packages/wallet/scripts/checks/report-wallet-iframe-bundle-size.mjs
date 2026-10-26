@@ -302,9 +302,18 @@ function reportGraph(label, entryPaths) {
     files: rows,
     cold: sumRows(rows),
     incrementalOverRuntimeBoot: sumRows(rows.filter((row) => !bootFiles.has(row.path))),
-    external: graph.external,
+    external: graph.external.filter(isRequiredExternal),
+    optionalPlugins: graph.external.filter(isOptionalPlugin),
     unresolved: graph.unresolved,
   };
+}
+
+function isOptionalPlugin(specifier) {
+  return specifier === '/sdk/voiceid/host.js';
+}
+
+function isRequiredExternal(specifier) {
+  return !isOptionalPlugin(specifier);
 }
 
 function findFeatureEntry(prefix) {

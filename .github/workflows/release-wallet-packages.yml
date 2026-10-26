@@ -8,13 +8,14 @@ on:
         required: true
         type: string
       package:
-        description: Packages to publish; wallet retries a browser SDK release after server publication
+        description: Packages to publish; wallet and voiceid support partial-release retries
         required: true
         default: all
         type: choice
         options:
           - all
           - wallet
+          - voiceid
 
 permissions:
   contents: read
@@ -77,6 +78,7 @@ jobs:
           set -euo pipefail
           test "$(node -p "require('./packages/wallet/package.json').version")" = "$RELEASE_VERSION"
           test "$(node -p "require('./packages/wallet-server/package.json').version")" = "$RELEASE_VERSION"
+          test "$(node -p "require('./packages/voiceid/package.json').version")" = "$RELEASE_VERSION"
       - name: Install build tools
         run: |
           cargo install wasm-pack --locked
@@ -96,8 +98,9 @@ jobs:
             all)
               pnpm build
               ;;
-            wallet)
+            wallet|voiceid)
               pnpm -C packages/wallet build:sdk-full
+              pnpm -C packages/voiceid build
               ;;
             *)
               echo "Unsupported release package: $SEAMS_RELEASE_PACKAGE" >&2
@@ -121,7 +124,10 @@ jobs:
           if [ "$SEAMS_RELEASE_PACKAGE" = all ]; then
             npm pack ./packages/wallet-server --pack-destination .artifacts/npm
           fi
-          npm pack ./packages/wallet --pack-destination .artifacts/npm
+          if [ "$SEAMS_RELEASE_PACKAGE" != voiceid ]; then
+            npm pack ./packages/wallet --pack-destination .artifacts/npm
+          fi
+          npm pack ./packages/voiceid --pack-destination .artifacts/npm
       - uses: actions/upload-artifact@v7
         with:
           name: wallet-packages-${{ inputs.version }}-${{ github.sha }}
@@ -129,9 +135,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish @seams/wallet-server
-        if: inputs.package != 'wallet'
+        if: inputs.package == 'all'
         working-directory: packages/wallet-server
         run: npm publish --access public --provenance
       - name: Publish @seams/wallet
+        if: inputs.package != 'voiceid'
         working-directory: packages/wallet
+        run: npm publish --access public --provenance
+      - name: Publish @seams/voiceid
+        working-directory: packages/voiceid
         run: npm publish --access public --provenance

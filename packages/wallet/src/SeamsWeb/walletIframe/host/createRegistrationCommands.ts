@@ -2,6 +2,7 @@ import {
   readVoiceIdAvailability,
   writeAuthMethodEnabled,
   hasOtherActiveAuthMethod,
+  removeVoiceEnrollments,
 } from '@/core/authMethods/availability';
 import { walletAuthMethodPluginEnabled } from '@/core/authMethods/plugins';
 import type { WalletSessionCommands } from '@/SeamsWeb/publicApi/auth';
@@ -113,8 +114,7 @@ async function removeAuthMethod(
     walletAuthMethodId: args.walletAuthMethodId,
   });
   if (result.authMethod.kind === 'voiceid') {
-    const voice = await import('@/plugins/voiceid/browser/enrollmentStore');
-    await voice.removeVoiceEnrollments(result.walletId, result.walletAuthMethodId);
+    await removeVoiceEnrollments(result.walletId, result.walletAuthMethodId);
   }
   return result;
 }

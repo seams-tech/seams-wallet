@@ -1,5 +1,5 @@
-import { VoicePrompt } from '@/plugins/voiceid/capture/prompt';
-import { SPOKEN_PHRASES } from '@/plugins/voiceid/browser/phraseVocabulary';
+import { VoicePrompt } from '@voiceid/capture/prompt';
+import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 
 const [initialPhrase, retryPhrase] = SPOKEN_PHRASES;
 

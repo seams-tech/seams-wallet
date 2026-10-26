@@ -1,7 +1,7 @@
 import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/authMethods/plugins';
-import { voiceIdAuthMethod } from '../../packages/wallet/src/plugins/voiceid/descriptor';
-import { ConfirmedVoiceChange } from '../../packages/wallet/src/plugins/voiceid/activation/ownerConfirmation';
-import type { VoiceEnrollmentChange } from '../../packages/wallet/src/plugins/voiceid/browser/enrollmentStore';
+import { voiceIdAuthMethod } from '../../packages/voiceid/src/descriptor';
+import { ConfirmedVoiceChange } from '../../packages/voiceid/src/activation/ownerConfirmation';
+import type { VoiceEnrollmentChange } from '../../packages/voiceid/src/browser/enrollmentStore';
 
 declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
 // @ts-expect-error Confirmation must verify a fresh passkey assertion.
@@ -26,7 +26,7 @@ void copiedChange;
 void unconfirmedImprovement;
 void resetWithSamples;
 
-import type { PreparedVoiceCapture } from '../../packages/wallet/src/plugins/voiceid/capture/surface';
+import type { PreparedVoiceCapture } from '../../packages/voiceid/src/capture/surface';
 declare const managementAction: (signal: AbortSignal) => Promise<void>;
 const recordingDeadline = { expiresAtMs: Date.now() };
 // @ts-expect-error Management has per-action owner confirmation, not a recording deadline.
@@ -157,7 +157,7 @@ void missingCaptureSurface;
 const captureMarkup: AuthMethodReviewApproval = { ...approval, surface: '<button>Record</button>' };
 void captureMarkup;
 
-import type { VoiceCaptureEvent } from '../../packages/wallet/src/plugins/voiceid/browser/microphone';
+import type { VoiceCaptureEvent } from '../../packages/voiceid/src/browser/microphone';
 declare const captureStream: MediaStream;
 // @ts-expect-error The trace draws recorder frames; no capture event carries the stream.
 const listeningWithStream: VoiceCaptureEvent = { kind: 'listening', stream: captureStream };
@@ -187,10 +187,10 @@ void missingCaptureMetrics;
 
 type RecordingResult = Awaited<
   ReturnType<
-    typeof import('../../packages/wallet/src/plugins/voiceid/browser/microphone').recordVoice
+    typeof import('../../packages/voiceid/src/browser/microphone').recordVoice
   >
 >;
-declare const captureQuality: import('../../packages/wallet/src/plugins/voiceid/browser/microphone').VoiceCaptureQuality;
+declare const captureQuality: import('../../packages/voiceid/src/browser/microphone').VoiceCaptureQuality;
 declare const capturedSamples: Float32Array;
 const capturedAudioFields = { samples: capturedSamples };
 // @ts-expect-error Rejected audio cannot carry a captured sample buffer through a spread.

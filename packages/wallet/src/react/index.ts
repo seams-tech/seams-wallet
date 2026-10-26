@@ -31,7 +31,6 @@ export { SeamsWebProvider } from './context/SeamsWebProvider';
 
 // === RE-EXPORT CORE TYPES ===
 export { SeamsWeb } from '../SeamsWeb';
-export { voiceIdAuthMethod } from '../plugins/voiceid/descriptor';
 export type { WalletAuthMethodPlugin, VoiceIdAuthMethodPlugin } from '../core/authMethods/plugins';
 
 // === Boundary references (exact subject + target for every wallet operation) ===
@@ -177,14 +176,6 @@ export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';
 export type { ShowQRCodeProps } from './components/ShowQRCode';
-export { VoiceAssistantCard } from './components/VoiceAssistantCard';
-export type {
-  VoiceAssistantCardProps,
-  VoiceAssistantInput,
-  VoiceAssistantState,
-} from './components/VoiceAssistantCard';
-export { VoiceBeam } from 'voice-glow';
-export type { VoiceBeamLevel, VoiceBeamProps } from 'voice-glow';
 export { HostedSeamsAuthMenu, SeamsAuthMenuMock } from './components/HostedSeamsAuthMenu/public';
 export type {
   HostedAuthMenuCopy,

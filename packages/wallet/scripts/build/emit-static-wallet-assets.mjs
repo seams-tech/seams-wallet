@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -319,30 +318,12 @@ function buildAssetsManifest(assets, walletProtocolVersion) {
   };
 }
 
-async function copyVoiceIdAssets() {
-  const model = path.join(SDK_ROOT, 'assets/voiceid/redimnet-b1.onnx');
-  try { await fs.access(model); } catch { return; }
-  const destination = path.join(PUBLIC_SDK, 'voiceid');
-  await fs.mkdir(destination, { recursive: true });
-  await fs.copyFile(model, path.join(destination, 'redimnet-b1.onnx'));
-  await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid/aurora-int8.onnx'), path.join(destination, 'aurora-int8.onnx'));
-  for (const file of ['NOTICE.txt', 'AURORA_LICENSE.txt', 'SILERO_LICENSE.txt', 'silero-vad.onnx', 'voice-activity-worklet.js']) {
-    await fs.copyFile(path.join(SDK_ROOT, 'assets/voiceid', file), path.join(destination, file));
-  }
-  const require = createRequire(import.meta.url);
-  const runtime = path.dirname(require.resolve('onnxruntime-web/wasm'));
-  for (const file of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
-    await fs.copyFile(path.join(runtime, file), path.join(PUBLIC_SDK, file));
-  }
-}
-
 async function emitStaticWalletAssets() {
   await assertDirectoryExists(DIST_ESM_SDK, 'SDK browser asset output');
   await assertDirectoryExists(DIST_WORKERS, 'SDK worker output');
   await fs.rm(DIST_PUBLIC, { recursive: true, force: true });
   await copyDirectory(DIST_ESM_SDK, PUBLIC_SDK);
   await copyDirectory(DIST_WORKERS, PUBLIC_WORKERS);
-  await copyVoiceIdAssets();
   await writeHtmlDocuments();
   await writePagesHeaders();
   await fs.writeFile(HEADERS_MANIFEST, `${JSON.stringify(buildHeadersManifest(), null, 2)}\n`);

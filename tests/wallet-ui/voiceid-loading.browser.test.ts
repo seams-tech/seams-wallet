@@ -6,9 +6,9 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import type {} from '../fixtures/ui/VoiceIdLoadingProbe';
 
-const sdk = path.resolve(import.meta.dirname, '../../packages/wallet/dist/public/sdk');
+const sdk = path.resolve(import.meta.dirname, '../../packages/voiceid/dist/public/sdk');
 const assetPaths = [
-  '/sdk/ort-wasm-simd-threaded.wasm',
+  '/sdk/voiceid/ort-wasm-simd-threaded.wasm',
   '/sdk/voiceid/redimnet-b1.onnx',
   '/sdk/voiceid/aurora-int8.onnx',
   '/sdk/voiceid/silero-vad.onnx',
@@ -82,24 +82,13 @@ class LoadingServer {
       response.writeHead(503).end();
       return;
     }
-    const permitted = [...assetPaths, '/sdk/ort-wasm-simd-threaded.mjs', '/sdk/wallet-ui.css'];
+    const permitted = [...assetPaths, '/sdk/voiceid/ort-wasm-simd-threaded.mjs', '/sdk/wallet-ui.css'];
     if (!permitted.includes(pathname) && pathname !== '/speech.wav') {
       response.writeHead(404).end();
       return;
     }
-    const file =
-      pathname === '/speech.wav'
-        ? path.resolve(import.meta.dirname, '../fixtures/audio/aurora/natural/0.wav')
-        : path.join(sdk, pathname.slice('/sdk/'.length));
-    const bytes = readFileSync(file);
-    response.setHeader(
-      'Content-Type',
-      pathname.endsWith('.mjs')
-        ? 'text/javascript'
-        : pathname.endsWith('.css')
-          ? 'text/css'
-          : 'application/octet-stream',
-    );
+    const bytes = readFileSync(assetFile(pathname));
+    response.setHeader('Content-Type', assetContentType(pathname));
     response.setHeader('Content-Length', bytes.length);
     for (let offset = 0; offset < bytes.length; offset += 131_072) {
       if (response.destroyed) return;
@@ -108,6 +97,22 @@ class LoadingServer {
     }
     response.end();
   }
+}
+
+function assetFile(pathname: string): string {
+  if (pathname === '/speech.wav') {
+    return path.resolve(import.meta.dirname, '../fixtures/audio/aurora/natural/0.wav');
+  }
+  if (pathname === '/sdk/wallet-ui.css') {
+    return path.resolve(import.meta.dirname, '../../packages/wallet/dist/public/sdk/wallet-ui.css');
+  }
+  return path.join(sdk, pathname.slice('/sdk/'.length));
+}
+
+function assetContentType(pathname: string): string {
+  if (pathname.endsWith('.mjs')) return 'text/javascript';
+  if (pathname.endsWith('.css')) return 'text/css';
+  return 'application/octet-stream';
 }
 
 function matchesChunk(name: string, chunk: { fileName: string }): boolean {

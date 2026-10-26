@@ -1,4 +1,5 @@
 import { IndexedDBManager } from '@/core/indexedDB';
+import { SEAMS_WALLET_STORES as stores } from '@/core/indexedDB/schemaNames';
 import type { WalletAuthMethodId, WalletId } from '@shared/utils/domainIds';
 import { requireRecord } from '@shared/utils/validation';
 import { rejectUnknownFields } from '@shared/utils/exactRecord';
@@ -85,4 +86,21 @@ export async function hasOtherActiveAuthMethod(
       return true;
   }
   return false;
+}
+
+// Revocation must clear local samples even when the optional VoiceID package is absent.
+export async function removeVoiceEnrollments(
+  walletId: WalletId,
+  methodId: WalletAuthMethodId,
+): Promise<void> {
+  const database = await IndexedDBManager.seamsWalletDB.getDB();
+  const transaction = database.transaction(stores.appState, 'readwrite');
+  const store = transaction.objectStore(stores.appState);
+  for (const key of await store.getAllKeys()) {
+    if (typeof key !== 'string' || !key.startsWith('voiceid-browser-enrollment-v2:')) continue;
+    const row = await store.get(key);
+    if (row?.value?.scope?.walletId === walletId && row.value.scope.walletAuthMethodId === methodId)
+      await store.delete(key);
+  }
+  await transaction.done;
 }

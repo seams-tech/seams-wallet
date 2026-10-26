@@ -10,6 +10,7 @@ const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const npmPackageManifests = [
   'packages/wallet/package.json',
   'packages/wallet-server/package.json',
+  'packages/voiceid/package.json',
 ];
 const cargoManifests = [
   'crates/seams-cli/Cargo.toml',
@@ -32,20 +33,26 @@ const outputPaths = [
 main();
 
 function main() {
-  const records = [...collectNpmRuntimeDependencies(), ...collectCargoDependencies()];
+  const records = [...collectNpmRuntimeDependencies(npmPackageManifests), ...collectCargoDependencies()];
   records.sort(compareDependencyRecords);
   const notice = renderNotice(records, collectLicenseTexts(records));
   for (const outputPath of outputPaths) {
     fs.writeFileSync(path.join(repositoryRoot, outputPath), notice);
   }
+  const voiceRecords = collectNpmRuntimeDependencies(['packages/voiceid/package.json']);
+  voiceRecords.sort(compareDependencyRecords);
+  fs.writeFileSync(
+    path.join(repositoryRoot, 'packages/voiceid/THIRD_PARTY_NOTICES.md'),
+    renderNotice(voiceRecords, collectLicenseTexts(voiceRecords)),
+  );
   process.stdout.write(
     `Generated Wallet third-party notices for ${String(records.length)} dependency records\n`,
   );
 }
 
-function collectNpmRuntimeDependencies() {
+function collectNpmRuntimeDependencies(manifests) {
   const queue = [];
-  for (const manifestPath of npmPackageManifests) {
+  for (const manifestPath of manifests) {
     const absoluteManifestPath = path.join(repositoryRoot, manifestPath);
     const packageJson = readJson(absoluteManifestPath);
     queue.push(...dependencyRequests(packageJson, path.dirname(absoluteManifestPath)));
@@ -219,7 +226,7 @@ function renderNotice(records, licenseGroups) {
   }
   lines.push('## Packaged license and notice texts', '');
   for (const group of licenseGroups) lines.push(...renderLicenseGroup(group));
-  return `${lines.join('\n')}\n`;
+  return `${lines.join('\n').trimEnd()}\n`;
 }
 
 function renderDependencyRow(record) {

@@ -96,7 +96,8 @@ with the existing minimal phrase and live waveform. Passkey and Email OTP sessio
 retain their own approval paths. The iframe protocol is version 17 for these APIs
 and the additional authenticated outcome.
 
-The SDK enables VoiceID with `authMethods: [voiceIdAuthMethod()]`. The descriptor
+Applications import `voiceIdAuthMethod` from the optional `@seams/voiceid` package
+and enable it with `authMethods: [voiceIdAuthMethod()]`. The descriptor
 imports no inference or capture code. The Wallet origin loads the plugin on its
 first enabled operation. Model and inference-runtime downloads start only when
 voice enrollment or verification needs them. No native host, loopback request,
@@ -257,7 +258,7 @@ Storage failure allows session-only inference with a visible explanation. Browse
 eviction or clearing site data can require another download. The inference runtime
 and model are hosted with the Wallet's static assets. Missing or changed assets fail enrollment and unlock.
 The model deployment instructions live in
-[`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
+[`plugins/voiceid/README.md`](../packages/voiceid/src/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
 Confirm click. Randomized prompts contain 4–6 trading-oriented words for short, natural-paced
@@ -422,8 +423,13 @@ Transfer review always uses the wallet displayed on the page.
 
 The Wallet host owns a typed registry of trusted plugin loaders. Applications
 send declarative descriptors only. Activation and transaction review dispatch
-through the registry. VoiceID's browser implementation lives under
-`packages/wallet/src/plugins/voiceid`; its descriptor imports no implementation.
+through the registry. VoiceID's browser implementation lives in `@seams/voiceid`;
+its descriptor imports no implementation. `@seams/wallet` has no VoiceID package,
+ONNX Runtime, or voice-glow dependency and ships no VoiceID engine or model files.
+The operator explicitly composes VoiceID assets into a new Wallet deployment tree.
+The loader uses the fixed same-origin `/sdk/voiceid/host.js` URL and checks its host
+API version. Missing installation fails explicitly. App input cannot select code URLs.
+The plugin imports the Wallet's host API, sharing its storage and worker instances.
 The core review UI receives copy from the plugin and knows no voice commands.
 
 Enabling a plugin does not fetch its implementation. First use loads it after

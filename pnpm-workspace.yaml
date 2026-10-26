@@ -7,6 +7,7 @@ packages:
   - packages/shared-ts
   - packages/wallet-server
   - packages/wallet
+  - packages/voiceid
   - tests
   - tests/intended-app
 nodeLinker: hoisted

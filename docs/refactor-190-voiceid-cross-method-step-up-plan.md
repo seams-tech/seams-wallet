@@ -22,7 +22,7 @@ This is a medium-sized authentication refactor for the first supported path. It 
 | Review admission | Requires VoiceID signing material and a required plugin policy to agree. This prevents a method switch from bypassing review. | `packages/wallet/src/core/signingEngine/uiConfirm/transactionReviewAdmission.ts`, `assertAuthMethodPolicy` |
 | NEAR material preparation | Checks the actual signing-lane auth method against captured review admission. | `packages/wallet/src/core/signingEngine/flows/signNear/signNear.ts`, `prepareReviewBoundNearMaterial` |
 | Core step-up | Selects warm-session, passkey, or Email OTP preparation through the signing lane and policy. | `packages/wallet/src/core/signingEngine/stepUpConfirmation/{requireStepUpAuth,methodSelection,types}.ts` |
-| Voice approval | Verifies locally and consumes an approval bound to the reviewed request and deadline. Scope is one NEAR testnet transfer. | `packages/wallet/src/plugins/voiceid/capture/{approval,bridge}.ts` |
+| Voice approval | Verifies locally and consumes an approval bound to the reviewed request and deadline. Scope is one NEAR testnet transfer. | `packages/voiceid/src/capture/{approval,bridge}.ts` |
 
 The current intended-behavior specification also contains same-method step-up requirements. They must be changed alongside implementation and contract tests, never weakened incidentally.
 

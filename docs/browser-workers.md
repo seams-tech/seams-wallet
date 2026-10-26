@@ -22,8 +22,12 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
-The SDK enables the optional VoiceID plugin by configuration. The Wallet iframe
-loads its implementation on first use. Browser MediaRecorder captures deliberate
+Applications enable the separately installed `@seams/voiceid` package by configuration.
+The Wallet operator explicitly deploys its assets. The Wallet iframe loads its
+implementation on first use through a fixed same-origin URL. The package imports
+the Wallet host API and shares existing storage and worker instances. This package
+split moves no signing or custody operation between workers.
+Browser MediaRecorder captures deliberate
 samples, and local ONNX Runtime Web inference verifies the speaker. Inference
 uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames
 to local Silero speech detection on the iframe main thread. The worklet holds only

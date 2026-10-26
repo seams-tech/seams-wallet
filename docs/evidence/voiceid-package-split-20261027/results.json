@@ -1,0 +1,46 @@
+[
+  {
+    "report": "browser-final-results.json",
+    "stats": {
+      "startTime": "2026-10-26T18:00:46.949Z",
+      "duration": 92719.891,
+      "expected": 29,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  {
+    "report": "intended-results.json",
+    "stats": {
+      "startTime": "2026-10-26T17:45:15.762Z",
+      "duration": 480437.251,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  {
+    "report": "intended-final-results.json",
+    "stats": {
+      "startTime": "2026-10-26T18:11:50.589Z",
+      "duration": 162567.47600000002,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  {
+    "report": "unit-results.json",
+    "stats": {
+      "startTime": "2026-10-26T18:19:19.439Z",
+      "duration": 35086.361,
+      "expected": 149,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  }
+]

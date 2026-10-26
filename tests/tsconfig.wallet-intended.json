@@ -14,6 +14,8 @@
       "../node_modules"
     ],
     "paths": {
+      "@voiceid/*": ["../packages/voiceid/src/*"],
+      "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
       "@seams/wallet": ["../packages/wallet/src/index.ts"],
       "@seams/wallet/react": ["../packages/wallet/src/react/index.ts"],
       "@seams/wallet/advanced": ["../packages/wallet/src/advanced.ts"],

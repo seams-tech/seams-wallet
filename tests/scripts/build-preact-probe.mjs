@@ -40,6 +40,14 @@ async function buildProbe(config, fixtureName) {
   const bundle = await rolldown({
     ...options,
     input: virtualPath,
+    resolve: {
+      ...options.resolve,
+      alias: {
+        ...options.resolve.alias,
+        '@voiceid/*': path.join(repoRoot, 'packages/voiceid/src/*'),
+        '@seams/wallet/voiceid-host': path.join(walletRoot, 'src/voiceid-host.ts'),
+      },
+    },
     plugins: [
       {
         name: 'ui-build-fixture',

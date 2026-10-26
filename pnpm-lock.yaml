@@ -116,6 +116,28 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
 
+  packages/voiceid:
+    dependencies:
+      onnxruntime-web:
+        specifier: 1.30.0
+        version: 1.30.0
+      preact:
+        specifier: 10.29.8
+        version: 10.29.8
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 19.1.1
+      voice-glow:
+        specifier: 0.2.1
+        version: 0.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+    devDependencies:
+      '@seams/wallet':
+        specifier: workspace:*
+        version: link:../wallet
+      rolldown:
+        specifier: ^1.0.0-beta.27
+        version: 1.0.0-rc.9
+
   packages/wallet:
     dependencies:
       '@levischuck/tiny-cbor':
@@ -136,9 +158,6 @@ importers:
       jsqr:
         specifier: '>=1.4.0'
         version: 1.4.0
-      onnxruntime-web:
-        specifier: 1.30.0
-        version: 1.30.0
       preact:
         specifier: 10.29.8
         version: 10.29.8
@@ -148,9 +167,6 @@ importers:
       viem:
         specifier: ^2.38.6
         version: 2.46.0(bufferutil@4.0.9)(typescript@5.8.3)(utf-8-validate@5.0.10)(zod@4.6.7)
-      voice-glow:
-        specifier: 0.2.1
-        version: 0.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
     devDependencies:
       '@simplewebauthn/server':
         specifier: ^13.2.2
@@ -207,6 +223,9 @@ importers:
       '@playwright/test':
         specifier: ^1.56.1
         version: 1.56.1
+      '@seams/voiceid':
+        specifier: workspace:*
+        version: link:../packages/voiceid
       '@types/node':
         specifier: ^24.1.0
         version: 24.2.0
@@ -232,6 +251,9 @@ importers:
         specifier: ^19.1.1
         version: 19.1.1(react@19.1.1)
     devDependencies:
+      '@seams/voiceid':
+        specifier: workspace:*
+        version: link:../../packages/voiceid
       '@types/react':
         specifier: ^19.1.12
         version: 19.1.12
@@ -2765,6 +2787,7 @@ packages:
   rolldown@1.0.0-rc.9:
     resolution: {integrity: sha512-9EbgWge7ZH+yqb4d2EnELAntgPTWbfL8ajiTW+SyhJEC4qhBbkCKbqFV4Ge4zmu5ziQuVbWxb/XwLZ+RIO7E8Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
+    hasBin: true
 
   rollup@4.50.1:
     resolution: {integrity: sha512-78E9voJHwnXQMiQdiqswVLZwJIzdBKJ1GdI5Zx6XwoFKUIk09/sSrr+05QFzvYb8q6Y9pPV45zzDuYa3907TZA==}

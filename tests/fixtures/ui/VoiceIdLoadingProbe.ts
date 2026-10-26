@@ -1,7 +1,7 @@
-import { prepareVoiceModelWithProgress } from '@/plugins/voiceid/browser/progress';
-import { VoicePrompt } from '@/plugins/voiceid/capture/prompt';
-import { checkSpokenPhrase } from '@/plugins/voiceid/browser/phrase';
-import { SPOKEN_PHRASES } from '@/plugins/voiceid/browser/phraseVocabulary';
+import { prepareVoiceModelWithProgress } from '@voiceid/browser/progress';
+import { VoicePrompt } from '@voiceid/capture/prompt';
+import { checkSpokenPhrase } from '@voiceid/browser/phrase';
+import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 
 type LoadingObservation = { state: string; value: number; total: number; text: string };
 declare global {

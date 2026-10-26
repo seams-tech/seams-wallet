@@ -1,0 +1,68 @@
+{
+  "name": "@seams/voiceid",
+  "version": "0.24.0",
+  "type": "module",
+  "description": "Optional browser VoiceID authentication for Seams Wallet",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seams-tech/seams-wallet.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "import": "./dist/esm/react.js"
+    },
+    "./hosting": {
+      "types": "./dist/hosting.d.mts",
+      "import": "./dist/hosting.mjs"
+    },
+    "./package.json": "./package.json",
+    "./styles": "./dist/esm/react/VoiceAssistantCard.css"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE.md",
+    "THIRD_PARTY_NOTICES.md",
+    "!dist/**/*.map",
+    "src/README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs && tsrs -p tsconfig.build.json",
+    "type-check": "tsrs --noEmit",
+    "prepack": "node ../../scripts/package-license.mjs stage",
+    "postpack": "node ../../scripts/package-license.mjs clean"
+  },
+  "dependencies": {
+    "onnxruntime-web": "1.30.0",
+    "preact": "10.29.8",
+    "voice-glow": "0.2.1"
+  },
+  "peerDependencies": {
+    "@seams/wallet": "0.24.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@seams/wallet": "workspace:*",
+    "rolldown": "^1.0.0-beta.27"
+  },
+  "bin": {
+    "seams-voiceid-host": "dist/compose-host.mjs"
+  }
+}

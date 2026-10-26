@@ -14,8 +14,8 @@ Run from the repository root:
 ```sh
 python tests/scripts/voiceid-aurora/export.py \
   --root /tmp/voiceid-aurora \
-  --vocabulary packages/wallet/src/plugins/voiceid/browser/phraseVocabulary.ts
-cp /tmp/voiceid-aurora/aurora-int8.onnx packages/wallet/assets/voiceid/aurora-int8.onnx
+  --vocabulary packages/voiceid/src/browser/phraseVocabulary.ts
+cp /tmp/voiceid-aurora/aurora-int8.onnx packages/voiceid/assets/aurora-int8.onnx
 ```
 
 The exporter downloads a pinned revision, exports FP32 and INT8, and checks both
@@ -117,7 +117,7 @@ not export or change the Aurora model:
 ```sh
 python tests/scripts/voiceid-aurora/vocabulary.py \
   --root /tmp/voiceid-aurora \
-  --vocabulary packages/wallet/src/plugins/voiceid/browser/phraseVocabulary.ts
+  --vocabulary packages/voiceid/src/browser/phraseVocabulary.ts
 ```
 
 `screen.py` accepts `--rate` (default 160) for transcript screening.

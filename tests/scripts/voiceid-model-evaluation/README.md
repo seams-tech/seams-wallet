@@ -121,7 +121,7 @@ Wallet's deployed model or calibrate production authentication policy.
 
 To provision the selected B1 model without the historical ECAPA baseline, run
 `prepare.py --root "$voiceid_eval" --export-only`. Copy the resulting `b1.onnx` to
-`packages/wallet/assets/voiceid/redimnet-b1.onnx`, then build the SDK. The source
+`packages/voiceid/assets/redimnet-b1.onnx`, then build the SDK. The source
 and B0/B1 checkpoints above remain required. No corpus download is needed for export.
 
 ## Adaptive enrollment feasibility

@@ -7,7 +7,7 @@ import type {} from '../fixtures/ui/VoiceIdPhraseToleranceProbe';
 type Chunk = { fileName: string; code: string };
 let chunks: Chunk[];
 const fixtures = path.resolve(import.meta.dirname, '../fixtures/audio/aurora');
-const assets = path.resolve(import.meta.dirname, '../../packages/wallet/dist/public/sdk');
+const assets = path.resolve(import.meta.dirname, '../../packages/voiceid/dist/public/sdk');
 
 test.beforeAll(build);
 function build(): void {
@@ -39,8 +39,8 @@ async function serveAsset(route: Route): Promise<void> {
   if (
     ![
       'voiceid/aurora-int8.onnx',
-      'ort-wasm-simd-threaded.mjs',
-      'ort-wasm-simd-threaded.wasm',
+      'voiceid/ort-wasm-simd-threaded.mjs',
+      'voiceid/ort-wasm-simd-threaded.wasm',
     ].includes(name)
   )
     throw new Error('Unexpected model asset');

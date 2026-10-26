@@ -1,5 +1,5 @@
-import { checkSpokenPhrase } from '@/plugins/voiceid/browser/phrase';
-import { SPOKEN_PHRASES } from '@/plugins/voiceid/browser/phraseVocabulary';
+import { checkSpokenPhrase } from '@voiceid/browser/phrase';
+import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 
 async function checkAudio(base64: string, expectedIndex: number) {
   const phrase = SPOKEN_PHRASES[expectedIndex];

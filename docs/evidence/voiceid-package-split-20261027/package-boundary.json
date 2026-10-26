@@ -1,0 +1,35 @@
+{
+  "targetVersion": "0.24.0",
+  "walletManifestVersion": "0.23.0",
+  "voiceIdManifestVersion": "0.24.0",
+  "walletDependencies": {
+    "@levischuck/tiny-cbor": "0.2.11",
+    "@near-js/types": "^2.4.0",
+    "borsh": "1.0.0",
+    "bs58": "^6.0.0",
+    "idb": "^8.0.3",
+    "preact": "10.29.8",
+    "viem": "^2.38.6"
+  },
+  "walletModelFiles": [],
+  "walletEngineFiles": [],
+  "voiceModels": [
+    {
+      "file": "packages/voiceid/assets/aurora-int8.onnx",
+      "bytes": 1342384,
+      "sha256": "83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6"
+    },
+    {
+      "file": "packages/voiceid/assets/redimnet-b1.onnx",
+      "bytes": 8859593,
+      "sha256": "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269"
+    },
+    {
+      "file": "packages/voiceid/assets/silero-vad.onnx",
+      "bytes": 2327524,
+      "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f"
+    }
+  ],
+  "optionalHostEntry": "/sdk/voiceid/host.js",
+  "hostApiVersion": 1
+}

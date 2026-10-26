@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { access, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, type Page, type Request, type TestInfo } from '@playwright/test';
 import { waitForWalletIframeConfirmationSettlement } from './harness';
@@ -22,16 +22,8 @@ export class VoiceDownloads {
 }
 
 export async function voiceEntryName(): Promise<string> {
-  const directory = path.resolve(import.meta.dirname, '../../../packages/wallet/dist/esm/sdk');
-  const matches: string[] = [];
-  for (const name of await readdir(directory)) {
-    if (!name.endsWith('.js')) continue;
-    const source = await readFile(path.join(directory, name), 'utf8');
-    // Discover the emitted module by its public export, independently of its content hash.
-    if (/export\s*\{[^}]*\bvoiceIdHostPlugin\b/.test(source)) matches.push(name);
-  }
-  if (matches.length !== 1) throw new Error('Expected one emitted VoiceID host module');
-  return matches[0];
+  await access(path.resolve(import.meta.dirname, '../../../packages/voiceid/dist/public/sdk/voiceid/host.js'));
+  return 'host.js';
 }
 
 export async function signTransfer(page: Page): Promise<void> {

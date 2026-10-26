@@ -196,7 +196,8 @@ Use the documented package exports. Agent-lane issuance remains planned.
 The VoiceID approval prototype is opt-in:
 
 ```ts
-import { defineSeamsConfig, voiceIdAuthMethod } from '@seams/wallet';
+import { defineSeamsConfig } from '@seams/wallet';
+import { voiceIdAuthMethod } from '@seams/voiceid';
 
 const config = defineSeamsConfig({
   walletOrigin,
@@ -206,10 +207,10 @@ const config = defineSeamsConfig({
 });
 ```
 
-The SDK loads its Wallet-origin VoiceID code on first use. The current plugin
-gates a reviewed NEAR testnet transfer on the local device. Fresh Wallet Session
-unlock through VoiceID is still under implementation and requires a registered
-device key, server verification, and a custody envelope.
+VoiceID is a separate optional package. The Wallet host operator must deploy its
+assets alongside the Wallet host. The descriptor alone downloads no implementation
+or models. VoiceID supports enrollment, Wallet Session unlock, and reviewed NEAR
+and Arc testnet signing. See [`@seams/voiceid`](../voiceid/README.md) for installation.
 
 ## Develop from source
 

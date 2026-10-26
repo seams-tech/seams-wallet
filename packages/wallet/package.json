@@ -76,6 +76,11 @@
       "types": "./dist/types/wallet/src/react/externalNear.d.ts",
       "import": "./dist/esm/react/externalNear.js",
       "default": "./dist/esm/react/externalNear.js"
+    },
+    "./voiceid-host": {
+      "types": "./dist/types/wallet/src/voiceid-host.d.ts",
+      "import": "./dist/esm/voiceid-host.js",
+      "default": "./dist/esm/voiceid-host.js"
     }
   },
   "files": [
@@ -199,10 +204,8 @@
     "borsh": "1.0.0",
     "bs58": "^6.0.0",
     "idb": "^8.0.3",
-    "onnxruntime-web": "1.30.0",
     "preact": "10.29.8",
-    "viem": "^2.38.6",
-    "voice-glow": "0.2.1"
+    "viem": "^2.38.6"
   },
   "devDependencies": {
     "@simplewebauthn/server": "^13.2.2",

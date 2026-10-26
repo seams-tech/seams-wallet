@@ -10,11 +10,12 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
 const walletServerPackage = packageDefinition('packages/wallet-server', '@seams/wallet-server');
+const voiceIdPackage = packageDefinition('packages/voiceid', '@seams/voiceid');
 const packageTarget = process.argv[2] ?? 'all';
-assert.ok(['all', 'wallet'].includes(packageTarget), `Unknown package target: ${packageTarget}`);
-assert.ok(process.argv.length <= 3, 'Expected one package target: all or wallet');
+assert.ok(['all', 'wallet', 'voiceid'].includes(packageTarget), `Unknown package target: ${packageTarget}`);
+assert.ok(process.argv.length <= 3, 'Expected one package target: all, wallet, or voiceid');
 const packages =
-  packageTarget === 'wallet' ? [walletPackage] : [walletPackage, walletServerPackage];
+  packageTarget === 'all' ? [walletPackage, walletServerPackage, voiceIdPackage] : [walletPackage, voiceIdPackage];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -76,6 +77,13 @@ function inspectPackage(packageDirectory, packageDefinition) {
   assert.equal(packageJson.name, packageName);
   assert.equal(packageJson.version, packageDefinition.version);
   assert.equal(packageJson.license, 'Apache-2.0');
+  if (packageName === '@seams/wallet') {
+    for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+      for (const dependency of ['@seams/voiceid', 'onnxruntime-web', 'voice-glow']) {
+        assert.equal(packageJson[section]?.[dependency], undefined, `${dependency} must remain opt-in`);
+      }
+    }
+  }
   assert.match(
     fs.readFileSync(path.join(packageDirectory, 'LICENSE.md'), 'utf8'),
     /^\s*Apache License$/mu,
@@ -87,6 +95,10 @@ function inspectPackage(packageDirectory, packageDefinition) {
 
   for (const file of listFiles(packageDirectory)) {
     const relativePath = path.relative(packageDirectory, file);
+    if (packageName === '@seams/wallet') {
+      assert.ok(!relativePath.endsWith('.onnx'), 'VoiceID models must not ship in @seams/wallet');
+      assert.ok(!relativePath.includes('ort-wasm'), 'VoiceID engine must not ship in @seams/wallet');
+    }
     assert.ok(!relativePath.endsWith('.map'), `${packageName} contains source map ${relativePath}`);
     if (!/\.(?:js|mjs|cjs|d\.ts|json|toml|sql)$/u.test(file) || file.endsWith('.wasm')) continue;
     const source = fs.readFileSync(file, 'utf8');
@@ -126,12 +138,28 @@ function linkRuntimeDependencies() {
     const source = path.join(repoRoot, 'node_modules', name);
     if (!fs.existsSync(source)) continue;
     const destination = path.join(nodeModulesDirectory, name);
+    if (fs.existsSync(destination)) continue;
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.symlinkSync(source, destination, 'dir');
   }
 }
 
 async function smokePackedEntries() {
+  const voiceId = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/index.js'));
+  assert.deepEqual(voiceId.voiceIdAuthMethod(), { kind: 'voiceid' });
+  const voiceUi = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react.js'));
+  assert.equal(typeof voiceUi.VoiceAssistantCard, 'function');
+  assert.ok('VoiceBeam' in voiceUi);
+  assert.ok(fs.existsSync(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react/VoiceAssistantCard.css')));
+  const hosting = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/hosting.mjs'));
+  const walletPublicDirectory = path.join(nodeModulesDirectory, '@seams/wallet/dist/public');
+  const combined = await hosting.composeVoiceIdWalletAssets({
+    walletPublicDirectory,
+    outputDirectory: path.join(workDirectory, 'voiceid-wallet'),
+  });
+  assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/host.js')));
+  assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/aurora-int8.onnx')));
+  assert.ok(!fs.existsSync(path.join(walletPublicDirectory, 'sdk/voiceid')));
   const runtime = await import(
     path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/runtime.js')
   );

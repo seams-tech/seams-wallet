@@ -87,7 +87,7 @@ Source boundaries before implementation:
 | `browser/deviceStore.ts` | Binds device credentials to a wallet and authentication method. | Bind adaptation to the corresponding enrollment and device identity. |
 | `capture/*`, `session/unlock.ts` | Capture, authorize, and install a session through separate stages. | Keep candidate learning separate from authorization and final operation completion. |
 
-Paths above are relative to `packages/wallet/src/plugins/voiceid/`.
+Paths above are relative to `packages/voiceid/src/`.
 
 ## Scope and invariants
 

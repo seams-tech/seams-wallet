@@ -50,7 +50,7 @@ The earlier ECAPA model used 16 kHz mono audio and a normalized 192-number speak
 representation. Its match threshold was 0.6. The live prototype completed enrollment,
 voice unlock, and a NEAR testnet transfer. That single-user result does not measure
 population accuracy. See the [live receipt](evidence/voiceid-live-transfer-20261024.json)
-and [plugin deployment notes](../packages/wallet/src/plugins/voiceid/README.md).
+and [plugin deployment notes](../packages/voiceid/src/README.md).
 
 ## Speech-to-text shortlist
 

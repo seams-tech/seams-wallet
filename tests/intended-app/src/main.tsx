@@ -1,10 +1,10 @@
+import { voiceIdAuthMethod } from '@seams/voiceid';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   SeamsWebProvider,
   TransactionReviewHost,
   defineSeamsConfig,
-  voiceIdAuthMethod,
 } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 import { IntendedBehaviourE2EPage } from './page';

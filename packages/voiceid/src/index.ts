@@ -1,0 +1,1 @@
+export { voiceIdAuthMethod } from './descriptor';

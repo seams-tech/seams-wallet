@@ -11,8 +11,8 @@ Provision the model from the pinned upstream revision:
 
 ```sh
 curl -fL https://raw.githubusercontent.com/snakers4/silero-vad/6478567951ae5c9979ad7b234185b5515f4be7a1/src/silero_vad/data/silero_vad.onnx \
-  -o packages/wallet/assets/voiceid/silero-vad.onnx
-shasum -a 256 packages/wallet/assets/voiceid/silero-vad.onnx
+  -o packages/voiceid/assets/silero-vad.onnx
+shasum -a 256 packages/voiceid/assets/silero-vad.onnx
 ```
 
 Expected SHA-256: `2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f`.
@@ -31,7 +31,7 @@ offline candidate. That filter is not part of the browser plugin.
 
 ```sh
 python tests/scripts/voiceid-noise/evaluate.py \
-  --model packages/wallet/assets/voiceid/silero-vad.onnx \
+  --model packages/voiceid/assets/silero-vad.onnx \
   --tokenizer /tmp/voiceid-aurora/bpe256.model \
   --output /tmp/voiceid-noise-baseline
 ```

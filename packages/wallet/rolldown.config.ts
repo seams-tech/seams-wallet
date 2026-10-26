@@ -115,11 +115,11 @@ const isProd = process.env.NODE_ENV === 'production';
 const prodPlugins = isProd ? [defineNodeEnvPlugin] : [];
 
 const external = [
+  '/sdk/voiceid/host.js',
   // React dependencies
   'react',
   'react-dom',
   'react/jsx-runtime',
-  'voice-glow',
   /^preact(?:\/.*)?$/,
 
   // All @near-js packages
@@ -147,7 +147,7 @@ const external = [
 
 // Embedded bundles are loaded directly in the browser (no bundler/import maps),
 // so do not externalize dependencies. Bundle everything needed.
-const embeddedExternal: (string | RegExp)[] = [];
+const embeddedExternal: (string | RegExp)[] = ['/sdk/voiceid/host.js'];
 
 const aliasConfig = {
   '@build-paths': path.resolve(SDK_ROOT_ABS, 'build-paths.ts'),
@@ -552,10 +552,7 @@ const configs = [
       'src/core/signingEngine/uiConfirm/ui/transaction-display/tree.ts',
       'src/core/signingEngine/uiConfirm/ui/transaction-display/abi/enrichDisplayModelWithAbi.ts',
       'src/core/signingEngine/uiConfirm/ui/confirm-surface-resize.ts',
-      // The VoiceID card is reached only through the lazy host plugin; the homepage
-      // showcase imports its prompt and unlock frame by path.
-      'src/plugins/voiceid/capture/prompt.ts',
-      'src/plugins/voiceid/capture/unlockFrame.ts',
+      'src/voiceid-host.ts',
       // React entries share this module tree, so an app that imports both `@seams/wallet`
       // and `@seams/wallet/react` loads each SDK module once.
       'src/react/index.ts',
@@ -751,6 +748,7 @@ const configs = [
       'wallet-iframe-host-near': 'src/SeamsWeb/walletIframe/host/entry-near.ts',
       'wallet-iframe-host-ecdsa': 'src/SeamsWeb/walletIframe/host/entry-ecdsa.ts',
       'wallet-iframe-host-full': 'src/SeamsWeb/walletIframe/host/entry-full.ts',
+      'voiceid-host': 'src/voiceid-host.ts',
     },
     output: {
       dir: BUILD_PATHS.BUILD.ESM,

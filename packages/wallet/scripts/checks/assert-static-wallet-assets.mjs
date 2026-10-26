@@ -315,6 +315,8 @@ async function assertAssetReferencesResolve(assets, routes) {
     for (const reference of references) {
       const referencedRoute = referencedRouteForSpecifier(asset.route, reference);
       if (!referencedRoute) continue;
+      // This optional package is installed separately by the Wallet host operator.
+      if (referencedRoute === '/sdk/voiceid/host.js') continue;
       assert(
         routes.has(referencedRoute),
         `${asset.route} references missing static asset ${referencedRoute}`,
