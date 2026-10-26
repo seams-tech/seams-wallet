@@ -1,0 +1,190 @@
+{
+  "inside": {
+    "innerHeight": 328,
+    "active": true,
+    "ancestors": [
+      {
+        "tag": "BUTTON",
+        "className": "confirm",
+        "top": 227,
+        "bottom": 275,
+        "height": 48,
+        "clientHeight": 46,
+        "scrollHeight": 46,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "actions",
+        "top": 227,
+        "bottom": 275,
+        "height": 48,
+        "clientHeight": 48,
+        "scrollHeight": 48,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "txc-root",
+        "top": 227,
+        "bottom": 275,
+        "height": 48,
+        "clientHeight": 48,
+        "scrollHeight": 48,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-tx-confirm-content",
+        "top": 227,
+        "bottom": 275,
+        "height": 48,
+        "clientHeight": 48,
+        "scrollHeight": 48,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-review-content",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-confirmation-content",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "modal-container-root",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "hidden"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-confirmation-modal seams-confirmation-modal--hosted",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "auto"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-wallet-ui seams-confirmation-surface",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIV",
+        "className": "seams-portal seams-portal--visible",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "BODY",
+        "className": "",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 444,
+        "scrollHeight": 444,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "HTML",
+        "className": "",
+        "top": -116,
+        "bottom": 328,
+        "height": 444,
+        "clientHeight": 328,
+        "scrollHeight": 444,
+        "scrollTop": 116,
+        "overflowY": "visible"
+      }
+    ]
+  },
+  "iframe": {
+    "innerHeight": 360,
+    "active": true,
+    "ancestors": [
+      {
+        "tag": "IFRAME",
+        "className": "seams-wallet-overlay seams-wallet-overlay-iframe",
+        "top": 16,
+        "bottom": 344,
+        "height": 328,
+        "clientHeight": 328,
+        "scrollHeight": 328,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "DIALOG",
+        "className": "seams-wallet-overlay-dialog is-modal has-geometry",
+        "top": 16,
+        "bottom": 344,
+        "height": 328,
+        "clientHeight": 328,
+        "scrollHeight": 328,
+        "scrollTop": 0,
+        "overflowY": "hidden"
+      },
+      {
+        "tag": "BODY",
+        "className": "",
+        "top": 8,
+        "bottom": 27,
+        "height": 19,
+        "clientHeight": 19,
+        "scrollHeight": 19,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      },
+      {
+        "tag": "HTML",
+        "className": "",
+        "top": 0,
+        "bottom": 35,
+        "height": 35,
+        "clientHeight": 360,
+        "scrollHeight": 360,
+        "scrollTop": 0,
+        "overflowY": "visible"
+      }
+    ]
+  }
+}

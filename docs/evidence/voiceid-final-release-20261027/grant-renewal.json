@@ -1,0 +1,27 @@
+{
+  "kind": "creation_grant_renewal_workers_e2e_v1",
+  "heldAtMs": 1793029789666,
+  "originalExpiresAtMs": 1793029798462,
+  "fence": {
+    "kind": "renewal_permitted",
+    "grant_digest_b64u": "bphm79GtHyt-wD-UGRfJiSHBDDddFLpYrcsHznvsXjg",
+    "expired_through_ms": 1793029798462
+  },
+  "lateStatus": 500,
+  "lateBody": "InvalidLocalServiceConfig: tenant-root creation journal returned HTTP 408: tenant-root creation journal unavailable",
+  "renewedGrantDigestB64u": "iibnWbqhl2wZ05ybB9hx3v_DHK-LHHeszFqIm8e5xPI",
+  "journalDigestB64u": "QWZLX-k7ZwTdhd9SK-A_4dKlrbm53hLU7_7wmQRvde4",
+  "sameIdentity": true,
+  "sameLineage": true,
+  "exactJournalReplay": true,
+  "unauthorizedRequestRefused": true,
+  "prematureRenewalRefused": true,
+  "forgedAuthorizationRefused": true,
+  "privateWalletRuntimeRelayCalls": 4,
+  "startedRenewalRefused": true,
+  "reproduce": "ROUTER_AB_WORKER_BUILD_PROFILE=release node crates/router-ab-cloudflare/scripts/test-grant-renewal.mjs",
+  "limits": [
+    "Local workerd with real Router, control plane, Wasm and SQLite. The test fixture holds one storage transaction.",
+    "No Deriver role, funded transaction or registration latency is measured."
+  ]
+}

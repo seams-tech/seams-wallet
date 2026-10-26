@@ -1,0 +1,2416 @@
+{
+  "validatedSourceCommit": "a5e4922f6",
+  "devBase": "8c31712baa79e37a03596bc83f0b26950bc73f4a",
+  "finalCounts": {
+    "lifecycleJourneys": 58,
+    "browserTests": 131,
+    "existingCiUnitTests": 149,
+    "unresolvedFailures": 0
+  },
+  "runs": [
+    {
+      "name": "intended",
+      "startTime": "2026-10-26T15:49:04.815Z",
+      "duration": 1326960.48,
+      "expected": 56,
+      "skipped": 0,
+      "unexpected": 2,
+      "flaky": 0
+    },
+    {
+      "name": "intended-recheck",
+      "startTime": "2026-10-26T16:14:56.159Z",
+      "duration": 195653.187,
+      "expected": 5,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "name": "existing-unit-final",
+      "startTime": "2026-10-26T16:38:04.543Z",
+      "duration": 36126.642,
+      "expected": 149,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    {
+      "name": "browser-complete",
+      "startTime": "2026-10-26T16:37:19.447Z",
+      "duration": 233977.769,
+      "expected": 131,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  ],
+  "tests": [
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "title": "an Ed25519-only wallet gains an Email OTP method",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "title": "an ECDSA-only wallet gains an Email OTP method",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "title": "an Ed25519-only Email OTP wallet gains a passkey",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-addition.matrix.contract.test.ts",
+      "title": "an ECDSA-only Email OTP wallet gains a passkey",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/auth-method-plugin.contract.test.ts",
+      "title": "auth plugin loads only on enabled use and remains disabled after a cached load",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts",
+      "title": "an Email OTP wallet can add a passkey as a second way in",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.add-passkey.contract.test.ts",
+      "title": "account menu removes an added passkey through the wallet email prompt and preserves signing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "title": "expired email code stays local, resend refreshes the challenge and signs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "title": "custom mixed email unlock rejects expired and cancelled challenges, resends, and signs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "title": "custom near_only email unlock rejects expired and cancelled challenges, resends, and signs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "title": "custom added_email email unlock rejects expired and cancelled challenges, resends, and signs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.challenge-expiry.contract.test.ts",
+      "title": "custom email unlock completes pending activation after reload and signs with the same wallet",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "title": "Email OTP registration and unlock lifecycle",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "title": "an Email OTP export interrupted after its authorization committed is admitted by the exact retry, factor release included",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "title": "EVM registration and signatures complete while NEAR admission is held",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.unlock.contract.test.ts",
+      "title": "EVM registration and signatures complete while NEAR execution is held",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.voiceid-selection.contract.test.ts",
+      "title": "VoiceID availability does not load voice assets for Email OTP signing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/email-otp.voiceid-selection.contract.test.ts",
+      "title": "an Email-backed VoiceID session adds its first passkey with one fresh email proof",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts",
+      "title": "a passkey wallet can add an email code as a second way in",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "wallet protocol rejection shows an upgrade message and reload restores registration and signing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "Gateway ECDSA respond retries its pinned root after Router reply loss",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "mixed registration exposes gateway and finalization timings",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "NEAR registration and signing expose gateway step timings",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "mixed registration starts one NEAR admission while ECDSA activate is in flight",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "custom review requires wallet approval before a live Arc signature",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "passkey registration establishes an immediately usable owner session without waiting for presignatures",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "mixed registration reconciles rejected ECDSA refill after deferred authority publication",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "a signing prepare that read its session before NEAR provisioning committed is admitted",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "immediate signing aborts a stalled refill and recovers without competing background generation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "sustained Tempo and Arc signing uses fresh presignatures beyond pool capacity",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "a prepare that reports the session exhausted makes later signatures plan step-up",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "a Wallet Session status answered before deferred NEAR provisioning keeps the session it rebound",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "EVM registration and signatures complete while NEAR admission is held",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.registration.contract.test.ts",
+      "title": "EVM registration and signatures complete while NEAR execution is held",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "lock retains durable presignatures across a fresh unlock",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "locking a wallet updates an idle tab without a session query",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "a cross-tab lock prevents delayed restoration from recreating its credential",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "a fresh unlock survives a delayed restoration response from another tab",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "passkey unlock restores immediate export and shared-budget signing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "page refresh hydrates warm signing, one-use step-up, and key export",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "synced passkey cold unlock restores mixed-wallet signing from empty browser storage",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.unlock.contract.test.ts",
+      "title": "an interrupted unlock shows an error and permits a user retry",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended-recheck"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts",
+      "title": "browser VoiceID requires a new review after a NEAR broadcast failure",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended-recheck"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.voiceid-selection.contract.test.ts",
+      "title": "VoiceID availability preserves passkey signing and follows explicit session selection",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.voiceid-ui.contract.test.ts",
+      "title": "es256 passkey manages VoiceID, voice unlocks and signs, and enrollment changes stay bounded",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/passkey.voiceid-ui.contract.test.ts",
+      "title": "rs256 passkey manages VoiceID, voice unlocks and signs, and enrollment changes stay bounded",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid-activation.contract.test.ts",
+      "title": "owner session activates one VoiceID key and envelope in the same D1 transaction",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid-auth-method-migration.contract.test.ts",
+      "title": "VoiceID table rebuild preserves existing methods and admits one device key",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts",
+      "title": "VoiceID custody reseals in Rust and matches the Wallet envelope wire",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid-device-proof.contract.test.ts",
+      "title": "a registered VoiceID device can prove one durable Wallet Session challenge",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.add-email-otp.contract.test.ts",
+      "title": "a VoiceID session adds Email OTP with one action-level passkey proof",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.live-page.contract.test.ts",
+      "title": "manual VoiceID page allocates its wallet and signs after voice unlock",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.noise.contract.test.ts",
+      "title": "noise alone cannot unlock; speech over steady noise unlocks and signs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts",
+      "title": "VoiceID unlock and Arc transfer: ecdsa_only",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended-recheck"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts",
+      "title": "VoiceID unlock and Arc transfer: add_ecdsa_after_voice",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended-recheck"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts",
+      "title": "VoiceID issues a fresh Wallet Session and signs a reviewed NEAR transfer",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended-recheck"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.visuals.contract.test.ts",
+      "title": "shared VoiceID visual reacts, settles, changes theme and disposes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "e2e/intended-behaviours/voiceid.visuals.contract.test.ts",
+      "title": "silent VoiceID line breathes, is drawn into the loading ring and seals in place",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "intended"
+    },
+    {
+      "file": "unit/accountMenuModalResponsiveness.unit.test.ts",
+      "title": "shows the selected authentication method while remote inventory is pending",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/alphabetizeStringify.unit.test.ts",
+      "title": "alphabetizeStringify recursively sorts object keys and preserves array order",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizationCapabilityKinds.unit.test.ts",
+      "title": "capability operation parsing enforces exact capability ownership",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizationCapabilityKinds.unit.test.ts",
+      "title": "authorization evidence requirements are flat, canonical, and current-scope only",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizationOperationFingerprint.unit.test.ts",
+      "title": "authorization operation fingerprint pins its versioned canonical preimage and digest",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizationOperationFingerprint.unit.test.ts",
+      "title": "signing operation fingerprint exposes one canonical lane digest",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizedOperationCompletion.unit.test.ts",
+      "title": "completion returns the durable canonical record and rejects a corrupt result body",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/authorizedOperationCompletion.unit.test.ts",
+      "title": "completion rejects a missing claim and validates the returned operation fingerprint",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserCapabilitySelection.unit.test.ts",
+      "title": "browser capability selection gates NEAR signing while keeping export independent",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserCapabilitySelection.unit.test.ts",
+      "title": "browser capability selection requires an exact configured ECDSA target",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserCapabilitySelection.unit.test.ts",
+      "title": "browser capability selection reports undeployed vault operations",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserCapabilitySelection.unit.test.ts",
+      "title": "required browser capability selection throws the typed unavailable error",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserExactWalletAuthAuthority.unit.test.ts",
+      "title": "fails closed when no active wallet auth method matches the authority",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserExactWalletAuthAuthority.unit.test.ts",
+      "title": "a revoked wallet auth method cannot resolve the active authority",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserExactWalletAuthAuthority.unit.test.ts",
+      "title": "linked unlock resolves an opaque selected passkey auth method id",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserExactWalletAuthAuthority.unit.test.ts",
+      "title": "wallet-registration authority stays on the custody unlock path",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserOwnerLaneScope.unit.test.ts",
+      "title": "resolves the selected owner lane without requiring a live Wallet Session",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/browserOwnerLaneScope.unit.test.ts",
+      "title": "reports a locked selected authority as requiring full login",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/canonicalLaneInventory.unit.test.ts",
+      "title": "selects the usable fact with the higher server-issued generation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/canonicalLaneInventory.unit.test.ts",
+      "title": "prefers exact target over shared projection at the same generation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/canonicalLaneInventory.unit.test.ts",
+      "title": "returns ambiguous_material for usable facts without comparable generations",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/canonicalLaneInventory.unit.test.ts",
+      "title": "returns no_current_lane with unusable facts",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/canonicalLaneInventory.unit.test.ts",
+      "title": "checks full-group conflicts before supersession filters stale facts",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/chainFamily.naming.unit.test.ts",
+      "title": "explicit chain config is the authoritative active network set",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/clientSealPreparation.unit.test.ts",
+      "title": "prepared seal transfers one owned key to the exact session and factor",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/clientSealPreparation.unit.test.ts",
+      "title": "prepared ciphertext can be read without consuming its exact preparation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/clientSealPreparation.unit.test.ts",
+      "title": "factor mismatch destroys the prepared key",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/clientSealPreparation.unit.test.ts",
+      "title": "discard during computation destroys a late key and cannot discard a newer preparation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/clientSealPreparation.unit.test.ts",
+      "title": "lock clears pending preparation and seal failure destroys its key",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/committedSignerPackages.unit.test.ts",
+      "title": "committed signer package sets reject non-canonical family branches",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/committedSignerPackages.unit.test.ts",
+      "title": "committed signer package digest parser enforces a canonical digest",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/committedSignerPackages.unit.test.ts",
+      "title": "committed Ed25519 packages require exact participant evidence and receipt bindings",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/committedSignerPackages.unit.test.ts",
+      "title": "activation responses reject non-canonical result branches",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/configs.emailOtpAuthPolicy.test.ts",
+      "title": "defaults Email OTP auth policy to session",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/configs.emailOtpAuthPolicy.test.ts",
+      "title": "rejects invalid Email OTP auth policy values",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/configs.iframeWalletDisable.test.ts",
+      "title": "rejects omitted iframeWallet instead of selecting direct browser mode",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/configs.registrationTransport.test.ts",
+      "title": "declaring registration config and leaving it incomplete throws",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/credentialsHelpers.redaction.test.ts",
+      "title": "redactCredentialExtensionOutputs redacts entire clientExtensionResults",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/delegatedWalletAuthority.unit.test.ts",
+      "title": "permission parser returns sorted opaque sets and rejects boundary mistakes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/delegatedWalletAuthority.unit.test.ts",
+      "title": "authority builders round-trip through the canonical wire shape",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/delegatedWalletAuthority.unit.test.ts",
+      "title": "linked-device QR boundaries carry the delegated authority",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/delegatedWalletAuthority.unit.test.ts",
+      "title": "attenuation allows only a child subset and presets are not persisted branches",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/delegatedWalletAuthority.unit.test.ts",
+      "title": "administered signer manifest binds one exact canonical family set",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "a domain id parser trims valid strings",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "a domain id parser rejects blank and non-string values",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "public wallet-id boundary helpers normalize through the canonical parser",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "public wallet-id boundary helpers reject invalid raw values",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "wallet-id parser rejects embedded whitespace and control characters",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "material activation parser accepts only the exact persisted reference shape",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/domainIds.boundary.unit.test.ts",
+      "title": "D1 wallet-id boundary accepts wallet-scoped ids without NEAR account validation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/durablePresignatureIndexedDb.browser.test.ts",
+      "title": "90-day presignatures restore after 30 days and preserve single-claim and ciphertext checks",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaPoolFillMaterialReads.unit.test.ts",
+      "title": "exhausted presign steps read material once per request and still require exact operation admission",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaPoolFillMaterialReads.unit.test.ts",
+      "title": "live credential lookup accepts exhausted identity and rejects stale provenance",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaPoolFillMaterialReads.unit.test.ts",
+      "title": "preprocessing requires the exact session and active material",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaPoolFillMaterialReads.unit.test.ts",
+      "title": "preprocessing admission rejects a session that expires between rounds",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaPoolFillMaterialReads.unit.test.ts",
+      "title": "exhausted-session preprocessing init remains bound to the current material and key",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaSigningRequestBoundary.unit.test.ts",
+      "title": "prepare requires the complete material identity and preserves its canonical request",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaSigningResponse.unit.test.ts",
+      "title": "final signatures and errors retain their full durable replay response",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ecdsaSigningResponse.unit.test.ts",
+      "title": "an in-progress effect remains pending without durable completion",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ed25519SigningCredentialReads.unit.test.ts",
+      "title": "an Ed25519 policy snapshot answers for its own store, wallet and scope only",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ed25519SigningCredentialReads.unit.test.ts",
+      "title": "an Ed25519 signer read answers only for the wallet and activation it selected",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "discovers providers, connects explicitly, and follows account changes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "discovers and deduplicates the namespaced Phantom provider",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "releases discovery after replacing an explicit target during mount",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "keeps mount releases idempotent while another subscriber remains",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "normalizes signing and transaction requests through the selected provider",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "switches only to configured chains and verifies the provider result",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "adds a configured chain when the wallet reports it as unknown, then retries switching",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "disconnects when post-switch authorization no longer matches",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "disconnects when the provider reports the wrong chain after switching",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "rejects stale connections and wallet approval failures",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "normalizes serialized and message-only wallet rejection errors",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "invalidates signing when the provider chain changes during approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "does not let a stale request clear the busy state of a newer request",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "reports provider transport failures separately from malformed responses",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "keeps transaction evidence when the provider account changes during approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "reports an unknown outcome for an unclassified post-dispatch failure",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/externalEvmController.unit.test.ts",
+      "title": "requires the configured chain for transaction submission",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/githubOAuth.unit.test.ts",
+      "title": "GitHub OAuth code exchange resolves and links a stable provider identity",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/githubOAuth.unit.test.ts",
+      "title": "GitHub OAuth code exchange fails closed without complete configuration",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/hostedSeamsAuthMenu.ssr.unit.test.ts",
+      "title": "imports the public subpath and renders one inert host marker",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/hostedSeamsAuthMenu.strictMode.lifecycle.unit.test.ts",
+      "title": "suppresses synthetic cleanup and value-equal config replacements",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/keccak256.unit.test.ts",
+      "title": "matches canonical keccak-256 vectors",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/keccak256.unit.test.ts",
+      "title": "derives known EVM function selectors",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/localLoginAuthMethods.unit.test.ts",
+      "title": "retains verified Email OTP presentation beside the canonical V2 record",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/localLoginAuthMethods.unit.test.ts",
+      "title": "backfills verified Email OTP presentation only when it matches the canonical digest",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearEd25519CapabilityRehydration.unit.test.ts",
+      "title": "rehydration selects the exact material authority from unscoped persisted lanes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearNonceFreshData.unit.test.ts",
+      "title": "implicit NEAR readiness uses the access-key result without a second account lookup",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearNonceFreshData.unit.test.ts",
+      "title": "a missing implicit-account access key still requests funding",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearRegistrationContinuation.unit.test.ts",
+      "title": "fresh verified authority resumes an expired grant without changing the admission request",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearRegistrationContinuation.unit.test.ts",
+      "title": "fresh authority cannot replace the original wallet, key or activation attempt",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearRegistrationContinuation.unit.test.ts",
+      "title": "respond retry retains the first random activation after its authorization committed",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearRegistrationSessionExtension.unit.test.ts",
+      "title": "NEAR authority extension preserves ECDSA identity, session lifetime and existing permissions",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearSigningConfirmationProgress.unit.test.ts",
+      "title": "forwards cancellation immediately so the request surface can close",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearSigningConfirmationProgress.unit.test.ts",
+      "title": "keeps the request surface visible when passkey authentication follows confirmation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearSigningIntentDigest.unit.test.ts",
+      "title": "warm NEAR confirmation carries one final digest for the exact displayed transaction",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/nearSigningIntentDigest.unit.test.ts",
+      "title": "NEP-413 confirmation displays the signer, recipient, and signed message",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/opaqueEcdsaPresignAuthority.unit.test.ts",
+      "title": "linked-holder cleanup preserves role-local opaque presign material",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/ownerLaneScope.unit.test.ts",
+      "title": "a passkey owner without its exact local authenticator fails closed",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/presignatureExpiryPolicy.unit.test.ts",
+      "title": "operation step-up bounds completed presignature material to the operation expiry",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/presignatureExpiryPolicy.unit.test.ts",
+      "title": "wallet-session presignature material uses the server-owned 90-day maximum",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/presignatureRefillProgress.unit.test.ts",
+      "title": "foreground waiters resume when the first presignature is published",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/presignatureRequestDeadline.unit.test.ts",
+      "title": "presign timeout is capped by the remaining ceremony lifetime",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/presignatureRequestDeadline.unit.test.ts",
+      "title": "a response body stalled after HTTP 200 retains timeout classification",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/qrScanner.lazyDecoder.unit.test.ts",
+      "title": "loads the decoder when a scan starts and decodes the first camera frame",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/qrScanner.lazyDecoder.unit.test.ts",
+      "title": "reports the missing package without opening the camera when the decoder fails to load",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/qrScanner.lazyDecoder.unit.test.ts",
+      "title": "unmounting while the decoder loads opens no camera and reports nothing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/qrScanner.lazyDecoder.unit.test.ts",
+      "title": "unmounting during a scan stops the camera and the decode loop",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/registrationSetupTransientD1.unit.test.ts",
+      "title": "setup succeeds on the retry after one lost_request connection fault",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/registrationSetupTransientD1.unit.test.ts",
+      "title": "setup succeeds on the retry after one lost_reply connection fault",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/registrationSetupTransientD1.unit.test.ts",
+      "title": "a persistent connection fault returns 503 without the driver text",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/registrationSetupTransientD1.unit.test.ts",
+      "title": "a storage error that is not transient is not retried and returns 500",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/registrationSetupTransientD1.unit.test.ts",
+      "title": "a rejected request keeps its client error and its message",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/restoredSessionPresignaturePrefill.unit.test.ts",
+      "title": "restored active session schedules the existing presignature coordinator for every configured target",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/restoredSessionPresignaturePrefill.unit.test.ts",
+      "title": "restored non-active session states never schedule presignature work",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/restoredSessionPresignaturePrefill.unit.test.ts",
+      "title": "restored exhausted sessions reconcile preprocessing eligibility without granting signing readiness",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/routerCorsPreflight.unit.test.ts",
+      "title": "preflight caches an allowed origin while actual responses still check the current origin",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingLaneReadConcurrency.unit.test.ts",
+      "title": "lane discovery starts both curve authorization reads before either completes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "a fresh-auth retry retains the operation review approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "unapproved retries remain planned and render transaction review again",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "approved passkey retries continue without rendering transaction review again",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "cancelling transaction review records a review cancellation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "cancelling the passkey prompt records an authentication cancellation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "cancelling a combined Email OTP review records an authentication cancellation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "a combined Email OTP prompt retains whether review was approved",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingOperationReviewState.unit.test.ts",
+      "title": "cancelling after passkey authentication records an execution cancellation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingSession.state.unit.test.ts",
+      "title": "generateSessionId fails closed when WebCrypto randomness is unavailable",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingSession.state.unit.test.ts",
+      "title": "volatile clear command parser rejects durable-delete payloads",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/signingSessionSecret32.unit.test.ts",
+      "title": "session restore preserves leading zeroes for both authentication factors",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.contract.test.ts",
+      "title": "review input is normalized once and expired quotes cannot open",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.snapshot.test.ts",
+      "title": "snapshot isolates nested actions, EVM bytes and Tempo calls while retaining callbacks separately",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.snapshot.test.ts",
+      "title": "effective confirmation configuration rejects inherited and explicit incompatible modes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.snapshot.test.ts",
+      "title": "review wire identity accepts only serializable metadata and complete phase acknowledgements",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.snapshot.test.ts",
+      "title": "NEAR function arguments retain the established JSON boundary semantics",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionReview.snapshot.test.ts",
+      "title": "snapshot preserves own __proto__ keys without changing record prototypes",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/transactionSurfaceQueue.deadline.test.ts",
+      "title": "a distant deadline keeps its place in the transaction surface queue",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletCustodyDeferredFactor.unit.test.ts",
+      "title": "a NEAR custody run begins without its factor and takes it after the Router round",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletCustodyDeferredFactor.unit.test.ts",
+      "title": "a failed Router round discards the run and never asks for the factor",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletCustodyDeferredFactor.unit.test.ts",
+      "title": "a factor that fails to arrive discards the run after its round",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletRegistrationEd25519Round.unit.test.ts",
+      "title": "an execute round fails when its execution stays in progress past the retry budget",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletRegistrationEd25519Round.unit.test.ts",
+      "title": "an execute round does not repeat a request that failed for another reason",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletRuntimePaths.assetVersion.unit.test.ts",
+      "title": "uses one release version for worker JavaScript and WASM",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "one operation shares settled and pending status reads; later operations and other identities read afresh",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "a failed status read is shared without retrying within the operation",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "reads outside a wallet-host observation ask the server, and its answer replaces the issued session",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "a wallet-host observation of another session asks the server",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "a prepare answers with the status it admitted and leaves the balance after its claim for planning",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSessionStatusReadScope.unit.test.ts",
+      "title": "a signing request that the server refuses for step-up drops what the wallet observed",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "unit/walletSettingsPage.unit.test.ts",
+      "title": "settings sidebar selects panels, preserves capability restrictions, and works on narrow screens",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "existing-unit-final"
+    },
+    {
+      "file": "wallet-iframe/router.connectionClosed.test.ts",
+      "title": "settles only the hosted auth-menu request on explicit router disposal",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-iframe/router.connectionClosed.test.ts",
+      "title": "hides and removes an ordinary request surface on router disposal",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts a transaction model through the public confirm-ui API",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts a transaction model through the public confirm-ui API",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts a transaction model through the public confirm-ui API",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "renders NEP-413 signature details in the transaction review",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "renders NEP-413 signature details in the transaction review",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "renders NEP-413 signature details in the transaction review",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "resolves cancel through the public decision API",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "resolves cancel through the public decision API",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "resolves cancel through the public decision API",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts every supported chain in standalone and hosted modal/drawer contexts",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts every supported chain in standalone and hosted modal/drawer contexts",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "mounts every supported chain in standalone and hosted modal/drawer contexts",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "cleans up a cancelled confirmation before the next auth handoff",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "cleans up a cancelled confirmation before the next auth handoff",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "cleans up a cancelled confirmation before the next auth handoff",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "lazily enriches ABI hints without replacing the mounted surface",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "lazily enriches ABI hints without replacing the mounted surface",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/confirm-ui.browser.test.ts",
+      "title": "lazily enriches ABI hints without replacing the mounted surface",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/external-evm-receipt.browser.test.ts",
+      "title": "receipt waiting follows pending inclusion and rejects mismatched, expired, and cancelled observations",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/external-evm-receipt.browser.test.ts",
+      "title": "receipt waiting follows pending inclusion and rejects mismatched, expired, and cancelled observations",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/external-evm-receipt.browser.test.ts",
+      "title": "receipt waiting follows pending inclusion and rejects mismatched, expired, and cancelled observations",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "registration defaults resolve before transport and preserve explicit wallet IDs",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "registration defaults resolve before transport and preserve explicit wallet IDs",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "registration defaults resolve before transport and preserve explicit wallet IDs",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "explicit EVM selection and disabled provisioning override configured defaults",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "explicit EVM selection and disabled provisioning override configured defaults",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "explicit EVM selection and disabled provisioning override configured defaults",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "one hook locks, unlocks, provisions NEAR, and replaces disposed review ownership",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "one hook locks, unlocks, provisions NEAR, and replaces disposed review ownership",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "one hook locks, unlocks, provisions NEAR, and replaces disposed review ownership",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "context, immutable intent, continuous iframe handoff and explicit wallet approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "context, immutable intent, continuous iframe handoff and explicit wallet approval",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "context, immutable intent, continuous iframe handoff and explicit wallet approval",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back preserves review state and resumes the same pending wallet approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back preserves review state and resumes the same pending wallet approval",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back preserves review state and resumes the same pending wallet approval",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelling after Back settles the pending request and releases the review queue",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelling after Back settles the pending request and releases the review queue",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelling after Back settles the pending request and releases the review queue",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back keeps the original quote deadline and rejects an expired Continue",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back keeps the original quote deadline and rejects an expired Continue",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Back keeps the original quote deadline and rejects an expired Continue",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "double Continue dispatches once and releases the lease after approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "double Continue dispatches once and releases the lease after approval",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "double Continue dispatches once and releases the lease after approval",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during reviewing settles once and invalidates old controls",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during reviewing settles once and invalidates old controls",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during reviewing settles once and invalidates old controls",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during wallet_approval settles once and invalidates old controls",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during wallet_approval settles once and invalidates old controls",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe disconnect during wallet_approval settles once and invalidates old controls",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe reload cancels its review and a fresh connection can review again",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe reload cancels its review and a fresh connection can review again",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "iframe reload cancels its review and a fresh connection can review again",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "handoff keeps both views inert and activates through the animation timer fallback",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "handoff keeps both views inert and activates through the animation timer fallback",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "handoff keeps both views inert and activates through the animation timer fallback",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "preference changes during review cannot bypass the reserved wallet approval",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "preference changes during review cannot bypass the reserved wallet approval",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "preference changes during review cannot bypass the reserved wallet approval",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "settled receipt is replaced atomically and late activity cannot reclaim the review",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "settled receipt is replaced atomically and late activity cannot reclaim the review",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "settled receipt is replaced atomically and late activity cannot reclaim the review",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review cancellation and owner disposal never dispatch a wallet request",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review cancellation and owner disposal never dispatch a wallet request",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review cancellation and owner disposal never dispatch a wallet request",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "FIFO reviews keep one owner, expire queued quotes and ignore old controls",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "FIFO reviews keep one owner, expire queued quotes and ignore old controls",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "FIFO reviews keep one owner, expire queued quotes and ignore old controls",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "async failures stay visible until dismissal and the next review can render",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "async failures stay visible until dismissal and the next review can render",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "async failures stay visible until dismissal and the next review can render",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review geometry fits narrow screens and large content with reduced motion",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review geometry fits narrow screens and large content with reduced motion",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "review geometry fits narrow screens and large content with reduced motion",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "expanded wallet approval scrolls keyboard focus into a short viewport",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "expanded wallet approval scrolls keyboard focus into a short viewport",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "expanded wallet approval scrolls keyboard focus into a short viewport",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "wallet admission arbitrates credential cancellation and preserves a started signature",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "wallet admission arbitrates credential cancellation and preserves a started signature",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "wallet admission arbitrates credential cancellation and preserves a started signature",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "all transaction methods forward one core failure and preserve callback ownership",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "all transaction methods forward one core failure and preserve callback ownership",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "all transaction methods forward one core failure and preserve callback ownership",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing and duplicate hosts reject before dispatch and disposed methods stay invalid",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing and duplicate hosts reject before dispatch and disposed methods stay invalid",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing and duplicate hosts reject before dispatch and disposed methods stay invalid",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Suspense loading is cancellable and has a bounded lifetime",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Suspense loading is cancellable and has a bounded lifetime",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Suspense loading is cancellable and has a bounded lifetime",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing wallet activation acknowledgement cancels and releases the lease",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing wallet activation acknowledgement cancels and releases the lease",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "missing wallet activation acknowledgement cancels and releases the lease",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "keyboard review preserves local input and wallet Escape cancels before signing",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "keyboard review preserves local input and wallet Escape cancels before signing",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "keyboard review preserves local input and wallet Escape cancels before signing",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "same-wallet session replacement cancels active and queued reviews and releases ownership",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "same-wallet session replacement cancels active and queued reviews and releases ownership",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "same-wallet session replacement cancels active and queued reviews and releases ownership",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "host disposal after signing preserves the eventual wallet result",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "host disposal after signing preserves the eventual wallet result",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "host disposal after signing preserves the eventual wallet result",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a thrown renderer shows the error boundary until dismissal without dispatch",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a thrown renderer shows the error boundary until dismissal without dispatch",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a thrown renderer shows the error boundary until dismissal without dispatch",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Escape during a paused handoff cancels without waiting for animation completion",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Escape during a paused handoff cancels without waiting for animation completion",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "Escape during a paused handoff cancels without waiting for animation completion",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by escape",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by escape",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by escape",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by backdrop",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by backdrop",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "failed review preserves its error when dismissed by backdrop",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll preserves a signing review until its real result settles",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll preserves a signing review until its real result settles",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll preserves a signing review until its real result settles",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll removes queued reviews before releasing the active review",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll removes queued reviews before releasing the active review",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "cancelAll removes queued reviews before releasing the active review",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a replacement review host can register in the same commit as the previous host unmounts",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a replacement review host can register in the same commit as the previous host unmounts",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/transaction-review.browser.test.ts",
+      "title": "a replacement review host can register in the same commit as the previous host unmounts",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-approval.browser.test.ts",
+      "title": "a wallet review consumes only its current voice approval at the signing boundary",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-approval.browser.test.ts",
+      "title": "a wallet review consumes only its current voice approval at the signing boundary",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-approval.browser.test.ts",
+      "title": "a wallet review consumes only its current voice approval at the signing boundary",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-phrase-tolerance.browser.test.ts",
+      "title": "natural speech matches its challenge and rejects other challenges and unrelated speech",
+      "project": "chromium",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-phrase-tolerance.browser.test.ts",
+      "title": "natural speech matches its challenge and rejects other challenges and unrelated speech",
+      "project": "firefox-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    },
+    {
+      "file": "wallet-ui/voiceid-phrase-tolerance.browser.test.ts",
+      "title": "natural speech matches its challenge and rejects other challenges and unrelated speech",
+      "project": "webkit-ui",
+      "outcome": "expected",
+      "run": "browser-complete"
+    }
+  ]
+}
