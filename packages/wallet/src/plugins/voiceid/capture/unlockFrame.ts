@@ -50,8 +50,8 @@ const CSS = `
   height: 20px;
 }
 .seams-voiceid-unlock-back:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
+  outline: none;
+  background: var(--seams-colors-surface, #202b31);
 }
 .seams-voiceid-unlock .seams-voiceid-prompt {
   width: 100%;
