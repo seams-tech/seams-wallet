@@ -1,0 +1,89 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "swift-cascade-gv933n",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_bounded_text",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "34db934e-94c0-4f47-b329-f95c4cbc3239",
+    "capturedAtMs": 1792986296625,
+    "durationMs": 3420,
+    "recordingMs": 4989.5,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.21798226789633238,
+    "baselineSimilarity": 0.21798226789633238,
+    "referenceKind": "baseline",
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "difference": 0.6666666666666666,
+      "margin": 0.04444444444444451,
+      "decodedText": "my voice helps me open thisallet on my device",
+      "reason": "different"
+    },
+    "expectedPhrase": "we sat together and watched the river"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "swift-cascade-gv933n",
+    "accountId": "a20ee751b7d90a208fdb1431bc59e237dd8fd701194e5ba42408e7a00544f021",
+    "publicKey": "ed25519:BucEDUyDeN6jmrqd8trHz63buEwFsxNDDmETojEEECEk"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGEyMGVlNzUxYjdkOTBhMjA4ZmRiMTQzMWJjNTllMjM3ZGQ4ZmQ3MDExOTRlNWJhNDI0MDhlN2EwMDU0NGYwMjEAog7nUbfZCiCP2xQxvFniN92P1wEZTlukJAjnoAVE8CECAAAAAAAAAEAAAABhMjBlZTc1MWI3ZDkwYTIwOGZkYjE0MzFiYzU5ZTIzN2RkOGZkNzAxMTk0ZTViYTQyNDA4ZTdhMDA1NDRmMDIxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAdvWL6Gmhvn49BPTIEzbf2zAMoJQDtWxOs7+dj3oej+HR2GzJthrogpVIldCvIjM2l86rAiysUA+onKb/iRNXAQ==",
+      "signedTransactionSha256": "f6a80b145a1ab30b1b6c3c84fad7f097270df0a966c66b87926b9c362dec2aa1",
+      "signerId": "a20ee751b7d90a208fdb1431bc59e237dd8fd701194e5ba42408e7a00544f021",
+      "receiverId": "a20ee751b7d90a208fdb1431bc59e237dd8fd701194e5ba42408e7a00544f021",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

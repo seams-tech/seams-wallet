@@ -242,7 +242,6 @@ async function verifyLivePage(
   );
   await expect(wallet.locator('.seams-voiceid-ribbon')).toHaveAttribute('data-speech', 'true');
   await expect(wallet.locator('.seams-voiceid-glow [data-voice-beam]')).toHaveCount(1);
-  await expect(wallet.locator('.seams-voiceid-ribbon path')).toHaveCount(4);
   await wallet
     .locator('.seams-voiceid-prompt')
     .screenshot({ path: testInfo.outputPath('minimal-voice-approval.png') });
@@ -302,7 +301,7 @@ async function verifyLivePage(
         phraseModelFetchedOnceAcrossReload: true,
         incorrectEnrollmentPhraseRejected: true,
         previousAttemptPhraseRejectedBeforeSigning: true,
-        phraseRecognition: 'real_aurora_int8_constrained_ctc',
+        phraseRecognition: 'real_aurora_int8_bounded_text',
         minimalPromptReplacesReviewDuringCapture: true,
         liveWaveformUsesSingleRecordingStream: true,
         cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning: true,

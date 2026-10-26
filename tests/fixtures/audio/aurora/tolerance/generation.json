@@ -1,0 +1,58 @@
+[
+  {
+    "file": "omitted-articles.wav",
+    "spoken": "please bring water to table",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "435bee2270ffd0b2c14040df7cdefe9f1ab916c41bea80f43237bca6c96f0b95"
+  },
+  {
+    "file": "rough-window.wav",
+    "spoken": "she is reading by the window",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "eb5a448ab438de6590885dd1908481010f29156c58310b1a8d1d7f287484f853"
+  },
+  {
+    "file": "outside-bound-window.wav",
+    "spoken": "she is reading the side of winter",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "ff038b0d4246fca664e0859c75c64f2cfecb4b99925894f45332776df7c61dc7"
+  },
+  {
+    "file": "ambiguous.wav",
+    "spoken": "the little cat is sitting outside",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "c0e9d00437a9c7fcecb766a136bfb650d36568066ca02d0a3b3b026f058bd9b4"
+  },
+  {
+    "file": "unrelated.wav",
+    "spoken": "cancel my wallet and tell me the time",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "4b7852ebf3849bd99bfb388bdb977658526a017c54a1d16cd71ab14761f933a7"
+  },
+  {
+    "file": "reordered.wav",
+    "spoken": "window beside reading is she",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "a753f20b1230f05566bd0ecab94a1dfd6727d37436c1cc53af03958100f7c886"
+  },
+  {
+    "file": "negated.wav",
+    "spoken": "do not open the window in the kitchen",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "6419c9f57f07769969c1b3ada14ab7385a86506beb06ee69012677ca58bf5f3f"
+  },
+  {
+    "file": "fragment.wav",
+    "spoken": "she is reading",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "b98cecac0e3ba25e884b4026220eeadda5a0798384ada77b29328ea347605d9e"
+  }
+]

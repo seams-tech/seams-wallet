@@ -9,9 +9,14 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--natural', action='store_true', help='Use 160 words per minute instead of 140')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--natural', action='store_true', help='Use 160 words per minute instead of 140')
+    mode.add_argument('--tolerance', action='store_true', help='Generate bounded-tolerance cases')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    if args.tolerance:
+        generate_tolerance(args.output)
+        return
     source = Path(__file__).with_name('phrases.json')
     phrases = json.loads(source.read_text())
     rows = []
@@ -32,6 +37,29 @@ def main():
                      'rate': rate, 'tempo': tempo, 'sha256': hashlib.sha256(wav.read_bytes()).hexdigest()})
     (args.output / 'phrases.json').write_text(source.read_text())
     (args.output / 'generation.json').write_text(json.dumps(rows, indent=2) + '\n')
+
+
+def generate_tolerance(output):
+    cases = [
+        ('omitted-articles', 'please bring water to table'),
+        ('rough-window', 'she is reading by the window'),
+        ('outside-bound-window', 'she is reading the side of winter'),
+        ('ambiguous', 'the little cat is sitting outside'),
+        ('unrelated', 'cancel my wallet and tell me the time'),
+        ('reordered', 'window beside reading is she'),
+        ('negated', 'do not open the window in the kitchen'),
+        ('fragment', 'she is reading'),
+    ]
+    rows = []
+    for name, spoken in cases:
+        aiff = output / f'{name}.aiff'
+        wav = output / f'{name}.wav'
+        subprocess.run(['say', '-v', 'Samantha', '-r', '160', '-o', str(aiff), spoken], check=True)
+        subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', str(aiff), str(wav)], check=True)
+        aiff.unlink()
+        rows.append({'file': wav.name, 'spoken': spoken, 'voice': 'Samantha', 'rate': 160,
+                     'sha256': hashlib.sha256(wav.read_bytes()).hexdigest()})
+    (output / 'generation.json').write_text(json.dumps(rows, indent=2) + '\n')
 
 
 if __name__ == '__main__':

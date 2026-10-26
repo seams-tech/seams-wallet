@@ -1,5 +1,5 @@
 import { BrowserInferenceModel, type VoiceModelProgress } from './inference';
-import { SPOKEN_PHRASES, PHRASE_TOKENS, PHRASE_TOKEN_PIECES } from './phraseVocabulary';
+import { SPOKEN_PHRASES, PHRASE_TOKEN_PIECES } from './phraseVocabulary';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
 const model = new BrowserInferenceModel({
@@ -8,8 +8,9 @@ const model = new BrowserInferenceModel({
   bytes: 1_342_384,
   label: 'Phrase recognition',
 });
-// Allows minor wording differences; see the natural-phrase calibration evidence.
-const MAX_GREEDY_LOG_GAP = 8;
+// A development bound for an approximate spoken challenge, not transcription confidence.
+const MAX_TEXT_DIFFERENCE = 0.3;
+const MIN_CANDIDATE_MARGIN = 0.1;
 const TOKEN_COUNT = 257;
 let lastIssuedPhrase: SpokenPhrase | null = null;
 
@@ -28,47 +29,146 @@ export async function preparePhraseModel(onProgress?: (progress: VoiceModelProgr
   return await model.prepare(onProgress);
 }
 
-function logAdd(left: number, right: number): number {
-  if (left === -Infinity) {
-    return right;
-  }
-  if (right === -Infinity) {
-    return left;
-  }
-  const maximum = Math.max(left, right);
-  return maximum + Math.log(Math.exp(left - maximum) + Math.exp(right - maximum));
-}
+type PhraseRecognition =
+  | {
+      kind: 'recognized';
+      phrase: SpokenPhrase;
+      difference: number;
+      margin: number;
+      decodedText: string;
+    }
+  | {
+      kind: 'uncertain';
+      candidate: SpokenPhrase;
+      difference: number;
+      margin: number;
+      decodedText: string;
+      reason: 'different' | 'ambiguous' | 'negated';
+    }
+  | { kind: 'empty' };
 
-function ctcScore(probabilities: Float64Array, frames: number, tokens: readonly number[]): number {
-  const states = new Int32Array(tokens.length * 2 + 1);
-  for (let index = 0; index < tokens.length; index += 1) {
-    states[index * 2 + 1] = tokens[index];
-  }
-  let previous = new Float64Array(states.length).fill(-Infinity);
-  previous[0] = 0;
-  for (let frame = 0; frame < frames; frame += 1) {
-    const next = new Float64Array(states.length).fill(-Infinity);
-    for (let state = 0; state < states.length; state += 1) {
-      let total = previous[state];
-      if (state > 0) {
-        total = logAdd(total, previous[state - 1]);
-      }
-      if (state > 1 && states[state] !== 0 && states[state] !== states[state - 2]) {
-        total = logAdd(total, previous[state - 2]);
-      }
-      next[state] = total + probabilities[frame * TOKEN_COUNT + states[state]];
+const HOMOPHONES = new Map([
+  ['sea', 'see'],
+  ['here', 'hear'],
+  ['meat', 'meet'],
+  ['whether', 'weather'],
+  ['son', 'sun'],
+  ['wood', 'would'],
+  ['two', 'to'],
+  ['too', 'to'],
+  ['eye', 'i'],
+]);
+
+const NEGATIONS = new Set([
+  'no',
+  'not',
+  'never',
+  'cannot',
+  "can't",
+  "don't",
+  "doesn't",
+  "isn't",
+  "aren't",
+  "wasn't",
+  "weren't",
+  "won't",
+  "wouldn't",
+  "shouldn't",
+  'without',
+]);
+
+function words(text: string): string[] {
+  return (
+    text
+      .toLowerCase()
+      .replace(/’/g, "'")
+      .match(/[a-z0-9]+(?:'[a-z]+)?/g) ?? []
+  );
+}
+function keepWord(word: string): boolean {
+  return word !== 'a' && word !== 'an' && word !== 'the';
+}
+function canonicalWord(word: string): string {
+  return HOMOPHONES.get(word) ?? word;
+}
+function canonicalText(tokens: readonly string[]): string {
+  return tokens.filter(keepWord).map(canonicalWord).join(' ');
+}
+function isNegation(word: string): boolean {
+  return NEGATIONS.has(word);
+}
+function editDistance(left: string, right: string): number {
+  let previous = Array.from({ length: right.length + 1 }, initialDistance);
+  for (let row = 0; row < left.length; row += 1) {
+    const next = [row + 1];
+    for (let column = 0; column < right.length; column += 1) {
+      next.push(
+        Math.min(
+          next[column] + 1,
+          previous[column + 1] + 1,
+          previous[column] + (left[row] === right[column] ? 0 : 1),
+        ),
+      );
     }
     previous = next;
   }
-  return states.length === 1
-    ? previous[0]
-    : logAdd(previous[states.length - 1], previous[states.length - 2]);
+  return previous[right.length];
 }
-
-type PhraseRecognition =
-  | { kind: 'recognized'; phrase: SpokenPhrase; gap: number; decodedText: string }
-  | { kind: 'uncertain'; candidate: SpokenPhrase; gap: number; decodedText: string }
-  | { kind: 'empty' };
+function initialDistance(_value: unknown, index: number): number {
+  return index;
+}
+function matchDecodedPhrase(decodedText: string): PhraseRecognition {
+  const tokens = words(decodedText);
+  const text = canonicalText(tokens);
+  if (!text) return { kind: 'empty' };
+  let best: SpokenPhrase = SPOKEN_PHRASES[0];
+  let difference = Infinity;
+  let runnerUp = Infinity;
+  for (const phrase of SPOKEN_PHRASES) {
+    const target = canonicalText(words(phrase));
+    const score = editDistance(text, target) / Math.max(text.length, target.length);
+    if (score < difference) {
+      runnerUp = difference;
+      difference = score;
+      best = phrase;
+    } else {
+      runnerUp = Math.min(runnerUp, score);
+    }
+  }
+  const margin = runnerUp - difference;
+  if (tokens.some(isNegation)) {
+    return {
+      kind: 'uncertain',
+      candidate: best,
+      difference,
+      margin,
+      decodedText,
+      reason: 'negated',
+    };
+  }
+  const expectedWords = words(best).length;
+  if (difference > MAX_TEXT_DIFFERENCE || Math.abs(tokens.length - expectedWords) > 2) {
+    return {
+      kind: 'uncertain',
+      candidate: best,
+      difference,
+      margin,
+      decodedText,
+      reason: 'different',
+    };
+  }
+  if (margin < MIN_CANDIDATE_MARGIN) {
+    return {
+      kind: 'uncertain',
+      candidate: best,
+      difference,
+      margin,
+      decodedText,
+      reason: 'ambiguous',
+    };
+  }
+  return { kind: 'recognized', phrase: best, difference, margin, decodedText };
+}
 
 /** A local phrase rejection can retry while the original server challenge is valid. */
 export class VoicePhraseMismatchError extends Error {
@@ -83,7 +183,6 @@ export type PhraseCheck =
   | { kind: 'mismatch'; recognition: PhraseRecognition; message: string };
 
 function recognize(logits: Float32Array, frames: number): PhraseRecognition {
-  const probabilities = new Float64Array(logits.length);
   const greedy: number[] = [];
   let previousToken = -1;
   for (let frame = 0; frame < frames; frame += 1) {
@@ -100,14 +199,6 @@ function recognize(logits: Float32Array, frames: number): PhraseRecognition {
         bestToken = token;
       }
     }
-    let sum = 0;
-    for (let token = 0; token < TOKEN_COUNT; token += 1) {
-      sum += Math.exp(logits[offset + token] - maximum);
-    }
-    const normalizer = maximum + Math.log(sum);
-    for (let token = 0; token < TOKEN_COUNT; token += 1) {
-      probabilities[offset + token] = logits[offset + token] - normalizer;
-    }
     if (bestToken !== 0 && bestToken !== previousToken) {
       greedy.push(bestToken);
     }
@@ -116,26 +207,13 @@ function recognize(logits: Float32Array, frames: number): PhraseRecognition {
   if (greedy.length === 0) {
     return { kind: 'empty' };
   }
-  let bestScore = -Infinity;
-  let bestIndex = 0;
-  for (let index = 0; index < PHRASE_TOKENS.length; index += 1) {
-    const score = ctcScore(probabilities, frames, PHRASE_TOKENS[index]);
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndex = index;
-    }
-  }
-  const greedyScore = ctcScore(probabilities, frames, greedy);
-  const gap = greedyScore - bestScore;
   const decodedText = greedy
     .map(tokenPiece)
     .join('')
     .replace(/▁/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
-  return gap <= MAX_GREEDY_LOG_GAP
-    ? { kind: 'recognized', phrase: SPOKEN_PHRASES[bestIndex], gap, decodedText }
-    : { kind: 'uncertain', candidate: SPOKEN_PHRASES[bestIndex], gap, decodedText };
+  return matchDecodedPhrase(decodedText);
 }
 
 function tokenPiece(token: number): string {
@@ -182,7 +260,7 @@ function phraseFailureMessage(result: PhraseRecognition): string {
     case 'recognized':
       return `Phrase recognition chose “${result.phrase}”. Model heard: “${result.decodedText}”. Please read the displayed phrase naturally.`;
     case 'uncertain':
-      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Model heard: “${result.decodedText}”. Score gap ${result.gap.toFixed(3)} (above limit ${MAX_GREEDY_LOG_GAP.toFixed(3)}).`;
+      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Model heard: “${result.decodedText}”. Text difference ${(result.difference * 100).toFixed(1)}% (maximum ${MAX_TEXT_DIFFERENCE * 100}%). Candidate margin ${(result.margin * 100).toFixed(1)} points (minimum ${MIN_CANDIDATE_MARGIN * 100}). Rejection: ${result.reason}.`;
     case 'empty':
       return 'Phrase recognition detected no words. Please try again in your normal voice.';
     default:

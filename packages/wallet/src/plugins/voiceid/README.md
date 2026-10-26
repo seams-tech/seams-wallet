@@ -149,12 +149,14 @@ stop capture. An eight-second maximum bounds silence, continued noise, and
 recordings where live analysis is unavailable. Both speaker and phrase checks use the same recording.
 Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
 
-The decoder scores all 16 phrases before comparing its result with the displayed
-phrase. It also compares the best phrase score against unconstrained recognition.
-The prototype accepts a log-likelihood gap of at most 8. This is a development
-cutoff, with synthetic screening evidence. It needs human accuracy qualification.
-Minor wording differences can pass, including an omitted article. This is not an
-exact-word check. A different recognized phrase or a gap above 8 prevents
+Aurora decodes the audio independently of the displayed phrase. The matcher compares
+that text with all 16 phrases. It ignores case, punctuation, and articles, and maps
+selected homophones to a common spelling. It permits at most 30% normalized character
+edit distance, requires a 10-point distance margin over the next candidate, and
+limits decoded word count to within two words of the candidate. Detected negations
+reject. These are development bounds for an approximate challenge. Some changed
+content words can pass; this check does not interpret transaction intent.
+A different recognized phrase, ambiguity, or an out-of-bounds result prevents
 enrollment, device-key use, or signing. The speaker threshold remains 0.5. A signing retry
 keeps the original transaction review and deadline and requires another Confirm.
 No audio or transcript leaves the browser or enters persistent storage.

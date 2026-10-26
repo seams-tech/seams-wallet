@@ -23,18 +23,17 @@ against PyTorch at several input lengths. It rejects an unexpected INT8 artifact
 hash. `export.json` records input hashes, output hashes, sizes, versions, and parity.
 The ONNX graph includes waveform preprocessing. INT8 weights dequantize for floating
 point execution. Constant folding stays disabled to preserve compact weights.
-The generated phrase tokens replace a runtime tokenizer download.
+The generated tokenizer pieces replace a runtime tokenizer download.
 
 Build the SDK after provisioning both Aurora and B1. The asset build copies their
 notices and licenses beside the models. Model files stay outside Git.
 
 ## Repeat the synthetic screening
 
-These are development cases, including cases used to choose phrases and the cutoff.
-They do not provide independent human accuracy estimates. The saved near-miss report
-contains `acceptedExpected` at the exploratory cutoff of 6. Evaluate its scores at
-the shipped cutoff of 8. The repeat script uses 8. This permits minor wording
-differences, including two saved cases that omit the article “a”.
+These are development cases and do not provide independent human accuracy estimates.
+The native screen reports unconstrained decoded text. Phrase acceptance is exercised
+through the browser contract using the production bounded matcher. Historical CTC
+screening reports describe the retired log-gap rule and are not current acceptance results.
 
 On macOS with the named system voices installed:
 
@@ -50,8 +49,8 @@ python tests/scripts/voiceid-aurora/screen.py \
 ```
 
 Each run synthesizes 16 kHz audio and writes a repeatable `results.json` artifact.
-System voice versions can change results. The native NumPy CTC scorer is a separate implementation of the browser
-decoder. Earlier saved screening used PyTorch CTC.
+System voice versions can change results. The current browser test uses the production
+Aurora decoder and matcher with actual ONNX inference.
 
 ## Browser E2E fixtures
 
@@ -112,7 +111,7 @@ models. Synthetic voices do not establish human false-accept or false-reject rat
 
 ## Update the sentence bank
 
-Edit `phrases.json`, then regenerate tokens with the pinned tokenizer. This does
+Edit `phrases.json`, then regenerate the phrase bank and decoder pieces with the pinned tokenizer. This does
 not export or change the Aurora model:
 
 ```sh
@@ -121,9 +120,26 @@ python tests/scripts/voiceid-aurora/vocabulary.py \
   --vocabulary packages/wallet/src/plugins/voiceid/browser/phraseVocabulary.ts
 ```
 
-`screen.py` accepts `--rate` (default 160) and `--phrases` for candidate screening.
+`screen.py` accepts `--rate` (default 160) for transcript screening.
 Use `--rate 95` when reproducing the historical slow-speech screen. Cases can
 override the rate and supply a different spoken sentence for negative checks.
 Regenerate both fixture sets and the derived noise fixtures after changing the bank.
-The phrase limit remains 8 and speaker threshold remains 0.5. Existing speaker
+The browser phrase matcher uses a 30% text-difference bound and a 10-point candidate margin.
+Speaker verification remains at 0.5. Existing speaker
 enrollment remains valid because its model and template format did not change.
+
+
+## Bounded phrase tolerance
+
+Generate the additional synthetic cases with:
+
+```sh
+python tests/scripts/voiceid-aurora/fixtures.py --tolerance --output /tmp/voiceid-tolerance-fixtures
+```
+
+The tracked copies are under `tests/fixtures/audio/aurora/tolerance/`. The browser
+contract `tests/wallet-ui/voiceid-phrase-tolerance.browser.test.ts` checks all 16
+natural fixtures against all 16 challenges, plus omitted articles, approximate
+wording, unrelated speech, reordering, a negation, and a short fragment. Run it with
+`playwright.wallet-browser.config.ts`, project `chromium`. It emits
+`phrase-tolerance.json` with the decoded text and decision for every case.

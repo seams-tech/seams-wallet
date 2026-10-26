@@ -216,7 +216,7 @@ solely at this migration boundary for the other methods.
 
 Automatic learning remains disabled. The public-corpus evaluation did not establish
 a reduction in evaluation-group rejection. These manual controls remain experimental
-and require separate live accuracy validation. Speaker threshold 0.5, phrase limit 8,
+and require separate live accuracy validation. Speaker threshold 0.5,
 6–7-word prompts, server authorization, session budgets, and signing admission remain unchanged.
 
 VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
@@ -242,9 +242,15 @@ The model deployment instructions live in
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
 Confirm click. Randomized prompts contain 6–7 words so users can supply more
 speech at a natural pace. Existing enrollment remains valid. Aurora must select
-the displayed phrase from the same recording,
-with a log-likelihood gap of at most 8. Minor wording differences, such as an
-omitted article, can pass. A different selected phrase still fails. Speaker
+the displayed phrase from the same recording using its independently decoded text.
+The matcher ignores case, punctuation, and articles, and canonicalizes the listed
+homophones. It compares all 16 phrases using character edit distance divided by
+the longer normalized text length. The best candidate must have at most 30%
+difference and beat the runner-up by at least 10 percentage points. The decoded
+word count must be within two words of the candidate. Detected negations reject.
+This permits approximate wording, including some content-word errors. It is a
+freshness challenge, not exact transcription or transaction-intent interpretation.
+A different selected phrase, an ambiguous result, or text outside these bounds fails. Speaker
 verification retains its independent similarity threshold of 0.5.
 A local phrase rejection during unlock keeps the prompt open with a fresh phrase
 and an explicit Try again action. The original challenge deadline still applies.
