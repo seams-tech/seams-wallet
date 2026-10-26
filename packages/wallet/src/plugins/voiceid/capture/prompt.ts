@@ -45,7 +45,7 @@ const CSS = `
   line-height: 1.4;
   font-weight: 500;
   color: var(--seams-colors-textSecondary, #9cabb3);
-  margin: 0 0 1.5rem;
+  margin: 0.5rem 0 1rem;
 }
 .seams-voiceid-prompt.seams-voiceid-management {
   display: flex;

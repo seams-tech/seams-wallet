@@ -41,13 +41,18 @@ type SurfaceState =
   | { kind: 'mounted' | 'closing'; model: ConfirmSurfaceModel; onClosed: () => void }
   | { kind: 'disposed'; model?: never; onClosed?: never };
 
-const RECEIPT_MORPH_DURATION_MS = 480;
-/** A replaced auth method capture fades where it is, while its progress segments travel on. */
-const CAPTURE_FADE_MS = 240;
-/** The receipt's details cross the capture's fade, then follow top to bottom. */
-const HANDED_DETAIL_DELAY_MS = 140;
+const RECEIPT_MORPH_DURATION_MS = 640;
+/** A replaced auth method capture's copy fades first, where it is. */
+const CAPTURE_FADE_MS = 160;
+/** Then its progress segments travel, evenly, into the receipt's tracks. */
+const SEGMENT_DELAY_MS = 120;
+const SEGMENT_TRAVEL_MS = 800;
+const SEGMENT_EASING = 'cubic-bezier(0.65, 0, 0.35, 1)';
+/** The receipt's details follow the fade top to bottom; the steps settle as the segments land. */
+const HANDED_DETAIL_DELAY_MS = 200;
 const HANDED_DETAIL_STAGGER_MS = 40;
-const HANDED_DETAIL_FADE_MS = 280;
+const HANDED_DETAIL_FADE_MS = 360;
+const HANDED_STEPS_DELAY_MS = SEGMENT_DELAY_MS + SEGMENT_TRAVEL_MS - HANDED_DETAIL_FADE_MS;
 const RECEIPT_MORPH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const RECEIPT_ANCHORS = [
   '.seams-receipt-symbol',
@@ -288,7 +293,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
                   delay: toolbar
                     ? 0
                     : handedOver && detail.matches('.seams-receipt-steps')
-                      ? HANDED_DETAIL_DELAY_MS
+                      ? HANDED_STEPS_DELAY_MS
                       : HANDED_DETAIL_DELAY_MS + Math.min(order, 6) * HANDED_DETAIL_STAGGER_MS,
                   fill: 'backwards',
                   easing: 'cubic-bezier(0.2, 0, 0, 1)',
@@ -339,7 +344,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.receiptMotion.push(
       ghost.animate([{ ...place, opacity: 1 }, { ...place, opacity: 0 }], {
         duration: CAPTURE_FADE_MS,
-        easing: 'ease-in-out',
+        easing: 'ease-out',
         fill: 'both',
       }),
     );
@@ -377,7 +382,12 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
               backgroundColor: getComputedStyle(track, complete ? '::after' : null).backgroundColor,
             },
           ],
-          { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING, fill: 'both' },
+          {
+            duration: SEGMENT_TRAVEL_MS,
+            delay: SEGMENT_DELAY_MS,
+            easing: SEGMENT_EASING,
+            fill: 'both',
+          },
         ),
       );
     }
