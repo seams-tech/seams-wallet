@@ -460,8 +460,8 @@ export class VoicePrompt {
   }
 
   /**
-   * Plays the unlock success in place: the ring seals while the copy changes in
-   * the same rows, and the group moves to the middle of `area` (the card by default).
+   * Plays the unlock success in place and resolves when the check is drawn. Once
+   * the ring has formed it glides to the middle of `area` (the card by default).
    */
   async succeed(
     headline: string,
@@ -472,18 +472,7 @@ export class VoicePrompt {
     this.element.dataset.capture = 'succeeded';
     this.record.hidden = true;
     this.details.hidden = true;
-    const sealed = this.visual.succeed();
-    this.centerSuccess(area);
-    // The new copy arrives as the seal lands, as in the auth menu's success view.
-    await Promise.all([this.title, this.phrase, this.status].map(fadeOutLater));
-    if (this.disposed) return;
-    this.phrase.textContent = headline;
-    this.phrase.classList.add('seams-voiceid-success-headline');
-    this.status.textContent = message;
-    this.status.classList.add('seams-voiceid-success-message');
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    for (const part of [this.phrase, this.status]) fadeIn(part, reduced);
-    await sealed;
+    await this.visual.succeed(this.beginSuccess.bind(this, headline, message, area));
   }
 
   ready(message: string): void {
@@ -508,18 +497,30 @@ export class VoicePrompt {
   }
 
   /**
-   * The rows keep their locked size, so the headline, ring and message move as
-   * one group until the ring sits in the middle of the free space.
+   * The ring has formed: the reading copy fades where it is, only the ring glides
+   * to the middle of the free space, and the success copy arrives in place around
+   * it, headline first. The rows keep their locked size throughout.
    */
-  private centerSuccess(area: SuccessArea): void {
+  private async beginSuccess(headline: string, message: string, area: SuccessArea): Promise<void> {
+    if (this.disposed) return;
     const ring = this.visual.element.getBoundingClientRect();
     const lift = (area.top + area.bottom - ring.top - ring.bottom) / 2;
-    for (const part of [this.title, this.phrase, this.visual.element, this.status])
-      part.animate([{ translate: '0 0' }, { translate: `0 ${lift}px` }], {
-        duration: 600,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-        fill: 'forwards',
-      });
+    this.visual.element.animate([{ translate: '0 0' }, { translate: `0 ${lift}px` }], {
+      duration: 600,
+      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      fill: 'forwards',
+    });
+    await Promise.all([this.title, this.phrase, this.status].map(fadeOut));
+    if (this.disposed) return;
+    this.phrase.textContent = headline;
+    this.phrase.classList.add('seams-voiceid-success-headline');
+    this.status.textContent = message;
+    this.status.classList.add('seams-voiceid-success-message');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const [index, part] of [this.phrase, this.status].entries()) {
+      part.style.translate = `0 ${lift}px`;
+      fadeIn(part, reduced, SUCCESS_COPY_DELAY_MS - FADE_OUT_MS + index * SUCCESS_COPY_STAGGER_MS);
+    }
   }
 
   private unlockLayout(): void {
@@ -530,24 +531,26 @@ export class VoicePrompt {
 
 type SuccessArea = Readonly<{ top: number; bottom: number }>;
 
+// After the ring forms, the old copy leaves together and the new copy arrives 40 ms apart.
+const FADE_OUT_MS = 150;
 const SUCCESS_COPY_DELAY_MS = 450;
+const SUCCESS_COPY_STAGGER_MS = 40;
 
-function fadeOutLater(element: HTMLElement): Promise<unknown> {
+function fadeOut(element: HTMLElement): Promise<unknown> {
   return element.animate([{ opacity: 1 }, { opacity: 0 }], {
-    delay: SUCCESS_COPY_DELAY_MS,
-    duration: 150,
+    duration: FADE_OUT_MS,
     easing: 'ease-in',
     fill: 'forwards',
   }).finished;
 }
 
-function fadeIn(element: HTMLElement, reduced: boolean): void {
+function fadeIn(element: HTMLElement, reduced: boolean, delay: number): void {
   element.animate(
     [
       { opacity: 0, transform: reduced ? 'none' : 'translateY(4px)' },
       { opacity: 1, transform: 'none' },
     ],
-    { duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'forwards' },
+    { delay, duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)', fill: 'both' },
   );
 }
 

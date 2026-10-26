@@ -42,11 +42,11 @@ export class VoiceVisual {
   ready(): void { this.setPhase('idle'); }
 
   /** The glow settles while the ribbon closes into the success seal; resolves when the check is drawn. */
-  succeed(): Promise<void> {
+  succeed(begin: () => void): Promise<void> {
     if (this.disposed) return Promise.resolve();
     this.phase = 'idle';
     this.render();
-    return this.ribbon.succeed();
+    return this.ribbon.succeed(begin);
   }
 
   stop(): void {

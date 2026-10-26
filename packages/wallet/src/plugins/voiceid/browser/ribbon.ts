@@ -68,6 +68,7 @@ export class VoiceRibbon {
   private phase: RibbonPhase = 'idle';
   private stage: Stage = { kind: 'line' };
   private settleSuccess: (() => void) | null = null;
+  private successBegun: (() => void) | null = null;
   private frame = 0;
   private previousTime = 0;
   private position = 0;
@@ -121,11 +122,15 @@ export class VoiceRibbon {
     this.wake();
   }
 
-  /** Closes the ring into the success seal; resolves when the check is drawn. */
-  succeed(): Promise<void> {
+  /**
+   * Closes the ring into the success seal; resolves when the check is drawn.
+   * `begin` runs once the formed ring starts to close, after any capture in flight.
+   */
+  succeed(begin: () => void): Promise<void> {
     if (this.stopped || this.stage.kind === 'sealed') return Promise.resolve();
     if (this.stage.kind === 'line') this.setPhase('processing');
     const settled = new Promise<void>(this.awaitSuccess);
+    this.successBegun = begin;
     // A capture still in flight hands over to the spinner first, then succeeds.
     if (this.stage.kind === 'spin') this.beginSuccess(performance.now());
     this.wake();
@@ -157,6 +162,7 @@ export class VoiceRibbon {
   private settle(): void {
     const settle = this.settleSuccess;
     this.settleSuccess = null;
+    this.successBegun = null;
     settle?.();
   }
 
@@ -303,6 +309,9 @@ export class VoiceRibbon {
   private beginSuccess(time: number): void {
     if (this.stage.kind !== 'spin') return;
     this.stage = { kind: 'success', startedAt: time, from: this.spinnerArc(time, this.stage) };
+    const begun = this.successBegun;
+    this.successBegun = null;
+    begun?.();
   }
 
   private paintSuccess(time: number, stage: SuccessStage): void {
