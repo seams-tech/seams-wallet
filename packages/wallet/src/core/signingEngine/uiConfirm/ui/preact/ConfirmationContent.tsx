@@ -247,6 +247,6 @@ class AuthMethodCapture extends Component<{ element: HTMLElement }> {
     this.props.element.remove();
   }
   render(): ComponentChildren {
-    return <div ref={this.container} />;
+    return <div ref={this.container} class="seams-auth-method-capture" />;
   }
 }

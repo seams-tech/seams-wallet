@@ -696,6 +696,16 @@
   z-index: 2;
   box-sizing: border-box;
 }
+/* The card frames a hosted auth method capture, so the capture fills it without a
+   border, corners or background of its own; the card clips the corners. Two classes
+   outrank the capture's own single-class card rules. */
+.seams-confirmation-modal .seams-auth-method-capture > * {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 /* Moving the capture re-inserts it; its own entry transitions must not replay.
    Two classes outrank the capture's single-class transition rules. */
 .seams-wallet-ui .seams-receipt-capture-ghost * {
