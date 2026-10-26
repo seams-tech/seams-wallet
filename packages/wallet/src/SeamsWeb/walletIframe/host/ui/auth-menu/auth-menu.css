@@ -1,4 +1,11 @@
 .seams-auth-menu-surface[hidden] { display: none !important; }
+/* A card handing over to the next one fades out pinned where it was, above it. */
+.seams-auth-card-leaving {
+  position: fixed;
+  z-index: 2;
+  box-sizing: border-box;
+  pointer-events: none;
+}
 .seams-auth-menu-surface {
   display: block;
   inline-size: 100dvw;

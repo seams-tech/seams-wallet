@@ -268,6 +268,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     const switcher = this.props.element.querySelector<HTMLElement>('.seams-content-switcher');
     const sizer = this.props.element.querySelector<HTMLElement>('.seams-content-sizer');
     if (!switcher || !sizer) return;
+    // A hidden menu measures zero. Keeping its last height lets it return at its
+    // own size instead of growing again from the minimum.
+    if (this.props.element.hidden) return;
     this.props.styles.setDynamicDeclarations(
       this.props.element.id + '-height',
       '#' + this.props.element.id + ' .seams-content-switcher',

@@ -834,6 +834,7 @@ export class AuthMenuSession {
     kind: 'unavailable',
   };
   private voiceCapture: HTMLElement | null = null;
+  private menuLeaving: Animation | null = null;
 
   setVoiceLogin(unlock: WalletHostSessionCommands['unlockWithAuthMethod']): void {
     if (this.voiceLogin.kind === 'running') return;
@@ -849,8 +850,10 @@ export class AuthMenuSession {
     this.assertVoiceLoginActive();
     this.measurementReporter?.disconnect();
     if (this.surface) {
-      this.surface.element.hidden = true;
-      this.surface.element.inert = true;
+      // The menu fades out where it is, above the VoiceID card, and is then hidden.
+      const menu = this.surface.element;
+      this.menuLeaving = fadeOutInPlace(menu, menu.getBoundingClientRect());
+      this.menuLeaving.onfinish = this.finishMenuLeaving;
     }
     const origin = this.surface?.element.querySelector('.seams-menu-origin');
     if (origin) element.querySelector('.seams-voiceid-unlock-header')?.prepend(origin.cloneNode(true));
@@ -867,22 +870,47 @@ export class AuthMenuSession {
   };
 
   private restoreVoiceCapture(element: HTMLElement, settlement: AuthMethodCaptureSettlement): void {
-    element.remove();
     this.voiceCapture = null;
     this.measurementReporter?.disconnect();
     // An unlock that played its own success keeps the menu hidden; the session completes next.
-    if (settlement === 'succeeded') return;
+    if (settlement === 'succeeded' || !this.menuHidden()) {
+      element.remove();
+      return;
+    }
+    // The menu returns at full opacity beneath the card, which fades out where it was.
+    const leaving = fadeOutInPlace(element, element.getBoundingClientRect());
+    const remove = element.remove.bind(element);
+    leaving.onfinish = remove;
+    leaving.oncancel = remove;
     this.revealMenu();
   }
 
+  private readonly finishMenuLeaving = (): void => {
+    if (!this.surface || !this.menuLeaving) return;
+    this.surface.element.hidden = true;
+    this.restoreMenuFlow();
+  };
+
+  /** Ends the menu's pinned fade, wherever it is, and puts the menu back in the flow. */
+  private restoreMenuFlow(): void {
+    const leaving = this.menuLeaving;
+    this.menuLeaving = null;
+    leaving?.cancel();
+    this.surface?.element.classList.remove('seams-auth-card-leaving');
+  }
+
+  private menuHidden(): boolean {
+    return (
+      this.stateValue.kind !== 'complete' &&
+      (this.menuLeaving !== null || this.surface?.element.hidden === true)
+    );
+  }
+
   private revealMenu(): void {
-    if (this.stateValue.kind === 'complete' || !this.surface || !this.surface.element.hidden) return;
+    if (!this.surface || !this.menuHidden()) return;
+    this.restoreMenuFlow();
     this.surface.element.hidden = false;
     this.surface.element.inert = false;
-    this.surface.element.animate(
-      [{ opacity: 0 }, { opacity: 1 }],
-      { duration: 150, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' },
-    );
     this.surface.element.querySelector<HTMLElement>('[data-auth-menu-voiceid]')?.focus();
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'auth_menu_surface',
@@ -3929,6 +3957,27 @@ function assertNeverHostedPasskeyPrepared(value: never): never {
 
 function assertNeverHostedExternalAuthEvidence(value: never): never {
   throw new Error(`Unhandled hosted external-auth evidence: ${String(value)}`);
+}
+
+/**
+ * Pins a card that is being replaced at `bounds`, above the card that replaces
+ * it, and fades it out. Out of the flow, it changes no measured size.
+ */
+function fadeOutInPlace(element: HTMLElement, bounds: DOMRect): Animation {
+  element.inert = true;
+  element.classList.add('seams-auth-card-leaving');
+  const place = {
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    width: `${bounds.width}px`,
+    height: `${bounds.height}px`,
+    margin: '0px',
+  };
+  return element.animate([{ ...place, opacity: 1 }, { ...place, opacity: 0 }], {
+    duration: 150,
+    easing: 'ease-out',
+    fill: 'both',
+  });
 }
 
 function voiceAccountForWallet(

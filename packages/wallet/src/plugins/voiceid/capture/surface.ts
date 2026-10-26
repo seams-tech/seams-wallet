@@ -118,8 +118,9 @@ class VoiceIdCaptureSurface<T> {
     this.cancelButton.removeEventListener('click', this.cancel);
     this.unlockFrame?.dispose();
     this.prompt.dispose();
-    this.element.remove();
-    this.unmountCapture?.(this.settlement);
+    // A host that mounted the card also removes it, so it can fade it out in place.
+    if (this.unmountCapture) this.unmountCapture(this.settlement);
+    else this.element.remove();
   }
 
   private async initialize(prepare: CapturePreparation<T>): Promise<void> {
