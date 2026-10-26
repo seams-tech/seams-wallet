@@ -19,6 +19,9 @@ use zeroize::Zeroizing;
 #[path = "ml_dsa_durable_pool/refill_backoff.rs"]
 mod refill_backoff;
 
+#[path = "ml_dsa_durable_pool/unopened_failure.rs"]
+mod unopened_failure;
+
 struct Db(Connection);
 impl Db {
     fn open(path: &Path) -> Self {
@@ -380,12 +383,12 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     tx(&b, pool::fence(&b, &first, &batches)).unwrap();
     tx(
         &a,
-        pool::release(&a, &first, &batches, pool::Settlement::Failed, &[]),
+        pool::release(&a, &first, &batches, pool::Settlement::Failed, &[], &[]),
     )
     .unwrap();
     tx(
         &b,
-        pool::release(&b, &first, &batches, pool::Settlement::Failed, &[]),
+        pool::release(&b, &first, &batches, pool::Settlement::Failed, &[], &[]),
     )
     .unwrap();
     tx(&router, admission::settled(&router, &first)).unwrap();
@@ -586,8 +589,13 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         pool::take(&a, Participant::A, &settling_permit, [11; 32], 62_002),
     )
     .unwrap();
-    let mut consumed_union = tx(&a, pool::fence(&a, &settling, &settling_batches)).unwrap();
-    for batch in tx(&b, pool::fence(&b, &settling, &settling_batches)).unwrap() {
+    let mut consumed_union = tx(&a, pool::fence(&a, &settling, &settling_batches))
+        .unwrap()
+        .consumed;
+    for batch in tx(&b, pool::fence(&b, &settling, &settling_batches))
+        .unwrap()
+        .consumed
+    {
         if !consumed_union.contains(&batch) {
             consumed_union.push(batch);
         }
@@ -610,6 +618,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &settling_batches,
             pool::Settlement::Succeeded,
             &consumed_union,
+            &[],
         ),
     )
     .unwrap();
@@ -621,6 +630,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &settling_batches,
             pool::Settlement::Succeeded,
             &consumed_union,
+            &[],
         ),
     )
     .unwrap();
@@ -655,7 +665,14 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     tx(&a, pool::fence(&a, &abandoned, &[[12; 32]])).unwrap();
     tx(
         &a,
-        pool::release(&a, &abandoned, &[[12; 32]], pool::Settlement::Failed, &[]),
+        pool::release(
+            &a,
+            &abandoned,
+            &[[12; 32]],
+            pool::Settlement::Failed,
+            &[],
+            &[],
+        ),
     )
     .unwrap();
     assert_eq!(
@@ -1071,6 +1088,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     let refill_fairness = refill_fairness_campaign(&directory);
     let parallel_refill = parallel_refill_campaign(&directory);
     let refill_backoff = refill_backoff::campaign(&directory);
+    let unopened_after_failure = unopened_failure::campaign(&directory);
     let retirement_evidence = serde_json::json!({ "restart": true, "late_ready_rejected": true, "changed_identity_rejected": true, "claimed_job_preserved": true, "other_stock_preserved": true, "fresh_replacement": true });
     let output = std::env::var_os("ML_DSA_E2E_REPORT")
         .map(PathBuf::from)
@@ -1092,6 +1110,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     evidence["failed_registration_retirement"] = retirement_evidence;
     evidence["parallel_refill"] = parallel_refill;
     evidence["refill_backoff"] = refill_backoff;
+    evidence["unopened_after_failure"] = unopened_after_failure;
     evidence["expiry_and_contention"] = serde_json::json!({
         "preflight_and_empty_wait_leave_capacity_free": true,
         "ready_wallet_claims_while_other_wallet_waits": true,

@@ -134,7 +134,10 @@ export async function executeMlDsaNearSigning(input: {
     case 'retry': {
       const retry = exactRecord(raw, ['kind', 'reason', 'retryAtMs'], 'ML-DSA signing retry');
       if (
-        (retry.reason !== 'unavailable' && retry.reason !== 'running') ||
+        (retry.reason !== 'empty_pool' &&
+          retry.reason !== 'service_capacity' &&
+          retry.reason !== 'wallet_cooldown' &&
+          retry.reason !== 'running') ||
         typeof retry.retryAtMs !== 'number' ||
         !Number.isSafeInteger(retry.retryAtMs) ||
         retry.retryAtMs < 0

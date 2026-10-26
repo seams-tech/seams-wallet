@@ -4,7 +4,7 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
-## Current focus — October 26, 2026
+## Current focus — October 27, 2026
 
 The current priority is signer UX and preparation efficiency. Earlier sections that defer UI work describe previous checkpoints.
 The shared Signing keys screen and transaction-approval picker are implemented on `ml-dsa`.
@@ -13,12 +13,22 @@ Key details use separate screens. Recovery information stays visible without an 
 Setup navigation is complete. Published keys survive leaving setup and canceled approval. Finalized NEAR enrollment is distinct from signing capacity. Both NEAR signer types expose default and export actions in key details.
 The controlled browser scenario in `signing-keys.contract.test.ts` verifies cancellation, an RPC outage, resumption, and explicit default changes.
 
-Remaining implementation and qualification tasks:
+The [wait UI and retained-stock campaign](ml-dsa-65-waits-retained-stock-report.md) completes the next four tasks:
 
-1. Connect typed preparation waits, cooldowns, and service-capacity responses to the existing signing progress UI. Keep cancellation and the approved operation identity intact. Do not add estimated completion times without measurements.
-2. Run the full ML-DSA browser lifecycle through the new screens and recheck lazy loading. Existing hosted evidence covers the earlier UI. Controlled settings scenarios establish UI behavior only.
-3. Continue preparation work on measured failures, wasted material, and refill throughput. Keep four-candidate preparation, two-at-once consumption, and per-wallet capacity unchanged.
-4. Complete the composition review and exact package acceptance before a production release.
+1. Signing receipts show preparation waits, service contention, and the server's cooldown. Cancellation preserves the approved operation and nonce state.
+2. The hosted browser lifecycle passes through the new screens. Recovery, full-owner linking, export, restoration, and NEAR testnet finality pass. Ordinary flows skip optional ML-DSA cryptography.
+3. Failed settlement preserves material only when both participants prove that it remains unopened. A controlled Worker failure preserves fifteen pairs. A later verified signature consumes four of those pairs.
+4. Exact package and module checks pass. A bounded source review finds no blocker under the accepted passive model. It does not establish a complete composition proof.
+
+The eight hosted SDK signing samples range from 2.74 to 6.36 seconds. Seven are below five seconds, and all are below eight.
+These samples exclude preparation, deliberate cooldown sleeps, human response time, and NEAR finality.
+All twelve temporary Workers are deleted. The cleanup also removes four databases and two buckets.
+
+Remaining high-impact work:
+
+1. Measure sustained multi-wallet refill with retained material. Count failed work, pool waits, and completed signatures at unchanged capacity.
+2. Reduce the largest measured preparation cost and hosted failures. The current campaign establishes no new preparation speed or sustained throughput.
+3. Integrate the reviewed package on `dev` and publish only when authorized. Preserve the documented security assumptions and performance limits.
 
 The user accepts registration around 6–10 seconds and signing around 4–8 seconds while preparation improves.
 These are working UX budgets, not measured guarantees. Sustained refill remains the main performance concern.

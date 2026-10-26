@@ -313,6 +313,7 @@ export async function verifyMlDsaPublicSigning({
       },
     });
     assert.equal(cooldown.kind, 'retry', JSON.stringify(cooldown));
+    assert.equal(cooldown.reason, 'wallet_cooldown');
     assert.ok(cooldown.retryAtMs > Date.now());
     checks.cooldownReturnsExplicitRetryTime = true;
     const sessionChecks = await verifyMlDsaSigningSessions({

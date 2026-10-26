@@ -184,6 +184,7 @@ test.beforeEach(async ({ page }) => {
         view,
         onView: receiptView,
         onDismiss: receiptDismiss,
+        cancellation: { kind: 'unavailable' },
       });
     }
     function messageReceipt(index: number, state: MessageReceiptState, view: 'expanded' | 'toast') {
@@ -215,6 +216,7 @@ test.beforeEach(async ({ page }) => {
         view,
         onView: receiptView,
         onDismiss: receiptDismiss,
+        cancellation: { kind: 'unavailable' },
       });
     }
     function violation(event: SecurityPolicyViolationEvent) {

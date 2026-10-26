@@ -513,6 +513,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       execution = 'runtime';
       await runtime.handleWalletHostRuntimeRequest({
         transactionReview: reviewAdmission,
+        cancelRequest: cancelExecutionRequest.bind(null, state, requestExecutionGeneration, markCancelled),
         state,
         executionGeneration: requestExecutionGeneration,
         req: route.request,
@@ -617,4 +618,13 @@ try {
   initWalletIFrame();
 } catch (e) {
   console.error('[WalletHost] init failed', e);
+}
+
+function cancelExecutionRequest(
+  state: { executionGeneration: number },
+  expectedGeneration: number,
+  cancel: (requestId: string) => void,
+  requestId: string,
+): void {
+  if (state.executionGeneration === expectedGeneration) cancel(requestId);
 }

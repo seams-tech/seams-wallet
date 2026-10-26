@@ -103,41 +103,76 @@ async fn require_open(store: &impl Store, request: &SigningRequest) -> Result<()
     }
     Ok(())
 }
-/// Fence both roles before reconciling consumed IDs. A delayed take cannot race
-/// with returning untouched pairs to the ready pool after successful signing.
+/// The first durable fence records positive evidence before any release occurs.
+/// Retrying after one role released must return the same observation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FencedBatches {
+    pub request_digest: [u8; 32],
+    pub batches: Vec<[u8; 32]>,
+    pub consumed: Vec<[u8; 32]>,
+    pub unopened: Vec<[u8; 32]>,
+}
+fn fence_evidence_name(request_digest: &[u8; 32]) -> String {
+    format!("fence_evidence/{}", hex(request_digest))
+}
+
+/// Both roles must commit a fence before the coordinator can return untouched pairs.
 pub async fn fence(
     store: &impl Store,
     request: &SigningRequest,
     batches: &[[u8; 32]],
-) -> Result<Vec<[u8; 32]>> {
+) -> Result<FencedBatches> {
     if batches.len() > MAX_BATCHES {
         return Err(invalid("Too many ML-DSA settlement batches"));
     }
     let request_digest = request.digest()?;
+    let evidence_name = fence_evidence_name(&request_digest);
+    if let Some(evidence) = store.get::<FencedBatches>(&evidence_name).await? {
+        if evidence.request_digest != request_digest || evidence.batches != batches {
+            return Err(invalid("ML-DSA fence batches changed"));
+        }
+        return Ok(evidence);
+    }
     store.put(&fence_name(request)?, &true).await?;
-    let mut consumed = Vec::new();
+    let mut evidence = FencedBatches {
+        request_digest,
+        batches: batches.to_vec(),
+        consumed: Vec::new(),
+        unopened: Vec::new(),
+    };
     for batch in batches {
         if let Some(record) = store.get::<Record>(&batch_name(batch)).await? {
-            if record.binding.key == request.key
-                && matches!(record.state, State::Consumed { request_digest: owner, .. } if owner == request_digest)
-            {
-                consumed.push(*batch);
+            if record.binding.key != request.key {
+                continue;
+            }
+            match record.state {
+                State::Consumed {
+                    request_digest: owner,
+                    ..
+                } if owner == request_digest => evidence.consumed.push(*batch),
+                State::Reserved {
+                    request_digest: owner,
+                    ..
+                } if owner == request_digest => evidence.unopened.push(*batch),
+                _ => {}
             }
         }
     }
-    Ok(consumed)
+    store.put(&evidence_name, &evidence).await?;
+    Ok(evidence)
 }
 fn reservation_name(request_digest: &[u8; 32]) -> String {
     format!("reservation/{}", hex(request_digest))
 }
 
-pub(super) struct ExpiredReservation {
+pub struct ExpiredReservation {
     pub request: SigningRequest,
     pub batches: Vec<[u8; 32]>,
 }
 
 /// Recovery uses the exact request to distinguish an unadmitted claim from signing.
-pub(super) async fn expired_reservations(
+pub async fn expired_reservations(
     store: &impl Store,
     key: &KeyScope,
     now: u64,
@@ -182,18 +217,21 @@ pub(super) async fn expired_reservations(
 }
 
 /// The host first obtains an authoritative terminal status. Declined means no permit existed.
-pub(super) async fn settle_expired(
+pub async fn settle_expired(
     store: &impl Store,
     reservation: &ExpiredReservation,
     settlement: Settlement,
 ) -> Result<()> {
-    let consumed = fence(store, &reservation.request, &reservation.batches).await?;
+    // Expiry recovery observes only the remaining reservations, not the full permit.
+    // Close the request without creating or redefining the paired fence evidence.
+    store.put(&fence_name(&reservation.request)?, &true).await?;
     release(
         store,
         &reservation.request,
         &reservation.batches,
         settlement,
-        &consumed,
+        &[],
+        &[],
     )
     .await
 }
@@ -591,14 +629,15 @@ pub enum Settlement {
     Failed,
 }
 
-/// Successful sequential signing retains only unopened batches. An admitted
-/// failure burns all remaining halves because peer consumption may be unknown.
+/// Failed signing retains only pairs positively observed unopened at both roles.
+/// Uncertain or consumed material remains unavailable.
 pub async fn release(
     store: &impl Store,
     request: &SigningRequest,
     batches: &[[u8; 32]],
     settlement: Settlement,
     consumed_union: &[[u8; 32]],
+    unopened_intersection: &[[u8; 32]],
 ) -> Result<()> {
     if !store
         .get::<bool>(&fence_name(request)?)
@@ -608,6 +647,20 @@ pub async fn release(
         return Err(invalid("ML-DSA settlement requires a durable fence"));
     }
     let digest = request.digest()?;
+    if !unopened_intersection.is_empty() {
+        let evidence = store
+            .get::<FencedBatches>(&fence_evidence_name(&digest))
+            .await?
+            .ok_or_else(|| invalid("ML-DSA unopened evidence is missing"))?;
+        if evidence.request_digest != digest
+            || evidence.batches != batches
+            || unopened_intersection
+                .iter()
+                .any(|id| !evidence.unopened.contains(id) || consumed_union.contains(id))
+        {
+            return Err(invalid("ML-DSA unopened evidence changed"));
+        }
+    }
     let mut ids = index(store).await?;
     for id in batches {
         if let Some(mut record) = store.get::<Record>(&batch_name(id)).await? {
@@ -616,6 +669,12 @@ pub async fn release(
                 match settlement {
                     Settlement::Succeeded | Settlement::Declined
                         if !consumed_union.contains(id) =>
+                    {
+                        record.state = State::Ready;
+                        store.put(&batch_name(id), &record).await?;
+                    }
+                    Settlement::Failed
+                        if unopened_intersection.contains(id) && !consumed_union.contains(id) =>
                     {
                         record.state = State::Ready;
                         store.put(&batch_name(id), &record).await?;

@@ -13,6 +13,8 @@ const runtimeSource = `
 import { createNearWalletIframeHandlers } from './handlers/near';
 import { createWalletHostNearCommands } from './createNearCommands';
 import { signMlDsaNearTransaction } from '../../../core/signingEngine/flows/signNear/mlDsaTransaction';
+import { beginTransactionActivity, observeTransactionActivity } from '../../../core/signingEngine/uiConfirm/ui/transaction-activity';
+import { mountConfirmUI } from '../../../core/signingEngine/uiConfirm/ui/confirm-ui';
 const probe = (window.mlDsaProbe = {
   mode: 'ready',
   deadlineMs: 5000,
@@ -28,7 +30,17 @@ const probe = (window.mlDsaProbe = {
 function holdConfirmation(resolve) {
   probe.confirmation = resolve;
 }
-async function confirm() {
+function measured() {}
+async function confirm(requestId) {
+  if (probe.mode === 'wait_ui' || probe.mode === 'cancel_ui') {
+    const surface = await mountConfirmUI({
+      ctx: { surfaceMeasurementBinding: { kind: 'wallet_iframe', requestId, postMeasurement: measured } },
+      summary: { title: 'Sign NEAR transaction' },
+      model: { chain: 'near', signerAccount: 'alice.testnet', signerLabel: 'ML-DSA-65', operations: [] },
+      loading: false, theme: 'light', uiMode: 'modal',
+    });
+    surface.close(true);
+  }
   if (probe.mode === 'confirmation' || probe.mode === 'expired_confirmation')
     await new Promise(holdConfirmation);
   return { confirmed: true };
@@ -56,6 +68,7 @@ async function markSigned() {
 }
 function postProgress(input, requestId, payload) {
   if (payload.phase === 'signing.transaction.signed') probe.succeeded++;
+  observeTransactionActivity({ type: 'PROGRESS', requestId, payload });
   input.post({ type: 'PROGRESS', requestId, payload });
 }
 async function selectNearTransactionSigner(input) {
@@ -63,12 +76,13 @@ async function selectNearTransactionSigner(input) {
   return { kind: 'unreviewed', signer: input.request };
 }
 async function handleWalletHostRuntimeRequest(input) {
+  beginTransactionActivity(input.req, input.post, input.cancelRequest);
   const config = input.state.configuration.config;
   const deps = {
     configs: config,
     nearClient: {},
     nonceCoordinator: { reserveNearContext, release, markSigned },
-    confirm: { requestUserConfirmation: confirm },
+    confirm: { requestUserConfirmation: confirm.bind(null, input.req.requestId) },
   };
   const context = {
     configs: config,
@@ -254,6 +268,8 @@ function readMessages(): Array<{ type: string; requestId: string; payload: any }
 function mountHost(): void {
   const frame = document.createElement('iframe');
   frame.id = 'ml-dsa-host';
+  frame.width = '420';
+  frame.height = '850';
   frame.src = 'https://wallet.example.localhost/wallet-service';
   document.body.append(frame);
 }
@@ -265,7 +281,12 @@ function isWalletFrame(frame: Frame): boolean {
 function configureProbe(mode: string): void {
   const probe = (window as any).mlDsaProbe;
   probe.mode = mode;
-  probe.deadlineMs = mode === 'expiry' || mode === 'expired_confirmation' ? 350 : 5000;
+  probe.deadlineMs =
+    mode === 'expiry' || mode === 'expired_confirmation'
+      ? 350
+      : mode.endsWith('_ui')
+        ? 20000
+        : 5000;
 }
 
 function releaseConfirmation(): void {
@@ -346,7 +367,8 @@ async function executeGateway(gateway: Gateway, route: Route): Promise<void> {
   }
   if (
     gateway.mode === 'ready' ||
-    (gateway.mode === 'retry_control' && gateway.executions.length === 3)
+    (gateway.mode === 'retry_control' && gateway.executions.length === 3) ||
+    (gateway.mode === 'wait_ui' && gateway.executions.length === 4)
   ) {
     await respondSigned(route);
     return;
@@ -354,9 +376,21 @@ async function executeGateway(gateway: Gateway, route: Route): Promise<void> {
   await route.fulfill({
     json: {
       kind: 'retry',
-      reason: 'unavailable',
+      reason:
+        gateway.mode === 'cancel_ui'
+          ? 'wallet_cooldown'
+          : gateway.mode === 'wait_ui' && gateway.executions.length === 2
+            ? 'service_capacity'
+            : gateway.mode === 'wait_ui' && gateway.executions.length === 3
+              ? 'wallet_cooldown'
+              : 'empty_pool',
       retryAtMs:
-        Date.now() + (gateway.mode === 'stock_wait' || gateway.mode === 'rpc_timeout' ? 3000 : 100),
+        Date.now() +
+        (gateway.mode.endsWith('_ui')
+          ? 2000
+          : gateway.mode === 'stock_wait' || gateway.mode === 'rpc_timeout'
+            ? 3000
+            : 100),
     },
   });
 }
@@ -369,6 +403,8 @@ for (const mode of [
   'confirmation',
   'expired_confirmation',
   'rpc_timeout',
+  'wait_ui',
+  'cancel_ui',
 ]) {
   test(`ML-DSA request cancellation and nonce settlement: ${mode}`, async ({ page }, info) => {
     const root = path.resolve(import.meta.dirname, '../..');
@@ -415,6 +451,10 @@ for (const mode of [
       .toContainEqual(expect.objectContaining({ requestId: 'config', type: 'PONG' }));
     await frame.evaluate(configureProbe, mode);
     await page.evaluate(beginSigning, mode);
+    if (mode === 'wait_ui' || mode === 'cancel_ui') {
+      await verifyWaitingUi(page, frame, gateway, mode, info);
+      return;
+    }
     if (mode === 'confirmation' || mode === 'expired_confirmation') {
       await expect.poll(frame.evaluate.bind(frame, readProbe)).toMatchObject({ confirming: true });
     } else {
@@ -596,4 +636,70 @@ async function runClientTimeoutCampaign(
     path: artifact,
     contentType: 'application/json',
   });
+}
+
+async function verifyWaitingUi(
+  page: Page,
+  frame: Frame,
+  gateway: Gateway,
+  mode: string,
+  info: TestInfo,
+): Promise<void> {
+  if (mode === 'wait_ui') {
+    await expect(
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Preparing your signature' }),
+    ).toBeVisible();
+    await expect(
+      frame.getByText(
+        'Preparing signing material. This approved request will retry automatically.',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      frame
+        .locator('.seams-receipt-heading h2')
+        .filter({ hasText: 'Waiting for signing capacity' }),
+    ).toBeVisible();
+    await expect(
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Signing cooldown' }),
+    ).toBeVisible();
+    await expect(frame.getByText(/This wallet can retry ML-DSA signing in/)).toBeVisible();
+    await page.screenshot({ path: info.outputPath('ml-dsa-wait-ui.png') });
+    await expect
+      .poll(frame.evaluate.bind(frame, readProbe))
+      .toMatchObject({ settled: [mode], succeeded: 1, broadcast: 1 });
+    expect(gateway.executions).toHaveLength(4);
+    await expect(frame.getByRole('button', { name: 'Cancel request', exact: true })).toHaveCount(0);
+  } else {
+    await expect(
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Signing cooldown' }),
+    ).toBeVisible();
+    await frame.getByRole('button', { name: 'Cancel request', exact: true }).click();
+    await expect(
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Signing request cancelled' }),
+    ).toBeVisible();
+    await expect
+      .poll(frame.evaluate.bind(frame, readProbe))
+      .toMatchObject({ settled: [mode], succeeded: 0, broadcast: 0 });
+    await page.waitForTimeout(2200);
+    expect(gateway.executions).toHaveLength(1);
+  }
+  expect(new Set(gateway.executions.map(executionBody)).size).toBe(1);
+  const artifact = info.outputPath('ml-dsa-wait-ui.json');
+  await writeFile(
+    artifact,
+    JSON.stringify(
+      {
+        mode,
+        state: await frame.evaluate(readProbe),
+        executions: gateway.executions,
+        messages: await page.evaluate(readMessages),
+        scope:
+          'Real Wallet host, signing retry loop, typed progress, receipt rendering and cancellation. Controlled custody, codec and Gateway results.',
+      },
+      null,
+      2,
+    ),
+  );
+  await info.attach('ml-dsa-wait-ui', { path: artifact, contentType: 'application/json' });
 }
