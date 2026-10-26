@@ -57,7 +57,6 @@ type LoadState =
 
 type ActionState =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'unlocking' }
   | { readonly kind: 'adding'; readonly method: LinkedOwnerCredentialMetadataV1['kind'] }
   | { readonly kind: 'confirming_revoke'; readonly method: AuthenticationMethodView }
   | { readonly kind: 'revoking'; readonly method: AuthenticationMethodView }
@@ -355,25 +354,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
     [actionState.kind, emailAddress, loadInventory, walletId],
   );
 
-  const unlockOwnerSession = React.useCallback(async () => {
-    if (!walletId || actionState.kind === 'unlocking') return;
-    setActionState({ kind: 'unlocking' });
-    setAnnouncement('Unlocking wallet management…');
-    try {
-      const result = await seamsRef.current.auth.unlock(walletId);
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      await refreshSessionRef.current(walletId);
-      setActionState({ kind: 'idle' });
-      setAnnouncement('Wallet management unlocked.');
-      await loadInventory();
-      dialogRef.current?.focus({ preventScroll: true });
-    } catch (error: unknown) {
-      setActionState({ kind: 'error', message: errorMessage(error) });
-    }
-  }, [actionState.kind, loadInventory, walletId]);
-
   const revokeMethod = React.useCallback(async () => {
     if (!walletId || actionState.kind !== 'confirming_revoke') return;
     const method = actionState.method;
@@ -404,9 +384,7 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
   const canManageMethods =
     loadState.kind === 'loaded' && loadState.inventory.kind !== 'local_selection';
   const actionInProgress =
-    actionState.kind === 'unlocking' ||
-    actionState.kind === 'adding' ||
-    actionState.kind === 'revoking';
+    actionState.kind === 'adding' || actionState.kind === 'revoking';
   const addingEmail = actionState.kind === 'adding' && actionState.method === 'email_otp';
   const emailError =
     actionState.kind === 'error' && actionState.field === 'email' ? actionState.message : null;
@@ -687,29 +665,6 @@ export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProp
                   />
                 ) : null}
               </ul>
-            </section>
-          ) : null}
-
-          {loadState.kind === 'loaded' && inventory?.kind === 'local_selection' ? (
-            <section className="seams-linked-devices-modal-add-method">
-              <h3>
-                <WalletText message="Unlock to manage methods" />
-              </h3>
-              <p className="seams-linked-devices-modal-security-note">
-                <WalletText message="Confirm your current authentication method to add or remove methods." />
-              </p>
-              <button
-                type="button"
-                className="seams-linked-devices-modal-secondary seams-account-menu-wide-button"
-                disabled={actionInProgress}
-                onClick={() => void unlockOwnerSession()}
-              >
-                {actionState.kind === 'unlocking' ? (
-                  <WalletText message="Unlocking…" />
-                ) : (
-                  <WalletText message="Unlock wallet" />
-                )}
-              </button>
             </section>
           ) : null}
 
