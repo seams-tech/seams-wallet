@@ -161,6 +161,9 @@ async function verifyUnlock(
   await evidence.observe(context);
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await startReviewedTransfer(page);
+  await wallet.locator('.seams-confirmation-surface').screenshot({
+    path: testInfo.outputPath('near-logo-review.png'),
+  });
   await wallet.locator('button.confirm').click();
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
@@ -174,6 +177,9 @@ async function verifyUnlock(
   expect(signingQuality.voicedMs).toBeLessThan(4_000);
   expect(signingQuality.endedBy).toBe('pause');
   expect(signingQuality.recordingMs).toBeLessThan(6_000);
+  await wallet.locator('.seams-transaction-receipt').screenshot({
+    path: testInfo.outputPath('near-logo-receipt.png'),
+  });
   expect(evidence.transfers).toHaveLength(1);
   expect(evidence.snapshot().finalizations).toBeGreaterThan(0);
   const budget = await harness.readCurrentWalletSessionStatus();

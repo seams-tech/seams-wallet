@@ -31,3 +31,25 @@ pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
 ```
 
 Wallet and intended-test type checks, SDK build, and bloat check also passed.
+
+## NEAR logo follow-up
+
+The NEAR letter placeholder now uses the symbol from
+[NEAR's official documentation artwork](https://github.com/near/docs/blob/master/assets/logo.svg).
+The shared amount component renders it in both review and receipt.
+
+The NEAR unlock-and-sign journey passed. Its first run was interrupted by a
+development-page reload before signing. The unchanged journey passed on retry.
+Wallet and test type checks, SDK build, and bloat check passed.
+
+- [NEAR review](near-logo-review.png)
+- [NEAR receipt during its handoff animation](near-logo-receipt.png)
+- [NEAR signing evidence](voiceid-unlock-near.json)
+
+Repeat with the same local environment:
+
+```sh
+pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
+  e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts \
+  --output=/private/tmp/voiceid-near-logo-ui
+```
