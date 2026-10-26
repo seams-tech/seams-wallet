@@ -77,6 +77,20 @@ await wallet.near.signAndSendTransaction({
 `SeamsAuthMenuMock`は、操作を実行しない読み込み用プレースホルダー兼プレビューです。
 `HostedSeamsAuthMenu`は、ウォレットUIを開く間にこれを表示します。
 
+メニューのアンカー要素（`[data-seams-auth-menu-host]`）は、計測済みのメニューが表示されるフレームで
+`data-seams-auth-menu-ready="true"`を受け取ります。そのフレーム以降、アンカーはメニューの高さを確保します。
+閉じるボタンなど、ページ側でメニューの周りに独自のコントロールを描く場合は、この属性を条件に表示してください。
+コントロールはカードと同時に、最終的な位置に表示されます。
+
+```css
+.my-auth-dialog .my-close-button {
+  opacity: 0;
+}
+.my-auth-dialog:has([data-seams-auth-menu-ready]) .my-close-button {
+  opacity: 1;
+}
+```
+
 サインアウト中のページは、サインインを開始するまでウォレットのサインイン用コードをダウンロードしません。
 クリック後に`HostedSeamsAuthMenu`をマウントする場合は、サインイン部品へのポインター操作、フォーカス、タッチで`useSeams().seams.authMenu.prepare()`を呼んでください。
 これにより、クリック前にダウンロードを開始します。

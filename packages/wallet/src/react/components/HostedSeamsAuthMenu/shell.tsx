@@ -14,6 +14,10 @@ import {
   type HostedAuthMenuSessionId,
 } from '@/SeamsWeb/walletIframe/shared/messages';
 import type { SeamsWeb } from '@/SeamsWeb';
+import {
+  endHostedAuthMenuAnchor,
+  resetHostedAuthMenuAnchor,
+} from '@/SeamsWeb/walletIframe/client/authMenuAnchor';
 import type { HostedAuthMenuExternalAuthBroker, HostedSeamsAuthMenuProps } from './types';
 
 type HostedAuthMenuBridge = Pick<SeamsWeb, 'authMenu'>;
@@ -219,7 +223,7 @@ class HostedAuthMenuSessionController {
   start(): void {
     if (this.isActive) return;
     this.isActive = true;
-    this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '1');
+    resetHostedAuthMenuAnchor(this.anchorElement);
     this.unsubscribeExternalAuthRequest = this.seams.authMenu.onExternalAuthRequest(
       this.handleExternalAuthRequestBound,
     );
@@ -338,7 +342,7 @@ class HostedAuthMenuSessionController {
   private emitOutcome(outcome: HostedAuthMenuOutcome): void {
     if (this.hasTerminalOutcome) return;
     this.hasTerminalOutcome = true;
-    this.anchorElement.style.setProperty('--seams-auth-menu-placeholder-opacity', '0');
+    endHostedAuthMenuAnchor(this.anchorElement);
     try {
       this.onOutcome.current(outcome);
     } catch {

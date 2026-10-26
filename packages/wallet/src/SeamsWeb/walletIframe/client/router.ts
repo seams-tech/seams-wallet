@@ -196,12 +196,16 @@ import {
   anchorWalletIframeModalGeometry,
   isWalletIframeModalGeometry,
   resolveWalletIframeSurfaceGeometry,
-  WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX,
   type WalletIframeModalGeometry,
   type WalletIframeSurfaceMeasurementState,
   type WalletIframeSurfaceViewport,
 } from './surface/geometry';
 import { WalletIframeSurfaceRenderer } from './surface/renderer';
+import {
+  hostedAuthMenuAnchorMetrics,
+  markHostedAuthMenuAnchorReady,
+  publishHostedAuthMenuAnchorHeight,
+} from './authMenuAnchor';
 import {
   WalletIframeTransactionSurfaceQueue,
   type WalletIframeTransactionSurfaceDeadline,
@@ -582,43 +586,6 @@ const WALLET_IFRAME_SURFACE_MEASUREMENT_FALLBACK_TIMEOUT_MS = 4_000;
 const WALLET_IFRAME_REGISTRATION_TIMEOUT_MS = 180_000;
 const WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS = 30_000;
 
-type HostedAuthMenuAnchorMetrics = {
-  topCssPx: number;
-  leftCssPx: number;
-  layoutWidthCssPx: number;
-  heightCssPx: number;
-  visualScale: number;
-};
-
-function hostedAuthMenuAnchorMetrics(
-  anchor: HTMLElement | undefined,
-): HostedAuthMenuAnchorMetrics | null {
-  if (!anchor?.isConnected) return null;
-  const rect = anchor.getBoundingClientRect();
-  const layoutWidthCssPx = anchor.offsetWidth;
-  if (
-    !Number.isFinite(rect.top) ||
-    !Number.isFinite(rect.left) ||
-    !Number.isFinite(rect.width) ||
-    !Number.isFinite(rect.height) ||
-    rect.width <= 0 ||
-    rect.height <= 0 ||
-    !Number.isFinite(layoutWidthCssPx) ||
-    layoutWidthCssPx <= 0
-  ) {
-    return null;
-  }
-  return {
-    topCssPx: rect.top,
-    leftCssPx: rect.left,
-    layoutWidthCssPx,
-    heightCssPx: rect.height,
-    visualScale: rect.width / layoutWidthCssPx,
-  };
-}
-
-const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
-
 function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
   if (typeof window === 'undefined') return 0;
   const value = axis === 'x' ? window.scrollX : window.scrollY;
@@ -633,18 +600,6 @@ function documentCoordinateAuthMenuGeometry(
     topCssPx: Math.round(geometry.topCssPx + pageScrollOffsetCssPx('y')),
     leftCssPx: Math.round(geometry.leftCssPx + pageScrollOffsetCssPx('x')),
   };
-}
-
-function publishHostedAuthMenuAnchorHeight(
-  anchor: HTMLElement | undefined,
-  heightCssPx: number,
-): void {
-  if (!anchor?.isConnected || !Number.isFinite(heightCssPx) || heightCssPx <= 0) return;
-  const next = `${Math.round(heightCssPx)}px`;
-  // Writing an unchanged value would still dirty layout, and this runs on every
-  // scroll and resize tick.
-  if (anchor.style.getPropertyValue(HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR) === next) return;
-  anchor.style.setProperty(HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR, next);
 }
 
 type SignTempoRouterPayload = {
@@ -1957,19 +1912,20 @@ export class WalletIframeRouter {
       // menu reflow under zoom while the rest of the page just scaled. Height
       // comes from the child's own measurement; only measurement_unavailable
       // (a child that never reported) still falls back to the viewport box.
+      // Before the measurement the dialog covers whatever the anchor reserves
+      // itself: a guessed height would move the app's layout twice.
       const measuredHeightCssPx = this.activeSurfaceMeasurement?.heightCssPx;
+      const heightCssPx = measuredHeightCssPx ?? anchorMetrics.heightCssPx;
       const anchoredBase: WalletIframeModalGeometry =
         resolvedGeometry.kind === 'viewport_fallback'
           ? {
               kind: measuredHeightCssPx != null ? 'centered_modal' : 'provisional_centered_modal',
               widthCssPx: resolvedGeometry.widthCssPx,
-              heightCssPx: measuredHeightCssPx ?? WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX,
+              heightCssPx,
               topCssPx: resolvedGeometry.topCssPx,
               leftCssPx: resolvedGeometry.leftCssPx,
             }
-          : measuredHeightCssPx != null
-            ? { ...resolvedGeometry, heightCssPx: measuredHeightCssPx }
-            : resolvedGeometry;
+          : { ...resolvedGeometry, heightCssPx };
       // The menu paints from a <body>-level dialog, so it reserves no layout
       // space of its own. Publish its height to the host anchor, which does sit
       // in the page flow, so following content is pushed down instead of being
@@ -1981,7 +1937,9 @@ export class WalletIframeRouter {
       // animate its height now and its top on a later tick, reading as two
       // separate movements instead of one in-place resize. Height does not
       // depend on the anchor, so this settles in a single pass.
-      publishHostedAuthMenuAnchorHeight(anchor, anchoredBase.heightCssPx);
+      if (measuredHeightCssPx != null) {
+        publishHostedAuthMenuAnchorHeight(anchor, measuredHeightCssPx);
+      }
       anchorMetrics = hostedAuthMenuAnchorMetrics(anchor) ?? anchorMetrics;
       authMenuVisualScale = anchorMetrics.visualScale;
       geometry = anchorWalletIframeModalGeometry(anchoredBase, {
@@ -2017,9 +1975,7 @@ export class WalletIframeRouter {
     }
     this.surfaceRenderer.render(surface, geometry, receiptView);
     if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
-      this.hostedAuthMenuAnchors
-        .get(surface.authMenuSessionId)
-        ?.style.setProperty('--seams-auth-menu-placeholder-opacity', '0');
+      markHostedAuthMenuAnchorReady(anchor);
     }
   }
 

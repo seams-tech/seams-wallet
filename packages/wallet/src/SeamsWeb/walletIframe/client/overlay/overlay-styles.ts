@@ -189,11 +189,9 @@ const BASE_CSS = `
   dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}.${CLASS_RESIZE_ANIMATED} {
     transition: none;
   }
-  /* A provisional drawer already owns the full visual viewport. The hosted
-     auth menu also renders provisionally: hiding its dialog prevents the
-     child ResizeObserver from producing the measurement that replaces those
-     provisional bounds, leaving the menu invisible until the 4s fallback.
-     Request modals stay invisible until their measured bounds are ready.
+  /* A provisional drawer already owns the full visual viewport. Modals,
+     the hosted auth menu included, stay invisible until their measured
+     bounds are ready, so the card first paints at its final size and place.
 
      Invisible means opacity, never visibility. Chrome stops rendering a
      cross-origin iframe whose ancestor is visibility:hidden (no animation
@@ -203,7 +201,7 @@ const BASE_CSS = `
      visible. Playwright's bundled Chromium keeps rendering such frames, which
      is why no browser test noticed. An opacity:0 dialog is painted normally
      (the frame is not throttled), just fully transparent. */
-  dialog.${CLASS_DIALOG}.${CLASS_PROVISIONAL}.${CLASS_MODAL}:not(.${CLASS_AUTH_MENU}) {
+  dialog.${CLASS_DIALOG}.${CLASS_PROVISIONAL}.${CLASS_MODAL} {
     opacity: 0;
     pointer-events: none;
   }

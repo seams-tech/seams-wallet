@@ -341,6 +341,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
         getComputedStyle(element).getPropertyValue('--seams-auth-menu-placeholder-opacity').trim(),
       ),
     ).toBe('');
+    await expect(anchor).not.toHaveAttribute('data-seams-auth-menu-ready');
     await postSurfaceMeasurement(page, {
       kind: 'measured_auth_menu_v1',
       requestId: '__current__',
@@ -355,6 +356,7 @@ test.describe('wallet iframe compact surface measurement routing', () => {
         getComputedStyle(element).getPropertyValue('--seams-auth-menu-placeholder-opacity').trim(),
       ),
     ).toBe('0');
+    await expect(anchor).toHaveAttribute('data-seams-auth-menu-ready', 'true');
   });
 
   test('keeps a provisional auth menu rendering so its child can measure', async ({ page }) => {

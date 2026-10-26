@@ -521,6 +521,10 @@ CTA belong to the wallet origin.
   its configuration stops the open; the wallet host never shows that menu. A
   menu whose anchor leaves the app document ends as unmounted; it does not move
   to the viewport centre.
+- The menu stays transparent until its card reports its measured size. In the
+  frame where it appears, the anchor reserves that height, hides the loading
+  shell, and carries `data-seams-auth-menu-ready`. The anchor never reserves a
+  guessed height first, so the app's layout moves at most once.
 
 - Hosted exchange redemption publishes the child's home locator before consuming
   the validated one-use exchange. A directory publication failure leaves the
