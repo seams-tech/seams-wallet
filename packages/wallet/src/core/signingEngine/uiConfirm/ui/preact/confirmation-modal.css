@@ -18,7 +18,13 @@
 
 /* Hosted modals can overflow the iframe viewport independently of the card. */
 html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']) {
+  overflow-x: clip;
   scrollbar-width: none;
+}
+
+/* Clip the preferred-width surface at both viewport overflow boundaries. */
+html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal']) body {
+  overflow-x: clip;
 }
 
 html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'])::-webkit-scrollbar {
@@ -29,10 +35,15 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
   background: oklch(0.2 0.01 240 / 0.4);
 }
 
+/* Report the card's preferred width, independent of the iframe's current size. */
+.seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'] {
+  inline-size: var(--seams-modal__container-max-width, 26rem);
+}
+
 :where(.seams-wallet-ui) .seams-confirmation-modal--hosted {
   outline: none;
   inline-size: var(--seams-modal__container-max-width, 26rem);
-  max-inline-size: 100%;
+  max-inline-size: 100vw;
   max-block-size: none;
 }
 
