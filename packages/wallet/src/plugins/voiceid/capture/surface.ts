@@ -9,6 +9,7 @@ import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferre
 import { newSpokenPhrase, VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePrompt } from './prompt';
+import { VoiceUnlockFrame } from './unlockFrame';
 import { toError } from '@shared/utils/errors';
 
 type CaptureAction<T> = (
@@ -46,6 +47,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly cancelButton: HTMLButtonElement;
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
+  private readonly unlockFrame: VoiceUnlockFrame | null;
   private readonly unmountCapture: (() => void) | null;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
@@ -69,6 +71,8 @@ class VoiceIdCaptureSurface<T> {
     this.element.setAttribute('aria-label', actionLabel);
     this.prompt = new VoicePrompt(document, actionLabel, this.phrase);
     this.element.append(this.prompt.element);
+    this.unlockFrame =
+      purpose === 'unlock' ? new VoiceUnlockFrame(this.element, this.prompt) : null;
     this.status = this.prompt.status;
     this.status.textContent = 'Preparing VoiceID…';
     this.prompt.title.textContent = 'VoiceID';
@@ -76,6 +80,7 @@ class VoiceIdCaptureSurface<T> {
     this.activateButton = this.prompt.record;
     this.activateButton.textContent = actionLabel;
     this.activateButton.disabled = true;
+    this.activateButton.hidden = this.unlockFrame !== null;
     this.activateButton.addEventListener('click', this.begin);
     this.cancelButton = this.prompt.cancel;
     this.cancelButton.addEventListener('click', this.cancel);
@@ -102,6 +107,7 @@ class VoiceIdCaptureSurface<T> {
     this.element.removeEventListener('cancel', this.cancel);
     this.activateButton.removeEventListener('click', this.begin);
     this.cancelButton.removeEventListener('click', this.cancel);
+    this.unlockFrame?.dispose();
     this.prompt.dispose();
     this.element.remove();
     this.unmountCapture?.();
@@ -135,7 +141,8 @@ class VoiceIdCaptureSurface<T> {
       this.prompt.title.textContent = 'Read aloud';
       this.status.textContent = 'Read naturally, then pause.';
       this.activateButton.disabled = false;
-      this.activateButton.focus();
+      if (this.unlockFrame) this.begin();
+      else this.activateButton.focus();
     } catch (error) {
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
@@ -154,7 +161,7 @@ class VoiceIdCaptureSurface<T> {
     this.activateButton.disabled = true;
     this.status.textContent = 'Opening microphone…';
     try {
-      // Start in the button event so capture retains browser user activation.
+      // Unlock begins after preparation. Enrollment and retries start from their controls.
       const result = await capture.action(this.controller.signal, this.prompt.capture, this.phrase);
       if (this.state.kind === 'closed') return;
       this.state = { kind: 'closed' };
@@ -174,6 +181,7 @@ class VoiceIdCaptureSurface<T> {
         this.phrase = newSpokenPhrase(attemptedPhrase);
         this.prompt.setPhrase(this.phrase);
         this.state = { kind: 'ready', capture };
+        this.activateButton.hidden = false;
         this.activateButton.textContent = 'Try again';
         this.prompt.ready(error.message);
         if (error instanceof VoicePhraseMismatchError || error instanceof VoiceSpeakerMismatchError)

@@ -69,12 +69,11 @@ async function verifyUnlock(
   const qualityRequests = new QualityRetryRequests();
   context.on('request', qualityRequests.observe);
   const verifiedResponse = page.waitForResponse(isVerifyResponse);
-  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
   const shortAudio = await readFile(
     path.resolve(import.meta.dirname, '../../fixtures/audio/aurora/short.wav'),
   );
   await wallet.locator('body').evaluate(useNextAudio, shortAudio.toString('base64'));
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
   await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled({
     timeout: 15_000,
   });
@@ -264,7 +263,7 @@ async function verifyPreparationCancellation(
   const disabledWhilePreparing = !(await wallet
     .getByRole('button', { name: 'Unlock with VoiceID', exact: true, includeHidden: true })
     .isEnabled());
-  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Back', exact: true }).click();
   const cancelled = await operation;
   await challenge.finished.promise;
   await context.unroute('**/wallet/voiceid/challenge', challenge.serve);
@@ -302,10 +301,6 @@ async function verifyLockDuringUnlock(
   const handler = held.serve.bind(held);
   await context.route('**/wallet/voiceid/verify', handler);
   const result = page.evaluate(unlock, walletAuthMethodId).then(unexpectedUnlock, rejectedUnlock);
-  await page
-    .frameLocator('iframe.seams-wallet-overlay-iframe')
-    .getByRole('button', { name: 'Unlock with VoiceID', exact: true })
-    .click();
   await held.captured.promise;
   await page.evaluate(lock);
   held.release.resolve();
@@ -482,7 +477,7 @@ async function measureColdPreparation(
   ).toBeDisabled();
   await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-module.png') });
   const cancelledAt = performance.now();
-  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Back', exact: true }).click();
   expect((await operation).kind).toBe('rejected');
   const cancellationMs = performance.now() - cancelledAt;
   expect(cancellationMs).toBeLessThan(1_000);
@@ -510,17 +505,17 @@ async function measureColdPreparation(
   expect(loadingCard).not.toBeNull();
   await dialog.screenshot({ path: testInfo.outputPath('voiceid-loading-runtime.png') });
   await runtime.finished.promise;
-  await expect(
-    wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
-  ).toBeEnabled({ timeout: 20_000 });
+  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening', { timeout: 20_000 });
   const readyCard = await dialog.locator('.seams-voiceid-prompt').boundingBox();
   expect(readyCard).not.toBeNull();
-  expect(Math.abs(readyCard!.height - loadingCard!.height)).toBeLessThanOrEqual(1);
+  await expect(dialog.getByText('Secured by', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Back', exact: true })).toBeEnabled();
+  await dialog.screenshot({ path: testInfo.outputPath('voiceid-listening-after-download.png'), animations: 'disabled' });
   const readyMs = performance.now() - runtimeStarted;
   expect(readyMs).toBeGreaterThanOrEqual(4_000);
   expect(requests.challenges).toBe(1);
-  expect(await wallet.locator('body').evaluate(readMicrophoneStates)).toEqual([]);
-  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(await wallet.locator('body').evaluate(readMicrophoneStates)).toContain('live');
+  await wallet.getByRole('button', { name: 'Back', exact: true }).click();
   expect((await retry).kind).toBe('rejected');
   await context.unroute('**/ort.wasm.bundle.min-*.js', runtime.serve);
   context.off('request', requests.observe);

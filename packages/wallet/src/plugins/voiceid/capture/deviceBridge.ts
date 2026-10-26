@@ -27,7 +27,11 @@ import {
 } from '../browser/enrollmentStore';
 import { prepareVoiceOwner } from '../activation/ownerConfirmation';
 import { IndexedDBManager } from '@/core/indexedDB';
-import { requireVoiceUserAction, InsufficientVoiceAudioError } from '../browser/microphone';
+import {
+  requireVoiceUserAction,
+  requireVoiceForeground,
+  InsufficientVoiceAudioError,
+} from '../browser/microphone';
 
 export async function captureVoiceIdActivation(input: {
   readonly walletId: WalletId;
@@ -83,7 +87,7 @@ export async function captureVoiceIdUnlock(input: {
   readonly onCapture: VoiceCaptureObserver;
   readonly phrase: SpokenPhrase;
 }): Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }> {
-  requireVoiceUserAction();
+  requireVoiceForeground();
   const { challenge } = input;
   if (challenge.requestOrigin !== location.origin || challenge.expiresAtMs <= Date.now())
     throw new Error('VoiceID challenge is expired or belongs to another Wallet origin.');

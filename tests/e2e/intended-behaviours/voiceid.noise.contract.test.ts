@@ -54,18 +54,16 @@ async function verifyNoise(
   const cancelledUnlock = page
     .evaluate(unlock, method.walletAuthMethodId)
     .then(unexpectedUnlock, cancelledUnlockResult);
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   await expect(wallet.locator('body')).toHaveAttribute('data-voice-test-worklet', 'waiting');
-  await wallet.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Back', exact: true }).click();
   expect(await cancelledUnlock).toContain('cancelled');
   expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
   await wallet.locator('body').evaluate(releaseHeldWorklet);
-  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
   const noise = await readFile(
     path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-noise/noise.wav'),
   );
   await wallet.locator('body').evaluate(injectAudio, noise.toString('base64'));
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  const unlocked = page.evaluate(unlock, method.walletAuthMethodId);
   await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeEnabled({
     timeout: 20_000,
   });

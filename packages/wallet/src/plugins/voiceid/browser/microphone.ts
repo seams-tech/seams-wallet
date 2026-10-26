@@ -74,12 +74,15 @@ type RecordedAudio = Readonly<{
 }>;
 
 export function requireVoiceUserAction(): void {
-  if (
-    !navigator.userActivation.isActive ||
-    document.visibilityState !== 'visible' ||
-    !document.hasFocus()
-  ) {
+  requireVoiceForeground();
+  if (!navigator.userActivation.isActive) {
     throw new Error('Open the Wallet and select Record to use VoiceID.');
+  }
+}
+
+export function requireVoiceForeground(): void {
+  if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+    throw new Error('Keep the Wallet open and focused to use VoiceID.');
   }
 }
 

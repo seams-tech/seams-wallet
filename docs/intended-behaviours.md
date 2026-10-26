@@ -87,7 +87,7 @@ again without changing the availability switch or device method ID.
 SeamsAuthMenu shows each saved wallet once. Method choices appear under that wallet.
 VoiceID appears only for an enabled local method and configured plugin. The menu
 hands presentation and size reporting to the minimal voice prompt during capture.
-Cancel restores the menu, and retry retains the chosen voice method. Closing the
+Back restores the menu and stops capture. Retry retains the chosen voice method. Closing the
 menu cancels capture. Successful voice unlock reports `method: 'voiceid'` through
 the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
 
@@ -139,9 +139,16 @@ The lazy VoiceID host entry mounts a cancellable prompt and yields a frame befor
 loading the activation or unlock implementation. Unlock session cleanup and
 generation allocation occur within this visible preparation phase. Recording stays
 disabled while preparation runs. Model download progress stays inside the card.
+Unlock starts listening automatically when preparation finishes, using the first
+Unlock with VoiceID action. It does not require a second unlock click. Retry remains
+explicit. Unlock capture requires a visible, focused Wallet. Enrollment still requires
+a fresh Record action for each sample.
 Cancelling during implementation loading prevents later session preparation or
 challenge requests. The lightweight prompt module itself still needs its first load.
-The capture card shows a large phrase, a live waveform, a short status, and Cancel.
+The capture card shows a large phrase, a live waveform, and a short status. Unlock
+uses a Back button and the Seams footer within one rounded frame. Its activation
+container is transparent, including when it hosts Manage voice. Enrollment and
+signing retain their cancellation controls.
 Enrollment identifies each of three samples. The waveform draws the recorder's own
 32 ms activity frames as a scrolling row of rounded bars: frames that the voice
 activity model and level check accept as speech draw full bars, and ambient sound

@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "azure-aurora-fgb24k",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:cd369d09-907c-4ec6-9714-176d4f70f6bc",
+  "freshSessionId": "wls_0ZtRKdweL96DlYxkWFEBQFJAj4ic8F0rv_6JlErgFIM",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 110.89216699999815,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 382.8924590000006,
+    "runtimeVisibleMs": 26.662833000002138,
+    "loadingCardHeight": 343.03125,
+    "readyCardHeight": 309.03125,
+    "cancellationMs": 43.25195799999892,
+    "readyMs": 4826.638667000003,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 114.2347920000002,
+  "naturalCapture": {
+    "voicedMs": 1824,
+    "recordingMs": 5338.200000047684,
+    "endedBy": "pause",
+    "similarity": 0.8220208373143213,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1888,
+    "recordingMs": 3665.5999999046326,
+    "endedBy": "pause",
+    "similarity": 0.873221971508314,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "4bff6f70-c290-4be1-89b1-b40273412f49",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.2670538090721484,
+      "levelThreshold": 0.006,
+      "recordingMs": 2078.1999999284744,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "0e754033-bfbe-4004-9275-74cc52348324",
+      "voicedMs": 0,
+      "durationMs": 2700,
+      "peakFrameRms": 0.0002701373676444058,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.5,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "azure-aurora-fgb24k",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "azure-aurora-fgb24k",
+    "accountId": "70caca4adc72f0f040b6e33c518acf006a3d32cc36d40532ae75d23bd80c1861",
+    "publicKey": "ed25519:8bJ1dSvQgGctNdHt1uZV5ZbAfEwVLnWPSyT5xKQXoGNL"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADcwY2FjYTRhZGM3MmYwZjA0MGI2ZTMzYzUxOGFjZjAwNmEzZDMyY2MzNmQ0MDUzMmFlNzVkMjNiZDgwYzE4NjEAcMrKStxy8PBAtuM8UYrPAGo9Msw21AUyrnXSO9gMGGECAAAAAAAAAEAAAAA3MGNhY2E0YWRjNzJmMGYwNDBiNmUzM2M1MThhY2YwMDZhM2QzMmNjMzZkNDA1MzJhZTc1ZDIzYmQ4MGMxODYxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAPRqfY/D8DupAfyi2ngMynfuJAjRHfYne4ppgHOWd7Mz7icEDVkt/g2P2I1mhKreGe42zTfT7M2Zse8nRE6uwDQ==",
+      "signedTransactionSha256": "2989e7bac24c92154d0f900a5c38c8d6a3c6d842e9fe1dca378d5f6d9f7d9d46",
+      "signerId": "70caca4adc72f0f040b6e33c518acf006a3d32cc36d40532ae75d23bd80c1861",
+      "receiverId": "70caca4adc72f0f040b6e33c518acf006a3d32cc36d40532ae75d23bd80c1861",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

@@ -173,6 +173,10 @@ Unlock then prepares its core session installer, including lock cleanup and a ne
 lock generation. It checks local state, loads the cached model if needed, and
 requests its server challenge. Model progress appears inside the same card.
 The lightweight shell itself still needs its first module download.
+Unlock starts listening automatically after preparation. The initial Unlock with
+VoiceID action opens this flow. Back cancels capture and returns to the login menu.
+Retries require Try again. The card uses the wallet's Back icon and Seams wordmark,
+with one rounded surface and a transparent activation container.
 Cancellation aborts the challenge request and prevents late UI or recording.
 Shared model loading can finish and populate the cache after cancellation.
 
@@ -227,7 +231,7 @@ enabled at the persistence boundary. Removal is a separate revocation action.
 The login menu lists a wallet once, with its available methods below. Discovery
 reads local metadata without loading the voice models. Voice login uses the menu's
 measurement and cancellation channel; the old menu is hidden and inert during
-capture. Cancel restores it. The minimal signing prompt is unchanged, with an
+capture. Back restores it. The minimal signing prompt is unchanged, with an
 explicit “Confirm with VoiceID” review button. Capture remains click initiated.
 
 ## Background noise

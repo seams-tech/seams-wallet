@@ -1,4 +1,4 @@
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { intendedTest as test } from './harness';
 import {
   allowBrowserMicrophone,
@@ -45,7 +45,7 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
   await wallet.locator('body').evaluate(useNaturalPhrases);
   await enrollBrowserMicrophone(page);
-  const method = await activation;
+  await activation;
   expect(downloads.requests).toContain(`/sdk/${downloads.entryName}`);
   expect(downloads.requests.some(isSpeakerModel)).toBe(true);
   expect(downloads.requests.some(isPhraseModel)).toBe(true);
@@ -57,9 +57,27 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
   await signTransfer(page);
   expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(enrolledCaptureCount);
 
-  const unlocking = page.evaluate(unlock, method.walletAuthMethodId);
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
-  expect(await unlocking).toMatchObject({ success: true });
+  await harness.lockWallet();
+  await page.getByTestId('asset-open-auth-menu').click();
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  const dialog = wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true });
+  await expect(dialog.locator('.seams-voiceid-prompt')).toHaveAttribute(
+    'data-capture',
+    'listening',
+  );
+  await expect(
+    dialog.getByRole('button', { name: 'Unlock with VoiceID', exact: true }),
+  ).toBeHidden();
+  await expect(dialog.getByText('Secured by', { exact: true })).toBeVisible();
+  await dialog.screenshot({
+    path: testInfo.outputPath('voiceid-auto-listening.png'),
+    animations: 'disabled',
+  });
+  await dialog.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
+  expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
+  await wallet.locator('[data-auth-menu-voiceid]').click();
+  await expect.poll(readSelectedMethod.bind(null, page)).toBe('voiceid');
   expect((await page.evaluate(session)).authentication).toMatchObject({
     kind: 'authenticated',
     authMethod: 'voiceid',
@@ -84,6 +102,8 @@ test('VoiceID availability preserves passkey signing and follows explicit sessio
       'enabled_unenrolled_passkey_signs_without_voice_downloads',
       'enrollment_does_not_select_voice',
       'voice_unlock_selects_voice_approval',
+      'first_click_starts_listening_with_back_and_footer',
+      'back_stops_microphone_and_restores_menu',
       'fresh_passkey_unlock_skips_voice_even_when_enrolled',
     ],
     downloads: downloads.requests,
@@ -109,7 +129,13 @@ function activate() {
   if (!window.__seamsIntendedVoiceId) throw new Error('VoiceID helper is unavailable');
   return window.__seamsIntendedVoiceId.activate();
 }
-function unlock(methodId: string) {
-  if (!window.__seamsIntendedVoiceId) throw new Error('VoiceID helper is unavailable');
-  return window.__seamsIntendedVoiceId.unlock(methodId);
+
+function microphoneStates(): MediaStreamTrackState[] {
+  return window.voiceIdMicrophoneStates();
+}
+async function readSelectedMethod(page: Page): Promise<string> {
+  const current = await page.evaluate(session);
+  return current.authentication.kind === 'authenticated'
+    ? current.authentication.authMethod
+    : 'locked';
 }

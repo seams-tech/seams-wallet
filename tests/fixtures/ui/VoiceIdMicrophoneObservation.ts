@@ -7,6 +7,7 @@ let cancelEnrollmentSave = false;
 let retireEnrollmentModel = false;
 let nextAudio: { base64: string; leadInSeconds: number } | null = null;
 let naturalPhrases = false;
+let nextWrongPhrase = false;
 let injectedAudio: AudioContext | null = null;
 const originalCredentialGet = navigator.credentials.get.bind(navigator.credentials);
 const originalCredentialCreate = navigator.credentials.create.bind(navigator.credentials);
@@ -136,10 +137,14 @@ async function observedGetUserMedia(): Promise<MediaStream> {
   } else {
     const phrase = currentPhrase(document);
     document.body.dataset.voiceTestPhrase = phrase ?? 'unresolved';
-    const index = phrase === null ? -1 : phrases.indexOf(phrase);
+    let index = phrase === null ? -1 : phrases.indexOf(phrase);
     if (index < 0) {
       throw new Error('Visible VoiceID phrase is unavailable to the audio fixture');
     } else {
+      if (nextWrongPhrase) {
+        nextWrongPhrase = false;
+        index = (index + 1) % phrases.length;
+      }
       const response = await fetch(
         `/voiceid-test-audio/${naturalPhrases ? 'natural/' : ''}${index}.wav`,
       );
@@ -149,6 +154,10 @@ async function observedGetUserMedia(): Promise<MediaStream> {
   }
   streams.push(stream);
   return stream;
+}
+
+function useNextWrongPhrase(): void {
+  nextWrongPhrase = true;
 }
 
 function useNaturalPhrases(): void {
@@ -198,6 +207,7 @@ declare global {
   interface Window {
     voiceIdRetireNextEnrollmentModel: typeof retireNextEnrollmentModel;
     voiceIdUseNaturalPhrases: typeof useNaturalPhrases;
+    voiceIdUseNextWrongPhrase: typeof useNextWrongPhrase;
     voiceIdNextAudio: typeof useNextAudio;
     voiceIdNextDelayedAudio: typeof useNextDelayedAudio;
     voiceIdMicrophoneStates: typeof microphoneStates;
@@ -212,6 +222,7 @@ declare global {
 navigator.mediaDevices.getUserMedia = observedGetUserMedia;
 window.voiceIdRetireNextEnrollmentModel = retireNextEnrollmentModel;
 window.voiceIdUseNaturalPhrases = useNaturalPhrases;
+window.voiceIdUseNextWrongPhrase = useNextWrongPhrase;
 window.voiceIdNextAudio = useNextAudio;
 window.voiceIdNextDelayedAudio = useNextDelayedAudio;
 window.voiceIdMicrophoneStates = microphoneStates;

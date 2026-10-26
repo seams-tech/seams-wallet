@@ -168,15 +168,10 @@ async function verifyLivePage(
   expect(assets.phraseModels).toBe(1);
   await page.getByRole('button', { name: 'Lock wallet', exact: true }).click();
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
+  await wallet.locator('body').evaluate(useWrongPhrase);
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   const unlockPhrase = await wallet.locator('[data-voiceid-phrase]').getAttribute('data-voiceid-phrase');
   if (!unlockPhrase) throw new Error('Unlock phrase is unavailable');
-  const wrongUnlockIndex = (phrases.indexOf(unlockPhrase) + 1) % phrases.length;
-  const wrongUnlock = await readFile(
-    path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${wrongUnlockIndex}.wav`),
-  );
-  await wallet.locator('body').evaluate(useOtherSpeaker, wrongUnlock.toString('base64'));
-  await wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
   await expect(wallet.getByRole('button', { name: 'Try again', exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute('data-voiceid-phrase', unlockPhrase);
@@ -384,3 +379,5 @@ class ModelDownloadGate {
   }
 }
 
+
+function useWrongPhrase(): void { window.voiceIdUseNextWrongPhrase(); }

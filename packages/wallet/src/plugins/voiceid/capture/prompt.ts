@@ -7,7 +7,7 @@ import type { VoiceCaptureEvent } from '../browser/microphone';
 import { VoiceVisual } from './visual';
 
 const CSS = `
-.seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; }
+.seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; background: transparent; }
 .seams-voiceid-recording-details { font-size:.7rem; line-height:1.5; margin: .75rem 0; opacity:.8; overflow-wrap:anywhere; }
 .seams-voiceid-recording-details summary { cursor:pointer; }
 

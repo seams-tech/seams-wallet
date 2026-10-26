@@ -82,11 +82,10 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     const voiceDialog = wallet.getByRole('dialog', { name: 'Unlock with VoiceID', exact: true });
     await expect(voiceDialog).toBeVisible();
     await expect(wallet.locator('.seams-auth-menu-surface')).toBeHidden();
-    await voiceDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await voiceDialog.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(voiceDialog).toHaveCount(0);
     await expect(wallet.locator('.seams-auth-menu-surface')).toBeVisible();
     await wallet.locator('[data-auth-menu-voiceid]').click();
-    await voiceDialog.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
     await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
     await startReviewedTransfer(page);
     await expect(wallet.locator('button.confirm')).toHaveText('Confirm with VoiceID');
@@ -210,7 +209,6 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await harness.lockWallet();
     await page.getByTestId('asset-open-auth-menu').click();
     await wallet.locator('[data-auth-menu-voiceid]').click();
-    await voiceDialog.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
     await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
     await startReviewedTransfer(page);
     await wallet.locator('button.confirm').click();
@@ -232,9 +230,16 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect(enrollmentState).toContainText('Improved');
     await expect(enrollmentState).toContainText('30 checks or');
     await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
+    await expect(wallet.locator('.seams-voiceid-activation-surface')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
     await wallet
-      .locator('.seams-voiceid-management')
-      .screenshot({ path: testInfo.outputPath('voiceid-adaptation-management.png') });
+      .locator('.seams-voiceid-activation-surface')
+      .screenshot({
+        path: testInfo.outputPath('voiceid-adaptation-management.png'),
+        animations: 'disabled',
+      });
     await wallet.getByRole('button', { name: 'Reset improvements', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
     const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
@@ -351,10 +356,6 @@ async function unlockVoiceFromMenu(page: Page): Promise<void> {
   await page.getByTestId('asset-open-auth-menu').click();
   await expect(wallet.locator('[data-auth-menu-voiceid]')).toBeVisible();
   await wallet.locator('[data-auth-menu-voiceid]').click();
-  await wallet
-    .getByRole('dialog', { name: 'Unlock with VoiceID', exact: true })
-    .getByRole('button', { name: 'Unlock with VoiceID', exact: true })
-    .click();
   await expect.poll(readAuthentication.bind(null, page)).toBe('voiceid');
   await expect(page.locator('[data-seams-auth-menu-host="true"]')).toHaveCount(0);
 }

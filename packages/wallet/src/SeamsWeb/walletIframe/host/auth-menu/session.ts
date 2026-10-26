@@ -848,6 +848,8 @@ export class AuthMenuSession {
       this.surface.element.hidden = true;
       this.surface.element.inert = true;
     }
+    const origin = this.surface?.element.querySelector('.seams-menu-origin');
+    if (origin) element.querySelector('.seams-voiceid-unlock-header')?.prepend(origin.cloneNode(true));
     document.body.append(element);
     this.voiceCapture = element;
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
