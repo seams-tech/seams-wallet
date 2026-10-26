@@ -1,5 +1,6 @@
 import React from 'react';
-import { useSeams, type BoundWallet, type TransactionReviewControls } from '@seams/wallet/react';
+import { useSeams, type BoundWallet } from '@seams/wallet/react';
+import { renderDirectWalletReview } from './DirectWalletReview';
 
 type Seams = ReturnType<typeof useSeams>['seams'];
 type TransferState =
@@ -28,16 +29,6 @@ export function ReviewedArcTransfer({ walletId }: { walletId: string | null }): 
         {state.kind === 'idle' ? '' : JSON.stringify(state)}
       </output>
     </section>
-  );
-}
-
-function renderReview(controls: TransactionReviewControls): React.ReactNode {
-  return (
-    <>
-      <p>Approve a self-transfer on Arc testnet.</p>
-      <button onClick={controls.continueToWallet}>Continue to wallet</button>
-      <button onClick={controls.cancel}>Cancel review</button>
-    </>
   );
 }
 
@@ -111,7 +102,8 @@ async function transfer(
       review: {
         title: 'Review Arc testnet transfer',
         validity: { kind: 'expires_at', atMs: Date.now() + 120_000 },
-        render: renderReview,
+        render: renderDirectWalletReview,
+        className: 'seams-demo-direct-wallet-review',
       },
     });
     setState({

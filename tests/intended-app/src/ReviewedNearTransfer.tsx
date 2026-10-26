@@ -1,11 +1,7 @@
 import React from 'react';
-import {
-  useSeams,
-  type BoundNearSigner,
-  type BoundWallet,
-  type TransactionReviewControls,
-} from '@seams/wallet/react';
+import { useSeams, type BoundNearSigner, type BoundWallet } from '@seams/wallet/react';
 import { ActionType } from '@seams/wallet';
+import { renderDirectWalletReview } from './DirectWalletReview';
 
 type TransferState =
   | { kind: 'idle' }
@@ -44,20 +40,6 @@ function transferReadiness(walletId: string | null, wallet: BoundWallet | null, 
   return 'Ready to review a NEAR testnet transfer.';
 }
 
-function renderTransferReview(controls: TransactionReviewControls): React.ReactNode {
-  return (
-    <>
-      <p>Send one yoctoNEAR to this wallet's own NEAR testnet account.</p>
-      <button type="button" onClick={controls.continueToWallet}>
-        Continue to wallet
-      </button>
-      <button type="button" onClick={controls.cancel}>
-        Cancel review
-      </button>
-    </>
-  );
-}
-
 async function transfer(
   signer: BoundNearSigner,
   setState: React.Dispatch<React.SetStateAction<TransferState>>,
@@ -74,7 +56,8 @@ async function transfer(
       review: {
         title: 'Review NEAR testnet transfer',
         validity: { kind: 'expires_at', atMs: Date.now() + 60_000 },
-        render: renderTransferReview,
+        render: renderDirectWalletReview,
+        className: 'seams-demo-direct-wallet-review',
       },
     });
     if (!result.success) throw new Error(result.error);

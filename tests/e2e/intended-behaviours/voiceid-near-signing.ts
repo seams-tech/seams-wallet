@@ -141,9 +141,8 @@ function parseSingleTransfer(bytes: Buffer): CapturedTransfer {
 export async function startReviewedTransfer(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Review NEAR testnet transfer', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Review NEAR testnet transfer', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
+    page.getByRole('button', { name: 'Continue to wallet', exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.frameLocator('iframe.seams-wallet-overlay-iframe').locator('button.confirm'),
   ).toBeVisible({ timeout: 30_000 });
