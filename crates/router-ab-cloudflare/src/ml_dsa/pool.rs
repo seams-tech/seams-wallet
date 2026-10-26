@@ -442,6 +442,31 @@ pub async fn inspect(
     }
     Ok(states)
 }
+/// Publication evidence survives consumption and retirement. It grants no use rights.
+pub async fn publication_recorded(
+    store: &impl Store,
+    key: &KeyScope,
+    batches: &[[u8; 32]],
+    expires_at_ms: u64,
+) -> Result<bool> {
+    check_key(store, key).await?;
+    if batches.is_empty() || batches.len() > MAX_BATCHES {
+        return Err(invalid("Invalid ML-DSA publication batch count"));
+    }
+    for batch in batches {
+        let Some(record) = store.get::<Record>(&batch_name(batch)).await? else {
+            return Ok(false);
+        };
+        if record.binding.key != *key
+            || record.binding.batch != *batch
+            || record.binding.expires_at_ms != expires_at_ms
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 /// The authenticated coordinator calls this only for a permanent peer tombstone.
 /// A missing or temporarily reserved peer is never enough to retire a ready half.
 pub async fn retire_unpaired(

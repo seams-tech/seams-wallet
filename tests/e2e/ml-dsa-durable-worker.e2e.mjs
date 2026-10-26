@@ -82,6 +82,10 @@ export class PublicationBarrier {
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
+    if (path === '/lose-publication-reply-once') {
+      await this.state.storage.put('lose_publication_reply', true);
+      return new Response('Armed');
+    }
     if (path === '/fail-publication-once') {
       await this.state.storage.put('fail_publication_once', true);
       await this.state.storage.put('failure_released', false);
@@ -106,10 +110,11 @@ export class PublicationBarrier {
     if (path === '/state') {
       return Response.json({ wakeReplyFailures: await this.state.storage.get('wake_reply_failures') ?? 0, held: await this.state.storage.get('held') ?? null,
         inspectionFailures: await this.state.storage.get('inspection_failures') ?? 0,
+        lostPublicationReply: await this.state.storage.get('lost_publication_reply') ?? null,
         failedPublication: await this.state.storage.get('failed_publication') ?? null });
     }
     const command = await request.clone().json();
-    if (command.command === 'inspect' && await this.state.storage.get('fail_inspection')) {
+    if (command.command === 'publication_recorded' && await this.state.storage.get('fail_inspection')) {
       await this.state.storage.put('fail_inspection', false);
       await this.state.storage.put('inspection_failures', 1);
       return new Response('Injected inventory failure', {status:503});
@@ -128,6 +133,11 @@ export class PublicationBarrier {
       await this.hold(stage, command.job);
     }
     const response = await this.env.ROLE.fetch(request);
+    if (command.command === 'put' && response.status === 200 && finalPublication(command) && await this.state.storage.get('lose_publication_reply')) {
+      await this.state.storage.delete('lose_publication_reply');
+      await this.state.storage.put('lost_publication_reply', command.job);
+      return new Response('Injected lost durable publication reply', {status:503});
+    }
     if (command.command === 'wake_refill' && response.status === 200 && await this.state.storage.get('lose_wake_reply')) {
       await this.state.storage.put('lose_wake_reply', false);
       await this.state.storage.put('wake_reply_failures', 1);
@@ -229,6 +239,7 @@ observations.provenance = {
     'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/workers.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/refill.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/pool.rs',
   ].map(fileDigest))),
   workerJsSha256: Object.fromEntries(await Promise.all(['router', 'deriver-a', 'deriver-b'].map(workerJsDigest))),
 };
@@ -330,6 +341,10 @@ try {
       assert.equal(armed.status, 200);
     }
     let initialStarts = await preprocessingStarts();
+    const completionFault = observations.signatures.length === 1 && !observations.publicationCompletionRecovery;
+    if (completionFault) {
+      assert.equal((await (await publicationBarrier()).fetch('https://fault.internal/lose-publication-reply-once')).status, 200);
+    }
     if (index === 0) {
       const barrier = await publicationBarrier();
       assert.equal((await barrier.fetch('https://fault.internal/fail-publication-once')).status, 200);
@@ -361,6 +376,20 @@ try {
       profileConnections = [];
     }
     assert.equal(result.status, 'existing');
+    if (completionFault) {
+      const job = await waitForLostPublicationReply();
+      await waitForRecoveredPublication(job);
+      await waitForLeaseRelease(job);
+      const [a, b] = await inventories();
+      for (const id of preparationBatches(job)) {
+        assert.ok(a.ready.map(batchId).includes(id));
+        assert.ok(b.ready.map(batchId).includes(id));
+      }
+      observations.publicationCompletionRecovery = {
+        job, terminalState: await producerState(job),
+        pairedReady: true, leaseReleased: true,
+      };
+    }
     if (index === 0) {
       await waitForPreprocessingStart(initialStarts);
       observations.responseToRefillStartedMs = performance.now() - responseAt;
@@ -521,6 +550,7 @@ try {
     assert.ok(inventory.some(refillRequested) || pairedStock(inventory) >= policy.refill_target_batches);
   }
   assert.equal(observations.signatures.length, 3);
+  assert.equal(observations.publicationCompletionRecovery?.terminalState, 'published');
   observations.automaticRefillAfterSigning = true;
   await waitReady(policy.refill_target_batches);
   await runtime.dispose();
@@ -628,6 +658,21 @@ try {
     command: 'inspect', key: stalled.key, batches: [admitted.permit.batches[0]],
   });
   assert.deepEqual(consumedAfterCancellation, ['retired']);
+  let consumedJob = null;
+  for (const job of await rolePreprocessingJobs('b')) {
+    if (preparationBatches(job).includes(batchId(admitted.permit.batches[0]))) consumedJob = job;
+  }
+  assert.ok(consumedJob, 'Consumed pair lacks its preparation job');
+  assert.equal(await post('b', '/router-ab/ml-dsa/role', {
+    command: 'publication_recorded', job: consumedJob,
+  }), true);
+  const wrongExpiry = structuredClone(consumedJob);
+  wrongExpiry.material_expires_at_ms += 1;
+  assert.equal(await post('b', '/router-ab/ml-dsa/role', {
+    command: 'publication_recorded', job: wrongExpiry,
+  }), false);
+  observations.publicationEvidenceSurvivesConsumption = true;
+  observations.publicationEvidenceRejectsChangedExpiry = true;
   const canceledReplay = await raw('b', '/router-ab/ml-dsa/role', {
     command: 'take', permit: admitted.permit, batch: admitted.permit.batches[0],
   }, serviceAuth);
@@ -877,6 +922,17 @@ async function waitForHeldPublication(barrier) {
     await new Promise(waitForMarker);
   }
   throw new Error('The producer did not reach the paired-publication barrier');
+}
+
+async function waitForLostPublicationReply() {
+  const deadline = Date.now() + 60000;
+  const barrier = await publicationBarrier();
+  while (Date.now() < deadline) {
+    const state = await (await barrier.fetch('https://fault.internal/state')).json();
+    if (state.lostPublicationReply) return state.lostPublicationReply;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('Publication reply loss was not observed');
 }
 
 async function waitForFailedPreparation(barrier) {

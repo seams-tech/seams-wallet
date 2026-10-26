@@ -161,7 +161,24 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 let elapsed = crate::cloudflare_now_unix_ms_v1()
                     .ok()
                     .and_then(|now| now.checked_sub(start));
-                let terminal = if result.is_ok() {
+                let published = if result.is_ok() {
+                    true
+                } else {
+                    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                    // Publication precedes the final transport acknowledgement.
+                    // An inspection error leaves Running and its recovery alarm intact.
+                    let confirmed = before_deadline(
+                        job.expires_at_ms.min(now.saturating_add(RECOVERY_CHECK_MS)),
+                        paired_publication(&self.env, &job),
+                    )
+                    .await
+                    .map_err(protocol_error)?;
+                    if confirmed {
+                        log_recovery(&job, "paired_publication_confirmed");
+                    }
+                    confirmed
+                };
+                let terminal = if published {
                     ProducerState::Published { job }
                 } else {
                     ProducerState::Failed { job }
@@ -405,36 +422,19 @@ async fn settle_remote(env: &Env, terminal: &ProducerState) -> Result<()> {
 }
 
 async fn paired_publication(env: &Env, job: &refill::Job) -> Result<bool> {
-    let command = RoleCommand::Inspect {
-        key: job.key.clone(),
-        batches: job.batch_ids(),
-    };
+    let command = RoleCommand::PublicationRecorded { job: job.clone() };
     let (a, b) = futures::join!(
         local_call(env, &command, None),
-        coordinator::role_call::<Vec<pool::BatchAvailability>>(env, "DERIVER_B", &command)
+        coordinator::role_call::<bool>(env, "DERIVER_B", &command)
     );
     let mut response = a?;
     if response.status_code() != 200 {
-        return Err(invalid("ML-DSA recovery inventory refused the request"));
+        return Err(invalid(
+            "ML-DSA recovery publication check refused the request",
+        ));
     }
-    let a: Vec<pool::BatchAvailability> = response.json().await.map_err(storage_error)?;
-    let b = b?;
-    // Ready/reserved records prove publication. Retired also covers missing-key
-    // and burned records, so it cannot establish this early-release condition.
-    Ok(a.len() == job.groups.count()
-        && b.len() == job.groups.count()
-        && publication_present(&a)
-        && publication_present(&b))
-}
-
-fn publication_present(states: &[pool::BatchAvailability]) -> bool {
-    !states.is_empty()
-        && states.iter().all(|state| {
-            matches!(
-                state,
-                pool::BatchAvailability::Ready | pool::BatchAvailability::Reserved
-            )
-        })
+    let a: bool = response.json().await.map_err(storage_error)?;
+    Ok(a && b?)
 }
 
 fn log_recovery(job: &refill::Job, stage: &str) {
