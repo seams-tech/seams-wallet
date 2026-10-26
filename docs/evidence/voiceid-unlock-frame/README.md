@@ -41,3 +41,20 @@ The requesting-site label and brand icons reuse the wallet's existing elements.
 Enrollment still requires a Record action for each sample. Unlock requires the
 Wallet to remain visible and focused when capture starts. Permission prompts remain
 under browser control. No recognition or speaker thresholds changed.
+
+## Gradual width shrink
+
+The new outer border exposed a measurement defect. The initial rectangle included
+the border, but ResizeObserver updates used `contentRect`, which excluded it.
+Applying that smaller width to the iframe produced another smaller measurement.
+The VoiceID frame lost two pixels per update until the host reached its minimum width.
+
+The reporter now observes and reports the border box, including padding and borders.
+The native browser feedback test feeds each reported size back into the container.
+A 420 × 240 surface with a border and padding remains 420 × 240 after settling.
+See [the generated measurements](border-box-feedback.json). This is a browser layout
+reproduction, rather than a recording of the user's tab.
+
+Nine reporter and auth-menu browser checks passed. Repeat with
+`wallet-ui/surface-measurement-reporter.test.ts` and `wallet-ui/auth-menu.browser.test.ts`
+under `playwright.wallet-browser.config.ts`, project `chromium`.
