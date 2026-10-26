@@ -54,5 +54,26 @@
     "voice": "Samantha",
     "rate": 160,
     "sha256": "4a46cc324f664da9ef58ee5c334d672f87430ff4af5acf86a8a516d34fb3663b"
+  },
+  {
+    "file": "missing-negation.wav",
+    "spoken": "crying in the casino",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "a57f88e729ed128d4fc7f352d625713f73269fc4e6960fab14595706979f9efd"
+  },
+  {
+    "file": "changed-negation.wav",
+    "spoken": "never cry in the casino",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "5a71717cf48683e46afc24df5c5fcf3b4d43fc6d87df13c697c262236d82df73"
+  },
+  {
+    "file": "extra-negation.wav",
+    "spoken": "no approve this transfer at once",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "a5d1b6fdc1df204f6b22c6179a1a1a975cbe6f0b33e50aaa06e57fa5e48cbe1b"
   }
 ]

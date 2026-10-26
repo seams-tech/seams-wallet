@@ -136,7 +136,9 @@ function matchDecodedPhrase(decodedText: string): PhraseRecognition {
     }
   }
   const margin = runnerUp - difference;
-  if (tokens.some(isNegation)) {
+  const spokenNegation = tokens.filter(isNegation).join(' ');
+  const challengeNegation = words(best).filter(isNegation).join(' ');
+  if (spokenNegation !== challengeNegation) {
     return {
       kind: 'uncertain',
       candidate: best,

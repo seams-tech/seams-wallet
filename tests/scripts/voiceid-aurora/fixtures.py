@@ -49,6 +49,9 @@ def generate_tolerance(output):
         ('reordered', 'quote latest check i'),
         ('negated', 'i never review every order'),
         ('fragment', 'latest quote'),
+        ('missing-negation', 'crying in the casino'),
+        ('changed-negation', 'never cry in the casino'),
+        ('extra-negation', 'no approve this transfer at once'),
     ]
     rows = []
     for name, spoken in cases:

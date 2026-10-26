@@ -1,21 +1,21 @@
 // Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.
 export const SPOKEN_PHRASES = [
-  "my trading screen is ready",
-  "the market opens this morning",
+  "please sign this trade now",
+  "confirm my order for today",
   "i review every order carefully",
-  "trading volume is rising today",
-  "orders stay open until filled",
-  "the closing bell is ringing",
-  "i track changes in price",
+  "dump on them slowly",
+  "send this order to market",
+  "i'm here for the tech",
+  "keep this trade on track",
   "the order book looks busy",
-  "my portfolio is well balanced",
+  "if you panic panic early",
   "i check the latest quote",
-  "the daily chart shows growth",
-  "i keep a trading journal",
+  "exit liquidity for all passengers",
+  "no crying in the casino",
   "this trade fits my plan",
-  "fresh quotes arrive quickly",
-  "i check prices before each trade",
-  "my trade history is clear"
+  "approve this transfer at once",
+  "check the price before trading",
+  "let this trade go through"
 ] as const;
 export const PHRASE_TOKEN_PIECES: readonly string[] = [
   "",

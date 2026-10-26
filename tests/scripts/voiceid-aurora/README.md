@@ -63,7 +63,7 @@ python tests/scripts/voiceid-aurora/fixtures.py --output /tmp/voiceid-aurora-fix
 
 The standard fixtures use connected speech at 140 words per minute. The natural
 fixtures use 160 words per minute. Neither set stretches audio. The current
-4–6-word trading sentences take about 1.5–2.2 seconds in the natural fixture set.
+4–6-word trading sentences take about 1.2–2.4 seconds in the natural fixture set.
 The browser helper reads the visible phrase and plays its WAV through a MediaStream.
 It exercises MediaRecorder, decoding, preprocessing, B1, and Aurora without mocking
 model outcomes. Explicit overrides supply wrong-speaker and wrong-phrase samples.
@@ -143,3 +143,11 @@ natural fixtures against all 16 challenges, plus omitted articles, approximate
 wording, unrelated speech, reordering, a negation, and a short fragment. Run it with
 `playwright.wallet-browser.config.ts`, project `chromium`. It emits
 `phrase-tolerance.json` with the decoded text and decision for every case.
+
+
+The current bank includes approval-style prompts and user-selected Easter eggs.
+“If you panic, panic early” adapts DegenSpartan's “if youre gonna panic, panic early.”
+“Exit liquidity for all passengers” is an excerpt from the same
+[source thread](https://threadreaderapp.com/thread/1486846598504398850.html).
+“Dump on them slowly,” “No crying in the casino,” and “I'm here for the tech” were
+supplied by the user; they are not attributed here to DegenSpartan.

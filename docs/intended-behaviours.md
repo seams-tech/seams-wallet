@@ -249,7 +249,8 @@ The matcher ignores case, punctuation, and articles, and canonicalizes the liste
 homophones. It compares all 16 phrases using character edit distance divided by
 the longer normalized text length. The best candidate must have at most 30%
 difference and beat the runner-up by at least 10 percentage points. The decoded
-word count must be within two words of the candidate. Detected negations reject.
+word count must be within two words of the candidate. Negation words must match
+those in the candidate phrase; added, omitted, or changed negation rejects.
 This permits approximate wording, including some content-word errors. It is a
 freshness challenge, not exact transcription or transaction-intent interpretation.
 A different selected phrase, an ambiguous result, or text outside these bounds fails. Speaker

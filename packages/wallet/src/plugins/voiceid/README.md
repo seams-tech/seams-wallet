@@ -142,7 +142,7 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 
 Enrollment, unlock, and transfer approval randomly select one of 16 short English
 trading-oriented sentences of 4–6 words. The synthetic natural-paced fixtures
-last about 1.5–2.2 seconds.
+last about 1.2–2.4 seconds.
 Each attempt holds its displayed sentence until recording ends. Retries
 select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
 of quiet once audible input has continued for 100 ms. Initial silence does not
@@ -154,8 +154,8 @@ Aurora decodes the audio independently of the displayed phrase. The matcher comp
 that text with all 16 phrases. It ignores case, punctuation, and articles, and maps
 selected homophones to a common spelling. It permits at most 30% normalized character
 edit distance, requires a 10-point distance margin over the next candidate, and
-limits decoded word count to within two words of the candidate. Detected negations
-reject. These are development bounds for an approximate challenge. Some changed
+limits decoded word count to within two words of the candidate. Negation must
+match the candidate phrase; added, omitted, or changed negation rejects. These are development bounds for an approximate challenge. Some changed
 content words can pass; this check does not interpret transaction intent.
 A different recognized phrase, ambiguity, or an out-of-bounds result prevents
 enrollment, device-key use, or signing. The speaker threshold remains 0.5. A signing retry

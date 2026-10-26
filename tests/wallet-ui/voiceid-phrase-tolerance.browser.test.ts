@@ -98,6 +98,9 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
     { file: 'reordered', expected: 9, outcome: 'mismatch' },
     { file: 'negated', expected: 2, outcome: 'mismatch' },
     { file: 'fragment', expected: 9, outcome: 'mismatch' },
+    { file: 'missing-negation', expected: 11, outcome: 'mismatch' },
+    { file: 'changed-negation', expected: 11, outcome: 'mismatch' },
+    { file: 'extra-negation', expected: 13, outcome: 'mismatch' },
   ];
   const extraResults = [];
   for (const item of extras) {
