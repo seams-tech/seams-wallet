@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 450 dependency records (41 npm, 409 Cargo).
+Inventory: 451 dependency records (42 npm, 409 Cargo).
 
 ## Dependency inventory
 
@@ -446,6 +446,7 @@ Inventory: 450 dependency records (41 npm, 409 Cargo).
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
 | npm | asn1js | 3.0.7 | BSD-3-Clause | Ryan Hurst rmh@unmitigatedrisk.com; Yury Strozhevsky yury@strozhevsky.com |
 | npm | base-x | 5.0.1 | MIT | Daniel Cousens |
+| npm | borsh | 1.0.0 | Apache-2.0 | Near Inc |
 | npm | bs58 | 6.0.0 | MIT |  |
 | npm | eventemitter3 | 5.0.1 | MIT | Arnout Kazemier |
 | npm | idb | 8.0.3 | ISC | Jake Archibald |
@@ -2767,7 +2768,7 @@ Applies to:
 
 ### 23f18e03dc49df91
 
-Packaged as: LICENSE, LICENSE-MIT
+Packaged as: LICENSE, LICENSE-MIT, LICENSE-MIT.txt
 
 Applies to:
 
@@ -2837,6 +2838,7 @@ Applies to:
 - cargo:zmij@1.0.21
 - cargo:zmij@1.0.23
 - npm:@near-js/types@2.4.0
+- npm:borsh@1.0.0
 
     Permission is hereby granted, free of charge, to any
     person obtaining a copy of this software and associated
@@ -7353,6 +7355,7 @@ Applies to:
 - cargo:borsh@1.6.1
 - cargo:borsh@1.8.0
 - cargo:borsh@1.8.1
+- npm:borsh@1.0.0
 
                                      Apache License
                                Version 2.0, January 2004

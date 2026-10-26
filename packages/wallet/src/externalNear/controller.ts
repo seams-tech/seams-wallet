@@ -61,8 +61,13 @@ export class ExternalNearController {
     const generation = ++this.generation;
     this.publish({ kind: 'connecting' });
     try {
-      this.provider = await createNearWalletProvider(wallet);
-      const accounts = parseAccounts(await this.provider.connect(this.network));
+      const provider = await createNearWalletProvider(wallet, this.rpcUrl);
+      if (generation !== this.generation) {
+        provider.dispose();
+        return failure('connection_changed', 'Wallet selection changed.');
+      }
+      this.provider = provider;
+      const accounts = parseAccounts(await provider.connect(this.network));
       if (generation !== this.generation)
         return failure('connection_changed', 'Wallet selection changed.');
       const accountId = accounts[0];
@@ -76,23 +81,29 @@ export class ExternalNearController {
       this.publish(connection);
       return { ok: true, value: connection };
     } catch {
-      if (generation === this.generation) this.publish({ kind: 'disconnected' });
+      if (generation !== this.generation)
+        return failure('connection_changed', 'Wallet selection changed.');
+      this.disconnect();
       return failure(
         'unavailable',
         `${nearWalletName(wallet)} did not connect. Check the wallet and network, then try again.`,
       );
     } finally {
-      this.pending = false;
-      this.publish(this.snapshot.connection);
+      if (generation === this.generation) {
+        this.pending = false;
+        this.publish(this.snapshot.connection);
+      }
     }
   }
   disconnect(): void {
-    const connection = this.snapshot.connection;
     ++this.generation;
+    const provider = this.provider;
+    this.provider = null;
+    this.pending = false;
+    provider?.dispose();
     this.publish({ kind: 'disconnected' });
-    if (connection.kind === 'connected' && this.provider)
-      void this.provider.disconnect(connection).catch(ignoreDisconnectFailure);
   }
+
   async sendTransaction(
     connection: ExternalNearConnection,
     input: TransactionInput,
@@ -100,6 +111,8 @@ export class ExternalNearController {
     if (this.pending) return failure('pending_request', 'Complete the pending wallet request.');
     if (connection !== this.snapshot.connection || !this.provider)
       return failure('connection_changed', 'Reconnect the wallet before signing.');
+    const provider = this.provider;
+    const generation = this.generation;
     let transaction: TransactionInput;
     try {
       transaction = validateTransaction(input);
@@ -110,11 +123,11 @@ export class ExternalNearController {
     this.publish(connection);
     let dispatched = false;
     try {
-      const accounts = parseAccounts(await this.provider.accounts(this.network));
+      const accounts = parseAccounts(await provider.accounts(this.network));
       if (connection !== this.snapshot.connection || !accounts.includes(connection.accountId))
         return failure('connection_changed', 'Wallet account changed. Reconnect before signing.');
       dispatched = true;
-      const raw = await this.provider.send(connection, transaction);
+      const raw = await provider.send(connection, transaction);
       return { ok: true, value: parseSubmission(raw, connection) };
     } catch {
       return dispatched
@@ -124,8 +137,10 @@ export class ExternalNearController {
           )
         : failure('unavailable', 'Wallet account is unavailable.');
     } finally {
-      this.pending = false;
-      this.publish(this.snapshot.connection);
+      if (generation === this.generation) {
+        this.pending = false;
+        this.publish(this.snapshot.connection);
+      }
     }
   }
   async checkOutcome(submission: ExternalNearSubmission): Promise<ExternalNearOutcome> {
@@ -153,4 +168,3 @@ export class ExternalNearController {
     }
   }
 }
-function ignoreDisconnectFailure(): void {}

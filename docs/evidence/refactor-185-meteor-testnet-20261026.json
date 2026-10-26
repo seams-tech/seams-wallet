@@ -1,0 +1,40 @@
+{
+  "observedAt": "2026-10-26T07:07:34.732850+00:00",
+  "network": "testnet",
+  "browserProfile": "Pta",
+  "wallet": "Meteor",
+  "walletBuildLabel": "261022-1955",
+  "account": "cyan-loong.testnet",
+  "transactionHash": "7mHpBFA5B6mmhfuqTxVUhNuixYDqCvkLWCBKAQMD6pxV",
+  "receiver": "seams-v1.testnet",
+  "method": "set_greeting",
+  "depositYocto": "0",
+  "gas": "10000000000000",
+  "finalExecutionStatus": "FINAL",
+  "status": {
+    "SuccessValue": ""
+  },
+  "greeting": "Seams connector acceptance 2026-10-26T07:05:22.717Z",
+  "readback": "Seams connector acceptance 2026-10-26T07:05:22.717Z",
+  "readbackMatches": true,
+  "readbackBlockHash": "FFYJQ9zMWztsX9gezgwRBTNAguoa9jBGQBM5aNMDzepF",
+  "rpc": "https://rpc.testnet.near.org",
+  "baseRevision": "341994f833f6ccedd61cc2082bac328376687efe",
+  "workingTreeChanges": true,
+  "sourceHashes": {
+    "packages/wallet/src/externalNear/hot.ts": "ba84c394741a2261835dc77b2a1dc68dabfa47a8f4cceb1ae61cbaca8cb700b7",
+    "packages/wallet/src/externalNear/meteor.ts": "bde9f74252b6c6267e9216deae2d555fb806f4d8be02a9c47541a6d331810165",
+    "packages/wallet/src/externalNear/types.ts": "abbc9dad3c6f638809c7f92584b3604e962aa958d5ec872546b5caa07b7c6cf0",
+    "packages/wallet/src/externalNear/actions.ts": "8ac36394fceaa74dc6ebe83515569167f6a9b577440e3f334f519276b8e80113",
+    "packages/wallet/src/externalNear/wallets.ts": "b58a0c110261efbad2bb1dfa626d034360203b4c6fe911f3a586f4f4020ac5dc",
+    "packages/wallet/src/externalNear/index.ts": "1b4ca9dec5f351272e441623c4312b4c8a26c71a4cb095304a168af56afe03c5",
+    "packages/wallet/src/externalNear/intearPopup.ts": "8f083625dcef4b1af995d04fda3cf82599b1a4209411580976860d6ac46febe4",
+    "packages/wallet/src/externalNear/meteorRequest.ts": "15bdf27c3e52124f4e4e3886cad70a012d17f25b065e03650aed9f4033f69dc0",
+    "packages/wallet/src/externalNear/intear.ts": "0daed2a2e3c78714b5f493b2fcb46aa604ed55acdc2f428f171de104563008cb",
+    "packages/wallet/src/externalNear/controller.ts": "890f25824d17c562bcdd418c5a6f613ffb4b435084a7eca939e4f0e14ce91a9c",
+    "packages/wallet/src/externalNear/boundary.ts": "c45c3ec94f60cc7d591f9c875cfdf29598193c4b5a6565ddb2dc62b58b5d087b"
+  },
+  "reproduce": "pnpm -C tests exec vite browser-app --host 127.0.0.1 --port 4286 --strictPort; open http://localhost:4286/external-wallet-acceptance.html in a profile with Meteor; connect a funded testnet account and send a fresh greeting marker.",
+  "browserVersion": "155.0.8059.85",
+  "diagnosticLoggingRemovedAfterRun": true
+}

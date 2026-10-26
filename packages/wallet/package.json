@@ -194,9 +194,8 @@
     }
   },
   "dependencies": {
-    "@meteorwallet/sdk": "3.24.0",
-    "@near-js/transactions": "2.2.5",
     "@near-js/types": "^2.4.0",
+    "borsh": "1.0.0",
     "bs58": "^6.0.0",
     "idb": "^8.0.3",
     "preact": "10.29.8",

@@ -5,9 +5,14 @@ import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } 
 
 /** Direct extension API documented by hot-dao/hot-sdk-js. No iframe fallback. */
 export class HotExtensionProvider implements NearWalletProvider {
+  private lifecycle: 'active' | 'disposed' = 'active';
   private readonly transport: unknown = Reflect.get(window, 'hotExtension');
   private async request(method: string, params: object): Promise<unknown> {
-    if (!isObject(this.transport) || Reflect.get(window, 'hotExtension') !== this.transport) {
+    if (
+      this.lifecycle !== 'active' ||
+      !isObject(this.transport) ||
+      Reflect.get(window, 'hotExtension') !== this.transport
+    ) {
       throw new Error('Install HOT Wallet or reconnect after the extension changes.');
     }
     const request: unknown = this.transport.request;
@@ -37,7 +42,7 @@ export class HotExtensionProvider implements NearWalletProvider {
     if (!isObject(response)) throw new Error('Invalid HOT transaction response.');
     return response.transactions;
   }
-  async disconnect(): Promise<void> {
-    // Site permissions remain in the extension. Controller disposal revokes local authority.
+  dispose(): void {
+    this.lifecycle = 'disposed';
   }
 }

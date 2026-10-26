@@ -5,10 +5,11 @@ import { ActionType, toActionArgsWasm, type TransactionInput } from '../core/typ
 import type { ExternalNearConnection, ExternalNearSubmission } from './types';
 
 export function parseAccounts(raw: unknown): readonly string[] {
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error('Meteor has no connected accounts.');
+  if (!Array.isArray(raw) || raw.length === 0)
+    throw new Error('The wallet has no connected accounts.');
   const accounts: string[] = [];
   for (const account of raw) {
-    if (!isValidAccountId(account)) throw new Error('Meteor returned an invalid account.');
+    if (!isValidAccountId(account)) throw new Error('The wallet returned an invalid account.');
     accounts.push(account);
   }
   return Object.freeze(accounts);

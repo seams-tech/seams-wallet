@@ -117,7 +117,6 @@ const external = [
   'react-dom',
   'react/jsx-runtime',
   'voice-glow',
-  '@meteorwallet/sdk',
   /^preact(?:\/.*)?$/,
 
   // All @near-js packages

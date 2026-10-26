@@ -1,106 +1,145 @@
-import { isObject } from '@shared/utils/validation';
-import { MeteorConnect } from '@meteorwallet/sdk';
-import { actionCreators } from '@near-js/transactions';
+import { serialize, type Schema } from 'borsh';
+import { base64Encode } from '@shared/utils/base64';
+import { base58Decode } from '@shared/utils/base58';
+import { isPlainObject } from '@shared/utils/validation';
+import { isValidAccountId } from '@shared/utils/near';
 import {
   ActionType,
   toActionArgsWasm,
   type ActionArgs,
   type TransactionInput,
 } from '../core/types/actions';
+import { MeteorRequest, meteorTransportFromWindow } from './meteorRequest';
 import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } from './types';
 
-class MemoryStorage {
-  private values = new Map<string, string>();
-  async getItem(key: string): Promise<string | null> {
-    return this.values.get(key) ?? null;
-  }
-  async setItem(key: string, value: string): Promise<void> {
-    this.values.set(key, value);
-  }
-  async removeItem(key: string): Promise<void> {
-    this.values.delete(key);
-  }
-}
-
+const transactionSchema: Schema = {
+  struct: {
+    signerId: 'string',
+    publicKey: { struct: { keyType: 'u8', data: { array: { type: 'u8', len: 32 } } } },
+    nonce: 'u64',
+    receiverId: 'string',
+    blockHash: { array: { type: 'u8', len: 32 } },
+    actions: {
+      array: {
+        type: {
+          enum: [
+            { struct: { createAccount: { struct: {} } } },
+            { struct: { deployContract: { struct: { code: { array: { type: 'u8' } } } } } },
+            {
+              struct: {
+                functionCall: {
+                  struct: {
+                    methodName: 'string',
+                    args: { array: { type: 'u8' } },
+                    gas: 'u64',
+                    deposit: 'u128',
+                  },
+                },
+              },
+            },
+            { struct: { transfer: { struct: { deposit: 'u128' } } } },
+          ],
+        },
+      },
+    },
+  },
+};
 function meteorAction(action: ActionArgs) {
   const value = toActionArgsWasm(action);
   switch (value.action_type) {
     case ActionType.Transfer:
-      return actionCreators.transfer(BigInt(value.deposit));
+      return { transfer: { deposit: BigInt(value.deposit) } };
     case ActionType.FunctionCall:
-      return actionCreators.functionCall(
-        value.method_name,
-        new TextEncoder().encode(value.args),
-        BigInt(value.gas),
-        BigInt(value.deposit),
-      );
+      return {
+        functionCall: {
+          methodName: value.method_name,
+          args: new TextEncoder().encode(value.args),
+          gas: BigInt(value.gas),
+          deposit: BigInt(value.deposit),
+        },
+      };
     default:
       throw new Error('Unsupported external NEAR action.');
   }
 }
 
 export class MeteorExtensionProvider implements NearWalletProvider {
-  private transport: unknown = Reflect.get(window, 'meteorCom');
-  private client = new MeteorConnect();
-  private assertExtension(): void {
-    if (!isObject(this.transport) || Reflect.get(window, 'meteorCom') !== this.transport) {
-      throw new Error('Install Meteor or reconnect after the extension changes.');
+  private lifecycle: 'active' | 'disposed' = 'active';
+  private readonly transport = meteorTransportFromWindow();
+  private request: MeteorRequest | null = null;
+  private account: { accountId: string; network: ExternalNearNetwork } | null = null;
+  constructor(private readonly rpcUrl: string) {}
+  private async execute(
+    network: ExternalNearNetwork,
+    action: 'login' | 'sign',
+    inputs: object,
+  ): Promise<unknown> {
+    if (this.lifecycle !== 'active') throw new Error('Meteor connection disposed.');
+    const request = new MeteorRequest(this.transport, network, action, inputs);
+    this.request = request;
+    try {
+      return await request.result;
+    } finally {
+      if (this.request === request) this.request = null;
     }
   }
-  private ready = this.client.initialize({
-    storage: new MemoryStorage(),
-    mobileBridge: { enabled: false },
-  });
-
   async connect(network: ExternalNearNetwork): Promise<unknown> {
-    await this.ready;
-    this.assertExtension();
-    const action = await this.client.createAction({
-      id: 'near::sign_in',
-      input: { target: { blockchain: 'near', network } },
-    });
-    const account = await action.execute('v1_ext');
-    if (account.connection.executionTarget !== 'v1_ext' || account.identifier.network !== network)
-      throw new Error('Meteor extension connection required.');
-    return [account.identifier.accountId];
+    const response = await this.execute(network, 'login', { methods: [] });
+    if (!isPlainObject(response) || !isValidAccountId(response.accountId))
+      throw new Error('Invalid Meteor account.');
+    this.account = { accountId: response.accountId, network };
+    return [response.accountId];
   }
-
   async accounts(network: ExternalNearNetwork): Promise<unknown> {
-    await this.ready;
-    this.assertExtension();
-    const accounts = await this.client.getAllAccounts({ blockchain: 'near', network });
-    const result: string[] = [];
-    for (const account of accounts) {
-      if (account.connection.executionTarget === 'v1_ext')
-        result.push(account.identifier.accountId);
-    }
-    return result;
+    return this.account?.network === network ? [this.account.accountId] : [];
   }
-
   async send(connection: ExternalNearConnection, transaction: TransactionInput): Promise<unknown> {
-    this.assertExtension();
-    const action = await this.client.createAction({
-      id: 'near::sign_transactions',
-      input: {
-        target: {
-          blockchain: 'near',
-          network: connection.network,
-          accountId: connection.accountId,
-        },
-        useFunctionCallKey: false,
-        transactions: [
-          { receiverId: transaction.receiverId, actions: transaction.actions.map(meteorAction) },
-        ],
-      },
+    if (
+      this.account?.accountId !== connection.accountId ||
+      this.account.network !== connection.network
+    )
+      throw new Error('Meteor account changed.');
+    const response = await fetch(this.rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'meteor-block',
+        method: 'block',
+        params: { finality: 'final' },
+      }),
     });
-    return action.execute('v1_ext');
+    const block: unknown = await response.json();
+    if (
+      !response.ok ||
+      !isPlainObject(block) ||
+      !isPlainObject(block.result) ||
+      !isPlainObject(block.result.header) ||
+      typeof block.result.header.hash !== 'string'
+    )
+      throw new Error('Cannot read NEAR block.');
+    const blockHash = base58Decode(block.result.header.hash);
+    if (blockHash.length !== 32) throw new Error('Invalid NEAR block hash.');
+    // Meteor receives an unsigned template and selects its key and nonce in the wallet.
+    const encoded = serialize(transactionSchema, {
+      signerId: connection.accountId,
+      publicKey: { keyType: 0, data: new Uint8Array(32) },
+      nonce: 0n,
+      receiverId: transaction.receiverId,
+      blockHash,
+      actions: transaction.actions.map(meteorAction),
+    });
+    const outcome = await this.execute(connection.network, 'sign', {
+      transactions: base64Encode(encoded),
+    });
+    if (!isPlainObject(outcome)) throw new Error('Invalid Meteor response.');
+    return outcome.executionOutcomes;
   }
-
-  async disconnect(connection: ExternalNearConnection): Promise<void> {
-    await this.client.removeSignedInAccount({
-      blockchain: 'near',
-      network: connection.network,
-      accountId: connection.accountId,
-    });
+  dispose(): void {
+    this.lifecycle = 'disposed';
+    this.request?.cancel();
+    this.request = null;
+    this.account = null;
   }
 }

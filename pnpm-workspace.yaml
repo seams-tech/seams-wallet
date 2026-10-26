@@ -14,8 +14,6 @@ verifyDepsBeforeRun: false
 allowBuilds:
   bufferutil: true
   esbuild: true
-  msgpackr-extract: false
-  secp256k1: false
   sharp: true
   utf-8-validate: true
   workerd: true

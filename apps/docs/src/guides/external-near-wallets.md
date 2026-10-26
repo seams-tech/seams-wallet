@@ -39,10 +39,12 @@ are outside this connector's scope.
 
 Adapter references:
 
-- [Meteor SDK](https://github.com/Meteor-Wallet/meteor_wallet_sdk), pinned to 3.24.0.
+- [Meteor extension protocol reference](https://github.com/Meteor-Wallet/meteor_wallet_sdk).
+  The connector communicates directly with the extension and does not depend on the SDK.
 - [HOT extension API](https://github.com/hot-dao/hot-sdk-js/blob/main/src/hot.ts).
 - [HOT NEAR adapter](https://github.com/hot-dao/hot-sdk-js/blob/main/src/adapter/near.ts).
 - [Intear popup protocol](https://github.com/INTEARnear/wallet/blob/main/POSTMESSAGE_PROTOCOL.md).
 
-Real wallet qualification remains pending. Browser tests use controlled providers
-and do not establish real-wallet compatibility.
+Meteor testnet connection and transaction execution were verified with a real extension.
+HOT and Intear still require real-wallet qualification. Controlled-provider tests
+do not establish compatibility with those wallets.

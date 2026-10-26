@@ -18,11 +18,12 @@ function assertNever(value: never): never {
 
 export async function createNearWalletProvider(
   wallet: ExternalNearWalletId,
+  rpcUrl: string,
 ): Promise<NearWalletProvider> {
   switch (wallet) {
     case 'meteor': {
       const { MeteorExtensionProvider } = await import('./meteor');
-      return new MeteorExtensionProvider();
+      return new MeteorExtensionProvider(rpcUrl);
     }
     case 'hot': {
       const { HotExtensionProvider } = await import('./hot');

@@ -27,7 +27,7 @@ let sends = 0;
 export class MeteorExtensionProvider {
   async connect() { return ['alice.testnet']; }
   async accounts() { return ['alice.testnet']; }
-  async disconnect() {}
+  dispose() {}
   async send() {
     sends += 1;
     if (sends > 1) throw new Error('Transport lost after dispatch');
@@ -216,4 +216,140 @@ test('NEAR picker shows three wallets with explicit transport and network limits
     path: testInfo.outputPath('near-wallet-picker-mobile.png'),
     fullPage: true,
   });
+});
+
+async function beginIntearConnection() {
+  const path = '/_test-sdk/esm/externalNear/index.js';
+  const { ExternalNearController } = await import(path);
+  const controller = new ExternalNearController('testnet', location.origin + '/near-rpc');
+  Reflect.set(window, 'pendingNearConnection', {
+    controller,
+    result: controller.connect('intear'),
+  });
+}
+async function cancelIntearConnection() {
+  const { controller, result } = Reflect.get(window, 'pendingNearConnection');
+  controller.disconnect();
+  const cancelled = await result;
+  const next = await controller.connect('meteor');
+  return { cancelled, next, snapshot: controller.getSnapshot() };
+}
+async function replyWithPendingWallet(route: Route): Promise<void> {
+  await route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><title>Pending wallet approval</title>',
+  });
+}
+
+test('disconnect closes pending Intear approval and allows a fresh wallet connection', async ({
+  page,
+  context,
+  baseURL,
+}, testInfo) => {
+  await injectImportMap(page, { frontendUrl: baseURL! });
+  await context.route('https://wallet.intear.tech/**', replyWithPendingWallet);
+  await page.route('**/externalNear/meteor.js', replyWithAdapter);
+  await page.goto(baseURL!);
+  const popupPromise = page.waitForEvent('popup');
+  await page.evaluate(beginIntearConnection);
+  const popup = await popupPromise;
+  const closed = popup.waitForEvent('close');
+  const result = await page.evaluate(cancelIntearConnection);
+  await closed;
+  expect(result.cancelled.code).toBe('connection_changed');
+  expect(result.next.value.wallet).toBe('meteor');
+  expect(result.snapshot.busy).toBe(false);
+  await writeFile(
+    testInfo.outputPath('disconnect-observations.json'),
+    JSON.stringify(result, null, 2),
+  );
+});
+
+const meteorDirectFixture = `
+const meteorRequests = new Map();
+window.meteorWireEvidence = [];
+window.meteorComV2 = { sendMessageDataAndRespond: meteorRespond };
+async function meteorRespond(request) {
+  if (request.status === 'closed_success' || request.status === 'disconnected') return;
+  let record = meteorRequests.get(request.uid);
+  if (!record) {
+    record = { attempts: 0, action: request.actionType, input: null };
+    meteorRequests.set(request.uid, record);
+  }
+  record.attempts += 1;
+  if (record.attempts === 1) return { uid: 'stale-request', status: 'closed_success', payload: { accountId: 'forged.testnet' } };
+  if (record.attempts === 2) return { uid: request.uid, status: 'attempting_reconnect' };
+  if (request.status === 'initializing') {
+    record.input = request.inputs;
+    return { uid: request.uid, status: 'connected' };
+  }
+  if (!record.input) throw new Error('Missing request inputs');
+  window.meteorWireEvidence.push({ uid: request.uid, action: record.action, attempts: record.attempts, input: record.input });
+  return { uid: request.uid, status: 'closed_success', payload: record.action === 'login'
+    ? { accountId: 'alice.testnet', allKeys: [] }
+    : { executionOutcomes: [{ transaction: { hash: '11111111111111111111111111111111', signer_id: 'alice.testnet' } }] } };
+}
+`;
+async function replyWithMeteorBlock(route: Route): Promise<void> {
+  await route.fulfill({
+    json: { result: { header: { hash: '11111111111111111111111111111111' } } },
+  });
+}
+async function exerciseMeteorWire() {
+  const path = '/_test-sdk/esm/externalNear/index.js';
+  const { ExternalNearController } = await import(path);
+  const controller = new ExternalNearController('testnet', location.origin + '/meteor-block');
+  const connected = await controller.connect('meteor');
+  if (!connected.ok) throw new Error('Meteor failed to connect');
+  const sent = await controller.sendTransaction(connected.value, {
+    receiverId: 'guest.testnet',
+    actions: [
+      {
+        type: 'FunctionCall',
+        methodName: 'set_greeting',
+        args: { greeting: 'wire acceptance' },
+        gas: '10000000000000',
+        deposit: '0',
+      },
+    ],
+  });
+  controller.disconnect();
+  return { connected, sent, wire: Reflect.get(window, 'meteorWireEvidence') };
+}
+
+test('Meteor replays handshake inputs under one request identity and encodes the requested transaction', async ({
+  page,
+  baseURL,
+}, testInfo) => {
+  await injectImportMap(page, { frontendUrl: baseURL! });
+  await page.route('**/meteor-block', replyWithMeteorBlock);
+  await page.goto(baseURL!);
+  await page.addScriptTag({ content: meteorDirectFixture });
+  const evidence = await page.evaluate(exerciseMeteorWire);
+  expect(evidence.sent.ok).toBe(true);
+  expect(evidence.wire.map((record: { action: string }) => record.action)).toEqual([
+    'login',
+    'sign',
+  ]);
+  const encoded = Buffer.from(evidence.wire[1].input.transactions, 'base64');
+  const signerLength = encoded.readUInt32LE(0);
+  expect(encoded.subarray(4, 4 + signerLength).toString()).toBe('alice.testnet');
+  const lengthPrefixBytes = 4;
+  const publicKeyBytes = 1 + 32; // Ed25519 tag and encoded public key.
+  const nonceBytes = 8;
+  const receiverOffset = lengthPrefixBytes + signerLength + publicKeyBytes + nonceBytes;
+  const receiverLength = encoded.readUInt32LE(receiverOffset);
+  expect(encoded.subarray(receiverOffset + 4, receiverOffset + 4 + receiverLength).toString()).toBe(
+    'guest.testnet',
+  );
+  const blockHashBytes = 32;
+  const actionOffset = receiverOffset + lengthPrefixBytes + receiverLength + blockHashBytes;
+  expect(encoded.readUInt32LE(actionOffset)).toBe(1);
+  const functionCallTag = 2; // NEAR Action enum wire discriminant.
+  expect(encoded[actionOffset + lengthPrefixBytes]).toBe(functionCallTag);
+  expect(encoded.includes(Buffer.from('wire acceptance'))).toBe(true);
+  await writeFile(
+    testInfo.outputPath('meteor-wire-observations.json'),
+    JSON.stringify(evidence, null, 2),
+  );
 });

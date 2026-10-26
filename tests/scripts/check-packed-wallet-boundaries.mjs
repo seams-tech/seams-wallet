@@ -137,6 +137,15 @@ async function smokePackedEntries() {
   );
   assert.equal(typeof runtime.createSigningRuntime, 'function');
 
+  const externalNear = await import(
+    path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/externalNear/index.js')
+  );
+  const near = new externalNear.ExternalNearController('testnet', 'https://rpc.testnet.near.org');
+  assert.equal(near.getSnapshot().connection.kind, 'disconnected');
+  near.disconnect();
+  assert.equal(near.getSnapshot().busy, false);
+
+
   const authMenu = await import(
     path.join(
       nodeModulesDirectory,

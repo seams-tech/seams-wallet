@@ -25,9 +25,13 @@ async function authenticate(key: CryptoKeyPair, payload: string) {
 }
 
 export class IntearWalletProvider implements NearWalletProvider {
+  private lifecycle: 'active' | 'disposed' = 'active';
+  private popup: IntearPopup | null = null;
   private session: IntearSession | null = null;
   async connect(network: ExternalNearNetwork): Promise<unknown> {
+    if (this.lifecycle !== 'active') throw new Error('Intear connection disposed.');
     const popup = new IntearPopup('/connect', 'connected');
+    this.popup = popup;
     // Observe failure immediately while Web Crypto prepares the request.
     const response = popup.result;
     void response.catch(ignorePopupFailure);
@@ -63,6 +67,8 @@ export class IntearWalletProvider implements NearWalletProvider {
     } catch (error) {
       popup.fail(new Error('Intear connection failed.'));
       throw error;
+    } finally {
+      if (this.popup === popup) this.popup = null;
     }
   }
   async accounts(network: ExternalNearNetwork): Promise<unknown> {
@@ -76,7 +82,9 @@ export class IntearWalletProvider implements NearWalletProvider {
       session.accountId !== connection.accountId
     )
       throw new Error('Reconnect Intear.');
+    if (this.lifecycle !== 'active') throw new Error('Intear connection disposed.');
     const popup = new IntearPopup('/send-transactions', 'sent');
+    this.popup = popup;
     const response = popup.result;
     void response.catch(ignorePopupFailure);
     try {
@@ -105,9 +113,16 @@ export class IntearWalletProvider implements NearWalletProvider {
     } catch (error) {
       popup.fail(new Error('Intear transaction outcome is unknown.'));
       throw error;
+    } finally {
+      if (this.popup === popup) this.popup = null;
     }
   }
-  async disconnect(): Promise<void> {
+  dispose(): void {
+    this.lifecycle = 'disposed';
+    this.popup?.fail(
+      new Error('Intear disconnected. Check wallet activity for pending submissions.'),
+    );
+    this.popup = null;
     this.session = null;
   }
 }

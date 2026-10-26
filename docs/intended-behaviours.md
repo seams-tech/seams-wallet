@@ -2550,7 +2550,7 @@ Each adapter loads separately. Connections retain the selected wallet and genera
 Switching wallets invalidates prepared requests. No adapter consumes unsolicited
 wallet-registry announcements.
 
-Meteor uses its extension SDK with an explicit extension target. HOT calls the
+Meteor uses its captured direct extension transport with correlated request IDs. HOT calls the
 captured `window.hotExtension` provider directly. Replacing either captured
 transport blocks subsequent requests. These boundaries assume trusted application
 code and cannot authenticate arbitrary scripts running in the same document.
@@ -2576,3 +2576,18 @@ identity and final execution from the configured network RPC.
 observations and picker screenshots. Controlled providers verify transport
 replacement, popup source binding, stale requests, and unknown submission.
 Real wallet qualification remains required before release.
+
+Disconnect disposes the current adapter even while connection approval is pending.
+Intear closes its popup. Meteor ends the local request and sends a disconnect
+notification. An external wallet can retain its own approval window; local
+cancellation never proves that a transaction was not submitted. A late operation
+cannot clear a newer connection's busy state.
+
+Meteor communicates through the captured `meteorComV2` object and method. Every
+reply must match its request ID. Foreign replies are ignored. A reconnect
+handshake resends inputs under the same ID. Terminal success is acknowledged once.
+The browser adapter uses an unsigned Borsh template; Meteor owns key selection,
+nonce selection, approval, signing, and broadcast.
+
+Real Meteor evidence: `docs/evidence/refactor-185-meteor-testnet-20261026.json`.
+The run verified final execution and exact greeting readback for `cyan-loong.testnet`.

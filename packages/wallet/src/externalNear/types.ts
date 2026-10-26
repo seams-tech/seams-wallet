@@ -67,5 +67,5 @@ export interface NearWalletProvider {
   connect(network: ExternalNearNetwork): Promise<unknown>;
   accounts(network: ExternalNearNetwork): Promise<unknown>;
   send(connection: ExternalNearConnection, transaction: TransactionInput): Promise<unknown>;
-  disconnect(connection: ExternalNearConnection): Promise<void>;
+  dispose(): void;
 }
