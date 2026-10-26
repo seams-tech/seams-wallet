@@ -141,7 +141,8 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 ## Prompt and preparation
 
 Enrollment, unlock, and transfer approval randomly select one of 16 short English
-sentences of 6–7 words, targeting about two seconds or more at a normal pace.
+trading-oriented sentences of 4–6 words. The synthetic natural-paced fixtures
+last about 1.5–2.2 seconds.
 Each attempt holds its displayed sentence until recording ends. Retries
 select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
 of quiet once audible input has continued for 100 ms. Initial silence does not

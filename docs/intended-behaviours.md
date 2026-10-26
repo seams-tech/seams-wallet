@@ -219,7 +219,7 @@ solely at this migration boundary for the other methods.
 Automatic learning remains disabled. The public-corpus evaluation did not establish
 a reduction in evaluation-group rejection. These manual controls remain experimental
 and require separate live accuracy validation. Speaker threshold 0.5,
-6–7-word prompts, server authorization, session budgets, and signing admission remain unchanged.
+4–6-word trading prompts are used. Server authorization, session budgets, and signing admission remain unchanged.
 
 VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
 VoiceBeam glow. They consume the recorder's activity events without opening a
@@ -242,8 +242,8 @@ The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/wallet/src/plugins/voiceid/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
-Confirm click. Randomized prompts contain 6–7 words so users can supply more
-speech at a natural pace. Existing enrollment remains valid. Aurora must select
+Confirm click. Randomized prompts contain 4–6 trading-oriented words for short, natural-paced
+approval. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
 the displayed phrase from the same recording using its independently decoded text.
 The matcher ignores case, punctuation, and articles, and canonicalizes the listed
 homophones. It compares all 16 phrases using character edit distance divided by

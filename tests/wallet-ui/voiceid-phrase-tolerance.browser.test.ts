@@ -83,21 +83,21 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
     for (let expected = 0; expected < 16; expected++) {
       const result = await check(page, file, expected);
       results.push({ spoken, expected, result });
-      expect(result.kind, `spoken ${spoken}, challenge ${expected}`).toBe(
+      expect.soft(result.kind, `spoken ${spoken}, challenge ${expected}`).toBe(
         spoken === expected ? 'matched' : 'mismatch',
       );
     }
   }
   const extras = [
-    { file: 'omitted-articles', expected: 12, outcome: 'matched' },
-    { file: 'rough-window', expected: 15, outcome: 'matched' },
-    { file: 'outside-bound-window', expected: 15, outcome: 'mismatch' },
-    { file: 'ambiguous', expected: 3, outcome: 'mismatch' },
-    { file: 'ambiguous', expected: 4, outcome: 'mismatch' },
-    { file: 'unrelated', expected: 15, outcome: 'mismatch' },
-    { file: 'reordered', expected: 15, outcome: 'mismatch' },
+    { file: 'omitted-articles', expected: 7, outcome: 'matched' },
+    { file: 'rough-quote', expected: 9, outcome: 'matched' },
+    { file: 'outside-bound-quote', expected: 9, outcome: 'mismatch' },
+    { file: 'ambiguous', expected: 0, outcome: 'mismatch' },
+    { file: 'ambiguous', expected: 7, outcome: 'mismatch' },
+    { file: 'unrelated', expected: 9, outcome: 'mismatch' },
+    { file: 'reordered', expected: 9, outcome: 'mismatch' },
     { file: 'negated', expected: 2, outcome: 'mismatch' },
-    { file: 'fragment', expected: 15, outcome: 'mismatch' },
+    { file: 'fragment', expected: 9, outcome: 'mismatch' },
   ];
   const extraResults = [];
   for (const item of extras) {
@@ -107,13 +107,13 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
       item.expected,
     );
     extraResults.push({ ...item, result });
-    expect(result.kind, `${item.file}: ${JSON.stringify(result)}`).toBe(item.outcome);
+    expect.soft(result.kind, `${item.file}: ${JSON.stringify(result)}`).toBe(item.outcome);
   }
   const report = testInfo.outputPath('phrase-tolerance.json');
   fs.writeFileSync(
     report,
     JSON.stringify(
-      { status: 'passed', realAurora: true, naturalRate: 160, results, extraResults },
+      { status: testInfo.errors.length === 0 ? 'passed' : 'failed', realAurora: true, naturalRate: 160, results, extraResults },
       null,
       2,
     ),

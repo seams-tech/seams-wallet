@@ -1,21 +1,21 @@
 // Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.
 export const SPOKEN_PHRASES = [
-  "we are having breakfast together this morning",
-  "we sat together and watched the river",
-  "please open the window in the kitchen",
-  "the little cat is sitting beside me",
-  "the little dog is sleeping outside",
-  "the weather is beautiful this morning",
-  "i can see the mountains from here",
-  "i am ready to open my wallet",
-  "we will meet again tomorrow morning",
-  "i would like another glass of water",
-  "i can hear music in the kitchen",
-  "the river is running very slowly",
-  "please bring the water to the table",
-  "we have enough time to walk home",
-  "the sun is shining through the window",
-  "she is reading beside the window"
+  "my trading screen is ready",
+  "the market opens this morning",
+  "i review every order carefully",
+  "trading volume is rising today",
+  "orders stay open until filled",
+  "the closing bell is ringing",
+  "i track changes in price",
+  "the order book looks busy",
+  "my portfolio is well balanced",
+  "i check the latest quote",
+  "the daily chart shows growth",
+  "i keep a trading journal",
+  "this trade fits my plan",
+  "fresh quotes arrive quickly",
+  "i check prices before each trade",
+  "my trade history is clear"
 ] as const;
 export const PHRASE_TOKEN_PIECES: readonly string[] = [
   "",

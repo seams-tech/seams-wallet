@@ -1,0 +1,114 @@
+{
+  "source": "docs/evidence/voiceid-redimnet-20261024/trials.csv.gz",
+  "sha256": "d8cec551ab9eaa424b492c2d565d0f596836aa0aa3c9b5a481f39e27c5ffb42a",
+  "comparisons": [
+    {
+      "split": "calibration",
+      "seconds": 2,
+      "threshold": 0.5,
+      "ownerTrials": 60,
+      "ownerRejects": 1,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "calibration",
+      "seconds": 2,
+      "threshold": 0.48,
+      "ownerTrials": 60,
+      "ownerRejects": 0,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "calibration",
+      "seconds": 2,
+      "threshold": 0.45,
+      "ownerTrials": 60,
+      "ownerRejects": 0,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "calibration",
+      "seconds": 4,
+      "threshold": 0.5,
+      "ownerTrials": 60,
+      "ownerRejects": 0,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "calibration",
+      "seconds": 4,
+      "threshold": 0.48,
+      "ownerTrials": 60,
+      "ownerRejects": 0,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "calibration",
+      "seconds": 4,
+      "threshold": 0.45,
+      "ownerTrials": 60,
+      "ownerRejects": 0,
+      "otherTrials": 840,
+      "otherAccepts": 0
+    },
+    {
+      "split": "evaluation",
+      "seconds": 2,
+      "threshold": 0.5,
+      "ownerTrials": 56,
+      "ownerRejects": 4,
+      "otherTrials": 728,
+      "otherAccepts": 0
+    },
+    {
+      "split": "evaluation",
+      "seconds": 2,
+      "threshold": 0.48,
+      "ownerTrials": 56,
+      "ownerRejects": 3,
+      "otherTrials": 728,
+      "otherAccepts": 1
+    },
+    {
+      "split": "evaluation",
+      "seconds": 2,
+      "threshold": 0.45,
+      "ownerTrials": 56,
+      "ownerRejects": 1,
+      "otherTrials": 728,
+      "otherAccepts": 2
+    },
+    {
+      "split": "evaluation",
+      "seconds": 4,
+      "threshold": 0.5,
+      "ownerTrials": 56,
+      "ownerRejects": 2,
+      "otherTrials": 728,
+      "otherAccepts": 0
+    },
+    {
+      "split": "evaluation",
+      "seconds": 4,
+      "threshold": 0.48,
+      "ownerTrials": 56,
+      "ownerRejects": 1,
+      "otherTrials": 728,
+      "otherAccepts": 0
+    },
+    {
+      "split": "evaluation",
+      "seconds": 4,
+      "threshold": 0.45,
+      "ownerTrials": 56,
+      "ownerRejects": 0,
+      "otherTrials": 728,
+      "otherAccepts": 1
+    }
+  ]
+}

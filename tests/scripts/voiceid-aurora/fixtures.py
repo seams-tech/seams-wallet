@@ -41,14 +41,14 @@ def main():
 
 def generate_tolerance(output):
     cases = [
-        ('omitted-articles', 'please bring water to table'),
-        ('rough-window', 'she is reading by the window'),
-        ('outside-bound-window', 'she is reading the side of winter'),
-        ('ambiguous', 'the little cat is sitting outside'),
+        ('omitted-articles', 'order book looks busy'),
+        ('rough-quote', 'i check the latest quotes'),
+        ('outside-bound-quote', 'i checked a different number'),
+        ('ambiguous', 'the market order looks ready'),
         ('unrelated', 'cancel my wallet and tell me the time'),
-        ('reordered', 'window beside reading is she'),
-        ('negated', 'do not open the window in the kitchen'),
-        ('fragment', 'she is reading'),
+        ('reordered', 'quote latest check i'),
+        ('negated', 'i never review every order'),
+        ('fragment', 'latest quote'),
     ]
     rows = []
     for name, spoken in cases:
