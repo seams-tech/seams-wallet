@@ -117,10 +117,9 @@ export class TransactionReviewAdmission {
     if (this.element) {
       this.element.inert = false;
       this.element.removeAttribute('aria-hidden');
-      const focusTarget = this.element.querySelector<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), [tabindex="0"]',
-      );
-      focusTarget?.focus({ preventScroll: true });
+      // Opening a review focuses the surface. Tab still reaches its controls.
+      this.element.tabIndex = -1;
+      this.element.focus({ preventScroll: true });
     }
     this.notify('activated');
   }

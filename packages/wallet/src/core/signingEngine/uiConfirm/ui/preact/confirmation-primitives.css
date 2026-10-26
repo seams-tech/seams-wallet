@@ -12,6 +12,7 @@
 
 :where(.seams-wallet-ui).seams-confirmation-surface {
   --seams-modal__passkey-halo-loading-touch-icon__stroke-width: 3.5;
+  outline: none;
   background-color: transparent;
 }
 

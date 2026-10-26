@@ -630,6 +630,10 @@
   padding: 1.125rem 0 0.1875rem;
   font-size: 1.625rem;
 }
+:where(.seams-wallet-ui) .seams-review-amount--compact .seams-review-token {
+  width: 2rem;
+  height: 2rem;
+}
 :where(.seams-wallet-ui) .seams-review-amount--compact small {
   font-size: 0.9375rem;
 }

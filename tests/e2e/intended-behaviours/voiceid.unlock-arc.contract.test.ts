@@ -81,9 +81,15 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await expect(wallet.locator('.seams-review-amount')).toContainText('0.000000000000000001 USDC');
     await expect(wallet.getByText('Arc Testnet', { exact: true })).toBeVisible();
     await expect(wallet.locator('.seams-review-token-fallback')).toHaveCount(0);
+    await expect(wallet.locator('.seams-review-token')).toBeVisible();
+    await expect(wallet.locator('.seams-confirmation-surface')).toBeFocused();
+    const back = wallet.getByRole('button', { name: 'Back to review', exact: true });
+    await expect(back).not.toBeFocused();
     await wallet
       .locator('.seams-confirmation-surface')
       .screenshot({ path: testInfo.outputPath('arc-usdc-review.png') });
+    await page.keyboard.press('Tab');
+    await expect(back).toBeFocused();
     await wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }).click();
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute(
       'data-state',
@@ -96,6 +102,10 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       'data-state',
       'submitted',
     );
+    const receipt = wallet.locator('.seams-transaction-receipt');
+    await expect(receipt.locator('.seams-review-token')).toBeVisible();
+    await expect(receipt.locator('.seams-review-amount')).toContainText('USDC');
+    await receipt.screenshot({ path: testInfo.outputPath('arc-usdc-receipt.png') });
     expect(rpc.transactions).toHaveLength(1);
     expect(rpc.transactions[0].sender.toLowerCase()).toBe(ownerAddress.toLowerCase());
     expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures + 1);

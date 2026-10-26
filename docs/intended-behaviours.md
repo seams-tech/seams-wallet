@@ -1571,6 +1571,11 @@ existing send API; callers handle them with `try`/`catch`. There is no separate
 `success: false` result. Confirmation, callbacks, wait status, and nonce reporting
 retain the canonical send path's contracts.
 
+Opening an admitted transaction review focuses the review surface. It does not
+focus the Back button automatically. Tab navigation still reaches the controls.
+The transaction review and expanded receipt show the token icon beside the amount
+and currency symbol. Both use the same official USDC artwork.
+
 EVM and Tempo use `signTransaction` for signing without broadcast and
 `signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
 An EVM-family execution reports success only after a mined receipt names the
