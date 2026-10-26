@@ -1,13 +1,16 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: measure the admission and refill performance candidate on Cloudflare.
-The [candidate](ml-dsa-65-admission-refill-report.md) reclaims untouched expired reservations only after exact Declined authority.
-It publishes each role's complete refill job in one bounded transaction. Consumption remains two candidates at a time.
-The real-Worker before/after test reproduces the old loss and retains all sixteen pairs with the candidate.
-A fresh verified signature consumes reclaimed material. All three signatures and the native lifecycle E2E pass.
-The hosted run awaits explicit approval for its eight new Workers and fresh test credentials.
-No hosted speed improvement is claimed. Measure the larger publication transaction and extra inventory scan before selecting them.
+Current priority: reduce preparation CPU cost and material loss after admitted signing failures.
+The [admission/refill candidate](ml-dsa-65-admission-refill-report.md) preserves all sixteen untouched pairs in the local interrupted-admission scenario.
+The [hosted result](ml-dsa-65-admission-refill-hosted-report.md) verifies 75 retained signatures. Both four-wallet availability ledgers balance.
+Three setup failures prevent the planned eight-wallet cohort. One warm-up signing failure follows B loadShed and retires thirteen pairs without an observed take.
+The completion phase has 24 successful calls, with a 1.899-second median and 10.579-second maximum. Twenty-two finish under eight seconds.
+Four-candidate refill wall medians are 19.781 seconds on primary A and 9.249 seconds on secondary A. Both slots use the same participant binaries.
+Serialized-to-publication medians are 0.770 seconds in both slots. The CPU difference remains unexplained, and no isolated speedup control is established.
+Finite load-and-restoration rates are 3.702 and 3.606 signatures per minute. These are not maximum-capacity or eight-wallet claims.
+No natural hosted reservation-recovery event occurs. The controlled local E2E remains the reclamation evidence.
+All eight temporary Workers are deleted. The archived replay passes, with recovery, FIPS export, two-at-once consumption, and per-wallet capacity unchanged.
 The [publication completion fix](ml-dsa-65-publication-completion-report.md) passes the composed local Worker lifecycle.
 Exact historical publication evidence survives consumption and prevents false failure after a lost final reply.
 Inspection errors preserve recovery. Lease expiry keeps the existing interrupted-job behavior.

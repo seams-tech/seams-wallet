@@ -1,0 +1,471 @@
+{
+  "scope": "Four fully verified target wallets. Three preserved setup failures prevented the planned eight-wallet cohort. Private Router measurements exclude browser approval, public Gateway transport, and NEAR confirmation.",
+  "source_commit": "017a3cb744329adce6f6677578e3f7c71bd38e1c",
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16,
+    "max_active_preparations": 2
+  },
+  "cohort": {
+    "target_wallet_count": 4,
+    "reason": "Three preserved setup failures prevented reliable eight-wallet initialization. Refill measurement uses four fully verified wallets. This does not establish eight-wallet capacity.",
+    "capacity_per_wallet_pairs": 16,
+    "failed_artifacts": [
+      "failed-registration-4.json",
+      "failed-registration-5.json",
+      "failed-registration-5-retry.json"
+    ],
+    "non_target_activity": "Incomplete wallets receive no signing load. Any background jobs remain in captured traces."
+  },
+  "signatures_verified": 75,
+  "altered_messages_rejected": 75,
+  "consistent_eight_second_signing": false,
+  "eight_wallet_capacity_established": false,
+  "phases": [
+    {
+      "phase": "warmup",
+      "signatures": 39,
+      "server_failed_signing_operations": 1,
+      "successful_http_ms": {
+        "count": 39,
+        "minimum": 696,
+        "median": 2140,
+        "maximum": 7315,
+        "sum": 102822
+      },
+      "successful_demand_ms": {
+        "count": 39,
+        "minimum": 2350,
+        "median": 15351,
+        "maximum": 116167,
+        "sum": 785457
+      },
+      "successful_calls_under_eight_seconds": 39,
+      "empty_pool_responses": 0,
+      "cycle_signatures_per_minute": 3.7015125582513675,
+      "reserve_restoration_after_load_ms": 32174,
+      "accounting_qualified": true,
+      "ledger": {
+        "initial_pairs": 64,
+        "new_paired_pairs": 131,
+        "completion_receipted_pairs_before_restoration": 131,
+        "paired_before_completion_receipt": [],
+        "summary_consumed_pairs": 116,
+        "observed_taken_pairs": 118,
+        "failed_retired_without_observed_take_pairs": 13,
+        "final_pairs": 64,
+        "unaccounted_pairs": [],
+        "unexplained_pairs": [],
+        "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+        "complete": true
+      },
+      "four_candidate_jobs": {
+        "preparer-a": {
+          "count": 20,
+          "cpu_ms": {
+            "count": 20,
+            "minimum": 7737,
+            "median": 8787.5,
+            "maximum": 10302
+          },
+          "wall_ms": {
+            "count": 20,
+            "minimum": 16892,
+            "median": 18915.0,
+            "maximum": 22581
+          },
+          "correlations_ms": {
+            "count": 20,
+            "minimum": 14287,
+            "median": 16530.0,
+            "maximum": 19845
+          },
+          "commitments_ms": {
+            "count": 20,
+            "minimum": 47,
+            "median": 1243.0,
+            "maximum": 2120
+          },
+          "serialized_to_publication_ms": {
+            "count": 20,
+            "minimum": 456,
+            "median": 692.0,
+            "maximum": 2325
+          },
+          "warm_cpu_ms": {
+            "count": 19,
+            "minimum": 7737,
+            "median": 8786,
+            "maximum": 10302
+          },
+          "cold_cpu_ms": {
+            "count": 1,
+            "minimum": 9701,
+            "median": 9701,
+            "maximum": 9701
+          },
+          "module_ids": [
+            "62599baf8fafef536ce1cf2c8992329a"
+          ],
+          "request_colos": [],
+          "load_shed_jobs": 0
+        },
+        "preparer-a-secondary": {
+          "count": 35,
+          "cpu_ms": {
+            "count": 35,
+            "minimum": 3623,
+            "median": 4023,
+            "maximum": 5860
+          },
+          "wall_ms": {
+            "count": 35,
+            "minimum": 8022,
+            "median": 8889,
+            "maximum": 12791
+          },
+          "correlations_ms": {
+            "count": 35,
+            "minimum": 5738,
+            "median": 7207,
+            "maximum": 10998
+          },
+          "commitments_ms": {
+            "count": 35,
+            "minimum": 20,
+            "median": 31,
+            "maximum": 1606
+          },
+          "serialized_to_publication_ms": {
+            "count": 35,
+            "minimum": 440,
+            "median": 720,
+            "maximum": 1127
+          },
+          "warm_cpu_ms": {
+            "count": 31,
+            "minimum": 3623,
+            "median": 3947,
+            "maximum": 5860
+          },
+          "cold_cpu_ms": {
+            "count": 4,
+            "minimum": 4164,
+            "median": 4259.5,
+            "maximum": 4378
+          },
+          "module_ids": [
+            "16836e275388cea19ea90b8bfbcb79cb",
+            "1ba1592aa74d16910a383d6c92d9beab",
+            "3d6f10ac7447f3c02f5bd874a0b173f7",
+            "7e196413a0259bb632b2621328c6c8e7"
+          ],
+          "request_colos": [],
+          "load_shed_jobs": 0
+        }
+      }
+    },
+    {
+      "phase": "completion",
+      "signatures": 24,
+      "server_failed_signing_operations": 0,
+      "successful_http_ms": {
+        "count": 24,
+        "minimum": 730,
+        "median": 1899.0,
+        "maximum": 10579,
+        "sum": 68277
+      },
+      "successful_demand_ms": {
+        "count": 24,
+        "minimum": 1316,
+        "median": 12275.0,
+        "maximum": 28582,
+        "sum": 333612
+      },
+      "successful_calls_under_eight_seconds": 22,
+      "empty_pool_responses": 0,
+      "cycle_signatures_per_minute": 3.6060942993659286,
+      "reserve_restoration_after_load_ms": 39324,
+      "accounting_qualified": true,
+      "ledger": {
+        "initial_pairs": 64,
+        "new_paired_pairs": 67,
+        "completion_receipted_pairs_before_restoration": 67,
+        "paired_before_completion_receipt": [],
+        "summary_consumed_pairs": 67,
+        "observed_taken_pairs": 67,
+        "failed_retired_without_observed_take_pairs": 0,
+        "final_pairs": 64,
+        "unaccounted_pairs": [],
+        "unexplained_pairs": [],
+        "retirement_limit": "Retired proves unavailability, not burn versus unlogged consumption.",
+        "complete": true
+      },
+      "four_candidate_jobs": {
+        "preparer-a": {
+          "count": 13,
+          "cpu_ms": {
+            "count": 13,
+            "minimum": 8383,
+            "median": 9043,
+            "maximum": 11692
+          },
+          "wall_ms": {
+            "count": 13,
+            "minimum": 17976,
+            "median": 19781,
+            "maximum": 25679
+          },
+          "correlations_ms": {
+            "count": 13,
+            "minimum": 15191,
+            "median": 17482,
+            "maximum": 23208
+          },
+          "commitments_ms": {
+            "count": 13,
+            "minimum": 56,
+            "median": 917,
+            "maximum": 2305
+          },
+          "serialized_to_publication_ms": {
+            "count": 13,
+            "minimum": 431,
+            "median": 770,
+            "maximum": 1408
+          },
+          "warm_cpu_ms": {
+            "count": 13,
+            "minimum": 8383,
+            "median": 9043,
+            "maximum": 11692
+          },
+          "cold_cpu_ms": {
+            "count": 0
+          },
+          "module_ids": [
+            "f7a7d69245f17cbccf751cbab2969e52"
+          ],
+          "request_colos": [],
+          "load_shed_jobs": 0
+        },
+        "preparer-a-secondary": {
+          "count": 13,
+          "cpu_ms": {
+            "count": 13,
+            "minimum": 4041,
+            "median": 4196,
+            "maximum": 5534
+          },
+          "wall_ms": {
+            "count": 13,
+            "minimum": 9004,
+            "median": 9249,
+            "maximum": 12201
+          },
+          "correlations_ms": {
+            "count": 13,
+            "minimum": 6439,
+            "median": 7709,
+            "maximum": 10805
+          },
+          "commitments_ms": {
+            "count": 13,
+            "minimum": 19,
+            "median": 36,
+            "maximum": 1386
+          },
+          "serialized_to_publication_ms": {
+            "count": 13,
+            "minimum": 502,
+            "median": 770,
+            "maximum": 1299
+          },
+          "warm_cpu_ms": {
+            "count": 9,
+            "minimum": 4041,
+            "median": 4155,
+            "maximum": 5534
+          },
+          "cold_cpu_ms": {
+            "count": 4,
+            "minimum": 4196,
+            "median": 4322.5,
+            "maximum": 4673
+          },
+          "module_ids": [
+            "13e5b0f51d9b4113f57dfa9fbce500f7",
+            "30651f1190761590e8e5841c9b8117c9",
+            "84572473dc9fbccceb11febdd8fd464b",
+            "e07dfa7446d4acda026ee872cfc275fd"
+          ],
+          "request_colos": [],
+          "load_shed_jobs": 0
+        }
+      }
+    }
+  ],
+  "publication": {
+    "scope": "Retained hosted setup and load records. Missing logs do not prove absence. Local fault injection validates paths that may not occur naturally here.",
+    "reconciled_job_execution_counts": {},
+    "non_target_preparation_jobs": [],
+    "completion_receipts": 176,
+    "published_receipts": 175,
+    "failed_receipts": 0,
+    "interrupted_receipts": 1,
+    "confirmed_publication_reconciliations": [],
+    "reported_failures_with_paired_or_taken_material": []
+  },
+  "provider_failures": {
+    "limits": "Exact invocation windows and retained public records only. Wasm boundary sizes exclude transient peaks, JS heap, and native allocations. loadShed is a provider outcome, not an established root cause.",
+    "phases": [
+      {
+        "phase": "warmup",
+        "load_shed_by_role": {
+          "b": 1
+        },
+        "failed_wasm_sizes_also_seen_in_success": [],
+        "failures": [
+          {
+            "role": "b",
+            "version": "62962012-f813-4656-acfc-fe017b255b22",
+            "path": "/router-ab/ml-dsa/connect",
+            "at_ms": 1793006243690,
+            "cpu_ms": 666,
+            "wall_ms": 2096,
+            "preparation_last_stages": [],
+            "observed_wasm_bytes": [],
+            "signing_operation": "1e67d4ca1c4ff1868a3645684855387636f0869831fcba5813cdbbf840dea11a",
+            "refill_job": null,
+            "exception_categories": [
+              "unclassified",
+              "unclassified",
+              "unclassified",
+              "unclassified"
+            ]
+          }
+        ]
+      },
+      {
+        "phase": "completion",
+        "load_shed_by_role": {},
+        "failed_wasm_sizes_also_seen_in_success": [],
+        "failures": []
+      }
+    ]
+  },
+  "global_observed_takes": {
+    "no_reuse": true,
+    "distinct_a_pairs": 203,
+    "distinct_b_pairs": 202,
+    "scope": "Every retained setup and load take event. Missing take or retirement events remain an observation limit."
+  },
+  "reclamation_evidence": "Controlled local Worker E2E. No natural hosted expired-reservation event occurred.",
+  "deletion": [
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-router",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-a",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-b",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-preparer-a",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-preparer-b",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-preparer-a-secondary",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-preparer-b-secondary",
+      "absent": true,
+      "exit_code": 1
+    },
+    {
+      "worker": "ml-dsa-admit-1026-9834c2-front",
+      "absent": true,
+      "exit_code": 1
+    }
+  ],
+  "replay": {
+    "passed": true,
+    "checks": [
+      {
+        "phase": "warmup",
+        "qualified": true
+      },
+      {
+        "phase": "completion",
+        "qualified": true
+      },
+      {
+        "script": "registration_bindings.py",
+        "matched": true
+      },
+      {
+        "script": "verify_hosted.mjs",
+        "matched": true
+      },
+      {
+        "script": "collect_failed_material.py",
+        "matched": true
+      },
+      {
+        "script": "audit_material.py",
+        "matched": true
+      },
+      {
+        "script": "profile_failures.py",
+        "matched": true
+      },
+      {
+        "script": "analyze_readiness_losses.py",
+        "matched": true
+      },
+      {
+        "script": "publication_outcomes.py",
+        "matched": true
+      },
+      {
+        "script": "analyze_parallel.py",
+        "matched": true
+      }
+    ]
+  },
+  "archive": {
+    "file": "ml-dsa-65-admission-refill-hosted-20261026.tar.gz",
+    "bytes": 3595761,
+    "sha256": "1d9dfb7b5df7365bb832fac102087d8002e846dd343bdbebc0ac2492c8d3df10",
+    "files": 138,
+    "secret_exclusion": {
+      "method": "Explicit public whitelist and recursive credential literal/decoded-byte scan. Private fixtures excluded.",
+      "patterns": 16,
+      "matches": 0
+    }
+  }
+}
