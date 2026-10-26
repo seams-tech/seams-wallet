@@ -183,14 +183,9 @@ async function readWalletProtocolVersion() {
 async function writeHtmlDocuments() {
   const { buildWalletServiceHtml } = await readPluginUtils();
   await fs.mkdir(path.dirname(WALLET_SERVICE_HTML), { recursive: true });
-  const approvedRelayerOrigins = String(
-    process.env.SEAMS_WALLET_APPROVED_RELAYER_ORIGINS || '',
-  )
-    .split(/[\s,]+/)
-    .filter(Boolean);
   await fs.writeFile(
     WALLET_SERVICE_HTML,
-    buildWalletServiceHtml('/sdk', PACKAGE_JSON.version, 'runtime', approvedRelayerOrigins),
+    buildWalletServiceHtml('/sdk', PACKAGE_JSON.version, 'runtime'),
   );
 }
 
@@ -306,7 +301,6 @@ function buildAssetsManifest(assets, walletProtocolVersion) {
     assetRoot: 'dist/public',
     sdkBasePath: '/sdk',
     walletServicePath: '/wallet-service',
-    walletHostRelayerOriginPolicy: 'document_meta_v1',
     headersManifest: 'headers.manifest.json',
     versionSkewContract: {
       kind: 'wallet_iframe_protocol_handshake',

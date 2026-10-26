@@ -1,19 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { setupBasicPasskeyTest } from '../setup';
-import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { injectImportMap } from '../setup/bootstrap';
 import { registerWalletServiceRoute } from './harness';
 
 const WALLET_ORIGIN = 'https://wallet.example.localhost';
 const WALLET_SERVICE_ROUTE = '**://wallet.example.localhost/wallet-service*';
 
-const HOST_HTML = buildWalletServiceHtml(
-  '/_test-sdk/esm/sdk',
-  undefined,
-  'runtime',
-  [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin],
-);
+const HOST_HTML = buildWalletServiceHtml('/_test-sdk/esm/sdk', undefined, 'runtime');
 const HOST_HTML_WITH_SUSPENDED_ANIMATION_FRAMES = HOST_HTML.replace(
   '<body>',
   '<body><script>window.requestAnimationFrame = () => 1;</script>',

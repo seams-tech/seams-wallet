@@ -63,6 +63,15 @@ separate auth methods. The active signing bridge supplies the exact authority,
 wallet session, chain, and operation fingerprint to its challenge request.
 Custom login and registration flows retain their distinct proof contracts.
 
+## Wallet relayer configuration
+
+The wallet host uses the relayer URL from the application's SDK configuration.
+Its HTML document does not require a separate relayer-origin declaration.
+Changing the execution configuration cancels work tied to the previous configuration.
+An appearance change preserves that work. Invalid configuration remains rejected.
+
+Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work

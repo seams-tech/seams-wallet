@@ -204,7 +204,7 @@ test('Email OTP-only wallet confirms recovery backup with separate wallet-owned 
   await injectImportMap(page);
   await registerWalletServiceRoute(
     page,
-    buildWalletServiceHtml('/_test-sdk/esm/sdk', undefined, 'runtime', [RELAYER_ORIGIN]),
+    buildWalletServiceHtml('/_test-sdk/esm/sdk', undefined, 'runtime'),
     '**://wallet.example.localhost/wallet-service*',
   );
   await startRouter(page);

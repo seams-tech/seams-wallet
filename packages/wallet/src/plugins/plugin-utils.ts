@@ -1,5 +1,4 @@
 // Builds the wallet-service HTML that the package build emits to dist/public.
-import { escapeHtmlAttribute } from '../SeamsWeb/walletIframe/sanitization';
 import {
   normalizeWalletHostVariant,
   walletHostScriptFileForVariant,
@@ -19,7 +18,6 @@ export function buildWalletServiceHtml(
   sdkBasePath: string = '/sdk',
   assetVersion?: string,
   walletHostVariant: WalletHostVariant = 'runtime',
-  approvedRelayerOrigins: readonly string[] = [],
 ): string {
   const walletUiCss = withAssetVersion(`${sdkBasePath}/wallet-ui.css`, assetVersion);
   const walletShimsJs = withAssetVersion(`${sdkBasePath}/wallet-shims.js`, assetVersion);
@@ -27,10 +25,6 @@ export function buildWalletServiceHtml(
     `${sdkBasePath}/${walletHostScriptFileForVariant(normalizeWalletHostVariant(walletHostVariant))}`,
     assetVersion,
   );
-  let relayerPolicy = '';
-  for (const origin of approvedRelayerOrigins) {
-    relayerPolicy += `    <meta name="seams-wallet-relayer-origin" content="${escapeHtmlAttribute(origin)}" />\n`;
-  }
 
   return `<!doctype html>
 <html lang="en">
@@ -38,7 +32,7 @@ export function buildWalletServiceHtml(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Web3Authn Wallet Service</title>
-${relayerPolicy}    <!-- Surface styles are external so strict CSP can keep style-src 'self' -->
+    <!-- Surface styles are external so strict CSP can keep style-src 'self' -->
     <link rel="stylesheet" href="${walletUiCss}" />
     <!-- Minimal shims some ESM bundles expect (externalized to enable strict CSP) -->
     <script src="${walletShimsJs}"></script>

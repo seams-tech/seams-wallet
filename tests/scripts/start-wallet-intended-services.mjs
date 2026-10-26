@@ -46,10 +46,7 @@ function buildWalletRuntime() {
     'Wallet SDK build',
     'pnpm',
     ['-C', 'packages/wallet', 'run', productionApp ? 'build:prod' : 'build:sdk-full'],
-    {
-      ...process.env,
-      SEAMS_WALLET_APPROVED_RELAYER_ORIGINS: new URL(gatewayUrl).origin,
-    },
+    process.env,
   );
   if (externalGateway) return;
   for (const role of [

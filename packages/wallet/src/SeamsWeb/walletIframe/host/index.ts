@@ -99,46 +99,6 @@ function isAuthenticatedParentOrigin(origin: string): boolean {
   }
 }
 
-function readApprovedRelayerOrigins(): ReadonlySet<string> {
-  const origins = new Set<string>();
-  const policies = document.querySelectorAll('meta[name="seams-wallet-relayer-origin"]');
-  for (const policy of policies) {
-    const declaredOrigin = policy.getAttribute('content')?.trim() ?? '';
-    let parsed: URL;
-    try {
-      parsed = new URL(declaredOrigin);
-    } catch {
-      throw new Error('Invalid wallet relayer origin policy');
-    }
-    const isLoopback =
-      parsed.hostname === 'localhost' ||
-      parsed.hostname.endsWith('.localhost') ||
-      parsed.hostname === '127.0.0.1' ||
-      parsed.hostname === '[::1]';
-    if (
-      parsed.origin !== declaredOrigin ||
-      (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLoopback))
-    ) {
-      throw new Error('Invalid wallet relayer origin policy');
-    }
-    origins.add(declaredOrigin);
-  }
-  if (origins.size === 0) throw new Error('Wallet relayer origin policy is missing');
-  return origins;
-}
-
-function assertApprovedRelayerUrl(relayerUrl: string): void {
-  let relayerOrigin: string;
-  try {
-    relayerOrigin = new URL(relayerUrl).origin;
-  } catch {
-    throw new Error('Wallet relayer URL is invalid');
-  }
-  if (!readApprovedRelayerOrigins().has(relayerOrigin)) {
-    throw new Error('Wallet relayer origin is not approved by the wallet host');
-  }
-}
-
 function closePort(port: MessagePort): void {
   try {
     port.close();
@@ -341,7 +301,6 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
               state.configuration,
               parseWalletConfigurationUpdate(route.request.payload),
             );
-            assertApprovedRelayerUrl(configuration.config.network.relayer.url);
             const previous =
               state.configuration.kind === 'configured' ? state.configuration.config : null;
             const executionChanged =

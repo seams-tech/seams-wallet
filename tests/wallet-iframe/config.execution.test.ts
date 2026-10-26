@@ -3,8 +3,6 @@ import { build } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setupBasicPasskeyTest } from '../setup';
-import { DEFAULT_TEST_CONFIG } from '../setup/config';
-import { escapeHtmlAttribute } from '../../packages/wallet/src/SeamsWeb/walletIframe/sanitization';
 import { registerWalletServiceRoute } from './harness';
 
 const loaderSource = `
@@ -98,7 +96,7 @@ function readMessages(): unknown[] {
   return (window as any).executionClient.messages;
 }
 
-function configure(kind: 'initial' | 'appearance' | 'replacement' | 'invalid' | 'unapproved'): void {
+function configure(kind: 'initial' | 'appearance' | 'replacement' | 'invalid'): void {
   const client = (window as any).executionClient;
   const config = structuredClone(client.config);
   client.revision++;
@@ -110,15 +108,12 @@ function configure(kind: 'initial' | 'appearance' | 'replacement' | 'invalid' | 
     if (kind === 'replacement') {
       config.network.relayer.url = `https://relay-${client.revision}.example.localhost`;
     }
-    if (kind === 'unapproved') {
-      config.network.relayer.url = 'https://capture.example.localhost';
-    }
     if (kind === 'invalid') {
       delete config.wallet.rpId;
     }
     payload = { kind: 'configure', config, assetsBaseUrl: 'https://wallet.example.localhost/sdk/' };
   }
-  if (kind !== 'invalid' && kind !== 'unapproved') client.config = config;
+  if (kind !== 'invalid') client.config = config;
   client.port.postMessage({
     type: 'PM_SET_CONFIG',
     requestId: `${kind}-${client.revision}`,
@@ -169,16 +164,7 @@ function walletFrame(frame: { url(): string }): boolean {
 }
 
 function executionHostHtml(): string {
-  const approvedOrigins = [
-    new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin,
-    'https://relay-4.example.localhost',
-    'https://relay-5.example.localhost',
-  ];
-  let policyHtml = '';
-  for (const origin of approvedOrigins) {
-    policyHtml += `<meta name="seams-wallet-relayer-origin" content="${escapeHtmlAttribute(origin)}" />`;
-  }
-  return `<!doctype html><html><head>${policyHtml}</head><body><script type="module" src="/__execution-host.js"></script></body></html>`;
+  return `<!doctype html><html><head></head><body><script type="module" src="/__execution-host.js"></script></body></html>`;
 }
 
 test('execution replacement fences loading and active host requests while appearance preserves work', async ({
@@ -308,28 +294,6 @@ test('execution replacement fences loading and active host requests while appear
     .toContainEqual({
       type: 'PM_RESULT',
       requestId: 'final-work',
-      payload: { ok: true, result: { before: 3, after: 3 } },
-    });
-  const warmupCount = setupWarmups.length;
-  await page.evaluate(configure, 'unapproved' as const);
-  await expect
-    .poll(page.evaluate.bind(page, readMessages))
-    .toContainEqual(
-      expect.objectContaining({
-        type: 'ERROR',
-        requestId: 'unapproved-6',
-        payload: expect.objectContaining({
-          message: 'Wallet relayer origin is not approved by the wallet host',
-        }),
-      }),
-    );
-  expect(setupWarmups).toHaveLength(warmupCount);
-  await page.evaluate(startRequest, 'after-unapproved');
-  await expect
-    .poll(page.evaluate.bind(page, readMessages))
-    .toContainEqual({
-      type: 'PM_RESULT',
-      requestId: 'after-unapproved',
       payload: { ok: true, result: { before: 3, after: 3 } },
     });
   const messages = await page.evaluate(readMessages);

@@ -478,10 +478,6 @@ export async function executeSequentialSetup(
     logStyle: 'setup',
     mirror: mirrorWalletOrigin,
     injectWalletServiceImportMap: options.injectWalletServiceImportMap,
-    approvedRelayerOrigins: [
-      new URL(configs.frontendUrl).origin,
-      ...(configs.relayer ? [new URL(configs.relayer.url).origin] : []),
-    ],
   });
 
   // Step 2: ENVIRONMENT SETUP

@@ -3,7 +3,6 @@ import type { WalletIframeRouter } from '@/SeamsWeb/walletIframe/client/router';
 import type { HostedAuthMenuOutcome } from '@/SeamsWeb/walletIframe/shared/messages';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { setupBasicPasskeyTest } from '../setup';
-import { DEFAULT_TEST_CONFIG } from '../setup/config';
 import { injectImportMap } from '../setup/bootstrap';
 import { registerWalletServiceRoute } from './harness';
 
@@ -52,12 +51,7 @@ async function openTestAuthMenu(page: Page): Promise<void> {
   );
 }
 
-const HOST_HTML = buildWalletServiceHtml(
-  '/_test-sdk/esm/sdk',
-  undefined,
-  'runtime',
-  [new URL(DEFAULT_TEST_CONFIG.frontendUrl).origin],
-);
+const HOST_HTML = buildWalletServiceHtml('/_test-sdk/esm/sdk', undefined, 'runtime');
 
 test.describe('wallet-host auth-menu integration', () => {
   test.beforeEach(async ({ page }) => {
