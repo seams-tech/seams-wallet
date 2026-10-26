@@ -2,7 +2,8 @@
 
 The candidate preserves untouched material after an expired, unadmitted operation.
 It also publishes a complete role job through one bounded request and transaction.
-Hosted performance remains unmeasured. The exact eight-Worker deployment awaits approval.
+The [hosted four-wallet result](ml-dsa-65-admission-refill-hosted-report.md) is complete. Both accounting ledgers balance, and 75 retained signatures verify.
+It does not establish an overall preparation speed improvement or consistent eight-second signing.
 
 ## Performance purpose
 
@@ -26,14 +27,14 @@ The existing native durable-pool E2E passes.
 
 The first fixture attempt did not intercept Router admission. Its result is excluded from the before/after evidence.
 Independent review found a cross-key counting error in the candidate. The corrected code keeps recovery and readiness scoped to the requested key.
-The review also identified an extra inventory transaction and metadata scan. Hosted measurements must include this overhead.
+The review also identified an extra inventory transaction and metadata scan. Hosted measurements include this overhead, without an isolated control.
 
 ## Hosted comparison
 
-Measure successful signatures with full reserve restoration, lost pairs, publication waits, and empty-pool waits.
-Retain eight wallets, two preparation slots, sixteen pairs per wallet, and the sixty-second wallet cooldown.
+The completed run measures successful signatures with full reserve restoration, retired pairs, publication waits, and empty-pool waits.
+Three setup failures limit the cohort to four fully verified wallets. Two preparation slots, sixteen pairs per wallet, and the sixty-second cooldown stay unchanged.
 Keep two-at-once consumption, wallet-seed recovery, standard FIPS export, and preparation on Workers.
-GPU work remains deferred. No temporary Worker was created after the automatic approval rejection.
+GPU work remains deferred. The user approved the exact eight deployments and credential uploads. All eight temporary Workers are now deleted.
 The required bloat check remains at the inherited 13,972 duplicated Rust lines against a 13,754-line baseline.
 
 [Local evidence](../evidence/ml-dsa-65-admission-refill-local-20261026.json) and [full artifact](../evidence/ml-dsa-65-admission-refill-local-20261026.json.gz).
