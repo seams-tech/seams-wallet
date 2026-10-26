@@ -419,6 +419,7 @@ for (const mode of [
       plugins: [{ name: 'ml-dsa-lifecycle-controls', setup: setupControls }],
     });
     await setupBasicPasskeyTest(page, { skipSeamsWebInit: true });
+    await page.route('**/sdk/wallet-ui.css*', serveWalletUiStyles.bind(null, root));
     const gateway: Gateway = { mode, executions: [], held: null };
     await page.context().route('**/__ml-dsa-execute', executeGateway.bind(null, gateway));
     await page.route(
@@ -651,19 +652,19 @@ async function verifyWaitingUi(
     ).toBeVisible();
     await expect(
       frame.getByText(
-        'Preparing signing material. This approved request will retry automatically.',
+        'Signing will start automatically.',
         { exact: true },
       ),
     ).toBeVisible();
     await expect(
       frame
         .locator('.seams-receipt-heading h2')
-        .filter({ hasText: 'Waiting for signing capacity' }),
+        .filter({ hasText: 'Waiting to sign' }),
     ).toBeVisible();
     await expect(
-      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Signing cooldown' }),
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Recharging' }),
     ).toBeVisible();
-    await expect(frame.getByText(/This wallet can retry ML-DSA signing in/)).toBeVisible();
+    await expect(frame.getByText(/Retrying in \d+s\./)).toBeVisible();
     await page.screenshot({ path: info.outputPath('ml-dsa-wait-ui.png') });
     await expect
       .poll(frame.evaluate.bind(frame, readProbe))
@@ -672,7 +673,7 @@ async function verifyWaitingUi(
     await expect(frame.getByRole('button', { name: 'Cancel request', exact: true })).toHaveCount(0);
   } else {
     await expect(
-      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Signing cooldown' }),
+      frame.locator('.seams-receipt-heading h2').filter({ hasText: 'Recharging' }),
     ).toBeVisible();
     await frame.getByRole('button', { name: 'Cancel request', exact: true }).click();
     await expect(
@@ -702,4 +703,11 @@ async function verifyWaitingUi(
     ),
   );
   await info.attach('ml-dsa-wait-ui', { path: artifact, contentType: 'application/json' });
+}
+
+async function serveWalletUiStyles(root: string, route: Route): Promise<void> {
+  await route.fulfill({
+    contentType: 'text/css',
+    path: path.join(root, 'packages/wallet/dist/esm/sdk/wallet-ui.css'),
+  });
 }

@@ -100,10 +100,7 @@ export function mlDsaConfirmationRequest(
     confirmationConfig: input.options.confirmationConfig,
     summary: {
       title: input.options.confirmerText?.title ?? 'Sign NEAR transaction',
-      body:
-        approval.kind === 'session_start'
-          ? `This transaction uses one of ${approval.session.remainingOperations} permitted signing operations. The session expires at ${new Date(approval.session.expiresAtMs).toLocaleString()}. Failed operations consume one use.`
-          : (input.options.confirmerText?.body ?? 'Approve this transaction.'),
+      body: input.options.confirmerText?.body ?? 'Approve this transaction.',
     },
     payload,
   };

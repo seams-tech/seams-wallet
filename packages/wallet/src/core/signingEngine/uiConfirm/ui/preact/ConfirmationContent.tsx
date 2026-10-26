@@ -1,5 +1,4 @@
 /** @jsxImportSource preact */
-import type { SigningKeyChoice } from '../confirm-ui-types';
 import {
   WalletText,
   WalletLocaleContext,
@@ -64,7 +63,6 @@ export type ConfirmationContentModel =
   | {
       kind: 'transaction';
       capture: HTMLElement | null;
-      signingKeyChoice: SigningKeyChoice | null;
       registration?: never;
       header: Omit<ConfirmHeaderProps, 'styles' | 'icon'>;
       body: ConfirmationBodyModel;
@@ -188,13 +186,6 @@ export class ConfirmationContent extends Component<{
             <WalletText copy={model.header.heading} />
           </h2>
           <TransactionReview data={model.review} />
-          {model.signingKeyChoice ? (
-            <SigningKeySelect choice={model.signingKeyChoice} />
-          ) : model.review.model?.signerLabel ? (
-            <p class="seams-signing-key-label">
-              <WalletText copy="Signing key" />: <strong>{model.review.model.signerLabel}</strong>
-            </p>
-          ) : null}
           <div class="seams-review-context">
             <ConfirmationBody model={model.body} onCopyAccount={this.copyAccount} />
             {model.prompt.kind === 'email' && (
@@ -298,86 +289,4 @@ class AuthMethodCapture extends Component<{ element: HTMLElement }> {
   render(): ComponentChildren {
     return <div ref={this.container} class="seams-auth-method-capture" />;
   }
-}
-
-let nextSigningKeyChoiceId = 0;
-
-class SigningKeySelect extends Component<{ choice: SigningKeyChoice }, { choosing: boolean }> {
-  state = { choosing: false };
-  private readonly radioName = `signing-key-${++nextSigningKeyChoiceId}`;
-  private readonly changeButton = createRef<HTMLButtonElement>();
-  private readonly options = createRef<HTMLFieldSetElement>();
-
-  componentDidUpdate(
-    _previousProps: Readonly<{ choice: SigningKeyChoice }>,
-    previousState: Readonly<{ choosing: boolean }>,
-  ) {
-    if (previousState.choosing === this.state.choosing) return;
-    if (this.state.choosing) {
-      this.options.current?.querySelector<HTMLInputElement>('input:checked')?.focus();
-    } else {
-      this.changeButton.current?.focus();
-    }
-  }
-
-  private open = (): void => {
-    this.setState({ choosing: true });
-  };
-  private close = (): void => {
-    this.setState({ choosing: false });
-  };
-  private choose = (id: string): void => {
-    this.props.choice.onChange(id);
-    this.close();
-  };
-
-  private renderOption = (option: SigningKeyChoice['options'][number]) => (
-    <label class="seams-signing-key-option" key={option.id}>
-      <input
-        type="radio"
-        name={this.radioName}
-        value={option.id}
-        checked={this.props.choice.selected === option.id}
-        onChange={this.choose.bind(this, option.id)}
-      />
-      <span>{option.label}</span>
-    </label>
-  );
-
-  render() {
-    const choice = this.props.choice;
-    const selected = choice.options.find(matchesChoice.bind(null, choice.selected));
-    return (
-      <div class="seams-signing-key-choice" role="group" aria-label="Signing key">
-        <div class="seams-signing-key-summary">
-          <span>
-            <WalletText copy="Signing key" />
-            <strong>{selected?.label ?? choice.selected}</strong>
-          </span>
-          <button
-            type="button"
-            ref={this.changeButton}
-            onClick={this.open}
-            disabled={this.state.choosing}
-          >
-            <WalletText copy="Change" />
-          </button>
-        </div>
-        {this.state.choosing ? (
-          <fieldset ref={this.options}>
-            <legend>
-              <WalletText copy="Choose a signing key" />
-            </legend>
-            {choice.options.map(this.renderOption)}
-            <button type="button" onClick={this.close}>
-              <WalletText copy="Cancel" />
-            </button>
-          </fieldset>
-        ) : null}
-      </div>
-    );
-  }
-}
-function matchesChoice(id: string, option: SigningKeyChoice['options'][number]): boolean {
-  return option.id === id;
 }

@@ -3514,13 +3514,13 @@ Behavioral coverage: `tests/wallet-ui/wallet-steps.browser.test.ts` and
 - Signer creation and NEAR key addition require their existing approvals. An interrupted activation retains the published signer. Status checks never generate another signer or automatically resubmit AddKey.
 - The default signing key is a device preference stored in Wallet origin, scoped by wallet, NEAR network, and account. It grants no authority and changes no on-chain permissions.
 - Remember an ML-DSA default by its stable signing key ID. Resolve its current publication and material epoch before using it. An unavailable ML-DSA default fails explicitly and never silently falls back to Ed25519.
-- An explicit transaction signer stays pinned. A transaction with no explicit signer uses the wallet preference and, when review is enabled and multiple keys are active, offers a key selector before nonce reservation and approval.
-- A multi-key transaction combines key selection with semantic transaction approval. The host snapshots the wallet/account, transaction, selected key, slot, and signing-session policy. A single-use host receipt binds that review to the dispatched input and omits a duplicate semantic review. It grants no signing or factor authority.
+- An explicit transaction signer stays pinned. A transaction with no explicit signer uses the wallet preference and, when review is enabled and multiple keys are active, uses the saved signer without a transaction-time key selector.
+- Signer choice is configured only in Signing keys settings. A multi-key transaction reviews the saved signer. The host snapshots the wallet/account, transaction, selected key, slot, and signing-session policy. A single-use host receipt binds that review to the dispatched input and omits a duplicate semantic review. It grants no signing or factor authority.
 - Fresh Passkey prompts, Email OTP entry, and platform-required activation remain governed by the existing confirmation rules. Explicit-key and single-key requests keep their ordinary review. The combined review discloses any requested session budget and a duration that does not understate the grant.
 - A transaction-specific selection does not change the saved default. Changing a default requires an explicit settings action. Ed25519 remains the initial default.
 - Preserve canonical wallet-seed recovery, ordinary FIPS seed/key export, two-at-once candidate consumption, and configured pool capacity.
 
-The ML-DSA browser lifecycle contract covers settings enrollment across reload, authenticated metadata, persisted defaults, the transaction picker, recovery, linking, export, and a finalized threshold transaction. It retains public screenshots and a repeatable evidence artifact.
+The ML-DSA browser lifecycle contract covers settings enrollment across reload, authenticated metadata, persisted defaults, settings-selected transaction signing, recovery, linking, export, and a finalized threshold transaction. It retains public screenshots and a repeatable evidence artifact.
 
 ## Experimental ML-DSA custody contract
 

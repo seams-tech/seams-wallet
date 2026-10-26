@@ -105,9 +105,6 @@ function mergeConfirmationPresentation(
   update: ConfirmUIUpdate,
 ): ConfirmationPresentationInput {
   return {
-    signingKeyChoice: Object.hasOwn(update, 'signingKeyChoice')
-      ? update.signingKeyChoice
-      : current.signingKeyChoice,
     model: Object.hasOwn(update, 'model') ? update.model : current.model,
     securityContext: Object.hasOwn(update, 'securityContext')
       ? update.securityContext

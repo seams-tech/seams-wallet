@@ -81,15 +81,15 @@ function publishSigningWait(
   switch (retry.reason) {
     case 'empty_pool':
       phase = SigningEventPhase.STEP_10_WAITING_FOR_MATERIAL;
-      message = 'Preparing signing material. This approved request will retry automatically.';
+      message = 'Signing will start automatically.';
       break;
     case 'service_capacity':
       phase = SigningEventPhase.STEP_10_WAITING_FOR_CAPACITY;
-      message = 'The signing service is busy. This approved request will retry automatically.';
+      message = 'Signing will resume automatically.';
       break;
     case 'wallet_cooldown':
       phase = SigningEventPhase.STEP_10_WAITING_FOR_COOLDOWN;
-      message = `This wallet can retry ML-DSA signing in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}. Signing material must also be available.`;
+      message = `Retrying in ${seconds}s.`;
       break;
     case 'running':
       return;

@@ -682,15 +682,10 @@ async function signFromDefaultPicker(
   };
   const resultPromise = page.evaluate(invokeSettingsSigning, command);
   const frame = page.locator('iframe[allow*="publickey-credentials-get"]').last().contentFrame();
-  const picker = frame.getByRole('group', { name: 'Signing key', exact: true });
-  await expect(picker).toContainText('ML-DSA');
-  await picker.getByRole('button', { name: 'Change', exact: true }).click();
-  await picker.getByRole('radio', { name: /Ed25519/ }).click();
-  await expect(picker.locator('strong')).toContainText('Ed25519');
-  await picker.getByRole('button', { name: 'Change', exact: true }).click();
-  await picker.getByRole('radio', { name: /ML-DSA/ }).click();
-  await expect(frame.getByText(/up to 2 operations over up to 601 seconds/)).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-picker.png') });
+  await expect(frame.getByRole('button', { name: 'Approve transaction', exact: true })).toBeVisible();
+  await expect(frame.getByRole('group', { name: 'Signing key', exact: true })).toHaveCount(0);
+  await expect(frame.getByText(/Failed operations consume one use/)).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath('ml-dsa-transaction-approval.png') });
   await frame.getByRole('button', { name: 'Approve transaction', exact: true }).click();
   const result = await test.step(
     'One transaction approval completes signing',

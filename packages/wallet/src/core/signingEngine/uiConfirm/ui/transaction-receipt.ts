@@ -168,9 +168,9 @@ function waitingHeading(reason: 'material' | 'capacity' | 'cooldown'): string {
     case 'material':
       return 'Preparing your signature';
     case 'capacity':
-      return 'Waiting for signing capacity';
+      return 'Waiting to sign';
     case 'cooldown':
-      return 'Signing cooldown';
+      return 'Recharging';
     default:
       return assertNever(reason);
   }
