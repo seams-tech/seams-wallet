@@ -14,7 +14,10 @@ def write_vocabulary(root, destination):
         '// Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.\n'
         + 'export const SPOKEN_PHRASES = ' + json.dumps(phrases, indent=2) + ' as const;\n'
         + 'export const PHRASE_TOKENS: readonly (readonly number[])[] = '
-        + json.dumps(tokens, indent=2) + ';\n')
+        + json.dumps(tokens, indent=2) + ';\n'
+        + 'export const PHRASE_TOKEN_PIECES: readonly string[] = '
+        + json.dumps([''] + [tokenizer.id_to_piece(index) for index in range(tokenizer.get_piece_size())], indent=2)
+        + ';\n')
 
 
 def main():

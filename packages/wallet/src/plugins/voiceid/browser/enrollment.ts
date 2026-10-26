@@ -313,6 +313,7 @@ export async function verifyBrowserVoice(
       quality: VoiceCaptureQuality;
       phraseMatched: boolean;
       modelInputMs: number;
+      recognitionDetails: string;
     }
   | { kind: 'phrase_mismatch'; message: string }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
@@ -330,13 +331,18 @@ export async function verifyBrowserVoice(
     const modelInputMs = pcm.samples.length / 16;
     const embedding = await voiceEmbedding(pcm.samples);
     let similarity: number;
+    let baselineSimilarity: number;
+    let referenceKind: 'baseline' | 'adapted';
     try {
       signal.throwIfAborted();
-      const template = await takeVoiceTemplate(access, signal);
+      const reference = await takeVoiceTemplate(access, signal);
       try {
-        similarity = voiceSimilarity(embedding, template);
+        similarity = voiceSimilarity(embedding, reference.template);
+        baselineSimilarity = voiceSimilarity(embedding, reference.baseline);
+        referenceKind = reference.kind;
       } finally {
-        template.fill(0);
+        reference.template.fill(0);
+        reference.baseline.fill(0);
       }
     } finally {
       embedding.fill(0);
@@ -354,12 +360,18 @@ export async function verifyBrowserVoice(
       speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
       noise: pcm.quality.noise,
       similarity,
+      baselineSimilarity,
+      referenceKind,
       modelInputMs,
       threshold: VOICE_MATCH_THRESHOLD,
       phraseMatched,
       phraseRecognition: phraseCheck.recognition,
       expectedPhrase: phrase,
     });
+    const referenceDetails = `Voice reference: ${referenceKind === 'adapted' ? 'improved' : 'original'}. Original similarity ${baselineSimilarity.toFixed(3)}; active similarity ${similarity.toFixed(3)}; required ${VOICE_MATCH_THRESHOLD.toFixed(3)}. `;
+    const recognitionDetails =
+      referenceDetails +
+      (phraseCheck.kind === 'mismatch' ? phraseCheck.message : 'Phrase matched.');
     if (similarity < VOICE_MATCH_THRESHOLD)
       return {
         kind: 'mismatch',
@@ -368,10 +380,16 @@ export async function verifyBrowserVoice(
         quality: pcm.quality,
         phraseMatched,
         modelInputMs,
+        recognitionDetails,
       };
     return phraseCheck.kind === 'matched'
       ? { kind: 'matched' }
-      : { kind: 'phrase_mismatch', message: phraseCheck.message };
+      : {
+          kind: 'phrase_mismatch',
+          message:
+            recognitionDetails +
+            ` Model input ${(modelInputMs / 1000).toFixed(2)} s; detected speech ${(pcm.quality.voicedMs / 1000).toFixed(2)} s; background ${pcm.quality.noise}.`,
+        };
   } finally {
     pcm.samples.fill(0);
   }

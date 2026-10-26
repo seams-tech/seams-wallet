@@ -47,6 +47,7 @@ export async function listenForVoiceApproval(
           result.quality,
           result.phraseMatched,
           result.modelInputMs,
+          result.recognitionDetails,
         ).message,
       };
     case 'phrase_mismatch':

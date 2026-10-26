@@ -73,7 +73,8 @@ def main():
         best = int(np.argmax(likelihoods[:-1]))
         gap = float(likelihoods[-1] - likelihoods[best])
         results.append({'kind': case.get('kind', 'spoken'), 'expected': case['expected'], 'spoken': spoken, 'voice': voice,
-                        'recognized': phrases[best], 'gapToGreedy': gap, 'durationSeconds': len(audio) / rate,
+                        'recognized': phrases[best], 'decodedText': tokenizer.decode([token - 1 for token in greedy]),
+                        'gapToGreedy': gap, 'durationSeconds': len(audio) / rate,
                         'acceptedExpected': bool(greedy) and gap <= 8 and phrases[best] == case['expected']})
     (args.output / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
 

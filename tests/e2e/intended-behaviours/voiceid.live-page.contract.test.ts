@@ -177,6 +177,8 @@ async function verifyLivePage(
   await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute('data-voiceid-phrase', unlockPhrase);
   await expect(wallet.locator('.seams-voiceid-recording-details')).toHaveJSProperty('open', true);
   await expect(wallet.getByText('Phrase recognition', { exact: false })).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText('Model heard:');
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText('Voice reference: original.');
   await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText(`Attempted sentence: “${unlockPhrase}”.`);
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('voiceid-phrase-retry.png') });
   const wrongUnlockSpeaker = await readFile(path.resolve(import.meta.dirname, '../../fixtures/audio/voiceid-other.wav'));
@@ -187,6 +189,8 @@ async function verifyLivePage(
   await expect(wallet.locator('.seams-voiceid-recording-details')).toHaveJSProperty('open', true);
   await expect(wallet.getByText('Speaker similarity', { exact: false })).toBeVisible();
   await expect(wallet.getByText('Speaker input', { exact: false })).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText('Original similarity');
+  await expect(wallet.locator('.seams-voiceid-recording-details')).toContainText('Model heard:');
   await wallet.locator('.seams-voiceid-prompt').screenshot({ path: testInfo.outputPath('speaker-mismatch-details.png') });
   await wallet.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(wallet.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'listening');

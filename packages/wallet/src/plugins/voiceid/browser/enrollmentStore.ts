@@ -363,7 +363,7 @@ export type VoiceTemplateAccess =
 export async function takeVoiceTemplate(
   access: VoiceTemplateAccess,
   signal: AbortSignal,
-): Promise<number[]> {
+): Promise<{ template: number[]; baseline: number[]; kind: 'baseline' | 'adapted' }> {
   const scope = access.scope;
   const guard = access.kind === 'activation' ? access.owner : null;
   if (guard && guard.target !== 'activating')
@@ -406,7 +406,7 @@ export async function takeVoiceTemplate(
     }
     await transaction.done;
     signal.throwIfAborted();
-    return template;
+    return { template, baseline: [...enrollment.baseline], kind: adaptation.kind };
   } catch (error) {
     try {
       transaction.abort();

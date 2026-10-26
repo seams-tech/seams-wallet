@@ -1,5 +1,5 @@
 import { BrowserInferenceModel, type VoiceModelProgress } from './inference';
-import { SPOKEN_PHRASES, PHRASE_TOKENS } from './phraseVocabulary';
+import { SPOKEN_PHRASES, PHRASE_TOKENS, PHRASE_TOKEN_PIECES } from './phraseVocabulary';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
 const model = new BrowserInferenceModel({
@@ -60,12 +60,14 @@ function ctcScore(probabilities: Float64Array, frames: number, tokens: readonly 
     }
     previous = next;
   }
-  return states.length === 1 ? previous[0] : logAdd(previous[states.length - 1], previous[states.length - 2]);
+  return states.length === 1
+    ? previous[0]
+    : logAdd(previous[states.length - 1], previous[states.length - 2]);
 }
 
 type PhraseRecognition =
-  | { kind: 'recognized'; phrase: SpokenPhrase; gap: number }
-  | { kind: 'uncertain'; candidate: SpokenPhrase; gap: number }
+  | { kind: 'recognized'; phrase: SpokenPhrase; gap: number; decodedText: string }
+  | { kind: 'uncertain'; candidate: SpokenPhrase; gap: number; decodedText: string }
   | { kind: 'empty' };
 
 /** A local phrase rejection can retry while the original server challenge is valid. */
@@ -125,9 +127,19 @@ function recognize(logits: Float32Array, frames: number): PhraseRecognition {
   }
   const greedyScore = ctcScore(probabilities, frames, greedy);
   const gap = greedyScore - bestScore;
+  const decodedText = greedy
+    .map(tokenPiece)
+    .join('')
+    .replace(/▁/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
   return gap <= MAX_GREEDY_LOG_GAP
-    ? { kind: 'recognized', phrase: SPOKEN_PHRASES[bestIndex], gap }
-    : { kind: 'uncertain', candidate: SPOKEN_PHRASES[bestIndex], gap };
+    ? { kind: 'recognized', phrase: SPOKEN_PHRASES[bestIndex], gap, decodedText }
+    : { kind: 'uncertain', candidate: SPOKEN_PHRASES[bestIndex], gap, decodedText };
+}
+
+function tokenPiece(token: number): string {
+  return PHRASE_TOKEN_PIECES[token];
 }
 
 export async function checkSpokenPhrase(
@@ -168,9 +180,9 @@ export async function checkSpokenPhrase(
 function phraseFailureMessage(result: PhraseRecognition): string {
   switch (result.kind) {
     case 'recognized':
-      return `Phrase recognition chose “${result.phrase}”. Please read the displayed phrase naturally.`;
+      return `Phrase recognition chose “${result.phrase}”. Model heard: “${result.decodedText}”. Please read the displayed phrase naturally.`;
     case 'uncertain':
-      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Score gap ${result.gap.toFixed(1)}; limit ${MAX_GREEDY_LOG_GAP}.`;
+      return `Phrase recognition was uncertain. Closest phrase: “${result.candidate}”. Model heard: “${result.decodedText}”. Score gap ${result.gap.toFixed(3)} (above limit ${MAX_GREEDY_LOG_GAP.toFixed(3)}).`;
     case 'empty':
       return 'Phrase recognition detected no words. Please try again in your normal voice.';
     default:

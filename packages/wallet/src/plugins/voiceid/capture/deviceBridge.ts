@@ -139,6 +139,7 @@ async function requireVoiceMatch(
         result.quality,
         result.phraseMatched,
         result.modelInputMs,
+        result.recognitionDetails,
       );
     case 'phrase_mismatch':
       throw new VoicePhraseMismatchError(result.message);
