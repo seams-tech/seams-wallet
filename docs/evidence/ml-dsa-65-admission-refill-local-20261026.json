@@ -1,0 +1,48 @@
+{
+  "scope": "Real Worker bundles in local workerd. Old bundles reproduce expired unadmitted material loss. Candidate preserves sixteen pairs, and a fresh verified signature consumes reclaimed material. This does not establish hosted throughput.",
+  "baseline_expected_failure": "AssertionError [ERR_ASSERTION]: Unadmitted material was lost",
+  "candidate_passed": true,
+  "recovered_pairs": 16,
+  "verified_reuse_operation": "f0ebb5a84f277f6e150c82bb679279973830561d2b94a538fbd538f93c60b2a3",
+  "verified_signatures": 3,
+  "worker_wasm_sha256": {
+    "router": "d6c63fb91f5b3ad4820ab7dc58396476927ec2700ed9aad12c8c9ecc942023b2",
+    "deriver-a": "92694cee60d16fae995f99bd87cf1171d4721d92b8deb89c537db8cd78b2cbdc",
+    "deriver-b": "b8c819ae1555eec41b0c5336984f9d7facc7ed8c3de01050c51dea31191ef726"
+  },
+  "provenance": {
+    "revision": "8146f8be422c1ee760cf7d72495a5b9057e0e5f2",
+    "node": "v26.4.0",
+    "openssl": "3.6.3",
+    "miniflare": "4.20260710.0",
+    "sourceSha256": {
+      "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "4a3ef96858b8871bc733b83ef5c28399860f1af0eb5beef7d9273af4505624a6",
+      "tests/e2e/ml-dsa-memory-profile.mjs": "09c40db8eece9606a77f6a4d0431decbfefc55eac815b6e305e3e1eb43d77b92",
+      "tests/e2e/ml-dsa-cpu-profile.mjs": "976a4a3df292f88433b9e55a36c1af90231bb31da5fe1220e19cdc930a696335",
+      "tests/helpers/mlDsaOwnerAdmission.fixtures.ts": "fcb8113f99eac38b80d789c8b44251a99bb4e91bcd4a26416478cbb120f3d517",
+      "crates/ed25519-yao-cloudflare-bench/scripts/profile_prepared_worker.mjs": "cebd06e65b95c6964ca2386ad0a14ad1b194b351d2a6079e0fe619a5375d3b60",
+      "crates/router-ab-cloudflare/Cargo.lock": "74a3e92da1787d957e708e063d4049b1bbca36c09748ea2992821d83f470dc4b",
+      "crates/ml-dsa-threshold/Cargo.toml": "642f9e5001898ad1f96933c8fd4598747a214c71ce167b3e9cb82997e8410666",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent.rs": "62ead2ad0162aa3a8771a3a553b80bc6f34ba261dc20a667ae9cbee45ab2c374",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/pprf.rs": "8ef4b951f49f6a1443bfcae7766055562052326f9228fcab651d69c9ec0f4ca0",
+      "crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs": "ff60709396f9627819acdae9e7d8dfb0073a6b38486bfc08a0963364b887cda2",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "7317b8ef81289ecb9bc520b692e60f5aec3cd1245a35ec6877988c2f15f89798",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs": "dabcf1d9f210ef784a08b2ab9c05bdd75ab71d181974e6c80c4b56c83b356333",
+      "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "1ccb8fa536fb36731378f0707d4b4745450dc92569f2df28d68c13a9d9af0b4c",
+      "crates/router-ab-cloudflare/src/ml_dsa/refill.rs": "96877f73bd9295c8ef3f3079d6829d04830c7ce92dbd28ad57bb3ccdbc619002",
+      "crates/router-ab-cloudflare/src/ml_dsa/pool.rs": "9df0bd0de33e6b5f648895320e8c43ae4c6539b23e087c28cf267a739eda8d0b"
+    },
+    "workerJsSha256": {
+      "router": "2c716d2386c659b5ae40317373bd745fad18fb1d830e1ce584ec4ed7754c6754",
+      "deriver-a": "3bf1f1772af25d57315667b6388a449d988294003d912c7d5d1f9028d82e5302",
+      "deriver-b": "f8e5f30dceb5ec2322a2ae2dfa04ca83848657ed81a478263abf7f5b7056d0aa"
+    }
+  },
+  "native_e2e": "cargo test --manifest-path crates/router-ab-cloudflare/Cargo.toml --features ml-dsa --test ml_dsa_durable_pool_e2e: passed",
+  "archive": {
+    "file": "ml-dsa-65-admission-refill-local-20261026.json.gz",
+    "sha256": "f63bcb17beef7f5721724f219de618298985a5c8e22355ffbc261645ab33484a"
+  },
+  "credential_scan_matches": 0,
+  "hosted": "pending_explicit_deployment_and_credential_approval"
+}

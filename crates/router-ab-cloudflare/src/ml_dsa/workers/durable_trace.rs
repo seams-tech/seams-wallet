@@ -73,6 +73,8 @@ impl DurableTrace {
                 Some(record.activation.ceremony_id),
             ),
             RoleCommand::Install { .. } => ("install_pool", None, None),
+            RoleCommand::Put { job, .. } => ("publish_refill", Some(job.batch), None),
+            RoleCommand::Reserve { claim, .. } => ("reserve", None, Some(claim.request.operation)),
             RoleCommand::CheckMaterial { activation } => {
                 ("check_material", None, Some(activation.ceremony_id))
             }

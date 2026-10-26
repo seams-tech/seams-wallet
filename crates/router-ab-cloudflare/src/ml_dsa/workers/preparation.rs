@@ -116,6 +116,9 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         target: policy.refill_target_batches(),
         ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
     };
+    recover_expired_reservations(env, state, &key)
+        .await
+        .map_err(protocol_error)?;
     let a: pool::Inventory = serde_json::from_value(
         role_transaction(
             state,
@@ -384,24 +387,22 @@ async fn publish(
     participant: Participant,
     prepared: Vec<(Binding, Sealed)>,
 ) -> Result<()> {
-    for (binding, sealed) in prepared {
-        let batch = binding.batch;
-        let response = local_call(
-            env,
-            &RoleCommand::Put {
-                job: job.clone(),
-                binding,
-                sealed,
-            },
-            None,
-        )
-        .await?;
-        if response.status_code() != 200 {
-            return Err(invalid(match participant {
-                Participant::A => "ML-DSA preparation storage failed",
-                Participant::B => "ML-DSA peer preparation storage failed",
-            }));
-        }
+    let response = local_call(
+        env,
+        &RoleCommand::Put {
+            job: job.clone(),
+            batches: prepared,
+        },
+        None,
+    )
+    .await?;
+    if response.status_code() != 200 {
+        return Err(invalid(match participant {
+            Participant::A => "ML-DSA preparation storage failed",
+            Participant::B => "ML-DSA peer preparation storage failed",
+        }));
+    }
+    for batch in job.batch_ids() {
         log_stage(job, participant, batch, "published");
     }
     Ok(())

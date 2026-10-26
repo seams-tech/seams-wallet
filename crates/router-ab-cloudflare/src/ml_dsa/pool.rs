@@ -127,6 +127,77 @@ pub async fn fence(
     }
     Ok(consumed)
 }
+fn reservation_name(request_digest: &[u8; 32]) -> String {
+    format!("reservation/{}", hex(request_digest))
+}
+
+pub(super) struct ExpiredReservation {
+    pub request: SigningRequest,
+    pub batches: Vec<[u8; 32]>,
+}
+
+/// Recovery uses the exact request to distinguish an unadmitted claim from signing.
+pub(super) async fn expired_reservations(
+    store: &impl Store,
+    key: &KeyScope,
+    now: u64,
+) -> Result<Vec<ExpiredReservation>> {
+    check_key(store, key).await?;
+    let mut expired: Vec<ExpiredReservation> = Vec::new();
+    for id in index(store).await? {
+        let record = store
+            .get::<Record>(&batch_name(&id))
+            .await?
+            .ok_or_else(|| invalid("Missing preparation record"))?;
+        let State::Reserved {
+            request_digest,
+            expires_at_ms,
+        } = record.state
+        else {
+            continue;
+        };
+        if record.binding.key != *key || expires_at_ms > now {
+            continue;
+        }
+        let Some(request) = store
+            .get::<SigningRequest>(&reservation_name(&request_digest))
+            .await?
+        else {
+            // Persisted reservations without a request retain conservative retirement.
+            continue;
+        };
+        if request.key != *key || request.digest()? != request_digest {
+            return Err(invalid("ML-DSA reservation request changed"));
+        }
+        if let Some(existing) = expired.iter_mut().find(|item| item.request == request) {
+            existing.batches.push(id);
+        } else {
+            expired.push(ExpiredReservation {
+                request,
+                batches: vec![id],
+            });
+        }
+    }
+    Ok(expired)
+}
+
+/// The host first obtains an authoritative terminal status. Declined means no permit existed.
+pub(super) async fn settle_expired(
+    store: &impl Store,
+    reservation: &ExpiredReservation,
+    settlement: Settlement,
+) -> Result<()> {
+    let consumed = fence(store, &reservation.request, &reservation.batches).await?;
+    release(
+        store,
+        &reservation.request,
+        &reservation.batches,
+        settlement,
+        &consumed,
+    )
+    .await
+}
+
 fn batch_name(batch: &[u8; 32]) -> String {
     format!("batch/{}", hex(batch))
 }
@@ -251,12 +322,31 @@ pub async fn inventory(
             erase(store, &mut record).await?;
             continue;
         }
-        if matches!(record.state, State::Reserved { expires_at_ms, .. } if expires_at_ms <= now_ms)
+        if let State::Reserved {
+            request_digest,
+            expires_at_ms,
+        } = &record.state
         {
-            // The peer may already have consumed its half. An expired pair is burned.
-            record.state = State::Burned;
-            erase(store, &mut record).await?;
-            continue;
+            if *expires_at_ms <= now_ms {
+                if store
+                    .get::<SigningRequest>(&reservation_name(request_digest))
+                    .await?
+                    .is_some()
+                {
+                    // Keep ciphertext unavailable until authoritative recovery settles it.
+                    // This also covers a claim that expires after the recovery snapshot.
+                    if record.binding.key == *key && record.binding.expires_at_ms >= ready_until_ms
+                    {
+                        reserved.push(id);
+                    }
+                    retained.push(id);
+                    continue;
+                }
+                // Old persisted reservations lack the request needed for safe recovery.
+                record.state = State::Burned;
+                erase(store, &mut record).await?;
+                continue;
+            }
         }
         if record.binding.key == *key && record.binding.expires_at_ms >= ready_until_ms {
             match record.state {
@@ -324,6 +414,7 @@ pub async fn reserve(
         return Err(invalid("Invalid ML-DSA reservation"));
     }
     let binding = request.digest()?;
+    store.put(&reservation_name(&binding), request).await?;
     for id in batches {
         let name = batch_name(id);
         let mut record = store

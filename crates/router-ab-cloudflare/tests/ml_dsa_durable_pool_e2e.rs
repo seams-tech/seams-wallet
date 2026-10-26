@@ -636,8 +636,8 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             .ready,
         vec![[12; 32]]
     );
-    // A lost pre-admission cleanup can leave an unmatched ready half. Retire it
-    // only after observing the peer's permanent tombstone, never on Missing.
+    // Expiry keeps unopened reservations unavailable until authoritative settlement.
+    // An admitted failure then retires the peer only after a permanent tombstone.
     let abandoned = request(&key, 98);
     tx(
         &a,
@@ -648,6 +648,16 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         .unwrap()
         .ready
         .is_empty());
+    assert_eq!(
+        tx(&a, pool::inspect(&a, &key, &[[12; 32]])).unwrap(),
+        vec![pool::BatchAvailability::Reserved]
+    );
+    tx(&a, pool::fence(&a, &abandoned, &[[12; 32]])).unwrap();
+    tx(
+        &a,
+        pool::release(&a, &abandoned, &[[12; 32]], pool::Settlement::Failed, &[]),
+    )
+    .unwrap();
     assert_eq!(
         tx(&a, pool::inspect(&a, &key, &[[12; 32], [250; 32]])).unwrap(),
         vec![

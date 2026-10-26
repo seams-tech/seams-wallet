@@ -3618,6 +3618,8 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Keep pre-key registration stock generic. Its first consumption performs private commitment activation; committed refill must skip that work during signing.
 - Commit the producer's Running state before randomness generation. Retry terminal settlement without regenerating material. Abandon interrupted Running jobs.
 - Publish each role's preparation only under its exact live producer claim. Commit the producer outcome before releasing its service-wide lease.
+- Publish all one or two prepared pairs for a role job in one bounded transaction. Validate exact batch identities and role bindings before publication.
+- After a reservation expires, reclaim untouched material only when exact Router authority reports Declined. Fence delayed use in the same transaction. Admitted failures retain conservative retirement. Authority errors leave recovery pending.
 - Reuse the service producer while preserving separate durable job records and single-use material. A stale settlement must preserve the successor lease and alarm.
 - Bound remote recovery inspection and settlement waits. Preserve a recovery alarm after timeout, and clear the alarm only when the durable pending queue is empty.
 - Flush all buffered public table writes before publishing private registration preparation. Keep each write group within 16 frames and one atomic transaction.

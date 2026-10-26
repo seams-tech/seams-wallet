@@ -65,14 +65,9 @@ const bindings = {
 const publicationBarrierScript = `
 function holdPublication(resolve) { setTimeout(resolve, 60000); }
 function delayAuthorization(resolve) { setTimeout(resolve, 200); }
+function expireAdmission(resolve) { setTimeout(resolve, 31000); }
 function waitForFailureRelease(resolve) { setTimeout(resolve, 50); }
-function finalPublication(command) {
-  switch (command.job.groups) {
-    case 'one': return true;
-    case 'two': return JSON.stringify(command.binding.batch) !== JSON.stringify(command.job.batch);
-    default: throw new Error('Unknown preparation group count');
-  }
-}
+
 export class PublicationBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async hold(stage, job) {
@@ -133,7 +128,7 @@ export class PublicationBarrier {
       await this.hold(stage, command.job);
     }
     const response = await this.env.ROLE.fetch(request);
-    if (command.command === 'put' && response.status === 200 && finalPublication(command) && await this.state.storage.get('lose_publication_reply')) {
+    if (command.command === 'put' && response.status === 200 && await this.state.storage.get('lose_publication_reply')) {
       await this.state.storage.delete('lose_publication_reply');
       await this.state.storage.put('lost_publication_reply', command.job);
       return new Response('Injected lost durable publication reply', {status:503});
@@ -143,7 +138,7 @@ export class PublicationBarrier {
       await this.state.storage.put('wake_reply_failures', 1);
       return new Response('Injected lost wake acknowledgement', {status:503});
     }
-    if (command.command === 'put' && response.status === 200 && stage === 'after' && finalPublication(command)) {
+    if (command.command === 'put' && response.status === 200 && stage === 'after') {
       await this.hold(stage, command.job);
     }
     return response;
@@ -152,6 +147,13 @@ export class PublicationBarrier {
 export class AdmissionBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(request) {
+    if (new URL(request.url).pathname === '/lose-admission') {
+      await this.state.storage.put('lose_admission', true);
+      return new Response('Armed');
+    }
+    if (new URL(request.url).pathname === '/lost-admission') {
+      return Response.json(await this.state.storage.get('lost_admission') ?? null);
+    }
     if (new URL(request.url).pathname === '/calibrate') {
       await this.state.storage.put('calibration_operation', await request.json());
       return new Response('Armed');
@@ -170,6 +172,12 @@ export class AdmissionBarrier {
         heldSettlement: await this.state.storage.get('held_settlement') ?? null });
     }
     const command = await request.clone().json();
+    if (command.command === 'admit' && await this.state.storage.get('lose_admission')) {
+      await this.state.storage.delete('lose_admission');
+      await this.state.storage.put('lost_admission', command);
+      await new Promise(expireAdmission);
+      return new Response('Admission interrupted after paired reservation', {status:503});
+    }
     if (command.command === 'lookup') {
       const operation = await this.state.storage.get('calibration_operation');
       if (operation && JSON.stringify(command.request.operation) === JSON.stringify(operation)) {
@@ -324,6 +332,7 @@ try {
   verifyStandardSignature(records[0].public_key, emptyMessage, [], emptyReplay.operation.signature);
   assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth), emptyReplay);
   observations.emptyPoolRetryPreservesOperationAndSignature = true;
+  observations.expiredUnadmittedRecovery = await checkExpiredUnadmittedRecovery(emptyInput.request);
   await waitReady(policy.refill_target_batches);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(policy.refill_target_batches);
@@ -431,6 +440,13 @@ try {
     assert.equal(result.operation.state, 'succeeded');
     assert.equal(result.operation.signature.length, 3309);
     verifyStandardSignature(records[0].public_key, message, input.context, result.operation.signature);
+    const recoveredIds = new Set(observations.expiredUnadmittedRecovery.batches.map(batchId));
+    for (const event of stageEvents) {
+      if (event.operation === batchId(input.request.operation) && event.context.kind === 'take_store'
+          && recoveredIds.has(batchId(event.context.material))) {
+        observations.expiredUnadmittedRecovery.verifiedReuseOperation = event.operation;
+      }
+    }
     assert.deepEqual(await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared)).json(), result);
     const changed = structuredClone(input);
     changed.message.push(0);
@@ -689,6 +705,8 @@ try {
   };
   observations.committedExecution = committedExecutionEvidence();
   observations.preparationResources = preparationResourceEvidence();
+  assert.ok(observations.expiredUnadmittedRecovery.verifiedReuseOperation,
+    'No verified signature consumed the reclaimed untouched material');
   observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
   observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
   observations.passed = true;
@@ -745,6 +763,9 @@ function workers() {
       ...base('router', 'router', {}),
       durableObjects: {
         ML_DSA_ADMISSION_DO: {
+          className: 'AdmissionBarrier', scriptName: 'publication-barrier',
+        },
+        ML_DSA_REAL_ADMISSION_DO: {
           className: 'RouterAbMlDsaAdmissionDurableObject', useSQLite: true,
         },
       },
@@ -960,6 +981,38 @@ async function admissionBarrier() {
   const namespace = await runtime.getDurableObjectNamespace('ADMISSION_BARRIER', 'publication-barrier');
   return namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
 }
+
+async function checkExpiredUnadmittedRecovery(template) {
+  await waitReady(policy.refill_target_batches);
+  const request = {...template, operation: Array.from(randomBytes(32))};
+  const barrier = await admissionBarrier();
+  assert.equal((await barrier.fetch('https://fault.internal/lose-admission')).status, 200);
+  const interrupted = await raw('router', '/router-ab/ml-dsa/admit', request, gatewayAuth);
+  assert.notEqual(interrupted.status, 200);
+  const attempted = await (await barrier.fetch('https://fault.internal/lost-admission')).json();
+  assert.deepEqual(attempted.claim.request, request);
+  assert.equal(attempted.batches.length, policy.refill_target_batches);
+  const status = await post('router', '/router-ab/ml-dsa/status', request, gatewayAuth);
+  assert.equal(status.state, 'declined');
+  const inventoriesAfterRecovery = await inventories();
+  for (const role of inventoriesAfterRecovery) {
+    const ready = new Set(role.ready.map(batchId));
+    assert.ok(attempted.batches.every(batchInSet.bind(null, ready)), 'Unadmitted material was lost');
+  }
+  const forgedPermit = {request, expires_at_ms: attempted.claim.expires_at_ms, batches: attempted.batches};
+  for (const role of ['a', 'b']) {
+    assert.notEqual((await raw(role, '/router-ab/ml-dsa/role', {
+      command:'reserve', claim:attempted.claim, batches:attempted.batches,
+    }, serviceAuth)).status, 200);
+    assert.notEqual((await raw(role, '/router-ab/ml-dsa/role', {
+      command:'take', permit:forgedPermit, batch:attempted.batches[0],
+    }, serviceAuth)).status, 200);
+  }
+  assert.equal((await post('router', '/router-ab/ml-dsa/admit', request, gatewayAuth)).operation.state, 'declined');
+  return {request, batches:attempted.batches, status, recoveredPairs:attempted.batches.length,
+    delayedReservationRejected:true, unadmittedTakeRejected:true};
+}
+function batchInSet(ids, batch) { return ids.has(batchId(batch)); }
 
 async function admissionCheck(command) {
   const namespace = await runtime.getDurableObjectNamespace('ML_DSA_ADMISSION_DO', 'router');

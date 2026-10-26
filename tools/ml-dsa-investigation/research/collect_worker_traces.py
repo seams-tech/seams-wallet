@@ -270,7 +270,7 @@ def public_durable_boundary(value, timestamp):
         "check_registration_job", "claim_registration", "check_registration_claim",
         "finish_registration", "authorize_key", "commit_key", "key_state",
         "initialize_registration_storage", "install_registration_stock",
-        "install_material", "install_pool", "check_material",
+        "install_material", "install_pool", "check_material", "publish_refill", "reserve",
     }
     stages = {
         "authorized", "entered", "authorize", "transaction", "callback_started",
@@ -369,6 +369,18 @@ def public_wait_trace(value, timestamp):
             return None
         result.update({key: value[key] for key in ("kind", "state", "pending", "sequence", "at_ms")})
     return result
+
+
+def public_reservation_settlement(value, timestamp):
+    if value.get("event") != "ml_dsa_expired_reservation_v1" or not public_time(timestamp):
+        return None
+    batches = value.get("batches")
+    if not public_id(value.get("operation")) or value.get("settlement") not in ("declined", "failed"):
+        return None
+    if not isinstance(batches, list) or not 1 <= len(batches) <= 20 or not all(public_id(item) for item in batches):
+        return None
+    return {"operation": value["operation"], "settlement": value["settlement"],
+            "batches": batches, "log_timestamp_ms": timestamp}
 
 
 def public_retirement(value, timestamp):
@@ -618,6 +630,7 @@ def records(path, role):
         durable_boundaries = []
         admission_stock = []
         retirements = []
+        reservation_settlements = []
         commit_probes = []
         stage_traces = []
         commitment_batches = []
@@ -649,6 +662,9 @@ def records(path, role):
                 boundary = public_durable_boundary(value, log.get("timestamp"))
                 if boundary is not None:
                     durable_boundaries.append(boundary)
+                settlement = public_reservation_settlement(value, log.get("timestamp"))
+                if settlement is not None:
+                    reservation_settlements.append(settlement)
                 retirement = public_retirement(value, log.get("timestamp"))
                 if retirement is not None:
                     retirements.append(retirement)
@@ -808,6 +824,7 @@ def records(path, role):
             "durable_boundaries": durable_boundaries,
             "admission_stock": admission_stock,
             "retirements": retirements,
+            "reservation_settlements": reservation_settlements,
             "commit_probes": commit_probes,
             "worker": item.get("scriptName"),
             "entrypoint": item.get("entrypoint") if item.get("entrypoint") in (
