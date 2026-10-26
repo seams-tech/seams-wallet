@@ -4,7 +4,7 @@ import {
   getDefaultCspNonce,
 } from '@/core/browser/walletIframe/csp-stylesheet';
 import { SeamsWordmark } from '@/core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
-import { backIcon, shieldIcon } from '@/SeamsWeb/walletIframe/host/ui/auth-menu/icons';
+import { backIcon } from '@/SeamsWeb/walletIframe/host/ui/auth-menu/icons';
 import type { VoicePrompt } from './prompt';
 
 const CSS = `
@@ -66,22 +66,20 @@ const CSS = `
 }
 .seams-voiceid-unlock-footer {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
-  gap: 0.4375rem;
-  min-height: 40px;
-  border-top: 1px solid var(--seams-colors-borderPrimary, #303b41);
+  gap: 0.375rem;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary, #303b41) 60%, transparent);
   color: var(--seams-colors-textSecondary, #9cabb3);
   font-size: 0.6875rem;
-}
-.seams-voiceid-unlock-footer > svg:first-child {
-  width: 14px;
-  height: 14px;
+  line-height: 1rem;
+  letter-spacing: 0.01em;
 }
 .seams-voiceid-unlock-footer .seams-receipt-wordmark {
-  width: 60px;
-  height: auto;
-  color: var(--seams-colors-textPrimary, #eff2f3);
+  flex: none;
+  width: 3.125rem;
+  height: 0.625rem;
 }
 @media (hover: hover) {
   .seams-voiceid-unlock-back:hover {
@@ -120,7 +118,7 @@ export class VoiceUnlockFrame {
     this.footer = document.createElement('div');
     this.footer.className = 'seams-voiceid-unlock-footer';
     render(
-      [shieldIcon(), createElement('span', null, 'Secured by'), createElement(SeamsWordmark, {})],
+      [createElement('span', null, 'Secured by'), ' ', createElement(SeamsWordmark, {})],
       this.footer,
     );
     element.append(this.footer);

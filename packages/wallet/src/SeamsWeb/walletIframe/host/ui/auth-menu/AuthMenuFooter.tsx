@@ -2,7 +2,7 @@
 import { WalletText } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import { Component, type ComponentChildren } from 'preact';
 import { SeamsWordmark } from '@/core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
-import { alertIcon, shieldIcon } from './icons';
+import { alertIcon } from './icons';
 
 type AuthMenuFooterProps = {
   /** The failure to show in place of the brand line, or null when there is none. */
@@ -24,7 +24,6 @@ export class AuthMenuFooter extends Component<AuthMenuFooterProps> {
     return (
       <div class="seams-auth-footer" data-state={notice ? 'notice' : 'brand'}>
         <div class="seams-auth-footer-brand" aria-hidden={notice ? 'true' : undefined}>
-          {shieldIcon()}{' '}
           <span>
             <WalletText message="Secured by" />
           </span>{' '}

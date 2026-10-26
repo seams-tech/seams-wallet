@@ -321,19 +321,20 @@
 }
 :where(.seams-wallet-ui) .seams-receipt-footer {
   justify-content: center;
+  align-items: baseline;
+  gap: 0.375rem;
   margin: 1rem -1.5rem 0;
-  padding: 0.9375rem;
-  border-top: 1px solid var(--seams-colors-borderPrimary);
+  padding: 0.625rem 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary) 60%, transparent);
   font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.01em;
 }
-:where(.seams-wallet-ui) .seams-receipt-footer > svg:first-child {
-  margin-inline-end: -2px;
-}
+/* The wordmark signs the line in its own colour, at the height of its letters. */
 :where(.seams-wallet-ui) .seams-receipt-footer .seams-receipt-wordmark {
-  width: 4.25rem;
-  height: auto;
+  width: 3.125rem;
+  height: 0.625rem;
   flex: none;
-  color: var(--seams-colors-textPrimary);
 }
 :where(.seams-wallet-ui) .seams-receipt-heading {
   display: flex;
