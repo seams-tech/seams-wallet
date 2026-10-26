@@ -69,6 +69,11 @@ cases above, with repeatable JSON evidence. Finish with an explicit live testnet
 self-transfer and verify its chain receipt. Deterministic RPC tests and live chain
 execution must be labeled separately.
 
+Before the next SDK release, remove the user-facing **Recording details** expander
+and its technical diagnostic text from VoiceID prompts. Keep it during the current
+debugging work. Released prompts retain concise failure guidance and retry controls.
+Update browser checks to verify that the expander is absent from released UI.
+
 ## Results
 
 See [repeatable evidence](evidence/voiceid-evm-20261026/README.md). Both ECDSA-only and existing-NEAR enrollment journeys passed. The latter adds ECDSA without replacing voice enrollment, signs Arc, and signs NEAR afterward. Both reject a cancelled second Arc transfer.
