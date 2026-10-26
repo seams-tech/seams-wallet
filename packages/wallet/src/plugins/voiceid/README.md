@@ -111,8 +111,8 @@ owner lifecycle changes and releases the microphone if the action becomes invali
 
 Three accepted supplements contribute 20% of the effective template; the immutable
 baseline contributes 80%. Each supplement must match the baseline at 0.5. The final
-template must stay within cosine 0.98 of the baseline. Supplements expire after
-24 hours or 32 template uses. Reset preserves the baseline. Re-recording creates a
+template must stay within cosine 0.98 of the baseline. Supplements remain saved
+without a time or usage limit. Reset removes them and preserves the baseline. Re-recording creates a
 new baseline generation. These are bounded experimental settings, not calibrated
 accuracy or false-acceptance guarantees. Automatic learning is not implemented.
 

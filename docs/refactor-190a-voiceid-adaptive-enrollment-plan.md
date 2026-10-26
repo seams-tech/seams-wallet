@@ -8,8 +8,10 @@ Automatic learning and accuracy qualification remain deferred. The original rele
 criteria below remain the qualification requirements, not claims about this implementation.
 See the [experiment and repeatable evidence](evidence/voiceid-adaptive-enrollment/README.md).
 The [management browser evidence](evidence/voiceid-adaptive-management/README.md)
-records fresh passkey confirmation, capture, reset, expiry, import, removal, unlock,
-and Ed25519 NEAR signing. Live human accuracy validation remains outstanding.
+records the initial passkey confirmation, capture, reset, expiry, import, removal,
+unlock, and Ed25519 NEAR signing flows. The later user requirement removes sample
+expiry and usage limits; see the [persistent-sample evidence](evidence/voiceid-persistent-samples-20261026/README.md).
+Live human accuracy validation remains outstanding.
 
 This work belongs to VoiceID stabilization. EVM support follows stabilization, then
 [cross-method transaction approval](refactor-190-voiceid-cross-method-step-up-plan.md).
@@ -62,9 +64,9 @@ One baseline plus three supplemental 192-value vectors needs about 6 KB as binar
 Set and verify a small serialized storage budget during implementation. Raw audio
 is discarded after inference. Evaluation corpus downloads are developer-only costs.
 
-The implemented record limit is 32 KiB. Supplements expire after 24 hours or 32
-template uses. These lifetime limits bound retention and use; they are conservative
-engineering choices and have not been calibrated as biometric accuracy parameters.
+The implemented record limit is 32 KiB. Supplements remain saved until explicit
+replacement, reset, method removal, or browser storage deletion. Verification does
+not consume samples. No time or usage limit applies.
 
 ## Reference and current implementation
 
@@ -130,8 +132,8 @@ The baseline retains most of the weight. Avoid accepting the maximum score acros
 an expanding set of templates.
 
 Choose the total supplemental weight, maximum deviation from the baseline, quality
-requirements, and expiration limits on development data. Specify both an absolute
-lifetime and a maximum number of uses. Do not renew a sample's lifetime when used.
+requirements on development data. Saved samples have no time or use limit; only
+explicit reset, replacement, method removal, or storage deletion removes them.
 Freeze these values before held-out evaluation. They are release blockers until measured.
 
 Bound the effective template's deviation from the original baseline after every
@@ -166,7 +168,8 @@ overwrite newer updates. Cancellation, locking, method disablement, removal, or
 re-enrollment invalidate pending candidates. A cancelled operation cannot resurrect
 deleted enrollment state.
 
-Expire supplemental data before scoring. Missing supplemental data uses the baseline.
+Keep saved supplemental data across scoring attempts and reloads. Missing supplemental
+data uses the baseline. Normalize retired lifetime metadata at the persistence boundary.
 Invalid baseline data fails closed. Define corrupt supplemental records at the
 parser boundary and discard them without treating them as valid enrollment.
 
@@ -219,7 +222,7 @@ Separate mocked lifecycle tests from real-model accuracy evaluation in all repor
 
 One composed E2E scenario must cover passkey confirmation, improvement capture,
 reload, natural-paced VoiceID unlock, and existing VoiceID NEAR signing. Verify
-the signature and unchanged session/budget rules. Also cover rejection, expiry,
+the signature and unchanged session/budget rules. Also cover rejection, authorization expiry,
 reset, cross-wallet isolation, concurrent tabs, and removal during a pending commit.
 Produce repeatable JSON evidence and screenshots without private embeddings or audio.
 

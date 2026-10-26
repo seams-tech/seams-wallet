@@ -180,7 +180,7 @@ The owner session is checked with the server before confirmation and before savi
 Management does not consume or renew signing quota.
 
 Manage voice shows whether the enrollment is original or improved. An improved
-enrollment also shows its remaining voice checks and time. The dialog shows only
+enrollment shows that its added samples are saved on this device. The dialog shows only
 the actions that apply: **Improve recognition** for a present enrollment (labelled
 **Improve again** when improved), **Reset improvements** for an improved enrollment,
 and **Use saved enrollment** when the enrollment is missing and an importable record
@@ -193,16 +193,16 @@ consistent with the other new samples. The effective template combines 80% basel
 with 20% normalized supplemental mean, then normalizes that combination. Its cosine
 against the baseline must remain at least 0.98. The original template stays unchanged.
 
-Supplements expire after 24 hours or 32 voice template uses, whichever comes first.
-Each use is reserved atomically before the speaker decision, including rejected
-attempts. The last reserved use can use the adapted template. Later checks use the
-baseline. Expired or invalid supplemental data is ignored and removed at the next
-enrollment read or template use. Expiry never renews through use. Corrupt baseline or identity data fails closed.
+Supplements remain saved on this device with no time or usage limit. Verification
+never consumes or changes them, including rejected attempts. Existing stored samples
+retain their contents when retired expiry and usage fields are removed at the persistence
+boundary. Invalid supplemental data is ignored and removed at the next enrollment read
+or template read. Corrupt baseline or identity data fails closed.
 **Reset improvements** removes supplements. **Record voice again** explicitly
 replaces the baseline and clears supplements after all three recordings succeed.
 
 Changes commit atomically against the captured generation and revision. Cancellation,
-expiry, lock, owner-method changes, availability changes, revocation, and competing
+owner-confirmation expiry, lock, owner-method changes, availability changes, revocation, and competing
 updates prevent a stale write. Method removal through the SDK deletes its scoped
 enrollment. The enrollment record is limited to 32 KiB. Audio and temporary vectors
 are discarded after processing; diagnostics contain no embeddings.

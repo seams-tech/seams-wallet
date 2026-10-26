@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type WebSocketRoute } from '@playwright/test';
 import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
 import {
   allowBrowserMicrophone,
@@ -20,6 +20,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     context,
     harness,
   }, testInfo) => {
+    await context.routeWebSocket(isDevelopmentReloadSocket, holdDevelopmentReload);
     await allowBrowserMicrophone(context, passkeyAlgorithm);
     harness.enableVoiceIdPlugin();
     await harness.registerPasskeyEd25519YaoWallet();
@@ -93,7 +94,9 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       { timeout: 20_000 },
     );
     // The success sits in the middle of the card below the origin, not low under an empty top.
-    expect(await wallet.locator('.seams-voiceid-unlock').evaluate(readSealedOffset)).toBeLessThan(2);
+    expect(await wallet.locator('.seams-voiceid-unlock').evaluate(readSealedOffset)).toBeLessThan(
+      2,
+    );
     await wallet
       .locator('.seams-voiceid-unlock')
       .screenshot({ path: testInfo.outputPath('voiceid-unlock-sealed.png') });
@@ -226,10 +229,8 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       generation: baseline.generation,
       adaptation: 'adapted',
       samples: 3,
-      remainingUses: 32,
+      hasLifetimeLimits: false,
     });
-    expect(improved.expiresAtMs - Date.now()).toBeGreaterThan(23 * 60 * 60_000);
-    expect(improved.expiresAtMs - Date.now()).toBeLessThanOrEqual(24 * 60 * 60_000);
     expect(improved.serializedBytes).toBeLessThanOrEqual(32_768);
     expect(await readAuthentication(page)).toBe('passkey');
     expect((await page.evaluate(session)).authentication).toEqual(ownerSession);
@@ -250,7 +251,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     );
     expect(evidence.transfers).toHaveLength(2);
     const used = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
-    expect(used).toMatchObject({ baselineHash: baseline.baselineHash, remainingUses: 30 });
+    expect(used).toEqual(improved);
     await waitForWalletIframeConfirmationSettlement(page);
     await harness.lockWallet();
     await page.getByTestId('asset-open-auth-menu').click();
@@ -259,18 +260,16 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await openSettings(page);
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
     await expect(enrollmentState).toContainText('Improved');
-    await expect(enrollmentState).toContainText('30 checks or');
+    await expect(enrollmentState).toContainText('Saved on this device');
     await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
     await expect(wallet.locator('.seams-voiceid-activation-surface')).toHaveCSS(
       'background-color',
       'rgba(0, 0, 0, 0)',
     );
-    await wallet
-      .locator('.seams-voiceid-activation-surface')
-      .screenshot({
-        path: testInfo.outputPath('voiceid-adaptation-management.png'),
-        animations: 'disabled',
-      });
+    await wallet.locator('.seams-voiceid-activation-surface').screenshot({
+      path: testInfo.outputPath('voiceid-adaptation-management.png'),
+      animations: 'disabled',
+    });
     await wallet.getByRole('button', { name: 'Reset improvements', exact: true }).click();
     await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
     const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
@@ -287,13 +286,15 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     });
     await harness.lockWallet();
     await unlockVoiceFromMenu(page);
-    const exhausted = await wallet
+    const retainedAfterLastUse = await wallet
       .locator('body')
       .evaluate(readEnrollmentSummary, identity.walletId);
-    expect(exhausted).toMatchObject({
+    expect(retainedAfterLastUse).toMatchObject({
       baselineHash: baseline.baselineHash,
-      adaptation: 'baseline',
-      samples: 0,
+      samplesHash: improved.samplesHash,
+      adaptation: 'adapted',
+      samples: 3,
+      hasLifetimeLimits: false,
     });
     await wallet.locator('body').evaluate(changeAdaptationBoundary, {
       walletId: identity.walletId,
@@ -301,12 +302,22 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     });
     await harness.lockWallet();
     await unlockVoiceFromMenu(page);
-    const expired = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
-    expect(expired).toMatchObject({
+    const retainedAfterExpiry = await wallet
+      .locator('body')
+      .evaluate(readEnrollmentSummary, identity.walletId);
+    expect(retainedAfterExpiry).toMatchObject({
       baselineHash: baseline.baselineHash,
-      adaptation: 'baseline',
-      samples: 0,
+      samplesHash: improved.samplesHash,
+      adaptation: 'adapted',
+      samples: 3,
+      hasLifetimeLimits: false,
     });
+    await page.reload();
+    await wallet.locator('body').waitFor({ state: 'attached', timeout: 15_000 });
+    await wallet.locator('body').evaluate(useNaturalPhrases);
+    expect(await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId)).toEqual(
+      retainedAfterExpiry,
+    );
     await harness.lockWallet();
     await page.getByTestId('asset-open-auth-menu').click();
     await wallet.getByRole('button', { name: 'Unlock with passkey', exact: true }).click();
@@ -342,8 +353,9 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
         improved,
         used,
         reset,
-        exhausted,
-        expired,
+        retainedAfterLastUse,
+        retainedAfterExpiry,
+        reloadPreservedSamples: true,
         cancellationPreservedEnrollment: true,
         replayedPasskeyRejected: true,
         invalidPasskeySignatureRejected: true,
@@ -351,7 +363,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
         ownerSessionUnchanged: true,
         removalDeletedEnrollment: true,
         lifetimeBoundarySetup:
-          'same generated enrollment with controlled stored expiry or remaining count',
+          'existing samples survive retired expiry/count metadata and remain across reload',
       },
       signing: 'minimal_voice_prompt',
       transfers: evidence.transfers,
@@ -413,7 +425,9 @@ function readSealedOffset(card: Element): Promise<number> {
       const footer = card.querySelector('.seams-voiceid-unlock-footer');
       if (!seal || !back || !footer || seal.getAttribute('r') !== '22.50') return;
       observer.disconnect();
-      const [sealBox, backBox, footerBox] = [seal, back, footer].map((part) => part.getBoundingClientRect());
+      const [sealBox, backBox, footerBox] = [seal, back, footer].map((part) =>
+        part.getBoundingClientRect(),
+      );
       resolve(Math.abs(sealBox.top + sealBox.height / 2 - (backBox.top + footerBox.top) / 2));
     };
     const observer = new MutationObserver(settle);
@@ -464,4 +478,19 @@ async function readVoiceMethodId(): Promise<string> {
 function attemptDisabledUnlock(walletAuthMethodId: string) {
   if (!window.__seamsIntendedVoiceId) throw new Error('VoiceID helper is unavailable');
   return window.__seamsIntendedVoiceId.unlock(walletAuthMethodId);
+}
+
+function isDevelopmentReloadSocket(url: URL): boolean {
+  const app = new URL(process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201');
+  const wallet = new URL(process.env.SEAMS_INTENDED_WALLET_ORIGIN || 'http://localhost:4202');
+  return (
+    url.pathname === '/' &&
+    url.searchParams.has('token') &&
+    (url.host === app.host || url.host === wallet.host)
+  );
+}
+
+function holdDevelopmentReload(socket: WebSocketRoute): void {
+  // Keep this long capture journey stable while shared development files change.
+  socket.send(JSON.stringify({ type: 'connected' }));
 }

@@ -24,7 +24,7 @@ import {
 import {
   assertVoiceOwner,
   commitVoiceEnrollment,
-  takeVoiceTemplate,
+  readVoiceTemplate,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
   type VoiceOwnerGuard,
@@ -335,7 +335,7 @@ export async function verifyBrowserVoice(
     let referenceKind: 'baseline' | 'adapted';
     try {
       signal.throwIfAborted();
-      const reference = await takeVoiceTemplate(access, signal);
+      const reference = await readVoiceTemplate(access, signal);
       try {
         similarity = voiceSimilarity(embedding, reference.template);
         baselineSimilarity = voiceSimilarity(embedding, reference.baseline);

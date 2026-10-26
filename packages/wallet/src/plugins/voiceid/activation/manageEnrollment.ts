@@ -3,8 +3,6 @@ import { WorkerDeferred } from '@/core/signingEngine/workerManager/workerDeferre
 import { enrollBrowserVoice } from '../browser/enrollment';
 import {
   commitVoiceEnrollment,
-  MAX_AGE_MS,
-  MAX_USES,
   readVoiceEnrollment,
   readImportableVoiceBaseline,
   type VoiceEnrollment,
@@ -112,7 +110,7 @@ class VoiceEnrollmentManagement {
     button.setAttribute('aria-label', 'Reset improvements');
     button.addEventListener('click', this.begin.bind(this, 'reset'));
     const detail = document.createElement('span');
-    detail.className = 'seams-voiceid-management-limits';
+    detail.className = 'seams-voiceid-management-enrollment-detail';
     this.enrollment.querySelector('.seams-voiceid-management-summary')?.append(detail);
     this.enrollment.append(button);
     return { button, title: button, detail, frame: this.enrollment };
@@ -185,13 +183,13 @@ class VoiceEnrollmentManagement {
       importAction.button.hidden = !importable;
     }
     reset.button.hidden = adaptation?.kind !== 'adapted';
-    reset.detail.textContent = adaptation?.kind === 'adapted' ? remainingLimits(adaptation) : '';
+    reset.detail.textContent = adaptation?.kind === 'adapted' ? 'Saved on this device' : '';
     improve.title.textContent =
       adaptation?.kind === 'adapted' ? 'Improve again' : 'Improve recognition';
     improve.detail.textContent =
       adaptation?.kind === 'adapted'
-        ? 'Replace the added samples. The limits start again.'
-        : `Add three samples. Your original stays. Ends after ${MAX_AGE_MS / 3_600_000} hours or ${MAX_USES} checks.`;
+        ? 'Replace the added samples. Your original enrollment stays.'
+        : 'Add three samples. They stay until you replace or reset them.';
     importAction.detail.textContent = 'Import the voice enrollment saved in this browser.';
     replace.detail.textContent =
       adaptation?.kind === 'adapted'
@@ -311,16 +309,6 @@ class VoiceEnrollmentManagement {
     this.signal.removeEventListener('abort', this.cancel);
     this.element.remove();
   }
-}
-
-function remainingLimits(adaptation: { expiresAtMs: number; remainingUses: number }): string {
-  const ms = Math.max(0, adaptation.expiresAtMs - Date.now());
-  const time =
-    ms >= 3_600_000
-      ? `${Math.floor(ms / 3_600_000)} h`
-      : `${Math.max(1, Math.ceil(ms / 60_000))} min`;
-  const checks = adaptation.remainingUses === 1 ? '1 check' : `${adaptation.remainingUses} checks`;
-  return `${checks} or ${time} left`;
 }
 
 function chevron(path: string, size: number): SVGSVGElement {

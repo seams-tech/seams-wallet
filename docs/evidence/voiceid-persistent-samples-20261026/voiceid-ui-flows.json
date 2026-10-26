@@ -1,0 +1,140 @@
+{
+  "status": "passed",
+  "passkeyCredentialAlgorithm": "es256",
+  "walletSigner": "ed25519_yao",
+  "passkeyCoseAlgorithm": -7,
+  "settings": "enroll_disable_reenable_and_lock_active_voice_session",
+  "managementBackLeavesNoMessage": true,
+  "login": "one_wallet_with_method_choices_and_cancel_restores_menu",
+  "menuStatesThroughVoiceUnlock": [
+    "menu:none",
+    "menu:listening",
+    "no-menu:listening",
+    "no-menu:processing",
+    "no-menu:succeeded",
+    "no-menu:none"
+  ],
+  "disabledSdkUnlockRejected": true,
+  "reenrollmentPreservedMethodId": true,
+  "explicitImport": {
+    "originalEnrollment": {
+      "generation": "4ab53ad4-07de-4067-8649-01a065cb158f",
+      "revision": 0,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4490,
+      "legacyPresent": false
+    },
+    "importedEnrollment": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 0,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4490,
+      "legacyPresent": false
+    },
+    "obsoleteRecordRemoved": true
+  },
+  "adaptation": {
+    "baseline": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 0,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4490,
+      "legacyPresent": false
+    },
+    "improved": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 1,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "52d6ea444ac9c283811dfdd3261b7d5ffdd6bcc6a8e4ad5942b9584af9f499ae",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16492,
+      "legacyPresent": false
+    },
+    "used": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 1,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "52d6ea444ac9c283811dfdd3261b7d5ffdd6bcc6a8e4ad5942b9584af9f499ae",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16492,
+      "legacyPresent": false
+    },
+    "reset": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 2,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4490,
+      "legacyPresent": false
+    },
+    "retainedAfterLastUse": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 4,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "52d6ea444ac9c283811dfdd3261b7d5ffdd6bcc6a8e4ad5942b9584af9f499ae",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16492,
+      "legacyPresent": false
+    },
+    "retainedAfterExpiry": {
+      "generation": "7132a3b4-8222-47a7-8105-6e133e1bb95e",
+      "revision": 6,
+      "baselineHash": "83789ac8ddb01ced10d76f3350cf9a16e458dfc1d9878957de9608452d54619f",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "52d6ea444ac9c283811dfdd3261b7d5ffdd6bcc6a8e4ad5942b9584af9f499ae",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16492,
+      "legacyPresent": false
+    },
+    "reloadPreservedSamples": true,
+    "cancellationPreservedEnrollment": true,
+    "replayedPasskeyRejected": true,
+    "invalidPasskeySignatureRejected": true,
+    "lockDuringCaptureReleasedMicrophone": true,
+    "ownerSessionUnchanged": true,
+    "removalDeletedEnrollment": true,
+    "lifetimeBoundarySetup": "existing samples survive retired expiry/count metadata and remain across reload"
+  },
+  "signing": "minimal_voice_prompt",
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGUzNjQ1NDM5MGVjYWNhZWVhNWVhMDMyMWFkMzQ3Nzk5MjUxYmRlOWE4ZWExMzYxNTRiNTcxMTdlNjAwZmY5ZTgA42RUOQ7Kyu6l6gMhrTR3mSUb3pqOoTYVS1cRfmAP+egCAAAAAAAAAEAAAABlMzY0NTQzOTBlY2FjYWVlYTVlYTAzMjFhZDM0Nzc5OTI1MWJkZTlhOGVhMTM2MTU0YjU3MTE3ZTYwMGZmOWU4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA2WZbkD0HgVhgjjlDrRY/CAItdOGEERwINRPc3rdDHvkoISoWMGjhCfBr1Skskcmv8xi0BMLI9VkjuHNn8zA9DQ==",
+      "signedTransactionSha256": "cae525ab636413782ef80b8d96b3f68eecc989ae7a56a3a43d105359cd3f7489",
+      "signerId": "e36454390ecacaeea5ea0321ad347799251bde9a8ea136154b57117e600ff9e8",
+      "receiverId": "e36454390ecacaeea5ea0321ad347799251bde9a8ea136154b57117e600ff9e8",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGUzNjQ1NDM5MGVjYWNhZWVhNWVhMDMyMWFkMzQ3Nzk5MjUxYmRlOWE4ZWExMzYxNTRiNTcxMTdlNjAwZmY5ZTgA42RUOQ7Kyu6l6gMhrTR3mSUb3pqOoTYVS1cRfmAP+egCAAAAAAAAAEAAAABlMzY0NTQzOTBlY2FjYWVlYTVlYTAzMjFhZDM0Nzc5OTI1MWJkZTlhOGVhMTM2MTU0YjU3MTE3ZTYwMGZmOWU4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAKuu/lIA3UtXXrJNWou5i1rdh01DZPgztyjX/+/AodLZQS6U9ouCSN9lk806STZd56DUKUWAv+EaEDLMxBih+AQ==",
+      "signedTransactionSha256": "26f3279a5684852f9aedbe7d0dc21cd2147745a741b047aab145d131838b4255",
+      "signerId": "e36454390ecacaeea5ea0321ad347799251bde9a8ea136154b57117e600ff9e8",
+      "receiverId": "e36454390ecacaeea5ea0321ad347799251bde9a8ea136154b57117e600ff9e8",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

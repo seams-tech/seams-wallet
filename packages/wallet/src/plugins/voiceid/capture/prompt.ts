@@ -108,7 +108,7 @@ const CSS = `
 }
 .seams-voiceid-management-summary { text-align: end; }
 .seams-voiceid-management-value { color: var(--seams-colors-textPrimary, #eff2f3); font-weight: 500; }
-.seams-voiceid-management-limits:not(:empty)::before { content: ' · '; }
+.seams-voiceid-management-enrollment-detail:not(:empty)::before { content: ' · '; }
 .seams-voiceid-management-enrollment[data-enrollment="adapted"] > .seams-voiceid-management-summary {
   grid-area: 2 / 1;
   text-align: start;
@@ -116,7 +116,7 @@ const CSS = `
 }
 .seams-voiceid-management-enrollment > .seams-voiceid-management-reset { grid-area: 1 / 2 / 3; }
 .seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-value { display: none; }
-.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-limits::before { content: none; }
+.seams-voiceid-management-enrollment[data-state] .seams-voiceid-management-enrollment-detail::before { content: none; }
 .seams-voiceid-management .seams-voiceid-management-reset {
   padding: 0.375rem 0.75rem;
   border: 1px solid var(--seams-colors-borderPrimary, #303b41);
@@ -166,11 +166,11 @@ const CSS = `
 }
 .seams-voiceid-management-action[data-state="pending"] > svg { visibility: hidden; }
 .seams-voiceid-management [data-state="pending"] .seams-voiceid-management-action-detail,
-.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-limits {
+.seams-voiceid-management [data-state="pending"] .seams-voiceid-management-enrollment-detail {
   color: var(--seams-colors-textPrimary, #eff2f3);
 }
 .seams-voiceid-management [data-state="error"] .seams-voiceid-management-action-detail,
-.seams-voiceid-management [data-state="error"] .seams-voiceid-management-limits {
+.seams-voiceid-management [data-state="error"] .seams-voiceid-management-enrollment-detail {
   color: var(--seams-colors-error, oklch(0.74 0.166 19));
 }
 .seams-voiceid-management .seams-voiceid-management-section {

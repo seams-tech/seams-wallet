@@ -261,8 +261,16 @@ async function enrollmentSummary(walletId: string) {
         baselineHash: Array.from(hash, hexByte).join(''),
         adaptation: String(adaptation.kind),
         samples: Array.isArray(adaptation.samples) ? adaptation.samples.length : 0,
-        remainingUses: Number(adaptation.remainingUses ?? 0),
-        expiresAtMs: Number(adaptation.expiresAtMs ?? 0),
+        samplesHash: Array.from(
+          new Uint8Array(
+            await crypto.subtle.digest(
+              'SHA-256',
+              new TextEncoder().encode(JSON.stringify(adaptation.samples ?? [])),
+            ),
+          ),
+          hexByte,
+        ).join(''),
+        hasLifetimeLimits: 'remainingUses' in adaptation || 'expiresAtMs' in adaptation,
         serializedBytes: new TextEncoder().encode(JSON.stringify(enrollment)).length,
         legacyPresent:
           (await database.get('app_state', 'voiceid-browser-enrollment-v1')) !== undefined,
@@ -322,8 +330,10 @@ async function adaptationBoundary(input: {
         );
         if (adaptation.kind !== 'adapted')
           throw new Error('Save an actual adapted enrollment before boundary tests');
-        if (input.action === 'last_use') adaptation.remainingUses = 1;
-        else adaptation.expiresAtMs = Date.now() - 1;
+        // Recreate earlier persisted records at their former lifetime boundaries.
+        adaptation.remainingUses = input.action === 'last_use' ? 1 : 32;
+        adaptation.expiresAtMs =
+          input.action === 'expired' ? Date.now() - 1 : Date.now() + 86_400_000;
         enrollment.adaptation = adaptation;
         enrollment.revision = Number(enrollment.revision) + 1;
         await transaction.store.put(row);
@@ -339,7 +349,8 @@ async function adaptationBoundary(input: {
 
 function currentPhrase(root: Document | ShadowRoot): string | null {
   for (const prompt of root.querySelectorAll('[data-voiceid-phrase]')) {
-    if (!prompt.closest('[inert], [aria-hidden="true"]')) return prompt.getAttribute('data-voiceid-phrase');
+    if (!prompt.closest('[inert], [aria-hidden="true"]'))
+      return prompt.getAttribute('data-voiceid-phrase');
   }
   for (const element of root.querySelectorAll('*')) {
     if (element.shadowRoot) {

@@ -29,8 +29,6 @@ import {
 } from '@shared/authorization/delegatedAuthority';
 
 const OLD_ENROLLMENT_KEY = 'voiceid-browser-enrollment-v1';
-export const MAX_AGE_MS = 24 * 60 * 60 * 1_000;
-export const MAX_USES = 32;
 const SUPPLEMENT_WEIGHT = 0.2;
 const MINIMUM_BASELINE_COSINE = 0.98;
 const MAX_RECORD_BYTES = 32_768;
@@ -60,14 +58,10 @@ export type VoiceEnrollment = Readonly<{
     | {
         readonly kind: 'baseline';
         readonly samples?: never;
-        readonly expiresAtMs?: never;
-        readonly remainingUses?: never;
       }
     | {
         readonly kind: 'adapted';
         readonly samples: readonly (readonly number[])[];
-        readonly expiresAtMs: number;
-        readonly remainingUses: number;
       };
 }>;
 
@@ -150,29 +144,20 @@ function parseEnrollment(raw: unknown, scope: VoiceEnrollmentScope): VoiceEnroll
   if (record.model !== VOICE_MODEL_ID) return null;
   const baseline = vector(record.baseline);
   let adaptation: VoiceEnrollment['adaptation'] = { kind: 'baseline' };
-  // Supplemental data is disposable. A corrupt baseline always fails above.
+  // Invalid supplements cannot affect matching. A corrupt baseline fails above.
+  // Retired lifetime fields are dropped when stored records are normalized.
   try {
     const candidate = requireRecord(record.adaptation, 'VoiceID improvements');
     if (
       candidate.kind === 'adapted' &&
       Array.isArray(candidate.samples) &&
-      candidate.samples.length === 3 &&
-      typeof candidate.expiresAtMs === 'number' &&
-      Number.isSafeInteger(candidate.expiresAtMs) &&
-      candidate.expiresAtMs > Date.now() &&
-      candidate.expiresAtMs <= Date.now() + MAX_AGE_MS &&
-      typeof candidate.remainingUses === 'number' &&
-      Number.isSafeInteger(candidate.remainingUses) &&
-      candidate.remainingUses > 0 &&
-      candidate.remainingUses <= MAX_USES
+      candidate.samples.length === 3
     ) {
       const samples = candidate.samples.map(vector);
       requireBoundedSamples(baseline, samples);
       adaptation = {
         kind: 'adapted',
         samples,
-        expiresAtMs: candidate.expiresAtMs,
-        remainingUses: candidate.remainingUses,
       };
     }
   } catch {
@@ -233,10 +218,10 @@ export async function readVoiceEnrollment(
     const row = await transaction.store.get(enrollmentKey(scope));
     let enrollment = parseEnrollment(row?.value, scope);
     if (
-      enrollment?.adaptation.kind === 'baseline' &&
+      enrollment &&
       JSON.stringify(row?.value?.adaptation) !== JSON.stringify(enrollment.adaptation)
     ) {
-      enrollment = copyEnrollment(enrollment, { kind: 'baseline' });
+      enrollment = copyEnrollment(enrollment, enrollment.adaptation);
       await transaction.store.put({ key: enrollmentKey(scope), value: enrollment });
     }
     await transaction.done;
@@ -360,7 +345,7 @@ export type VoiceTemplateAccess =
       readonly owner: VoiceOwnerGuard;
     };
 
-export async function takeVoiceTemplate(
+export async function readVoiceTemplate(
   access: VoiceTemplateAccess,
   signal: AbortSignal,
 ): Promise<{ template: number[]; baseline: number[]; kind: 'baseline' | 'adapted' }> {
@@ -385,23 +370,10 @@ export async function takeVoiceTemplate(
       adaptation.kind === 'adapted'
         ? effectiveTemplate(enrollment.baseline, adaptation.samples)
         : [...enrollment.baseline];
-    if (adaptation.kind === 'adapted') {
-      const next = copyEnrollment(
-        enrollment,
-        adaptation.remainingUses === 1
-          ? { kind: 'baseline' }
-          : {
-              kind: 'adapted',
-              samples: adaptation.samples,
-              expiresAtMs: adaptation.expiresAtMs,
-              remainingUses: adaptation.remainingUses - 1,
-            },
-      );
-      await store.put({ key: enrollmentKey(scope), value: next });
-    } else if (JSON.stringify(row?.value?.adaptation) !== JSON.stringify(enrollment.adaptation)) {
+    if (JSON.stringify(row?.value?.adaptation) !== JSON.stringify(adaptation)) {
       await store.put({
         key: enrollmentKey(scope),
-        value: copyEnrollment(enrollment, { kind: 'baseline' }),
+        value: copyEnrollment(enrollment, adaptation),
       });
     }
     await transaction.done;
@@ -493,8 +465,6 @@ export async function commitVoiceEnrollment(
       next = copyEnrollment(snapshot.enrollment, {
         kind: 'adapted',
         samples: change.samples,
-        expiresAtMs: Date.now() + MAX_AGE_MS,
-        remainingUses: MAX_USES,
       });
     } else {
       next = copyEnrollment(snapshot.enrollment, { kind: 'baseline' });
