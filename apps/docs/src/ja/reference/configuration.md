@@ -23,6 +23,26 @@ const config = seamsTestnetConfig({
 独自にオブジェクトを作成する場合は、`SeamsConfigsInput`を使えます。すべてのフィールドは任意です。
 独自ランタイムの部分設定が必要な場合を除き、ヘルパーを優先してください。
 
+## 外部NEARウォレットの選択 {#external-near-wallet-selection}
+
+開発プレビューの外部NEARコネクターは、専用の`ExternalNearConfig`を使用します。
+`network`、`rpcUrl`、`wallets`を`ExternalNearController`に直接渡してください。
+Seamsのプロバイダー設定は不要です。公開済みの`0.22.0`には、このコネクターは含まれていません。
+
+| 設定                                   | 動作                                                     |
+| -------------------------------------- | -------------------------------------------------------- |
+| `wallets: ['meteor']`                  | Meteorだけを有効化。デモと実装例の設定です。             |
+| `wallets: ['meteor', 'hot']`           | MeteorとHOTをこの順序で表示。HOTはメインネット専用です。 |
+| `wallets: ['meteor', 'hot', 'intear']` | 3つすべてを明示的に有効化。                              |
+| `wallets: []`                          | 外部NEARウォレットをすべて無効化。                       |
+
+`wallets`は必須です。省略して全ウォレットを有効にする既定動作はありません。
+実行中は`controller.setWallets(...)`で変更します。セレクターも同じリストから更新されます。
+接続済みまたは接続処理中のウォレットを無効にすると、ローカルで切断します。
+無効なウォレットへの接続要求は、アダプターを読み込まずに`unavailable`を返します。
+
+[簡潔な実装例と再試行のルール](/ja/guides/external-near-wallets#choose-supported-wallets)を参照してください。
+
 ## ホストするウォレットの設定 {#hosted-wallet-branch}
 
 分離したウォレットオリジンには、`iframeWallet`を使います。HTTPSの`walletOrigin`を設定してください。

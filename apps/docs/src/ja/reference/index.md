@@ -31,10 +31,10 @@ Seamsパッケージは、少数の公開インポートパスを提供します
 次のインポート先は`dev`に実装済みですが、**npmリリース0.22.0には含まれていません**。
 提供状況、実装例、結果の分岐は[外部NEARウォレット](/ja/guides/external-near-wallets)を参照してください。
 
-| インポート先                        | 公開API                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| `@seams/wallet/external-near`       | `ExternalNearController`、`nearWalletName`、外部NEARの状態・結果の型。 |
-| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker`、`useExternalNear`。                        |
+| インポート先                        | 公開API                                                                                      |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- |
+| `@seams/wallet/external-near`       | `ExternalNearController`、`ExternalNearConfig`、`nearWalletName`、外部NEARの状態・結果の型。 |
+| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker`、`useExternalNear`。                                              |
 
 ## 状態と失敗のリファレンス {#state-and-failure-references}
 

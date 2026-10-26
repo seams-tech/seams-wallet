@@ -103,6 +103,10 @@ hosted deployment are separate steps. Follow the
 
 ## Prepared NEAR connector
 
+Each wallet is explicitly enabled through `wallets`. The demo and examples select
+Meteor only. `setWallets` supports runtime changes, including an empty list to
+disable every wallet. See [wallet selection configuration](/reference/configuration#external-near-wallet-selection).
+
 Checked on **2026-10-26**: npm's latest browser SDK is `0.22.0`.
 The external NEAR connector is implemented on `dev` and is **not part of that release**.
 No new package version or deployment is claimed here.
@@ -110,5 +114,7 @@ No new package version or deployment is claimed here.
 The [connector guide](/guides/external-near-wallets) covers Meteor, HOT, and Intear,
 the two new package entry points, and compiled development examples.
 Real Meteor testnet connection and a zero-deposit transaction passed final execution
-and exact contract readback. HOT and Intear real-wallet checks remain pending.
+and exact contract readback. HOT mainnet connection and retry after popup cancellation were also
+verified with a real extension. HOT transaction signing and Intear real-wallet checks
+remain pending.
 Publication and private-app adoption still need an exact SDK release.

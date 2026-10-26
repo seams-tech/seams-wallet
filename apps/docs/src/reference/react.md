@@ -19,6 +19,10 @@ Its picker and hook require an `ExternalNearController`, independently of the
 Seams providers below. The picker disconnects on unmount; the hook only subscribes.
 See the [compiled example and availability notice](/guides/external-near-wallets#react-example).
 
+The picker displays only the controller's configured `wallets`. Change the list
+with `setWallets`; an empty list disables every wallet. See
+[wallet selection configuration](/reference/configuration#external-near-wallet-selection).
+
 ## Providers and hooks
 
 | Export                                            | Purpose                                                                  |

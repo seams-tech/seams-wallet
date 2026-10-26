@@ -18,6 +18,10 @@ import { SeamsWebProvider, HostedSeamsAuthMenu, useSeams } from '@seams/wallet/r
 セレクターはアンマウント時に切断します。フックは購読だけを行います。
 [実装例と提供状況](/ja/guides/external-near-wallets#react-example)を確認してください。
 
+セレクターには、コントローラーの`wallets`に指定したウォレットだけを表示します。
+`setWallets`で実行中に変更でき、空のリストですべて無効になります。
+[ウォレットの選択設定](/ja/reference/configuration#external-near-wallet-selection)を参照してください。
+
 ## プロバイダーとフック {#providers-and-hooks}
 
 | 公開名                                            | 目的                                                         |

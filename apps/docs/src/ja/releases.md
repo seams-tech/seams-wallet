@@ -99,6 +99,10 @@ const { unlock, lock, wallet } = useSeams();
 
 ## 準備中のNEARコネクター {#prepared-near-connector}
 
+各ウォレットは`wallets`で明示的に有効化します。デモと実装例はMeteorのみを選択します。
+`setWallets`による実行中の変更と、空のリストによる全無効化にも対応します。
+設定は[外部NEARウォレットの選択](/ja/reference/configuration#external-near-wallet-selection)を参照してください。
+
 **2026-10-26**に確認したnpmの最新ブラウザーSDKは`0.22.0`です。
 外部NEARコネクターは`dev`に実装済みですが、**このリリースには含まれていません**。
 新しいパッケージの公開やデプロイが完了したことを示すものではありません。
@@ -106,5 +110,6 @@ const { unlock, lock, wallet } = useSeams();
 [コネクターガイド](/ja/guides/external-near-wallets)には、Meteor、HOT、Intear、
 2つの新しいインポート先、開発版に対してコンパイルした実装例があります。
 実際のMeteor拡張機能で、テストネット接続、ゼロデポジット取引の最終実行、コントラクトの正確な読み戻しを検証しました。
-HOTとIntearの実ウォレット検証は未実施です。
+実際のHOT拡張機能でも、メインネット接続とポップアップを閉じた後の再試行を検証しました。
+HOTの取引署名と、Intearの実ウォレット検証は未実施です。
 公開と非公開アプリへの導入には、正確なSDKリリースバージョンが必要です。

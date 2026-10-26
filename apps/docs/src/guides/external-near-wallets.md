@@ -8,7 +8,7 @@ description: Let users choose Meteor, HOT Wallet, or Intear Wallet instead of cr
 Offer two wallet choices in your application:
 
 - **Use a Seams wallet:** create or unlock a threshold wallet through the existing Seams authentication flow.
-- **Connect an existing wallet:** select Meteor, HOT Wallet, or Intear Wallet and approve requests in that wallet.
+- **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
 ::: warning Availability: development preview
 The NEAR connector is implemented on `dev`. It is **not included in the published
@@ -19,18 +19,18 @@ containing these exports after publication. See [release status](/releases#prepa
 
 ## Wallets and networks
 
-| Wallet ID | Wallet        | Approval surface              | Configured networks | Real-wallet verification                                                        |
-| --------- | ------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------------- |
-| `meteor`  | Meteor Wallet | Browser extension             | Mainnet and testnet | Testnet connection, final transaction execution, and contract readback verified |
-| `hot`     | HOT Wallet    | Browser extension             | Mainnet only        | Pending                                                                         |
-| `intear`  | Intear Wallet | Popup at `wallet.intear.tech` | Mainnet and testnet | Pending                                                                         |
+| Wallet ID | Wallet        | Approval surface              | Configured networks | Real-wallet verification                                                                    |
+| --------- | ------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
+| `meteor`  | Meteor Wallet | Browser extension             | Mainnet and testnet | Testnet connection, final transaction execution, and contract readback verified             |
+| `hot`     | HOT Wallet    | Browser extension             | Mainnet only        | Mainnet connection and retry after popup cancellation verified; transaction signing pending |
+| `intear`  | Intear Wallet | Popup at `wallet.intear.tech` | Mainnet and testnet | Pending                                                                                     |
 
 A configured network is an implemented adapter path, not a claim of real-wallet
 verification. HOT has no qualified testnet path. The picker disables HOT on testnet.
 Intear uses a popup even when the other choices use extensions.
 
-Meteor is the first rollout target; HOT follows. Real HOT and Intear checks remain
-pending until suitable wallet accounts are available.
+Meteor is the first rollout target; HOT follows. HOT transaction signing and
+Intear real-wallet checks remain pending.
 
 ## Integration boundary
 

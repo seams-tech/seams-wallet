@@ -33,10 +33,10 @@ See [Release 0.22.0](/releases) for integration and deployment requirements.
 These entry points are implemented on `dev` and are **absent from npm release 0.22.0**.
 See [external NEAR wallets](/guides/external-near-wallets) for availability, examples, and result branches.
 
-| Import path                         | Exports                                                                           |
-| ----------------------------------- | --------------------------------------------------------------------------------- |
-| `@seams/wallet/external-near`       | `ExternalNearController`, `nearWalletName`, and external NEAR state/result types. |
-| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker` and `useExternalNear`.                                 |
+| Import path                         | Exports                                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `@seams/wallet/external-near`       | `ExternalNearController`, `ExternalNearConfig`, `nearWalletName`, and external NEAR state/result types. |
+| `@seams/wallet/react/external-near` | `ExternalNearWalletPicker` and `useExternalNear`.                                                       |
 
 ## State and failure references
 

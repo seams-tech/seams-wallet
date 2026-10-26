@@ -23,6 +23,28 @@ const config = seamsTestnetConfig({
 `SeamsConfigsInput` is available for an object you construct yourself. Every field is
 optional. Prefer the helpers unless you need partial configuration for a custom runtime.
 
+## External NEAR wallet selection
+
+The development-preview NEAR connector uses its own `ExternalNearConfig`.
+Pass `network`, `rpcUrl`, and `wallets` directly to `ExternalNearController`.
+No Seams provider configuration is required. These exports are absent from the
+published `0.22.0` package.
+
+| Configuration                          | Behavior                                                        |
+| -------------------------------------- | --------------------------------------------------------------- |
+| `wallets: ['meteor']`                  | Enable Meteor only. This is the demo and example configuration. |
+| `wallets: ['meteor', 'hot']`           | Show Meteor and HOT in that order. HOT still requires mainnet.  |
+| `wallets: ['meteor', 'hot', 'intear']` | Explicitly enable all three.                                    |
+| `wallets: []`                          | Disable all external NEAR wallets.                              |
+
+`wallets` is required. Omitting it does not enable a default set.
+Use `controller.setWallets(...)` for runtime changes. The picker follows the same
+list. Disabling a connected or connecting wallet disconnects it locally.
+A connection request for a disabled wallet returns `unavailable` without loading
+its adapter.
+
+See the [short examples and retry rules](/guides/external-near-wallets#choose-supported-wallets).
+
 ## Hosted wallet branch
 
 Use `iframeWallet` for the isolated wallet origin. Set the HTTPS `walletOrigin`. Set
