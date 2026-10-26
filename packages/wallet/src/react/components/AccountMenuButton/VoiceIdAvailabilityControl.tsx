@@ -82,8 +82,8 @@ export function VoiceIdMethodRow({
   );
 }
 
-/** Setup under "Add a method", before this wallet has a VoiceID method. */
-export function VoiceIdAvailabilityControl({
+/** The VoiceID card under "Add a method", before this wallet has a VoiceID method. */
+export function VoiceIdSetupRow({
   walletId,
   disabled,
   onChanged,
@@ -95,19 +95,22 @@ export function VoiceIdAvailabilityControl({
   const voice = useVoiceIdAvailability(walletId, onChanged);
   const status = voiceIdStatus(voice);
   return (
-    <div className="seams-voiceid-availability">
-      <strong>VoiceID · Experimental</strong>
-      <div className="seams-voiceid-controls">
-        <VoiceIdSwitch voice={voice} disabled={disabled} />
-      </div>
-      <span role="status" data-tone={status.tone}>
-        {status.text}
-      </span>
-      <p className="seams-linked-devices-modal-security-note">
+    <AuthenticationMethodRow
+      kind="voiceid"
+      title="VoiceID"
+      chip="Experimental"
+      description={
+        <span role="status" data-tone={status.tone}>
+          {status.text}
+        </span>
+      }
+      action={<VoiceIdSwitch voice={voice} disabled={disabled} />}
+    >
+      <span className="seams-linked-devices-modal-item-detail">
         First-time setup downloads voice tools and records three samples. Your current login method
         stays selected.
-      </p>
-    </div>
+      </span>
+    </AuthenticationMethodRow>
   );
 }
 

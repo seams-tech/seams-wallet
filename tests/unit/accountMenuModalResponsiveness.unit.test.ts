@@ -168,14 +168,22 @@ test.describe('account-menu authentication methods page', () => {
     await expect(content.getByText('Passkey on this device', { exact: true })).toBeVisible({
       timeout: 500,
     });
-    const emailInput = content.getByRole('textbox', { name: 'Email address' });
     const addEmailButton = content.getByRole('button', { name: 'Add Email OTP', exact: true });
-    await expect(emailInput).toBeVisible();
+    await expect(addEmailButton).toBeVisible();
     await expect(addEmailButton).toBeDisabled();
     await expect(content.getByRole('button', { name: 'Unlock wallet' })).toHaveCount(0);
-    const initialBounds = await emailInput.boundingBox();
+    const initialBounds = await addEmailButton.boundingBox();
     await expect(addEmailButton).toBeEnabled();
-    expect(await emailInput.boundingBox()).toEqual(initialBounds);
+    expect(await addEmailButton.boundingBox()).toEqual(initialBounds);
+
+    await addEmailButton.click();
+    const emailInput = content.getByRole('textbox', { name: 'Email address' });
+    await expect(emailInput).toBeFocused();
+    await content.getByRole('button', { name: 'Send code', exact: true }).click();
+    await expect(emailInput).toHaveAttribute('aria-invalid', 'true');
+    await expect(emailInput).toHaveAccessibleDescription(/^Enter the email address to verify\./);
+    await content.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(addEmailButton).toBeFocused();
   });
 
   test('unlocks owner management explicitly after passive inventory authorization fails', async ({

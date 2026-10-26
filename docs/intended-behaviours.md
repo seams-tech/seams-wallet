@@ -517,6 +517,11 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   the same export, recovery, authentication-method, device-linking, and preference
   operations. Authentication methods and linked devices render inline without
   modal focus trapping; sensitive-operation confirmations retain their existing UI.
+- Authentication methods lists each method that can still be added as a card under
+  Add a method. Email OTP opens its address field only after **Add**, says that a
+  passkey confirmation and an emailed code follow, and sends with **Send code**.
+  It requires a passkey session; otherwise **Add** is disabled and the card says to
+  unlock with a passkey. Address errors appear under the field.
 - Narrow viewports expose the sidebar through an explicit settings disclosure.
   Selecting a section moves focus to its heading. Locking returns to authentication.
 

@@ -586,6 +586,23 @@ const walletMessages = [
     'このデバイスのパスキーでウォレットのロックを解除します。',
   ],
   ['Add Email OTP', 'メール認証を追加'],
+  ['Add', '追加'],
+  [
+    'Use a one-time code from your email to unlock the wallet.',
+    'メールに届くワンタイムコードでウォレットのロックを解除します。',
+  ],
+  [
+    'Unlock with a passkey to add Email OTP.',
+    'メール認証を追加するには、パスキーでロックを解除してください。',
+  ],
+  [
+    'Next, confirm with your passkey. Then enter the code that we email to this address.',
+    '次にパスキーで確認します。その後、このアドレスに届くコードを入力してください。',
+  ],
+  ['Send code', 'コードを送信'],
+  ['Sending code…', 'コードを送信中…'],
+  ['Enter a valid email address.', '有効なメールアドレスを入力してください。'],
+  ['Codes go to the email address you verified.', '確認済みのメールアドレスにコードを送信します。'],
   ['Unlock to manage methods', 'ロックを解除して認証方法を管理'],
   [
     'Confirm your current authentication method to add or remove methods.',
