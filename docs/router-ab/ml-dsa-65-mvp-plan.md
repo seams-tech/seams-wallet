@@ -4,6 +4,26 @@ The MVP connects the existing hybrid Yao/GMW signer to real Wallet registration,
 The current private Worker signer and local approval gate are experimental components.
 The first public registration flow adds ML-DSA to an existing passkey wallet. New wallets whose only signer is ML-DSA remain outside this scope.
 
+## Current focus — October 26, 2026
+
+The current priority is signer UX and preparation efficiency. Earlier sections that defer UI work describe previous checkpoints.
+The shared Signing keys screen and transaction-approval picker are implemented on `ml-dsa`.
+Key details use separate screens. Recovery information stays visible without an expander.
+
+Setup navigation is complete. Published keys survive leaving setup and canceled approval. Finalized NEAR enrollment is distinct from signing capacity. Both NEAR signer types expose default and export actions in key details.
+The controlled browser scenario in `signing-keys.contract.test.ts` verifies cancellation, an RPC outage, resumption, and explicit default changes.
+
+Remaining implementation and qualification tasks:
+
+1. Connect typed preparation waits, cooldowns, and service-capacity responses to the existing signing progress UI. Keep cancellation and the approved operation identity intact. Do not add estimated completion times without measurements.
+2. Run the full ML-DSA browser lifecycle through the new screens and recheck lazy loading. Existing hosted evidence covers the earlier UI. Controlled settings scenarios establish UI behavior only.
+3. Continue preparation work on measured failures, wasted material, and refill throughput. Keep four-candidate preparation, two-at-once consumption, and per-wallet capacity unchanged.
+4. Complete the composition review and exact package acceptance before a production release.
+
+The user accepts registration around 6–10 seconds and signing around 4–8 seconds while preparation improves.
+These are working UX budgets, not measured guarantees. Sustained refill remains the main performance concern.
+Wallet-seed recovery, standard FIPS export, separate participant boundaries, and Workers preparation remain required. GPU work stays deferred.
+
 ## Qualification checkpoint — October 25, 2026
 
 The [expiry and admission campaign](ml-dsa-65-expiry-admission-report.md) verifies 48 and 89 hosted signatures with unchanged capacity and recovery/export rules.

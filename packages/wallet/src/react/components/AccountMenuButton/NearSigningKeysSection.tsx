@@ -106,18 +106,6 @@ export function NearSigningKeysSection(
         <button
           type="button"
           className="seams-account-action"
-          disabled={
-            state.kind === 'working' ||
-            state.kind === 'loading' ||
-            (state.kind === 'ready' && state.preference.kind === 'ed25519')
-          }
-          onClick={setDefault.bind(null, context, { kind: 'ed25519' })}
-        >
-          <WalletText copy="Make default" />
-        </button>
-        <button
-          type="button"
-          className="seams-account-action"
           disabled={state.kind === 'working' || state.kind === 'loading'}
           onClick={props.onNavigate.bind(null, { kind: 'ed25519' })}
         >
@@ -311,7 +299,7 @@ function renderState(
     case 'ready':
       return (
         <>
-          {state.rows.map(renderKey.bind(null, context, state.preference, onNavigate))}
+          {state.rows.map(renderKey.bind(null, context, state.preference, onNavigate, 'list'))}
           {state.rows.length === 0 ? (
             <button
               type="button"
@@ -338,6 +326,7 @@ function renderKey(
   context: Context,
   preference: NearSignerPreference,
   onNavigate: Navigation['onNavigate'],
+  presentation: 'list' | 'setup',
   row: KeyRow,
 ): React.ReactNode {
   if (row.kind === 'pending')
@@ -352,7 +341,6 @@ function renderKey(
         <small>{row.entry.signingKeyId}</small>
       </div>
     );
-  const active = row.enrollment.kind === 'enrolled';
   const canActivate = row.enrollment.kind === 'pending' && row.enrollment.reason === 'not_final';
   const preferred =
     preference.kind === 'near_ml_dsa_65' && preference.signingKeyId === row.signer.signingKeyId;
@@ -373,7 +361,7 @@ function renderKey(
         </small>
       ) : null}
       <small>{row.signer.signingKeyId}</small>
-      {canActivate ? (
+      {canActivate && presentation === 'setup' ? (
         <p className="seams-account-description">
           <WalletText copy="Next, approve a full-access key on NEAR. This key can authorize any transaction for this account." />
         </p>
@@ -382,23 +370,25 @@ function renderKey(
         <button
           type="button"
           className="seams-account-action primary"
-          onClick={activateSigner.bind(null, context, row.signer)}
+          onClick={
+            presentation === 'setup'
+              ? activateSigner.bind(null, context, row.signer)
+              : onNavigate.bind(null, { kind: 'add' })
+          }
         >
-          <WalletText copy="Approve NEAR key addition" />
+          <WalletText
+            copy={
+              presentation === 'setup' ? 'Approve NEAR key addition' : 'Review NEAR key addition'
+            }
+          />
         </button>
       ) : null}
-      {active && !preferred ? (
-        <button
-          type="button"
-          className="seams-account-action"
-          onClick={setDefault.bind(null, context, {
+      {presentation === 'setup' && row.enrollment.kind === 'enrolled'
+        ? renderDefaultAction(context, preference, {
             kind: 'near_ml_dsa_65',
             signingKeyId: row.signer.signingKeyId,
-          })}
-        >
-          <WalletText copy="Make default" />
-        </button>
-      ) : null}
+          })
+        : null}
       <button
         type="button"
         className="seams-account-action"
@@ -436,7 +426,7 @@ async function setDefault(context: Context, preference: NearSignerPreference): P
 function enrollmentLabel(outcome: MlDsaNearEnrollmentOutcome): string {
   switch (outcome.kind) {
     case 'enrolled':
-      return 'Available';
+      return 'Active on NEAR';
     case 'pending':
       return outcome.reason === 'not_final'
         ? 'Created — activation pending'
@@ -498,6 +488,9 @@ function renderScreen(
         onBack={back}
         onExport={exportEd25519.bind(null, context)}
       >
+        {state.kind === 'ready'
+          ? renderDefaultAction(context, state.preference, { kind: 'ed25519' })
+          : null}
         {state.kind === 'failed' ? <p role="alert">{state.message}</p> : null}
       </SigningKeyDetails>
     );
@@ -514,12 +507,32 @@ function renderScreen(
       return renderState(context, state, props.onNavigate);
     case 'add':
       if (state.rows.length > 0) {
+        const complete = state.rows.every(isEnrolledKey);
         return (
-          <AccountMenuScreen title="Add key to NEAR" onBack={back}>
+          <AccountMenuScreen
+            title={complete ? 'Signing key added' : 'Add key to NEAR'}
+            onBack={back}
+          >
             <p className="seams-signing-key-account">{context.nearAccountId}</p>
-            {state.rows.map(renderKey.bind(null, context, state.preference, props.onNavigate))}
+            {complete ? (
+              <p role="status">
+                <WalletText copy="Your key is active on NEAR. Signing can still require preparation." />
+              </p>
+            ) : null}
+            {state.rows.map(
+              renderKey.bind(null, context, state.preference, props.onNavigate, 'setup'),
+            )}
+            {!complete ? (
+              <button
+                type="button"
+                className="seams-account-action"
+                onClick={refreshKeys.bind(null, context)}
+              >
+                <WalletText copy="Check status" />
+              </button>
+            ) : null}
             <button type="button" className="seams-account-action" onClick={back}>
-              <WalletText copy="Back to signing keys" />
+              <WalletText copy={complete ? 'Done' : 'Finish later'} />
             </button>
           </AccountMenuScreen>
         );
@@ -580,7 +593,14 @@ function renderScreen(
           exportNote="Export contains the standard FIPS ML-DSA seed."
           onBack={back}
           onExport={exportSigner.bind(null, context, row.signer)}
-        />
+        >
+          {row.enrollment.kind === 'enrolled'
+            ? renderDefaultAction(context, state.preference, {
+                kind: 'near_ml_dsa_65',
+                signingKeyId: row.signer.signingKeyId,
+              })
+            : null}
+        </SigningKeyDetails>
       );
     }
     default:
@@ -589,4 +609,28 @@ function renderScreen(
 }
 function matchesSigningKey(signingKeyId: string, row: KeyRow): boolean {
   return row.kind === 'published' && row.signer.signingKeyId === signingKeyId;
+}
+
+function isEnrolledKey(row: KeyRow): boolean {
+  return row.kind === 'published' && row.enrollment.kind === 'enrolled';
+}
+function renderDefaultAction(
+  context: Context,
+  current: NearSignerPreference,
+  target: NearSignerPreference,
+): React.ReactNode {
+  const preferred =
+    current.kind === target.kind &&
+    (current.kind === 'ed25519' ||
+      (target.kind === 'near_ml_dsa_65' && current.signingKeyId === target.signingKeyId));
+  return (
+    <button
+      type="button"
+      className="seams-account-action"
+      disabled={preferred}
+      onClick={setDefault.bind(null, context, target)}
+    >
+      <WalletText copy={preferred ? 'Default signing key' : 'Make default'} />
+    </button>
+  );
 }

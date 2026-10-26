@@ -66,3 +66,11 @@ textarea.seams-signing-key-fingerprint {
 .seams-signing-keys .seams-account-action {
   margin-top: 0;
 }
+
+.seams-signing-key-details {
+  display: grid;
+  gap: 0.75rem;
+}
+.seams-signing-key-details > p {
+  margin: 0;
+}
