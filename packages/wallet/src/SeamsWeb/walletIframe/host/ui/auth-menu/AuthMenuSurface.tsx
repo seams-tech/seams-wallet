@@ -125,6 +125,13 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
   private previousRecoveryStage: AuthMenuRecoveryStage | null = null;
   // The method the person last chose, which the footer's retry repeats.
   private lastMethod: 'passkey' | 'google' = 'passkey';
+  // Whether the unlock view first painted without its saved-wallet row. A row
+  // that arrives later in the same view opens with an animation.
+  private walletRowEntry: {
+    readonly viewKey: string;
+    readonly shown: boolean;
+    readonly entering: boolean;
+  } | null = null;
 
   private get viewModel(): AuthMenuViewModel {
     return this.props.viewModel;
@@ -761,11 +768,31 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     );
   }
 
+  private walletRowEntering(viewModel: AuthMenuViewModel, shown: boolean): boolean {
+    const viewKey = authViewKey(viewModel);
+    const entry = this.walletRowEntry;
+    if (entry?.viewKey !== viewKey) {
+      this.walletRowEntry = { viewKey, shown, entering: false };
+    } else if (shown && !entry.shown) {
+      this.walletRowEntry = { viewKey, shown, entering: true };
+    }
+    return this.walletRowEntry?.entering ?? false;
+  }
+
+  // The row drops its clip once open, so the account list can extend below it.
+  private readonly onWalletRowEntered = (event: AnimationEvent): void => {
+    const entry = this.walletRowEntry;
+    if (event.target !== event.currentTarget || !entry?.entering) return;
+    this.walletRowEntry = { ...entry, entering: false };
+    this.forceUpdate();
+  };
+
   private renderPasskeyInput(
     viewModel: AuthMenuLoginViewModel | AuthMenuRegisterViewModel,
   ): ComponentChildren {
     if (viewModel.mode === 'login') {
       const selected = selectedLoginAccount(viewModel);
+      const entering = this.walletRowEntering(viewModel, selected !== null);
       if (!selected) return <></>;
 
       const groups = accountGroups(viewModel.accountOptions);
@@ -774,7 +801,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
       const listSelected = choice?.previous ?? selected;
       return (
         <>
-          <div class="seams-passkey-row">
+          <div
+            class={`seams-passkey-row ${entering ? 'is-entering' : ''}`}
+            onAnimationEnd={this.onWalletRowEntered}
+          >
             <div class="seams-input-pill">
               <div class="seams-input-wrap">
                 <div class="seams-account-menu-account seams-selected-account" aria-hidden="true">

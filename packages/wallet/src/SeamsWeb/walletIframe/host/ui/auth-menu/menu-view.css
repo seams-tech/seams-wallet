@@ -279,3 +279,44 @@
     transform: none !important;
   }
 }
+
+/* Saved wallets can arrive after the unlock view has painted. The wallet row
+   then opens from nothing instead of landing at full height: the controls
+   under it slide down while the card's height eases with them, and the row
+   uses the views' own enter recipe. The clip holds only while it grows; the
+   account list opens below the row. */
+:where(.seams-auth-menu-surface) .seams-passkey-row.is-entering {
+  overflow: clip;
+  animation: passkey-row-enter var(--seams-duration-resize, 200ms)
+    var(--seams-ease-settle, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+
+/* The content already eases while the row opens, so the card takes its
+   natural height in the same frame. The measured height (an id rule, synced a
+   frame or two late) and its transition would trail and clip the bottom rows. */
+:where(.seams-auth-menu-surface) .seams-content-switcher:has(.seams-passkey-row.is-entering) {
+  height: auto !important;
+  transition: none;
+}
+
+@keyframes passkey-row-enter {
+  from {
+    height: 0;
+    margin-bottom: 0;
+    opacity: 0;
+    filter: blur(4px);
+  }
+
+  to {
+    height: calc(var(--seams-shape-fieldHeight, 44px) + 4px);
+    margin-bottom: 0.5rem;
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.seams-auth-menu-surface) .seams-passkey-row.is-entering {
+    animation: none;
+  }
+}
