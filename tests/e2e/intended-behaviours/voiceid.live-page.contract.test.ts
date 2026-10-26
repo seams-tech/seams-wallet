@@ -141,7 +141,7 @@ async function verifyLivePage(
   await expect(wallet.getByText('The phrase was not clear.', { exact: false })).toBeVisible({
     timeout: 20_000,
   });
-  await expect(wallet.getByRole('button', { name: 'Record sample 1', exact: true })).toBeEnabled();
+  await expect(wallet.getByRole('button', { name: 'Retry sample 1', exact: true })).toBeEnabled();
   await expect(wallet.locator('[data-voiceid-phrase]')).not.toHaveAttribute(
     'data-voiceid-phrase',
     enrollmentPhrase,

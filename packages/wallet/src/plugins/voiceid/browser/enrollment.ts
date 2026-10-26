@@ -94,7 +94,7 @@ class VoiceEnrollmentSurface {
     private readonly signal: AbortSignal,
   ) {
     this.prompt = new VoicePrompt(document, 'Enroll your voice in this browser', this.phrase);
-    this.prompt.title.textContent = 'Read aloud · sample 1 of 3';
+    this.prompt.title.textContent = 'Read aloud · 0 of 3 accepted';
     this.status = this.prompt.status;
     this.record = this.prompt.record;
     this.cancel = this.prompt.cancel;
@@ -119,6 +119,7 @@ class VoiceEnrollmentSurface {
   };
   private async collect(): Promise<void> {
     if (this.phase !== 'ready') return;
+    const sampleNumber = this.samples.length + 1;
     try {
       requireVoiceUserAction();
       this.phase = 'recording';
@@ -153,14 +154,18 @@ class VoiceEnrollmentSurface {
         embedding.fill(0);
         return;
       }
-      if (
-        this.plan.kind === 'improve' &&
-        voiceSimilarity(this.plan.snapshot.enrollment.baseline, embedding) < VOICE_MATCH_THRESHOLD
-      ) {
-        embedding.fill(0);
-        throw new Error(
-          'This sample differs from your original voice. Try again or re-record your enrollment.',
-        );
+      if (this.plan.kind === 'improve') {
+        const similarity = voiceSimilarity(this.plan.snapshot.enrollment.baseline, embedding);
+        if (similarity < VOICE_MATCH_THRESHOLD) {
+          embedding.fill(0);
+          this.prompt.showDetails(
+            `Original similarity ${similarity.toFixed(3)}; required ${VOICE_MATCH_THRESHOLD.toFixed(3)}.`,
+            this.phrase,
+          );
+          throw new Error(
+            'Your voice did not match the original enrollment. To replace it, return to Manage voice and choose Record voice again.',
+          );
+        }
       }
       let minimumSimilarity = 1;
       for (const previous of this.samples)
@@ -191,7 +196,7 @@ class VoiceEnrollmentSurface {
       this.samples.push(embedding);
       if (this.samples.length < 3) {
         this.prompt.accepted();
-        this.status.textContent = `Sample ${this.samples.length} saved. Record the next sample.`;
+        this.status.textContent = `Sample ${this.samples.length} accepted. Record the next sample.`;
         this.record.textContent = `Record sample ${this.samples.length + 1}`;
         return;
       }
@@ -200,6 +205,8 @@ class VoiceEnrollmentSurface {
         for (let index = 0; index < mean.length; index += 1) mean[index] += sample[index] / 3;
       }
       this.phase = 'committing';
+      this.prompt.title.textContent = '3 of 3 accepted';
+      this.status.textContent = 'Saving voice enrollment…';
       const plan = this.plan;
       switch (plan.kind) {
         case 'activate':
@@ -254,9 +261,13 @@ class VoiceEnrollmentSurface {
           error instanceof Error ? error.message : 'VoiceID enrollment failed.';
     } finally {
       if (!this.closed) {
+        if (this.samples.length < sampleNumber) {
+          this.record.textContent = `Retry sample ${sampleNumber}`;
+          this.status.textContent = `Sample ${sampleNumber} was not accepted. ${this.status.textContent ?? ''}`;
+        }
         this.phrase = newSpokenPhrase(this.phrase);
         this.prompt.setPhrase(this.phrase);
-        this.prompt.title.textContent = `Read aloud · sample ${this.samples.length + 1} of 3`;
+        this.prompt.title.textContent = `Read aloud · ${this.samples.length} of 3 accepted`;
         this.prompt.ready(this.status.textContent ?? '');
         this.phase = 'ready';
         this.record.disabled = false;

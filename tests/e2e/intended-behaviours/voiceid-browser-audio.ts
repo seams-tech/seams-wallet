@@ -44,7 +44,9 @@ export async function allowBrowserMicrophone(
 export async function enrollBrowserMicrophone(page: Page): Promise<void> {
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
   for (let sample = 1; sample <= 3; sample += 1) {
-    const button = wallet.getByRole('button', { name: `Record sample ${sample}`, exact: true });
+    const button = wallet.getByRole('button', {
+      name: new RegExp(`^(Record|Retry) sample ${sample}$`),
+    });
     await expect(button).toBeEnabled({ timeout: 60_000 });
     await button.click();
     if (sample === 3) {

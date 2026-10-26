@@ -33,3 +33,15 @@ pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
 The test suppresses development hot-reload WebSocket updates in its own context.
 This prevents unrelated edits from resetting the test wallet during capture.
 The live user browser is unaffected.
+
+## Enrollment retry clarity
+
+The extended ES256 journey passed with a deliberately wrong third phrase after
+accepting two samples. The dialog reports two accepted samples and offers Retry
+sample 3. The stored enrollment remains unchanged until a valid retry completes
+exactly three accepted samples. It then closes and subsequent unlock/signing,
+persistence, reset, and replacement checks pass.
+
+`third-sample-retry.json` and `third-sample-retry.png` are unmodified outputs from
+that run. The rejection uses a wrong phrase; it does not measure human speaker
+matching accuracy. The same command above repeats this case.

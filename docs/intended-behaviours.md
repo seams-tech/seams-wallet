@@ -187,8 +187,10 @@ and **Use saved enrollment** when the enrollment is missing and an importable re
 exists. **Record voice again** is always available. A pending passkey confirmation
 or an error appears in the row of its action. Back closes the dialog.
 
-**Improve recognition** collects three phrase-matched recordings with a normal
-background estimate. Each must match the immutable baseline at 0.5 and remain
+**Improve recognition** collects three accepted, phrase-matched recordings with a normal
+background estimate. Progress counts accepted samples, not recording attempts. A rejected
+attempt keeps earlier accepted samples and offers **Retry sample N** with its reason.
+Only the third accepted sample triggers saving. Each must match the immutable baseline at 0.5 and remain
 consistent with the other new samples. The effective template combines 80% baseline
 with 20% normalized supplemental mean, then normalizes that combination. Its cosine
 against the baseline must remain at least 0.98. The original template stays unchanged.

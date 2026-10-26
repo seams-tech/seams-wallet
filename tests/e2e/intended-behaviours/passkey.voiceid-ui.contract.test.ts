@@ -1,4 +1,4 @@
-import { expect, type Page, type WebSocketRoute } from '@playwright/test';
+import { expect, type Page, type TestInfo, type WebSocketRoute } from '@playwright/test';
 import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
 import {
   allowBrowserMicrophone,
@@ -220,7 +220,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await page.getByRole('button', { name: 'Manage voice', exact: true }).click();
     const ownerSession = (await page.evaluate(session)).authentication;
     await wallet.getByRole('button', { name: 'Improve recognition', exact: true }).click();
-    await enrollBrowserMicrophone(page);
+    await collectWithRejectedThirdSample(page, identity.walletId, testInfo);
     const improved = await wallet
       .locator('body')
       .evaluate(readEnrollmentSummary, identity.walletId);
@@ -356,6 +356,8 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
         retainedAfterLastUse,
         retainedAfterExpiry,
         reloadPreservedSamples: true,
+        rejectedThirdSamplePreservedProgress: true,
+        completionAfterThreeAcceptedSamples: true,
         cancellationPreservedEnrollment: true,
         replayedPasskeyRejected: true,
         invalidPasskeySignatureRejected: true,
@@ -493,4 +495,33 @@ function isDevelopmentReloadSocket(url: URL): boolean {
 function holdDevelopmentReload(socket: WebSocketRoute): void {
   // Keep this long capture journey stable while shared development files change.
   socket.send(JSON.stringify({ type: 'connected' }));
+}
+
+async function collectWithRejectedThirdSample(
+  page: Page,
+  walletId: string,
+  testInfo: TestInfo,
+): Promise<void> {
+  const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
+  const before = await wallet.locator('body').evaluate(readEnrollmentSummary, walletId);
+  await wallet.getByRole('button', { name: 'Record sample 1', exact: true }).click();
+  await wallet.getByRole('button', { name: 'Record sample 2', exact: true }).click();
+  await expect(wallet.getByRole('button', { name: 'Record sample 3', exact: true })).toBeEnabled();
+  await wallet.locator('body').evaluate(useWrongPhrase);
+  await wallet.getByRole('button', { name: 'Record sample 3', exact: true }).click();
+  const retry = wallet.getByRole('button', { name: 'Retry sample 3', exact: true });
+  await expect(retry).toBeEnabled({ timeout: 30_000 });
+  await expect(
+    wallet.getByRole('heading', { name: 'Read aloud · 2 of 3 accepted', exact: true }),
+  ).toBeVisible();
+  await expect(wallet.locator('.seams-voiceid-status')).toContainText('Sample 3 was not accepted.');
+  expect(await wallet.locator('body').evaluate(readEnrollmentSummary, walletId)).toEqual(before);
+  await wallet
+    .locator('.seams-voiceid-prompt')
+    .screenshot({ path: testInfo.outputPath('third-sample-retry.png') });
+  await retry.click();
+  await expect(wallet.getByRole('button', { name: 'Cancel enrollment', exact: true })).toHaveCount(
+    0,
+    { timeout: 30_000 },
+  );
 }
