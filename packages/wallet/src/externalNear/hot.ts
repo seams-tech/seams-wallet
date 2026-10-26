@@ -1,10 +1,11 @@
 import { isObject } from '@shared/utils/validation';
 import type { TransactionInput } from '../core/types/actions';
 import { externalNearAction } from './actions';
-import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } from './types';
+import type { ExternalNearConnection, ExternalNearNetwork } from './types';
 
 /** Direct extension API documented by hot-dao/hot-sdk-js. No iframe fallback. */
-export class HotExtensionProvider implements NearWalletProvider {
+export class HotExtensionProvider {
+  readonly messageSigning = 'unsupported';
   private lifecycle: 'active' | 'disposed' = 'active';
   private readonly transport: unknown = Reflect.get(window, 'hotExtension');
   private async request(method: string, params: object): Promise<unknown> {

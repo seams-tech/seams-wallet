@@ -25,6 +25,7 @@ document.getElementById('detect').addEventListener('click', detectWallets);
 document.getElementById('meteor').addEventListener('click', connectMeteor);
 document.getElementById('intear').addEventListener('click', connectIntear);
 document.getElementById('disconnect').addEventListener('click', disconnect);
+document.getElementById('sign-message').addEventListener('click', signOwnershipMessage);
 document.getElementById('greeting').addEventListener('click', sendGreeting);
 document.getElementById('check').addEventListener('click', checkOutcome);
 window.addEventListener('pagehide', disconnect);
@@ -54,6 +55,31 @@ async function connect(wallet) {
 function disconnect() {
   controller.disconnect();
   result.textContent = 'Disconnected locally.';
+}
+async function signOwnershipMessage() {
+  const connection = controller.getSnapshot().connection;
+  if (connection.kind !== 'connected') {
+    result.textContent = 'Connect Meteor first.';
+    return;
+  }
+  const params = {
+    message: `Seams ownership acceptance ${new Date().toISOString()}`,
+    recipient: location.host,
+    nonce: crypto.getRandomValues(new Uint8Array(32)),
+    state: crypto.randomUUID(),
+  };
+  result.textContent = 'Approve the ownership message in Meteor.';
+  const signed = await controller.signMessage(connection, params);
+  const evidence = {
+    accountId: connection.accountId,
+    network: connection.network,
+    message: params.message,
+    recipient: params.recipient,
+    nonce: Array.from(params.nonce),
+    state: params.state,
+    signed,
+  };
+  result.textContent = JSON.stringify(evidence, null, 2);
 }
 async function sendGreeting() {
   const connection = controller.getSnapshot().connection;

@@ -1,4 +1,5 @@
 import type { TransactionInput } from '../core/types/actions';
+import type { ValidatedNearMessage } from './message';
 
 export type ExternalNearWalletId = 'meteor' | 'hot' | 'intear';
 
@@ -80,9 +81,33 @@ export type ExternalNearOutcome =
   | { readonly kind: 'confirmed' | 'failed'; readonly submission: ExternalNearSubmission }
   | { readonly kind: 'unresolved'; readonly submission: ExternalNearSubmission };
 
-export interface NearWalletProvider {
+export type ExternalNearMessageParams = Readonly<{
+  message: string;
+  recipient: string;
+  nonce: Uint8Array;
+  callbackUrl?: string;
+  state?: string;
+}>;
+
+export type ExternalNearSignedMessage = Readonly<{
+  accountId: string;
+  publicKey: string;
+  signature: string;
+  state?: string;
+}>;
+
+export type NearWalletProvider = {
   connect(network: ExternalNearNetwork): Promise<unknown>;
   accounts(network: ExternalNearNetwork): Promise<unknown>;
   send(connection: ExternalNearConnection, transaction: TransactionInput): Promise<unknown>;
   dispose(): void;
-}
+} & (
+  | {
+      readonly messageSigning: 'nep413';
+      signMessage(
+        connection: ExternalNearConnection,
+        message: ValidatedNearMessage,
+      ): Promise<unknown>;
+    }
+  | { readonly messageSigning: 'unsupported'; readonly signMessage?: never }
+);

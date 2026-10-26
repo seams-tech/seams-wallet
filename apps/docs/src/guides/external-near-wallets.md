@@ -10,11 +10,10 @@ Offer two wallet choices in your application:
 - **Use a Seams wallet:** create or unlock a threshold wallet through the existing Seams authentication flow.
 - **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
-::: warning Availability: development preview
-The NEAR connector is implemented on `dev`. It is **not included in the published
-`@seams/wallet@0.22.0` package**. npm was checked on 2026-10-26.
-The examples below compile against the development SDK. Use an exact release
-containing these exports after publication. See [release status](/releases#prepared-near-connector).
+::: warning Message-signing availability
+`@seams/wallet@0.23.0` includes external NEAR connections and transactions.
+Meteor's `signMessage` API is implemented on `dev` for the next release.
+Use an exact release containing this API after publication.
 :::
 
 ## Wallets and networks
@@ -96,6 +95,24 @@ This example shows the basic flow. In a production UI, disable duplicate sends
 while a request is pending. If submission is unknown, check wallet activity before
 preparing another transaction. See [outcomes and retry rules](#outcomes-and-retry-rules).
 
+### Sign an ownership message
+
+Meteor supports NEP-413, the NEAR standard for message signatures.
+Pass the application's challenge message, recipient, and 32-byte nonce unchanged.
+For an ownership check, the server must issue the nonce and reject reused challenges.
+
+<<< ../examples/external-near-message.ts
+
+The result contains `accountId`, `publicKey`, and a base64 `signature`.
+The request also accepts an optional `callbackUrl` and `state`.
+The connector verifies the signature over the exact NEP-413 payload before returning it.
+It retains the request's state through Meteor's correlated response.
+Message signing submits no transaction and requires no balance.
+
+The application must still check that the key belongs to the claimed account on
+the selected network. It must verify its challenge and recipient on the server.
+HOT and Intear return `unavailable` for message signing in this connector.
+
 ## Controller API
 
 For a custom UI or a framework-independent application, import
@@ -110,6 +127,7 @@ For a custom UI or a framework-independent application, import
 | `getSnapshot()`                                            | Read `wallets`, `connection`, and `busy`. Connection is `disconnected`, `connecting`, or `connected`.                                 |
 | `subscribe(listener)`                                      | Observe snapshot changes. Return an unsubscribe function.                                                                             |
 | `sendTransaction(connection, input)`                       | Submit transfers or function calls with the exact current connected snapshot. Return an `ExternalNearResult<ExternalNearSubmission>`. |
+| `signMessage(connection, params)`                          | Request a Meteor NEP-413 signature. Return an `ExternalNearResult<ExternalNearSignedMessage>` after payload verification. |
 | `checkOutcome(submission)`                                 | Check the captured hash, account, and network through RPC. Return `confirmed`, `failed`, or `unresolved`.                             |
 | `disconnect()`                                             | Clear local authority, dispose the adapter, and invalidate pending work.                                                              |
 
@@ -119,9 +137,8 @@ connection instance. Pass the snapshot itself to signing; do not construct or co
 one. Reconnection or disconnect invalidates an earlier snapshot.
 
 Transfers and function calls use the existing NEAR action helpers, such as
-`transfer` and `functionCall`. The current connector does not expose message
-signing, batch submission, delegate actions, hardware wallets, or mobile transports.
-The [NEP-413 example](/examples/signing#sign-a-nep-413-message) applies to a Seams wallet.
+`transfer` and `functionCall`. The current connector does not expose batch
+submission, delegate actions, hardware wallets, or mobile transports.
 
 ## Outcomes and retry rules
 
@@ -140,10 +157,14 @@ prove final execution. Keep the submission until status reconciliation completes
 | `submission_unknown`    | Check wallet activity and chain history before preparing another transaction.                             |
 
 The connector currently reports a declined connection as `unavailable`. After a
-signing request is dispatched, rejection, transport loss, or an invalid result can
+transaction request is dispatched, rejection, transport loss, or an invalid result can
 be reported conservatively as `submission_unknown`. It does not expose a separate
 user-rejection result. Closing an approval window does not prove that submission
 was canceled.
+
+For `signMessage`, a decline, transport failure, or invalid signature returns
+`unavailable`. A changed connection returns `connection_changed`, including changes
+during approval or verification. Concurrent signing requests return `pending_request`.
 
 Disconnect clears local state. It does not revoke existing site permissions in
 the wallet. An extension can retain its own approval window after local disconnect.

@@ -2613,3 +2613,29 @@ nonce selection, approval, signing, and broadcast.
 
 Real Meteor evidence: `docs/evidence/refactor-185-meteor-testnet-20261026.json`.
 The run verified final execution and exact greeting readback for `cyan-loong.testnet`.
+
+### External Meteor ownership messages
+
+`ExternalNearController.signMessage(connection, params)` requests a NEP-413 message
+signature through Meteor's captured transport. The request uses `sign_message` and
+includes the captured account and network. HOT and Intear return `unavailable`
+before dispatch because this connector does not implement their message-signing APIs.
+
+The caller supplies a message, recipient, and 32-byte nonce. The boundary copies
+the nonce before asynchronous work. Optional callback URL and state retain their
+exact values. The controller checks the current account before dispatch and rejects
+a changed connection during approval or verification. Concurrent operations return
+`pending_request`. Disconnect cancels approval without clearing a newer operation.
+
+Success requires the captured account, a 32-byte Ed25519 public key, and a 64-byte
+base64 signature. The connector verifies the signature over the SHA-256 digest of
+the standard NEP-413 Borsh payload, including the tag and optional callback URL.
+The response carries the caller's state through the correlated request. A decline,
+malformed reply, or changed signed field returns `unavailable`. No transaction or
+RPC request occurs during message signing. Account-key ownership and challenge
+freshness remain application checks on the selected network.
+
+`tests/wallet-ui/external-near-message.browser.test.ts` verifies ownership messages,
+tamper rejection, nonce copying, concurrent requests, and cancellation across a
+reconnect. It independently encodes and verifies NEP-413 with Node.js crypto.
+Each run writes JSON evidence with the public request, signature, and digest.

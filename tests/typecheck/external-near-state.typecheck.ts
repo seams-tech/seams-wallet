@@ -49,3 +49,33 @@ configured.getSnapshot().wallets.push('hot');
 configured.setWallets(['ledger']);
 void missingPendingWallet;
 void invalidConfiguration;
+
+import type { NearWalletProvider } from '@/externalNear/types';
+import type { ValidatedNearMessage } from '@/externalNear/message';
+declare const provider: NearWalletProvider;
+declare const message: ValidatedNearMessage;
+if (provider.messageSigning === 'unsupported') {
+  // @ts-expect-error Unsupported adapters cannot dispatch message signing.
+  provider.signMessage(forged, message);
+} else {
+  // @ts-expect-error A broad spread cannot retain signing on an unsupported adapter.
+  const invalidProvider: NearWalletProvider = { ...provider, messageSigning: 'unsupported' };
+  void invalidProvider;
+}
+// @ts-expect-error Message signing requires a current connected snapshot.
+configured.signMessage(disconnected, {
+  message: 'ownership',
+  recipient: 'getsignal.example',
+  nonce: new Uint8Array(32),
+});
+// @ts-expect-error The caller must supply the challenge nonce.
+configured.signMessage(forged, { message: 'ownership', recipient: 'getsignal.example' });
+// @ts-expect-error Raw request objects cannot enter an adapter without boundary validation.
+const unvalidated: ValidatedNearMessage = {
+  message: 'ownership',
+  recipient: 'getsignal.example',
+  nonce: new Uint8Array(32),
+  callbackUrl: null,
+  state: null,
+};
+void unvalidated;

@@ -9,5 +9,7 @@ export type {
   ExternalNearSnapshot,
   ExternalNearState,
   ExternalNearSubmission,
+  ExternalNearMessageParams,
+  ExternalNearSignedMessage,
 } from './types';
 export { nearWalletName } from './wallets';
