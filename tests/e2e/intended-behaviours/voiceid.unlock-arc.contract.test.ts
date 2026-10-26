@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo, type Route } from '@playwright/test';
 import { intendedTest as test, waitForWalletIframeConfirmationSettlement } from './harness';
 import {
   allowBrowserMicrophone,
@@ -58,6 +58,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       nearAccountId: owner.appIdentity.nearAccountId,
     });
     const captures = await wallet.locator('body').evaluate(microphoneCount);
+    const blockedFeeLookup = await verifyBlockedFeeLookup(page, testInfo);
+    expect(await wallet.locator('body').evaluate(microphoneCount)).toBe(captures);
+    expect(rpc.transactions).toHaveLength(0);
     await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
     await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
     await expect(
@@ -113,6 +116,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       signing: 'real_ecdsa_mpc',
       inference: 'real_redimnet_b1_and_aurora',
       speakerThreshold: 0.5,
+      blockedFeeLookup,
       ownerAddress,
       walletId: method.walletId,
       transactions: rpc.transactions,
@@ -160,4 +164,29 @@ async function addEvmFromAccountsMenu(page: Page, testInfo: TestInfo): Promise<v
     .locator('.seams-profile-button-morphable')
     .screenshot({ path: testInfo.outputPath('accounts-with-evm.png'), animations: 'disabled' });
   await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+}
+
+async function blockFeeLookup(route: Route): Promise<void> {
+  if (route.request().method() !== 'POST') return route.fallback();
+  await route.abort('blockedbyclient');
+}
+
+async function verifyBlockedFeeLookup(page: Page, testInfo: TestInfo): Promise<string> {
+  const endpoint = 'https://rpc.testnet.arc.io/**';
+  await page.route(endpoint, blockFeeLookup);
+  try {
+    await page.getByRole('button', { name: 'Review Arc testnet transfer', exact: true }).click();
+    const result = page.getByTestId('reviewed-arc-result');
+    await expect(result).toHaveAttribute('data-state', 'failed');
+    await expect(result).toContainText(
+      'Could not reach https://rpc.testnet.arc.io to estimate Arc fees.',
+    );
+    await expect(page.getByRole('button', { name: 'Continue to wallet', exact: true })).toHaveCount(
+      0,
+    );
+    await result.screenshot({ path: testInfo.outputPath('blocked-arc-fee-lookup.png') });
+    return await result.innerText();
+  } finally {
+    await page.unroute(endpoint, blockFeeLookup);
+  }
 }

@@ -51,11 +51,19 @@ function requireAddress(value: string | null): `0x${string}` {
 }
 
 async function readGasPrice(rpcUrl: string): Promise<bigint> {
-  const response = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] }),
+    });
+  } catch (cause) {
+    throw new Error(
+      `Could not reach ${rpcUrl} to estimate Arc fees. Check your connection and whether a browser extension or DevTools rule blocks this address.`,
+      { cause },
+    );
+  }
   if (!response.ok) throw new Error('Arc fee estimate is unavailable.');
   const body: unknown = await response.json();
   if (
