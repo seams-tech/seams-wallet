@@ -20,8 +20,8 @@ const IDLE_PERIOD_MS = 2600;
 // drawn round the ring: the left half into the top, the right half into the
 // bottom. The bend is y = R·(4u³ − 3u⁴) over √12·R, whose curvature is 0 where
 // it leaves the line and exactly the ring's where it joins it.
-const CAPTURE_MS = 720;
-const MIDDLE_FADE_MS = 240;
+const CAPTURE_MS = 560;
+const MIDDLE_FADE_MS = 180;
 const BEND_WIDTH = Math.sqrt(12) * RING_RADIUS;
 const BEND_START = CENTRE - BEND_WIDTH;
 const BEND = tabulateBend();
@@ -29,7 +29,7 @@ const RING_ENTRY = BEND_START + BEND.length;
 const HALF_ARC = (RING_ARC * TAU * RING_RADIUS) / 2;
 // The two arcs then meet: the top arc closes this share of the gap by speeding
 // up, the bottom arc the rest by slowing, so no end ever moves backward.
-const JOIN_MS = 450;
+const JOIN_MS = 360;
 const JOIN_LEAD_SHARE = 0.75;
 // Signing checks with segments instead: the wave flattens, two gaps open at the
 // thirds, and the three segments pulse in turn. They become the receipt's tracks.

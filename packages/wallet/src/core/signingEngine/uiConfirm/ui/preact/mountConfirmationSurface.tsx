@@ -92,8 +92,9 @@ function captureReceiptAnchors(surface: HTMLElement): ReceiptAnchor[] {
 }
 
 /**
- * The progress segments a capture draws while it checks, as they look now. A line
- * that has not split yet hands over its thirds.
+ * The progress segments a capture draws while it checks, as they look now, from
+ * left to right whatever their drawing order. A line that has not split yet hands
+ * over its thirds.
  */
 function progressSegments(capture: HTMLElement): ProgressSegment[] {
   const line = capture.querySelector<SVGElement>('[data-seams-progress-line]');
@@ -101,11 +102,13 @@ function progressSegments(capture: HTMLElement): ProgressSegment[] {
   const color = getComputedStyle(line).color;
   const drawn = Array.from(line.querySelectorAll<SVGGraphicsElement>('[data-seams-progress-segment]'));
   if (drawn.length === 3 && drawn.every(isPainted)) {
-    return drawn.map((segment) => ({
-      bounds: segment.getBoundingClientRect(),
-      opacity: segment.getAttribute('opacity') ?? '1',
-      color,
-    }));
+    return drawn
+      .map((segment) => ({
+        bounds: segment.getBoundingClientRect(),
+        opacity: segment.getAttribute('opacity') ?? '1',
+        color,
+      }))
+      .sort((a, b) => a.bounds.left - b.bounds.left);
   }
   const box = line.getBoundingClientRect();
   const width = box.width / 3;
