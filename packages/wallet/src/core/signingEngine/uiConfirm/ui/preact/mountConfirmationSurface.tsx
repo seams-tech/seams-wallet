@@ -41,14 +41,20 @@ type SurfaceState =
   | { kind: 'mounted' | 'closing'; model: ConfirmSurfaceModel; onClosed: () => void }
   | { kind: 'disposed'; model?: never; onClosed?: never };
 
-const RECEIPT_MORPH_DURATION_MS = 360;
+const RECEIPT_MORPH_DURATION_MS = 480;
 /** A replaced auth method capture fades where it is, while its progress segments travel on. */
-const CAPTURE_FADE_MS = 120;
+const CAPTURE_FADE_MS = 240;
+/** The receipt's details cross the capture's fade, then follow top to bottom. */
+const HANDED_DETAIL_DELAY_MS = 140;
+const HANDED_DETAIL_STAGGER_MS = 40;
+const HANDED_DETAIL_FADE_MS = 280;
 const RECEIPT_MORPH_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const RECEIPT_ANCHORS = [
   '.seams-receipt-symbol',
   '[role="status"]',
   '.seams-review-amount',
+  // The capture's card has the same footer, so it rides the card's edge instead of fading.
+  '.seams-receipt-footer',
 ] as const;
 
 type ProgressSegment = Readonly<{ bounds: DOMRect; opacity: string; color: string }>;
@@ -104,6 +110,8 @@ function progressSegments(capture: HTMLElement): ProgressSegment[] {
     color,
   }));
 }
+
+function ignoreCancelledMotion(): void {}
 
 function isPainted(segment: SVGGraphicsElement): boolean {
   return segment.getAttribute('opacity') !== '0';
@@ -263,22 +271,25 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       let order = 0;
       for (const detail of details) {
         if (shared.has(detail)) continue;
-        // A capture's card had the same toolbar row, so the receipt's takes its place at once.
-        if (leaving && detail.matches('.seams-review-toolbar')) continue;
+        // A capture's card had a toolbar in the same row, so the receipt's fades in there at once.
+        const toolbar = leaving !== null && detail.matches('.seams-review-toolbar');
         this.receiptMotion.push(
           detail.animate(
-            [
-              { opacity: 0, transform: 'translateY(8px)' },
-              { opacity: 1, transform: 'translateY(0)' },
-            ],
+            toolbar
+              ? [{ opacity: 0 }, { opacity: 1 }]
+              : [
+                  { opacity: 0, transform: 'translateY(8px)' },
+                  { opacity: 1, transform: 'translateY(0)' },
+                ],
             leaving
               ? {
                   // The steps settle before their segments land; the rest follows top to bottom.
-                  duration: 200,
-                  delay:
-                    handedOver && detail.matches('.seams-receipt-steps')
-                      ? 100
-                      : 100 + Math.min(order, 6) * 40,
+                  duration: HANDED_DETAIL_FADE_MS,
+                  delay: toolbar
+                    ? 0
+                    : handedOver && detail.matches('.seams-receipt-steps')
+                      ? HANDED_DETAIL_DELAY_MS
+                      : HANDED_DETAIL_DELAY_MS + Math.min(order, 6) * HANDED_DETAIL_STAGGER_MS,
                   fill: 'backwards',
                   easing: 'cubic-bezier(0.2, 0, 0, 1)',
                 }
@@ -290,9 +301,13 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
                 },
           ),
         );
-        order += 1;
+        if (!toolbar) order += 1;
       }
-      morph.onfinish = this.clearReceiptMotion;
+      // The details outlast the card's morph, so the overlays leave after the last one.
+      const motion = this.receiptMotion;
+      void Promise.all(motion.map((animation) => animation.finished)).then(() => {
+        if (this.receiptMotion === motion) this.clearReceiptMotion();
+      }, ignoreCancelledMotion);
     }
   }
 
@@ -324,7 +339,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.receiptMotion.push(
       ghost.animate([{ ...place, opacity: 1 }, { ...place, opacity: 0 }], {
         duration: CAPTURE_FADE_MS,
-        easing: 'ease-in',
+        easing: 'ease-in-out',
         fill: 'both',
       }),
     );

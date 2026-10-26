@@ -698,12 +698,16 @@
 }
 /* The card frames a hosted auth method capture with the review's toolbar and footer,
    so the capture fills it without a border, corners, background or a top inset for a
-   close control of its own; the card clips the corners. Two classes outrank the
-   capture's own single-class card rules. */
-.seams-confirmation-modal .seams-auth-method-capture > * {
+   close control of its own; the card clips the corners. It ends at the footer line,
+   where its glow meets the footer, so it keeps no bottom inset either. Two classes
+   outrank the capture's own single-class card rules. The capture keeps that look
+   while it fades out over the receipt. */
+.seams-confirmation-modal .seams-auth-method-capture > *,
+.seams-wallet-ui .seams-receipt-capture-ghost > * {
   box-sizing: border-box;
   width: 100%;
   padding-top: 0.75rem;
+  padding-bottom: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
