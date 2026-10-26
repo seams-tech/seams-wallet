@@ -16,9 +16,9 @@ It verifies historical publication after an actual B take and cancellation, and 
 The existing prepublication failure, retry delay, restart, settlement failure, single-use, and deadline cases also pass.
 All three signatures verify.
 
-The exact hosted rerun is prepared for eight temporary Workers. Deployment and credential upload await explicit approval.
-Automatic approval review rejected those actions because earlier approvals covered other names and payloads.
-No new Worker or credential upload occurred.
+The [hosted rerun](ml-dsa-65-publication-completion-hosted-report.md) confirms one publication through error reconciliation, with one observed producer execution.
+All 132 retained signatures verify. Both capacity cycles remain unqualified because of ledger gaps and one timed-out request.
+All eight temporary Workers are deleted. The local evidence below remains separate from hosted results.
 
 Preparation remains on Workers. Wallet-seed recovery, FIPS export, two-at-once consumption, and per-wallet pool capacity remain unchanged.
 The inherited bloat check still reports 13,972 duplicated Rust lines against a 13,754-line baseline. The baseline is unchanged.

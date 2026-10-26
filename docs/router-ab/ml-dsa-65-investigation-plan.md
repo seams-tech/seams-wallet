@@ -1,11 +1,18 @@
 # ML-DSA-65 threshold signing investigation plan
 
 Status: public SDK lifecycle integrated; production release remains gated, 2026-10-26.
-Current priority: hosted qualification of durable publication reconciliation, primary-B loadShed, and interrupted response delivery.
+Current priority: canceled-admission retirement, primary-B loadShed, and long publication waits.
 The [publication completion fix](ml-dsa-65-publication-completion-report.md) passes the composed local Worker lifecycle.
 Exact historical publication evidence survives consumption and prevents false failure after a lost final reply.
 Inspection errors preserve recovery. Lease expiry keeps the existing interrupted-job behavior.
-The eight-Worker Cloudflare rerun awaits approval for its fresh credentials and destinations.
+The [hosted rerun](ml-dsa-65-publication-completion-hosted-report.md) verifies 132 signatures and exercises publication reconciliation once with one observed execution.
+Four-candidate refill A wall medians are 9.323–9.701 seconds. One published job takes 69.932 seconds.
+The completion phase verifies 43 successful calls in 0.742–7.970 seconds, with no empty-pool responses.
+A separate request times out after 45 seconds and later returns Declined. Twelve ledger gaps match its final inventory.
+Both participants report those twelve pairs retired. Their material had 49–58 minutes remaining when readiness disappeared.
+The retirement mutation remains unknown. Both cycles retain unqualified status and establish no new maximum-capacity claim.
+Next, capture exact reservation replies and retirement reasons for canceled admission, then isolate long publication waits.
+All eight temporary Workers are deleted. The archived evidence replays without network access.
 The current upper targets are roughly ten seconds for registration and eight seconds for signing.
 Prioritize verified signatures per minute including reserve restoration, preparation cost per signature, and empty-pool waits.
 Keep the five-second measurements for comparison. Recovery, FIPS export, two-at-once consumption, and per-wallet capacity stay unchanged.
@@ -17,7 +24,7 @@ Its 46 successful calls take 0.810–5.128 seconds. Candidate ranges and driver 
 All 278 retained signatures verify. All 734 observed pair IDs match across A/B without observed reuse.
 Both warm-ups retain deadline-bound readiness losses. Both prototype phases retain failed client results and stay unqualified.
 One producer reports failure after both participants publish valid pairs. Both pairs later produce a verified signature with single use.
-Next, reconcile durable publication before classifying a producer error. Then isolate primary-B correlation-stage resource failures and response-delivery interruptions.
+Durable publication reconciliation is complete in the rerun above. Primary-B resource failures and interrupted admission remain open.
 All eight temporary Workers are deleted and independently checked for absence. One-hour retention stays unchanged.
 The [refill retry report](ml-dsa-65-refill-retry-report.md) and [replayed evidence](../evidence/ml-dsa-65-refill-retry-20261026.json) record the earlier retry implementation.
 Each producer slot now persists bounded failure delays of 2, 4, 8, 16, and 30 seconds. Successful publication resets the delay.
