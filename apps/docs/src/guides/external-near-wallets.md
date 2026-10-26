@@ -50,20 +50,30 @@ requests; this key never becomes an on-chain signing key.
 
 ## React example
 
-This example offers a wallet picker and one testnet greeting transaction. Use a
-funded testnet account and replace the receiver with your contract. The selected
-wallet pays the network fee. The function call attaches no deposit.
+Start with the built-in wallet picker. It handles wallet selection, connection,
+and disconnect. Keep its controller stable across renders.
 
 <<< ../examples/external-near.tsx
 
-`ExternalNearWalletPicker` handles connection and disconnect controls. It disconnects
-its controller when the picker unmounts. `useExternalNear` only subscribes to
-snapshots. A custom picker must call `disconnect()` when its owning view closes.
-Keep one controller instance per owning view. Do not recreate it on each render.
+The picker disconnects when it unmounts. For a custom picker, use `useExternalNear`
+to subscribe to the controller and call `disconnect()` when the owning view closes.
+No Seams provider is required.
 
-The example retains the original submission for status checks. After
-`submission_unknown`, it disables further sends and asks the user to inspect wallet
-activity. It never retries a transaction automatically.
+### Send a transaction
+
+Call this function from your application's send action, using the **same controller**
+as the picker. Use a funded testnet account and replace the receiver with your
+contract. This call attaches no deposit; the wallet pays the network fee.
+
+<<< ../examples/external-near-transaction.ts
+
+Replace the console messages with your application's status display. Keep the
+returned submission if the outcome is `unresolved`, then call
+`controller.checkOutcome(submission)` again to check its status.
+
+This example shows the basic flow. In a production UI, disable duplicate sends
+while a request is pending. If submission is unknown, check wallet activity before
+preparing another transaction. See [outcomes and retry rules](#outcomes-and-retry-rules).
 
 ## Controller API
 
