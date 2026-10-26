@@ -79,9 +79,24 @@ pnpm -C tests exec playwright test -c playwright.wallet-intended.config.ts \
   --workers=1 --output=/private/tmp/voiceid-release-acceptance
 ```
 
-## Live acceptance still required
+## Live acceptance confirmed
 
-The Arc testnet RPC answered the public balance read for the user's EVM address.
-The address has funds. A manual normal-paced voice approval and its confirmed Arc
-transaction receipt remain pending. The user was given the refreshed demo URL.
-No live transaction was submitted by the automated browser tests.
+The user reported successful VoiceID approvals on Arc and NEAR on October 26,
+2026. Independent RPC reads confirmed both self-transfers:
+
+- [Arc transaction](https://explorer.testnet.arc.io/tx/0xbbd1960f0cfd6ed1dc05943fb14b1b6da0444deac6c7112731cb25316e7d3c0c):
+  receipt status `0x1`, chain ID 5042002, value 1 native base unit, empty calldata.
+  Sender and recipient are `0xb539520c3eb14f2b9239adaa94a3a356563ec921`.
+  Raw evidence: [receipt](arc-live-receipt.json), [transaction](arc-live-transaction.json).
+- [NEAR transaction](https://testnet.nearblocks.io/txns/3aaq2WMJUn7fp5nwLVD2QKypDQxzprGt756pmbX2PwrP):
+  final execution status `FINAL`, successful execution and receipts, transfer of
+  one yoctoNEAR to the same signing account.
+  Raw evidence: [transaction and outcomes](near-live-transaction.json).
+
+Voice approval is user-reported. The RPC evidence independently verifies settlement.
+These live transfers are separate from the deterministic browser-test transactions.
+
+The user also reported that the shorter phrases feel harder to match. This remains
+usability feedback for further measurement. The displayed phrase now reads
+**“If you panic, panic early.”** The comma supplies a reading cue. The canonical
+phrase, matching rules, and speaker threshold of 0.5 remain unchanged.

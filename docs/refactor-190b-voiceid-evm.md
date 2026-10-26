@@ -1,6 +1,6 @@
 # Refactor 190B — VoiceID EVM unlock and transfer
 
-Status: implemented and composed browser contracts pass. Live Arc settlement remains a manual acceptance step. Authorized 2026-10-26.
+Status: implemented. Composed browser contracts pass. Live Arc and NEAR self-transfers were confirmed on 2026-10-26.
 
 ## Release target
 
@@ -82,3 +82,6 @@ Browser checks verify that phrase and speaker failures expose no expander.
 ## Results
 
 See [repeatable evidence](evidence/voiceid-evm-20261026/README.md). Both ECDSA-only and existing-NEAR enrollment journeys passed. The latter adds ECDSA without replacing voice enrollment, signs Arc, and signs NEAR afterward. Both reject a cancelled second Arc transfer.
+
+Live acceptance: see [confirmed receipts and user feedback](evidence/voiceid-release-readiness-20261026/README.md#live-acceptance-confirmed).
+Phrase usability remains under review after the user reported harder matching with the shorter prompts.

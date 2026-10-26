@@ -403,7 +403,9 @@ export class VoicePrompt {
   }
 
   setPhrase(phrase: SpokenPhrase): void {
-    this.phrase.textContent = phrase.charAt(0).toUpperCase() + phrase.slice(1) + '.';
+    const displayPhrase =
+      phrase === 'if you panic panic early' ? 'if you panic, panic early' : phrase;
+    this.phrase.textContent = displayPhrase.charAt(0).toUpperCase() + displayPhrase.slice(1) + '.';
     this.phrase.dataset.voiceidPhrase = phrase;
   }
 
