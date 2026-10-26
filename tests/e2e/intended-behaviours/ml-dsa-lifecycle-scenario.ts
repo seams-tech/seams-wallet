@@ -93,6 +93,7 @@ export async function runMlDsaBrowserLifecycle(
   await harness.useLiveNearTestnetRpc();
   await openSigningKeys(page);
   try {
+    await page.getByRole('button', { name: 'Review NEAR key addition', exact: true }).click();
     await expect(
       page.getByRole('button', { name: 'Approve NEAR key addition', exact: true }),
     ).toBeVisible();
@@ -102,7 +103,7 @@ export async function runMlDsaBrowserLifecycle(
   const activated = expect(
     page
       .getByRole('group', { name: 'ML-DSA-65 signing key', exact: true })
-      .getByText('Available', { exact: true }),
+      .getByText('Active on NEAR', { exact: true }),
   ).toBeVisible({
     timeout: 120_000,
   });
@@ -114,10 +115,14 @@ export async function runMlDsaBrowserLifecycle(
     .getByRole('group', { name: 'ML-DSA-65 signing key', exact: true })
     .getByRole('button', { name: 'Make default', exact: true })
     .click({ timeout: 10_000 });
-  await expect(page.getByText('Default signing key', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Default signing key', exact: true }),
+  ).toBeDisabled();
   await expect
     .poll(readDefaultSigner.bind(null, harness))
     .toEqual({ kind: 'near_ml_dsa_65', signingKeyId: signer.signingKeyId });
+  await expect(page.getByRole('heading', { name: 'Signing key added', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath('ml-dsa-signing-keys.png') });
   await page.keyboard.press('Escape');
   await harness.refreshPagePreservingWalletStorage();

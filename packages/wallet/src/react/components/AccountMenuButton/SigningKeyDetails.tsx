@@ -16,7 +16,11 @@ export function SigningKeyDetails(props: {
   readonly children?: React.ReactNode;
 }) {
   return (
-    <AccountMenuScreen title={props.title} onBack={props.onBack}>
+    <AccountMenuScreen
+      title={props.title}
+      onBack={props.onBack}
+      className="seams-signing-key-details"
+    >
       <p className="seams-signing-key-account">{props.account}</p>
       <p>
         <WalletText copy={props.status} />
