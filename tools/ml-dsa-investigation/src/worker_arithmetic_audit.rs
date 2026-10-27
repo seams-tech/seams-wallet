@@ -63,7 +63,7 @@ pub(super) fn inspect_silent(output: &Path) -> InvestigationResult<()> {
         .ok_or("Missing repository")?;
     let mut roles = Vec::new();
     for role in ["deriver-a", "deriver-b"] {
-        let path = format!("crates/router-ab-cloudflare/build/{role}/index_bg.wasm");
+        let path = format!("crates/router-ab-cloudflare/build/ml-dsa/{role}/index_bg.wasm");
         let bytes = fs::read(root.join(&path))?;
         let symbols: Value =
             serde_json::from_slice(&fs::read(root.join(format!("{path}.names.json")))?)?;

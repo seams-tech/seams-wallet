@@ -1,6 +1,17 @@
 # ML-DSA latency and sustainable preparation
 
-Status: planned. Date: October 27, 2026.
+Status: in progress. Date: October 27, 2026.
+
+The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
+The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
+The AES output-bit experiment regressed and was removed.
+Two chunked screens use about 2–9% less paired producer invocation CPU than the return control.
+The client observes full reserves at 87.6 and 84.0 seconds, versus 88.7 seconds for the control, with five-second inventory polling.
+The latest publication checkpoints occur at 86.8 and 79.3 seconds, versus 84.4 seconds for the control.
+Thus consistent publication acceleration and stable percentage savings remain unproven.
+Wallet-seed recovery, canonical FIPS export, two-at-once consumption, and pool capacity remain unchanged.
+The next measured inner-stage opportunity is code-matrix encoding, which accounts for about one quarter of local preparation samples.
+Registration, signing tails, and sustained four-wallet throughput still need qualification against the targets below.
 
 ## Objective and measurement boundaries
 
@@ -167,14 +178,14 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 
 ## Execution order and stopping rules
 
-- [ ] Establish an exact-version baseline and instrument missing inner-stage timings.
-- [ ] Run producer workload/slot crossover and isolated-versus-concurrent comparisons.
-- [ ] Optimize the single largest measured preparation cost and compare complete jobs.
+- [x] Establish an exact-version baseline and calibrated inner-stage sampling.
+- [x] Run producer workload/slot crossover and isolated-versus-concurrent comparisons.
+- [ ] Continue optimizing measured preparation costs. The AES experiment regressed. Chunk consumption remains as a small CPU optimization.
 - [ ] Qualify retained material under hosted failures and measure useful throughput.
 - [ ] Shorten the measured registration critical path.
 - [ ] Reduce first-use and repeated-pair signing overhead.
 - [ ] Run four-wallet capacity profiles with complete reserve restoration.
-- [ ] Retain a report, replayable public evidence, exact versions, and cleanup receipts.
+- [x] Retain this checkpoint's report, replayable public evidence, exact versions, and cleanup receipts.
 
 Use existing native vectors, type fixtures, and meaningful Worker/browser E2Es. Add no unit tests or source-text guard framework.
 Classify failures before changing code. Keep benchmark secrets and raw private payloads out of evidence.

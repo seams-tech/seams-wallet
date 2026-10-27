@@ -3,7 +3,7 @@
 
 mod batched;
 pub(crate) mod storage;
-pub(crate) use batched::{run_batches, PreparedGmwRequest};
+pub(crate) use batched::{PreparedGmwRequest, run_batches};
 
 use super::silent::CorrelationStream;
 use super::*;
@@ -263,13 +263,20 @@ pub async fn prepare_batch<'a>(
         context.set_phase(Phase::Preprocessing);
         let byte = instance.lane / 8;
         let shift = instance.lane % 8;
-        for gate in 0..group.topology.and_gates.len() {
-            let mut triple = correlations.take(&mut context).await?;
-            let index = gate * group.lanes.div_ceil(8) + byte;
-            group.left[index] |= triple[0] << shift;
-            group.right[index] |= triple[1] << shift;
-            group.products[index] |= triple[2] << shift;
-            triple.zeroize();
+        let mut gate = 0;
+        while gate < group.topology.and_gates.len() {
+            let triples = correlations
+                .take_many(&mut context, group.topology.and_gates.len() - gate)
+                .await?;
+            for source in triples {
+                let mut triple = core::mem::take(source);
+                let index = gate * group.lanes.div_ceil(8) + byte;
+                group.left[index] |= triple[0] << shift;
+                group.right[index] |= triple[1] << shift;
+                group.products[index] |= triple[2] << shift;
+                triple.zeroize();
+                gate += 1;
+            }
         }
     }
     Ok(PreparedGmwBatch {

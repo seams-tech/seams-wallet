@@ -266,6 +266,9 @@ def main():
             shutil.copyfile(ROOT / relative, source / "passive" / destination)
         baseline = historical_source(args.baseline, [AES, Path("crates/ed25519-yao/src/passive/gate_aes.rs")])
         (source / "baseline.rs").write_bytes(baseline)
+        if b"mod eight;" in baseline:
+            (source / "baseline").mkdir()
+            (source / "baseline/eight.rs").write_bytes(historical_source(args.baseline, [EIGHT]))
         adapter = historical_source(args.adapter_baseline, [
             CORRELATION,
             Path("crates/ml-dsa-threshold/src/ml_dsa_runtime/boolean_comparison/silent/correlation_aes.rs"),
