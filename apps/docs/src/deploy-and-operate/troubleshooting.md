@@ -22,7 +22,7 @@ rejects unsupported wallet-management protocols with HTTP 409 and an
 upgrade message. Display it and reload the matching application and wallet
 assets. Stop automatic retries of the same incompatible request. Follow the
 [deployment requirements](/deploy-and-operate/hosted-integration).
-The application and wallet host must also agree on iframe protocol 16.0.0.
+The application and wallet host must also agree on iframe protocol 17.0.0.
 
 ## Registration signs but is absent from Console
 
@@ -127,7 +127,7 @@ tokens, assertions, OTPs, recovery data, and key material.
 ## External NEAR wallets
 
 **Boundary:** application document and selected external wallet.
-The connector is a development preview; npm `0.22.0` cannot resolve its new imports.
+The connector is a development preview included in npm version `0.25.0`.
 See [availability and integration](/guides/external-near-wallets).
 
 - Meteor may inject its page API after initial load. Retry after initialization in the correct browser profile. A toolbar icon alone does not prove page API readiness.

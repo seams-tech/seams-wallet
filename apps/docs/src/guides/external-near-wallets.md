@@ -179,6 +179,5 @@ Allow Intear's popup for the application origin. The adapter accepts replies onl
 from its fixed wallet origin and the popup opened for that request. It rejects
 redirected wallet origins and native bridge sessions.
 
-If imports cannot be resolved from version `0.22.0`, check the availability notice
-above. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
+If imports cannot be resolved, check that `@seams/wallet` version `0.25.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
 for the same boundaries in the operational guide.

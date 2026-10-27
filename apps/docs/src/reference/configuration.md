@@ -27,8 +27,7 @@ optional. Prefer the helpers unless you need partial configuration for a custom 
 
 The development-preview NEAR connector uses its own `ExternalNearConfig`.
 Pass `network`, `rpcUrl`, and `wallets` directly to `ExternalNearController`.
-No Seams provider configuration is required. These exports are absent from the
-published `0.22.0` package.
+No Seams provider configuration is required. Version `0.25.0` includes these exports.
 
 | Configuration                          | Behavior                                                        |
 | -------------------------------------- | --------------------------------------------------------------- |
