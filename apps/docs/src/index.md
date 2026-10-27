@@ -38,7 +38,7 @@ before updating an existing integration.
 [VoiceID](/concepts/auth-methods/voiceid) is an optional package for voice enrollment,
 unlock, and reviewed transfer approval. Its engine and models load only when VoiceID is used.
 
-The wallet iframe protocol is **16.0.0**. The recovery CLI uses **0.21.0**.
+The wallet iframe protocol is **17.0.0**. The recovery CLI uses **0.25.0**.
 See [Release 0.25.0](/releases) for integration and deployment requirements.
 
 <<< ./examples/setup.tsx

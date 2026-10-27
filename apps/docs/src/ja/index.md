@@ -39,7 +39,7 @@ pnpm add @seams/wallet@0.25.0
 [VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、送金承認に使う任意のパッケージです。
 エンジンとモデルは、VoiceIDを使うときだけ読み込みます。
 
-ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.21.0**です。
+ウォレットiframeのプロトコルは**17.0.0**、復元CLIは**0.25.0**です。
 導入とデプロイの要件は[リリース 0.25.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx

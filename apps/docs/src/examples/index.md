@@ -23,7 +23,7 @@ pnpm add @seams/wallet@0.22.0
 
 <<< ./setup.tsx
 
-The Seams wallet examples below target release **0.22.0** and iframe protocol **16.0.0**.
+The Seams wallet examples below target release **0.25.0** and iframe protocol **16.0.0**.
 The setup configures NEAR and Tempo testnets. The
 Ethereum Sepolia example requires adding that chain as shown in the [signing
 guide](/examples/signing#execute-an-evm-family-transaction).

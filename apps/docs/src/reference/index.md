@@ -25,7 +25,7 @@ wallet HTML asset. Those surfaces are documented on the [React
 reference](/reference/react) and [hosted integration](/deploy-and-operate/hosted-integration)
 pages.
 
-The browser and server SDKs use **0.22.0**. The recovery CLI uses **0.21.0**.
+The browser and server SDKs use **0.25.0**. The recovery CLI uses **0.25.0**.
 See [Release 0.22.0](/releases) for integration and deployment requirements.
 
 ## Prepared NEAR connector
