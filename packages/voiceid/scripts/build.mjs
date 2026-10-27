@@ -13,7 +13,7 @@ await mkdir(assets, { recursive: true });
 
 await build(
   {
-    input: ['src/index.ts', 'src/react.ts'],
+    input: ['src/index.ts', 'src/react.ts', 'src/capture/prompt.ts'],
     external: ['@seams/wallet/voiceid-host', 'voice-glow', 'react', 'react/jsx-runtime'],
   },
   { dir: path.join(dist, 'esm'), format: 'esm', preserveModules: true, preserveModulesRoot: 'src' },
