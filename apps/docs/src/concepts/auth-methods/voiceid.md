@@ -5,7 +5,7 @@ description: Install the optional VoiceID package, prepare the Wallet host, and 
 
 # VoiceID
 
-VoiceID is an optional browser authentication method in SDK **0.24.0**.
+VoiceID is an optional browser authentication method in SDK **0.25.0**.
 The application enables support. Each wallet owner then chooses whether to enroll.
 Speaker matching and phrase recognition run locally inside the trusted Wallet iframe.
 The Wallet keeps its existing custody, session, policy, and threshold signing checks.
@@ -15,7 +15,7 @@ The Wallet keeps its existing custody, session, policy, and threshold signing ch
 Install matching package versions in your application:
 
 ```sh
-pnpm add @seams/wallet@0.24.0 @seams/voiceid@0.24.0
+pnpm add @seams/wallet@0.25.0 @seams/voiceid@0.25.0
 ```
 
 Import the descriptor from the optional package and add `authMethods` to your existing configuration.

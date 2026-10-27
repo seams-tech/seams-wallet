@@ -6,7 +6,7 @@ description: Define the wallet, custody, policy, session, signing, and Router A/
 # Glossary
 
 Passkeys and Email OTP are released owner authentication methods.
-SDK 0.24.0 adds optional [VoiceID](/concepts/auth-methods/voiceid).
+SDK 0.25.0 adds optional [VoiceID](/concepts/auth-methods/voiceid).
 Delegated-agent issuance and broader payment adapters describe proposed capabilities.
 See [release status](/releases) before treating a concept as an available API.
 

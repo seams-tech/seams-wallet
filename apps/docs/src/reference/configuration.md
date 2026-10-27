@@ -53,7 +53,7 @@ Use `iframeWallet` for the isolated wallet origin. Set the HTTPS `walletOrigin`.
 
 ## Optional VoiceID
 
-SDK 0.24.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
+SDK 0.25.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
 `@seams/voiceid`. The Wallet host operator must deploy that package's assets too.
 The descriptor enables availability. The wallet owner chooses enrollment and VoiceID unlock separately.
 It does not load the engine or models during passkey or Email OTP flows.

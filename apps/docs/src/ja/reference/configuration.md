@@ -51,7 +51,7 @@ Seamsのプロバイダー設定は不要です。公開済みの`0.22.0`には�
 
 ## 任意のVoiceID {#optional-voiceid}
 
-SDK 0.24.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
+SDK 0.25.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
 記述子は`@seams/voiceid`からインポートします。Walletホストにも、このパッケージのアセットが必要です。
 記述子は利用可能な方法を定めます。所有者は、登録とVoiceIDでのアンロックを別に選びます。
 パスキーやメールOTPの処理中は、エンジンやモデルを読み込みません。

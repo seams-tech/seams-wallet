@@ -1,6 +1,6 @@
 # @seams/voiceid
 
-Optional browser VoiceID authentication for `@seams/wallet` 0.24.0.
+Optional browser VoiceID authentication for `@seams/wallet` 0.25.0.
 This package owns microphone capture, enrollment, local inference, voice UI,
 and the model/runtime assets. The Wallet SDK owns custody, sessions, signing,
 and the trusted host API. Existing voice enrollments keep their storage identity.

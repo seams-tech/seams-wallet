@@ -1,9 +1,31 @@
 ---
-title: Release 0.24.0
-description: Optional VoiceID authentication and the 0.24.0 Wallet package requirements.
+title: Release 0.25.0
+description: CSS isolation, app-controlled settings modals, and matching 0.25.0 package versions.
 ---
 
-# Release 0.24.0
+# Release 0.25.0
+
+Version **0.25.0** protects SDK controls from broad application CSS and adds an app-controlled settings modal.
+
+| Component | Version |
+| --- | --- |
+| Browser SDK `@seams/wallet` | **0.25.0** |
+| Server SDK `@seams/wallet-server` | **0.25.0** |
+| Optional plugin `@seams/voiceid` | **0.25.0** |
+| Native CLI launcher `@seams/wallet-cli` | **0.25.0** |
+| Wallet iframe protocol | **17.0.0** |
+
+- SDK controls and portalled overlays use a consistent namespace and explicit control defaults.
+- `AccountMenuButton` supports its dropdown and a modal controlled through `isMenuOpen` and `onMenuOpenChange`.
+- Applications can use their own buttons to open the settings modal with `presentation="modal"`.
+- VoiceID action challenges accept `confirmationCommand` to select an action-specific phrase.
+
+See the [React reference](/reference/react) for the settings API.
+Deploy the matching wallet host assets with the browser SDK.
+
+## Previous releases
+
+## Release 0.24.0
 
 Version **0.24.0** adds optional VoiceID enrollment, unlock, and reviewed NEAR and Arc testnet signing.
 
@@ -23,8 +45,6 @@ Enabling the descriptor alone causes no VoiceID download.
 The first VoiceID operation shows one download indicator for the engine and three models, then **Preparing VoiceID…**.
 Voice samples persist until the owner changes or removes them. Speaker verification remains at 0.5.
 `VoiceBeam` and `VoiceAssistantCard` now come from `@seams/voiceid/react`; card styles come from `@seams/voiceid/styles`.
-
-## Previous releases
 
 ## Release 0.22.0
 

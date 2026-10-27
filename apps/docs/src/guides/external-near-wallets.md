@@ -11,7 +11,7 @@ Offer two wallet choices in your application:
 - **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
 ::: warning Message-signing availability
-`@seams/wallet@0.23.0` includes external NEAR connections and transactions.
+`@seams/wallet@0.25.0` includes external NEAR connections and transactions.
 Meteor's `signMessage` API is implemented on `dev` for the next release.
 Use an exact release containing this API after publication.
 :::

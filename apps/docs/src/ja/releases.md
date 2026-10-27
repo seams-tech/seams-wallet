@@ -1,9 +1,31 @@
 ---
-title: リリース 0.24.0
-description: オプションのVoiceID認証とWallet 0.24.0のパッケージ要件。
+title: リリース 0.25.0
+description: CSSの分離、アプリから開く設定モーダル、0.25.0に統一したパッケージ。
 ---
 
-# リリース 0.24.0
+# リリース 0.25.0
+
+バージョン **0.25.0** は、アプリの広範なCSSからSDKの操作部品を保護し、アプリから開く設定モーダルを追加します。
+
+| 構成要素 | バージョン |
+| --- | --- |
+| ブラウザーSDK `@seams/wallet` | **0.25.0** |
+| サーバーSDK `@seams/wallet-server` | **0.25.0** |
+| オプションプラグイン `@seams/voiceid` | **0.25.0** |
+| ネイティブCLIランチャー `@seams/wallet-cli` | **0.25.0** |
+| Wallet iframeプロトコル | **17.0.0** |
+
+- SDKの操作部品とポータル表示は、共通の名前空間と明示的な初期スタイルを使います。
+- `AccountMenuButton`は、ドロップダウンと、`isMenuOpen`および`onMenuOpenChange`で制御するモーダルに対応します。
+- `presentation="modal"`を指定すると、アプリ独自のボタンから設定を開けます。
+- VoiceIDの操作チャレンジは、`confirmationCommand`で操作に応じた発話を選択できます。
+
+設定APIは[Reactリファレンス](/ja/reference/react)を参照してください。
+ブラウザーSDKと一致するウォレットホストのアセットをデプロイしてください。
+
+## 過去のリリース
+
+## リリース 0.24.0 {#release-0-24-0}
 
 バージョン **0.24.0** では、VoiceIDの登録、アンロック、NEARおよびArcテストネットの取引承認を利用できます。
 
@@ -24,8 +46,6 @@ Walletホストの運用者は、`seams-voiceid-host ./wallet-with-voiceid`で�
 初回のVoiceID操作では、エンジンと3つのモデルに共通の進捗バーを表示し、その後に **Preparing VoiceID…** を表示します。
 音声サンプルは、所有者が変更または削除するまで保持されます。話者照合のしきい値は0.5です。
 `VoiceBeam` と `VoiceAssistantCard` は `@seams/voiceid/react` から、カードのスタイルは `@seams/voiceid/styles` から読み込みます。
-
-## 過去のリリース
 
 ## リリース 0.22.0 {#release-0-22-0}
 

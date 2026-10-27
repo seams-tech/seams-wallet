@@ -12,7 +12,7 @@ still usable.
 ## Proof inputs
 
 The released wallet uses passkeys, Email OTP, Wallet Sessions, and linked-device
-proofs. SDK 0.24.0 adds optional [VoiceID](/concepts/auth-methods/voiceid) authentication.
+proofs. SDK 0.25.0 adds optional [VoiceID](/concepts/auth-methods/voiceid) authentication.
 Organization roles belong to Console authorization. External biometric proofs remain proposed inputs.
 This list describes their intended policy role, rather than public enrollment APIs:
 
