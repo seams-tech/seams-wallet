@@ -2,6 +2,29 @@ import { DurableObject } from 'cloudflare:workers';
 
 const AUTH_HEADER = 'x-router-ab-internal-service-auth';
 const PUBLIC_LOG_FIELDS = {
+  ml_dsa_registration_job_v1: ['http_request', 'job', 'operation'],
+  ml_dsa_registration_call_v1: ['job', 'operation', 'phase', 'call_id'],
+  ml_dsa_registration_preparation_v1: ['role', 'written_frames', 'write_transactions', 'peak_pending_frames'],
+  ml_dsa_registration_execution_v1: [
+    'operation', 'role', 'wasm_linear_memory_bytes', 'loaded_frames', 'loaded_bytes',
+    'table_read_transactions', 'peak_cached_frames',
+  ],
+  ml_dsa_registration_retirement_v1: ['job', 'stage', 'at_ms'],
+  ml_dsa_stage_trace_v1: ['operation', 'role', 'context', 'module_instance', 'completed', 'marks', 'table_reads'],
+  ml_dsa_wait_scope_v1: ['call_id', 'job', 'operation', 'role'],
+  ml_dsa_wait_boundary_v1: [
+    'call_id', 'sequence', 'kind', 'state', 'pending', 'at_ms',
+    'peer_ready', 'peer_pending', 'peer_boundary_ms',
+  ],
+  ml_dsa_wait_summary_v1: [
+    'call_id', 'observations', 'emitted_events', 'event_limit_reached',
+    'peer_ready', 'peer_pending', 'peer_boundary_ms',
+  ],
+  ml_dsa_commitment_batch_v1: [
+    'operation', 'role', 'start', 'pairs', 'candidates_per_pair', 'and_exchanges', 'and_gates',
+    'sent_bytes', 'received_bytes', 'maximum_message_bytes', 'wasm_linear_memory_bytes',
+  ],
+  router_ab_yao_transport_v1: ['duration_ms', 'request_bytes', 'service', 'stage', 'status'],
   ml_dsa_router_trace_v1: ['http_request', 'operation', 'module_instance', 'status', 'milestones'],
   ml_dsa_benchmark_request_v1: ['wallet', 'request', 'operation', 'stage', 'at_ms', 'http_status'],
   ml_dsa_preparation_cache_v1: [
@@ -443,6 +466,14 @@ function sanitizeTrace(event) {
   for (const name of ['x-ml-dsa-request-id', 'x-seams-trace-id']) {
     const value = request?.headers?.[name];
     if (typeof value === 'string' && /^[a-zA-Z0-9:_-]{1,128}$/.test(value)) headers[name] = value;
+  }
+  for (const name of ['x-ml-dsa-job-id', 'x-ml-dsa-operation-id']) {
+    const value = request?.headers?.[name];
+    if (typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)) headers[name] = value;
+  }
+  const command = request?.headers?.['x-ml-dsa-command'];
+  if (['prepare', 'prepare_peer', 'execute', 'execute_peer', 'install', 'result'].includes(command)) {
+    headers['x-ml-dsa-command'] = command;
   }
   const signingOperation = publicSigningOperation(request);
   if (signingOperation !== null) headers['x-ml-dsa-operation'] = signingOperation;

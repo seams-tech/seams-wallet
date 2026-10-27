@@ -10,7 +10,10 @@ The client observes full reserves at 87.6 and 84.0 seconds, versus 88.7 seconds 
 The latest publication checkpoints occur at 86.8 and 79.3 seconds, versus 84.4 seconds for the control.
 Thus consistent publication acceleration and stable percentage savings remain unproven.
 Wallet-seed recovery, canonical FIPS export, two-at-once consumption, and pool capacity remain unchanged.
-The next measured inner-stage opportunity is code-matrix encoding, which accounts for about one quarter of local preparation samples.
+The [grouped accumulator experiment](router-ab/ml-dsa-65-grouped-accumulator-report.md) improves the local encoder by about 22%, but provides no useful hosted gain.
+Its paired producer CPU totals are 152.5 seconds, versus 147.1 and 144.9 seconds for the controls.
+Both prototypes are removed. Corrected baseline snapshots and public benchmark diagnostics remain.
+Four-candidate job wall medians remain near ten seconds. The next target is finer attribution of private AES setup, rounds, and buffer handling.
 Registration, signing tails, and sustained four-wallet throughput still need qualification against the targets below.
 
 ## Objective and measurement boundaries
