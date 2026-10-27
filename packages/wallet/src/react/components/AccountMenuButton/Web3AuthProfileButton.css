@@ -48,7 +48,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-[data-seams-root].seams-theme-provider .seams-account-close {
+[data-seams-root].seams-theme-provider button.seams-account-close {
   margin-left: auto;
   background: none;
   border: 0;
@@ -64,10 +64,18 @@
   width: 14px;
   height: 14px;
 }
-[data-seams-root].seams-theme-provider .seams-account-close > svg,
-[data-seams-root].seams-theme-provider .seams-account-back > svg {
+[data-seams-root].seams-theme-provider button.seams-account-close > svg,
+[data-seams-root].seams-theme-provider button.seams-account-back > svg {
   width: 18px;
   height: 18px;
+  fill: none;
+  stroke: currentColor;
+}
+[data-seams-root].seams-theme-provider button.seams-account-close > svg {
+  stroke-width: 1.5;
+}
+[data-seams-root].seams-theme-provider button.seams-account-back > svg {
+  stroke-width: 1.75;
 }
 [data-seams-root].seams-theme-provider .seams-account-main {
   padding: 16px 20px;
@@ -90,7 +98,7 @@
 [data-seams-root].seams-theme-provider .seams-account-heading h2:focus {
   outline: none;
 }
-[data-seams-root].seams-theme-provider .seams-account-back {
+[data-seams-root].seams-theme-provider button.seams-account-back {
   width: 24px;
   height: 30px;
   padding: 0;
@@ -153,6 +161,8 @@
 }
 [data-seams-root].seams-theme-provider .seams-account-wordmark {
   flex: none;
+  fill: currentColor;
+  stroke: none;
   width: 50px;
   height: 10px;
 }
@@ -162,7 +172,7 @@
   color: var(--seams-colors-textSecondary);
   margin: 0 0 16px;
 }
-[data-seams-root].seams-theme-provider .seams-account-action {
+[data-seams-root].seams-theme-provider button.seams-account-action {
   display: flex;
   width: 100%;
   align-items: center;
@@ -183,7 +193,7 @@
     border-color 150ms ease,
     transform 120ms ease;
 }
-[data-seams-root].seams-theme-provider .seams-account-action:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider button.seams-account-action:hover:not(:disabled) {
   background: var(--seams-colors-surface2);
   border-color: color-mix(
     in srgb,
@@ -191,15 +201,15 @@
     var(--seams-colors-borderPrimary)
   );
 }
-[data-seams-root].seams-theme-provider .seams-account-action:active:not(:disabled) {
+[data-seams-root].seams-theme-provider button.seams-account-action:active:not(:disabled) {
   transform: scale(0.98);
 }
-[data-seams-root].seams-theme-provider .seams-account-action.primary {
+[data-seams-root].seams-theme-provider button.seams-account-action.primary {
   background: var(--seams-colors-textPrimary);
   color: var(--seams-colors-colorBackground);
   border-color: transparent;
 }
-[data-seams-root].seams-theme-provider .seams-account-action.primary:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider button.seams-account-action.primary:hover:not(:disabled) {
   background: color-mix(
     in srgb,
     var(--seams-colors-textPrimary) 84%,
@@ -207,12 +217,12 @@
   );
   border-color: transparent;
 }
-[data-seams-root].seams-theme-provider .seams-account-action:disabled {
+[data-seams-root].seams-theme-provider button.seams-account-action:disabled {
   opacity: 0.5;
   cursor: default;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-seams-root].seams-theme-provider .seams-account-action {
+  [data-seams-root].seams-theme-provider button.seams-account-action {
     transition: none;
   }
 }
@@ -264,7 +274,7 @@
   font-size: 13px;
   margin: 0;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button {
+[data-seams-root].seams-theme-provider button.seams-account-method-button {
   position: relative;
   isolation: isolate;
   display: flex;
@@ -282,7 +292,7 @@
 }
 /* The hover shade bleeds past the row edges so the content and the
    separators stay aligned with the rest of the screen. */
-[data-seams-root].seams-theme-provider .seams-account-method-button::before {
+[data-seams-root].seams-theme-provider button.seams-account-method-button::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -292,38 +302,40 @@
   opacity: 0;
   transition: opacity 150ms ease;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button:hover::before,
-[data-seams-root].seams-theme-provider .seams-account-method-button:focus-visible::before {
+[data-seams-root].seams-theme-provider button.seams-account-method-button:hover::before,
+[data-seams-root].seams-theme-provider button.seams-account-method-button:focus-visible::before {
   opacity: 1;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button .seams-account-avatar {
+[data-seams-root].seams-theme-provider button.seams-account-method-button .seams-account-avatar {
   transition: background-color 150ms ease;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button:hover .seams-account-avatar,
 [data-seams-root].seams-theme-provider
-  .seams-account-method-button:focus-visible
+  button.seams-account-method-button:hover
+  .seams-account-avatar,
+[data-seams-root].seams-theme-provider
+  button.seams-account-method-button:focus-visible
   .seams-account-avatar {
   background: var(--seams-colors-colorBackground);
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button > div {
+[data-seams-root].seams-theme-provider button.seams-account-method-button > div {
   flex: 1;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button > .seams-hover-arrow {
+[data-seams-root].seams-theme-provider button.seams-account-method-button > .seams-hover-arrow {
   margin-inline-end: 2px;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button strong {
+[data-seams-root].seams-theme-provider button.seams-account-method-button strong {
   font-size: 15px;
   font-weight: 500;
 }
-[data-seams-root].seams-theme-provider .seams-account-method-button small {
+[data-seams-root].seams-theme-provider button.seams-account-method-button small {
   display: block;
   margin-top: 4px;
   color: var(--seams-colors-textSecondary);
   font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-seams-root].seams-theme-provider .seams-account-method-button::before,
-  [data-seams-root].seams-theme-provider .seams-account-method-button .seams-account-avatar {
+  [data-seams-root].seams-theme-provider button.seams-account-method-button::before,
+  [data-seams-root].seams-theme-provider button.seams-account-method-button .seams-account-avatar {
     transition: none;
   }
 }
@@ -375,7 +387,7 @@
 [data-seams-root].seams-theme-provider
   .seams-account-screen
   .qr-scanner-modal[data-presentation='embedded']
-  .qr-scanner-close {
+  button.qr-scanner-close {
   display: none;
 }
 [data-seams-root].seams-theme-provider .seams-account-screen .qr-scanner-camera-container {
@@ -448,7 +460,7 @@
 /* Separators go between rows only; the footer rule closes the screen. */
 [data-seams-root].seams-theme-provider
   .seams-account-method-list-item:last-child
-  > .seams-account-method-button {
+  > button.seams-account-method-button {
   border-bottom: 0;
 }
 [data-seams-root].seams-theme-provider .seams-account-screen ul {
@@ -486,7 +498,9 @@
   .seams-linked-devices-modal-item-detail {
   display: none;
 }
-[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  button.seams-dropdown-menu-item {
   transform: none;
 }
 [data-seams-root].seams-theme-provider .seams-account-identity:focus {
@@ -517,7 +531,7 @@
   padding: 8px 0;
 }
 @media (pointer: coarse) {
-  [data-seams-root].seams-theme-provider .seams-account-action {
+  [data-seams-root].seams-theme-provider button.seams-account-action {
     min-height: 44px;
   }
 }
@@ -527,7 +541,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
-[data-seams-root].seams-theme-provider .seams-recovery-code-actions .seams-account-action {
+[data-seams-root].seams-theme-provider .seams-recovery-code-actions button.seams-account-action {
   margin-top: 0;
 }
 [data-seams-root].seams-theme-provider .seams-recovery-code-action-status {

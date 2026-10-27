@@ -8,7 +8,7 @@ const artifacts = fileURLToPath(
 );
 const url = process.env.SEAMS_ACCOUNT_MOCK_URL || 'http://127.0.0.1:4017/account-menu-mock.html';
 const hostStyles = `
-  .customer-app button {
+  .customer-app button, .customer-app button[type], .customer-app a[href], .customer-app input[type], .customer-app select {
     box-sizing: content-box;
     display: block;
     width: 100%;
@@ -26,7 +26,7 @@ const hostStyles = `
     letter-spacing: 2px;
     box-shadow: 0 0 4px red;
   }
-  .customer-app svg { width: 40px; height: 40px; }
+  .customer-app svg[viewBox] { width: 40px; height: 40px; fill: lime; stroke: red; stroke-width: 9px; }
   .customer-app h2 { margin: 30px; font-size: 40px; }
 `;
 const walletRequests = [];
@@ -34,6 +34,7 @@ function addHostControl() {
   document.body.classList.add('customer-app');
   const button = document.createElement('button');
   button.id = 'host-control';
+  button.type = 'button';
   button.textContent = 'App control';
   const container = document.createElement('aside');
   container.style.width = '160px';
@@ -54,7 +55,11 @@ async function captureScreen(page, name) {
   if (await resize.count()) {
     await expect.poll(resize.evaluate.bind(resize, panelHeightDifference)).toBeLessThan(1);
   }
-  await page.screenshot({ path: `${artifacts}/${name}.png`, animations: 'disabled' });
+  await page.screenshot({
+    path: `${artifacts}/${name}.png`,
+    animations: 'disabled',
+    fullPage: true,
+  });
 }
 function panelHeightDifference(panel) {
   return Math.abs(
@@ -66,7 +71,14 @@ function measureControl(element) {
   const icons = [];
   for (const icon of element.querySelectorAll('svg')) {
     const bounds = icon.getBoundingClientRect();
-    icons.push([bounds.width, bounds.height]);
+    const iconStyle = getComputedStyle(icon);
+    icons.push([
+      bounds.width,
+      bounds.height,
+      iconStyle.fill,
+      iconStyle.stroke,
+      iconStyle.stroke === 'none' ? null : iconStyle.strokeWidth,
+    ]);
   }
   return {
     width: element.getBoundingClientRect().width,
@@ -79,11 +91,15 @@ function measureControl(element) {
     textTransform: style.textTransform,
     letterSpacing: style.letterSpacing,
     shadow: style.boxShadow,
+    fill: style.fill,
+    stroke: style.stroke,
+    strokeWidth: style.stroke === 'none' ? null : style.strokeWidth,
     icons,
   };
 }
 async function measureOverview(page) {
   return {
+    wordmark: await page.locator('.seams-account-wordmark').evaluate(measureControl),
     close: await page
       .getByRole('button', { name: 'Close wallet settings', exact: true })
       .evaluate(measureControl),
@@ -92,6 +108,13 @@ async function measureOverview(page) {
       .getByRole('button', { name: 'Lock Wallet', exact: true })
       .evaluate(measureControl),
   };
+}
+async function measureMany(locator) {
+  const measurements = [];
+  for (const element of await locator.all()) {
+    measurements.push(await element.evaluate(measureControl));
+  }
+  return measurements;
 }
 async function measureTransactions(page) {
   await page.locator('[data-account-menu-item="transaction-settings"]').click();
@@ -126,6 +149,12 @@ function recordResize() {
 function recordError(errors, error) {
   errors.push(error.message);
 }
+function setRtl() {
+  document.documentElement.dir = 'rtl';
+}
+function setLtr() {
+  document.documentElement.dir = 'ltr';
+}
 async function back(page) {
   await page.getByRole('button', { name: 'Back', exact: true }).click();
 }
@@ -147,6 +176,10 @@ try {
   await page.goto(url);
   await expect(page.locator('[data-account-menu-item]')).toHaveCount(7);
   const cleanOverview = await measureOverview(page);
+  await expect(page.getByRole('button', { name: 'Lock Wallet', exact: true })).toHaveCSS(
+    'border-top-width',
+    '1px',
+  );
   const cleanTransactions = await measureTransactions(page);
   await page.evaluate(addHostControl);
   await page.addStyleTag({ content: hostStyles });
@@ -160,6 +193,18 @@ try {
     cleanTransactions,
     'Host CSS must preserve transaction controls',
   );
+  await page.locator('[data-account-menu-item="accounts"]').click();
+  await expect(page.locator('.seams-accounts-row-arrow').first()).toHaveCSS('width', '14px');
+  await back(page);
+  await page.evaluate(setRtl);
+  await page.locator('[data-account-menu-item="transaction-settings"]').click();
+  await expect(page.locator('.seams-transaction-switch > span')).toHaveCSS(
+    'transform',
+    'matrix(1, 0, 0, 1, -18, 0)',
+  );
+  await captureScreen(page, 'rtl-host-css');
+  await back(page);
+  await page.evaluate(setLtr);
   await page.locator('[data-account-menu-item="export-keys"]').click();
   await expect(page.getByRole('heading', { name: 'Export keys', exact: true })).toBeVisible();
   await captureScreen(page, 'export-keys');
@@ -315,7 +360,7 @@ try {
   const portalHostControl = await page.locator('#host-control').evaluate(measureControl);
   await page.addStyleTag({
     content: `
-    [data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+    [data-seams-root].seams-theme-provider .seams-profile-dropdown-menu button.seams-dropdown-menu-item {
       padding-block: 10px;
     }
     [data-seams-root] .seams-profile-button-morphable { --seams-colors-textPrimary: rgb(24, 80, 160); }
@@ -331,6 +376,76 @@ try {
   );
   assert.deepEqual(await page.locator('#host-control').evaluate(measureControl), portalHostControl);
   await captureScreen(page, 'intentional-customization');
+  const catalogEvidence = [];
+  const catalogUrl = new URL('component-css.html', url);
+  await page.setViewportSize({ width: 460, height: 1100 });
+  for (const portal of [false, true]) {
+    catalogUrl.search = portal ? '?portal=1' : '';
+    await page.goto(catalogUrl.href);
+    await expect(
+      page.getByRole('button', { name: 'Meteor Wallet Browser extension' }),
+    ).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'HOT Wallet Mainnet only' })).toBeDisabled();
+    await expect(page.getByRole('combobox', { name: 'Wallet', exact: true })).toBeDisabled();
+    const controls = page.locator(
+      '.seams-wallet-picker :is(button, select), [aria-label="Standalone icons"] svg',
+    );
+    const clean = await measureMany(controls);
+    assert.deepEqual(clean.slice(-4).map(iconSize), [
+      [19, 23],
+      [26, 30],
+      [21, 21],
+      [25, 25],
+    ]);
+    await page.evaluate(addHostControl);
+    await page.addStyleTag({ content: hostStyles });
+    const styled = await measureMany(controls);
+    assert.deepEqual(styled, clean, 'Host CSS must preserve standalone pickers and icon props');
+    if (portal) await expect(page.locator('#root')).toBeEmpty();
+    await captureScreen(page, portal ? 'standalone-portals' : 'standalone-components');
+    catalogEvidence.push({ portal, clean, styled });
+  }
+  catalogUrl.search = '?view=link&portal=1';
+  await page.goto(catalogUrl.href);
+  await page.getByRole('radio', { name: 'Email code', exact: true }).check();
+  await page.getByRole('textbox').fill('customer@example.com');
+  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled();
+  const linkControls = page.locator('.qr-code-container :is(button, input, svg, h2)');
+  await expect(
+    page.getByRole('heading', { name: 'Match your other device', exact: true }),
+  ).toHaveCSS('font-size', '21px');
+  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toHaveCSS(
+    'min-height',
+    '44px',
+  );
+  const cleanLink = await measureMany(linkControls);
+  await page.evaluate(addHostControl);
+  await page.addStyleTag({ content: hostStyles });
+  const styledLink = await measureMany(linkControls);
+  assert.deepEqual(
+    styledLink,
+    cleanLink,
+    'Host CSS must preserve portal radios, email input, icons, and Continue',
+  );
+  await page.getByRole('radio', { name: 'Passkey (recommended)', exact: true }).check();
+  await expect(page.getByRole('textbox')).toHaveCount(0);
+  await captureScreen(page, 'device-link-portal');
+  const surfaceEvidence = [];
+  for (const view of ['scanner', 'settings']) {
+    catalogUrl.search = `?view=${view}&portal=1`;
+    await page.goto(catalogUrl.href);
+    const controls = page.locator(
+      '[data-seams-root].seams-theme-provider :is(button, select, .seams-settings-wordmark)',
+    );
+    await expect(controls.first()).toBeVisible();
+    const clean = await measureMany(controls);
+    await page.evaluate(addHostControl);
+    await page.addStyleTag({ content: hostStyles });
+    const styled = await measureMany(controls.filter({ hasNotText: 'App control' }));
+    assert.deepEqual(styled, clean, `Host CSS must preserve the ${view} portal controls`);
+    await captureScreen(page, `${view}-portal`);
+    surfaceEvidence.push({ view, clean, styled });
+  }
   assert.deepEqual(walletRequests, []);
   assert.deepEqual(errors, []);
   await writeFile(
@@ -343,6 +458,10 @@ try {
         hostOverview,
         hostTransactions,
         hostControl,
+        catalogEvidence,
+        cleanLink,
+        styledLink,
+        surfaceEvidence,
         resize,
         fit,
         walletRequests,
@@ -359,4 +478,7 @@ try {
   await context.tracing.stop({ path: `${artifacts}/trace.zip` });
   await context.close();
   await browser.close();
+}
+function iconSize(icon) {
+  return [icon.width, icon.height];
 }

@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { lucideIconSvg } from './lucideIcon';
 
 type SpinnerIconProps = {
   className?: string;
@@ -6,21 +7,17 @@ type SpinnerIconProps = {
 
 export const SpinnerIcon: FC<SpinnerIconProps> = ({ className }) => {
   const classes = ['seams-menu-spinner-icon', className].filter(Boolean).join(' ');
-  return (
-    <svg
-      className={classes}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
+  return lucideIconSvg(
+    'spinner',
+    { className: classes },
+    <>
       <circle cx="12" cy="12" r="8.5" className="seams-menu-spinner-icon-track" />
       <path
         d="M20.5 12A8.5 8.5 0 0 0 12 3.5"
         className="seams-menu-spinner-icon-head"
         strokeLinecap="round"
       />
-    </svg>
+    </>,
   );
 };
 

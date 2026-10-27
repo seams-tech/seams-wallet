@@ -65,7 +65,8 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
   const content = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (content.current) {
-      content.current.inert = state.kind === 'preparing_approval' || state.kind === 'wallet_approval';
+      content.current.inert =
+        state.kind === 'preparing_approval' || state.kind === 'wallet_approval';
     }
   }, [state.kind]);
   useLayoutEffect(() => {
@@ -73,7 +74,7 @@ function ReviewContent({ call }: { call: ReviewCallView }): ReactNode {
   }, [call]);
   return (
     <section className={`seams-transaction-review-content ${call.review.className ?? ''}`}>
-      <h2 tabIndex={-1} ref={heading}>
+      <h2 className="seams-transaction-review-title" tabIndex={-1} ref={heading}>
         {call.review.title}
       </h2>
       {state.kind === 'review_failed' ? (
@@ -107,7 +108,11 @@ function ReviewLoading({ call }: { call: ReviewCallView }): ReactNode {
   return (
     <>
       <p role="status">Loading review…</p>
-      <button type="button" onClick={call.controls.cancel}>
+      <button
+        className="seams-transaction-review-action"
+        type="button"
+        onClick={call.controls.cancel}
+      >
         Cancel
       </button>
     </>
@@ -118,7 +123,11 @@ function ReviewFailure({ call }: { call: ReviewCallView }): ReactNode {
   return (
     <>
       <p role="alert">The application review could not be displayed.</p>
-      <button type="button" onClick={call.controls.cancel}>
+      <button
+        className="seams-transaction-review-action"
+        type="button"
+        onClick={call.controls.cancel}
+      >
         Dismiss
       </button>
     </>

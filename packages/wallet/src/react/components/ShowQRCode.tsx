@@ -29,6 +29,8 @@ import {
 import { toAccountId } from '../../core/types/accountIds';
 import { FingerprintIcon } from './FingerprintIcon';
 import './ShowQRCode.css';
+import { Theme, useTheme } from './theme';
+import { lucideIconSvg } from './AccountMenuButton/icons/lucideIcon';
 
 export interface ShowQRCodeProps {
   isOpen: boolean;
@@ -93,22 +95,13 @@ const DEFAULT_TARGET_FACTOR: Extract<LinkedDeviceTargetFactorV1, { readonly kind
   { kind: 'passkey_prf' };
 
 function EmailOtpMethodIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
+  return lucideIconSvg(
+    'mail',
+    { size: 22, strokeWidth: 1.75 },
+    <>
       <rect x="2.75" y="5" width="18.5" height="14" rx="2.75" />
       <path d="m3.75 7.75 6.94 4.86a2.25 2.25 0 0 0 2.62 0l6.94-4.86" />
-    </svg>
+    </>,
   );
 }
 
@@ -178,7 +171,16 @@ function reconcileActiveLinkedDevice(
   );
 }
 
-export function ShowQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProps) {
+export function ShowQRCode(props: ShowQRCodeProps) {
+  const { theme, tokens } = useTheme();
+  return (
+    <Theme theme={theme} tokens={{ [theme]: tokens }}>
+      <DeviceLinkQRCode {...props} />
+    </Theme>
+  );
+}
+
+function DeviceLinkQRCode({ isOpen, onClose, onEvent, onError }: ShowQRCodeProps) {
   const {
     startLinking,
     cancelLinking,
@@ -939,22 +941,14 @@ function FailureView({
 }
 
 function LinkFailedIcon() {
-  return (
-    <svg
-      width="26"
-      height="26"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+  return lucideIconSvg(
+    'link-failed',
+    { size: 26 },
+    <>
       <path d="M9 17H7A5 5 0 1 1 7 7h2" />
       <path d="M15 7h2a5 5 0 0 1 3.54 8.54" />
       <path d="m2 2 20 20" />
       <path d="M8 12h3" />
-    </svg>
+    </>,
   );
 }

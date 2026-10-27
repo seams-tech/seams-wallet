@@ -6,13 +6,23 @@ import {
   type ExternalNearWalletId,
   type ExternalNearNetwork,
 } from '../externalNear';
-import './externalNear.css';
+import { Theme, useTheme } from './components/theme';
+import './externalWalletPicker.css';
 
 export function useExternalNear(controller: ExternalNearController): ExternalNearSnapshot {
   return useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 }
 
-export class ExternalNearWalletPicker extends Component<
+export function ExternalNearWalletPicker({ controller }: { controller: ExternalNearController }) {
+  const { theme, tokens } = useTheme();
+  return (
+    <Theme theme={theme} tokens={{ [theme]: tokens }}>
+      <NearWalletPicker controller={controller} />
+    </Theme>
+  );
+}
+
+class NearWalletPicker extends Component<
   { controller: ExternalNearController },
   { snapshot: ExternalNearSnapshot; message: string }
 > {
@@ -53,10 +63,10 @@ export class ExternalNearWalletPicker extends Component<
       );
     }
     return (
-      <section aria-label="Choose your NEAR wallet" className="seams-near-picker">
+      <section aria-label="Choose your NEAR wallet" className="seams-wallet-picker">
         <h2>Choose your NEAR wallet</h2>
         <p className="seams-near-network">NEAR {this.props.controller.network}</p>
-        <div className="seams-near-wallets">{choices}</div>
+        <div className="seams-wallet-picker-options">{choices}</div>
         {wallets.length === 0 && <p>No NEAR wallets are enabled.</p>}
         {connection.kind === 'connected' && (
           <p>

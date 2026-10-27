@@ -308,13 +308,13 @@
   margin-top: 1px;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-remove {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-remove {
   align-self: start;
   margin-top: 2px;
   color: oklch(0.52 0.17 25);
 }
 
-[data-seams-root].seams-theme-provider .theme-dark .seams-linked-devices-modal-remove {
+[data-seams-root].seams-theme-provider .theme-dark button.seams-linked-devices-modal-remove {
   color: oklch(0.74 0.15 25);
 }
 
@@ -367,7 +367,7 @@
   line-height: 1.45;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-otp-input {
+[data-seams-root].seams-theme-provider input.seams-linked-devices-modal-otp-input {
   width: 100%;
   min-height: 44px;
   padding: 0.55rem 0.7rem;
@@ -380,7 +380,7 @@
   box-sizing: border-box;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-otp-input:focus-visible {
+[data-seams-root].seams-theme-provider input.seams-linked-devices-modal-otp-input:focus-visible {
   outline: none;
   border-color: transparent;
   background:
@@ -396,8 +396,8 @@
       border-box;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary,
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-secondary,
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-danger {
   justify-self: start;
   min-height: 36px;
   padding: 0.4rem 0.75rem;
@@ -408,39 +408,40 @@
   transition: background-color 140ms ease;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-secondary {
   border: 1px solid var(--seams-colors-borderPrimary);
   background: var(--seams-colors-colorBackground);
   color: var(--seams-colors-textPrimary);
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider
+  button.seams-linked-devices-modal-secondary:hover:not(:disabled) {
   background: var(--seams-colors-surface2, var(--seams-colors-surface));
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-danger {
   justify-self: stretch;
   border: 1px solid transparent;
   background: oklch(0.55 0.19 25);
   color: #ffffff;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:hover {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-danger:hover {
   background: oklch(0.49 0.19 25);
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:disabled {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-secondary:disabled {
   cursor: default;
   opacity: 0.6;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:disabled {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-danger:disabled {
   cursor: default;
   opacity: 0.6;
 }
 
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:focus-visible,
-[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:focus-visible {
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-secondary:focus-visible,
+[data-seams-root].seams-theme-provider button.seams-linked-devices-modal-danger:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 2px;
 }
@@ -603,7 +604,7 @@
 }
 [data-seams-root].seams-theme-provider
   .seams-auth-methods-modal-content
-  .seams-linked-devices-modal-secondary {
+  button.seams-linked-devices-modal-secondary {
   min-height: 44px;
   font-size: 0.8125rem;
 }
@@ -671,7 +672,7 @@
 
 /* Quiet text actions; Remove carries the error tone, mixed toward the text
    colour so it keeps its contrast on both themes. */
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
@@ -689,30 +690,30 @@
   cursor: pointer;
   transition: background-color 140ms ease;
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action > svg {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action > svg {
   color: var(--seams-colors-textSecondary);
 }
-[data-seams-root].seams-theme-provider [dir='rtl'] .seams-auth-method-text-action > svg {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action:dir(rtl) > svg {
   transform: scaleX(-1);
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action[data-tone='danger'],
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action[data-tone='danger'],
 [data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-detail [data-tone='error'],
 [data-seams-root].seams-theme-provider .seams-auth-method-field-error {
   color: color-mix(in oklab, var(--seams-colors-error) 65%, var(--seams-colors-textPrimary));
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action:hover:not(:disabled) {
   background: var(--seams-colors-surface2, var(--seams-colors-surface));
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action:disabled {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action:disabled {
   opacity: 0.45;
   cursor: default;
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-text-action:focus-visible {
+[data-seams-root].seams-theme-provider button.seams-auth-method-text-action:focus-visible {
   outline: 2px solid var(--seams-colors-textPrimary);
   outline-offset: 2px;
 }
 @media (pointer: coarse) {
-  [data-seams-root].seams-theme-provider .seams-auth-method-text-action {
+  [data-seams-root].seams-theme-provider button.seams-auth-method-text-action {
     min-height: 2.75rem;
   }
 }
@@ -746,7 +747,7 @@
   .seams-linked-devices-modal-confirm-actions {
   margin-top: 0.25rem;
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-primary {
+[data-seams-root].seams-theme-provider button.seams-auth-method-primary {
   min-height: 2.5rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid transparent;
@@ -759,18 +760,18 @@
   cursor: pointer;
   transition: background-color 140ms ease;
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-primary:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider button.seams-auth-method-primary:hover:not(:disabled) {
   background: color-mix(
     in srgb,
     var(--seams-colors-textPrimary) 84%,
     var(--seams-colors-colorBackground)
   );
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-primary:disabled {
+[data-seams-root].seams-theme-provider button.seams-auth-method-primary:disabled {
   opacity: 0.5;
   cursor: default;
 }
-[data-seams-root].seams-theme-provider .seams-auth-method-primary:focus-visible {
+[data-seams-root].seams-theme-provider button.seams-auth-method-primary:focus-visible {
   outline: 2px solid var(--seams-colors-textPrimary);
   outline-offset: 2px;
 }

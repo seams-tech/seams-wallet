@@ -7,15 +7,13 @@ import {
 } from 'react';
 import { ExternalEvmController } from '../externalEvm/controller';
 import type { ExternalEvmResult, ExternalEvmSnapshot } from '../externalEvm/types';
+import { Theme, useTheme } from './components/theme';
+import './externalWalletPicker.css';
 
 /** Subscribe to a host-owned controller and mount its browser discovery lifecycle. */
 export function useExternalEvm(controller: ExternalEvmController): ExternalEvmSnapshot {
   useEffect(controller.mount, [controller]);
-  return useSyncExternalStore(
-    controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot,
-  );
+  return useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 }
 
 export function ExternalEvmWalletPicker({
@@ -25,7 +23,12 @@ export function ExternalEvmWalletPicker({
   controller: ExternalEvmController;
   snapshot: ExternalEvmSnapshot;
 }) {
-  return <WalletPicker controller={controller} snapshot={snapshot} />;
+  const { theme, tokens } = useTheme();
+  return (
+    <Theme theme={theme} tokens={{ [theme]: tokens }}>
+      <WalletPicker controller={controller} snapshot={snapshot} />
+    </Theme>
+  );
 }
 
 class WalletPicker extends Component<
@@ -51,9 +54,7 @@ class WalletPicker extends Component<
   private accountChanged = (event: ChangeEvent<HTMLSelectElement>): void => {
     const connection = this.props.snapshot.connection;
     if (connection.kind === 'connected') {
-      this.showResult(
-        this.props.controller.selectAccount(connection, event.currentTarget.value),
-      );
+      this.showResult(this.props.controller.selectAccount(connection, event.currentTarget.value));
     }
   };
 
@@ -77,24 +78,36 @@ class WalletPicker extends Component<
     const { connection, busy, wallets } = snapshot;
     const choices = [];
     for (const wallet of wallets) {
-      choices.push(<option key={wallet.id} value={wallet.id}>{wallet.name}</option>);
+      choices.push(
+        <option key={wallet.id} value={wallet.id}>
+          {wallet.name}
+        </option>,
+      );
     }
     const accounts = [];
     if (connection.kind === 'connected') {
       for (const account of connection.accounts) {
-        accounts.push(<option key={account} value={account}>{account}</option>);
+        accounts.push(
+          <option key={account} value={account}>
+            {account}
+          </option>,
+        );
       }
     }
     const chains = [];
     for (const chain of controller.chains) {
-      chains.push(<option key={chain.chainId} value={chain.chainId}>{chain.name}</option>);
+      chains.push(
+        <option key={chain.chainId} value={chain.chainId}>
+          {chain.name}
+        </option>,
+      );
     }
     const selectedChainId =
       connection.kind === 'connected' && connection.network.kind === 'configured'
         ? connection.chainId
         : controller.chains[0]?.chainId;
     return (
-      <section aria-label="External EVM wallet" className="seams-external-evm">
+      <section aria-label="External EVM wallet" className="seams-wallet-picker seams-external-evm">
         <form onSubmit={this.connect}>
           <label>
             Wallet{' '}
@@ -106,19 +119,13 @@ class WalletPicker extends Component<
             Connect wallet
           </button>
         </form>
-        {wallets.length === 0 && (
-          <p>Install MetaMask, Rabby, or Phantom, then reload this page.</p>
-        )}
+        {wallets.length === 0 && <p>Install MetaMask, Rabby, or Phantom, then reload this page.</p>}
         {connection.kind === 'connected' && (
           <>
             <p>Connected to {connection.wallet.name}</p>
             <label>
               Account{' '}
-              <select
-                value={connection.account}
-                onChange={this.accountChanged}
-                disabled={busy}
-              >
+              <select value={connection.account} onChange={this.accountChanged} disabled={busy}>
                 {accounts}
               </select>
             </label>
@@ -156,9 +163,7 @@ class WalletPicker extends Component<
         >
           Disconnect wallet
         </button>
-        <p role="status">
-          {busy ? 'Complete the request in your wallet.' : this.state.message}
-        </p>
+        <p role="status">{busy ? 'Complete the request in your wallet.' : this.state.message}</p>
       </section>
     );
   }

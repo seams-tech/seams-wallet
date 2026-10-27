@@ -13,6 +13,11 @@ const shellStyle: CSSProperties = {
   background: 'var(--seams-colors-colorBackground, #fffdf9)',
   color: 'var(--seams-colors-textPrimary, #292524)',
   pointerEvents: 'none',
+  margin: 0,
+  minWidth: 0,
+  font: '14px / 1.5 system-ui, sans-serif',
+  letterSpacing: 'normal',
+  textTransform: 'none',
 };
 
 const rowStyle: CSSProperties = {
@@ -21,6 +26,10 @@ const rowStyle: CSSProperties = {
   borderRadius: 12,
   background: 'currentColor',
   opacity: 0.08,
+  width: '100%',
+  margin: 0,
+  padding: 0,
+  border: 0,
 };
 
 /** Inert artwork for loading and previews; contains no auth controls or wallet logic. */
@@ -33,7 +42,13 @@ export function SeamsAuthMenuMock({
 }) {
   return (
     <WalletLocaleContext.Provider value={locale}>
-      <span data-seams-auth-menu-mock="true" aria-hidden="true" style={shellStyle}>
+      <span
+        data-seams-root=""
+        className="seams-auth-menu-mock"
+        data-seams-auth-menu-mock="true"
+        aria-hidden="true"
+        style={shellStyle}
+      >
         <strong style={{ fontSize: 24 }}>
           {initialMode === 'register' ? (
             <WalletText message="Create a wallet" />

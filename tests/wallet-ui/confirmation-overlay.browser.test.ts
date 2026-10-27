@@ -167,6 +167,22 @@ test('iframe hugs review and receipt through minimization and viewport changes',
   await page.route('**/confirmation-overlay-*', serveOverlayPage);
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto('/confirmation-overlay-parent');
+  await page.locator('body').evaluate(addAppClass);
+  await page.addStyleTag({
+    content: `
+    .customer-app dialog[open], .customer-app iframe[src] {
+      box-sizing: content-box;
+      padding: 30px;
+      margin: 20px;
+      border: 12px solid red;
+      width: 200px;
+      height: 200px;
+      background: red;
+    }
+  `,
+  });
+  await expect(page.locator('dialog[data-seams-root]')).toHaveCSS('padding', '0px');
+  await expect(page.locator('iframe')).toHaveCSS('border-top-width', '0px');
   const child = page.frameLocator('iframe');
   await expectCardBounds(page, 448);
   await child.getByRole('button', { name: 'Confirm', exact: true }).click();
@@ -204,6 +220,9 @@ test('iframe hugs review and receipt through minimization and viewport changes',
 
 function browserScroll() {
   return window.scrollY;
+}
+function addAppClass(body: HTMLElement) {
+  body.classList.add('customer-app');
 }
 function scrollHorizontally() {
   window.scrollTo(100, 0);

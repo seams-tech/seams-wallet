@@ -1,0 +1,10 @@
+svg[data-seams-root].seams-icon[viewBox],
+[data-seams-root].seams-theme-provider svg.seams-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--seams-icon-width, 24px);
+  height: var(--seams-icon-height, 24px);
+  fill: var(--seams-icon-fill, none);
+  stroke: var(--seams-icon-stroke, currentColor);
+  stroke-width: var(--seams-icon-stroke-width, 2);
+}

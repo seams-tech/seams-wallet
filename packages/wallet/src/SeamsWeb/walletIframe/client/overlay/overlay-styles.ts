@@ -30,9 +30,10 @@ const CLASS_HAS_GEOMETRY = 'has-geometry';
 const CLASS_RESIZE_ANIMATED = 'is-resize-animated';
 const CLASS_REVEAL_PENDING = 'is-reveal-pending';
 const DIALOG_ID_PREFIX = 'seams-wallet-overlay-dialog-';
+const DIALOG_SELECTOR = `dialog[data-seams-root].${CLASS_BASE}.${CLASS_DIALOG}`;
 
 const BASE_CSS = `
-  .seams-transaction-review-slot {
+  [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-slot {
     position: absolute;
     inset: 0;
     overflow: auto;
@@ -41,15 +42,37 @@ const BASE_CSS = `
     box-sizing: border-box;
     color: var(--seams-colors-textPrimary);
   }
-  .seams-transaction-review-slot[hidden] { display: none; }
-  .seams-transaction-review-slot::-webkit-scrollbar { display: none; }
-  .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
-  .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
-  .seams-transaction-review-content button { font: inherit; }
-  dialog.${CLASS_DIALOG}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
-  .seams-transaction-review-content h2 { margin-top: 0; }
+  [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-slot[hidden] { display: none; }
+  [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-slot::-webkit-scrollbar { display: none; }
+  [data-seams-root].${CLASS_DIALOG} .seams-review-wallet-inactive { opacity: 0; pointer-events: none; }
+  [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-content { padding: 0.75rem; box-sizing: border-box; overflow-wrap: anywhere; }
+  ${DIALOG_SELECTOR}[data-transaction-review]::backdrop { background: rgb(0 0 0 / 0.26); }
+  [data-seams-root].${CLASS_DIALOG} .seams-transaction-review-title {
+    margin: 0 0 16px;
+    font: 600 20px / 1.3 system-ui, sans-serif;
+    color: inherit;
+  }
+  [data-seams-root].${CLASS_DIALOG} button.seams-transaction-review-action {
+    box-sizing: border-box;
+    display: inline-block;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 10px 16px;
+    border: 1px solid var(--seams-colors-borderPrimary);
+    border-radius: var(--seams-shape-control, 10px);
+    background: var(--seams-colors-colorBackground);
+    color: inherit;
+    font: 500 14px / 1.5 system-ui, sans-serif;
+    letter-spacing: normal;
+    text-transform: none;
+    box-shadow: none;
+    cursor: pointer;
+  }
 
-  dialog.${CLASS_DIALOG} {
+  ${DIALOG_SELECTOR} {
     position: fixed;
     display: block;
     inset: auto;
@@ -61,10 +84,14 @@ const BASE_CSS = `
     padding: 0;
     border: 0;
     overflow: visible;
+    min-width: 0;
+    min-height: 0;
     max-width: none;
     max-height: none;
     background: transparent;
     color-scheme: normal;
+    border-radius: 0;
+    box-shadow: none;
     box-sizing: border-box;
     --seams-wallet-overlay-safe-top: env(safe-area-inset-top, 0px);
     --seams-wallet-overlay-safe-right: env(safe-area-inset-right, 0px);
@@ -77,7 +104,7 @@ const BASE_CSS = `
      Any surface that reaches the DOM before (or without) a measured rect gets
      centred with the standard elevation instead of stranded in the corner.
      Scoped to :not(.has-geometry) so a positioned surface is untouched. */
-  dialog.${CLASS_DIALOG}:not(.${CLASS_HAS_GEOMETRY}) {
+  ${DIALOG_SELECTOR}:not(.${CLASS_HAS_GEOMETRY}) {
     top: 50%;
     left: 50%;
     translate: -50% -50%;
@@ -85,12 +112,12 @@ const BASE_CSS = `
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
       drop-shadow(0 2px 8px rgb(0 0 0 / 0.12));
   }
-  dialog.${CLASS_DIALOG}:not([open]),
-  dialog.${CLASS_DIALOG}.${CLASS_HIDDEN} {
+  ${DIALOG_SELECTOR}:not([open]),
+  ${DIALOG_SELECTOR}.${CLASS_HIDDEN} {
     visibility: hidden;
     pointer-events: none;
   }
-  dialog.${CLASS_DIALOG}.${CLASS_DRAWER}::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_DRAWER}::backdrop {
     background: transparent;
   }
   @keyframes seams-wallet-overlay-backdrop-in {
@@ -101,42 +128,42 @@ const BASE_CSS = `
       background: rgb(0 0 0 / 0.26);
     }
   }
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}::backdrop {
     background: transparent;
   }
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not(.${CLASS_REVEAL_PENDING})::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not(.${CLASS_REVEAL_PENDING})::backdrop {
     background: rgb(0 0 0 / 0.26);
     animation: seams-wallet-overlay-backdrop-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   /* The host owns the modal frame. Keep the focused dialog and iframe from
      adding a user-agent outline around the rounded card. */
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL},
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:focus,
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:focus-visible,
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL} iframe.${CLASS_IFRAME},
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL} iframe.${CLASS_IFRAME}:focus,
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL} iframe.${CLASS_IFRAME}:focus-visible {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL},
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:focus,
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:focus-visible,
+  ${DIALOG_SELECTOR}.${CLASS_MODAL} iframe.${CLASS_IFRAME},
+  ${DIALOG_SELECTOR}.${CLASS_MODAL} iframe.${CLASS_IFRAME}:focus,
+  ${DIALOG_SELECTOR}.${CLASS_MODAL} iframe.${CLASS_IFRAME}:focus-visible {
     outline: none;
   }
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL} {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL} {
     transform-origin: top left;
   }
   /* Reviewed transactions keep one opaque shell while their interiors cross-fade. */
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}[data-transaction-review] {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}[data-transaction-review] {
     overflow: hidden;
     background: var(--seams-colors-colorBackground);
     border-radius: min(var(--seams-shape-card, 16px), 2rem);
     box-shadow: 0 12px 24px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.12),
       inset 0 0 0 1px var(--seams-colors-borderPrimary);
   }
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}[data-transaction-review] iframe.${CLASS_IFRAME} {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}[data-transaction-review] iframe.${CLASS_IFRAME} {
     filter: none;
   }
   /* The iframe clips the child's box shadow at its layout edge. Paint the
      compact modal elevation in the host compositor so it can extend beyond
      that edge without changing the measured hit region. */
-  dialog.${CLASS_DIALOG}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
-    iframe.${CLASS_IFRAME} {
+  ${DIALOG_SELECTOR}.${CLASS_MODAL}:not(.${CLASS_PROVISIONAL}):not(.${CLASS_FALLBACK}):not(.${CLASS_AUTH_MENU}):not([data-transaction-review])
+    [data-seams-root].${CLASS_DIALOG} > iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 12px 24px rgb(0 0 0 / 0.22))
       drop-shadow(0 2px 8px rgb(0 0 0 / 0.12));
@@ -144,15 +171,15 @@ const BASE_CSS = `
   /* The auth-menu card paints no shadow of its own (wallet-ui.css) for the
      same clipping reason; give it the quieter card elevation here, where the
      drop-shadow hugs the card's silhouette and may extend past the iframe. */
-  dialog.${CLASS_DIALOG}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {
+  ${DIALOG_SELECTOR}.${CLASS_AUTH_MENU} iframe.${CLASS_IFRAME} {
     filter:
       drop-shadow(0 1px 2px rgb(15 23 42 / 0.05))
       drop-shadow(0 10px 20px rgb(15 23 42 / 0.1));
   }
-  dialog.${CLASS_DIALOG}.${CLASS_PROVISIONAL}::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}::backdrop {
     background: transparent;
   }
-  dialog.${CLASS_DIALOG}.${CLASS_FALLBACK}::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_FALLBACK}::backdrop {
     background: transparent;
   }
   /* The hosted auth menu is host-page furniture rather than an overlay: it is
@@ -170,12 +197,12 @@ const BASE_CSS = `
      MessagePort — so the dialog stays a body child and mirrors the host
      anchor's rect; --seams-wallet-inline-dialog-z is the host's hook for placing
      it within the page's own layering. */
-  dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG} {
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG} {
     position: absolute;
     z-index: var(--seams-wallet-inline-dialog-z, auto);
     transform-origin: top left;
   }
-  dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}::backdrop {
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}::backdrop {
     background: transparent;
   }
   /* The dialog must NOT animate its own resize. The auth-menu card inside the
@@ -186,7 +213,7 @@ const BASE_CSS = `
      each reported frame instantly makes the dialog track the card 1:1, so the
      card's own spring is the single motion, and the anchor height published
      from the same frames keeps the host centring in step. */
-  dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG}.${CLASS_RESIZE_ANIMATED} {
+  ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG}.${CLASS_RESIZE_ANIMATED} {
     transition: none;
   }
   /* A provisional drawer already owns the full visual viewport. Modals,
@@ -201,7 +228,7 @@ const BASE_CSS = `
      visible. Playwright's bundled Chromium keeps rendering such frames, which
      is why no browser test noticed. An opacity:0 dialog is painted normally
      (the frame is not throttled), just fully transparent. */
-  dialog.${CLASS_DIALOG}.${CLASS_PROVISIONAL}.${CLASS_MODAL} {
+  ${DIALOG_SELECTOR}.${CLASS_PROVISIONAL}.${CLASS_MODAL} {
     opacity: 0;
     pointer-events: none;
   }
@@ -209,32 +236,38 @@ const BASE_CSS = `
      revealed. This prevents the native dialog's fallback position from ever
      reaching the screen while its dynamic geometry rule settles. Opacity for
      the same reason as above: the frame inside must keep rendering. */
-  dialog.${CLASS_DIALOG}.${CLASS_REVEAL_PENDING} {
+  ${DIALOG_SELECTOR}.${CLASS_REVEAL_PENDING} {
     opacity: 0;
     pointer-events: none;
   }
-  iframe.${CLASS_IFRAME} {
+  [data-seams-root].${CLASS_DIALOG} > iframe.${CLASS_IFRAME} {
     display: block;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
     border: 0;
+    border-radius: 0;
+    box-shadow: none;
     margin: 0;
     padding: 0;
     background: transparent;
     background-color: transparent;
     box-sizing: border-box;
   }
-  iframe.${CLASS_IFRAME}.${CLASS_HIDDEN} {
+  [data-seams-root].${CLASS_DIALOG} > iframe.${CLASS_IFRAME}.${CLASS_HIDDEN} {
     width: 0;
     height: 0;
     opacity: 0;
     pointer-events: none;
   }
   @media (prefers-reduced-motion: reduce) {
-    dialog.${CLASS_DIALOG}.${CLASS_INLINE_DIALOG} {
+    ${DIALOG_SELECTOR}.${CLASS_INLINE_DIALOG} {
       transition: none;
     }
-    dialog.${CLASS_DIALOG}.${CLASS_MODAL}::backdrop {
+    ${DIALOG_SELECTOR}.${CLASS_MODAL}::backdrop {
       animation: none;
     }
   }
@@ -306,7 +339,8 @@ export function ensureOverlayBase(el: HTMLElement): void {
 export function ensureOverlayDialog(dialog: HTMLDialogElement): void {
   getStyleManager().ensureBase();
   ensureDialogId(dialog);
-  dialog.classList.add(CLASS_DIALOG);
+  dialog.setAttribute('data-seams-root', '');
+  dialog.classList.add(CLASS_BASE, CLASS_DIALOG);
 }
 
 export function setHidden(el: HTMLElement): void {

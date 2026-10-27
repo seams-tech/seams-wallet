@@ -39,7 +39,7 @@
   transform: translateY(0);
 }
 
-[data-seams-root].seams-theme-provider .seams-accounts-row {
+[data-seams-root].seams-theme-provider a.seams-accounts-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -50,7 +50,7 @@
   transition: background 150ms ease;
 }
 
-[data-seams-root].seams-theme-provider .seams-accounts-row:hover {
+[data-seams-root].seams-theme-provider a.seams-accounts-row:hover {
   /* a shade off the expander surface behind the rows, which is often surface2;
      mixing follows a theme's surface where a fixed surface step does not */
   background: color-mix(
@@ -81,9 +81,14 @@
 
 [data-seams-root].seams-theme-provider .seams-accounts-row-arrow {
   flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
   color: var(--seams-colors-textSecondary);
 }
 
-[data-seams-root].seams-theme-provider .seams-accounts-row:hover .seams-accounts-row-arrow {
+[data-seams-root].seams-theme-provider a.seams-accounts-row:hover .seams-accounts-row-arrow {
   color: var(--seams-colors-textPrimary);
 }

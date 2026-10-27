@@ -3,6 +3,7 @@ import React from 'react';
 import TouchIcon from './icons/TouchIcon';
 import { MailIcon } from './icons/MailIcon';
 import { HoverArrowIcon } from './icons/HoverArrowIcon';
+import { lucideIconSvg } from './icons/lucideIcon';
 
 type AuthenticationMethodRowProps = {
   kind: 'passkey' | 'email_otp' | 'voiceid';
@@ -27,19 +28,10 @@ function methodIcon(kind: AuthenticationMethodRowProps['kind']): React.ReactNode
     case 'email_otp':
       return <MailIcon size={20} strokeWidth={1.75} />;
     case 'voiceid':
-      return (
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" />
-        </svg>
+      return lucideIconSvg(
+        'voiceid',
+        { size: 20, strokeWidth: 1.75 },
+        <path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" />,
       );
   }
 }

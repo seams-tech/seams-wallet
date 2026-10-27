@@ -487,6 +487,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   return (
     <span
       ref={anchorRef}
+      data-seams-root=""
+      className="seams-auth-menu-host"
       data-seams-auth-menu-host="true"
       aria-hidden="true"
       style={{
@@ -496,6 +498,10 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
         // this element, so the anchor reserves the space the menu paints over.
         minHeight: 'var(--seams-auth-menu-height, 450px)',
         position: 'relative',
+        boxSizing: 'border-box',
+        margin: 0,
+        padding: 0,
+        border: 0,
       }}
     >
       {!terminalGate?.completed && (

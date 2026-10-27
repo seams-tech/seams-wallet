@@ -35,11 +35,15 @@ Existing browser and lifecycle contracts continue to enforce their original beha
 
 SDK theme boundaries carry `data-seams-root` and the `seams-theme-provider` class.
 These markers also belong to theme boundaries inside portals and standalone SDK overlays.
-Account-menu and device-link styles start with `[data-seams-root].seams-theme-provider`, followed by component classes.
-These controls keep their sizes, spacing, borders, text, and icons under broad application rules such as `button` and `.app button`.
+Account-menu, device-link, settings, and external-picker styles start with `[data-seams-root].seams-theme-provider`, followed by component selectors.
+Native control selectors include their element type. Shared defaults remain weaker than component defaults, regardless of stylesheet order.
+Standalone icons carry their own namespace. Host-page dialogs and iframe elements also use scoped SDK selectors.
+These controls preserve sizes, spacing, borders, text, and icons under broad rules such as `.app button[type]`, `.app input[type]`, and `.app svg[viewBox]`.
 Control defaults apply only inside SDK surfaces. Application controls retain their own styles, including controls inside a theme boundary.
 Applications can customize theme tokens and CSS variables. A later rule with the same SDK selector can replace a component default.
-The account-menu browser flow verifies host CSS, portal rendering, navigation, and deliberate customization.
+The account-menu browser flow verifies host CSS, standalone components, portal rendering, native fields, RTL navigation, and deliberate customization.
+Overlay browser checks verify frame geometry with hostile host CSS in Chromium, Firefox, and WebKit.
+Application content supplied to a custom transaction review retains application styling. SDK review titles and fallback controls use scoped defaults.
 
 ## Application confirmation preferences
 

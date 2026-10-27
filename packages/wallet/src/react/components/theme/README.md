@@ -97,7 +97,12 @@ Standalone SDK overlays apply their own theme boundary. Keep the boundary inside
 
 Themed component selectors start with `[data-seams-root].seams-theme-provider` and use component classes.
 A single component class gives specificity `0,3,0`: three class or attribute selectors.
-This exceeds broad application selectors such as `button` and `.app button`.
+Native controls add their element type, for example `button.seams-account-back`.
+This keeps component defaults stronger than the shared reset and broad application selectors such as `.app button[type]`.
+The default stylesheet includes all component rules after the shared reset.
+External wallet pickers, device linking, and the settings page establish their own theme boundaries.
+Standalone icons carry their own namespace and honor their size and style props.
+Host-page overlay frames use the same namespace. The wallet UI inside its iframe is isolated from application styles.
 The SDK uses no `!important` declarations to enforce this boundary.
 Controls inside SDK surfaces receive explicit defaults. Other application controls retain their styles.
 
@@ -105,7 +110,9 @@ Use theme tokens or `--seams-*` variables for routine customization.
 For structural changes, load a matching component selector after the SDK stylesheet:
 
 ```css
-[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  button.seams-dropdown-menu-item {
   padding-block: 10px;
 }
 ```

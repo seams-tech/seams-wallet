@@ -1,9 +1,13 @@
 /* React Component Styles for @seams/wallet/react */
 
 @import './components/theme/Theme.css';
+@import './components/AccountMenuButton/icons/Icon.css';
+@import './externalWalletPicker.css';
 
 /* Import AccountMenuButton styles */
 @import './components/AccountMenuButton/ExportKeysSection.css';
+@import './components/AccountMenuButton/AccountsSection.css';
+@import './components/AccountMenuButton/LinkedDevicesModal.css';
 @import './components/AccountMenuButton/MenuItem.css';
 @import './components/AccountMenuButton/ProfileDropdown.css';
 @import './components/AccountMenuButton/icons/HoverArrowIcon.css';

@@ -1,17 +1,36 @@
 /* Reset controls only inside SDK-owned surfaces. Theme can also wrap app content.
-   Component selectors add one class to this baseline's specificity. */
-[data-seams-root]
+   Native control selectors add their element type above this baseline. */
+[data-seams-root].seams-theme-provider {
+  display: revert;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+[data-seams-root].seams-theme-provider
+  :is(.seams-profile-button-morphable, .seams-settings-page, .qr-code-container) {
+  font-family: var(--seams-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+[data-seams-root].seams-theme-provider
   :is(
     .seams-profile-button-morphable,
     .seams-settings-page,
     .seams-linked-devices-modal-content,
     .qr-scanner-modal,
     .qr-code-container,
-    .seams-link-device-failure
+    .seams-link-device-failure,
+    .seams-wallet-picker
   )
-  :where(button) {
+  :where(button, input, select, textarea, a) {
   box-sizing: border-box;
-  appearance: none;
+  appearance: auto;
+  display: inline-block;
   width: auto;
   height: auto;
   min-width: 0;
@@ -27,12 +46,22 @@
   letter-spacing: normal;
   text-transform: none;
   text-indent: 0;
+  text-decoration: none;
+  white-space: normal;
+  vertical-align: middle;
   box-shadow: none;
 }
 
 [data-seams-root].seams-theme-provider
-  :is(.seams-icon, .seams-hover-arrow, .seams-fingerprint-icon) {
-  flex-shrink: 0;
-  width: var(--seams-icon-width, 24px);
-  height: var(--seams-icon-height, 24px);
+  :is(
+    .seams-profile-button-morphable,
+    .seams-settings-page,
+    .seams-linked-devices-modal-content,
+    .qr-scanner-modal,
+    .qr-code-container,
+    .seams-link-device-failure,
+    .seams-wallet-picker
+  )
+  :where(button) {
+  appearance: none;
 }

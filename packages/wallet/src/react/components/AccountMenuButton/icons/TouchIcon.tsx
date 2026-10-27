@@ -1,5 +1,6 @@
 import React from 'react';
 import './TouchIcon.css';
+import './Icon.css';
 
 interface TouchIconProps {
   className?: string;
@@ -17,7 +18,8 @@ const TouchIcon: React.FC<TouchIconProps> = ({
   style,
 }) => (
   <svg
-    className={`seams-fingerprint-icon ${className || ''}`}
+    data-seams-root=""
+    className={`seams-icon seams-fingerprint-icon ${className || ''}`}
     style={{
       ...{ '--seams-icon-width': `${width}px`, '--seams-icon-height': `${height}px` },
       ...style,

@@ -1,5 +1,96 @@
 [data-seams-root].seams-theme-provider .qr-code-container {
-  padding-top: 0.25rem;
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  padding: 24px;
+  border-radius: var(--seams-shape-card, 24px);
+  background: var(--seams-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+}
+
+[data-seams-root].seams-theme-provider .seams-otp-prompt {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: 100%;
+}
+[data-seams-root].seams-theme-provider .seams-otp-prompt-copy {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+[data-seams-root].seams-theme-provider .seams-otp-title {
+  margin: 0;
+  font: 600 21px / 1.25 var(--seams-font-family, system-ui, sans-serif);
+  color: var(--seams-colors-textPrimary);
+}
+[data-seams-root].seams-theme-provider .seams-otp-description,
+[data-seams-root].seams-theme-provider .seams-otp-helper {
+  margin: 0;
+  color: var(--seams-colors-textSecondary);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+[data-seams-root].seams-theme-provider .seams-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--seams-colors-textSecondary);
+}
+[data-seams-root].seams-theme-provider .seams-otp-code-field {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 320px);
+  margin: 0;
+}
+[data-seams-root].seams-theme-provider input.seams-otp-input {
+  grid-column: 1;
+  grid-row: 2;
+  z-index: 1;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px;
+}
+[data-seams-root].seams-theme-provider .seams-otp-slots {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  pointer-events: none;
+}
+[data-seams-root].seams-theme-provider .seams-otp-slot {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 44px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: 6px;
+  background: var(--seams-colors-surface);
+  color: var(--seams-colors-textPrimary);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+[data-seams-root].seams-theme-provider .seams-otp-code-field:focus-within .seams-otp-slot {
+  outline: 2px solid var(--seams-colors-focus);
+  outline-offset: 1px;
+}
+[data-seams-root].seams-theme-provider .seams-otp-error {
+  margin: 0;
+  color: var(--seams-colors-error);
+  font-size: 13px;
+  line-height: 1.5;
+}
+[data-seams-root].seams-theme-provider button.seams-otp-resend {
+  padding: 8px;
+  color: var(--seams-colors-primary);
+  font: inherit;
+  cursor: pointer;
 }
 
 /* Modal Header */
@@ -81,6 +172,8 @@
 
 [data-seams-root].seams-theme-provider .seams-device-link-factor-icon svg {
   display: block;
+  width: 22px;
+  height: 22px;
 }
 
 [data-seams-root].seams-theme-provider .seams-device-link-factor-label {
@@ -299,6 +392,10 @@
   background: color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 88%);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--seams-colors-error, #ef4444), transparent 80%);
 }
+[data-seams-root].seams-theme-provider .seams-link-device-failure-icon > svg {
+  width: 26px;
+  height: 26px;
+}
 
 /* The detail is a raw error string, so it is sized and coloured as evidence
    rather than as prose: quiet, tight, and allowed to break mid-token so a long
@@ -314,9 +411,8 @@
   overflow-wrap: anywhere;
 }
 
-/* Device-linking button styling keeps the button looking
-   the same whether or not that sheet is loaded alongside this one. */
-[data-seams-root].seams-theme-provider .seams-link-device-failure .seams-link-device-btn {
+/* Every device-link step uses the same action control. */
+[data-seams-root].seams-theme-provider button.seams-link-device-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -325,7 +421,7 @@
   margin-top: 0.25rem;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  height: calc(var(--seams-shape-controlHeight, 44px) - 4px);
+  min-height: var(--seams-shape-controlHeight, 44px);
   background: var(--seams-colors-surface, #f8fafc);
   border: 1px solid var(--seams-colors-borderPrimary, #e2e8f0);
   border-radius: var(--seams-shape-control, 10px);
@@ -336,9 +432,16 @@
   font-size: 0.875rem;
 }
 
-[data-seams-root].seams-theme-provider .seams-link-device-failure .seams-link-device-btn:hover,
-[data-seams-root].seams-theme-provider
-  .seams-link-device-failure
-  .seams-link-device-btn:focus-visible {
+[data-seams-root].seams-theme-provider button.seams-link-device-btn:hover:not(:disabled) {
   background: var(--seams-colors-surface2, #f1f5f9);
+}
+[data-seams-root].seams-theme-provider button.seams-link-device-btn:focus-visible,
+[data-seams-root].seams-theme-provider button.seams-otp-resend:focus-visible {
+  outline: 2px solid var(--seams-colors-focus);
+  outline-offset: 3px;
+}
+[data-seams-root].seams-theme-provider button.seams-link-device-btn:disabled,
+[data-seams-root].seams-theme-provider button.seams-otp-resend:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

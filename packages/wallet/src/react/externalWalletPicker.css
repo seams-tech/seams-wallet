@@ -1,0 +1,117 @@
+@import './components/theme/Theme.css';
+
+[data-seams-root].seams-theme-provider .seams-wallet-picker {
+  color: var(--seams-wallet-picker-text, #f5f5f5);
+  background: var(--seams-wallet-picker-background, #202020);
+  padding: clamp(20px, 4vw, 40px);
+  border-radius: 28px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--seams-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker h2 {
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 500;
+  margin: 0;
+}
+[data-seams-root].seams-theme-provider .seams-near-network {
+  opacity: 0.7;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker-options button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  color: inherit;
+  background: var(--seams-wallet-picker-card, #262626);
+  border: 1px solid var(--seams-wallet-picker-border, #383838);
+  border-radius: 24px;
+  padding: 24px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker-options strong {
+  font-size: 20px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker-options small {
+  font-size: 12px;
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
+[data-seams-root].seams-theme-provider .seams-near-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #181818;
+  font-size: 24px;
+}
+[data-seams-root].seams-theme-provider .seams-near-meteor {
+  background: #fff;
+  color: #4824e9;
+  font-weight: 700;
+}
+[data-seams-root].seams-theme-provider .seams-near-intear {
+  background: #fff;
+  color: #1685ff;
+  font-weight: 700;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker-options button:hover:enabled {
+  background: var(--seams-wallet-picker-hover, #303030);
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker button:focus-visible {
+  outline: 3px solid #8faaff;
+  outline-offset: 3px;
+}
+[data-seams-root].seams-theme-provider .seams-wallet-picker button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+[data-seams-root].seams-theme-provider button.seams-near-disconnect {
+  margin-top: 20px;
+  padding: 10px 16px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #666;
+  border-radius: 10px;
+}
+
+[data-seams-root].seams-theme-provider .seams-wallet-picker form,
+[data-seams-root].seams-theme-provider .seams-wallet-picker label {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+[data-seams-root].seams-theme-provider .seams-external-evm {
+  display: grid;
+  gap: 20px;
+}
+[data-seams-root].seams-theme-provider .seams-external-evm :is(button, select) {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--seams-wallet-picker-border, #383838);
+  border-radius: 10px;
+  color: inherit;
+  background: var(--seams-wallet-picker-card, #262626);
+  font: inherit;
+  cursor: pointer;
+}
+@media (max-width: 380px) {
+  [data-seams-root].seams-theme-provider .seams-wallet-picker-options {
+    grid-template-columns: 1fr;
+  }
+}

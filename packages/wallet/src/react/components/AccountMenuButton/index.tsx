@@ -825,6 +825,15 @@ export const ProfileSettingsButton = AccountMenuButton;
 
 /** Full-page wallet settings, mounted inside SeamsWebProvider. */
 export function WalletSettingsPage(props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>) {
+  const { theme, tokens } = useTheme();
+  return (
+    <Theme theme={theme} tokens={{ [theme]: tokens }}>
+      <WalletSettingsContent {...props} />
+    </Theme>
+  );
+}
+
+function WalletSettingsContent(props: Pick<HostedSeamsAuthMenuProps, 'externalAuthBroker'>) {
   const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
