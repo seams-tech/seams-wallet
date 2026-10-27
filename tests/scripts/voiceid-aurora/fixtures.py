@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from vocabulary import phrase_bank
 
 
 def main():
@@ -17,8 +18,7 @@ def main():
     if args.tolerance:
         generate_tolerance(args.output)
         return
-    source = Path(__file__).with_name('phrases.json')
-    phrases = json.loads(source.read_text())
+    phrases = phrase_bank()
     rows = []
     for index, phrase in enumerate(phrases):
         aiff = args.output / f'{index}.aiff'
@@ -35,7 +35,7 @@ def main():
         source_wav.unlink()
         rows.append({'phrase': phrase, 'file': wav.name, 'voice': 'Samantha',
                      'rate': rate, 'tempo': tempo, 'sha256': hashlib.sha256(wav.read_bytes()).hexdigest()})
-    (args.output / 'phrases.json').write_text(source.read_text())
+    (args.output / 'phrases.json').write_text(json.dumps(phrases, indent=2) + '\n')
     (args.output / 'generation.json').write_text(json.dumps(rows, indent=2) + '\n')
 
 

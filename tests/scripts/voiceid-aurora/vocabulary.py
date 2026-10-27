@@ -3,11 +3,17 @@ import argparse
 import json
 from pathlib import Path
 
-import sentencepiece as spm
+def phrase_bank():
+    phrases = json.loads(Path(__file__).with_name('phrases.json').read_text())
+    actions = ('approve the swap', 'check my order', 'confirm the trade', 'review this transfer')
+    moments = ('before market close', 'when prices settle', 'after market opens')
+    return phrases + [f'{action} {moment}' for action in actions for moment in moments]
 
 
 def write_vocabulary(root, destination):
-    phrases = json.loads(Path(__file__).with_name('phrases.json').read_text())
+    import sentencepiece as spm
+
+    phrases = phrase_bank()
     tokenizer = spm.SentencePieceProcessor(model_file=str(root / 'bpe256.model'))
     destination.write_text(
         '// Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.\n'

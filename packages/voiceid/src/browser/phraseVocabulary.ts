@@ -19,7 +19,19 @@ export const SPOKEN_PHRASES = [
   "be retarded when others are fearful",
   "be fearful when others are retarded",
   "life is short go long to hedge",
-  "but they won't trap me"
+  "but they won't trap me",
+  "approve the swap before market close",
+  "approve the swap when prices settle",
+  "approve the swap after market opens",
+  "check my order before market close",
+  "check my order when prices settle",
+  "check my order after market opens",
+  "confirm the trade before market close",
+  "confirm the trade when prices settle",
+  "confirm the trade after market opens",
+  "review this transfer before market close",
+  "review this transfer when prices settle",
+  "review this transfer after market opens"
 ] as const;
 export const PHRASE_TOKEN_PIECES: readonly string[] = [
   "",

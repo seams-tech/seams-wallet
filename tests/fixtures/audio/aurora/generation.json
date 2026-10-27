@@ -158,5 +158,101 @@
     "rate": 140,
     "tempo": 1,
     "sha256": "195653e79b0f8567877db052a9188a596d5069c7de687578a9bd6d5c30c0b504"
+  },
+  {
+    "phrase": "approve the swap before market close",
+    "file": "20.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "d7c625057e8b9fdd27d2b79f8c083309d710562ce3364634fc9e184a96d78cbe"
+  },
+  {
+    "phrase": "approve the swap when prices settle",
+    "file": "21.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "59e46acabb7878242e640861e73cf5c4bc0184d3520044bbfc4947a0325bedff"
+  },
+  {
+    "phrase": "approve the swap after market opens",
+    "file": "22.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "be8340ae4ee9a7cc910c87cfb10f54f6e4496bcc2c5bf50c96d23d3eac5a9579"
+  },
+  {
+    "phrase": "check my order before market close",
+    "file": "23.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "c43f55350c93cc211e5e9ab07f90859d553283c633366faa0951338b9a069464"
+  },
+  {
+    "phrase": "check my order when prices settle",
+    "file": "24.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "3c66f5782216ff7e246e3ab4b497f375661878f079a575fbf5f8c4801f99d051"
+  },
+  {
+    "phrase": "check my order after market opens",
+    "file": "25.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "002c171f5d1c3e9178b19a9636065feb6fc31e3b81ff73bcb86c33b616ca602f"
+  },
+  {
+    "phrase": "confirm the trade before market close",
+    "file": "26.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "115c88fe35bf1353d91dbc3cc2671f2717b0e80e4a56144869b8ac10c6f14d2e"
+  },
+  {
+    "phrase": "confirm the trade when prices settle",
+    "file": "27.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "892fe95f0667f068117680471858d179041098f043135c15a15e64da37e0953f"
+  },
+  {
+    "phrase": "confirm the trade after market opens",
+    "file": "28.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "2932ea98401628e9791ce24088e4a3b9982b5f4e0073016b7cabae44f412565a"
+  },
+  {
+    "phrase": "review this transfer before market close",
+    "file": "29.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "f3f4f8cdbc8dca0a58bd66b4fefe59b9e14518de1d0ff494c3333cc6d4c8d3cb"
+  },
+  {
+    "phrase": "review this transfer when prices settle",
+    "file": "30.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "3ae1d58c949dd64065e12a70249e50085704150600af6dfe8227a82ad7451dbc"
+  },
+  {
+    "phrase": "review this transfer after market opens",
+    "file": "31.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "827d7bb7b8a47a0268e9e70c4926552e0eb6993fe17ccb2a7059a496792be4ac"
   }
 ]
