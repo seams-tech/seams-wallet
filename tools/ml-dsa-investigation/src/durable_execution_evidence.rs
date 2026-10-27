@@ -423,7 +423,8 @@ pub(super) fn run(
             run_ready(host.take(&permit, permit.batches[0]))?.is_err(),
             "Terminal execution accepted replay",
         )?;
-        let consumed = tx(&db, pool::fence(&db, &request, &permit.batches))?;
+        let fenced = tx(&db, pool::fence(&db, &request, &permit.batches))?;
+        let consumed = fenced.consumed;
         if ordinal == 0 {
             require(
                 consumed == [generic_id],
@@ -447,7 +448,7 @@ pub(super) fn run(
         }
         tx(
             &db,
-            pool::release(&db, &request, &permit.batches, settlement, &consumed),
+            pool::release(&db, &request, &permit.batches, settlement, &consumed, &[]),
         )?;
         require(
             matches!(

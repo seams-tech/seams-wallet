@@ -64,16 +64,25 @@ impl CorrelationStream {
         }
     }
 
-    pub(super) async fn take(
-        &mut self,
+    pub(super) async fn take_many<'a>(
+        &'a mut self,
         context: &mut Context<'_, impl Transport>,
-    ) -> Result<[u8; 3]> {
+        maximum: usize,
+    ) -> Result<&'a mut [[u8; 3]]> {
         check(self.role == context.role, RuntimeError::SessionBinding)?;
+        check(maximum > 0, RuntimeError::ScheduleShape)?;
         check(
             !matches!(self.state, StreamState::Failed),
             RuntimeError::SessionBinding,
         )?;
-        if matches!(self.state, StreamState::Empty) {
+        let exhausted = matches!(
+            self.state,
+            StreamState::Ready {
+                position: CHUNK_TRIPLES,
+                ..
+            }
+        );
+        if matches!(self.state, StreamState::Empty) || exhausted {
             self.state = StreamState::Failed;
             let mut hash = Sha256::new();
             hash.update(b"seams/ml-dsa/silent-stream/v1");
@@ -95,12 +104,10 @@ impl CorrelationStream {
         let StreamState::Ready { chunk, position } = &mut self.state else {
             unreachable!("chunk generated")
         };
-        let result = core::mem::take(&mut chunk.shares[*position]);
-        *position += 1;
-        if *position == CHUNK_TRIPLES {
-            self.state = StreamState::Empty;
-        }
-        Ok(result)
+        let start = *position;
+        let count = maximum.min(CHUNK_TRIPLES - start);
+        *position += count;
+        Ok(&mut chunk.shares[start..*position])
     }
 }
 
