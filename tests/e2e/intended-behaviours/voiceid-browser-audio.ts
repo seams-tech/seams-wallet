@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import type {} from '../../intended-app/src/voiceIdHelpers';
+import phrases from '../../fixtures/audio/aurora/phrases.json' with { type: 'json' };
 
 type VoiceIdActivation = Awaited<
   ReturnType<NonNullable<Window['__seamsIntendedVoiceId']>['activate']>
@@ -41,20 +42,37 @@ export async function allowBrowserMicrophone(
   });
 }
 
-export async function enrollBrowserMicrophone(page: Page): Promise<void> {
+export async function enrollBrowserMicrophone(page: Page): Promise<number> {
   const wallet = page.frameLocator('iframe.seams-wallet-overlay-iframe');
-  for (let sample = 1; sample <= 3; sample += 1) {
+  const maximumCaptures = 9;
+  for (let captures = 1; captures <= maximumCaptures; captures++) {
     const button = wallet.getByRole('button', {
-      name: new RegExp(`^(Record|Retry) sample ${sample}$`),
+      name: /^(Record|Retry) sample [1-3]$/,
     });
     await expect(button).toBeEnabled({ timeout: 60_000 });
     await button.click();
-    if (sample === 3) {
-      await expect(
-        wallet.getByRole('button', { name: 'Cancel enrollment', exact: true }),
-      ).toHaveCount(0, { timeout: 30_000 });
-    }
+    await expect.poll(enrollmentProgress.bind(null, page), { timeout: 30_000 }).not.toBe('capturing');
+    if (await enrollmentProgress(page) === 'complete') return captures;
   }
+  throw new Error(
+    `VoiceID enrollment did not accept three samples within ${maximumCaptures} recordings`,
+  );
+}
+
+type EnrollmentProgress = 'capturing' | 'ready' | 'complete';
+
+async function enrollmentProgress(page: Page): Promise<EnrollmentProgress> {
+  const owner = await page.$('dialog[open] iframe.seams-wallet-overlay-iframe');
+  if (!owner) return 'complete';
+  const frame = await owner.contentFrame();
+  if (!frame) return 'capturing';
+  return await frame.evaluate(readEnrollmentProgress);
+}
+
+function readEnrollmentProgress(): EnrollmentProgress {
+  if (!document.querySelector('button[aria-label="Cancel enrollment"]')) return 'complete';
+  const record = document.querySelector<HTMLButtonElement>('.seams-voiceid-primary');
+  return record && !record.disabled ? 'ready' : 'capturing';
 }
 
 /** A completed enrollment must report an activated method, not a closed surface. */
@@ -71,7 +89,8 @@ async function servePhraseAudio(route: Route): Promise<void> {
   );
   const index = match?.[2];
   const directory = match?.[1] ?? '';
-  if (index === undefined || Number(index) >= 16) throw new Error('Unknown phrase fixture');
+  if (index === undefined || Number(index) >= phrases.length)
+    throw new Error('Unknown phrase fixture');
   const bytes = await readFile(
     path.resolve(import.meta.dirname, `../../fixtures/audio/aurora/${directory}${index}.wav`),
   );
