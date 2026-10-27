@@ -10,7 +10,11 @@ export type {
   WalletRegion,
 } from './SeamsWeb/publicApi/placement';
 export { SeamsWeb } from './SeamsWeb';
-export type { WalletAuthMethodPlugin, VoiceIdAuthMethodPlugin } from './core/authMethods/plugins';
+export type {
+  WalletAuthMethodPlugin,
+  VoiceIdAuthMethodPlugin,
+  VoiceIdConfirmationOptions,
+} from './core/authMethods/plugins';
 export { normalizeWalletLocale } from './core/ui/locale';
 export type { WalletLocale } from './core/ui/locale';
 export type {

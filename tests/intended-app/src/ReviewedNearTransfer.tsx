@@ -31,12 +31,18 @@ export function ReviewedNearTransfer({ walletId }: { walletId: string | null }):
   );
 }
 
-function transferReadiness(walletId: string | null, wallet: BoundWallet | null, state: TransferState): string {
+function transferReadiness(
+  walletId: string | null,
+  wallet: BoundWallet | null,
+  state: TransferState,
+): string {
   if (state.kind === 'pending') return 'Complete the current transfer review in the Wallet.';
   if (walletId === null) return 'Create a wallet before reviewing a transfer.';
   if (wallet === null) return 'Unlock this wallet to enable the transfer button.';
-  if (wallet.walletId !== walletId) return 'The selected wallet differs from the active session. Select Refresh status.';
-  if (wallet.near === null) return 'A NEAR signer is not available for this wallet. Select Refresh status.';
+  if (wallet.walletId !== walletId)
+    return 'The selected wallet differs from the active session. Select Refresh status.';
+  if (wallet.near === null)
+    return 'A NEAR signer is not available for this wallet. Select Refresh status.';
   return 'Ready to review a NEAR testnet transfer.';
 }
 
@@ -50,6 +56,7 @@ async function transfer(
       receiverId: signer.accountId,
       actions: [{ type: ActionType.Transfer, amount: '1' }],
       options: {
+        voiceId: { confirmationCommand: 'Send one yoctoNEAR to this wallet' },
         confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
         waitUntil: 'FINAL',
       },

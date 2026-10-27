@@ -3,7 +3,10 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {} from '../fixtures/ui/VoiceIdPhraseToleranceProbe';
-import { SPOKEN_PHRASES } from '../../packages/voiceid/src/browser/phraseVocabulary';
+import {
+  CHALLENGE_PHRASES,
+  SPOKEN_PHRASES,
+} from '../../packages/voiceid/src/browser/phraseVocabulary';
 
 type Chunk = { fileName: string; code: string };
 let chunks: Chunk[];
@@ -84,9 +87,9 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
     for (let expected = 0; expected < SPOKEN_PHRASES.length; expected++) {
       const result = await check(page, file, expected);
       results.push({ spoken, expected, result });
-      expect.soft(result.kind, `spoken ${spoken}, challenge ${expected}`).toBe(
-        spoken === expected ? 'matched' : 'mismatch',
-      );
+      expect
+        .soft(result.kind, `spoken ${spoken}, challenge ${expected}`)
+        .toBe(spoken === expected ? 'matched' : 'mismatch');
     }
   }
   const extras = [
@@ -117,7 +120,13 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
   fs.writeFileSync(
     report,
     JSON.stringify(
-      { status: testInfo.errors.length === 0 ? 'passed' : 'failed', realAurora: true, naturalRate: 160, results, extraResults },
+      {
+        status: testInfo.errors.length === 0 ? 'passed' : 'failed',
+        realAurora: true,
+        naturalRate: 160,
+        results,
+        extraResults,
+      },
       null,
       2,
     ),
@@ -126,4 +135,102 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
 }
 function ready(): boolean {
   return typeof window.voicePhraseCheck === 'function';
+}
+
+function commandInBrowser(input: { value: unknown; previous: number | null }) {
+  return window.voiceConfirmationChallenge(input.value, input.previous);
+}
+
+test(
+  'application confirmation commands select spoken action challenges without financial terms',
+  runCommands,
+);
+
+async function runCommands({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+  testInfo.setTimeout(90_000);
+  await page.route('**/phrase-probe/*', serveChunk);
+  await page.route('**/sdk/**', serveAsset);
+  await page.route('**/phrase-tolerance', servePage);
+  await page.goto('/phrase-tolerance');
+  await page.waitForFunction(ready);
+  const commands = [
+    { command: 'Sell 100 NEAR for USDC at $5.5', action: 'sale' },
+    { command: '  BUY 1 ETH at $1000  ', action: 'purchase' },
+    { command: 'Swap 500 USDC for NEAR', action: 'swap' },
+    { command: 'Send one yoctoNEAR to receiver.testnet', action: 'transfer' },
+    { command: 'Transfer one smallest USDC unit on Arc testnet', action: 'transfer' },
+  ];
+  const results = [];
+  for (const entry of commands) {
+    let previous: number | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const challenge = await page.evaluate(commandInBrowser, {
+        value: { confirmationCommand: entry.command },
+        previous,
+      });
+      expect(challenge.kind).toBe('challenge');
+      if (challenge.kind !== 'challenge') throw new Error('The configured challenge was rejected');
+      expect(challenge.purpose).toEqual({ kind: 'action', action: entry.action });
+      expect(challenge.index).not.toBe(previous);
+      expect(challenge.phrase).not.toMatch(/[0-9$]|NEAR|USDC|ETH/);
+      const recording = path.join(fixtures, 'natural', `${challenge.index}.wav`);
+      const result = await check(page, recording, challenge.index);
+      expect(result.kind, JSON.stringify(result)).toBe('matched');
+      const wrong = await check(page, path.join(fixtures, 'natural', '0.wav'), challenge.index);
+      expect(wrong.kind).toBe('mismatch');
+      results.push({ ...entry, attempt, challenge, result, wrong });
+      previous = challenge.index;
+    }
+  }
+  for (const value of [
+    undefined,
+    { confirmationCommand: 'Stake 100 NEAR' },
+    { confirmationCommand: 'Do not sell 100 NEAR' },
+  ]) {
+    const challenge = await page.evaluate(commandInBrowser, { value, previous: null });
+    expect(challenge.kind).toBe('challenge');
+    if (challenge.kind !== 'challenge') throw new Error('The default challenge was unavailable');
+    expect(challenge.purpose).toEqual({ kind: 'random' });
+    expect(CHALLENGE_PHRASES).toContain(challenge.phrase);
+  }
+  const first = await page.evaluate(commandInBrowser, {
+    value: { confirmationCommand: 'Sell 100 NEAR' },
+    previous: null,
+  });
+  if (first.kind !== 'challenge') throw new Error('Missing first sale challenge');
+  const second = await page.evaluate(commandInBrowser, {
+    value: { confirmationCommand: 'Sell 200 NEAR' },
+    previous: first.index,
+  });
+  if (second.kind !== 'challenge') throw new Error('Missing concurrent sale challenge');
+  const retry = await page.evaluate(commandInBrowser, {
+    value: { confirmationCommand: 'Sell 100 NEAR' },
+    previous: first.index,
+  });
+  expect(retry.kind).toBe('challenge');
+  if (retry.kind !== 'challenge') throw new Error('The original sale could not retry');
+  expect(retry.index).not.toBe(first.index);
+  for (const value of [
+    null,
+    {},
+    { confirmationContext: 'Sell 100 NEAR' },
+    { confirmationCommand: '' },
+    { confirmationCommand: 100 },
+    { confirmationCommand: 'Sell\n100 NEAR' },
+    { confirmationCommand: 'x'.repeat(257) },
+    { confirmationCommand: ' '.repeat(257) + 'Sell NEAR' },
+    { confirmationCommand: 'Sell 100 NEAR', phrase: 'approve me' },
+  ]) {
+    const outcome = await page.evaluate(commandInBrowser, { value, previous: null });
+    expect(outcome).toEqual({ kind: 'invalid', code: 'review_invalid_input' });
+  }
+  const report = testInfo.outputPath('confirmation-commands.json');
+  fs.writeFileSync(
+    report,
+    JSON.stringify({ status: 'passed', realAurora: true, results }, null, 2),
+  );
+  await testInfo.attach('confirmation-commands.json', {
+    path: report,
+    contentType: 'application/json',
+  });
 }

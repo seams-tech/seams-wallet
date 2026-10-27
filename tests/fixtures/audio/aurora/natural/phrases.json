@@ -30,5 +30,13 @@
   "confirm the trade after market opens",
   "review this transfer before market close",
   "review this transfer when prices settle",
-  "review this transfer after market opens"
+  "review this transfer after market opens",
+  "approve this sale at once",
+  "let the sale go through",
+  "this purchase has my approval",
+  "please confirm my purchase",
+  "confirm my swap today",
+  "the swap is ready to proceed",
+  "confirm this transfer today",
+  "please send this transfer now"
 ]

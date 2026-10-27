@@ -98,7 +98,10 @@ async function transfer(
           gasLimit: 21_000n,
         },
       },
-      options: { confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' } },
+      options: {
+        voiceId: { confirmationCommand: 'Transfer one smallest USDC unit on Arc testnet' },
+        confirmationConfig: { uiMode: 'modal', behavior: 'requireClick' },
+      },
       review: {
         title: 'Review Arc testnet transfer',
         validity: { kind: 'expires_at', atMs: Date.now() + 120_000 },

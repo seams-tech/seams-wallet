@@ -1,4 +1,5 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type { VoiceIdConfirmationOptions } from '../authMethods/plugins';
 import type { TxExecutionStatus } from '@near-js/types';
 import type { ConfirmationConfig } from './signer-worker';
 import type { EcdsaSignerProvisioningDefaults } from './ecdsaSignerProvisioningDefaults';
@@ -993,6 +994,7 @@ export interface KeyExportHooksOptions {
 }
 
 export interface ActionHooksOptions {
+  voiceId?: VoiceIdConfirmationOptions;
   onEvent?: EventCallback<SigningFlowEvent>;
   onError?: (error: Error) => void;
   waitUntil?: TxExecutionStatus;

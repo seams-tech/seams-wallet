@@ -600,6 +600,9 @@ export async function executeEvmFamilyTransactionLifecycle(args: {
       chainTarget: args.input.chainTarget,
       options: args.input.options
         ? {
+            ...(args.input.options.voiceId !== undefined
+              ? { voiceId: args.input.options.voiceId }
+              : {}),
             ...(args.input.options.confirmationConfig
               ? { confirmationConfig: args.input.options.confirmationConfig }
               : {}),

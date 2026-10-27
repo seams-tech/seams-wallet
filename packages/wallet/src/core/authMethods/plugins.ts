@@ -1,6 +1,10 @@
 import { isPlainObject } from '@shared/utils/validation';
 
 export type VoiceIdAuthMethodPlugin = Readonly<{ kind: 'voiceid' }>;
+export type VoiceIdConfirmationOptions = Readonly<{
+  /** App wording used only to select an action-only challenge. Maximum 256 characters. */
+  confirmationCommand: string;
+}>;
 export type WalletAuthMethodPlugin = VoiceIdAuthMethodPlugin;
 
 export function parseWalletAuthMethodPlugins(value: unknown): readonly WalletAuthMethodPlugin[] {

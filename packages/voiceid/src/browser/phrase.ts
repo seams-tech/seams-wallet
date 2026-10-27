@@ -1,5 +1,11 @@
 import { BrowserInferenceModel } from './inference';
-import { SPOKEN_PHRASES, PHRASE_TOKEN_PIECES } from './phraseVocabulary';
+import {
+  CHALLENGE_PHRASES,
+  CONFIRMATION_PHRASES,
+  SPOKEN_PHRASES,
+  PHRASE_TOKEN_PIECES,
+} from './phraseVocabulary';
+import type { VoiceConfirmation } from './confirmationCommand';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
 export const phraseModel = new BrowserInferenceModel({
@@ -15,14 +21,44 @@ const TOKEN_COUNT = 257;
 let lastIssuedPhrase: SpokenPhrase | null = null;
 
 export function newSpokenPhrase(previous: SpokenPhrase | null): SpokenPhrase {
+  return choosePhrase(CHALLENGE_PHRASES, previous);
+}
+
+export function newConfirmationPhrase(
+  confirmation: VoiceConfirmation,
+  previous: SpokenPhrase | null,
+): SpokenPhrase {
+  switch (confirmation.kind) {
+    case 'random':
+      return newSpokenPhrase(previous);
+    case 'action':
+      return choosePhrase(CONFIRMATION_PHRASES[confirmation.action], previous);
+    default:
+      return assertNever(confirmation);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected voice confirmation: ${String(value)}`);
+}
+
+function choosePhrase(
+  phrases: readonly [SpokenPhrase, SpokenPhrase, ...SpokenPhrase[]],
+  previous: SpokenPhrase | null,
+): SpokenPhrase {
+  const available = phrases.filter(isNewPhrase.bind(null, previous));
+  const preferred = available.filter(isNewPhrase.bind(null, lastIssuedPhrase));
+  const candidates = preferred.length > 0 ? preferred : available;
+  if (candidates.length === 0) throw new Error('No fresh VoiceID challenge is available.');
   const random = new Uint32Array(1);
-  let phrase: SpokenPhrase;
-  do {
-    crypto.getRandomValues(random);
-    phrase = SPOKEN_PHRASES[random[0] % SPOKEN_PHRASES.length];
-  } while (phrase === previous || phrase === lastIssuedPhrase);
+  crypto.getRandomValues(random);
+  const phrase = candidates[random[0] % candidates.length];
   lastIssuedPhrase = phrase;
   return phrase;
+}
+
+function isNewPhrase(previous: SpokenPhrase | null, phrase: SpokenPhrase): boolean {
+  return phrase !== previous;
 }
 
 type PhraseRecognition =

@@ -343,6 +343,22 @@ The request requires an address recipient, empty calldata, and an empty access l
 Mainnet, Tempo, token transfers, contract calls, contract creation, and reviews
 without an expiry fail when the selected method is VoiceID.
 
+Per-call `options.voiceId.confirmationCommand` selects a short action-only challenge.
+The leading English verb selects sale (`sell`), purchase (`buy`), swap (`swap`),
+or transfer (`send`/`transfer`). For example, “Sell 100 NEAR for USDC at $5.5”
+selects a sale phrase such as “Approve this sale at once.” Amounts, asset names,
+and prices remain in the full review. Other wording uses the default challenges.
+The configuration accepts only `confirmationCommand`, a nonempty string of at
+most 256 characters without control characters. Invalid configuration rejects
+before capture. The application cannot set the final challenge or thresholds.
+Each retry chooses a different phrase within the selected family. Enrollment and
+unlock retain the existing 32 default challenges. All 40 phrases are recognized
+against the same bank, including eight action-specific phrases. The same audio
+checks phrase and speaker, and the speaker threshold remains 0.5.
+This option changes copy only. Unsupported operations remain unsupported. The
+Wallet freezes and hashes the supplied command as part of the complete request,
+so it cannot carry approval to a different request. No provider or model is added.
+
 VoiceID unlock also supports ECDSA-only wallets. After the factor opens the existing
 seed envelope, the installer resolves the exact authorized ECDSA material activation.
 It uses the existing same-authority continuity copy for a missing method projection.

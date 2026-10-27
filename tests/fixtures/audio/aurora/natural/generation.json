@@ -254,5 +254,69 @@
     "rate": 160,
     "tempo": 1,
     "sha256": "827d7bb7b8a47a0268e9e70c4926552e0eb6993fe17ccb2a7059a496792be4ac"
+  },
+  {
+    "phrase": "approve this sale at once",
+    "file": "32.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "037fa90026b3543b6b5399f0deaff4e2d4d04c2fc444568e1489d9c93186d551"
+  },
+  {
+    "phrase": "let the sale go through",
+    "file": "33.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "3f084063fd52bec358c2540691f7511b62a50bc00bc0ad53795586ac8bd75996"
+  },
+  {
+    "phrase": "this purchase has my approval",
+    "file": "34.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "ee47c3efd700706b2345e161db53517a134ae244eae6b441d1e01d565f3256fb"
+  },
+  {
+    "phrase": "please confirm my purchase",
+    "file": "35.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "259fb387a591b8aa3d3c9ec2264d4d87eeb691729119cc28595f1f46f93883c8"
+  },
+  {
+    "phrase": "confirm my swap today",
+    "file": "36.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "5bbfec96f05c58b4cdd329b22fab440afeb8b9dda18cbe280503f0a6ccac1c6b"
+  },
+  {
+    "phrase": "the swap is ready to proceed",
+    "file": "37.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "f5653b94729fb34783cca854bdde873f1e3040e2ffcebb8a26c11a8b5247adf4"
+  },
+  {
+    "phrase": "confirm this transfer today",
+    "file": "38.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "feba43f98bbd781a1ba94f4afea8777825ebcc01c5fa2b220138caec73b3f754"
+  },
+  {
+    "phrase": "please send this transfer now",
+    "file": "39.wav",
+    "voice": "Samantha",
+    "rate": 160,
+    "tempo": 1,
+    "sha256": "03581423085f2d8367f63d877f80e68bdf6e56de88168fb23d879f10250b07da"
   }
 ]

@@ -31,7 +31,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     const activation = page.evaluate(activate);
     await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
     await wallet.locator('body').evaluate(useNaturalPhrases);
-    await enrollBrowserMicrophone(page);
+    const enrollmentCaptures = await enrollBrowserMicrophone(page);
     const method = requireActivatedVoiceId(await activation);
     if (profile === 'add_ecdsa_after_voice') {
       await harness.lockWallet();
@@ -91,6 +91,12 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     await page.keyboard.press('Tab');
     await expect(back).toBeFocused();
     await wallet.getByRole('button', { name: 'Confirm with VoiceID', exact: true }).click();
+    const confirmationPhrase = await wallet
+      .locator('[data-voiceid-phrase]')
+      .getAttribute('data-voiceid-phrase');
+    expect(['confirm this transfer today', 'please send this transfer now']).toContain(
+      confirmationPhrase,
+    );
     await expect(page.getByTestId('reviewed-arc-result')).toHaveAttribute(
       'data-state',
       /submitted|failed/,
@@ -138,6 +144,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       signing: 'real_ecdsa_mpc',
       inference: 'real_redimnet_b1_and_aurora',
       speakerThreshold: 0.5,
+      enrollmentCaptures,
+      confirmationCommand: 'Transfer one smallest USDC unit on Arc testnet',
+      confirmationPhrase,
       blockedFeeLookup,
       ownerAddress,
       walletId: method.walletId,

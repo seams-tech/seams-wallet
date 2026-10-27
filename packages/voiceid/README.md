@@ -28,6 +28,36 @@ loading in the trusted Wallet iframe. Passkey and Email OTP flows remain indepen
 The optional `VoiceBeam` and `VoiceAssistantCard` visuals are exported from
 `@seams/voiceid/react`. Import `@seams/voiceid/styles` when using the card.
 
+## Configure a signing challenge
+
+Pass `voiceId.confirmationCommand` in the `options` of an existing reviewed NEAR
+or EVM signing request:
+
+```ts
+const options = {
+  voiceId: {
+    confirmationCommand: 'Sell 100 NEAR for USDC at $5.5',
+  },
+};
+```
+
+The Wallet selects a short action-only challenge, such as “Approve this sale at
+once” or “Let the sale go through.” It omits amounts, assets, and prices from the
+spoken phrase. The full transaction review remains authoritative.
+
+The leading English verb selects the phrase family: `sell`, `buy`, `swap`, or
+`send`/`transfer`. Other wording uses the default random challenges. Commands
+must be nonempty strings of at most 256 characters without control characters.
+The application cannot supply the final phrase or change verification thresholds.
+Retries choose a different phrase within the selected family.
+
+This option changes wording only. It does not enable VoiceID for unsupported
+transactions or interpret a trading command. VoiceID currently supports reviewed
+native transfers on NEAR testnet and Arc testnet. Approval remains bound to the
+complete signing request and review deadline, including the supplied command.
+Enrollment and unlock retain the default phrase bank. This adds no model or API
+request and keeps audio in the Wallet iframe.
+
 ## Install on the Wallet host
 
 The Wallet host operator must also install this package. App configuration cannot

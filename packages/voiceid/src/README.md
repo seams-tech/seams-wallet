@@ -142,8 +142,8 @@ and qualification criteria. The prototype uses pinned B1 and AuroraASR exports.
 
 ## Prompt and preparation
 
-Enrollment, unlock, and transfer approval randomly select one of 16 short English
-trading-oriented sentences of 4–6 words. The synthetic natural-paced fixtures
+Enrollment, unlock, and ordinary transfer approval randomly select one of 32 short
+English trading-oriented sentences. The synthetic natural-paced fixtures
 last about 1.2–2.4 seconds.
 Each attempt holds its displayed sentence until recording ends. Retries
 select another phrase. Read naturally, then pause. Capture stops after 1.5 seconds
@@ -153,7 +153,8 @@ recordings where live analysis is unavailable. Both speaker and phrase checks us
 Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
 
 Aurora decodes the audio independently of the displayed phrase. The matcher compares
-that text with all 16 phrases. It ignores case, punctuation, and articles, and maps
+that text with all 40 phrases. Eight additional phrases form four action-only
+confirmation families. It ignores case, punctuation, and articles, and maps
 selected homophones to a common spelling. It permits at most 30% normalized character
 edit distance, requires a 10-point distance margin over the next candidate, and
 limits decoded word count to within two words of the candidate. Negation must
@@ -163,6 +164,15 @@ A different recognized phrase, ambiguity, or an out-of-bounds result prevents
 enrollment, device-key use, or signing. The speaker threshold remains 0.5. A signing retry
 keeps the original transaction review and deadline and requires another Confirm.
 No audio or transcript leaves the browser or enters persistent storage.
+
+Per-call `options.voiceId.confirmationCommand` selects an action-only family from
+the first English verb: sell, buy, swap, send, or transfer. Other wording keeps
+the default challenges. The host validates this optional configuration once and
+rejects empty, oversized, non-string, or unknown configuration fields. Each retry
+rotates within the family. The raw command is included in the frozen operation
+hash. It never changes transaction decoding, operation permissions, or speaker
+and phrase thresholds. Numbers, asset names, and prices are not spoken. The
+application cannot supply a replacement challenge.
 
 The finite phrase bank does not establish replay resistance or liveness. The MVP
 still assumes physical possession of an open, active device. Spoof detection stays

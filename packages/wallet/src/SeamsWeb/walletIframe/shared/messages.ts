@@ -2,7 +2,7 @@ import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSessi
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
-import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
+import type { WalletAuthMethodPlugin, VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { TransactionInput } from '@/core/types';
@@ -1224,6 +1224,7 @@ interface PMSignNep413Payload {
 type PMSignTempoPayloadBase = {
   walletSession: WalletSessionRef;
   options?: {
+    voiceId?: VoiceIdConfirmationOptions;
     confirmationConfig?: Partial<ConfirmationConfig>;
   };
 };

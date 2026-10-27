@@ -51,7 +51,7 @@ async function verifyUnlock(
   const activationDialogMs = performance.now() - activationStarted;
   expect(activationDialogMs).toBeLessThan(1_000);
   await wallet.getByRole('button', { name: 'Activate VoiceID', exact: true }).click();
-  await enrollBrowserMicrophone(page);
+  const enrollmentCaptures = await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   expect(method.walletId).toBe(identity.walletId);
 
@@ -165,6 +165,12 @@ async function verifyUnlock(
     path: testInfo.outputPath('near-logo-review.png'),
   });
   await wallet.locator('button.confirm').click();
+  const confirmationPhrase = await wallet
+    .locator('[data-voiceid-phrase]')
+    .getAttribute('data-voiceid-phrase');
+  expect(['confirm this transfer today', 'please send this transfer now']).toContain(
+    confirmationPhrase,
+  );
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute(
     'data-state',
     'submitted',
@@ -201,8 +207,11 @@ async function verifyUnlock(
         preparation,
         coldPreparation,
         activationDialogMs,
+        enrollmentCaptures,
         naturalCapture: naturalQuality,
         naturalSigningCapture: signingQuality,
+        confirmationCommand: 'Send one yoctoNEAR to this wallet',
+        confirmationPhrase,
         qualityRetries: {
           shortQuality,
           quietQuality,

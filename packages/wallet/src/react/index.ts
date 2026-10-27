@@ -31,7 +31,11 @@ export { SeamsWebProvider } from './context/SeamsWebProvider';
 
 // === RE-EXPORT CORE TYPES ===
 export { SeamsWeb } from '../SeamsWeb';
-export type { WalletAuthMethodPlugin, VoiceIdAuthMethodPlugin } from '../core/authMethods/plugins';
+export type {
+  WalletAuthMethodPlugin,
+  VoiceIdAuthMethodPlugin,
+  VoiceIdConfirmationOptions,
+} from '../core/authMethods/plugins';
 
 // === Boundary references (exact subject + target for every wallet operation) ===
 export {

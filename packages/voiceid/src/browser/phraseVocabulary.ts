@@ -1,5 +1,5 @@
 // Generated from the pinned Aurora tokenizer by tests/scripts/voiceid-aurora/vocabulary.py.
-export const SPOKEN_PHRASES = [
+export const CHALLENGE_PHRASES = [
   "please sign this trade now",
   "confirm my order for today",
   "i review every order carefully",
@@ -32,6 +32,31 @@ export const SPOKEN_PHRASES = [
   "review this transfer before market close",
   "review this transfer when prices settle",
   "review this transfer after market opens"
+] as const;
+export const CONFIRMATION_PHRASES = {
+  "sale": [
+    "approve this sale at once",
+    "let the sale go through"
+  ],
+  "purchase": [
+    "this purchase has my approval",
+    "please confirm my purchase"
+  ],
+  "swap": [
+    "confirm my swap today",
+    "the swap is ready to proceed"
+  ],
+  "transfer": [
+    "confirm this transfer today",
+    "please send this transfer now"
+  ]
+} as const;
+export const SPOKEN_PHRASES = [
+  ...CHALLENGE_PHRASES,
+  ...CONFIRMATION_PHRASES.sale,
+  ...CONFIRMATION_PHRASES.purchase,
+  ...CONFIRMATION_PHRASES.swap,
+  ...CONFIRMATION_PHRASES.transfer,
 ] as const;
 export const PHRASE_TOKEN_PIECES: readonly string[] = [
   "",

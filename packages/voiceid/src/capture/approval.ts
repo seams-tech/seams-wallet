@@ -1,5 +1,6 @@
 import { VoicePrompt } from './prompt';
-import { newSpokenPhrase } from '../browser/phrase';
+import { newConfirmationPhrase, type SpokenPhrase } from '../browser/phrase';
+import { parseVoiceConfirmation, type VoiceConfirmation } from '../browser/confirmationCommand';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
 import type { ParentToChildEnvelope } from '@seams/wallet/voiceid-host';
@@ -89,7 +90,11 @@ export async function voiceIdPolicyForRequest(
       ) {
         throw unsupportedVoiceOperation();
       }
-      return await reviewedVoiceIdPolicy(request, configuration);
+      return await reviewedVoiceIdPolicy(
+        request,
+        configuration,
+        parseVoiceConfirmation(payload.options?.voiceId),
+      );
     }
     case 'PM_SIGN_AND_SEND_TX': {
       if (resolveNearNetwork(configuration.config.network.chains) !== 'testnet') {
@@ -107,7 +112,11 @@ export async function voiceIdPolicyForRequest(
       ) {
         throw unsupportedVoiceOperation();
       }
-      return await reviewedVoiceIdPolicy(request, configuration);
+      return await reviewedVoiceIdPolicy(
+        request,
+        configuration,
+        parseVoiceConfirmation(payload.options.voiceId),
+      );
     }
     default:
       return { kind: 'disabled' };
@@ -127,6 +136,7 @@ function encodeOperationValue(_key: string, value: unknown): unknown {
 async function reviewedVoiceIdPolicy(
   request: Extract<ParentToChildEnvelope, { type: 'PM_SIGN_AND_SEND_TX' | 'PM_SIGN_TEMPO' }>,
   configuration: ConfiguredWalletHost,
+  confirmation: VoiceConfirmation,
 ): Promise<VoiceIdPolicy> {
   const review = parseTransactionReviewWire(request.transactionReview);
   if (review.validity.kind !== 'expires_at') {
@@ -149,7 +159,10 @@ async function reviewedVoiceIdPolicy(
   for (const byte of new Uint8Array(hash)) operationHash += byte.toString(16).padStart(2, '0');
   const walletId = walletForHostRequest(request, null);
   if (!walletId) throw new Error('VoiceID review requires a wallet identity.');
-  return { kind: 'required', approval: VoiceIdApproval.forReview(review, operationHash, walletId) };
+  return {
+    kind: 'required',
+    approval: VoiceIdApproval.forReview(review, operationHash, walletId, confirmation),
+  };
 }
 
 function unsupportedVoiceOperation(): TransactionReviewError {
@@ -160,7 +173,7 @@ function unsupportedVoiceOperation(): TransactionReviewError {
 }
 
 export class VoiceIdApproval {
-  private phrase = newSpokenPhrase(null);
+  private phrase: SpokenPhrase;
   private readonly prompt: VoicePrompt;
   readonly surface: HTMLElement;
   get messages() {
@@ -175,9 +188,16 @@ export class VoiceIdApproval {
     private readonly reviewExpiresAtMs: number,
     private readonly operationHash: string,
     private readonly walletId: WalletId,
+    private readonly confirmation: VoiceConfirmation,
   ) {
+    this.phrase = newConfirmationPhrase(confirmation, null);
     // The receipt that follows a signature takes the checking segments over as its tracks.
-    this.prompt = new VoicePrompt(document, 'Approve transfer with VoiceID', this.phrase, 'segments');
+    this.prompt = new VoicePrompt(
+      document,
+      'Approve transfer with VoiceID',
+      this.phrase,
+      'segments',
+    );
     this.prompt.record.hidden = true;
     // The confirmation card's toolbar closes the review, so the card has no close of its own.
     this.prompt.cancel.hidden = true;
@@ -188,6 +208,7 @@ export class VoiceIdApproval {
     review: TransactionReviewWire,
     operationHash: string,
     walletId: WalletId,
+    confirmation: VoiceConfirmation,
   ): VoiceIdApproval {
     if (review.validity.kind !== 'expires_at' || !/^[0-9a-f]{64}$/.test(operationHash)) {
       throw new TransactionReviewError(
@@ -195,7 +216,7 @@ export class VoiceIdApproval {
         'VoiceID requires a bounded operation.',
       );
     }
-    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId);
+    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId, confirmation);
   }
 
   async approve(signal: AbortSignal): Promise<AuthMethodApprovalResult> {
@@ -256,7 +277,7 @@ export class VoiceIdApproval {
           case 'retry':
             // A miss keeps the card open with a new phrase. Try again is the
             // gesture that lets the browser open the microphone once more.
-            this.phrase = newSpokenPhrase(this.phrase);
+            this.phrase = newConfirmationPhrase(this.confirmation, this.phrase);
             this.prompt.setPhrase(this.phrase);
             this.prompt.record.textContent = 'Try again';
             this.prompt.ready(outcome.message);
