@@ -320,6 +320,10 @@ const CSS = `
 }
 `;
 const styles = new WeakMap<Document, ReturnType<typeof createCspStylesheetManager>>();
+const DISPLAY_PHRASES = new Map<SpokenPhrase, string>([
+  ['if you panic panic early', 'if you panic, panic early'],
+  ['life is short go long to hedge', 'life is short, go long to hedge'],
+]);
 
 export class VoicePrompt {
   readonly element: HTMLElement;
@@ -403,8 +407,7 @@ export class VoicePrompt {
   }
 
   setPhrase(phrase: SpokenPhrase): void {
-    const displayPhrase =
-      phrase === 'if you panic panic early' ? 'if you panic, panic early' : phrase;
+    const displayPhrase = DISPLAY_PHRASES.get(phrase) ?? phrase;
     this.phrase.textContent = displayPhrase.charAt(0).toUpperCase() + displayPhrase.slice(1) + '.';
     this.phrase.dataset.voiceidPhrase = phrase;
   }

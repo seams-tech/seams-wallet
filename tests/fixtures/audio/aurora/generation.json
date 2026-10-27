@@ -126,5 +126,37 @@
     "rate": 140,
     "tempo": 1,
     "sha256": "6ceffbe61ab08b94909614f85aafec45ff1a2d238c52b4f6e553e8b653aae46b"
+  },
+  {
+    "phrase": "be retarded when others are fearful",
+    "file": "16.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "edf6eba9c375ea775d4ffcc66383c1c28d6f0432b755895e2d044490aaac9c84"
+  },
+  {
+    "phrase": "be fearful when others are retarded",
+    "file": "17.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "557e43de0482feda29a79199bbd77b7cb55221d9e3c64adb26656617542f0729"
+  },
+  {
+    "phrase": "life is short go long to hedge",
+    "file": "18.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "7e9f1b15a2852f4047226b15525581179bf87b00a587f5b6528c68fbaf075c1a"
+  },
+  {
+    "phrase": "but they won't trap me",
+    "file": "19.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "195653e79b0f8567877db052a9188a596d5069c7de687578a9bd6d5c30c0b504"
   }
 ]

@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import type {} from '../fixtures/ui/VoiceIdPhraseToleranceProbe';
+import { SPOKEN_PHRASES } from '../../packages/voiceid/src/browser/phraseVocabulary';
 
 type Chunk = { fileName: string; code: string };
 let chunks: Chunk[];
@@ -78,9 +79,9 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
   await page.goto('/phrase-tolerance');
   await page.waitForFunction(ready);
   const results = [];
-  for (let spoken = 0; spoken < 16; spoken++) {
+  for (let spoken = 0; spoken < SPOKEN_PHRASES.length; spoken++) {
     const file = path.join(fixtures, 'natural', `${spoken}.wav`);
-    for (let expected = 0; expected < 16; expected++) {
+    for (let expected = 0; expected < SPOKEN_PHRASES.length; expected++) {
       const result = await check(page, file, expected);
       results.push({ spoken, expected, result });
       expect.soft(result.kind, `spoken ${spoken}, challenge ${expected}`).toBe(
