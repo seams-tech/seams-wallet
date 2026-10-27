@@ -11,9 +11,15 @@ import { RecoveryCodesIcon } from './icons/RecoveryCodesIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
-import { useProfileState } from './hooks/useProfileState';
+import { profileOpenControl, useProfileState } from './hooks/useProfileState';
 import { useSeams } from '../../context';
-import type { AccountMenuButtonProps, AccountsSectionRow, ExportChain, MenuItem } from './types';
+import type {
+  AccountMenuButtonProps,
+  AccountMenuButtonOptions,
+  AccountsSectionRow,
+  ExportChain,
+  MenuItem,
+} from './types';
 import { PROFILE_MENU_ITEM_IDS } from './types';
 import { QRCodeScanner } from '../QRCodeScanner';
 import { LinkedDevicesModal } from './LinkedDevicesModal';
@@ -141,56 +147,33 @@ async function resolveNearAccountIdForExport(input: {
   throw new Error('Ed25519 export requires an active NEAR signer.');
 }
 
-/**
- * Account Menu Button Component
- * Provides user settings, account management, and the device-link scanner shell.
- * **Important:** This component should be used inside a SeamsWeb context.
- * Wrap your app with PasskeyProvider or ensure SeamsWeb is available in context via useSeams.
- *
- * @example
- * ```tsx
- * import { PasskeyProvider } from '@seams/wallet/react';
- * import { AccountMenuButton } from '@seams/wallet/react';
- *
- * function App() {
- *   return (
- *     <PasskeyProvider configs={passkeyConfigs}>
- *       <AccountMenuButton
- *         username="alice"
- *         onLock={() => console.log('Wallet locked')}
- *         deviceLinkingScannerParams={{
- *           onError: (error) => console.error('Error:', error),
- *           onClose: () => console.log('Scanner closed'),
- *           // Flow events can carry sensitive data (e.g. demo OTP codes).
- *           // Forward phases, never whole event payloads.
- *           onEvent: (event) => trackScannerPhase(event.phase),
- *           fundingAmount: '0.05'
- *         }}
- *       />
- *     </PasskeyProvider>
- *   );
- * }
- * ```
- */
-const AccountMenuButtonInner: React.FC<
-  AccountMenuButtonProps & { presentation: 'menu' | 'page' }
-> = ({
-  presentation,
-  nearAccountId: nearAccountIdProp,
-  nearExplorerBaseUrl = 'https://nearblocks.io',
-  username: usernameProp,
-  hideUsername = false,
-  onLock: onLock,
-  onExportKeyError,
-  onExportKeyEvent,
-  deviceLinkingScannerParams,
-  toggleColors,
-  style,
-  className,
-  isMenuOpen,
-  onMenuOpenChange,
-  highlightedMenuItem,
-}) => {
+/** Shared settings content for the menu, modal, and full-page layout. */
+type AccountMenuButtonInnerProps =
+  | (AccountMenuButtonProps & { layout: 'menu' })
+  | (AccountMenuButtonOptions & {
+      layout: 'page';
+      presentation?: never;
+      isMenuOpen?: never;
+      onMenuOpenChange?: never;
+    });
+
+const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) => {
+  const {
+    layout,
+    presentation = 'dropdown',
+    nearAccountId: nearAccountIdProp,
+    nearExplorerBaseUrl = 'https://nearblocks.io',
+    username: usernameProp,
+    hideUsername = false,
+    onLock: onLock,
+    onExportKeyError,
+    onExportKeyEvent,
+    deviceLinkingScannerParams,
+    toggleColors,
+    style,
+    className,
+    highlightedMenuItem,
+  } = props;
   const locale = useWalletLocale();
   // Get values from context if not provided as props
   const { accountInputState, loginState, seams, lock } = useSeams();
@@ -228,10 +211,10 @@ const AccountMenuButtonInner: React.FC<
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // State management
-  const { isOpen, refs, handleToggle, handleClose } = useProfileState({
-    open: typeof isMenuOpen === 'boolean' ? isMenuOpen : undefined,
-    onOpenChange: onMenuOpenChange,
-  });
+  const { isOpen, refs, handleToggle, handleClose } = useProfileState(
+    layout === 'page' ? 'page' : presentation,
+    profileOpenControl(props, false),
+  );
 
   useEffect(resetNavigation.bind(null, isOpen, setScreen), [isOpen]);
 
@@ -529,7 +512,7 @@ const AccountMenuButtonInner: React.FC<
       );
     }
 
-    if (presentation === 'page') {
+    if (layout === 'page') {
       items.push({
         id: PROFILE_MENU_ITEM_IDS.WALLET_REGION,
         icon: <MapPinIcon />,
@@ -550,7 +533,7 @@ const AccountMenuButtonInner: React.FC<
     return items;
   }, [
     accountsRows.length,
-    presentation,
+    layout,
     accountMenuCapabilities,
     canShowRecoveryCodes,
     exportLoadingChain,
@@ -681,7 +664,7 @@ const AccountMenuButtonInner: React.FC<
     ),
   };
 
-  if (presentation === 'page' && loginState.isLoggedIn && walletId) {
+  if (layout === 'page' && loginState.isLoggedIn && walletId) {
     return (
       <>
         <WalletSettingsLayout
@@ -769,6 +752,7 @@ const AccountMenuButtonInner: React.FC<
 
   return (
     <AccountMenuButtonView
+      presentation={presentation}
       buttonRef={refs.buttonRef}
       dropdownRef={refs.dropdownRef}
       className={className}
@@ -816,7 +800,7 @@ export const AccountMenuButton: React.FC<AccountMenuButtonProps> = (props) => {
   );
   return (
     <Theme theme={theme} tokens={scopedTokens}>
-      <AccountMenuButtonInner {...props} presentation="menu" />
+      <AccountMenuButtonInner {...props} layout="menu" />
     </Theme>
   );
 };
@@ -837,7 +821,7 @@ function WalletSettingsContent(props: Pick<HostedSeamsAuthMenuProps, 'externalAu
   const { loginState, refreshSession } = useSeams();
   const [error, setError] = useState('');
   if (loginState.isLoggedIn) {
-    return <AccountMenuButtonInner presentation="page" nearAccountId={loginState.nearAccountId} />;
+    return <AccountMenuButtonInner layout="page" nearAccountId={loginState.nearAccountId} />;
   }
   return (
     <div className="seams-settings-page">

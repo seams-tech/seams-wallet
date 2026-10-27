@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { ExternalNearController } from '@seams/wallet/external-near';
 import { ExternalNearWalletPicker } from '@seams/wallet/react/external-near';
 import {
@@ -16,6 +16,7 @@ import {
   QRCodeScanner,
   SeamsContextProvider,
   WalletSettingsPage,
+  AccountMenuButton,
   defineSeamsConfig,
 } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
@@ -41,6 +42,23 @@ function EvmPicker() {
 }
 function ignorePreviewEvent() {}
 
+function LiveSettingsModal() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={setOpen.bind(null, true)}>
+        Open live wallet settings
+      </button>
+      <AccountMenuButton
+        nearAccountId={null}
+        presentation="modal"
+        isMenuOpen={open}
+        onMenuOpenChange={setOpen}
+      />
+    </>
+  );
+}
+
 function Catalog() {
   return (
     <div style={{ width: 420, maxWidth: '100%', display: 'grid', gap: 24 }}>
@@ -61,6 +79,9 @@ const params = new URLSearchParams(location.search);
 const view = params.get('view');
 let walletSurface: ReactElement | null = null;
 switch (view) {
+  case 'account-settings-modal':
+    walletSurface = <LiveSettingsModal />;
+    break;
   case 'settings':
     walletSurface = <WalletSettingsPage />;
     break;

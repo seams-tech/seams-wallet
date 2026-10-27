@@ -573,3 +573,39 @@
   flex-shrink: 0;
   accent-color: var(--seams-colors-textPrimary);
 }
+
+[data-seams-root].seams-theme-provider dialog[data-seams-root].seams-account-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  height: fit-content;
+  min-width: 0;
+  min-height: 0;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 27px;
+  outline: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  box-shadow: none;
+}
+[data-seams-root].seams-theme-provider dialog[data-seams-root].seams-account-modal[open] {
+  display: block;
+}
+[data-seams-root].seams-theme-provider dialog[data-seams-root].seams-account-modal::backdrop {
+  background: rgb(0 0 0 / 0.26);
+}
+[data-seams-root].seams-theme-provider .seams-account-modal .seams-profile-button-morphable.open {
+  width: 100%;
+}
+html:has(dialog[data-seams-root].seams-account-modal[open]) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}

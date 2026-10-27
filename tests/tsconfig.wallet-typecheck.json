@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/account-menu-presentation.typecheck.ts",
     "typecheck/voiceid-confirmation-command.typecheck.ts",
     "typecheck/voice-assistant-card.typecheck.ts",
     "typecheck/voiceid-enrollment-store.typecheck.ts",
@@ -33,7 +34,5 @@
     "wallet-ui/export-private-key.typecheck.ts",
     "typecheck/external-near-state.typecheck.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

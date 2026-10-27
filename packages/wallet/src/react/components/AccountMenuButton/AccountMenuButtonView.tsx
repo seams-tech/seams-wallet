@@ -3,12 +3,14 @@ import { walletText } from '@/core/ui/messages';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { UserAccountButton } from './UserAccountButton';
 import { ProfileDropdown } from './ProfileDropdown';
+import { AccountMenuModal } from './AccountMenuModal';
 import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 import TouchIcon from './icons/TouchIcon';
 import { SEAMS_STANDARD_WORDMARK_PATH } from '../../../core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
 import './Web3AuthProfileButton.css';
 
 type AccountMenuButtonViewProps = {
+  presentation: 'dropdown' | 'modal';
   buttonRef: React.RefObject<HTMLDivElement | null>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   trigger: React.ComponentProps<typeof UserAccountButton>;
@@ -43,10 +45,25 @@ function observePanel(
   observer.observe(content);
   return observer.disconnect.bind(observer);
 }
-function closeWithEscape(onClose: () => void, event: React.KeyboardEvent): void {
+function closeWithEscape(
+  presentation: 'dropdown' | 'modal',
+  onClose: () => void,
+  event: React.KeyboardEvent,
+): void {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
   event.preventDefault();
+  if (presentation === 'modal') event.stopPropagation();
   onClose();
+}
+
+function revealModalScreen(
+  presentation: 'dropdown' | 'modal',
+  event: React.FocusEvent<HTMLDivElement>,
+): void {
+  if (presentation !== 'modal' || !(event.target instanceof HTMLElement)) return;
+  if (!event.target.matches('.seams-account-heading h2, .seams-account-identity')) return;
+  const dialog = event.currentTarget.closest('dialog.seams-account-modal');
+  if (dialog instanceof HTMLDialogElement) dialog.scrollTop = 0;
 }
 
 function restoreTriggerFocus(
@@ -77,6 +94,7 @@ function restoreOverviewFocus(
 
 /** One shell for live account screens and the provider-free preview. */
 export function AccountMenuButtonView({
+  presentation,
   buttonRef,
   dropdownRef,
   trigger,
@@ -99,18 +117,22 @@ export function AccountMenuButtonView({
     trigger.isOpen,
   ]);
   const [height, setHeight] = useState<number | null>(null);
-  useLayoutEffect(observePanel.bind(null, contentRef, trigger.isOpen, setHeight), [trigger.isOpen]);
-  return (
+  useLayoutEffect(observePanel.bind(null, contentRef, trigger.isOpen, setHeight), [
+    trigger.isOpen,
+    presentation,
+  ]);
+  const panel = (
     <div
       ref={buttonRef}
       className={`seams-profile-button-morphable ${trigger.isOpen ? 'open' : 'closed'} ${className ?? ''}`}
       style={trigger.isOpen ? style : { ...style, width: 'fit-content' }}
       data-state={trigger.isOpen ? 'open' : 'closed'}
+      onFocusCapture={revealModalScreen.bind(null, presentation)}
     >
       {trigger.isOpen ? (
         <div
           className="seams-account-resize"
-          onKeyDown={closeWithEscape.bind(null, dropdown.onClose)}
+          onKeyDown={closeWithEscape.bind(null, presentation, dropdown.onClose)}
           style={{ height: height ?? undefined }}
         >
           <div ref={contentRef} className="seams-account-panel-content">
@@ -176,4 +198,12 @@ export function AccountMenuButtonView({
       )}
     </div>
   );
+  if (presentation === 'modal') {
+    return (
+      <AccountMenuModal isOpen={trigger.isOpen} onClose={dropdown.onClose}>
+        {panel}
+      </AccountMenuModal>
+    );
+  }
+  return panel;
 }

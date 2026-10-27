@@ -446,6 +446,16 @@ try {
     await captureScreen(page, `${view}-portal`);
     surfaceEvidence.push({ view, clean, styled });
   }
+  catalogUrl.search = '?view=account-settings-modal';
+  await page.goto(catalogUrl.href);
+  await expect(page.locator('dialog.seams-account-modal')).toHaveCount(0);
+  await expect(page.locator('[aria-haspopup="menu"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open live wallet settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Wallet settings', exact: true })).toBeVisible();
+  await expect(page.locator('[data-account-menu-item="transaction-settings"]')).toBeDisabled();
+  await captureScreen(page, 'live-controlled-modal');
+  await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
+  await expect(page.locator('dialog.seams-account-modal')).toHaveCount(0);
   assert.deepEqual(walletRequests, []);
   assert.deepEqual(errors, []);
   await writeFile(

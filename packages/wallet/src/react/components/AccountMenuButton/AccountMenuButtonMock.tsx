@@ -6,8 +6,8 @@ import type { ConfirmationConfig, ConfirmationUIMode } from '../../../core/types
 import { AccountMenuMockScreens, type AccountPreviewScreen } from './AccountMenuMockScreens';
 import { TransactionSettingsSection } from './TransactionSettingsSection';
 import { AccountMenuButtonView } from './AccountMenuButtonView';
-import { useProfileState } from './hooks/useProfileState';
-import type { AccountsSectionRow, MenuItem } from './types';
+import { profileOpenControl, useProfileState } from './hooks/useProfileState';
+import type { AccountMenuPresentation, AccountsSectionRow, MenuItem } from './types';
 import { GlobeIcon } from './icons/GlobeIcon';
 import { SlidersIcon } from './icons/SlidersIcon';
 import { KeyIcon } from './icons/KeyIcon';
@@ -16,16 +16,22 @@ import TouchIcon from './icons/TouchIcon';
 import { ScanIcon } from './icons/ScanIcon';
 import { LinkIcon } from './icons/LinkIcon';
 
-export interface AccountMenuButtonMockProps {
+interface AccountMenuPreviewOptions {
   locale?: import('@/core/ui/locale').WalletLocale;
   /** Display-only identity. No wallet session or credentials are created. */
   username?: string;
   walletId?: string;
   theme?: ThemeMode;
-  defaultOpen?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
+
+export type AccountMenuButtonMockProps = AccountMenuPreviewOptions &
+  AccountMenuPresentation &
+  (
+    | { presentation?: 'dropdown'; isMenuOpen?: never; defaultOpen?: boolean }
+    | { isMenuOpen: boolean; defaultOpen?: never }
+  );
 
 const accounts: AccountsSectionRow[] = [
   {
@@ -89,25 +95,26 @@ function resetPreviewNavigation(
   if (!isOpen) setScreen({ kind: 'overview' });
 }
 
-function AccountMenuPreview({
-  username = 'Alex Chen',
-  walletId = 'alex.near',
-  theme = 'light',
-  defaultOpen = true,
-  className,
-  style,
-}: AccountMenuButtonMockProps): React.JSX.Element {
-  const [open, setOpen] = useState(defaultOpen);
+function AccountMenuPreview(props: AccountMenuButtonMockProps): React.JSX.Element {
+  const {
+    username = 'Alex Chen',
+    walletId = 'alex.near',
+    theme = 'light',
+    defaultOpen = true,
+    presentation = 'dropdown',
+    className,
+    style,
+  } = props;
   const [status, setStatus] = useState<'ready' | 'logged_out'>('ready');
   const [screen, setScreen] = useState<AccountPreviewScreen>({ kind: 'overview' });
   const [confirmation, setConfirmation] = useState<ConfirmationConfig>({
     uiMode: 'modal',
     behavior: 'requireClick',
   });
-  const { refs, isOpen, handleToggle, handleClose } = useProfileState({
-    open,
-    onOpenChange: setOpen,
-  });
+  const { refs, isOpen, handleToggle, handleClose } = useProfileState(
+    presentation,
+    profileOpenControl(props, defaultOpen),
+  );
   useEffect(resetPreviewNavigation.bind(null, isOpen, setScreen), [isOpen]);
   const menuItems: MenuItem[] = [
     {
@@ -176,6 +183,7 @@ function AccountMenuPreview({
   ];
   return (
     <AccountMenuButtonView
+      presentation={presentation}
       buttonRef={refs.buttonRef}
       dropdownRef={refs.dropdownRef}
       className={className}

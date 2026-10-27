@@ -77,6 +77,41 @@ await wallet.near.signAndSendTransaction({
 `SeamsAuthMenuMock`は、操作を実行しない読み込み用プレースホルダー兼プレビューです。
 `HostedSeamsAuthMenu`は、ウォレットUIを開く間にこれを表示します。
 
+`AccountMenuButton`の既定値は`presentation="dropdown"`です。SDKのトリガーボタンを表示します。
+アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`を指定します。
+モーダルでは`isMenuOpen`と`onMenuOpenChange`が必須です。SDKのトリガーボタンは表示しません。
+
+```tsx [部分的な実装例]
+import { useState } from 'react';
+import { AccountMenuButton, useSeams } from '@seams/wallet/react';
+import '@seams/wallet/react/styles';
+
+function WalletSettingsControl() {
+  const [open, setOpen] = useState(false);
+  const { loginState } = useSeams();
+  return (
+    <>
+      <button type="button" onClick={setOpen.bind(null, true)}>
+        ウォレット設定
+      </button>
+      <AccountMenuButton
+        nearAccountId={loginState.nearAccountId}
+        presentation="modal"
+        isMenuOpen={open}
+        onMenuOpenChange={setOpen}
+      />
+    </>
+  );
+}
+```
+
+`SeamsWebProvider`内に配置してください。モーダルは`document.body`配下のポータルにテーマを維持して表示します。
+フォーカスを内部に保ち、背景の操作とスクロールを止めます。閉じると、開く前にフォーカスされていた要素に戻します。
+Escape、閉じるボタン、背景のクリックは`onMenuOpenChange(false)`を呼びます。
+アプリから`open`を`false`に変更して閉じることもできます。閉じると画面遷移を初期状態に戻します。
+`ProfileSettingsButton`と`AccountMenuButtonMock`も同じ表示・開閉プロパティを受け付けます。
+ドロップダウンでも`isMenuOpen`を渡す場合は`onMenuOpenChange`が必須です。
+
 メニューのアンカー要素（`[data-seams-auth-menu-host]`）は、計測済みのメニューが表示されるフレームで
 `data-seams-auth-menu-ready="true"`を受け取ります。そのフレーム以降、アンカーはメニューの高さを確保します。
 閉じるボタンなど、ページ側でメニューの周りに独自のコントロールを描く場合は、この属性を条件に表示してください。
@@ -109,8 +144,9 @@ import '@seams/wallet/react/styles';
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
 
-折りたたんだ状態から始めるには、`defaultOpen={false}`を指定します。
-すべての画面は1つのパネル内に収まり、背景のオーバーレイはありません。
+ドロップダウンのプレビューを折りたたんだ状態から始めるには、`defaultOpen={false}`を指定します。
+すべての画面は1つのパネル内に収まります。ドロップダウンには背景のオーバーレイがありません。
+モーダルのプレビューでは、`isMenuOpen`と`onMenuOpenChange`で開閉を制御します。
 画面間では計測した高さをアニメーションし、動きを減らす設定に従います。
 認証方法の画面は現在のウォレットを直接開き、パスキーとメールOTPを別々の行に表示します。
 デバイス連携はメインメニューから利用できます。取引設定は、サイズを変更する別画面で開きます。

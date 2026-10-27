@@ -66,7 +66,23 @@ export interface DeviceLinkingScannerParams {
   fundingAmount?: string;
 }
 
-export interface AccountMenuButtonProps {
+type AccountMenuOpenChange = (open: boolean) => void;
+
+type AccountMenuDropdownControl =
+  | { isMenuOpen?: never; onMenuOpenChange?: AccountMenuOpenChange }
+  | { isMenuOpen: boolean; onMenuOpenChange: AccountMenuOpenChange };
+
+type AccountMenuDropdownPresentation = { presentation?: 'dropdown' } & AccountMenuDropdownControl;
+type AccountMenuModalPresentation = {
+  presentation: 'modal';
+  isMenuOpen: boolean;
+  onMenuOpenChange: AccountMenuOpenChange;
+};
+export type AccountMenuPresentation =
+  | AccountMenuDropdownPresentation
+  | AccountMenuModalPresentation;
+
+export interface AccountMenuButtonOptions {
   /**
    * Null while the wallet has no NEAR account yet — its Ed25519 Yao ceremony
    * has not settled. The menu renders without NEAR rows in that state.
@@ -86,11 +102,10 @@ export interface AccountMenuButtonProps {
   toggleColors?: ToggleColorProps;
   style?: React.CSSProperties;
   className?: string;
-  // Programmatic menu control
-  isMenuOpen?: boolean;
-  onMenuOpenChange?: (open: boolean) => void;
   highlightedMenuItem?: HighlightedProfileMenuItem | null;
 }
+
+export type AccountMenuButtonProps = AccountMenuButtonOptions & AccountMenuPresentation;
 
 export type ProfileSettingsButtonProps = AccountMenuButtonProps;
 

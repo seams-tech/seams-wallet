@@ -1,104 +1,117 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ProfileStateRefs } from '../types';
+import type React from 'react';
+import { useState, useRef, useEffect } from 'react';
+import type { AccountMenuPresentation, ProfileStateRefs } from '../types';
 
-interface UseProfileStateOptions {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+type ProfileOpenControl =
+  | {
+      kind: 'uncontrolled';
+      initialOpen: boolean;
+      open?: never;
+      onOpenChange?: (open: boolean) => void;
+    }
+  | {
+      kind: 'controlled';
+      open: boolean;
+      initialOpen?: never;
+      onOpenChange: (open: boolean) => void;
+    };
+
+export function profileOpenControl(
+  props: AccountMenuPresentation,
+  initialOpen: boolean,
+): ProfileOpenControl {
+  if (props.isMenuOpen !== undefined) {
+    return { kind: 'controlled', open: props.isMenuOpen, onOpenChange: props.onMenuOpenChange };
+  }
+  return { kind: 'uncontrolled', initialOpen, onOpenChange: props.onMenuOpenChange };
 }
 
-export const useProfileState = (options?: UseProfileStateOptions) => {
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
-  const isControlled = typeof options?.open === 'boolean';
-  const isOpen = isControlled ? (options?.open as boolean) : uncontrolledOpen;
-  const onOpenChange = options?.onOpenChange;
+function changeOpen(
+  control: ProfileOpenControl,
+  setUncontrolledOpen: React.Dispatch<React.SetStateAction<boolean>>,
+  open: boolean,
+): void {
+  switch (control.kind) {
+    case 'uncontrolled':
+      setUncontrolledOpen(open);
+      control.onOpenChange?.(open);
+      return;
+    case 'controlled':
+      control.onOpenChange(open);
+      return;
+    default:
+      return assertNever(control);
+  }
+}
 
-  // Refs
+function currentOpen(control: ProfileOpenControl, uncontrolledOpen: boolean): boolean {
+  switch (control.kind) {
+    case 'controlled':
+      return control.open;
+    case 'uncontrolled':
+      return uncontrolledOpen;
+    default:
+      return assertNever(control);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unknown account menu control: ${String(value)}`);
+}
+
+function closeOutside(
+  buttonRef: React.RefObject<HTMLDivElement | null>,
+  close: () => void,
+  event: Event,
+): void {
+  for (const target of event.composedPath()) {
+    if (target === buttonRef.current) return;
+    if (
+      target instanceof HTMLElement &&
+      target.matches(
+        '[data-seams-root].seams-wallet-overlay-dialog, .seams-linked-devices-modal-backdrop, .qr-scanner-modal',
+      )
+    )
+      return;
+  }
+  close();
+}
+
+function observeOutside(
+  presentation: 'dropdown' | 'modal' | 'page',
+  isOpen: boolean,
+  buttonRef: React.RefObject<HTMLDivElement | null>,
+  close: () => void,
+): (() => void) | undefined {
+  if (presentation !== 'dropdown' || !isOpen) return;
+  const root = buttonRef.current?.getRootNode();
+  if (!root) return;
+  const listener = closeOutside.bind(null, buttonRef, close);
+  root.addEventListener('click', listener, true);
+  return root.removeEventListener.bind(root, 'click', listener, true);
+}
+
+export function useProfileState(
+  presentation: 'dropdown' | 'modal' | 'page',
+  control: ProfileOpenControl,
+) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(
+    control.kind === 'uncontrolled' ? control.initialOpen : false,
+  );
+  const isOpen = currentOpen(control, uncontrolledOpen);
   const buttonRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuItemsRef = useRef<(HTMLElement | null)[]>([]);
-  const refs: ProfileStateRefs = {
-    buttonRef,
-    dropdownRef,
-    menuItemsRef,
-  };
+  const refs: ProfileStateRefs = { buttonRef, dropdownRef, menuItemsRef };
+  const handleClose = changeOpen.bind(null, control, setUncontrolledOpen, false);
+  const handleToggle = changeOpen.bind(null, control, setUncontrolledOpen, !isOpen);
 
-  // Handle click outside to close (account for Shadow DOM via composedPath)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const path = typeof event.composedPath === 'function' ? (event.composedPath() as Node[]) : [];
-
-      const isInPath = (el: HTMLElement | null) => {
-        if (!el) return false;
-        if (el.contains(target)) return true;
-        return path.includes(el);
-      };
-
-      const clickedInsideButton = isInPath(buttonRef.current);
-      const clickedInsideDropdown = isInPath(dropdownRef.current);
-      if (clickedInsideButton || clickedInsideDropdown) return;
-
-      // Allow interactions with portaled overlays without closing the menu
-      // Linked devices / access keys modal and export key chooser modal.
-      const pathEls = path.filter((n): n is HTMLElement => n instanceof HTMLElement);
-      const inAccountMenuOverlay = pathEls.some((el) =>
-        Array.from(el.classList ?? []).some(
-          (c) =>
-            c.startsWith('seams-access-keys-modal') ||
-            c.startsWith('seams-export-key-type-modal') ||
-            c.startsWith('seams-linked-devices-modal'),
-        ),
-      );
-      if (inAccountMenuOverlay) return;
-
-      // QR scanner overlay
-      const inQRScanner = pathEls.some(
-        (el) =>
-          el.classList?.contains('qr-scanner-modal') ||
-          el.classList?.contains('qr-scanner-panel') ||
-          el.classList?.contains('qr-scanner-linking-toast'),
-      );
-      if (inQRScanner) return;
-
-      if (!isControlled) {
-        setUncontrolledOpen(false);
-      }
-      onOpenChange?.(false);
-    };
-
-    // Attach the listener to the closest root (ShadowRoot or Document)
-    const root: Document | ShadowRoot = (buttonRef.current?.getRootNode?.() as any) || document;
-    root.addEventListener('click', handleClickOutside as any, true);
-    return () => {
-      try {
-        root.removeEventListener('click', handleClickOutside as any, true);
-      } catch {}
-    };
-  }, [isControlled, onOpenChange]);
-
-  const setOpen = useCallback(
-    (next: boolean | ((prev: boolean) => boolean)) => {
-      const resolved = typeof next === 'function' ? next(isOpen) : next;
-      if (!isControlled) {
-        setUncontrolledOpen(resolved);
-      }
-      onOpenChange?.(resolved);
-    },
-    [isControlled, isOpen, onOpenChange],
-  );
-
-  const handleToggle = () => {
-    setOpen((prev) => !prev);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
-
-  return {
+  useEffect(observeOutside.bind(null, presentation, isOpen, buttonRef, handleClose), [
+    presentation,
     isOpen,
-    refs,
-    handleToggle,
+    buttonRef,
     handleClose,
-  };
-};
+  ]);
+
+  return { isOpen, refs, handleToggle, handleClose };
+}

@@ -582,6 +582,16 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 
 ## Wallet settings presentation
 
+- `AccountMenuButton` defaults to `presentation="dropdown"`, with its existing SDK trigger.
+  `presentation="modal"` renders no SDK trigger. The application controls it with
+  required `isMenuOpen` and `onMenuOpenChange` props and can open it from any application button.
+  Modal settings use the same panel and routes in a themed portal under `document.body`.
+  A native dialog keeps page focus inside, makes the background inert, and restores the previously focused element on close.
+  Escape, the close button, and a backdrop click request closure once. Programmatic closure follows application state.
+  Backdrop dismissal requires both pointer press and release outside the dialog. Dragging from inside does not dismiss it.
+  Background scrolling stays locked while open. Short viewports scroll the dialog content.
+  Wallet-origin overlays can open above settings without closing the settings modal.
+  Closing resets navigation. `AccountMenuButtonMock` supports the same presentation and control props.
 - `AccountMenuButton` uses one fixed-width panel for overview, account addresses,
   export selection, recovery entry, authentication methods, linked devices, and
   QR scanning. Back returns to the previous screen. Transaction preferences

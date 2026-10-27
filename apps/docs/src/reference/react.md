@@ -81,6 +81,41 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
+`AccountMenuButton` defaults to `presentation="dropdown"` and includes the SDK trigger.
+Use `presentation="modal"` to open the same settings from an application button.
+Modal mode requires both `isMenuOpen` and `onMenuOpenChange` and renders no SDK trigger.
+
+```tsx [Partial example]
+import { useState } from 'react';
+import { AccountMenuButton, useSeams } from '@seams/wallet/react';
+import '@seams/wallet/react/styles';
+
+function WalletSettingsControl() {
+  const [open, setOpen] = useState(false);
+  const { loginState } = useSeams();
+  return (
+    <>
+      <button type="button" onClick={setOpen.bind(null, true)}>
+        Wallet settings
+      </button>
+      <AccountMenuButton
+        nearAccountId={loginState.nearAccountId}
+        presentation="modal"
+        isMenuOpen={open}
+        onMenuOpenChange={setOpen}
+      />
+    </>
+  );
+}
+```
+
+Mount this control inside `SeamsWebProvider`. The modal renders in a themed portal under `document.body`.
+It traps focus, blocks background interaction and scrolling, and restores focus when closed.
+Escape, the close button, and a backdrop click call `onMenuOpenChange(false)`.
+You can also close it by setting `open` to `false`. Closing resets its navigation.
+`ProfileSettingsButton` and `AccountMenuButtonMock` accept the same presentation and control props.
+Controlled dropdowns also require `onMenuOpenChange` when you pass `isMenuOpen`.
+
 The menu's anchor element (`[data-seams-auth-menu-host]`) gets
 `data-seams-auth-menu-ready="true"` in the frame where the measured menu appears.
 The anchor reserves the menu's height from that frame on. If your page draws its own
@@ -117,8 +152,9 @@ import '@seams/wallet/react/styles';
 <AccountMenuButtonMock username="Alex Chen" walletId="alex.near" theme="light" />;
 ```
 
-Use `defaultOpen={false}` to start collapsed. All screens stay inside one panel;
-there is no overlay backdrop. The panel animates its measured height between screens,
+Use `defaultOpen={false}` to start the dropdown preview collapsed. All screens stay inside one panel.
+Dropdown mode has no overlay backdrop. Modal previews use controlled `isMenuOpen` and `onMenuOpenChange` props.
+The panel animates its measured height between screens,
 and respects reduced-motion preferences. Authentication methods opens directly for the current wallet, with separate
 Passkey and Email OTP rows. Device linking is available from the main menu.
 Transaction settings open in a separate resizing screen. The scanner is a static
