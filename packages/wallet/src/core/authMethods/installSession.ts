@@ -129,7 +129,7 @@ async function installPreparedAuthMethodSession(
       });
     }
     await establishUnlockedExportRootCapabilityWithWorkerV1(ports.transport, {
-      existingEnvelope: unlocked.custodyEnvelope,
+      existingEnvelopes: [unlocked.custodyEnvelope],
       existingFactorSecret: unlocked.factorSecret32,
       walletId,
       walletAuthMethodId: unlocked.walletSession.authMethodId,
@@ -156,7 +156,7 @@ async function installPreparedAuthMethodSession(
     if (unlocked.signal.aborted) throw new Error('Wallet unlock was cancelled.');
     if (prepared) ports.rememberNearSession(prepared.state, prepared.capability);
     ports.engine.setWalletAuthenticated({ kind: 'authenticated', walletId, authMethod: 'voiceid' });
-    if (!cap) return { success: true, kind: 'ecdsa_wallet_unlocked', walletId };
+    if (!cap) return { success: true, kind: 'wallet_unlocked', walletId };
     return {
       success: true,
       kind: 'near_wallet_unlocked',

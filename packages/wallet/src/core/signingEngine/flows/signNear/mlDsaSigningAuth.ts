@@ -47,6 +47,8 @@ export async function resolveMlDsaSigningOwner(walletId: WalletId) {
         operationCredential: exact.operationCredential,
       } as const;
     }
+    case 'voiceid':
+      throw new Error('Unlock with a passkey or email to approve ML-DSA signing.');
     default:
       return assertNever(method);
   }
