@@ -14,7 +14,7 @@ await mkdir(assets, { recursive: true });
 await build(
   {
     input: ['src/index.ts', 'src/react.ts', 'src/capture/prompt.ts'],
-    external: ['@seams/wallet/voiceid-host', 'voice-glow', 'react', 'react/jsx-runtime'],
+    external: ['@seams/wallet/voiceid-host', 'voice-glow', 'preact', 'react', 'react/jsx-runtime'],
   },
   { dir: path.join(dist, 'esm'), format: 'esm', preserveModules: true, preserveModulesRoot: 'src' },
 );
@@ -41,8 +41,13 @@ await build(
 );
 
 for (const filename of [
-  'redimnet-b1.onnx', 'aurora-int8.onnx', 'silero-vad.onnx',
-  'voice-activity-worklet.js', 'NOTICE.txt', 'AURORA_LICENSE.txt', 'SILERO_LICENSE.txt',
+  'redimnet-b1.onnx',
+  'aurora-int8.onnx',
+  'silero-vad.onnx',
+  'voice-activity-worklet.js',
+  'NOTICE.txt',
+  'AURORA_LICENSE.txt',
+  'SILERO_LICENSE.txt',
 ]) {
   await cp(path.join(root, 'assets', filename), path.join(assets, filename));
 }
