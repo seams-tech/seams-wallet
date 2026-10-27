@@ -161,6 +161,10 @@ async function smokePackedEntries() {
   const voiceUi = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react.js'));
   assert.equal(typeof voiceUi.VoiceAssistantCard, 'function');
   assert.ok('VoiceBeam' in voiceUi);
+  const voicePrompt = await import(
+    path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/capture/prompt.js')
+  );
+  assert.equal(typeof voicePrompt.VoicePrompt, 'function');
   assert.ok(
     fs.existsSync(
       path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react/VoiceAssistantCard.css'),
