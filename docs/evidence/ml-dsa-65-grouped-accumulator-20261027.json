@@ -1,0 +1,1025 @@
+{
+  "schema": "seams.ml-dsa-grouped-accumulator-campaign.v1",
+  "source_base": "cc18f24e505f3dd2d168859c419b392436d88a35",
+  "observed_date": "2026-10-27",
+  "decision": "Reject grouped accumulator and local-only unroll. No useful hosted gain. Production encoder and dependencies restored.",
+  "scope": "Synthetic two-wallet retirement/refill and private Router lifecycle. No sustained signature-throughput or public SDK tail qualification.",
+  "fixed_policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16,
+    "max_active_preparations": 2
+  },
+  "comparison": [
+    {
+      "phase": "baseline-1-window",
+      "complete_jobs": 16,
+      "paired_producer_invocation_cpu_ms": 147130,
+      "client_observed_reserve_restoration_ms": 94522,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793104986652,
+        "last_publication_since_start_ms": 93304,
+        "client_detection_lag_ms": 1218
+      },
+      "all_outcomes": {
+        "invocations": 796,
+        "by_role": {
+          "a": {
+            "ok": 186
+          },
+          "b": {
+            "ok": 228
+          },
+          "preparer-a": {
+            "ok": 16,
+            "canceled": 8
+          },
+          "preparer-a-secondary": {
+            "ok": 16,
+            "canceled": 8
+          },
+          "preparer-b": {
+            "ok": 8
+          },
+          "preparer-b-secondary": {
+            "ok": 8
+          },
+          "router": {
+            "ok": 318
+          }
+        },
+        "exceptions": 0,
+        "truncated_records": 0,
+        "unsuccessful_crypto": []
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 3933,
+              "median": 4379.5,
+              "max": 4770
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4092,
+              "median": 4544.0,
+              "max": 4877
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9280,
+              "median": 10218.5,
+              "max": 12176
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 6806,
+              "median": 7790.0,
+              "max": 8874
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 26,
+              "median": 227.0,
+              "max": 1646
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 508,
+              "median": 916.0,
+              "max": 2110
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 3933,
+              "median": 4321,
+              "max": 4770
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 6806,
+              "median": 7715,
+              "max": 8874
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4092,
+            "median": 4488,
+            "max": 4850
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "fcddf612-ee35-4267-a52f-29513f525ab6"
+          ],
+          "versions_b": [
+            "759d9fba-872f-4600-820f-7394632a0e67"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4165,
+              "median": 4342.0,
+              "max": 6196
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4298,
+              "median": 4477.5,
+              "max": 6341
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9653,
+              "median": 10563.5,
+              "max": 14144
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7147,
+              "median": 8095.0,
+              "max": 11829
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 25,
+              "median": 32.5,
+              "max": 841
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 723,
+              "median": 1026.5,
+              "max": 4870
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4165,
+              "median": 4300,
+              "max": 6196
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7147,
+              "median": 7944,
+              "max": 11829
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4298,
+            "median": 4467,
+            "max": 6341
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "8aa31efd-4c38-4570-a884-d0711ac0c295"
+          ],
+          "versions_b": [
+            "146909f0-9e58-42d5-897e-319882416984"
+          ]
+        }
+      }
+    },
+    {
+      "phase": "candidate-1-window",
+      "complete_jobs": 16,
+      "paired_producer_invocation_cpu_ms": 152518,
+      "client_observed_reserve_restoration_ms": 95848,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793105324210,
+        "last_publication_since_start_ms": 91480,
+        "client_detection_lag_ms": 4368
+      },
+      "all_outcomes": {
+        "invocations": 809,
+        "by_role": {
+          "a": {
+            "ok": 193,
+            "canceled": 2
+          },
+          "b": {
+            "ok": 234
+          },
+          "preparer-a": {
+            "ok": 16,
+            "canceled": 8
+          },
+          "preparer-a-secondary": {
+            "ok": 16,
+            "canceled": 8
+          },
+          "preparer-b": {
+            "ok": 8
+          },
+          "preparer-b-secondary": {
+            "ok": 8
+          },
+          "router": {
+            "ok": 316
+          }
+        },
+        "exceptions": 0,
+        "truncated_records": 0,
+        "unsuccessful_crypto": []
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4089,
+              "median": 4478.0,
+              "max": 4743
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4263,
+              "median": 4618.0,
+              "max": 4881
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9194,
+              "median": 10007.0,
+              "max": 11923
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7328,
+              "median": 8242.0,
+              "max": 8500
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 27,
+              "median": 33.0,
+              "max": 1174
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 560,
+              "median": 631.5,
+              "max": 984
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4089,
+              "median": 4474,
+              "max": 4536
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7328,
+              "median": 8270,
+              "max": 8500
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4263,
+            "median": 4618,
+            "max": 4678
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "5969d9a1-720b-4ce0-bb55-6ae96b83da2c"
+          ],
+          "versions_b": [
+            "04947c7a-6d9a-4b2d-b405-2bf3f63076aa"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4263,
+              "median": 4382.0,
+              "max": 6572
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4361,
+              "median": 4577.5,
+              "max": 6830
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9564,
+              "median": 9978.5,
+              "max": 14458
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7519,
+              "median": 8190.5,
+              "max": 12358
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 22,
+              "median": 58.0,
+              "max": 1602
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 578,
+              "median": 857.0,
+              "max": 1206
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4263,
+              "median": 4332,
+              "max": 6572
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7519,
+              "median": 8282,
+              "max": 12358
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4361,
+            "median": 4504,
+            "max": 6830
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "ffaa1a7d-a4de-4d29-8dbb-7826c3ee280e"
+          ],
+          "versions_b": [
+            "97bf87fa-159c-44e2-983b-abf2239b178b"
+          ]
+        }
+      }
+    },
+    {
+      "phase": "baseline-2-window",
+      "complete_jobs": 16,
+      "paired_producer_invocation_cpu_ms": 144925,
+      "client_observed_reserve_restoration_ms": 89804,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793105563258,
+        "last_publication_since_start_ms": 86893,
+        "client_detection_lag_ms": 2911
+      },
+      "all_outcomes": {
+        "invocations": 789,
+        "by_role": {
+          "a": {
+            "ok": 186,
+            "canceled": 2
+          },
+          "b": {
+            "ok": 225,
+            "canceled": 1
+          },
+          "preparer-a": {
+            "ok": 16,
+            "canceled": 7
+          },
+          "preparer-a-secondary": {
+            "ok": 16,
+            "canceled": 8
+          },
+          "preparer-b": {
+            "ok": 8
+          },
+          "preparer-b-secondary": {
+            "ok": 8
+          },
+          "router": {
+            "ok": 312
+          }
+        },
+        "exceptions": 0,
+        "truncated_records": 0,
+        "unsuccessful_crypto": []
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4062,
+              "median": 4234.5,
+              "max": 4577
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4202,
+              "median": 4412.5,
+              "max": 4716
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9240,
+              "median": 9923.0,
+              "max": 11901
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7219,
+              "median": 7581.0,
+              "max": 8409
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 27,
+              "median": 35.5,
+              "max": 1622
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 805,
+              "median": 939.5,
+              "max": 1300
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4062,
+              "median": 4131,
+              "max": 4577
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7219,
+              "median": 7529,
+              "max": 8409
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4202,
+            "median": 4334,
+            "max": 4716
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "fa32d0dd-f343-447b-bfe0-4421229f846c"
+          ],
+          "versions_b": [
+            "b265f1e6-d54d-4a3e-b406-5dd86645ad44"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4142,
+              "median": 4375.5,
+              "max": 5426
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4303,
+              "median": 4581.0,
+              "max": 5658
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9197,
+              "median": 9731.0,
+              "max": 13787
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7426,
+              "median": 8555.0,
+              "max": 10053
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 24,
+              "median": 38.0,
+              "max": 1797
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 315,
+              "median": 535.5,
+              "max": 644
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4142,
+              "median": 4369,
+              "max": 5426
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7426,
+              "median": 8371,
+              "max": 10053
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4303,
+            "median": 4566,
+            "max": 5658
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "e30e8b5a-8620-4e72-a436-4cc58f47ea66"
+          ],
+          "versions_b": [
+            "1b8241b7-04f0-478c-8c48-dac5f898ebdb"
+          ]
+        }
+      }
+    }
+  ],
+  "worker_wasm_sha256": {
+    "baseline": {
+      "deriver-a": "34ed3a04fb42ecad05e939119ae87fb8d536e3ca65ae551d24c63010cb011a6d",
+      "deriver-b": "bfe86d4a9a1ce609bc8c81f925cd55c60da6c177f2323f394a87c113d4b64b6a"
+    },
+    "candidate": {
+      "deriver-a": "d08429c96e5ae54465aa04fc347de8a02b81aefe7be99ce1b8a29739a551eadf",
+      "deriver-b": "6353e3f9c0a8b15af4f78fa1c6e16963eea1a6160b60406ed4cf9608a957ca4d"
+    }
+  },
+  "local_encoder_checks": 463,
+  "retained_control_checks": 463,
+  "local_candidate_lifecycle_passed": true,
+  "fresh_local_baseline_passed": false,
+  "fresh_local_baseline_failure_classification": "valid_test_needs_update",
+  "hosted_standard_signatures_verified": true,
+  "wallet_recovery_and_export_evidence": [
+    "native-wallet-recovery.json",
+    "registration-1.json"
+  ],
+  "cleanup": {
+    "workers": [
+      {
+        "role": "router",
+        "name": "ml-dsa-matrix-1027-ed4409-router",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "a",
+        "name": "ml-dsa-matrix-1027-ed4409-a",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "b",
+        "name": "ml-dsa-matrix-1027-ed4409-b",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "preparer-a",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-a",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "preparer-b",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-b",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "preparer-a-secondary",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-a-secondary",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "preparer-b-secondary",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-b-secondary",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      },
+      {
+        "role": "front",
+        "name": "ml-dsa-matrix-1027-ed4409-front",
+        "attempts": [
+          {
+            "attempt": 1,
+            "exit_code": 0
+          }
+        ],
+        "delete_exit_code": 0
+      }
+    ],
+    "all_deleted": true,
+    "d1_databases_created": 0,
+    "r2_buckets_created": 0,
+    "independent_absence_checks": [
+      {
+        "role": "router",
+        "name": "ml-dsa-matrix-1027-ed4409-router",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "a",
+        "name": "ml-dsa-matrix-1027-ed4409-a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "b",
+        "name": "ml-dsa-matrix-1027-ed4409-b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a-secondary",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-a-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b-secondary",
+        "name": "ml-dsa-matrix-1027-ed4409-preparer-b-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "front",
+        "name": "ml-dsa-matrix-1027-ed4409-front",
+        "exit_code": 1,
+        "confirmed_absent": true
+      }
+    ],
+    "all_absent": true
+  },
+  "bloat_check": {
+    "passed": false,
+    "classification": "inherited_baseline_excess",
+    "rust_duplicated_lines": 13992,
+    "baseline_rust_duplicated_lines": 13754,
+    "delta_this_change": 0
+  },
+  "secret_scan": {
+    "passed": true,
+    "private_patterns_checked": 26,
+    "public_disposable_test_seeds_present": true
+  },
+  "archive": {
+    "file": "ml-dsa-65-grouped-accumulator-20261027.tar.gz",
+    "sha256": "9284eac8a088224341945928d57d64c32deb4ce44ce1c8c47b04c011782c96d4",
+    "bytes": 3679501,
+    "members": {
+      "REPRODUCE.md": "f6e16928ec0c027dd7e88803b3dde654733d7624d8da384c0a4b5c6a28705d27",
+      "all-invocation-costs.json": "d31f22890c3334cd19906925d685d9670273a8e1834cd8d42699647b5408dec6",
+      "bounds-screen.json": "8bd56c2aa5bcae76d930277dca80ab70d4bd02993a944df7f3253a3b49d2fcf5",
+      "build-a.log": "b8ce697fb32f346840a4e08bb46790c0377282d37c75990f2937d3f48ffb914e",
+      "build-b.log": "07b1b2001384187384b7c19578e7ce5940f3c869046d5f337ca3ad0af2cea763",
+      "calibration/local-baseline-profile.json-profiler-calibration-0.cpuprofile": "d42e46f0eff89c79b8a7cb206510534201f99e0011a3797564c7e8fefb0abfb9",
+      "calibration/local-baseline-profile.json-profiler-calibration-150000000.cpuprofile": "24e90fb5ddfd78b6d7e176174d59827b91b0832ff377703e53297f68d60c29a8",
+      "calibration/local-baseline-profile.json-profiler-calibration-50000000.cpuprofile": "5eaaa3dec615444a74c0b4a8e7fb1595a2549b676e7ab25419eb6d1a6fc564a6",
+      "calibration/local-grouped-profile.json-profiler-calibration-0.cpuprofile": "02959a41b5f9dbf4b00b247ef95314e855c185db07fa7fa734da842ffd88bcf0",
+      "calibration/local-grouped-profile.json-profiler-calibration-150000000.cpuprofile": "aa342eac368e21d7c13e8d0ec7057a95db64ea2a3b2446002f9ee1436ff8f46b",
+      "calibration/local-grouped-profile.json-profiler-calibration-50000000.cpuprofile": "d4ab33949560b8d7fa0348bd4703beca0a27223b4609ef56007e023d393e603c",
+      "cleanup/absence-a.log": "6e5cfb589beeb7da2af0edb29f7c4a78c47856cb615079e20babdec7cc93ec7f",
+      "cleanup/absence-b.log": "0e3ba1d49f45c6499785340a0c30563f984496f56812e7e330fa3c81a14b6316",
+      "cleanup/absence-front.log": "9abb13b98553a534d5b112b1bee5ddb7192bd98895410e0c36f4cfc0ffaff326",
+      "cleanup/absence-preparer-a-secondary.log": "696b27448aa6925b4e445d5f2b79107ade1585881c2f927c4d6522831ba19d39",
+      "cleanup/absence-preparer-a.log": "8274b47fc915fb4ec2d82e7b74a0a8f2ba3b32ecc8d9423c8bc1ffea23e09594",
+      "cleanup/absence-preparer-b-secondary.log": "731edb7870ad94481728dd5854b58dcaa5cc010f427f449172f446cd67bf86a1",
+      "cleanup/absence-preparer-b.log": "3e7f0b76bb2bd3fab4d87a129137ffe375b3d9cbf8b7da90d75c8a62c97743d1",
+      "cleanup/absence-router.log": "4712251ce7f46bab9876a366dc6efeb74d0d87dc0f37c33db820ddd175da695d",
+      "cleanup/cleanup-a-1.log": "f6425260e65d463380fcc81e3cb3d3eee14853140da7b0e82612587d9179e245",
+      "cleanup/cleanup-b-1.log": "c97671fc94c94e0a92a881e3f36e45da3d3820358e88d964522eeff8c74ef00a",
+      "cleanup/cleanup-front-1.log": "c2d7edf7d3a597b15e3bbd1cb7950bf4c412ef6cf55fd85b34e690fa8a5a4aa4",
+      "cleanup/cleanup-preparer-a-1.log": "fd8873b2a94c7304dbe9da919188b37c22ee7d9f8f3e4a851e6eddb0a8394546",
+      "cleanup/cleanup-preparer-a-secondary-1.log": "371d208c688d8f34a3ada7b041c6bb7faa52cc73fc5697af2c59b426eb17a6fa",
+      "cleanup/cleanup-preparer-b-1.log": "80ff7befd77c314f1b9c170655db2488b6d9291d5ccf8296ec4578a034d8f4ba",
+      "cleanup/cleanup-preparer-b-secondary-1.log": "1a88f3209b0c816208293585631c3ed0a285c67f725c195d6eca582d5489ff9e",
+      "cleanup/cleanup-router-1.log": "69eaeecd714694865904d8a6b04137d1b18a4c8bc1853d4d61bbb5b2ae47cb63",
+      "cleanup.json": "1713dca7a66ed0a9ed173d88435fb6d1b23d64ce1a95a358eaa33f21d30a9c52",
+      "cleanup.py": "334fe661e0e5b0ab5fa0d27d1e289a55077dfa3fd1d2916c6eb3c3f30cd08dcf",
+      "collect.mjs": "cd02d31063c46936cce87d243418b5d4e05c18120e32ec6ab8782ea422ca1238",
+      "configs/a.json": "2b93d8f6f4704d73672bdce490c5c5f8638c22ac76433da97e753d0641f4cea8",
+      "configs/b.json": "435aab72b5d773cce1820948f771d49c88531c46c5029f49f2196945b5d3297c",
+      "configs/front.json": "bace9a15f997fadc2096ac9f12cac9337c0f5e3f6d10a3850cc5ca612898701a",
+      "configs/preparer-a-secondary.json": "de76b18d21edc795882d40457602d6f16a701cf974262b6283e7f948f3bf1a7c",
+      "configs/preparer-a.json": "a5654a4c461f789661cc97302b200f205e01d087656fbb34fcde650c7f120359",
+      "configs/preparer-b-secondary.json": "aa5518471fe2d00b929acfe1f4424debb4f6d0569dc4f72c2a32a1178c7897f5",
+      "configs/preparer-b.json": "bab0ed61b6257a9083b92293855a0ae75923b277e6342915720dbae5ea9c3dcd",
+      "configs/router.json": "b58a3b534cdfcd2e3da0d70b8705bf27944f99a660af1a2482487fa558a9e69e",
+      "deployment-history.json": "d2373b5062f7ae8e151017e4cfcf1e292adca133699ce1c5f2f1aba1084089e1",
+      "deployments/baseline-1/preparer-a-secondary.json": "b259a128097c7a52cf3c7220d462a87785285c334ec9653b91b0b0afe1ae377c",
+      "deployments/baseline-1/preparer-a.json": "4b9795693dda56698c9682b3fbf6b2cad61d78fb3b39f67b92f7a9e455ddcfac",
+      "deployments/baseline-1/preparer-b-secondary.json": "1b6f17cd696f9e2923bc194d0078b4efb32f7ad2f7fbbb54f569fb82d54e5061",
+      "deployments/baseline-1/preparer-b.json": "6ab7c858131556dff5dc81074b3656c366656daa7ae090982f3a631ebd962615",
+      "deployments/baseline-1/receipts.json": "c71f2dbd841dea75185f19cccfbb92e5b6506571e2adc6c148d5654bc64d1a36",
+      "deployments/baseline-2/preparer-a-secondary.json": "200a6f1a1fbc6790113cf57dd62e810ebc881bb2f52581d3e029a380d738e77e",
+      "deployments/baseline-2/preparer-a.json": "e0004369907c566533167e411bfcaafbf75bedb83b9af2fe00b151a987e98fb5",
+      "deployments/baseline-2/preparer-b-secondary.json": "75dd3209adfd5d1748cf8f0dcb97d96aa2bb2fad791f7d48d19c883905045eb5",
+      "deployments/baseline-2/preparer-b.json": "65e08bcd6a65d8f3ed06e80b67cdb57539748ade07234ac6f3951e1961043da9",
+      "deployments/baseline-2/receipts.json": "f48486555c16012e15c7250eb0bd97372a72c69ab3b6490b1bdfd12feb5ea71c",
+      "deployments/candidate-1/preparer-a-secondary.json": "50af6a83b8d13127627d146b14856d47b3f3827c78d821b6153a6f4be8bcf15a",
+      "deployments/candidate-1/preparer-a.json": "42ede00f93e311449e7dd2548b74424a2897e866b966541b5c7739229a815f64",
+      "deployments/candidate-1/preparer-b-secondary.json": "fd54f0ed337e0198dfd8e5ffb6f402dad324e14308a483e932a56b5d1ba54c80",
+      "deployments/candidate-1/preparer-b.json": "c0567894000e12a7e685eefe82f9b1c33ee1f5f97f458ee2b3a462fd0c79efa6",
+      "deployments/candidate-1/receipts.json": "fb13b42a3b08eaca3d9c4a235809efbf01d42e6b8983533a3c13fb42d8e4df3a",
+      "deployments/diagnostics/a.json": "126f0a08f48682a87266a4a25ff401917c2eb6d4e50be7b1f192070b1651d57c",
+      "deployments/diagnostics/b.json": "f313f17a444ded7724d1ca1287722f40f9ae6979087eed66fee265544856b7fb",
+      "deployments/diagnostics/front.json": "bace9a15f997fadc2096ac9f12cac9337c0f5e3f6d10a3850cc5ca612898701a",
+      "deployments/initial-release/a.json": "2b93d8f6f4704d73672bdce490c5c5f8638c22ac76433da97e753d0641f4cea8",
+      "deployments/initial-release/b.json": "435aab72b5d773cce1820948f771d49c88531c46c5029f49f2196945b5d3297c",
+      "deployments/initial-release/front.json": "bace9a15f997fadc2096ac9f12cac9337c0f5e3f6d10a3850cc5ca612898701a",
+      "deployments/initial-release/preparer-a-secondary.json": "de76b18d21edc795882d40457602d6f16a701cf974262b6283e7f948f3bf1a7c",
+      "deployments/initial-release/preparer-a.json": "a5654a4c461f789661cc97302b200f205e01d087656fbb34fcde650c7f120359",
+      "deployments/initial-release/preparer-b-secondary.json": "aa5518471fe2d00b929acfe1f4424debb4f6d0569dc4f72c2a32a1178c7897f5",
+      "deployments/initial-release/preparer-b.json": "bab0ed61b6257a9083b92293855a0ae75923b277e6342915720dbae5ea9c3dcd",
+      "deployments/initial-release/receipts.json": "6598b1a18527bc1553a355a2fe3ee322a72ef5e68de27401f1ea5db460b34019",
+      "deployments/initial-release/router.json": "b58a3b534cdfcd2e3da0d70b8705bf27944f99a660af1a2482487fa558a9e69e",
+      "final-bloat-check.log": "e62b0994c5600b34618e21123893773746f05081d21b25bd99991e743d74e10b",
+      "final-encoder-screen.json": "377526901b7e967586fe9b64cb370c05bc7ee502800b9ca6e91609db56140b23",
+      "final-profiles.json": "2349ce1651c70ad84bec29fd6acd73d00c810f7884874aee4943738b5d7aab46",
+      "fixture-upload-proof.json": "d2e312a5a82c910aac23fc818fa9c1b4f617dec494ede1efdd60349433aaafd8",
+      "fleet.py": "da2ea799ef36f9699db933cd46f455d2f8c46d7c520d1f2ca0a86b5057fa96ed",
+      "grouped-expanded-screen.json": "16c35657db0bbb034bff7f62061af0c355fe0ab5308d4881bdb54c9979611f45",
+      "grouped-hosted-signatures.json": "2f4ee5dbf67e1b164317b1c7a43713f23e3c7a21974300427367599240f081f4",
+      "grouped-loop-variant.patch": "3a357bbdab7b3a3dcbf7764522293662198fe9cecd41d891a77265a2e71e93cb",
+      "grouped-screen.json": "332cdcced9d35bdb54a7db0a5c97d6e5d71d08c876a1d63bbcfda2dcb7e9bf78",
+      "hosted/a-raw.jsonl": "f98470f10bb797c2319355d3d53ec340c367ba0b0f5dc66bb36880d5f1ff3d89",
+      "hosted/b-raw.jsonl": "c44c2cf79bf59d803ae218519f5a6434e1701833075d1e44116693d38f48e429",
+      "hosted/diagnostic-capture.json": "d677723b5fda41b211805f23b2683e8be17831ad31c7487656ec20f3ec58da56",
+      "hosted/preparer-a-raw.jsonl": "5b79fc936d633812b0f4981cf344cfe59d3f5a626eefbc98cc9ceffca9d2ee20",
+      "hosted/preparer-a-secondary-raw.jsonl": "5f615b9d75da7cf3d10a11c624d5048f4bee7481c3e1bccb92bd30ce519f3071",
+      "hosted/preparer-b-raw.jsonl": "c60c5e3b4b3104ea8462f646576e67dfc519c0aff8855e71c482d7972053fcb5",
+      "hosted/preparer-b-secondary-raw.jsonl": "c13096be35a939b7ab2112dbaeaf7829a003c256424e59a2af57c3b3d84d7c8d",
+      "hosted/router-raw.jsonl": "263cdd838f5423f208478c3d528eddf621f939609ce4d0facaf526a2ed011116",
+      "hosted/setup-capture.json": "5515c25643c9d8c189594b4bac0408d517eade8ee0f5e5a0c9573984cc313c7c",
+      "hosted/traces.json": "1e0601152a54bd09b2c267c2e41891a33f121edb06aefb67c906d94d9da260ab",
+      "hosted-scope.json": "b325fdc34eb2a682332f42da9284d7917335d60f11fde39cca8a2cc1edf0d9f9",
+      "hosted-upload-scope.md": "85facadc7858c77054862276766a4140243b5f52f6bfa0bf6d4f35068b3d69e2",
+      "independent-review.md": "99851790d26a0644d18adde23082b21b26ead999eec2abb7d607979d84ecd614",
+      "local-baseline-profile.json": "642d80fbc9380f99112297637e38a3da8132b50839249c4ac82ff1d7add0db06",
+      "local-baseline-profile.log": "0ee85969e49f3bd422bd58a225a71cd659b4c29be9851b466462f86bebd068f1",
+      "local-grouped-profile.json": "d7c21d19682c361b750ac938b11a274fecbfb07f15fa54e4c892ef18266b745e",
+      "local-grouped-profile.log": "542a24af4987352e7d4138458f0695fa201da182a98ba6d9304593ddb379bb05",
+      "local-grouped-stages.json": "f5f4333eed420ef64004cf45bc78447c066387c60a4b12d5c6a4b9584bead481",
+      "measure.mjs": "d7da623dddda8a47f57be2139b768722f8d6107bbf3c07735c14e19a54b2a88e",
+      "measured-run-encoding-screen.py": "06b6e64e5bc8b151010308e2cf47455cf4009fe8705e182325f7677c5cc69f7d",
+      "native-hosted-installation.json": "61847f6b398714442e8c131d4bea303f4104b515083c6006d56f8f3c2038de58",
+      "native-keygen-recovery.json": "e60c687668d824cc501cc9173f42f9427f9441277e61d08623d1d8fb418a9ddf",
+      "native-wallet-recovery.json": "87d01e16e9c48c59e3736f751c048a01841c54d6ea3ede3b53b1058a382f2ecc",
+      "quiet-encoder-screen.json": "eada461ad7155a9592fb285b5ab11bcf20b0c8622160989e55ce9a5d78b3270c",
+      "registration-1.json": "97229985752cbef99356a61aae44d7715dc8a0a007fa9c6e5378be120d41ed41",
+      "registration-http500.json": "afbff5c6c293c783c2eb2c49beabe3ce552f992fe8064c4af3c432da7b0d5420",
+      "registration-setup-failed.json": "5281752b089f5025691013dc423b23b7b3fb3d3af4b80f027250271d2c89e135",
+      "rejected-bounds-only.patch": "c2f37b0af102cc00c8b0cad6e6042f81037db2307c0f3f678d8536318932b591",
+      "rejected-grouped-unrolled.patch": "73a97e82a647daaf1b11fed5a5ed2a791a8f5cbe1f36cd4122bb23bd9f48caf3",
+      "retained-encoder-control.json": "9be175fefb43c600402b1002ba8e754db3dcea4ec23f0c0d19877e57c3f49d92",
+      "source/crates/ed25519-yao/vendor/cryprot-codes/Cargo.toml": "38eab7d94b7cc6bdb1f7d5bc85b2162d8200b79e36538de692e2db36e38aba98",
+      "source/crates/ed25519-yao/vendor/cryprot-codes/src/ex_conv.rs": "df02aeaf55de84b8cf4322d98ed448aa1444e8417a1fb625e223e7ebe342c17b",
+      "source/crates/ed25519-yao/vendor/cryprot-codes/src/lib.rs": "2cbeac4cd661f53117ee495fa9871147748f441c8bc905082f69f6c96e86e635",
+      "source/tests/e2e/ml-dsa-cloud-load-worker.mjs": "10496089ed6eb3272531ae1a1f2a7c777638fe3f8e788b95bcfedb0fbf1300ff",
+      "source/tests/e2e/ml-dsa-durable-worker.e2e.mjs": "e4d34e742d7c92201bc55ae3c5bf9f94acd4e45832f0a76299ca70627f4e001b",
+      "source/tests/e2e/ml-dsa-registration-worker.e2e.mjs": "1eff002f147339d1ee61f02901ad9382655a47ed660d0b2252c8d70089e72da4",
+      "source/tools/ml-dsa-investigation/research/collect_worker_traces.py": "91ed9a3fb7b781a588484a760bbd48303c3fa30a7db7557ca200a671972e8058",
+      "source/tools/ml-dsa-investigation/research/run_encoding_screen.py": "010ed2fd8d37a8674d59a7ccc9c37fd30662a7f87823a6d433c5805495dcb499",
+      "source/tools/ml-dsa-investigation/research/summarize_producer_variation.py": "08023b8ba18d9a4d6bf3c35c170cf1d6240451ce5b751105745985e7bb840d37",
+      "symbols/baseline/deriver-a.json": "e2d3d93456f5832502c21f13c3f204d9e192621b7aec8f7a85fd0e1069572bc1",
+      "symbols/baseline/deriver-b.json": "5d89ae65a53e9e2e4ace2ae3f5d282e30a90ae0eb11821fe8036d5b01d72697c",
+      "symbols/candidate/deriver-a.json": "c04d9e346731a9afb9b0b4d22af65f8da82959c2d90224d6bf5f2b5163e960a5",
+      "symbols/candidate/deriver-b.json": "79a1313518345ffbab8be412bec38ae64b985a6d33f354cc27a6e619151c89f8",
+      "unrolled-encoder-screen.json": "da732539b5d182b3154aada770baefbd21b077647cc9167a68286816ca403ede",
+      "verify-hosted.mjs": "71140a06544167b5c4f4a65452d825a8e23f77a452f24393421ba81a4b62db71",
+      "verify-signatures-offline.mjs": "75e8484e49257e932c43f9e7f8400335f58bcba2b6a4d992dcd087767677c88d",
+      "wasm-instructions.json": "be78558247e67a87b6ed328362a904e83c73fbb8f5b3dd8226794663cb07bf04",
+      "windows/baseline-1/result.json": "bc11de602c572341faadc8b1972d46970dda4b94dcccd836d4be4403da6f4d70",
+      "windows/baseline-2/result.json": "45cc814493c39cd20df1f2c15632c4cb3c134fa16a223248d4dac0486cc57d2b",
+      "windows/candidate-1/result.json": "c85957d3ff2dd1b104a86df506d24892bdd4c11ae3dfc9c8a3242b4834a2a8ef"
+    }
+  },
+  "all_invocation_costs": {
+    "trace_sha256": "1e0601152a54bd09b2c267c2e41891a33f121edb06aefb67c906d94d9da260ab",
+    "windows": {
+      "baseline-1-window": {
+        "captured_cpu_by_role_ms": {
+          "a": 3372,
+          "b": 2947,
+          "preparer-a": 34998,
+          "preparer-a-secondary": 37282,
+          "preparer-b": 36284,
+          "preparer-b-secondary": 38646,
+          "router": 403
+        },
+        "all_captured_producer_cpu_ms": 147210,
+        "all_captured_invocation_cpu_ms": 153932,
+        "invocation_count": 796
+      },
+      "candidate-1-window": {
+        "captured_cpu_by_role_ms": {
+          "a": 2743,
+          "b": 2856,
+          "preparer-a": 35533,
+          "preparer-a-secondary": 39436,
+          "preparer-b": 36761,
+          "preparer-b-secondary": 40866,
+          "router": 379
+        },
+        "all_captured_producer_cpu_ms": 152596,
+        "all_captured_invocation_cpu_ms": 158574,
+        "invocation_count": 809
+      },
+      "baseline-2-window": {
+        "captured_cpu_by_role_ms": {
+          "a": 2926,
+          "b": 2635,
+          "preparer-a": 34258,
+          "preparer-a-secondary": 37000,
+          "preparer-b": 35343,
+          "preparer-b-secondary": 38400,
+          "router": 399
+        },
+        "all_captured_producer_cpu_ms": 145001,
+        "all_captured_invocation_cpu_ms": 150961,
+        "invocation_count": 789
+      }
+    }
+  },
+  "private_cleanup": {
+    "all_workers_absent": true,
+    "retained_files_secret_scan_passed": true,
+    "private_patterns_checked": 26,
+    "removed": [
+      "a-secrets.json",
+      "router-secrets.json",
+      "preparer-b-secrets.json",
+      "preparer-a-secrets.json",
+      "preparer-b-secondary-secrets.json",
+      "preparer-a-secondary-secrets.json",
+      "b-secrets.json",
+      "front-secrets.json",
+      "gateway-token",
+      "fixtures/a-kek",
+      "fixtures/b-kek",
+      "wallet-1/a-kek",
+      "wallet-1/b-kek",
+      "fixtures/a.json",
+      "fixtures/b.json"
+    ]
+  },
+  "offline_replay": {
+    "archive_member_hashes_verified": 125,
+    "normalized_records_reproduced": 5041,
+    "complete_windows_reproduced": 3,
+    "standard_signatures_verified": 2,
+    "altered_messages_rejected": true,
+    "node": "v26.4.0",
+    "openssl": "3.6.3"
+  }
+}

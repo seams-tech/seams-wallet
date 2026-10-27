@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
 
@@ -30,8 +29,12 @@ fn input(size: usize, seed: u32) -> Vec<Block> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn check(size: usize, seed: u32, accumulator: usize, twice: bool) {
-    let matrix_seed = Block::from([u64::from(seed), !u64::from(seed)]);
+pub extern "C" fn check(size: usize, seed: u32, accumulator: usize, twice: bool, default_seed: bool) {
+    let matrix_seed = if default_seed {
+        cryprot_codes::ExConvCodeConfig::default().seed
+    } else {
+        Block::from([u64::from(seed), !u64::from(seed)])
+    };
     let old = baseline::ExConvCode::new_with_conf(size, baseline::ExConvCodeConfig {
         seed: matrix_seed, accumulator_size: accumulator, acc_twice: twice,
         ..Default::default()
@@ -45,7 +48,9 @@ pub extern "C" fn check(size: usize, seed: u32, accumulator: usize, twice: bool)
     old.dual_encode(&mut left);
     new.dual_encode(&mut right);
     assert_eq!(left, right);
-    let mut left_bytes = vec![(seed & 255) as u8; 2 * size];
+    let mut left_bytes: Vec<u8> = (0..2 * size)
+        .map(|index| (index as u8).wrapping_mul(29).wrapping_add(seed as u8))
+        .collect();
     let mut right_bytes = left_bytes.clone();
     old.dual_encode(&mut left_bytes);
     new.dual_encode(&mut right_bytes);
@@ -86,15 +91,27 @@ for (const entry of WebAssembly.Module.imports(module)) {
 function unexpectedImport() { throw new Error('The deterministic encoder called a host import.'); }
 const {exports: probe} = await WebAssembly.instantiate(module, imports);
 let checks = 0;
-for (const size of [256, 1024, 4096, 524288]) {
+for (const size of [33, 34, 63, 65, 255, 256, 257, 1024, 4093, 4094, 4095, 4096, 4097, 8191, 8192, 8193, 524288]) {
   for (const seed of [1, 17, 65537]) {
     for (const accumulator of [8, 17, 24, 32]) {
       for (const twice of [0, 1]) {
-        probe.check(size, seed, accumulator, twice);
+        probe.check(size, seed, accumulator, twice, 0);
         checks++;
       }
     }
   }
+}
+for (const size of [25, 26, 27, 28, 29, 30, 31, 32]) {
+  for (const seed of [1, 17, 65537]) {
+    for (const twice of [0, 1]) {
+      probe.check(size, seed, 24, twice, 0);
+      checks++;
+    }
+  }
+}
+for (const seed of [0, 1, 17, 255, 65537, 0x80000000, 0xffffffff]) {
+  probe.check(524288, seed, 24, 1, 1);
+  checks++;
 }
 for (let warmup = 0; warmup < 4; warmup++) {
   probe.measure(0, 524288, warmup);
@@ -143,7 +160,15 @@ def main():
         work = Path(directory)
         source = work / "src"
         source.mkdir()
-        shutil.copytree(SOURCE.with_suffix(""), source / "baseline")
+        relative_directory = SOURCE.with_suffix("").relative_to(ROOT)
+        baseline_files = subprocess.check_output(
+            ["git", "ls-tree", "-r", "--name-only", args.baseline, str(relative_directory)],
+            cwd=ROOT, text=True,
+        ).splitlines()
+        for filename in baseline_files:
+            destination = source / "baseline" / Path(filename).relative_to(relative_directory)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(subprocess.check_output(["git", "show", f"{args.baseline}:{filename}"], cwd=ROOT))
         relative = SOURCE.relative_to(ROOT)
         original = subprocess.check_output(["git", "show", f"{args.baseline}:{relative}"], cwd=ROOT)
         (source / "baseline.rs").write_bytes(original)
@@ -180,6 +205,10 @@ panic = "abort"
         result["baseline_revision"] = subprocess.check_output(["git", "rev-parse", args.baseline], cwd=ROOT, text=True).strip()
         result["production_source_sha256"] = digest(SOURCE)
         result["baseline_source_sha256"] = digest(source / "baseline.rs")
+        result["baseline_module_sha256"] = {str(path.relative_to(source / "baseline")): digest(path)
+                                             for path in sorted((source / "baseline").rglob("*.rs"))}
+        result["production_module_sha256"] = {str(path.relative_to(SOURCE.with_suffix(""))): digest(path)
+                                               for path in sorted(SOURCE.with_suffix("").rglob("*.rs"))}
         result["harness_source_sha256"] = digest(source / "lib.rs")
         result["lock_sha256"] = digest(work / "Cargo.lock")
         result["script_sha256"] = digest(Path(__file__))
