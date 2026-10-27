@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: [
         ...walletAliases,
+        { find: '@', replacement: `${workspaceRoot}/packages/wallet/src` },
         { find: /^react$/, replacement: `${workspaceNodeModules}/react/index.js` },
         {
           find: /^react\/jsx-runtime$/,
