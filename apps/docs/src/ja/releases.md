@@ -12,13 +12,15 @@ description: CSSの分離、アプリから開く設定モーダル、0.25.0に�
 | ブラウザーSDK `@seams/wallet` | **0.25.0** |
 | サーバーSDK `@seams/wallet-server` | **0.25.0** |
 | オプションプラグイン `@seams/voiceid` | **0.25.0** |
-| ネイティブCLIランチャー `@seams/wallet-cli` | **0.25.0** |
 | Wallet iframeプロトコル | **17.0.0** |
 
 - SDKの操作部品とポータル表示は、共通の名前空間と明示的な初期スタイルを使います。
 - `AccountMenuButton`は、ドロップダウンと、`isMenuOpen`および`onMenuOpenChange`で制御するモーダルに対応します。
 - `presentation="modal"`を指定すると、アプリ独自のボタンから設定を開けます。
 - VoiceIDの操作チャレンジは、`confirmationCommand`で操作に応じた発話を選択できます。
+
+CLIのソースバージョンも`0.25.0`です。署名済みネイティブCLIの公開は、これら3つのSDKパッケージとは別に実施します。
+公開済みのバージョンは[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)を参照してください。
 
 設定APIは[Reactリファレンス](/ja/reference/react)を参照してください。
 ブラウザーSDKと一致するウォレットホストのアセットをデプロイしてください。

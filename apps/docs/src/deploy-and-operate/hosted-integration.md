@@ -65,7 +65,8 @@ same compatible release.
 
 ## Release 0.25.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.25.0**. Pin `@seams/wallet-cli` to **0.25.0**.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.25.0**.
+Install the separately published CLI version listed in the [recovery CLI guide](/deploy-and-operate/recovery-cli).
 VoiceID hosts also install `@seams/voiceid` **0.25.0** and compose the static deployment with
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
 See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.

@@ -12,13 +12,15 @@ Version **0.25.0** protects SDK controls from broad application CSS and adds an 
 | Browser SDK `@seams/wallet` | **0.25.0** |
 | Server SDK `@seams/wallet-server` | **0.25.0** |
 | Optional plugin `@seams/voiceid` | **0.25.0** |
-| Native CLI launcher `@seams/wallet-cli` | **0.25.0** |
 | Wallet iframe protocol | **17.0.0** |
 
 - SDK controls and portalled overlays use a consistent namespace and explicit control defaults.
 - `AccountMenuButton` supports its dropdown and a modal controlled through `isMenuOpen` and `onMenuOpenChange`.
 - Applications can use their own buttons to open the settings modal with `presentation="modal"`.
 - VoiceID action challenges accept `confirmationCommand` to select an action-specific phrase.
+
+The CLI source version is also `0.25.0`. Its signed native release is separate from these three SDK packages.
+Use the published version in the [recovery CLI guide](/deploy-and-operate/recovery-cli).
 
 See the [React reference](/reference/react) for the settings API.
 Deploy the matching wallet host assets with the browser SDK.

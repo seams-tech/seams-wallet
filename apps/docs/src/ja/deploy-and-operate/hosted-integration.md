@@ -57,7 +57,8 @@ description: 専用HTTPSウォレットオリジンからSeamsのウォレット
 
 ## リリース 0.25.0 {#release-0-24-0}
 
-`@seams/wallet`と`@seams/wallet-server`を**0.25.0**に固定してください。`@seams/wallet-cli`は**0.25.0**を使用します。
+`@seams/wallet`と`@seams/wallet-server`を**0.25.0**に固定してください。
+CLIは個別に公開します。[復元CLIのガイド](/ja/deploy-and-operate/recovery-cli)に記載した公開済みのバージョンを使用してください。
 VoiceIDをホストする場合は、`@seams/voiceid` **0.25.0**もインストールします。
 `npx --no-install seams-voiceid-host ./wallet-with-voiceid`で静的デプロイ用のディレクトリーを作成してください。
 アプリとホストの手順は、[VoiceIDの設定](/ja/concepts/auth-methods/voiceid#prepare-the-wallet-host)を参照してください。
