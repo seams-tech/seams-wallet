@@ -21,7 +21,8 @@ export async function prepareVoiceIdNearInstallation(
 ): Promise<VoiceIdNearInstallation> {
   const session = verified.authorization.session;
   const activation = session.capabilitySubjects.find(isNearSignSubject);
-  if (!activation || activation.kind !== 'sign') return { kind: 'unavailable' };
+  if (!activation || activation.kind !== 'sign' || activation.keyFamily !== 'ed25519')
+    return { kind: 'unavailable' };
   const resolved = await ctx.service.walletRegistration.resolveEd25519MaterialActivation({
     walletId: session.walletId,
     materialActivation: routerAbMpcMaterialActivationRefToWire(activation.materialActivation),

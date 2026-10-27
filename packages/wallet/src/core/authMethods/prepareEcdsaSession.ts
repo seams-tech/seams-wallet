@@ -22,6 +22,7 @@ export async function installAuthMethodEcdsaMaterial(
   if (
     subjects.length !== 1 ||
     subjects[0]?.kind !== 'sign' ||
+    subjects[0].keyFamily !== 'ecdsa_secp256k1' ||
     !mpcMaterialActivationRefsEqual(subjects[0].materialActivation, activation.materialActivation)
   ) {
     throw new Error('ECDSA material does not belong to this Wallet Session.');
