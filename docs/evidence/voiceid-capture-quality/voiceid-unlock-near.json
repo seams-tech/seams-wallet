@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "ivory-zenith-ygh6gz",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:ac260779-9494-4220-8da6-85d5ee4da110",
+  "freshSessionId": "wls_duaOD2LR2hep1PuVJRkYwDsfxCrUl5sskTtmYO5sI0E",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 109.96233300000313,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "activationDialogMs": 108.30454200000031,
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "da5cda71-d873-45fd-b870-700a8c7c2459",
+      "voicedMs": 750,
+      "durationMs": 960,
+      "peakFrameRms": 0.23004832443423218,
+      "levelThreshold": 0.006
+    },
+    "quietQuality": {
+      "attemptId": "203f0f55-7fe5-4436-8667-7041fb591fa8",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "ivory-zenith-ygh6gz",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "ivory-zenith-ygh6gz",
+    "accountId": "0431f6d65b8ee377b334e3783bc05f1ee15793290301a1d3409d3e48065d72c4",
+    "publicKey": "ed25519:HNpXRrmk5mb7m6b8iC8tLMJCVTyXuLUSwLL5s3T4nCT"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADA0MzFmNmQ2NWI4ZWUzNzdiMzM0ZTM3ODNiYzA1ZjFlZTE1NzkzMjkwMzAxYTFkMzQwOWQzZTQ4MDY1ZDcyYzQABDH21luO43ezNON4O8BfHuFXkykDAaHTQJ0+SAZdcsQCAAAAAAAAAEAAAAAwNDMxZjZkNjViOGVlMzc3YjMzNGUzNzgzYmMwNWYxZWUxNTc5MzI5MDMwMWExZDM0MDlkM2U0ODA2NWQ3MmM0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAuGcTykklN/aKj9ENiVRmDOGvEh9pGiYrV1d4Sqlp4pdo4QNFlvDwR9ZDlwDp7hB2x5g6amMGey37968XESJeBg==",
+      "signedTransactionSha256": "c06a7d049c82a009c1675c2f3622709de41addc4b65a08e945e1a20cafeb0dfc",
+      "signerId": "0431f6d65b8ee377b334e3783bc05f1ee15793290301a1d3409d3e48065d72c4",
+      "receiverId": "0431f6d65b8ee377b334e3783bc05f1ee15793290301a1d3409d3e48065d72c4",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

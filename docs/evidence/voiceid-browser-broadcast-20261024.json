@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "speakerInference": "real_ecapa_onnx_webassembly",
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "dawn-reef-sf6jjc",
+    "accountId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+    "publicKey": "ed25519:Bt6eTzRdfK58qFUsE3Vvs8iqAFqNmmj9G7PxMF8meCTW"
+  },
+  "oneSignatureAcrossBroadcastRetries": true,
+  "newReviewCancellationPreventedSigning": true,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGExYWJkZmRhNzU3OWM4OTk1MjQ1MGIyNDQ1MGE2MjY3MzdiMDFlNjNmOGRjYWI1ZjA0ZjFkNDMyMGNjOTYwZjUAoavf2nV5yJlSRQskRQpiZzewHmP43KtfBPHUMgzJYPUCAAAAAAAAAEAAAABhMWFiZGZkYTc1NzljODk5NTI0NTBiMjQ0NTBhNjI2NzM3YjAxZTYzZjhkY2FiNWYwNGYxZDQzMjBjYzk2MGY1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAb+LSyAmRpeffohDQ+5h90kzDrBtxQn9smWIpa1ImpZ3uOCCmwB1roi66fUBxMJClLrBbQfxL0B/jPFzgLgW1CA==",
+      "signedTransactionSha256": "63ace3dbde4e01d2da6c86556eebd10f91f815cf2ed73c3d45fbd864322dc494",
+      "signerId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "receiverId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGExYWJkZmRhNzU3OWM4OTk1MjQ1MGIyNDQ1MGE2MjY3MzdiMDFlNjNmOGRjYWI1ZjA0ZjFkNDMyMGNjOTYwZjUAoavf2nV5yJlSRQskRQpiZzewHmP43KtfBPHUMgzJYPUCAAAAAAAAAEAAAABhMWFiZGZkYTc1NzljODk5NTI0NTBiMjQ0NTBhNjI2NzM3YjAxZTYzZjhkY2FiNWYwNGYxZDQzMjBjYzk2MGY1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAb+LSyAmRpeffohDQ+5h90kzDrBtxQn9smWIpa1ImpZ3uOCCmwB1roi66fUBxMJClLrBbQfxL0B/jPFzgLgW1CA==",
+      "signedTransactionSha256": "63ace3dbde4e01d2da6c86556eebd10f91f815cf2ed73c3d45fbd864322dc494",
+      "signerId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "receiverId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGExYWJkZmRhNzU3OWM4OTk1MjQ1MGIyNDQ1MGE2MjY3MzdiMDFlNjNmOGRjYWI1ZjA0ZjFkNDMyMGNjOTYwZjUAoavf2nV5yJlSRQskRQpiZzewHmP43KtfBPHUMgzJYPUCAAAAAAAAAEAAAABhMWFiZGZkYTc1NzljODk5NTI0NTBiMjQ0NTBhNjI2NzM3YjAxZTYzZjhkY2FiNWYwNGYxZDQzMjBjYzk2MGY1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAb+LSyAmRpeffohDQ+5h90kzDrBtxQn9smWIpa1ImpZ3uOCCmwB1roi66fUBxMJClLrBbQfxL0B/jPFzgLgW1CA==",
+      "signedTransactionSha256": "63ace3dbde4e01d2da6c86556eebd10f91f815cf2ed73c3d45fbd864322dc494",
+      "signerId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "receiverId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGExYWJkZmRhNzU3OWM4OTk1MjQ1MGIyNDQ1MGE2MjY3MzdiMDFlNjNmOGRjYWI1ZjA0ZjFkNDMyMGNjOTYwZjUAoavf2nV5yJlSRQskRQpiZzewHmP43KtfBPHUMgzJYPUCAAAAAAAAAEAAAABhMWFiZGZkYTc1NzljODk5NTI0NTBiMjQ0NTBhNjI2NzM3YjAxZTYzZjhkY2FiNWYwNGYxZDQzMjBjYzk2MGY1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAb+LSyAmRpeffohDQ+5h90kzDrBtxQn9smWIpa1ImpZ3uOCCmwB1roi66fUBxMJClLrBbQfxL0B/jPFzgLgW1CA==",
+      "signedTransactionSha256": "63ace3dbde4e01d2da6c86556eebd10f91f815cf2ed73c3d45fbd864322dc494",
+      "signerId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "receiverId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGExYWJkZmRhNzU3OWM4OTk1MjQ1MGIyNDQ1MGE2MjY3MzdiMDFlNjNmOGRjYWI1ZjA0ZjFkNDMyMGNjOTYwZjUAoavf2nV5yJlSRQskRQpiZzewHmP43KtfBPHUMgzJYPUCAAAAAAAAAEAAAABhMWFiZGZkYTc1NzljODk5NTI0NTBiMjQ0NTBhNjI2NzM3YjAxZTYzZjhkY2FiNWYwNGYxZDQzMjBjYzk2MGY1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAb+LSyAmRpeffohDQ+5h90kzDrBtxQn9smWIpa1ImpZ3uOCCmwB1roi66fUBxMJClLrBbQfxL0B/jPFzgLgW1CA==",
+      "signedTransactionSha256": "63ace3dbde4e01d2da6c86556eebd10f91f815cf2ed73c3d45fbd864322dc494",
+      "signerId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "receiverId": "a1abdfda7579c89952450b24450a626737b01e63f8dcab5f04f1d4320cc960f5",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

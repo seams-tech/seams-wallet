@@ -31,8 +31,10 @@ test-results
 .playwright-mcp/
 packages/wallet/THIRD_PARTY_NOTICES.md
 packages/wallet-server/THIRD_PARTY_NOTICES.md
+packages/voiceid/THIRD_PARTY_NOTICES.md
 packages/wallet/LICENSE.md
 packages/wallet-server/LICENSE.md
+packages/voiceid/LICENSE.md
 
 # Benchmark artifacts
 crates/ed25519-yao-cloudflare-bench/src/ml_dsa_schedules/

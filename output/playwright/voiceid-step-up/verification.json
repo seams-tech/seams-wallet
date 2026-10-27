@@ -1,0 +1,26 @@
+{
+  "kind": "minimal_voiceid_prompt_preview",
+  "scope": "Microphone amplitude preview only. No identity checks, models, stored audio, or wallet operations.",
+  "waveform": "45 bars of recent measured microphone RMS amplitude. Silence settles to baseline.",
+  "inputDuringVerification": "Synthetic Web Audio stream through the actual preview microphone and analyser path; no physical microphone used by automation.",
+  "measurements": {
+    "quietHeight": 4,
+    "speechHeight": 29.788822650909424,
+    "settledHeight": 4,
+    "cancelStopsTracks": true,
+    "completionStopsTracks": true,
+    "latePermissionStopsTracks": true
+  },
+  "checks": [
+    "Desktop 1100x900 visual inspection",
+    "Mobile 390x860 visual inspection",
+    "Production preview build",
+    "TypeScript check"
+  ],
+  "repeat": "waveform-check.txt contains the Playwright CLI run-code function and its captured result. Start the Vite preview from examples/voiceid-step-up-mock/README.md, then run that function in an isolated Playwright browser.",
+  "screenshots": [
+    "desktop.png",
+    "listening.png",
+    "mobile.png"
+  ]
+}

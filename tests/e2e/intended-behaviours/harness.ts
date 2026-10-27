@@ -1247,6 +1247,7 @@ export class IntendedBehaviourHarness {
 
   /** This device's place in a device-link contract: Device 1 registered the wallet. */
   private deviceNumber = 1;
+  private voiceIdPluginEnabled = false;
 
   constructor(args: {
     context: BrowserContext;
@@ -1276,6 +1277,10 @@ export class IntendedBehaviourHarness {
     await this.installWebAuthnVirtualAuthenticator();
     await this.resetBrowserStorage();
     await this.assertServicesReady();
+  }
+
+  enableVoiceIdPlugin(): void {
+    this.voiceIdPluginEnabled = true;
   }
 
   async registerPasskeyWallet(): Promise<void> {
@@ -3046,7 +3051,7 @@ export class IntendedBehaviourHarness {
     this.emailOtpVerificationCount += 1;
   }
 
-  async unlockPasskeyWallet(): Promise<void> {
+  async unlockPasskeyWallet(options?: { readonly stopAfterClick?: boolean }): Promise<void> {
     this.recordStage('unlock_passkey_wallet');
     const registration = this.requireRegisteredWalletForSigning();
     if (registration.nearReadiness === 'pending') {
@@ -3057,6 +3062,7 @@ export class IntendedBehaviourHarness {
     const snapshot = await this.runIntendedPageAction(
       'unlockPasskeyWallet',
       'intended-unlock-passkey',
+      options,
     );
     const result = requirePasskeyUnlockResult(snapshot, registration);
     const observedPaths = this.trace
@@ -4486,6 +4492,7 @@ export class IntendedBehaviourHarness {
   private intendedPageUrl(): URL {
     const url = new URL('/__intended-e2e', this.config.appUrl);
     url.searchParams.set('flow', this.flow);
+    if (this.voiceIdPluginEnabled) url.searchParams.set('authMethod', 'voiceid');
     url.searchParams.set('walletId', this.walletId);
     if (this.registeredWallet?.nearReadiness === 'ready') {
       url.searchParams.set('nearAccountId', this.registeredWallet.nearAccountId);
@@ -4546,6 +4553,7 @@ export class IntendedBehaviourHarness {
     opts?: {
       nearAccountId?: string;
       expectedOutcome?: 'success' | 'error';
+      stopAfterClick?: boolean;
       onRecoveryCodes?: (codes: readonly string[]) => void;
     },
   ): Promise<IntendedPageSnapshot> {
@@ -4574,6 +4582,7 @@ export class IntendedBehaviourHarness {
           intervalMs: 250,
           diagnostics,
           onRecoveryCodes: opts?.onRecoveryCodes,
+          stopAfterClick: opts?.stopAfterClick,
         },
       );
       timing.automationFinishedAt = performance.now();
@@ -5513,6 +5522,13 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
       normalized,
     ) ||
     normalized.endsWith('passkey.presign-pool.contract.test.ts') ||
+    normalized.endsWith('passkey.voiceid-near.contract.test.ts') ||
+    normalized.endsWith('passkey.voiceid-selection.contract.test.ts') ||
+    normalized.endsWith('passkey.voiceid-ui.contract.test.ts') ||
+    /voiceid\.unlock-(?:near|arc)\.contract\.test\.ts$/u.test(normalized) ||
+    normalized.endsWith('voiceid.noise.contract.test.ts') ||
+    normalized.endsWith('voiceid.add-email-otp.contract.test.ts') ||
+    normalized.endsWith('voiceid.live-page.contract.test.ts') ||
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.near-registration-commit.contract.test.ts') ||
@@ -5532,6 +5548,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
   }
   if (
     normalized.endsWith('email-otp.registration.contract.test.ts') ||
+    normalized.endsWith('email-otp.voiceid-selection.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.assets.contract.test.ts') ||
     normalized.endsWith('email-otp.registration.resume.contract.test.ts') ||
     normalized.endsWith('email-otp.add-passkey.contract.test.ts') ||
@@ -5690,11 +5707,19 @@ function nearRpcStubResult(request: { method: string; params: unknown }): unknow
       };
     case 'send_tx':
       return {
+        final_execution_status: 'FINAL',
         status: { SuccessValue: '' },
         transaction: { hash: 'intended-near-tx' },
         transaction_outcome: {
           id: 'intended-near-tx',
-          outcome: { status: { SuccessValue: '' } },
+          outcome: {
+            status: { SuccessValue: '' },
+            logs: [],
+            receipt_ids: [],
+            gas_burnt: 0,
+            tokens_burnt: '0',
+            executor_id: 'intended-e2e',
+          },
         },
         receipts_outcome: [],
       };
@@ -8691,11 +8716,11 @@ async function runWalletIframeAutoConfirmLoop(args: {
       diagnostics: args.diagnostics,
       diagnosticsStartedAtMs: args.startedAtMs,
     });
+    if (clicked && args.stopAfterClick) return;
     const authMenuError = await readWalletIframeAuthMenuError(args.page);
     if (authMenuError) {
       throw new Error(`Wallet auth menu failed: ${authMenuError}`);
     }
-    if (clicked && args.stopAfterClick) return;
     if (args.retryDelayMs > 0) {
       await args.page.waitForTimeout(args.retryDelayMs);
     }

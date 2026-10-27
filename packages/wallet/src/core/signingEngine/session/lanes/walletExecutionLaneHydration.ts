@@ -155,6 +155,7 @@ function ownerParticipantContinuityForLane(
 ): OwnerLaneParticipantContinuityV1 | null {
   switch (lane.laneKind) {
     case 'owner_passkey':
+    case 'owner_voiceid':
     case 'owner_email_otp':
     case 'recovery':
     case 'break_glass':

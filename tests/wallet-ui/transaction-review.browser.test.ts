@@ -1035,7 +1035,9 @@ test('review geometry fits narrow screens and large content with reduced motion'
   await page.getByRole('button', { name: 'Cancel purchase' }).click();
 });
 
-test('expanded wallet approval scrolls keyboard focus into a short viewport', async ({ page }) => {
+test('expanded wallet approval scrolls keyboard focus into a short viewport', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 640, height: 360 });
   await page.getByRole('button', { name: 'Buy', exact: true }).click();
   await page.getByRole('button', { name: 'Continue to wallet', exact: true }).click();
@@ -1045,7 +1047,21 @@ test('expanded wallet approval scrolls keyboard focus into a short viewport', as
   await details.click();
   const confirm = wallet.locator('button.confirm');
   await confirm.focus();
+  await expect(confirm).toBeFocused();
+  await expect(wallet.locator('details[data-resizing]')).toHaveCount(0);
+  await writeFile(
+    testInfo.outputPath('focus-geometry.json'),
+    JSON.stringify(
+      {
+        inside: await confirm.evaluate(focusGeometry),
+        iframe: await page.locator('iframe.seams-wallet-overlay-iframe').evaluate(focusGeometry),
+      },
+      null,
+      2,
+    ),
+  );
   await expect(confirm).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: testInfo.outputPath('keyboard-focus-short-viewport.png') });
   await confirm.press('Enter');
   await expect
     .poll(() => page.evaluate(() => (window as any).reviewResults[0]?.kind))
@@ -1054,7 +1070,7 @@ test('expanded wallet approval scrolls keyboard focus into a short viewport', as
 
 test('wallet admission arbitrates credential cancellation and preserves a started signature', async ({
   page,
-}) => {
+}, testInfo) => {
   const outcomes = await page.evaluate(async () => {
     const probeUrl = '/review-wallet-probe.js';
     const { TransactionReviewAdmission } = await import(probeUrl);
@@ -1075,7 +1091,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
         generation: 1,
         validity: { kind: 'expires_at', atMs },
       };
-      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject);
+      const admission = new TransactionReviewAdmission(metadata, 'mpc', report, reject, { kind: 'disabled' });
       const element = document.createElement('div');
       document.body.append(element);
       admission.attach(element);
@@ -1086,6 +1102,14 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     }
     const cancelled = await active('cancelled', Date.now() + 10_000);
     cancelled.beforeCredential();
+    cancelled.assertAuthMethodPolicy('passkey');
+    let changedMethodRejected = false;
+    try {
+      cancelled.assertAuthMethodPolicy('voiceid');
+    } catch (error) {
+      changedMethodRejected =
+        error !== null && typeof error === 'object' && Reflect.get(error, 'code') === 'review_identity_changed';
+    }
     cancelled.cancel(Object.assign(new Error('cancelled'), { code: 'cancelled' }));
     const aborted = cancelled.abortController.signal.aborted;
     let prevented = false;
@@ -1111,6 +1135,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     signing.finish();
     return {
       aborted,
+      changedMethodRejected,
       prevented,
       deferredUntilUnwind,
       errors,
@@ -1121,6 +1146,7 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
   });
   expect(outcomes).toEqual({
     aborted: true,
+    changedMethodRejected: true,
     prevented: true,
     deferredUntilUnwind: true,
     errors: ['cancelled'],
@@ -1128,6 +1154,9 @@ test('wallet admission arbitrates credential cancellation and preserves a starte
     nextSignatureExpired: true,
     preserved: true,
   });
+  const report = testInfo.outputPath('review-method-selection-guard.json');
+  await writeFile(report, JSON.stringify(outcomes, null, 2));
+  await testInfo.attach('review-method-selection-guard.json', { path: report, contentType: 'application/json' });
 });
 
 test('all transaction methods forward one core failure and preserve callback ownership', async ({
@@ -1659,3 +1688,29 @@ test('a replacement review host can register in the same commit as the previous 
   });
   expect(result).toEqual({ replacementError: null, duplicateError: 'review_host_unavailable' });
 });
+
+function focusGeometry(element: Element) {
+  const view = element.ownerDocument.defaultView;
+  if (!view) throw new Error('Focus geometry needs a live document');
+  const ancestors = [];
+  for (let current: Element | null = element; current; current = current.parentElement) {
+    const box = current.getBoundingClientRect();
+    const style = view.getComputedStyle(current);
+    ancestors.push({
+      tag: current.tagName,
+      className: current.className,
+      top: box.top,
+      bottom: box.bottom,
+      height: box.height,
+      clientHeight: current.clientHeight,
+      scrollHeight: current.scrollHeight,
+      scrollTop: current.scrollTop,
+      overflowY: style.overflowY,
+    });
+  }
+  return {
+    innerHeight: view.innerHeight,
+    active: element === element.ownerDocument.activeElement,
+    ancestors,
+  };
+}

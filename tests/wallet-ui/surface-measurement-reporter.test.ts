@@ -1,9 +1,8 @@
+import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { setupBasicPasskeyTest, sdkEsmPath } from '../setup';
 
-const REPORTER_MODULE = sdkEsmPath(
-  'SeamsWeb/walletIframe/host/surface-measurement-reporter.js',
-);
+const REPORTER_MODULE = sdkEsmPath('SeamsWeb/walletIframe/host/surface-measurement-reporter.js');
 
 test.describe('wallet-iframe surface measurement diagnostics', () => {
   test.beforeEach(async ({ page }) => {
@@ -44,17 +43,17 @@ test.describe('wallet-iframe surface measurement diagnostics', () => {
             measurements.push(measurement),
         });
         callbacks[0](
-          [{ contentRect: { width: 320, height: 100 } } as ResizeObserverEntry],
+          [{ borderBoxSize: [{ inlineSize: 320, blockSize: 100 }] } as ResizeObserverEntry],
           {} as ResizeObserver,
         );
         callbacks[0](
-          [{ contentRect: { width: 320, height: 140 } } as ResizeObserverEntry],
+          [{ borderBoxSize: [{ inlineSize: 320, blockSize: 140 }] } as ResizeObserverEntry],
           {} as ResizeObserver,
         );
         reporter.disconnect();
         reporter.disconnect();
         callbacks[0](
-          [{ contentRect: { width: 320, height: 200 } } as ResizeObserverEntry],
+          [{ borderBoxSize: [{ inlineSize: 320, blockSize: 200 }] } as ResizeObserverEntry],
           {} as ResizeObserver,
         );
         const beforeRemount = measurements.length;
@@ -114,7 +113,7 @@ test.describe('wallet-iframe surface measurement diagnostics', () => {
 
       const emitHeight = (observerIndex: number, height: number): void => {
         observerCallbacks[observerIndex]?.(
-          [{ contentRect: { width: 320, height } } as ResizeObserverEntry],
+          [{ borderBoxSize: [{ inlineSize: 320, blockSize: height }] } as ResizeObserverEntry],
           {} as ResizeObserver,
         );
       };
@@ -180,5 +179,46 @@ test.describe('wallet-iframe surface measurement diagnostics', () => {
       expect.stringContaining('[SEAMS] request_surface posted 4 surface measurements'),
     );
     expect(warnings.authMenuWarnings).toEqual([]);
+  });
+});
+
+test('bordered surface stays stable when its measured size sets its viewport', async ({
+  page,
+}, testInfo) => {
+  await setupBasicPasskeyTest(page);
+  const measurements = await page.evaluate(async (modulePath) => {
+    const { createWalletIframeSurfaceMeasurementReporter } = await import(modulePath);
+    const viewport = document.createElement('div');
+    viewport.style.width = '420px';
+    const surface = document.createElement('section');
+    surface.style.cssText =
+      'box-sizing:border-box;width:100%;height:240px;border:1px solid black;padding:24px;border-radius:24px';
+    viewport.append(surface);
+    document.body.append(viewport);
+    const sizes: { widthCssPx: number; heightCssPx: number }[] = [];
+    const reporter = createWalletIframeSurfaceMeasurementReporter({
+      kind: 'request_surface',
+      element: surface,
+      requestId: 'border-feedback',
+      postMeasurement(measurement: { widthCssPx: number; heightCssPx: number }) {
+        sizes.push(measurement);
+        viewport.style.width = `${measurement.widthCssPx}px`;
+        viewport.style.height = `${measurement.heightCssPx}px`;
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    reporter.disconnect();
+    viewport.remove();
+    return sizes;
+  }, REPORTER_MODULE);
+  expect(measurements.length).toBeGreaterThan(0);
+  for (const measurement of measurements) {
+    expect(measurement).toMatchObject({ widthCssPx: 420, heightCssPx: 240 });
+  }
+  const artifact = testInfo.outputPath('border-box-feedback.json');
+  await writeFile(artifact, JSON.stringify(measurements, null, 2));
+  await testInfo.attach('border-box-feedback.json', {
+    path: artifact,
+    contentType: 'application/json',
   });
 });

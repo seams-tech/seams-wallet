@@ -5,7 +5,6 @@ import {
   type ReadAvailableSigningLanesInput,
   type AvailableSigningLanes,
   type ConcreteAvailableEd25519SigningLane,
-  type ConcreteAvailableEcdsaSigningLane,
 } from '../../session/availability/availableSigningLanes';
 import {
   emitSigningSessionFlowFailure,
@@ -26,17 +25,12 @@ import {
   type ExactEd25519ExportMaterialIdentity,
 } from '../../session/identity/exactSigningLaneIdentity';
 import type { EvmFamilySigningTarget } from '../signEvmFamily/types';
-import { isConcreteEcdsaExportLane, type ExactEcdsaExportLane } from './ecdsaExportMaterial';
+import { isConcreteEcdsaExportLane, type ExactEcdsaExportLane, type ConcreteEcdsaExportAvailableLane } from './ecdsaExportMaterial';
 import type {
   SigningEngineResolveExactKeyExportLaneInput,
   SigningEngineResolveExactKeyExportLaneResult,
 } from './keyExportFlow';
 import { signingLaneAuthBindingKey } from '../../session/identity/signingLaneAuthBinding';
-
-type ConcreteEcdsaExportAvailableLane = Extract<
-  ConcreteAvailableEcdsaSigningLane,
-  { source: 'canonical_capability' | 'active_wallet_authority' }
->;
 
 type EcdsaExportSelectionKeyContext = {
   walletId: string;

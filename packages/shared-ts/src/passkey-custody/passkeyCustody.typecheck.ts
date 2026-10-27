@@ -20,6 +20,8 @@ import type {
   PasskeyCustodySecretBinding,
   Secp256k1CompressedPublicKeyB64u,
   WalletCustodyEnvelopeFactor,
+  VoiceIdSeedEnvelope,
+  ActiveMethodBoundWalletSeedEnvelope,
   WalletCustodyRegistrationOutcome,
 } from './index';
 
@@ -192,6 +194,30 @@ const emailOtpFactor: WalletCustodyEnvelopeFactor = {
 };
 void emailOtpFactor;
 
+const voiceIdFactor: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1',
+};
+void voiceIdFactor;
+
+// @ts-expect-error A VoiceID factor cannot contain an Email OTP enrollment.
+const voiceIdWithEmailEnrollment: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1',
+  enrollmentId: 'enrollment-1',
+};
+void voiceIdWithEmailEnrollment;
+
+// @ts-expect-error A VoiceID factor cannot declare another factor's KEK version.
+const voiceIdWithPasskeyKek: WalletCustodyEnvelopeFactor = {
+  kind: 'voiceid',
+  deviceKeyId: digest,
+  kekVersion: 'passkey_prf_kek_hkdf_sha256_v1',
+};
+void voiceIdWithPasskeyKek;
+
 // @ts-expect-error An Email OTP factor has no relying party or credential.
 const emailOtpFactorWithCredential: WalletCustodyEnvelopeFactor = {
   kind: 'email_otp',
@@ -280,6 +306,48 @@ const emailOtpEnvelope: PasskeyCustodyEnvelopeRecord = {
   factor: emailOtpFactor,
 };
 void emailOtpEnvelope;
+
+const voiceIdSeedEnvelope: VoiceIdSeedEnvelope = {
+  kind: 'wallet_custody_envelope_v2',
+  envelopeId,
+  walletId,
+  ownership: { kind: 'method_bound', walletAuthMethodId: envelopeOwnerMethodId },
+  binding: { kind: 'wallet_custody_seed_v1', derivationScheme: 'wallet_seed_parallel_hkdf_sha256_v1' },
+  factor: { kind: 'voiceid', deviceKeyId: digest, kekVersion: 'voiceid_device_factor_kek_hkdf_sha256_v1' },
+  envelopeVersion: 'wallet_custody_envelope_v2',
+  envelopeRevision,
+  nonceB64u,
+  sealedCustodySecretB64u: ciphertextB64u,
+  ciphertextDigestB64u: digest,
+  aadHashB64u: digest,
+  lifecycle: { state: 'active', activatedAtMs: 1 },
+  createdAtMs: 1,
+  updatedAtMs: 1,
+};
+void voiceIdSeedEnvelope;
+
+const activeOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = voiceIdSeedEnvelope;
+void activeOwnerSeed;
+
+// @ts-expect-error An active owner seed envelope cannot be unbound.
+const unboundOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = { ...voiceIdSeedEnvelope, ownership: { kind: 'unbound' } };
+void unboundOwnerSeed;
+
+// @ts-expect-error An active owner seed envelope cannot hold a lane share.
+const laneOwnerSeed: ActiveMethodBoundWalletSeedEnvelope = { ...voiceIdSeedEnvelope, binding: ed25519LaneHolderShare };
+void laneOwnerSeed;
+
+// @ts-expect-error A VoiceID seed envelope cannot carry a passkey factor through a spread.
+const voiceIdSeedWithPasskeyFactor: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, factor: passkeyFactor };
+void voiceIdSeedWithPasskeyFactor;
+
+// @ts-expect-error A VoiceID seed envelope must name its owning method.
+const voiceIdSeedWithoutOwner: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, ownership: { kind: 'unbound' } };
+void voiceIdSeedWithoutOwner;
+
+// @ts-expect-error A revoked envelope cannot be used for VoiceID session unlock.
+const revokedVoiceIdSeed: VoiceIdSeedEnvelope = { ...voiceIdSeedEnvelope, lifecycle: { state: 'revoked', activatedAtMs: 1, revokedAtMs: 2 } };
+void revokedVoiceIdSeed;
 
 // @ts-expect-error An envelope requires its factor identity.
 const envelopeWithoutFactor: PasskeyCustodyEnvelopeRecord = {

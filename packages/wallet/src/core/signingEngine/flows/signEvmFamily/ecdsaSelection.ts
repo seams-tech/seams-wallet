@@ -2,6 +2,8 @@ import type { AccountAuthMetadata } from '@/core/signingEngine/interfaces/accoun
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import {
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
+  type VoiceIdWalletAuthAuthority,
   type EmailOtpWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
   type WalletAuthAuthority,
@@ -10,7 +12,6 @@ import type {
   AuthorizedEcdsaLaneCandidate,
   EcdsaLaneCandidate,
 } from '../../session/identity/laneIdentity';
-import { laneCandidateAuthMethod } from '../../session/identity/laneIdentity';
 import {
   buildEvmTransactionSigningLane,
   buildTempoTransactionSigningLane,
@@ -57,20 +58,6 @@ type EcdsaSelectionLaneCandidateDiagnosticsBase = {
   remainingUses: number;
   expiresAtMs: number;
 };
-
-function ecdsaLaneCandidateAuthMethod(
-  candidate: EcdsaLaneCandidate,
-): WalletAuthAuthority['factor']['kind'] {
-  const authMethod = laneCandidateAuthMethod(candidate);
-  switch (authMethod) {
-    case SIGNER_AUTH_METHODS.emailOtp:
-      return SIGNER_AUTH_METHODS.emailOtp;
-    case SIGNER_AUTH_METHODS.passkey:
-      return SIGNER_AUTH_METHODS.passkey;
-  }
-  authMethod satisfies never;
-  throw new Error('[SigningEngine][ecdsa] unsupported ECDSA lane auth method');
-}
 
 type EcdsaSelectionLaneCandidateDiagnostics = EcdsaSelectionLaneCandidateDiagnosticsBase & {
   source: 'canonical_capability';
@@ -144,7 +131,7 @@ function laneCandidateDiagnosticsBase(
   candidate: AuthorizedEcdsaLaneCandidate,
 ): EcdsaSelectionLaneCandidateDiagnosticsBase {
   return {
-    authMethod: ecdsaLaneCandidateAuthMethod(candidate),
+    authMethod: candidate.auth.kind,
     chain: candidate.chain,
     chainTarget: candidate.chainTarget,
     state: candidate.state,
@@ -225,12 +212,21 @@ type PasskeyEcdsaCommittedLane = {
   authLane?: never;
 };
 
+type VoiceIdEcdsaCommittedLane = {
+  lane: ResolvedEvmFamilyEcdsaSigningLane;
+  authority: VoiceIdWalletAuthAuthority;
+  authorization: ExactEvmFamilyWalletSessionAuthorization;
+  authLane?: never;
+};
+
 export type EcdsaCommittedLane<A extends WalletAuthAuthority = WalletAuthAuthority> =
   A extends EmailOtpWalletAuthAuthority
     ? EmailOtpEcdsaCommittedLane
     : A extends PasskeyWalletAuthAuthority
       ? PasskeyEcdsaCommittedLane
-      : never;
+      : A extends VoiceIdWalletAuthAuthority
+        ? VoiceIdEcdsaCommittedLane
+        : never;
 
 function isExactEmailOtpAuthorization(
   authorization: ExactEvmFamilyWalletSessionAuthorization,
@@ -320,6 +316,35 @@ async function commitPasskeyEcdsaLaneForSelection(args: {
     authority,
     authorization: args.lane.authorization,
   };
+}
+
+async function commitVoiceIdEcdsaLaneForSelection(args: {
+  deps: EvmFamilyEcdsaSigningSelectionDeps;
+  lane: ResolvedEvmFamilyEcdsaSigningLane;
+  candidate: AuthorizedEcdsaLaneCandidate;
+}): Promise<VoiceIdEcdsaCommittedLane> {
+  const candidate = args.candidate;
+  const capability = await args.deps.resolveCanonicalEcdsaSigningCapability({
+    walletId: candidate.walletId,
+    chainTarget: candidate.chainTarget,
+    materialActivation: candidate.materialActivation,
+  });
+  const authority = capability.authority;
+  if (
+    candidate.auth.kind !== 'voiceid' ||
+    !isVoiceIdWalletAuthAuthority(authority) ||
+    authority.bindingId !== candidate.auth.walletAuthMethodId ||
+    authority.factor.deviceKeyId !== candidate.auth.deviceKeyId
+  ) {
+    throw new Error('VoiceID ECDSA capability authority changed.');
+  }
+  assertEcdsaCommittedLaneAuthorityMatchesWallet({
+    authority,
+    lane: args.lane,
+    candidate,
+    context: 'VoiceID',
+  });
+  return { lane: args.lane, authority, authorization: args.lane.authorization };
 }
 
 async function resolveEmailOtpAuthorityForSelection(args: {
@@ -449,7 +474,7 @@ export async function resolveEvmFamilyEcdsaSigningSelection(args: {
 }): Promise<EvmFamilyEcdsaSigningSelectionResult> {
   const lane = resolvedEvmFamilyEcdsaSigningLaneFromCandidate(args.laneCandidate);
   const emailOtpAuthorityLane = lane;
-  const candidateAuthMethod = ecdsaLaneCandidateAuthMethod(args.laneCandidate);
+  const candidateAuthMethod = args.laneCandidate.auth.kind;
   const emailOtpAuthority =
     candidateAuthMethod === SIGNER_AUTH_METHODS.emailOtp
       ? await resolveEmailOtpAuthorityForSelection({
@@ -482,7 +507,15 @@ export async function resolveEvmFamilyEcdsaSigningSelection(args: {
           candidate: args.laneCandidate,
         })
       : null;
-  const committedLane = committedEmailOtpLane ?? committedPasskeyLane;
+  const committedVoiceIdLane =
+    candidateAuthMethod === 'voiceid'
+      ? await commitVoiceIdEcdsaLaneForSelection({
+          deps: args.deps,
+          lane,
+          candidate: args.laneCandidate,
+        })
+      : null;
+  const committedLane = committedEmailOtpLane ?? committedPasskeyLane ?? committedVoiceIdLane;
   const committedFactor = committedLane?.authority.factor.kind;
   const walletAuth = await resolveEvmFamilyTransactionWalletAuth({
     senderSignatureAlgorithm: args.senderSignatureAlgorithm,

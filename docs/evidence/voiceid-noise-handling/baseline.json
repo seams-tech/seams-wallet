@@ -1,0 +1,52 @@
+{
+  "modelBytes": 2327524,
+  "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
+  "scope": "synthetic steady noise; native ONNX; no human accuracy claim",
+  "cases": [
+    {
+      "case": "quiet",
+      "durationMs": 3808.125,
+      "vadSpeechMs": 1280,
+      "rmsActiveMs": 1248,
+      "inferenceMs": 17.692958936095238,
+      "speakerSimilarityToClean": 1.0000001192092896,
+      "unconstrainedTranscript": "this is my own voice"
+    },
+    {
+      "case": "steady_noise",
+      "durationMs": 3808.125,
+      "vadSpeechMs": 0,
+      "rmsActiveMs": 3808,
+      "inferenceMs": 10.416124947369099,
+      "speakerSimilarityToClean": 0.15062716603279114,
+      "unconstrainedTranscript": ""
+    },
+    {
+      "case": "speech_with_noise",
+      "durationMs": 3808.125,
+      "vadSpeechMs": 1216,
+      "rmsActiveMs": 3808,
+      "inferenceMs": 19.107416970655322,
+      "speakerSimilarityToClean": 0.7605079412460327,
+      "unconstrainedTranscript": "this is my own voice"
+    },
+    {
+      "case": "background_speech",
+      "durationMs": 3808.125,
+      "vadSpeechMs": 1312,
+      "rmsActiveMs": 1120,
+      "inferenceMs": 12.195000075735152,
+      "speakerSimilarityToClean": 0.9856913089752197,
+      "unconstrainedTranscript": "this is my own voice"
+    },
+    {
+      "case": "spectral_reduction",
+      "durationMs": 3808.125,
+      "vadSpeechMs": 1248,
+      "rmsActiveMs": 1248,
+      "inferenceMs": 12.56395794916898,
+      "speakerSimilarityToClean": 0.763576328754425,
+      "unconstrainedTranscript": "this is my own voye"
+    }
+  ]
+}

@@ -156,17 +156,6 @@ export function AccountMenuButtonView({
               )}
             </div>
             <footer className="seams-account-footer">
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z" />
-                <path d="m8 12 3 3 5-6" />
-              </svg>
               <span>
                 <WalletText message="Secured by" />
               </span>

@@ -1,0 +1,87 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "tranquil-orchid-9nebqx",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "c7e2c733-229a-4066-a160-95fc2dcb00b8",
+    "capturedAtMs": 1792981080186,
+    "durationMs": 3420,
+    "recordingMs": 4935.200000047684,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.21517482970479704,
+    "baselineSimilarity": 0.21517482970479704,
+    "referenceKind": "baseline",
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642,
+      "decodedText": "my voice helps me open thisallet on my device"
+    },
+    "expectedPhrase": "the little cat is sitting beside me"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "tranquil-orchid-9nebqx",
+    "accountId": "6d451f8d6ce59d8d21a779ad4ace0acef8f1344287e1b8da11a277aef0b6b620",
+    "publicKey": "ed25519:8MYaBF4M2EF128iLkyQ8KhvPLetgNUTGYebapdHY2GeB"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADZkNDUxZjhkNmNlNTlkOGQyMWE3NzlhZDRhY2UwYWNlZjhmMTM0NDI4N2UxYjhkYTExYTI3N2FlZjBiNmI2MjAAbUUfjWzlnY0hp3mtSs4KzvjxNEKH4bjaEaJ3rvC2tiACAAAAAAAAAEAAAAA2ZDQ1MWY4ZDZjZTU5ZDhkMjFhNzc5YWQ0YWNlMGFjZWY4ZjEzNDQyODdlMWI4ZGExMWEyNzdhZWYwYjZiNjIwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAOy7SFI5GyuLLF0odZF/3h3hjYnjFYRysnRU6WgvS6gJ2+wzzrhlQW5PLhXxJjNsnzEqBBltM3Le2iqnUHDenAw==",
+      "signedTransactionSha256": "9a4594d77a2e8d35a71f19dff1dc1997c2fe261d52595d4f205f5fcea95e9354",
+      "signerId": "6d451f8d6ce59d8d21a779ad4ace0acef8f1344287e1b8da11a277aef0b6b620",
+      "receiverId": "6d451f8d6ce59d8d21a779ad4ace0acef8f1344287e1b8da11a277aef0b6b620",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

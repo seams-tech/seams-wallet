@@ -50,11 +50,24 @@ export class ReviewDisclosure extends Component<{
   };
 
   private finish = (): void => {
+    const local = this.motion?.kind === 'local';
     if (this.root.current && this.motion) {
       this.root.current.open = this.motion.opening;
       this.root.current.removeAttribute('data-closing');
     }
     this.clearMotion();
+    if (local) {
+      const surface = this.root.current?.closest('.seams-confirmation-surface');
+      const focused = surface?.ownerDocument.activeElement;
+      // Expansion can move a control after the browser scrolls it into view on focus.
+      if (focused instanceof HTMLElement && focused.tabIndex >= 0 && surface?.contains(focused)) {
+        const bounds = focused.getBoundingClientRect();
+        const viewportHeight = focused.ownerDocument.documentElement.clientHeight;
+        if (bounds.top < 0 || bounds.bottom > viewportHeight) {
+          focused.scrollIntoView({ block: 'center', inline: 'nearest' });
+        }
+      }
+    }
   };
 
   private toggle = (event: MouseEvent): void => {

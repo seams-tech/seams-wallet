@@ -9,7 +9,7 @@ export type OwnerWalletExecutionLaneProjectionV1 = {
   readonly walletKey: WalletKeyRecord;
   readonly lane: Extract<
     SigningLaneRecord,
-    { readonly laneKind: 'owner_passkey' | 'owner_email_otp' }
+    { readonly laneKind: 'owner_passkey' | 'owner_email_otp' | 'owner_voiceid' }
   >;
   readonly materialActivation: MpcMaterialActivationRef;
   readonly verifiedActivationReceiptDigestB64u: DigestB64u;
@@ -29,7 +29,7 @@ type PreparedWalletExecutionBase = {
 
 export type PreparedOwnerWalletExecution = PreparedWalletExecutionBase & {
   readonly kind: 'prepared_owner_wallet_execution';
-  readonly laneKind: 'owner_passkey' | 'owner_email_otp' | 'recovery' | 'break_glass';
+  readonly laneKind: 'owner_passkey' | 'owner_email_otp' | 'owner_voiceid' | 'recovery' | 'break_glass';
   readonly lane: ActiveSigningLaneReference & {
     readonly laneKind: PreparedOwnerWalletExecution['laneKind'];
   };

@@ -31,9 +31,14 @@ import type { WalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRec
 import {
   DEFAULT_WALLET_SESSION_REMAINING_USES,
   DEFAULT_WALLET_SESSION_TTL_MS,
+  LINKED_DEVICE_WALLET_SESSION_REMAINING_USES,
+  LINKED_DEVICE_WALLET_SESSION_TTL_MS,
 } from '@shared/threshold/sessionPolicy';
 import type { WalletRegistrationSessionCommitReceiptV2 } from '../../../../core/threeRouteRegistrationContracts';
 import { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
+import { D1VoiceIdActivation } from '../wallet/d1VoiceIdActivation';
+import { D1VoiceIdSessions } from '../wallet/d1VoiceIdSessions';
+import { D1VoiceIdWalletSessionChallenges } from '../wallet/d1VoiceIdWalletSessionChallenges';
 import { D1WalletStore } from '../../../../core/d1WalletStore';
 import {
   resolveActiveOwnerWalletExecutionLane,
@@ -283,7 +288,12 @@ type D1WalletRegistrationRouteServiceAssembly = Pick<
 
 type D1WalletAuthMethodRouteServiceAssembly = Pick<
   CloudflareD1RouterApiAuthAssembly,
-  'registrationIntents' | 'walletAuthMethods' | 'walletAddSigners'
+  | 'options'
+  | 'registrationIntents'
+  | 'walletAuthMethodStore'
+  | 'walletAuthMethods'
+  | 'walletAddSigners'
+  | 'passkeyCustodyEnvelopes'
 >;
 
 type D1WalletUnlockRouteServiceAssembly = Pick<
@@ -291,7 +301,10 @@ type D1WalletUnlockRouteServiceAssembly = Pick<
   | 'authorizationService'
   | 'emailOtpRecoveryService'
   | 'options'
+  | 'passkeyCustodyEnvelopes'
+  | 'walletAuthMethodStore'
   | 'walletAuthMethods'
+  | 'walletAuthorityStore'
   | 'webAuthnAuthService'
 >;
 
@@ -1678,7 +1691,19 @@ function createD1WalletRegistrationRouteService(
 function createD1WalletAuthMethodRouteService(
   assembly: D1WalletAuthMethodRouteServiceAssembly,
 ): RouterApiServiceBag['walletAuthMethods'] {
+  const voiceIdActivation = new D1VoiceIdActivation(
+    assembly.options.database,
+    {
+      namespace: assembly.options.namespace,
+      orgId: assembly.options.orgId,
+      projectId: assembly.options.projectId,
+      envId: assembly.options.envId,
+    },
+    assembly.walletAuthMethodStore,
+    assembly.passkeyCustodyEnvelopes,
+  );
   return {
+    activateVoiceId: voiceIdActivation.activate.bind(voiceIdActivation),
     resolveActiveWalletSessionAuthority:
       assembly.walletAuthMethods.resolveActiveWalletSessionAuthority.bind(
         assembly.walletAuthMethods,
@@ -1744,9 +1769,6 @@ function createD1WalletAuthMethodRouteService(
     ),
   };
 }
-
-const LINKED_DEVICE_WALLET_SESSION_TTL_MS = 15 * 60 * 1000;
-const LINKED_DEVICE_WALLET_SESSION_REMAINING_USES = 100;
 
 type ActiveWalletUnlockAuthorityResolution =
   | Extract<WalletUnlockPasskeyAuthorityResolution, { readonly kind: 'active_authority' }>
@@ -1948,7 +1970,23 @@ async function issueWalletSessionForEmailOtpUnlock(input: {
 function createD1WalletUnlockRouteService(
   assembly: D1WalletUnlockRouteServiceAssembly,
 ): RouterApiServiceBag['walletUnlock'] {
+  const scope = {
+    namespace: assembly.options.namespace,
+    orgId: assembly.options.orgId,
+    projectId: assembly.options.projectId,
+    envId: assembly.options.envId,
+  };
+  const voiceIdSessions = new D1VoiceIdSessions(
+    assembly.walletAuthMethodStore,
+    assembly.walletAuthorityStore,
+    assembly.passkeyCustodyEnvelopes,
+    new D1VoiceIdWalletSessionChallenges(assembly.options.database, scope),
+    assembly.authorizationService,
+    assembly.options.orgId,
+  );
   return {
+    issueVoiceIdChallenge: voiceIdSessions.issueChallenge.bind(voiceIdSessions),
+    verifyAndIssueVoiceId: voiceIdSessions.verifyAndIssue.bind(voiceIdSessions),
     createEmailOtpUnlockChallenge:
       assembly.emailOtpRecoveryService.createEmailOtpUnlockChallenge.bind(
         assembly.emailOtpRecoveryService,

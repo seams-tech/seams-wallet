@@ -128,19 +128,21 @@
   margin-top: 4px;
 }
 .seams-account-footer {
-  border-top: 1px solid var(--seams-colors-borderPrimary);
+  border-top: 1px solid color-mix(in srgb, var(--seams-colors-borderPrimary) 60%, transparent);
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 8px;
-  height: 44px;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 16px;
   color: var(--seams-colors-textSecondary);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.01em;
 }
 .seams-account-wordmark {
-  width: 70px;
-  height: 18px;
-  color: var(--seams-colors-textPrimary);
+  flex: none;
+  width: 50px;
+  height: 10px;
 }
 .seams-account-description {
   font-size: 14px;

@@ -99,7 +99,6 @@ import {
   buildWalletAuthMethodRecordV2,
   sameWalletAuthMethodRecordV2,
   type ActiveWalletAuthMethodRecordV2,
-  type PendingWalletAuthMethodRecordV2,
   type WalletAuthMethodRecordV2,
 } from '@shared/utils/walletAuthMethodRecord';
 import { parseLinkDeviceSessionId, parseWalletKeyId } from '@shared/signing-lanes/ids';
@@ -596,7 +595,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
       const authMethod = await this.options.authMethodStore.readByIdV2({
         walletAuthMethodId: stored.authMethodId,
       });
-      if (!authority || !authMethod)
+      if (!authority || !authMethod || authMethod.kind === 'voiceid')
         return { kind: 'integrity_error', message: 'pending authority records are missing' };
       if (
         !sameAuthority(authority, stored.packages.authority) ||
@@ -836,7 +835,7 @@ export class D1LinkedDeviceAuthorityInstallServiceV1 {
     readonly stored: StoredInstallationRow;
     readonly receipt: LocalAuthorityInstallationReceiptV1;
     readonly expectedPendingAuthority: PendingWalletAuthorityV1;
-    readonly expectedPendingAuthMethod: PendingWalletAuthMethodRecordV2;
+    readonly expectedPendingAuthMethod: CommittedAuthorityPackagesV1['authMethod'];
     readonly nowMs: number;
   }): Promise<Extract<ActivateInstalledAuthorityResultV1, { readonly kind: 'active' }> | null> {
     const authority = await this.options.authorityStore.readById(input.stored.authorityId);
@@ -2703,7 +2702,7 @@ function buildPendingAuthMethod(
       createdAtMs: draft.createdAtMs,
       updatedAtMs: nowMs,
     });
-    if (record.status !== 'pending_local_install')
+    if (record.status !== 'pending_local_install' || record.kind !== 'passkey')
       throw new Error('auth method builder returned a non-pending record');
     return record;
   }
@@ -2719,7 +2718,7 @@ function buildPendingAuthMethod(
     createdAtMs: draft.createdAtMs,
     updatedAtMs: nowMs,
   });
-  if (record.status !== 'pending_local_install')
+  if (record.status !== 'pending_local_install' || record.kind !== 'email_otp')
     throw new Error('auth method builder returned a non-pending record');
   return record;
 }
@@ -2833,7 +2832,7 @@ function buildActiveAuthMethod(
       updatedAtMs: activatedAtMs,
       activatedAtMs,
     });
-    if (record.status !== 'active')
+    if (record.status !== 'active' || record.kind !== 'passkey')
       throw new Error('auth method builder returned a non-active record');
     return record;
   }
@@ -2850,7 +2849,7 @@ function buildActiveAuthMethod(
     updatedAtMs: activatedAtMs,
     activatedAtMs,
   });
-  if (record.status !== 'active')
+  if (record.status !== 'active' || record.kind !== 'email_otp')
     throw new Error('auth method builder returned a non-active record');
   return record;
 }

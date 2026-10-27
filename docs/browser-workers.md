@@ -22,6 +22,32 @@ non-secret result handling. It also loads the Ed25519 Yao client WASM for
 registration, login, and local session material (see
 [`yaoClient.ts`](../packages/wallet/src/core/signingEngine/threshold/ed25519/yaoClient.ts)).
 
+Applications enable the separately installed `@seams/voiceid` package by configuration.
+The Wallet operator explicitly deploys its assets. The Wallet iframe loads its
+implementation on first use through a fixed same-origin URL. The package imports
+the Wallet host API and shares existing storage and worker instances. This package
+split moves no signing or custody operation between workers.
+Browser MediaRecorder captures deliberate
+samples, and local ONNX Runtime Web inference verifies the speaker. Inference
+uses one WebAssembly thread. A same-origin AudioWorklet supplies 16 kHz frames
+to local Silero speech detection on the iframe main thread. The worklet holds only
+short audio frames and has no signing or custody authority.
+Audio is discarded after inference. The Wallet origin stores its template and
+nonextractable WebCrypto device keys in IndexedDB. A separate nonextractable
+AES-GCM key encrypts the random method factor at rest. The factor is decrypted
+only along the voice verification flow and erased after core installation.
+The server verifies the device signature; the trusted Wallet code enforces
+speaker matching. These keys provide browser-origin isolation, without a
+hardware-attestation claim. No native host or Keychain is involved.
+
+The core opens the seed-encrypted NEAR custody cache in the existing Yao WASM
+runtime on the iframe main thread. The custody worker opens the method envelope
+and retains its existing session-scoped custody handle. JavaScript never
+receives the wallet custody seed. An Email OTP proof can authorize adding the first
+passkey while VoiceID remains selected. The existing custody handle reseals the
+seed in the same custody worker. This requires no extra unlock or factor release.
+Existing workers keep their responsibilities.
+
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
 confirmation, export, session, and device-linking workers. The Email OTP and
@@ -55,7 +81,7 @@ Workers that the worker transport creates:
 | Kind | Script | WASM modules and when they load | Secret state it holds |
 | --- | --- | --- | --- |
 | `nearSigner` | [`near-signer.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/near-signer.worker.ts) | `near_signer` at worker start | None. It builds and finalizes NEAR transactions, delegates, and NEP-413 digests. It rejects payloads with PRF, seed, private key, or signing share fields. |
-| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result or the Email OTP factor key) and recovery codes. |
+| `walletCustodyCeremony` | [`wallet-custody-ceremony.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/wallet-custody-ceremony.worker.ts) | `wallet_custody_ceremony` only to start a key-set ceremony, restore a NEAR registration, or rotate recovery codes. `near_signer` for envelope open, reseal, and linking. Yao client for lane-source operations. | Ceremony handles that hold the wallet custody seed and owner roots (WASM). Unlocked export-root capabilities: a WASM custody handle and a JavaScript copy of the factor secret, kept for the owner Wallet Session. Receives `factorSecret` (a passkey PRF result, the Email OTP factor key, or the VoiceID factor key) and recovery codes. |
 | `ecdsaDerivationClient` | [`ecdsa-derivation-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-derivation-client.worker.ts) | `router_ab_ecdsa_client` at worker start; registration can prewarm it | All ECDSA client secrets: role-local signing state, linked-holder material, registration and export ceremonies, and the opaque presign authority. Rejects PRF and private key fields. |
 | `ecdsaPresignClient` | [`ecdsa-presign-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-presign-client.worker.ts) | None | No key bytes. It holds presignature lifecycle state, handles, and public points, and sends all cryptography to the derivation worker. |
 | `ecdsaOnlineClient` | [`ecdsa-online-client.worker.ts`](../packages/wallet/src/core/signingEngine/workerManager/workers/ecdsa-online-client.worker.ts) | None | None. It forwards signature-share requests to the presign worker. |

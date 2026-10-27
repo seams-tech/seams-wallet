@@ -66,7 +66,8 @@ export function defaultLoginAccount(
   const lastUsedAccount = recentUnlocks?.lastUsedAccount;
   if (
     lastUsedAccount?.authMethod === WALLET_AUTH_METHODS.passkey ||
-    lastUsedAccount?.authMethod === WALLET_AUTH_METHODS.emailOtp
+    lastUsedAccount?.authMethod === WALLET_AUTH_METHODS.emailOtp ||
+    lastUsedAccount?.authMethod === 'voiceid'
   ) {
     const lastUsedWalletId = String(lastUsedAccount.walletId || '').trim();
     const exactMatch = options.find(
@@ -74,6 +75,8 @@ export function defaultLoginAccount(
         option.walletId === lastUsedWalletId && option.authMethod === lastUsedAccount.authMethod,
     );
     if (exactMatch) return exactMatch;
+    const sameWallet = options.find(accountForWallet.bind(null, lastUsedWalletId));
+    if (sameWallet) return sameWallet;
   }
   return options[0] ?? null;
 }
@@ -88,3 +91,5 @@ export function passkeyRecentWalletId(recentUnlocks: GetRecentUnlocksResult | nu
   const walletId = String(account.walletId || '').trim();
   return walletId || null;
 }
+
+function accountForWallet(walletId: string, option: AuthMenuAccountOption): boolean { return option.walletId === walletId; }

@@ -49,7 +49,7 @@ type ClaimedAuthorizedOperation = AuthorizedOperation & {
 type OwnerSigningLaneRecord = Extract<
   SigningLaneRecord,
   {
-    readonly laneKind: 'owner_passkey' | 'owner_email_otp' | 'recovery' | 'break_glass';
+    readonly laneKind: 'owner_passkey' | 'owner_email_otp' | 'owner_voiceid' | 'recovery' | 'break_glass';
   }
 >;
 
@@ -575,6 +575,7 @@ function isActiveOwnerLane(lane: SigningLaneRecord): lane is ActiveOwnerSigningL
   if (lane.lifecycle.state !== 'active') return false;
   switch (lane.laneKind) {
     case 'owner_passkey':
+    case 'owner_voiceid':
     case 'owner_email_otp':
     case 'recovery':
     case 'break_glass':

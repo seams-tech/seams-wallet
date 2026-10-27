@@ -1,0 +1,33 @@
+[
+  {
+    "phraseGapLimit": 5,
+    "speakerThreshold": 0.5,
+    "nearMissCount": 48,
+    "acceptedNearMisses": [],
+    "outsidePhraseAccepts": 0
+  },
+  {
+    "phraseGapLimit": 8,
+    "speakerThreshold": 0.5,
+    "nearMissCount": 48,
+    "acceptedNearMisses": [
+      {
+        "kind": "missing_middle",
+        "expected": "i want a glass of water",
+        "spoken": "i want glass of water",
+        "recognized": "i want a glass of water",
+        "gapToGreedy": 5.900565147399902,
+        "acceptedExpected": true
+      },
+      {
+        "kind": "missing_middle",
+        "expected": "that is a good idea",
+        "spoken": "that is good idea",
+        "recognized": "that is a good idea",
+        "gapToGreedy": 6.592287063598633,
+        "acceptedExpected": false
+      }
+    ],
+    "outsidePhraseAccepts": 0
+  }
+]

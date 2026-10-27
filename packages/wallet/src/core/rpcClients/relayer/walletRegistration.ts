@@ -3207,7 +3207,7 @@ type RevokeWalletAuthMethodResponse =
   | {
       readonly ok: true;
       readonly walletId: WalletId;
-      readonly authMethod: { readonly kind: 'email_otp'; readonly status: 'revoked' };
+      readonly authMethod: { readonly kind: 'email_otp' | 'voiceid'; readonly status: 'revoked' };
       readonly rpId?: never;
     };
 
@@ -3240,7 +3240,8 @@ function parseRevokeWalletAuthMethodResponse(value: unknown): RevokeWalletAuthMe
   if (readWalletRegistrationResponseField(authMethod, 'status', responseName) !== 'revoked') {
     throw new Error(`${responseName} response has invalid authMethod status`);
   }
-  switch (readWalletRegistrationResponseField(authMethod, 'kind', responseName)) {
+  const kind = readWalletRegistrationResponseField(authMethod, 'kind', responseName);
+  switch (kind) {
     case 'passkey':
       assertWalletRegistrationResponseKeys(
         response,
@@ -3257,6 +3258,7 @@ function parseRevokeWalletAuthMethodResponse(value: unknown): RevokeWalletAuthMe
         ),
       };
     case 'email_otp':
+    case 'voiceid':
       assertWalletRegistrationResponseKeys(
         response,
         ['ok', 'walletId', 'authMethod'],
@@ -3265,7 +3267,7 @@ function parseRevokeWalletAuthMethodResponse(value: unknown): RevokeWalletAuthMe
       return {
         ok: true,
         walletId: walletIdResult.value,
-        authMethod: { kind: 'email_otp', status: 'revoked' },
+        authMethod: { kind, status: 'revoked' },
       };
     default:
       throw new Error(`${responseName} response has invalid authMethod kind`);

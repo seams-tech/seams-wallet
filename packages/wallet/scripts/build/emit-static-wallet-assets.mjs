@@ -39,6 +39,10 @@ const FORBIDDEN_DEFAULT_ASSET_HEADERS = [
 ];
 
 const ROUTE_CLASS_HEADERS = {
+  binary: {
+    cachePolicy: 'public, max-age=300, must-revalidate',
+    contentType: 'application/octet-stream',
+  },
   javascript: {
     cachePolicy: 'public, max-age=300, must-revalidate',
     contentType: 'text/javascript; charset=utf-8',
@@ -81,7 +85,7 @@ function routeForSourceFile(sourceFile) {
 
 function routeClassForSourceFile(sourceFile) {
   if (sourceFile.endsWith('.wasm')) return 'wasm';
-  if (sourceFile.endsWith('.js')) return 'javascript';
+  if (sourceFile.endsWith('.js') || sourceFile.endsWith('.mjs')) return 'javascript';
   if (sourceFile.endsWith('.css')) return 'css';
   if (sourceFile.endsWith('.html')) return 'htmlDocument';
   if (sourceFile.endsWith('.json')) return 'json';

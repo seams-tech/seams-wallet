@@ -11,14 +11,30 @@ export type SignerKind = (typeof SIGNER_KINDS)[keyof typeof SIGNER_KINDS];
 export const SIGNER_AUTH_METHODS = {
   passkey: 'passkey',
   emailOtp: EMAIL_OTP_CHANNEL,
+  voiceId: 'voiceid',
 } as const;
 
 /** Authentication methods that can authorize a signer capability. */
 export type SignerAuthMethod = (typeof SIGNER_AUTH_METHODS)[keyof typeof SIGNER_AUTH_METHODS];
 
+export function requirePersistedSignerAuthMethod(
+  method: SignerAuthMethod,
+): Exclude<SignerAuthMethod, 'voiceid'> {
+  switch (method) {
+    case 'passkey':
+    case 'email_otp':
+      return method;
+    case 'voiceid':
+      throw new Error('Unlock with VoiceID again to restore signing material.');
+  }
+  method satisfies never;
+  throw new Error('Signing authentication method is unsupported.');
+}
+
 export const WALLET_AUTH_METHODS = {
   passkey: 'passkey',
   emailOtp: EMAIL_OTP_CHANNEL,
+  voiceId: 'voiceid',
 } as const;
 
 /** Authentication methods that can be enrolled on a wallet. */

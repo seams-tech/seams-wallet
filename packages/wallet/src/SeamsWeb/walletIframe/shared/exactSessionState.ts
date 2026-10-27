@@ -209,6 +209,9 @@ async function readWalletIframeSessionObservation(
   if (authMethod.status !== 'active' || authority.state !== 'active') {
     return unavailableSession(input.walletId, 'invalid');
   }
+  if (authMethod.kind === 'voiceid') {
+    return unavailableSession(input.walletId, 'invalid');
+  }
 
   const authorizationRead = await readExactActiveForWalletOrUnavailable(dependencies, {
     walletId: input.walletId,
@@ -774,6 +777,7 @@ function walletIdFromAuthBinding(binding: WalletAuthMethodBinding): WalletId {
   switch (binding.kind) {
     case 'passkey':
       return binding.scope.wallet.walletId;
+    case 'voiceid':
     case 'email_otp':
       return binding.wallet.walletId;
   }

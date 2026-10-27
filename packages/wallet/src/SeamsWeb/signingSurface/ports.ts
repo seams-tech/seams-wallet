@@ -1,4 +1,8 @@
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
+import type {
+  AuthMethodSessionInstaller,
+  AuthMethodUnlockSuccess,
+} from '@/core/authMethods/hostPlugin';
 import type { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
 import type { NonceCoordinator } from '@/core/signingEngine/nonce/NonceCoordinator';
 import type { EmailOtpAuthorityUnlockEd25519Request } from '@/core/signingEngine/session/emailOtp/walletUnlock';
@@ -619,6 +623,10 @@ export interface SigningSessionSurface {
 }
 
 export interface WalletAuthenticationSurface {
+  installAuthMethodSession(
+    expectedLockGeneration: number,
+    unlocked: Parameters<AuthMethodSessionInstaller>[0],
+  ): Promise<AuthMethodUnlockSuccess>;
   readWalletAuthenticationState(): WalletAuthenticationState;
   setWalletAuthenticated(
     state: Extract<WalletAuthenticationState, { kind: 'authenticated' }>,

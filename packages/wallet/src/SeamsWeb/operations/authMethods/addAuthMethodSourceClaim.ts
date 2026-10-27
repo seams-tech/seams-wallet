@@ -14,10 +14,13 @@
  */
 
 import { IndexedDBManager } from '@/core/indexedDB';
-import { walletSessionAuthorizations } from '@/core/indexedDB/seamsWalletDB/walletSessionAuthorizationStore';
 import type { AddAuthMethodIntentSourceV1 } from '@shared/utils/registrationIntent';
-import type { ActiveWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
-import type { WalletId } from '@shared/utils/domainIds';
+import type {
+  ActiveEmailOtpWalletAuthMethodRecordV2,
+  ActivePasskeyWalletAuthMethodRecordV2,
+  WalletAuthMethodRecordV2,
+} from '@shared/utils/walletAuthMethodRecord';
+import type { WalletId, WalletAuthorityId } from '@shared/utils/domainIds';
 
 type AddAuthMethodSourceClaimResultV1 =
   | {
@@ -25,7 +28,8 @@ type AddAuthMethodSourceClaimResultV1 =
       readonly source: AddAuthMethodIntentSourceV1;
       /* Kept alongside the hashed claim so the proof uses the exact method
          named by that claim. */
-      readonly sourceAuthMethod: ActiveWalletAuthMethodRecordV2;
+      readonly sourceAuthMethod:
+        ActivePasskeyWalletAuthMethodRecordV2 | ActiveEmailOtpWalletAuthMethodRecordV2;
     }
   | { readonly kind: 'unavailable'; readonly reason: string };
 
@@ -56,43 +60,66 @@ export async function resolveAddAuthMethodSourceClaimV1(
     return { kind: 'unavailable', reason: 'selected wallet authority identity is invalid' };
   }
 
-  let session: Awaited<
-    ReturnType<typeof walletSessionAuthorizations.readExactWithOperationCredential>
-  >;
-  try {
-    session = await walletSessionAuthorizations.readExactWithOperationCredential({
+  let sourceAuthMethod:
+    ActivePasskeyWalletAuthMethodRecordV2 | ActiveEmailOtpWalletAuthMethodRecordV2;
+  if (selected.authMethod.kind === 'voiceid') {
+    const methods = await IndexedDBManager.listWalletAuthMethodsV2ForWallet(walletId);
+    const confirmer = findAuthorityConfirmationMethod(
       walletId,
-      authorityId: selected.authority.authorityId,
-      authMethodId: selected.authMethod.walletAuthMethodId,
-    });
-  } catch {
-    return { kind: 'unavailable', reason: 'exact Wallet Session state is corrupt' };
-  }
-  if (session.kind !== 'found') {
-    return {
-      kind: 'unavailable',
-      reason: `exact Wallet Session is ${session.kind}`,
-    };
-  }
-  if (
-    session.record.walletId !== walletId ||
-    session.record.authorityId !== selected.authority.authorityId ||
-    session.record.authMethodId !== selected.authMethod.walletAuthMethodId ||
-    session.record.authorityDigestB64u !== selected.authority.authorityDigestB64u ||
-    session.record.authorityRevocationEpoch !== selected.authority.revocationEpoch ||
-    session.record.expiresAtMs <= Date.now()
-  ) {
-    return { kind: 'unavailable', reason: 'exact Wallet Session identity is invalid or expired' };
+      selected.authority.authorityId,
+      methods,
+    );
+    if (!confirmer) {
+      return {
+        kind: 'unavailable',
+        reason:
+          'this authority needs an active passkey or Email OTP method to confirm the addition',
+      };
+    }
+    sourceAuthMethod = confirmer;
+  } else {
+    sourceAuthMethod = selected.authMethod;
   }
   return {
     kind: 'resolved',
-    sourceAuthMethod: selected.authMethod,
+    sourceAuthMethod,
     source: {
-      walletAuthorityId: selected.authMethod.walletAuthorityId,
-      walletAuthMethodId: selected.authMethod.walletAuthMethodId,
-      walletSessionId: String(session.operationCredential.walletSessionId),
+      walletAuthorityId: sourceAuthMethod.walletAuthorityId,
+      walletAuthMethodId: sourceAuthMethod.walletAuthMethodId,
       authorityDigestB64u: String(selected.authority.authorityDigestB64u),
       revocationEpoch: selected.authority.revocationEpoch,
     },
   };
+}
+
+function findAuthorityConfirmationMethod(
+  walletId: WalletId,
+  authorityId: WalletAuthorityId,
+  methods: readonly WalletAuthMethodRecordV2[],
+): ActivePasskeyWalletAuthMethodRecordV2 | ActiveEmailOtpWalletAuthMethodRecordV2 | null {
+  let emailMethod: ActiveEmailOtpWalletAuthMethodRecordV2 | null = null;
+  for (const method of methods) {
+    if (
+      method.status !== 'active' ||
+      method.walletId !== walletId ||
+      method.walletAuthorityId !== authorityId
+    )
+      continue;
+    switch (method.kind) {
+      case 'passkey':
+        return method;
+      case 'email_otp':
+        emailMethod = method;
+        break;
+      case 'voiceid':
+        break;
+      default:
+        return assertNever(method);
+    }
+  }
+  return emailMethod;
+}
+
+function assertNever(method: never): never {
+  throw new Error(`Unsupported confirmation method: ${String(method)}`);
 }

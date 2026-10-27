@@ -4,7 +4,7 @@ import { isValidAccountId } from '@shared/utils/near';
 import type { TransactionInput } from '../core/types/actions';
 import { externalNearAction } from './actions';
 import { INTEAR_ORIGIN, IntearPopup } from './intearPopup';
-import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } from './types';
+import type { ExternalNearConnection, ExternalNearNetwork } from './types';
 
 type IntearSession = {
   accountId: string;
@@ -24,7 +24,8 @@ async function authenticate(key: CryptoKeyPair, payload: string) {
   return { nonce, signature: `ed25519:${base58Encode(signature)}` };
 }
 
-export class IntearWalletProvider implements NearWalletProvider {
+export class IntearWalletProvider {
+  readonly messageSigning = 'unsupported';
   private lifecycle: 'active' | 'disposed' = 'active';
   private popup: IntearPopup | null = null;
   private session: IntearSession | null = null;

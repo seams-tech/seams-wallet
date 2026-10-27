@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "startupCancellationStopsMicrophone": true,
+  "noise": {
+    "attemptId": "208263b1-c36d-428b-a232-e0674e272317",
+    "capturedAtMs": 1792953145326,
+    "durationMs": 7980,
+    "recordingMs": 8001.099999904633,
+    "endedBy": "limit",
+    "voicedMs": 0,
+    "peakFrameRms": 0.011595669354663812,
+    "levelThreshold": 0.006,
+    "requiredVoicedMs": 600,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010432320055143334,
+    "speechToBackgroundDb": null,
+    "noise": "high"
+  },
+  "speech": {
+    "attemptId": "22288935-f642-4444-822b-8b13ffe025cb",
+    "capturedAtMs": 1792953149987,
+    "durationMs": 3540,
+    "recordingMs": 3604,
+    "endedBy": "pause",
+    "voicedMs": 1856,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010339963316161065,
+    "speechToBackgroundDb": 24.558248807562993,
+    "noise": "normal",
+    "similarity": 0.5659178145292051,
+    "modelInputMs": 2256,
+    "threshold": 0.5,
+    "phraseMatched": true,
+    "phraseRecognition": {
+      "kind": "recognized",
+      "phrase": "we have enough time to walk home",
+      "gap": 0
+    },
+    "expectedPhrase": "we have enough time to walk home"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADc1ZmJhNWE5N2UxYzgwN2ExZDQzNWZhYjA2YTU0NzI1OTk1MWNlYTkzZTIzNGVlMDVlOTlhMzM4OTIyYzY4YzYAdfulqX4cgHodQ1+rBqVHJZlRzqk+I07gXpmjOJIsaMYCAAAAAAAAAEAAAAA3NWZiYTVhOTdlMWM4MDdhMWQ0MzVmYWIwNmE1NDcyNTk5NTFjZWE5M2UyMzRlZTA1ZTk5YTMzODkyMmM2OGM2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA1OD65qXEZ4iAtAdZICBZ2EzQWPRV7KxpgGqDdHq5HCrgh0zfhUB8ALVURa1WyiGC/QWKvhK7diSMirt4r1n8DQ==",
+      "signedTransactionSha256": "e6830e3029f0a4d3dfeb5a17714be56686b986456da9e2d696d23e78ad7d6e7a",
+      "signerId": "75fba5a97e1c807a1d435fab06a547259951cea93e234ee05e99a338922c68c6",
+      "receiverId": "75fba5a97e1c807a1d435fab06a547259951cea93e234ee05e99a338922c68c6",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

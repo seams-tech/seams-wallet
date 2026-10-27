@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "initialChunks": [
+    "probe.js",
+    "validation-Ci1poYnm.js"
+  ],
+  "enabledUseChunks": [
+    "host-BZpXtTBr.js",
+    "probe.js",
+    "prompt-DPodRB7a.js",
+    "validation-Ci1poYnm.js",
+    "verificationError-Djky_Dk7.js"
+  ],
+  "nativeRequests": 0,
+  "cases": [
+    "disabled_load_rejected",
+    "enable_does_not_load",
+    "first_use_loads",
+    "repeat_use_cached",
+    "disabled_cached_plugin_rejected"
+  ]
+}

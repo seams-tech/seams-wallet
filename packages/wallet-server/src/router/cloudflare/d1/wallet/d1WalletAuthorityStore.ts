@@ -1539,6 +1539,22 @@ function buildRevokedAuthMethod(
       revokedAtMs,
     };
   }
+  if (method.kind === 'voiceid') {
+    return {
+      version: 'wallet_auth_method_v2',
+      walletAuthMethodId: method.walletAuthMethodId,
+      walletId: method.walletId,
+      walletAuthorityId: method.walletAuthorityId,
+      kind: 'voiceid',
+      status: 'revoked',
+      deviceKeyId: method.deviceKeyId,
+      devicePublicKeyB64u: method.devicePublicKeyB64u,
+      createdAtMs: method.createdAtMs,
+      updatedAtMs: revokedAtMs,
+      activatedAtMs: method.activatedAtMs,
+      revokedAtMs,
+    };
+  }
   return {
     version: 'wallet_auth_method_v2',
     walletAuthMethodId: method.walletAuthMethodId,

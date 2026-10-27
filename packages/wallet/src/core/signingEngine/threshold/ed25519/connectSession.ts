@@ -6,6 +6,7 @@ import type { Ed25519SessionPolicyAuthority, ThresholdRuntimePolicyScope } from 
 import {
   isEmailOtpWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
   type PasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 import type { RouterAbEd25519NormalSigningState } from './routerAbNormalSigningState';
@@ -97,6 +98,7 @@ function passkeyAuthorityFromEd25519SessionPolicyAuthority(
     return authority.authority;
   }
   if (isEmailOtpWalletAuthAuthority(authority.authority)) return null;
+  if (isVoiceIdWalletAuthAuthority(authority.authority)) return null;
   authority.authority satisfies never;
   return assertNeverWalletAuthFactorKind(authority.authority);
 }

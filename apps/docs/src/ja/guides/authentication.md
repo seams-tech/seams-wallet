@@ -14,9 +14,9 @@ description: ウォレットとアプリの信頼境界を維持しながら、�
   ウォレットオリジンとRP IDが、認証情報を使用できる範囲を定めます。
 - **GoogleとメールOTP**：アカウントの検出と、復元可能な第2の認証要素を組み合わせます。
   アプリはGoogleトークンを渡します。OTPと復元の状態は、ウォレットの処理が管理します。
-- **VoiceID**：リスクの高い操作に追加する証明として計画されています。
-  公開済みSDKには、VoiceIDの登録・認証用の公開APIがありません。
-  想定する境界は[基本概念](/ja/concepts/auth-methods/voiceid)を参照してください。
+- **VoiceID**：SDK 0.24.0で任意に追加できる、ブラウザーでの登録、アンロック、送金承認です。
+  `@seams/voiceid`のインストール、記述子の有効化、Walletホストの準備が必要です。
+  コード例と登録手順は[VoiceIDの設定](/ja/concepts/auth-methods/voiceid)を参照してください。
 
 ## 認証状態を明示する {#keep-auth-state-explicit}
 

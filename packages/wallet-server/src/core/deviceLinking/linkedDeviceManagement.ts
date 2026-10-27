@@ -513,6 +513,13 @@ async function credentialMetadataV1(
       walletAuthMethodId: authMethod.walletAuthMethodId,
     };
   }
+  if (authMethod.kind === 'voiceid') {
+    return {
+      kind: 'voiceid',
+      walletAuthMethodId: authMethod.walletAuthMethodId,
+      deviceKeyId: authMethod.deviceKeyId,
+    };
+  }
   const device = await credentials.readPasskeyDeviceInfoV1({
     walletId,
     credentialIdB64u: authMethod.credentialIdB64u,

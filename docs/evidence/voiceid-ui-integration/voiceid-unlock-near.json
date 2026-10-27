@@ -1,0 +1,91 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "stone-raven-sfwts7",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:ec67b913-ff37-421b-8dbd-44fd573c73c3",
+  "freshSessionId": "wls_repeIA-GWoldsIuLSYH7lR_tMiPhC-J3zxtl4nfH5eI",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 110.06033300000126,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 367.5807919999934,
+    "runtimeVisibleMs": 111.32562499999767,
+    "cancellationMs": 43.15691700000025,
+    "readyMs": 4519.107416999992,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 112.44304199999897,
+  "naturalCapture": {
+    "voicedMs": 1170,
+    "recordingMs": 4780.899999976158,
+    "endedBy": "pause",
+    "similarity": 0.6242429368479665,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1410,
+    "recordingMs": 3177.6999999284744,
+    "endedBy": "pause",
+    "similarity": 0.7585255555254573,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "a867a2d3-9e74-4d67-a2a5-5a215245491d",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2129.2000000476837,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "30383bd1-4009-4eae-8e79-23af7eb72a51",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.5,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "stone-raven-sfwts7",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "stone-raven-sfwts7",
+    "accountId": "811fdc21bbe0081ad5a5bb64ae289628c039decfcee88cb758f54fba92828868",
+    "publicKey": "ed25519:9h3mfUnogYtfUnWZffjoUnWYaJJp8GMceES7LYQarWJb"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADgxMWZkYzIxYmJlMDA4MWFkNWE1YmI2NGFlMjg5NjI4YzAzOWRlY2ZjZWU4OGNiNzU4ZjU0ZmJhOTI4Mjg4NjgAgR/cIbvgCBrVpbtkriiWKMA53s/O6Iy3WPVPupKCiGgCAAAAAAAAAEAAAAA4MTFmZGMyMWJiZTAwODFhZDVhNWJiNjRhZTI4OTYyOGMwMzlkZWNmY2VlODhjYjc1OGY1NGZiYTkyODI4ODY4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA60tDKdxC+H2n0tucym8qZ9R7l9oUPcoCDD0fO3vzg2IhrusO/UOYf9DA0y3PEobg2bS22FyHglIlfSOegKY6Cw==",
+      "signedTransactionSha256": "94165f29cc33ff86c8c9679ef330d23c4b57119f05283f721f54cf0d304a8728",
+      "signerId": "811fdc21bbe0081ad5a5bb64ae289628c039decfcee88cb758f54fba92828868",
+      "receiverId": "811fdc21bbe0081ad5a5bb64ae289628c039decfcee88cb758f54fba92828868",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

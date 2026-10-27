@@ -281,6 +281,7 @@ import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import { computeWalletEcdsaKeyFactsInventoryChallengeDigestB64u } from '@shared/utils/ecdsaKeyFactsInventory';
 import {
   buildEmailOtpWalletAuthMethodBinding,
+  buildVoiceIdWalletAuthMethodBinding,
   buildPasskeyAuthScope,
   buildPasskeyWalletAuthMethodBinding,
   buildWalletIdentity,
@@ -618,6 +619,12 @@ function walletAuthMethodBindingFromRecord(
         emailHashHex: record.emailHashHex,
         registrationAuthorityId: record.registrationAuthorityId,
       });
+    case 'voiceid':
+      return buildVoiceIdWalletAuthMethodBinding({
+        walletAuthMethodId: record.walletAuthMethodId,
+        wallet,
+        deviceKeyId: record.deviceKeyId,
+      });
     default:
       record satisfies never;
       return null;
@@ -679,6 +686,9 @@ async function walletAuthAuthorityForLinkedDeviceMethod(args: {
 }): Promise<WalletAuthAuthority> {
   if (args.selection.authMethod.kind === 'passkey') {
     return walletAuthAuthorityForSelectedPasskeyMethod(args.selection.authMethod);
+  }
+  if (args.selection.authMethod.kind === 'voiceid') {
+    throw new Error('[login] VoiceID linked-device authority requires its own unlock path');
   }
   const providerIdentity = args.providerIdentity;
   if (!providerIdentity) {
@@ -1169,6 +1179,8 @@ async function recentUnlockAccountFromLinkedDeviceSelection(
     case SIGNER_AUTH_METHODS.emailOtp:
       authMethod = SIGNER_AUTH_METHODS.emailOtp;
       break;
+    case 'voiceid':
+      return null;
     default:
       return assertNeverLoginState(resolved.authMethod);
   }
@@ -2343,6 +2355,8 @@ async function resolveLinkedDeviceNearUnlockSubject(args: {
       case SIGNER_AUTH_METHODS.emailOtp:
         factorMatches = reference.auth.kind === SIGNER_AUTH_METHODS.emailOtp;
         break;
+      case 'voiceid':
+        return { kind: 'invalid' };
       default:
         return assertNeverLoginState(args.authMethod);
     }
@@ -6514,11 +6528,19 @@ async function setRestoredWalletAuthenticationIfUnlocked(
   context: {
     readonly signingEngine: Pick<
       WalletSessionWebContext['signingEngine'],
-      'setWalletAuthenticated'
+      'setWalletAuthenticated' | 'readWalletAuthenticationState'
     >;
   },
   state: Extract<WalletAuthenticationState, { readonly kind: 'authenticated' }>,
 ): Promise<boolean> {
+  if (state.authMethod === 'voiceid') {
+    const current = context.signingEngine.readWalletAuthenticationState();
+    if (
+      current.kind !== 'authenticated' ||
+      current.walletId !== state.walletId ||
+      current.authMethod !== 'voiceid'
+    ) return false;
+  }
   let lockedOut = false;
   try {
     const selected = await IndexedDBManager.resolveSelectedWalletAuthority(String(state.walletId));
@@ -7875,6 +7897,8 @@ function localLoginAuthMethod(
         emailAddress,
       };
     }
+    case 'voiceid':
+      return null;
     default:
       return assertNeverLoginState(projection);
   }
@@ -7973,15 +7997,25 @@ export async function lock(context: LockOperationContext): Promise<void> {
   let failure: unknown;
   let failed = false;
   let authenticationCleared = false;
-  if (authentication.kind === 'authenticated') {
+  let walletIds: readonly WalletId[] = [];
+  try {
+    walletIds =
+      authentication.kind === 'authenticated'
+        ? [authentication.walletId]
+        : await IndexedDBManager.listWalletSelectionWalletIds();
+  } catch (error: unknown) {
+    failure = error;
+    failed = true;
+  }
+  for (const walletId of walletIds) {
     try {
-      await signingEngine.advanceWalletLockGeneration(authentication.walletId);
+      await signingEngine.advanceWalletLockGeneration(walletId);
     } catch (error: unknown) {
       failure = error;
       failed = true;
     }
     try {
-      await signingEngine.retireActiveWalletSessionAuthorizationForLock(authentication.walletId);
+      await signingEngine.retireActiveWalletSessionAuthorizationForLock(walletId);
     } catch (error: unknown) {
       if (!failed) {
         failure = error;

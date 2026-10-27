@@ -1,0 +1,62 @@
+[
+  {
+    "probeSeconds": 0.75,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 26,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.5092218407592285
+  },
+  {
+    "probeSeconds": 1,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 14,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.5621555301813412
+  },
+  {
+    "probeSeconds": 1.5,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 6,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.6214529425454518
+  },
+  {
+    "probeSeconds": 2,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 2,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.688801145961645
+  },
+  {
+    "probeSeconds": 3,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 2,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.7433334113429955
+  },
+  {
+    "probeSeconds": 4,
+    "enrollmentSeconds": 4,
+    "threshold": 0.5,
+    "ownerTrials": 56,
+    "ownerRejects": 2,
+    "otherTrials": 728,
+    "otherAccepts": 0,
+    "medianOwnerScore": 0.7618580388450329
+  }
+]

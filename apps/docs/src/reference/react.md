@@ -81,6 +81,21 @@ hosted auth menu when the wallet-origin boundary owns the complete auth experien
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
+The menu's anchor element (`[data-seams-auth-menu-host]`) gets
+`data-seams-auth-menu-ready="true"` in the frame where the measured menu appears.
+The anchor reserves the menu's height from that frame on. If your page draws its own
+controls around the menu, such as a close button, show them from that attribute so
+that they appear with the card and at its final place:
+
+```css
+.my-auth-dialog .my-close-button {
+  opacity: 0;
+}
+.my-auth-dialog:has([data-seams-auth-menu-ready]) .my-close-button {
+  opacity: 1;
+}
+```
+
 A signed-out page does not download the wallet's sign-in code until a sign-in starts.
 If you mount `HostedSeamsAuthMenu` only after a click, call
 `useSeams().seams.authMenu.prepare()` on pointer, focus or touch on your sign-in

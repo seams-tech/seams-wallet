@@ -30,10 +30,12 @@ import type { ExclusiveUnion } from '../utils/variant';
 export const WALLET_CUSTODY_ENVELOPE_VERSION_V2 = 'wallet_custody_envelope_v2' as const;
 const PASSKEY_PRF_KEK_VERSION_V1 = 'passkey_prf_kek_hkdf_sha256_v1' as const;
 const EMAIL_OTP_FACTOR_KEK_VERSION_V1 = 'email_otp_factor_kek_hkdf_sha256_v1' as const;
+const VOICEID_DEVICE_FACTOR_KEK_VERSION_V1 = 'voiceid_device_factor_kek_hkdf_sha256_v1' as const;
 
 type WalletCustodyEnvelopeVersion = typeof WALLET_CUSTODY_ENVELOPE_VERSION_V2;
 type PasskeyPrfKekVersion = typeof PASSKEY_PRF_KEK_VERSION_V1;
 type EmailOtpFactorKekVersion = typeof EMAIL_OTP_FACTOR_KEK_VERSION_V1;
+type VoiceIdFactorKekVersion = typeof VOICEID_DEVICE_FACTOR_KEK_VERSION_V1;
 
 /**
  * Which enrolled factor sealed this envelope.
@@ -71,6 +73,11 @@ export type WalletCustodyEnvelopeFactor = ExclusiveUnion<
       enrollmentSealKeyVersion: string;
       kekVersion: EmailOtpFactorKekVersion;
     }
+  | {
+      kind: 'voiceid';
+      deviceKeyId: DigestB64u;
+      kekVersion: VoiceIdFactorKekVersion;
+    }
 >;
 
 export type PasskeyCustodyEnvelopeLifecycle = ExclusiveUnion<
@@ -107,6 +114,33 @@ export type PasskeyCustodyEnvelopeRecord = {
   createdAtMs: number;
   updatedAtMs: number;
 };
+
+export type ActiveMethodBoundWalletSeedEnvelope = PasskeyCustodyEnvelopeRecord & {
+  readonly ownership: Extract<WalletCustodyEnvelopeOwnership, { readonly kind: 'method_bound' }>;
+  readonly binding: Extract<PasskeyCustodySecretBinding, { readonly kind: 'wallet_custody_seed_v1' }>;
+  readonly lifecycle: Extract<PasskeyCustodyEnvelopeLifecycle, { readonly state: 'active' }>;
+};
+
+export type VoiceIdSeedEnvelope = ActiveMethodBoundWalletSeedEnvelope & {
+  readonly factor: Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }>;
+};
+
+export function isActiveMethodBoundWalletSeedEnvelope(
+  envelope: PasskeyCustodyEnvelopeRecord,
+): envelope is ActiveMethodBoundWalletSeedEnvelope {
+  return (
+    envelope.ownership.kind === 'method_bound' &&
+    envelope.binding.kind === 'wallet_custody_seed_v1' &&
+    envelope.lifecycle.state === 'active'
+  );
+}
+
+export function isVoiceIdSeedEnvelope(
+  envelope: PasskeyCustodyEnvelopeRecord,
+): envelope is VoiceIdSeedEnvelope {
+  return isActiveMethodBoundWalletSeedEnvelope(envelope) && envelope.factor.kind === 'voiceid';
+}
+
 
 const ENVELOPE_OWNERSHIP_FIELDS = ['kind', 'walletAuthMethodId'] as const;
 
@@ -234,6 +268,16 @@ export function buildEmailOtpEnvelopeFactor(args: {
   };
 }
 
+export function buildVoiceIdEnvelopeFactor(args: {
+  deviceKeyId: DigestB64u;
+}): Extract<WalletCustodyEnvelopeFactor, { readonly kind: 'voiceid' }> {
+  return {
+    kind: 'voiceid',
+    deviceKeyId: args.deviceKeyId,
+    kekVersion: VOICEID_DEVICE_FACTOR_KEK_VERSION_V1,
+  };
+}
+
 export function buildActiveEnvelopeLifecycle(args: {
   activatedAtMs: number;
 }): PasskeyCustodyEnvelopeLifecycle {
@@ -343,8 +387,9 @@ const EMAIL_OTP_FACTOR_FIELDS = [
   'enrollmentSealKeyVersion',
   'kekVersion',
 ] as const;
+const VOICEID_FACTOR_FIELDS = ['kind', 'deviceKeyId', 'kekVersion'] as const;
 const ALL_FACTOR_FIELDS: readonly string[] = Array.from(
-  new Set([...PASSKEY_FACTOR_FIELDS, ...EMAIL_OTP_FACTOR_FIELDS]),
+  new Set([...PASSKEY_FACTOR_FIELDS, ...EMAIL_OTP_FACTOR_FIELDS, ...VOICEID_FACTOR_FIELDS]),
 );
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -387,8 +432,17 @@ export function parseWalletCustodyEnvelopeFactor(
         ),
       });
     }
+    case 'voiceid': {
+      rejectUnknownFields(record, VOICEID_FACTOR_FIELDS, label, ALL_FACTOR_FIELDS);
+      if (record.kekVersion !== VOICEID_DEVICE_FACTOR_KEK_VERSION_V1) {
+        throw new Error(`${label}.kekVersion must be ${VOICEID_DEVICE_FACTOR_KEK_VERSION_V1}`);
+      }
+      return buildVoiceIdEnvelopeFactor({
+        deviceKeyId: parseDigestField(record.deviceKeyId, `${label}.deviceKeyId`),
+      });
+    }
     default:
-      throw new Error(`${label}.kind must be passkey or email_otp`);
+      throw new Error(`${label}.kind must be passkey, email_otp, or voiceid`);
   }
 }
 

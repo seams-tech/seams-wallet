@@ -19,7 +19,7 @@ type ActiveLaneProtocolSourceBaseV1 = {
 /** Existing owner signer rows expose continuity, without linked-lane HPKE identities. */
 type OwnerLaneProtocolSourceV1 = ActiveLaneProtocolSourceBaseV1 & {
   sourceKind: 'owner_registration';
-  laneKind: 'owner_passkey' | 'owner_email_otp';
+  laneKind: 'owner_passkey' | 'owner_email_otp' | 'owner_voiceid';
   ownerParticipantContinuity: OwnerLaneParticipantContinuityV1;
   holderParticipantId?: never;
   signingWorkerParticipantId?: never;
@@ -29,7 +29,7 @@ type OwnerLaneProtocolSourceV1 = ActiveLaneProtocolSourceBaseV1 & {
 /** Independently provisioned lanes carry their durable holder/worker identities. */
 type ProvisionedLaneProtocolSourceV1 = ActiveLaneProtocolSourceBaseV1 & {
   sourceKind: 'provisioned_lane';
-  laneKind: Exclude<SigningLaneKind, 'owner_passkey' | 'owner_email_otp'>;
+  laneKind: Exclude<SigningLaneKind, 'owner_passkey' | 'owner_email_otp' | 'owner_voiceid'>;
   holderParticipantId: LaneHolderParticipantId;
   signingWorkerParticipantId: SigningWorkerParticipantId;
   signingWorkerRecipientKeyId: SigningWorkerRecipientKeyId;

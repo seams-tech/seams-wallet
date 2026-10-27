@@ -106,6 +106,18 @@ function publishSessionResponse(
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     ...createHostedAuthMenuHandlers(deps),
+    PM_UNLOCK_AUTH_METHOD: async (req: Req<'PM_UNLOCK_AUTH_METHOD'>) => {
+      const pm = deps.getWalletRuntime();
+      if (!req.payload) throw new Error('Plugin unlock payload is required.');
+      if (deps.respondIfCancelled(req.requestId)) return;
+      const result = await pm.auth.unlockWithAuthMethod(
+        req.payload,
+        assertPluginUnlockActive.bind(null, deps, req.requestId),
+      );
+      if (deps.respondIfCancelled(req.requestId)) return;
+      await deps.publishCurrentSession();
+      respondOkResult(deps, req.requestId, result);
+    },
     PM_UNLOCK: async (req: Req<'PM_UNLOCK'>) => {
       const pm = deps.getWalletRuntime();
       assertUnlockPayloadHasNoParentBearer(req.payload);
@@ -184,4 +196,8 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
   };
+}
+
+function assertPluginUnlockActive(deps: HandlerDeps, requestId: string | undefined): void {
+  if (deps.isCancelled(requestId)) throw new Error('Wallet unlock was cancelled.');
 }

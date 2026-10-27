@@ -114,8 +114,8 @@ async function addEmailOtpWalletAuthMethodInternal(args: {
   const rpId = parsedRpId.value;
 
   /* The intent names the source it is minted for, so the fresh assertion
-     taken over its digest binds the wallet, authority, source method, source
-     session, authority state, and the server-allocated target method id. */
+     taken over its digest binds the wallet, authority, source method,
+     authority state, and the server-allocated target method id. */
   const sourceClaim = await resolveAddAuthMethodSourceClaimV1(args.walletId);
   if (sourceClaim.kind !== 'resolved') {
     throw new Error(

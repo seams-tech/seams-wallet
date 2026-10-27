@@ -1,0 +1,143 @@
+{
+  "status": "passed",
+  "passkeyCredentialAlgorithm": "es256",
+  "walletSigner": "ed25519_yao",
+  "passkeyCoseAlgorithm": -7,
+  "settings": "enroll_disable_reenable_and_lock_active_voice_session",
+  "managementBackLeavesNoMessage": true,
+  "login": "one_wallet_with_method_choices_and_cancel_restores_menu",
+  "menuStatesThroughVoiceUnlock": [
+    "menu:none",
+    "menu:listening",
+    "no-menu:listening",
+    "no-menu:processing",
+    "no-menu:succeeded",
+    "no-menu:none"
+  ],
+  "disabledSdkUnlockRejected": true,
+  "reenrollmentPreservedMethodId": true,
+  "explicitImport": {
+    "originalEnrollment": {
+      "generation": "9ca2f294-967f-4911-995d-007e3166cb22",
+      "revision": 0,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4487,
+      "legacyPresent": false
+    },
+    "importedEnrollment": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 0,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4487,
+      "legacyPresent": false
+    },
+    "obsoleteRecordRemoved": true
+  },
+  "adaptation": {
+    "baseline": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 0,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4487,
+      "legacyPresent": false
+    },
+    "improved": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 1,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "2b3be1aa261d1dceea22f0c2ce7515475668c7c3d42435537eb557d0896d8fba",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16480,
+      "legacyPresent": false
+    },
+    "used": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 1,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "2b3be1aa261d1dceea22f0c2ce7515475668c7c3d42435537eb557d0896d8fba",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16480,
+      "legacyPresent": false
+    },
+    "reset": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 2,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "baseline",
+      "samples": 0,
+      "samplesHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 4487,
+      "legacyPresent": false
+    },
+    "retainedAfterLastUse": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 4,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "2b3be1aa261d1dceea22f0c2ce7515475668c7c3d42435537eb557d0896d8fba",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16480,
+      "legacyPresent": false
+    },
+    "retainedAfterExpiry": {
+      "generation": "59b06b73-9dbf-4518-bd9b-62ace3fca2bd",
+      "revision": 6,
+      "baselineHash": "73799626edb51536cabdb01a7b639abfa0aa712897c6108f33900e5c1ff1d5dd",
+      "adaptation": "adapted",
+      "samples": 3,
+      "samplesHash": "2b3be1aa261d1dceea22f0c2ce7515475668c7c3d42435537eb557d0896d8fba",
+      "hasLifetimeLimits": false,
+      "serializedBytes": 16480,
+      "legacyPresent": false
+    },
+    "reloadPreservedSamples": true,
+    "rejectedThirdSamplePreservedProgress": true,
+    "completionAfterThreeAcceptedSamples": true,
+    "cancellationPreservedEnrollment": true,
+    "replayedPasskeyRejected": true,
+    "invalidPasskeySignatureRejected": true,
+    "lockDuringCaptureReleasedMicrophone": true,
+    "ownerSessionUnchanged": true,
+    "voiceSessionManagementWithOnePasskeyProof": true,
+    "removalDeletedEnrollment": true,
+    "lifetimeBoundarySetup": "existing samples survive retired expiry/count metadata and remain across reload"
+  },
+  "signing": "minimal_voice_prompt",
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADMwOWM0MGRjOWJlNTUwZGI3MWJiOTljM2JkNmZlOTRmNWQyYTMxODZjZTAwOWQ0NTI3YmEwM2YzOWIyODI4MTAAMJxA3JvlUNtxu5nDvW/pT10qMYbOAJ1FJ7oD85soKBACAAAAAAAAAEAAAAAzMDljNDBkYzliZTU1MGRiNzFiYjk5YzNiZDZmZTk0ZjVkMmEzMTg2Y2UwMDlkNDUyN2JhMDNmMzliMjgyODEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAACOzMybC7SfvbQlGi3Ax/YengahM5GmHGOI8OUGbzsj7MVxPIN7C2jjL1JFy294YN+u5SEIAKBBL0wYFuqaptAg==",
+      "signedTransactionSha256": "8242e53a13c90f93f7735a495a98616b964b609b28b485bdb442fdecb8d2bf5f",
+      "signerId": "309c40dc9be550db71bb99c3bd6fe94f5d2a3186ce009d4527ba03f39b282810",
+      "receiverId": "309c40dc9be550db71bb99c3bd6fe94f5d2a3186ce009d4527ba03f39b282810",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADMwOWM0MGRjOWJlNTUwZGI3MWJiOTljM2JkNmZlOTRmNWQyYTMxODZjZTAwOWQ0NTI3YmEwM2YzOWIyODI4MTAAMJxA3JvlUNtxu5nDvW/pT10qMYbOAJ1FJ7oD85soKBACAAAAAAAAAEAAAAAzMDljNDBkYzliZTU1MGRiNzFiYjk5YzNiZDZmZTk0ZjVkMmEzMTg2Y2UwMDlkNDUyN2JhMDNmMzliMjgyODEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAdCXkbHLu6FRYQZMSDEdXehJGxmp6MLXG4NR1s4Dx2dHt5IuufmVccj/znApf5tC7X4vm9MyrAuv4sWXGu+70AQ==",
+      "signedTransactionSha256": "8046ec19e975b71832d02b4465e1cab3b3775fc9c51e021797da0859462e93b5",
+      "signerId": "309c40dc9be550db71bb99c3bd6fe94f5d2a3186ce009d4527ba03f39b282810",
+      "receiverId": "309c40dc9be550db71bb99c3bd6fe94f5d2a3186ce009d4527ba03f39b282810",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

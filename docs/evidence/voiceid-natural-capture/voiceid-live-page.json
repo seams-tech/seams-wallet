@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "sage-vermillion-4ynveb",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "c744e0ae-516e-4d44-a13f-8410cadcceb1",
+    "capturedAtMs": 1792855953407,
+    "durationMs": 3420,
+    "recordingMs": 5001.399999976158,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.2766464829890386,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "sage-vermillion-4ynveb",
+    "accountId": "081dd85aa3652a1000899a9bf6787dbcd7914bc387e8f95b98c73dab3d244467",
+    "publicKey": "ed25519:Ygf6NXCCdcBzJ49SiPZJeANYxFkUBtevbaefmRpMwSN"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADA4MWRkODVhYTM2NTJhMTAwMDg5OWE5YmY2Nzg3ZGJjZDc5MTRiYzM4N2U4Zjk1Yjk4YzczZGFiM2QyNDQ0NjcACB3YWqNlKhAAiZqb9nh9vNeRS8OH6PlbmMc9qz0kRGcCAAAAAAAAAEAAAAAwODFkZDg1YWEzNjUyYTEwMDA4OTlhOWJmNjc4N2RiY2Q3OTE0YmMzODdlOGY5NWI5OGM3M2RhYjNkMjQ0NDY3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAmlb/qcerUJqcNQ7LzCKK6FraZhHjUaXE0Izp1r3MoKVmrw264CqbsV4w4dnm6vsbyWiBfstILb0qjoN1WRFPAg==",
+      "signedTransactionSha256": "283684c86b5b7404a2e5203ec339443acd2c48580f3ac64a83524dc8e0adf796",
+      "signerId": "081dd85aa3652a1000899a9bf6787dbcd7914bc387e8f95b98c73dab3d244467",
+      "receiverId": "081dd85aa3652a1000899a9bf6787dbcd7914bc387e8f95b98c73dab3d244467",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

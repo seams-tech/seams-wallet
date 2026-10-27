@@ -1,0 +1,66 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "crystal-meadow-97p2te",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "603e1272-f4a6-4f99-ae9d-e7b536bd8c0b",
+    "capturedAtMs": 1792854254268,
+    "durationMs": 3420,
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.2622941487357777,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "crystal-meadow-97p2te",
+    "accountId": "745ef673a33c972cd30fd15a71e86d896363f2607349d025b53b59f85881a123",
+    "publicKey": "ed25519:8qGH9f5VXwKk8NxeQzWusk44tsVPhM3Mx23VcifHB7nA"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADc0NWVmNjczYTMzYzk3MmNkMzBmZDE1YTcxZTg2ZDg5NjM2M2YyNjA3MzQ5ZDAyNWI1M2I1OWY4NTg4MWExMjMAdF72c6M8lyzTD9FacehtiWNj8mBzSdAltTtZ+FiBoSMCAAAAAAAAAEAAAAA3NDVlZjY3M2EzM2M5NzJjZDMwZmQxNWE3MWU4NmQ4OTYzNjNmMjYwNzM0OWQwMjViNTNiNTlmODU4ODFhMTIzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAAFBY314k34HBmUmGhf57LuYKe9ftH5Xvku8P25QXAajfn9NJMKRzQ+bAe83GiWWK2ZAIwl02sR0BOe5eQvrHDw==",
+      "signedTransactionSha256": "1f1cae37019b79b6875b7688500c5689bad05b9ab6f95b72168d2b8b6a36fa21",
+      "signerId": "745ef673a33c972cd30fd15a71e86d896363f2607349d025b53b59f85881a123",
+      "receiverId": "745ef673a33c972cd30fd15a71e86d896363f2607349d025b53b59f85881a123",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

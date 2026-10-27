@@ -1,0 +1,130 @@
+[
+  {
+    "phrase": "please sign this trade now",
+    "file": "0.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "0e913b81783d1058a8422ecd5032ad1e9839dadfc064cc52474061a3d569dab2"
+  },
+  {
+    "phrase": "confirm my order for today",
+    "file": "1.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "75369d66c022506ae61f5a865c1385ead2c83c4891faebae52c0e6af8b893ff2"
+  },
+  {
+    "phrase": "i review every order carefully",
+    "file": "2.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "868c88d923235726525303b4491012ffab5c451a63d3e778bef7b08734c8e84f"
+  },
+  {
+    "phrase": "dump on them slowly",
+    "file": "3.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "6154fe3fab2b42cdf9c431ed51939a1105fb3ab5904aa8b9339b4e696026366f"
+  },
+  {
+    "phrase": "send this order to market",
+    "file": "4.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "b5a012c6b959f40835daca9f260b04208f9ccfff9cd583e455f388b99ca9be12"
+  },
+  {
+    "phrase": "i'm here for the tech",
+    "file": "5.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "fa4027835ed9d6c814c6794805320bfb253f17f4bbae71c6c2a032cef0890702"
+  },
+  {
+    "phrase": "keep this trade on track",
+    "file": "6.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "c126bc1c8ac538e76dc60f8d0a4b9888fa38368be8fb97f5c950ddc1b1a4cb93"
+  },
+  {
+    "phrase": "the order book looks busy",
+    "file": "7.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "24244aafef0e926333037d58676957d831e965a9ed9d75d9238161eb2901dbfa"
+  },
+  {
+    "phrase": "if you panic panic early",
+    "file": "8.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "d1d0f7d5fc10be7c57315075b0d75fdffe21566ac81240620c9e9e9a53000dff"
+  },
+  {
+    "phrase": "i check the latest quote",
+    "file": "9.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "90f4727b25f0eac935e5bcb062d661615989a3604e659cb6511fbac2603b29d0"
+  },
+  {
+    "phrase": "exit liquidity for all passengers",
+    "file": "10.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "4cbe682a60bae1c967bb68c701e581c3a5c670dbf42c7f5d87cf29422bc24e62"
+  },
+  {
+    "phrase": "no crying in the casino",
+    "file": "11.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "ad767d21c26337dde7eb274bc1c696179e9cb3883c620602cc12f799898ecbda"
+  },
+  {
+    "phrase": "this trade fits my plan",
+    "file": "12.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "9f405ecb3683f309799c876c5ecefafb7c1fbd3f94ad6bd4b48ea604553556e6"
+  },
+  {
+    "phrase": "approve this transfer at once",
+    "file": "13.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "55737a2a1014054966087e12dc914809873d3e4d2a78c116ba3915ea8b774ab7"
+  },
+  {
+    "phrase": "check the price before trading",
+    "file": "14.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "b001f2d244959589994ed42c308fb5877de2edeb6dc4efadc03a544cde90f2b1"
+  },
+  {
+    "phrase": "let this trade go through",
+    "file": "15.wav",
+    "voice": "Samantha",
+    "rate": 140,
+    "tempo": 1,
+    "sha256": "6ceffbe61ab08b94909614f85aafec45ff1a2d238c52b4f6e553e8b653aae46b"
+  }
+]

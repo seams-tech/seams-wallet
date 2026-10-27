@@ -1,0 +1,120 @@
+{
+  "scope": "synthetic Samantha speech; native ONNX; full clips",
+  "threshold": 0.5,
+  "rows": [
+    {
+      "phrase": "my trading screen is ready",
+      "words": 5,
+      "seconds": 1.6855,
+      "originalEnrollmentScore": 0.8036906719207764,
+      "newEnrollmentScore": 0.910293698310852
+    },
+    {
+      "phrase": "the market opens this morning",
+      "words": 5,
+      "seconds": 1.7269375,
+      "originalEnrollmentScore": 0.8649075031280518,
+      "newEnrollmentScore": 0.9106967449188232
+    },
+    {
+      "phrase": "i review every order carefully",
+      "words": 5,
+      "seconds": 1.95675,
+      "originalEnrollmentScore": 0.8174771070480347,
+      "newEnrollmentScore": 0.9043622016906738
+    },
+    {
+      "phrase": "trading volume is rising today",
+      "words": 5,
+      "seconds": 2.039625,
+      "originalEnrollmentScore": 0.8343567252159119,
+      "newEnrollmentScore": 0.8676928281784058
+    },
+    {
+      "phrase": "orders stay open until filled",
+      "words": 5,
+      "seconds": 1.7773125,
+      "originalEnrollmentScore": 0.8364782333374023,
+      "newEnrollmentScore": 0.8412501811981201
+    },
+    {
+      "phrase": "the closing bell is ringing",
+      "words": 5,
+      "seconds": 1.5063125,
+      "originalEnrollmentScore": 0.8209205269813538,
+      "newEnrollmentScore": 0.8338267803192139
+    },
+    {
+      "phrase": "i track changes in price",
+      "words": 5,
+      "seconds": 1.8169375,
+      "originalEnrollmentScore": 0.8085912466049194,
+      "newEnrollmentScore": 0.8340466618537903
+    },
+    {
+      "phrase": "the order book looks busy",
+      "words": 5,
+      "seconds": 1.5404375,
+      "originalEnrollmentScore": 0.7770847082138062,
+      "newEnrollmentScore": 0.7690447568893433
+    },
+    {
+      "phrase": "my portfolio is well balanced",
+      "words": 5,
+      "seconds": 2.1383125,
+      "originalEnrollmentScore": 0.8255977630615234,
+      "newEnrollmentScore": 0.8645362257957458
+    },
+    {
+      "phrase": "i check the latest quote",
+      "words": 5,
+      "seconds": 1.5150625,
+      "originalEnrollmentScore": 0.8044157028198242,
+      "newEnrollmentScore": 0.7621034383773804
+    },
+    {
+      "phrase": "the daily chart shows growth",
+      "words": 5,
+      "seconds": 1.7385,
+      "originalEnrollmentScore": 0.7891427278518677,
+      "newEnrollmentScore": 0.7656725645065308
+    },
+    {
+      "phrase": "i keep a trading journal",
+      "words": 5,
+      "seconds": 1.5039375,
+      "originalEnrollmentScore": 0.8461611270904541,
+      "newEnrollmentScore": 0.8396106958389282
+    },
+    {
+      "phrase": "this trade fits my plan",
+      "words": 5,
+      "seconds": 1.621625,
+      "originalEnrollmentScore": 0.7889237403869629,
+      "newEnrollmentScore": 0.8228316307067871
+    },
+    {
+      "phrase": "fresh quotes arrive quickly",
+      "words": 4,
+      "seconds": 1.6708125,
+      "originalEnrollmentScore": 0.8244659304618835,
+      "newEnrollmentScore": 0.8035391569137573
+    },
+    {
+      "phrase": "i check prices before each trade",
+      "words": 6,
+      "seconds": 2.1773125,
+      "originalEnrollmentScore": 0.8386154174804688,
+      "newEnrollmentScore": 0.83607017993927
+    },
+    {
+      "phrase": "my trade history is clear",
+      "words": 5,
+      "seconds": 1.6274375,
+      "originalEnrollmentScore": 0.8029807806015015,
+      "newEnrollmentScore": 0.8686215877532959
+    }
+  ],
+  "originalRejects": 0,
+  "newRejects": 0
+}

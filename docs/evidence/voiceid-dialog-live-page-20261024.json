@@ -1,0 +1,55 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "glacier-cascade-vryym8",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "durationMs": 7920,
+    "voicedMs": 7700,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.1457179912255549,
+    "threshold": 0.5
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "glacier-cascade-vryym8",
+    "accountId": "347bb9d9e7848285d5bb3102aaa7915b9f83c2216c4b89cbc0b5baed571a77ca",
+    "publicKey": "ed25519:4XsdChnDeYxfzJx3Urv7H4uY26zTnFGVVhwLn7g4SjBf"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADM0N2JiOWQ5ZTc4NDgyODVkNWJiMzEwMmFhYTc5MTViOWY4M2MyMjE2YzRiODljYmMwYjViYWVkNTcxYTc3Y2EANHu52eeEgoXVuzECqqeRW5+DwiFsS4nLwLW67Vcad8oCAAAAAAAAAEAAAAAzNDdiYjlkOWU3ODQ4Mjg1ZDViYjMxMDJhYWE3OTE1YjlmODNjMjIxNmM0Yjg5Y2JjMGI1YmFlZDU3MWE3N2NhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAARsyVdEcNTG5Ybm51a/DfGVGnTt7cwWGR9cIa7IDGwsqRFNacjH+btPjQJTy852OLBDZ+Wj1xJoLBLUTznhlsCA==",
+      "signedTransactionSha256": "529afb361b831907deacf5b7de0af35cb9a40182941fb64df42e90b3397db24b",
+      "signerId": "347bb9d9e7848285d5bb3102aaa7915b9f83c2216c4b89cbc0b5baed571a77ca",
+      "receiverId": "347bb9d9e7848285d5bb3102aaa7915b9f83c2216c4b89cbc0b5baed571a77ca",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

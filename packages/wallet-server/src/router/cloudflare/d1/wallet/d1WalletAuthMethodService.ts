@@ -354,7 +354,7 @@ function bindEmailOtpAuthorityToMethod(
   };
 }
 
-function isFullOwnerAuthorityV1(authority: ActiveWalletAuthorityV1): boolean {
+export function isFullOwnerAuthorityV1(authority: ActiveWalletAuthorityV1): boolean {
   return sameDelegatedWalletAuthorityV1(
     buildDelegatedWalletAuthorityV1({ permissions: authority.permissions }),
     buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
@@ -382,6 +382,12 @@ function walletAuthMethodRevokedResponse(
         ok: true,
         walletId,
         authMethod: { kind: 'email_otp', status: 'revoked' },
+      };
+    case 'voiceid':
+      return {
+        ok: true,
+        walletId,
+        authMethod: { kind: 'voiceid', status: 'revoked' },
       };
     default:
       return unreachableRevokedMethodKind(record);
@@ -924,7 +930,7 @@ export class CloudflareD1WalletAuthMethodService {
         walletId,
         auth: storedAuth.auth,
       });
-      if (!sourceMethod) {
+      if (!sourceMethod || sourceMethod.kind === 'voiceid') {
         return {
           ok: false,
           code: 'unauthorized',

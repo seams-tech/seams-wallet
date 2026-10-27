@@ -1,4 +1,5 @@
 import {
+  buildVoiceIdWalletAuthAuthority,
   parseEmailOtpWalletAuthAuthority,
   walletAuthAuthorityRef,
   type EmailOtpWalletAuthAuthority,
@@ -169,6 +170,13 @@ export async function resolveExactWalletAuthAuthority(args: {
       authority: passkeyWalletAuthAuthorityFromV2Record(args.authMethod),
     });
   }
+  if (args.authMethod.kind === 'voiceid') {
+    return buildVoiceIdWalletAuthAuthority({
+      walletId: args.authMethod.walletId,
+      walletAuthMethodId: args.authMethod.walletAuthMethodId,
+      deviceKeyId: args.authMethod.deviceKeyId,
+    });
+  }
   return assertExactFactorAuthorityBinding({
     authMethod: args.authMethod,
     authority: await resolveEmailOtpWalletAuthAuthority({
@@ -259,6 +267,25 @@ export async function resolveExactOwnerLaneScope(args: {
 }): Promise<OwnerLaneScope> {
   if (args.authMethod.kind === 'passkey') {
     return await passkeyOwnerLaneScope({ authMethod: args.authMethod, stores: args.stores });
+  }
+  if (args.authMethod.kind === 'voiceid') {
+    const authority = buildVoiceIdWalletAuthAuthority({
+      walletId: args.authMethod.walletId,
+      walletAuthMethodId: args.authMethod.walletAuthMethodId,
+      deviceKeyId: args.authMethod.deviceKeyId,
+    });
+    const ref = await walletAuthAuthorityRef({ authority });
+    return {
+      auth: {
+        kind: 'voiceid',
+        walletAuthMethodId: args.authMethod.walletAuthMethodId,
+        deviceKeyId: args.authMethod.deviceKeyId,
+      },
+      ownerAuthority: {
+        walletAuthMethodId: ref.walletAuthMethodId,
+        authorityDigest: ref.authorityDigest,
+      },
+    };
   }
   const authority = await resolveEmailOtpWalletAuthAuthority({
     authMethod: args.authMethod,

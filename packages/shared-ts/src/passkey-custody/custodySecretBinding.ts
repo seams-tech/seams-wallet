@@ -152,7 +152,7 @@ export function isWalletCustodySeedBinding(
 // Builders are branch-specific on purpose: a shared builder plus a spread would
 // let one branch's identity fields reach another branch's envelope.
 
-function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
+export function buildWalletCustodySeedBinding(): PasskeyCustodySecretBindingOfKind<'wallet_custody_seed_v1'> {
   return {
     kind: 'wallet_custody_seed_v1',
     derivationScheme: WALLET_SEED_DERIVATION_SCHEME_V1,

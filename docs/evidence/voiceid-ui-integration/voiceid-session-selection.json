@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "cases": [
+    "enabled_unenrolled_passkey_signs_without_voice_downloads",
+    "enrollment_does_not_select_voice",
+    "voice_unlock_selects_voice_approval",
+    "fresh_passkey_unlock_skips_voice_even_when_enrolled"
+  ],
+  "downloads": [
+    "/sdk/host-n5SEX962.js",
+    "/sdk/ort.wasm.bundle.min-BM2y6FPl.js",
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx"
+  ],
+  "voiceCaptureForVoiceSigning": true,
+  "coldPasskeyDownloadsAfterVoiceUse": 0,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADFlMjhiN2FlNTAxYzFmMzY4Yzc4MzYwYWU3OGQ5YmJiN2ViYTUwNzg4MWRlZGY2ZmY4ZTBiMDE5MmMzN2EwODgAHii3rlAcHzaMeDYK542bu366UHiB3t9v+OCwGSw3oIgCAAAAAAAAAEAAAAAxZTI4YjdhZTUwMWMxZjM2OGM3ODM2MGFlNzhkOWJiYjdlYmE1MDc4ODFkZWRmNmZmOGUwYjAxOTJjMzdhMDg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAADZPMgX8zkYXPZctKWbIARrS9/sKBoup87uZX+H4+R+cUFp7nN1W3g0W/MK7xQqa5EcvQuvLlvzMbK1SSb87hBQ==",
+      "signedTransactionSha256": "65a0524128ea6c2f4024d8c0e4366529003d79b2cd97e6f82302e0cbf61967d3",
+      "signerId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "receiverId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADFlMjhiN2FlNTAxYzFmMzY4Yzc4MzYwYWU3OGQ5YmJiN2ViYTUwNzg4MWRlZGY2ZmY4ZTBiMDE5MmMzN2EwODgAHii3rlAcHzaMeDYK542bu366UHiB3t9v+OCwGSw3oIgDAAAAAAAAAEAAAAAxZTI4YjdhZTUwMWMxZjM2OGM3ODM2MGFlNzhkOWJiYjdlYmE1MDc4ODFkZWRmNmZmOGUwYjAxOTJjMzdhMDg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAkIgnhbNL/S/1T2wpvQK5ZEk2FPJvHNhHGknt+5UTkv2mqVmbQY+Pg4KWphUHKa0NRMA+vkEMvcTiWhPK2lAQBA==",
+      "signedTransactionSha256": "8c6b2d9ab7d4bce566990e5bc69b7ed4c059785f910fdef21acf6851335e1070",
+      "signerId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "receiverId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "amountYocto": "1",
+      "nonce": "3"
+    },
+    {
+      "signedTransactionB64": "QAAAADFlMjhiN2FlNTAxYzFmMzY4Yzc4MzYwYWU3OGQ5YmJiN2ViYTUwNzg4MWRlZGY2ZmY4ZTBiMDE5MmMzN2EwODgAHii3rlAcHzaMeDYK542bu366UHiB3t9v+OCwGSw3oIgCAAAAAAAAAEAAAAAxZTI4YjdhZTUwMWMxZjM2OGM3ODM2MGFlNzhkOWJiYjdlYmE1MDc4ODFkZWRmNmZmOGUwYjAxOTJjMzdhMDg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAArFTmp3WNNfGwBeHy/eY/gR4p8qRjNKVCvOxLJo2ECtBXZikNPti0LGz2qjDKed9k4YHqqxd/K482XAvvcDwjCg==",
+      "signedTransactionSha256": "b6e2628e76d8df9db072242d1be2d214ca97aa26aedb3c7e538916092c392a5c",
+      "signerId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "receiverId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADFlMjhiN2FlNTAxYzFmMzY4Yzc4MzYwYWU3OGQ5YmJiN2ViYTUwNzg4MWRlZGY2ZmY4ZTBiMDE5MmMzN2EwODgAHii3rlAcHzaMeDYK542bu366UHiB3t9v+OCwGSw3oIgCAAAAAAAAAEAAAAAxZTI4YjdhZTUwMWMxZjM2OGM3ODM2MGFlNzhkOWJiYjdlYmE1MDc4ODFkZWRmNmZmOGUwYjAxOTJjMzdhMDg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAbOm8iDKTiLEvc/rQ5yvr1QXZIDNZwyRY/OJmkIT7y/K2/uc084qX3wpgkMT8DBukgU/Ya2z8zizMhxNcuTv/DA==",
+      "signedTransactionSha256": "fff368c56437e3c18cf7d045ffc8743e99d6fe718c47a5ff19a10dc827053ba6",
+      "signerId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "receiverId": "1e28b7ae501c1f368c78360ae78d9bbb7eba507881dedf6ff8e0b0192c37a088",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc",
+  "inference": "real_browser_redimnet_b1_and_aurora",
+  "signing": "real_ed25519_yao_mpc"
+}

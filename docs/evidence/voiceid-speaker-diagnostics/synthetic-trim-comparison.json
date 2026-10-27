@@ -1,0 +1,226 @@
+[
+  {
+    "kind": "quiet",
+    "index": 0,
+    "oldClipMs": 1294.6875,
+    "vadClipMs": 1294.6875,
+    "embeddingSimilarity": 0.9999998807907104
+  },
+  {
+    "kind": "quiet",
+    "index": 1,
+    "oldClipMs": 1306.0625,
+    "vadClipMs": 1306.0625,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 2,
+    "oldClipMs": 1308.125,
+    "vadClipMs": 1308.125,
+    "embeddingSimilarity": 1.0000001192092896
+  },
+  {
+    "kind": "quiet",
+    "index": 3,
+    "oldClipMs": 1451.5625,
+    "vadClipMs": 1451.5625,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 4,
+    "oldClipMs": 1483.125,
+    "vadClipMs": 1483.125,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 5,
+    "oldClipMs": 1564.375,
+    "vadClipMs": 1564.375,
+    "embeddingSimilarity": 0.9999999403953552
+  },
+  {
+    "kind": "quiet",
+    "index": 6,
+    "oldClipMs": 1434.3125,
+    "vadClipMs": 1434.3125,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 7,
+    "oldClipMs": 1319.5,
+    "vadClipMs": 1319.5,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 8,
+    "oldClipMs": 1428.3125,
+    "vadClipMs": 1428.3125,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 9,
+    "oldClipMs": 1319.875,
+    "vadClipMs": 1319.875,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 10,
+    "oldClipMs": 1249.5625,
+    "vadClipMs": 1249.5625,
+    "embeddingSimilarity": 1.0000001192092896
+  },
+  {
+    "kind": "quiet",
+    "index": 11,
+    "oldClipMs": 1188.75,
+    "vadClipMs": 1188.75,
+    "embeddingSimilarity": 1.0000001192092896
+  },
+  {
+    "kind": "quiet",
+    "index": 12,
+    "oldClipMs": 1320.5625,
+    "vadClipMs": 1320.5625,
+    "embeddingSimilarity": 1.0
+  },
+  {
+    "kind": "quiet",
+    "index": 13,
+    "oldClipMs": 1372.375,
+    "vadClipMs": 1372.375,
+    "embeddingSimilarity": 0.9999998807907104
+  },
+  {
+    "kind": "quiet",
+    "index": 14,
+    "oldClipMs": 1168.75,
+    "vadClipMs": 1168.75,
+    "embeddingSimilarity": 0.9999998807907104
+  },
+  {
+    "kind": "quiet",
+    "index": 15,
+    "oldClipMs": 1215.0,
+    "vadClipMs": 1215.0,
+    "embeddingSimilarity": 1.0000001192092896
+  },
+  {
+    "kind": "noise",
+    "index": 0,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1480.0,
+    "embeddingSimilarity": 0.8570498824119568
+  },
+  {
+    "kind": "noise",
+    "index": 1,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1480.0,
+    "embeddingSimilarity": 0.8598942756652832
+  },
+  {
+    "kind": "noise",
+    "index": 2,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1416.0,
+    "embeddingSimilarity": 0.8458113074302673
+  },
+  {
+    "kind": "noise",
+    "index": 3,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1640.0,
+    "embeddingSimilarity": 0.839464545249939
+  },
+  {
+    "kind": "noise",
+    "index": 4,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1672.0,
+    "embeddingSimilarity": 0.8911862373352051
+  },
+  {
+    "kind": "noise",
+    "index": 5,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1768.0,
+    "embeddingSimilarity": 0.8699221014976501
+  },
+  {
+    "kind": "noise",
+    "index": 6,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1640.0,
+    "embeddingSimilarity": 0.8907642960548401
+  },
+  {
+    "kind": "noise",
+    "index": 7,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1512.0,
+    "embeddingSimilarity": 0.8709420561790466
+  },
+  {
+    "kind": "noise",
+    "index": 8,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1640.0,
+    "embeddingSimilarity": 0.8668366074562073
+  },
+  {
+    "kind": "noise",
+    "index": 9,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1448.0,
+    "embeddingSimilarity": 0.861413836479187
+  },
+  {
+    "kind": "noise",
+    "index": 10,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1384.0,
+    "embeddingSimilarity": 0.826335608959198
+  },
+  {
+    "kind": "noise",
+    "index": 11,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1384.0,
+    "embeddingSimilarity": 0.8705102205276489
+  },
+  {
+    "kind": "noise",
+    "index": 12,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1512.0,
+    "embeddingSimilarity": 0.875749409198761
+  },
+  {
+    "kind": "noise",
+    "index": 13,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1576.0,
+    "embeddingSimilarity": 0.8603616952896118
+  },
+  {
+    "kind": "noise",
+    "index": 14,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1384.0,
+    "embeddingSimilarity": 0.8578650951385498
+  },
+  {
+    "kind": "noise",
+    "index": 15,
+    "oldClipMs": 8000.0,
+    "vadClipMs": 1416.0,
+    "embeddingSimilarity": 0.835863471031189
+  }
+]

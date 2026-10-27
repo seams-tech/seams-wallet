@@ -52,6 +52,7 @@ let initialized = false;
 const CONFIRM_UI_SURFACES = [
   { selector: '.seams-auth-menu-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-confirmation-surface', cancellationKind: 'native_cancel' },
+  { selector: '.seams-auth-method-activation-surface', cancellationKind: 'native_cancel' },
   { selector: '.seams-export-surface', cancellationKind: 'wallet_iframe_cancel' },
   {
     selector: '[data-seams-wallet-recovery-backup-dialog]',
@@ -234,11 +235,13 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
     try {
+      const authMethodPolicy = req.type.startsWith('PM_SIGN_')
+        ? await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(state, req)
+        : { kind: 'disabled' as const };
+      if (state.executionGeneration !== requestExecutionGeneration || isCancelled(requestId))
+        return;
       if ('transactionReview' in req) {
-        if (
-          req.type !== 'PM_SIGN_AND_SEND_TX' &&
-          req.type !== 'PM_SIGN_TEMPO'
-        ) {
+        if (req.type !== 'PM_SIGN_AND_SEND_TX' && req.type !== 'PM_SIGN_TEMPO') {
           throw new TransactionReviewError(
             'review_invalid_input',
             'Review is unsupported for this request',
@@ -273,12 +276,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 message: error.message,
               },
             }),
+          authMethodPolicy,
         );
       }
-      if (
-        req.type === 'PM_LOCK' ||
-        req.type === 'PM_LOCK_EXACT_WALLET_SESSION'
-      ) {
+      if (req.type === 'PM_LOCK' || req.type === 'PM_LOCK_EXACT_WALLET_SESSION') {
         cancelTransactionReviews(
           new TransactionReviewError('review_identity_changed', 'The wallet session changed'),
         );

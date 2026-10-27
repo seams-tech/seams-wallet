@@ -1,3 +1,4 @@
+import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import { createIframePlacementCommands } from './placementCommands';
 import type { WalletRegistrationCommand } from '@/SeamsWeb/publicApi/createPublicApi';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
@@ -196,12 +197,16 @@ import {
   anchorWalletIframeModalGeometry,
   isWalletIframeModalGeometry,
   resolveWalletIframeSurfaceGeometry,
-  WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX,
   type WalletIframeModalGeometry,
   type WalletIframeSurfaceMeasurementState,
   type WalletIframeSurfaceViewport,
 } from './surface/geometry';
 import { WalletIframeSurfaceRenderer } from './surface/renderer';
+import {
+  hostedAuthMenuAnchorMetrics,
+  markHostedAuthMenuAnchorReady,
+  publishHostedAuthMenuAnchorHeight,
+} from './authMenuAnchor';
 import {
   WalletIframeTransactionSurfaceQueue,
   type WalletIframeTransactionSurfaceDeadline,
@@ -288,6 +293,7 @@ type WalletIframeRequestSurfaceKind =
   | 'auth_menu'
   | 'registration'
   | 'email_otp_enrollment'
+  | 'auth_method_activation'
   | 'transaction'
   | 'key_export_near'
   | 'key_export_threshold'
@@ -363,6 +369,8 @@ function requestSurfaceKindForMessage(
     case 'PM_ADD_PASSKEY':
     case 'PM_ROTATE_WALLET_RECOVERY_CODES':
       return 'registration';
+    case 'PM_ACTIVATE_AUTH_METHOD':
+      return 'auth_method_activation';
     case 'PM_ADD_EMAIL_OTP':
       return 'email_otp_enrollment';
     case 'PM_GET_WALLET_RECOVERY_CODE_STATUS':
@@ -379,6 +387,7 @@ function requestSurfaceKindForMessage(
         ? 'key_export_threshold'
         : 'key_export_near';
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
       return 'unlock';
     case 'PM_SCAN_AND_LINK_DEVICE':
       return 'device_link';
@@ -472,6 +481,8 @@ function requestSurfacePresentationFor(
       return confirmationUiModeForRequest('PM_ADD_EMAIL_OTP', payload, fallbackUiMode) === 'drawer'
         ? drawerWalletIframeSurfacePresentation('Enter email code')
         : modalWalletIframeSurfacePresentation('Enter email code');
+    case 'auth_method_activation':
+      return modalWalletIframeSurfacePresentation('Activate authentication method');
     case 'transaction':
       return effectiveTransactionSurfaceUiMode(payload, fallbackUiMode) === 'drawer'
         ? drawerWalletIframeSurfacePresentation('Confirm transaction')
@@ -582,43 +593,6 @@ const WALLET_IFRAME_SURFACE_MEASUREMENT_FALLBACK_TIMEOUT_MS = 4_000;
 const WALLET_IFRAME_REGISTRATION_TIMEOUT_MS = 180_000;
 const WALLET_IFRAME_THRESHOLD_SIGNING_TIMEOUT_MS = 30_000;
 
-type HostedAuthMenuAnchorMetrics = {
-  topCssPx: number;
-  leftCssPx: number;
-  layoutWidthCssPx: number;
-  heightCssPx: number;
-  visualScale: number;
-};
-
-function hostedAuthMenuAnchorMetrics(
-  anchor: HTMLElement | undefined,
-): HostedAuthMenuAnchorMetrics | null {
-  if (!anchor?.isConnected) return null;
-  const rect = anchor.getBoundingClientRect();
-  const layoutWidthCssPx = anchor.offsetWidth;
-  if (
-    !Number.isFinite(rect.top) ||
-    !Number.isFinite(rect.left) ||
-    !Number.isFinite(rect.width) ||
-    !Number.isFinite(rect.height) ||
-    rect.width <= 0 ||
-    rect.height <= 0 ||
-    !Number.isFinite(layoutWidthCssPx) ||
-    layoutWidthCssPx <= 0
-  ) {
-    return null;
-  }
-  return {
-    topCssPx: rect.top,
-    leftCssPx: rect.left,
-    layoutWidthCssPx,
-    heightCssPx: rect.height,
-    visualScale: rect.width / layoutWidthCssPx,
-  };
-}
-
-const HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR = '--seams-auth-menu-height';
-
 function pageScrollOffsetCssPx(axis: 'x' | 'y'): number {
   if (typeof window === 'undefined') return 0;
   const value = axis === 'x' ? window.scrollX : window.scrollY;
@@ -633,18 +607,6 @@ function documentCoordinateAuthMenuGeometry(
     topCssPx: Math.round(geometry.topCssPx + pageScrollOffsetCssPx('y')),
     leftCssPx: Math.round(geometry.leftCssPx + pageScrollOffsetCssPx('x')),
   };
-}
-
-function publishHostedAuthMenuAnchorHeight(
-  anchor: HTMLElement | undefined,
-  heightCssPx: number,
-): void {
-  if (!anchor?.isConnected || !Number.isFinite(heightCssPx) || heightCssPx <= 0) return;
-  const next = `${Math.round(heightCssPx)}px`;
-  // Writing an unchanged value would still dirty layout, and this runs on every
-  // scroll and resize tick.
-  if (anchor.style.getPropertyValue(HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR) === next) return;
-  anchor.style.setProperty(HOSTED_AUTH_MENU_ANCHOR_HEIGHT_CSS_VAR, next);
 }
 
 type SignTempoRouterPayload = {
@@ -1117,9 +1079,11 @@ function createTerminalProgressForRequest(args: {
   const registrationRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_REGISTER_WALLET',
     'PM_ADD_PASSKEY',
+    'PM_ACTIVATE_AUTH_METHOD',
   ]);
   const unlockRequests = new Set<ParentToChildEnvelope['type']>([
     'PM_UNLOCK',
+    'PM_UNLOCK_AUTH_METHOD',
     'PM_REQUEST_EMAIL_OTP_CHALLENGE',
   ]);
   const signingRequests = new Set<ParentToChildEnvelope['type']>([
@@ -1957,19 +1921,20 @@ export class WalletIframeRouter {
       // menu reflow under zoom while the rest of the page just scaled. Height
       // comes from the child's own measurement; only measurement_unavailable
       // (a child that never reported) still falls back to the viewport box.
+      // Before the measurement the dialog covers whatever the anchor reserves
+      // itself: a guessed height would move the app's layout twice.
       const measuredHeightCssPx = this.activeSurfaceMeasurement?.heightCssPx;
+      const heightCssPx = measuredHeightCssPx ?? anchorMetrics.heightCssPx;
       const anchoredBase: WalletIframeModalGeometry =
         resolvedGeometry.kind === 'viewport_fallback'
           ? {
               kind: measuredHeightCssPx != null ? 'centered_modal' : 'provisional_centered_modal',
               widthCssPx: resolvedGeometry.widthCssPx,
-              heightCssPx: measuredHeightCssPx ?? WALLET_IFRAME_SURFACE_PROVISIONAL_HEIGHT_CSS_PX,
+              heightCssPx,
               topCssPx: resolvedGeometry.topCssPx,
               leftCssPx: resolvedGeometry.leftCssPx,
             }
-          : measuredHeightCssPx != null
-            ? { ...resolvedGeometry, heightCssPx: measuredHeightCssPx }
-            : resolvedGeometry;
+          : { ...resolvedGeometry, heightCssPx };
       // The menu paints from a <body>-level dialog, so it reserves no layout
       // space of its own. Publish its height to the host anchor, which does sit
       // in the page flow, so following content is pushed down instead of being
@@ -1981,7 +1946,9 @@ export class WalletIframeRouter {
       // animate its height now and its top on a later tick, reading as two
       // separate movements instead of one in-place resize. Height does not
       // depend on the anchor, so this settles in a single pass.
-      publishHostedAuthMenuAnchorHeight(anchor, anchoredBase.heightCssPx);
+      if (measuredHeightCssPx != null) {
+        publishHostedAuthMenuAnchorHeight(anchor, measuredHeightCssPx);
+      }
       anchorMetrics = hostedAuthMenuAnchorMetrics(anchor) ?? anchorMetrics;
       authMenuVisualScale = anchorMetrics.visualScale;
       geometry = anchorWalletIframeModalGeometry(anchoredBase, {
@@ -2017,9 +1984,7 @@ export class WalletIframeRouter {
     }
     this.surfaceRenderer.render(surface, geometry, receiptView);
     if (surface.kind === 'modal_auth_menu' && geometry.kind !== 'provisional_centered_modal') {
-      this.hostedAuthMenuAnchors
-        .get(surface.authMenuSessionId)
-        ?.style.setProperty('--seams-auth-menu-placeholder-opacity', '0');
+      markHostedAuthMenuAnchorReady(anchor);
     }
   }
 
@@ -2163,12 +2128,13 @@ export class WalletIframeRouter {
         break;
       }
       case 'email_otp_enrollment':
+      case 'auth_method_activation':
         result = this.transitionWalletIframeSurface({
           kind: 'transaction_modal_request_started',
           connectionId,
           identity,
           presentation: requestSurfacePresentationFor(
-            'email_otp_enrollment',
+            args.kind,
             args.payload,
             this.mirroredConfirmationUiMode ?? undefined,
           ),
@@ -2575,7 +2541,12 @@ export class WalletIframeRouter {
   }
 
   isReady(): boolean {
-    return this.state.ready && this.state.configured && this.exactSessionState !== null && this.state.initInFlight === null;
+    return (
+      this.state.ready &&
+      this.state.configured &&
+      this.exactSessionState !== null &&
+      this.state.initInFlight === null
+    );
   }
 
   async initializeHostedWalletSeamsSession(source: HostedWalletSeamsSessionSource): Promise<void> {
@@ -2813,7 +2784,8 @@ export class WalletIframeRouter {
     if (
       this.lastPreferencesChangedPayload &&
       payload.revision <= this.lastPreferencesChangedPayload.revision
-    ) return;
+    )
+      return;
     const previousWalletId = this.lastPreferencesChangedPayload?.walletId;
     const selectionChanged = payload.walletId !== previousWalletId;
     if (selectionChanged) this.sessionSelectionGeneration += 1;
@@ -2842,7 +2814,10 @@ export class WalletIframeRouter {
           const previous = this.exactSessionState;
           this.mirrorExpiredSession(event);
           if (this.exactSessionState !== previous) this.sessionObservationRevision = revision;
-          if (previous === null && this.lastPreferencesChangedPayload?.walletId === event.walletId) {
+          if (
+            previous === null &&
+            this.lastPreferencesChangedPayload?.walletId === event.walletId
+          ) {
             this.sessionSelectionGeneration += 1;
           }
         }
@@ -2997,9 +2972,7 @@ export class WalletIframeRouter {
     return res.result;
   }
 
-  async registerWallet(
-    payload: WalletRegistrationCommand,
-  ): Promise<RegistrationResult> {
+  async registerWallet(payload: WalletRegistrationCommand): Promise<RegistrationResult> {
     const transport = hostedWalletRegistrationTransport(payload.authMethod);
     await this.ensureHostedWalletSeamsSession(transport.sessionSource);
     const confirmationConfig = payload.options?.confirmationConfig;
@@ -3093,6 +3066,40 @@ export class WalletIframeRouter {
     return res.result;
   }
 
+  async getAuthMethodAvailability(
+    payload: Parameters<RegistrationCapability['getAuthMethodAvailability']>[0],
+  ): ReturnType<RegistrationCapability['getAuthMethodAvailability']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<unknown>({
+      type: 'PM_GET_AUTH_METHOD_AVAILABILITY',
+      payload: { walletId, method: payload.method },
+    });
+    return parseAuthMethodAvailability(response.result);
+  }
+  async setAuthMethodEnabled(
+    payload: Parameters<RegistrationCapability['setAuthMethodEnabled']>[0],
+  ): ReturnType<RegistrationCapability['setAuthMethodEnabled']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<unknown>({
+      type: 'PM_SET_AUTH_METHOD_ENABLED',
+      payload: { walletId, method: payload.method, enabled: payload.enabled },
+    });
+    return parseAuthMethodAvailability(response.result);
+  }
+
+  async activateAuthMethod(
+    payload: Parameters<RegistrationCapability['activateAuthMethod']>[0],
+  ): ReturnType<RegistrationCapability['activateAuthMethod']> {
+    const walletId = parseRequestedWalletId(String(payload.walletId));
+    const response = await this.post<
+      Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>
+    >(
+      { type: 'PM_ACTIVATE_AUTH_METHOD', payload: { walletId, method: payload.method } },
+      { timeout: 'interactive' },
+    );
+    return response.result;
+  }
+
   async addEmail(
     payload: Parameters<RegistrationCapability['addEmail']>[0],
   ): Promise<AddEmailOtpResult> {
@@ -3139,6 +3146,23 @@ export class WalletIframeRouter {
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
     });
     return res.result;
+  }
+
+  async unlockWithAuthMethod(
+    payload: Parameters<AuthCapability['unlockWithAuthMethod']>[0],
+  ): ReturnType<AuthCapability['unlockWithAuthMethod']> {
+    const result = await this.post<LoginAndCreateSessionResult>(
+      {
+        type: 'PM_UNLOCK_AUTH_METHOD',
+        payload: {
+          walletId: String(payload.walletId),
+          walletAuthMethodId: payload.walletAuthMethodId,
+          method: payload.method,
+        },
+      },
+      { timeout: 'interactive' },
+    );
+    return result.result;
   }
 
   async getWalletSession(walletId?: string): Promise<WalletSession> {
@@ -3189,7 +3213,9 @@ export class WalletIframeRouter {
     payload: Parameters<AuthCapability['requestEmailCode']>[0],
   ): ReturnType<AuthCapability['requestEmailCode']> {
     const { onEvent, ...wirePayload } = payload;
-    const res = await this.post<PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>>({
+    const res = await this.post<
+      PMGoogleEmailOtpWalletAuthWireResult<PMGoogleEmailOtpWalletAuthWireFlow>
+    >({
       type: 'PM_REQUEST_EMAIL_OTP_CHALLENGE',
       payload: wirePayload,
       options: { onProgress: this.wrapOnEvent(onEvent, isUnlockFlowEvent) },
@@ -3687,11 +3713,13 @@ export class WalletIframeRouter {
     return this.requestPreferences({ type: 'PM_GET_CONFIRMATION_CONFIG' });
   }
 
-  private async requestPreferences(request: Variant<
-    ParentToChildEnvelope,
-    'type',
-    'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
-  >): Promise<ConfirmationConfig> {
+  private async requestPreferences(
+    request: Variant<
+      ParentToChildEnvelope,
+      'type',
+      'PM_GET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_SET_CONFIRM_BEHAVIOR'
+    >,
+  ): Promise<ConfirmationConfig> {
     if (!this.state.ready || !this.state.port) await this.init();
     const connectionId = this.state.connectionId;
     const res = await this.post<unknown>(request);
@@ -4057,7 +4085,9 @@ export class WalletIframeRouter {
     }
     const payload = walletIframeExportPayload(input, {
       ...messageOptions,
-      variant: messageOptions.variant ?? (this.mirroredConfirmationUiMode === 'drawer' ? 'drawer' : 'modal'),
+      variant:
+        messageOptions.variant ??
+        (this.mirroredConfirmationUiMode === 'drawer' ? 'drawer' : 'modal'),
     });
     await this.post<void>({
       type: 'PM_EXPORT_KEYPAIR_UI',
@@ -4457,7 +4487,12 @@ export class WalletIframeRouter {
     const deadlineAtMs = timeoutPolicy.kind === 'deadline' ? timeoutPolicy.deadlineAtMs : null;
     const surfaceKind = requestSurfaceKindForMessage(envelope.type, full.payload);
     let transactionSurfaceLease: WalletIframeTransactionSurfaceLease | null = null;
-    if (!reservation && (surfaceKind === 'transaction' || surfaceKind === 'email_otp_enrollment')) {
+    if (
+      !reservation &&
+      (surfaceKind === 'transaction' ||
+        surfaceKind === 'email_otp_enrollment' ||
+        surfaceKind === 'auth_method_activation')
+    ) {
       const queueDeadline: WalletIframeTransactionSurfaceDeadline =
         timeoutPolicy.kind === 'deadline'
           ? { kind: 'deadline', atMs: timeoutPolicy.deadlineAtMs }

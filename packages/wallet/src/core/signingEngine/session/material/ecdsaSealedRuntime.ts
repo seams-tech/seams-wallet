@@ -29,7 +29,10 @@ import {
   routerAbEcdsaDerivationPublicCapabilitiesEqual,
   type ActiveEcdsaCapabilityManifest,
 } from './ecdsaCapabilityManifest';
-import type { EmailOtpWalletAuthAuthority } from '@shared/utils/walletAuthAuthority';
+import type {
+  EmailOtpWalletAuthAuthority,
+  VoiceIdWalletAuthAuthority,
+} from '@shared/utils/walletAuthAuthority';
 import type { SigningSessionSealAuthMethod } from '@shared/utils/signingSessionSeal';
 import { routerAbMpcMaterialActivationRefToWire } from '@shared/utils/routerAbNormalSigningIdentity';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
@@ -41,7 +44,14 @@ import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 // Material is identified by materialActivation. A threshold-session id is
 // runtime state carried on the result, never a key used to find it.
 
-export type ExactEcdsaSealedRuntimeAuthBinding =
+export type ExactEcdsaRuntimeAuthBinding = ReadonlyExclusiveUnion<
+  | {
+      readonly kind: 'voiceid';
+      readonly voiceIdAuthority: VoiceIdWalletAuthAuthority;
+      readonly rpId?: never;
+      readonly credentialIdB64u?: never;
+      readonly providerSubjectId?: never;
+    }
   | {
       readonly kind: 'passkey';
       readonly rpId: string;
@@ -55,7 +65,8 @@ export type ExactEcdsaSealedRuntimeAuthBinding =
       readonly emailOtpAuthority: EmailOtpWalletAuthAuthority;
       readonly rpId?: never;
       readonly credentialIdB64u?: never;
-    };
+    }
+>;
 
 /** The exact sealed record this runtime was read from. Carried so callers can
  * write allowance changes back to the same record they resolved. */
@@ -83,7 +94,7 @@ export type ExactEcdsaMaterialRuntime = {
   /** The durable material this runtime unlocks, in the canonical persisted form
    * the role-local material resolver consumes. */
   readonly roleLocalMaterialRef: EcdsaRoleLocalPersistedMaterialRef;
-  readonly authBinding: ExactEcdsaSealedRuntimeAuthBinding;
+  readonly authBinding: ExactEcdsaRuntimeAuthBinding;
 };
 
 export type ExactEcdsaCapabilityRuntime = Omit<ExactEcdsaMaterialRuntime, 'authBinding'> & {
@@ -93,6 +104,7 @@ export type ExactEcdsaCapabilityRuntime = Omit<ExactEcdsaMaterialRuntime, 'authB
 
 export type ExactEcdsaSealedRuntime = ExactEcdsaMaterialRuntime & {
   readonly kind: 'exact_ecdsa_sealed_runtime_v1';
+  readonly authBinding: Exclude<ExactEcdsaRuntimeAuthBinding, { kind: 'voiceid' }>;
   readonly expiresAtMs: number;
   readonly remainingUses: number;
   readonly sealedRecord: ExactEcdsaSealedRecordIdentity;
@@ -112,8 +124,7 @@ export type ExactEcdsaDirectCapabilityRuntime = ExactEcdsaMaterialRuntime & {
 };
 
 export type ExactEcdsaWalletSessionRuntime =
-  | ExactEcdsaDirectCapabilityRuntime
-  | ExactEcdsaSealedRuntime;
+  ExactEcdsaDirectCapabilityRuntime | ExactEcdsaSealedRuntime;
 
 export type ExactEcdsaSealedRuntimeResolution = ReadonlyExclusiveUnion<
   | { readonly kind: 'resolved'; readonly runtime: ExactEcdsaSealedRuntime }
@@ -288,7 +299,7 @@ function sealedRecordBindsManifestFacts(args: {
 function authBindingFromRestore(args: {
   readonly manifest: ActiveEcdsaCapabilityManifest;
   readonly restore: ExactEcdsaMaterialRestore;
-}): ExactEcdsaSealedRuntimeAuthBinding | null {
+}): Exclude<ExactEcdsaRuntimeAuthBinding, { kind: 'voiceid' }> | null {
   const restore = args.restore;
   if (restore.source === 'email_otp') {
     const providerSubjectId = normalizedNonEmpty(restore.providerSubjectId);
@@ -342,7 +353,11 @@ function materialRuntimeFromRecord(args: {
   readonly walletId: WalletId;
   readonly chainTarget: ThresholdEcdsaChainTarget;
   readonly record: ExactEcdsaMaterialRecord;
-}): ExactEcdsaMaterialRuntime | null {
+}):
+  | (ExactEcdsaMaterialRuntime & {
+      readonly authBinding: Exclude<ExactEcdsaRuntimeAuthBinding, { kind: 'voiceid' }>;
+    })
+  | null {
   const restore = args.record.ecdsaRestore;
   const authBinding = authBindingFromRestore({ manifest: args.manifest, restore });
   const relayerUrl = normalizedNonEmpty(args.record.relayerUrl).replace(/\/+$/g, '');

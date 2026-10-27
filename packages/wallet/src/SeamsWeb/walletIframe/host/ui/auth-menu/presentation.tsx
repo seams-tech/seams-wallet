@@ -140,17 +140,16 @@ export function savedAccountsTriggerLabel(account: AuthMenuAccountOption | null)
 }
 
 type AuthMenuAccountGroup = Readonly<{
-  authMethod: AuthMenuAccountOption['authMethod'];
-  label: 'Passkey' | 'Email OTP';
+  id: 'wallets';
+  label: 'Saved wallets';
   accounts: readonly AuthMenuAccountOption[];
 }>;
 
 export function accountGroups(options: readonly AuthMenuAccountOption[]): AuthMenuAccountGroup[] {
-  const passkeyAccounts = options.filter((option) => option.authMethod === 'passkey');
-  const emailOtpAccounts = options.filter((option) => option.authMethod === 'email_otp');
-  const groups: AuthMenuAccountGroup[] = [
-    { authMethod: 'passkey', label: 'Passkey', accounts: passkeyAccounts },
-    { authMethod: 'email_otp', label: 'Email OTP', accounts: emailOtpAccounts },
-  ];
-  return groups.filter((group) => group.accounts.length > 0);
+  const wallets = new Map<string, AuthMenuAccountOption>();
+  for (const option of options)
+    if (!wallets.has(option.walletId)) wallets.set(option.walletId, option);
+  return wallets.size
+    ? [{ id: 'wallets', label: 'Saved wallets', accounts: [...wallets.values()] }]
+    : [];
 }

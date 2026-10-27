@@ -1,0 +1,89 @@
+{
+  "status": "passed",
+  "initialRequestedId": null,
+  "sdkAllocatedWalletId": "brisk-valley-e3yu3q",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_bounded_text",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "918cebff-f50f-4e9a-89d7-9d5cfdb5142d",
+    "capturedAtMs": 1793015454102,
+    "durationMs": 3420,
+    "recordingMs": 4985.100000023842,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.18290618674689113,
+    "baselineSimilarity": 0.18290618674689113,
+    "referenceKind": "baseline",
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "please sign this trade now",
+      "difference": 0.7111111111111111,
+      "margin": 0,
+      "decodedText": "my voice helps me open thisallet on my device",
+      "reason": "different"
+    },
+    "expectedPhrase": "send this order to market"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "brisk-valley-e3yu3q",
+    "accountId": "98529de0cb19ccc1cac1bc5572d7462f40ecefc85db87bc7aaa762dced73daa2",
+    "publicKey": "ed25519:BFc38TE1Ch1F9RXyiwv5qMa1f6SgdwnymxSoEfKgKuuB"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADk4NTI5ZGUwY2IxOWNjYzFjYWMxYmM1NTcyZDc0NjJmNDBlY2VmYzg1ZGI4N2JjN2FhYTc2MmRjZWQ3M2RhYTIAmFKd4MsZzMHKwbxVctdGL0Ds78hduHvHqqdi3O1z2qICAAAAAAAAAEAAAAA5ODUyOWRlMGNiMTljY2MxY2FjMWJjNTU3MmQ3NDYyZjQwZWNlZmM4NWRiODdiYzdhYWE3NjJkY2VkNzNkYWEyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAANCRzt6twJoiu8wuTQzPWBfmQVoLq+OkAGIEYY99omusaE8cOfmriOP1weIcvK0ZKWd0FaEg1DHWrSxB4Cv4XBg==",
+      "signedTransactionSha256": "52ecfffd789d67c876d675b3b1894e5f902b3e8c5196f1deb0fc620e6266edf3",
+      "signerId": "98529de0cb19ccc1cac1bc5572d7462f40ecefc85db87bc7aaa762dced73daa2",
+      "receiverId": "98529de0cb19ccc1cac1bc5572d7462f40ecefc85db87bc7aaa762dced73daa2",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

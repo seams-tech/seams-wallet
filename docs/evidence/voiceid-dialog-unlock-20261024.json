@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "silver-feather-ymjc47",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:07dd41c0-59e1-4af9-bb4d-f55e1260544c",
+  "freshSessionId": "wls__G9aQBJ14Fmq4C91Kf-8C_vvGzos72hGlimqmuIBMNk",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 14.106292000000394,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "activationDialogMs": 109.73750000000018,
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "silver-feather-ymjc47",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "silver-feather-ymjc47",
+    "accountId": "9c1a6fa99bfe47f9cf9dd721121491c7ee8cf1996559be180450898874c95532",
+    "publicKey": "ed25519:BWMyuZxTgTNcp4N4Rh9uKBYzgSmTCRvtW1L4oiszCBJh"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADljMWE2ZmE5OWJmZTQ3ZjljZjlkZDcyMTEyMTQ5MWM3ZWU4Y2YxOTk2NTU5YmUxODA0NTA4OTg4NzRjOTU1MzIAnBpvqZv+R/nPndchEhSRx+6M8ZllWb4YBFCJiHTJVTICAAAAAAAAAEAAAAA5YzFhNmZhOTliZmU0N2Y5Y2Y5ZGQ3MjExMjE0OTFjN2VlOGNmMTk5NjU1OWJlMTgwNDUwODk4ODc0Yzk1NTMyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAYbYOCS7Tt0u2yTr6PsBPOG7rWmf2hkVGBrpuv5eF2QIXpZ3upLs5EO0z9OzmC9lV48SpVzY8oT4iOWhuomsiBA==",
+      "signedTransactionSha256": "a5a107c5ca796569f796caed5169734975aa33a17568fe8dbd3931b3a58bb870",
+      "signerId": "9c1a6fa99bfe47f9cf9dd721121491c7ee8cf1996559be180450898874c95532",
+      "receiverId": "9c1a6fa99bfe47f9cf9dd721121491c7ee8cf1996559be180450898874c95532",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

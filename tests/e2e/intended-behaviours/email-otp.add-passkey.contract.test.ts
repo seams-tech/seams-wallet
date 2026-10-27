@@ -85,14 +85,14 @@ test('account menu removes an added passkey through the wallet email prompt and 
     const inventory = page.getByRole('region', { name: 'Linked devices', exact: true });
     const devices = inventory.locator('.seams-account-method-button');
     await expect(devices).toHaveCount(2);
-    await devices.filter({ hasNotText: 'Email code' }).click();
+    await devices.filter({ hasText: 'Passkey' }).click();
     const details = page.getByRole('region', { name: 'Device details', exact: true });
     await details.getByRole('button', { name: /^Remove / }).click();
     await details.getByRole('button', { name: 'Yes, remove', exact: true }).click();
     await expect(details.getByLabel('Verification code', { exact: true })).toHaveCount(0);
     await autoConfirmWalletIframeUntil(page, expect(devices).toHaveCount(1, { timeout: 60_000 }));
     expect(evidence.challenges).toBe(1);
-    await expect(devices.filter({ hasText: 'Email code' })).toHaveCount(1);
+    await expect(devices.filter({ hasText: 'Email OTP' })).toHaveCount(1);
     await inventory.getByRole('button', { name: 'Back', exact: true }).click();
   } finally {
     context.off('request', observe);

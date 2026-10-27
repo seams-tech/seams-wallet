@@ -10,6 +10,7 @@
     "check:links": "node scripts/check-links.mjs"
   },
   "devDependencies": {
+    "@seams/voiceid": "workspace:*",
     "@seams/wallet": "workspace:*",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",

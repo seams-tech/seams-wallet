@@ -1,5 +1,6 @@
 import { base64UrlDecode, base64UrlEncode } from '@shared/utils/base64';
 import { sha256Bytes } from '@shared/utils/digests';
+import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   admitWalletCustodyEnvelopeOwnershipReplacementV1,
   buildRevokedEnvelopeLifecycle,
@@ -81,6 +82,10 @@ export type WalletCustodyFactorRef =
       readonly kind: 'email_otp';
       readonly enrollmentId: string;
       readonly enrollmentSealKeyVersion: string;
+    }
+  | {
+      readonly kind: 'voiceid';
+      readonly deviceKeyId: DigestB64u;
     };
 
 export type PasskeyCustodyEnvelopeLocator = {
@@ -104,6 +109,8 @@ export function envelopeFactorRef(envelope: PasskeyCustodyEnvelopeRecord): Walle
         enrollmentId: envelope.factor.enrollmentId,
         enrollmentSealKeyVersion: envelope.factor.enrollmentSealKeyVersion,
       };
+    case 'voiceid':
+      return { kind: 'voiceid', deviceKeyId: envelope.factor.deviceKeyId };
   }
 }
 
@@ -118,6 +125,8 @@ function factorKeyPart(factor: WalletCustodyFactorRef): readonly string[] {
       return ['passkey', String(factor.rpId), String(factor.credentialIdB64u)];
     case 'email_otp':
       return ['email_otp', factor.enrollmentId, factor.enrollmentSealKeyVersion];
+    case 'voiceid':
+      return ['voiceid', String(factor.deviceKeyId)];
   }
 }
 
@@ -140,6 +149,8 @@ function factorRefsMatch(left: WalletCustodyFactorRef, right: WalletCustodyFacto
         left.enrollmentId === right.enrollmentId &&
         left.enrollmentSealKeyVersion === right.enrollmentSealKeyVersion
       );
+    case 'voiceid':
+      return right.kind === 'voiceid' && left.deviceKeyId === right.deviceKeyId;
   }
 
   left satisfies never;

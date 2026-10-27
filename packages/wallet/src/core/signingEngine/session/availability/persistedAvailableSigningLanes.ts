@@ -1,6 +1,10 @@
 import { SIGNER_AUTH_METHODS, type SignerAuthMethod } from '@shared/utils/signerDomain';
 import { WalletSessionStatusReadScope } from '@/core/rpcClients/relayer/walletSessionAuthorizationStatus';
-import { signingLaneAuthMethod, type OwnerLaneScope } from '../identity/signingLaneAuthBinding';
+import {
+  signingLaneAuthMethod,
+  type OwnerLaneScope,
+  type SigningLaneAuthBinding,
+} from '../identity/signingLaneAuthBinding';
 import type {
   ThresholdEcdsaChainTarget,
   WalletId,
@@ -45,6 +49,7 @@ import {
 } from '../identity/evmFamilyEcdsaIdentity';
 import {
   isEmailOtpWalletAuthAuthority,
+  isVoiceIdWalletAuthAuthority,
   isPasskeyWalletAuthAuthority,
 } from '@shared/utils/walletAuthAuthority';
 
@@ -129,11 +134,18 @@ function canonicalEcdsaLaneFromCapability(args: {
         }
       : { ...base, auth, resolvedKey, state: 'deferred' };
   }
-  if (!isEmailOtpWalletAuthAuthority(capability.authority)) return null;
-  const auth = {
-    kind: 'email_otp' as const,
-    providerSubjectId: capability.authority.factor.providerUserId,
-  };
+  let auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' | 'voiceid' }>;
+  if (isVoiceIdWalletAuthAuthority(capability.authority)) {
+    auth = {
+      kind: 'voiceid',
+      walletAuthMethodId: capability.authority.bindingId,
+      deviceKeyId: capability.authority.factor.deviceKeyId,
+    };
+  } else if (isEmailOtpWalletAuthAuthority(capability.authority)) {
+    auth = { kind: 'email_otp', providerSubjectId: capability.authority.factor.providerUserId };
+  } else {
+    return null;
+  }
   return authorization
     ? {
         ...base,
@@ -280,18 +292,23 @@ export async function readPersistedAvailableSigningLanesForTargets(
       ecdsaChainTargets: args.ecdsaChainTargets,
     },
     {
-      listPublicCapabilityReferences: curves === 'all' && deps.ed25519YaoPublicCapabilityLanes
-        ? deps.ed25519YaoPublicCapabilityLanes.listLanes.bind(deps.ed25519YaoPublicCapabilityLanes)
-        : undefined,
+      listPublicCapabilityReferences:
+        curves === 'all' && deps.ed25519YaoPublicCapabilityLanes
+          ? deps.ed25519YaoPublicCapabilityLanes.listLanes.bind(
+              deps.ed25519YaoPublicCapabilityLanes,
+            )
+          : undefined,
       isPublicCapabilityActive: deps.isEd25519YaoPublicCapabilityActive,
-      readActiveWalletSessionAuthorization: curves === 'all'
-        ? deps.readActiveWalletSessionAuthorization?.bind(null, statusReads)
-        : undefined,
+      readActiveWalletSessionAuthorization:
+        curves === 'all'
+          ? deps.readActiveWalletSessionAuthorization?.bind(null, statusReads)
+          : undefined,
       listSealedRecordsForWallet: async ({ walletId: recordWalletId, filter }) => {
         if (curves === 'ecdsa') return [];
         const listByAuthMethod = async (
           authMethod: SignerAuthMethod,
         ): Promise<SigningSessionSealedStoreRecord[]> => {
+          if (authMethod === 'voiceid') return [];
           const ed25519Records = await listExactSealedSessionsForWallet({
             walletId: recordWalletId,
             filter: { authMethod, curve: 'ed25519' },

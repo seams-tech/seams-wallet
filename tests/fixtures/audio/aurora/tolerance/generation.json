@@ -1,0 +1,79 @@
+[
+  {
+    "file": "omitted-articles.wav",
+    "spoken": "order book looks busy",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "b32dd5e0dee10d8c071631c11bdbc92a871832a2d043b9ebf8cc7aabc780d4a9"
+  },
+  {
+    "file": "rough-quote.wav",
+    "spoken": "i check the latest quotes",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "8178f27fa1c04ecbaec20bba4221797f25450a84eab6d45f57a5d33b48db5778"
+  },
+  {
+    "file": "outside-bound-quote.wav",
+    "spoken": "i checked a different number",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "4a10a05da888044e2e7343ae1d5d39aafd241b5dad52caac35a172f712297c28"
+  },
+  {
+    "file": "ambiguous.wav",
+    "spoken": "the market order looks ready",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "cfafc6ced3f4a30a716c3dbd1927add5512cc3e4c92542444a072db62c0fc0e9"
+  },
+  {
+    "file": "unrelated.wav",
+    "spoken": "cancel my wallet and tell me the time",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "4b7852ebf3849bd99bfb388bdb977658526a017c54a1d16cd71ab14761f933a7"
+  },
+  {
+    "file": "reordered.wav",
+    "spoken": "quote latest check i",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "24cedda8229bfe13b7f1acc985fd370db3199ee66295ae726195326738b44034"
+  },
+  {
+    "file": "negated.wav",
+    "spoken": "i never review every order",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "5a0581c48fe4f0cab6aa841a4d3b004dfc038f15779131d198e88bcf16cee51a"
+  },
+  {
+    "file": "fragment.wav",
+    "spoken": "latest quote",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "4a46cc324f664da9ef58ee5c334d672f87430ff4af5acf86a8a516d34fb3663b"
+  },
+  {
+    "file": "missing-negation.wav",
+    "spoken": "crying in the casino",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "a57f88e729ed128d4fc7f352d625713f73269fc4e6960fab14595706979f9efd"
+  },
+  {
+    "file": "changed-negation.wav",
+    "spoken": "never cry in the casino",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "5a71717cf48683e46afc24df5c5fcf3b4d43fc6d87df13c697c262236d82df73"
+  },
+  {
+    "file": "extra-negation.wav",
+    "spoken": "no approve this transfer at once",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "a5d1b6fdc1df204f6b22c6179a1a1a975cbe6f0b33e50aaa06e57fa5e48cbe1b"
+  }
+]

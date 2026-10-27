@@ -10,12 +10,10 @@ description: Seamsのしきい値ウォレットを作成する代わりに、Me
 - **Seamsウォレットを使う：** 既存のSeams認証フローで、しきい値ウォレットを作成またはアンロックします。
 - **既存のウォレットを接続する：** アプリが有効にしたウォレットから選び、そのウォレットでリクエストを承認します。
 
-::: warning 提供状況：開発プレビュー
-NEARコネクターは`dev`ブランチに実装済みです。公開済みの
-`@seams/wallet@0.22.0`には**含まれていません**。npmは2026-10-26に確認しました。
-以下の実装例は開発中のSDKに対してコンパイルしています。
-公開後は、これらのエクスポートを含む正確なリリースバージョンを指定してください。
-[リリース状況](/ja/releases#prepared-near-connector)を確認してください。
+::: warning メッセージ署名の提供状況
+`@seams/wallet@0.23.0`は外部NEARウォレットの接続と取引送信に対応しています。
+Meteorの`signMessage` APIは、次のリリースに向けて`dev`に実装済みです。
+公開後は、このAPIを含む正確なリリースバージョンを指定してください。
 :::
 
 ## ウォレットとネットワーク {#wallets-and-networks}
@@ -97,6 +95,21 @@ Seamsのプロバイダーは不要です。
 送信状態が不明な場合は、次の取引を準備する前にウォレットの履歴を確認します。
 [結果と再試行のルール](#outcomes-and-retry-rules)を参照してください。
 
+### 所有確認メッセージに署名する {#sign-an-ownership-message}
+
+Meteorは、NEARのメッセージ署名規格NEP-413に対応しています。
+アプリのチャレンジメッセージ、受信者、32バイトのnonceをそのまま渡します。
+サーバーはnonceを発行し、使用済みのチャレンジを拒否してください。
+
+<<< ../../examples/external-near-message.ts
+
+結果には`accountId`、`publicKey`、base64形式の`signature`が含まれます。
+リクエストには任意の`callbackUrl`と`state`も指定できます。
+コネクターは、返却前に署名とNEP-413ペイロードの一致を検証します。
+取引を送信しないため、残高やネットワーク手数料は不要です。
+アプリのサーバーは、指定ネットワークで鍵がアカウントに属することと、チャレンジの有効性を確認してください。
+このコネクターでは、HOTとIntearのメッセージ署名は`unavailable`を返します。
+
 ## コントローラーAPI {#controller-api}
 
 独自UIやReact以外のアプリでは、`@seams/wallet/external-near`から
@@ -112,6 +125,7 @@ React向けの機能は`@seams/wallet/react/external-near`にあります。
 | `getSnapshot()`                                            | `wallets`、`connection`、`busy`を取得します。接続状態は`disconnected`、`connecting`、`connected`のいずれかです。                 |
 | `subscribe(listener)`                                      | スナップショットの変更を購読します。購読を解除する関数を返します。                                                               |
 | `sendTransaction(connection, input)`                       | 現在の接続スナップショットを使用し、送金または関数呼び出しを送信します。`ExternalNearResult<ExternalNearSubmission>`を返します。 |
+| `signMessage(connection, params)`                          | MeteorにNEP-413署名を要求し、検証後に`ExternalNearResult<ExternalNearSignedMessage>`を返します。 |
 | `checkOutcome(submission)`                                 | 保存したハッシュ、アカウント、ネットワークに基づきRPCで状態を確認します。`confirmed`、`failed`、`unresolved`を返します。         |
 | `disconnect()`                                             | ローカルの権限状態を消去し、アダプターを破棄して、保留中の処理を無効にします。                                                   |
 
@@ -122,8 +136,7 @@ React向けの機能は`@seams/wallet/react/external-near`にあります。
 再接続や切断の後は、以前のスナップショットを利用できません。
 
 送金と関数呼び出しには、既存の`transfer`や`functionCall`ヘルパーを使用します。
-現在の外部コネクターは、メッセージ署名、一括送信、委任アクション、ハードウェアウォレット、モバイル接続を公開していません。
-[NEP-413の実装例](/ja/examples/signing#sign-a-nep-413-message)はSeamsウォレット向けです。
+現在の外部コネクターは、一括送信、委任アクション、ハードウェアウォレット、モバイル接続を公開していません。
 
 ## 結果と再試行のルール {#outcomes-and-retry-rules}
 
@@ -142,9 +155,13 @@ React向けの機能は`@seams/wallet/react/external-near`にあります。
 | `submission_unknown`   | 次の取引を準備する前に、ウォレットとチェーンの履歴を確認します。                                 |
 
 接続を拒否した場合、現在のコネクターは`unavailable`を返します。
-署名リクエストの送出後は、拒否、通信の切断、不正な結果を、保守的に`submission_unknown`として報告する場合があります。
+取引リクエストの送出後は、拒否、通信の切断、不正な結果を、保守的に`submission_unknown`として報告する場合があります。
 ユーザーによる拒否だけを表す結果は公開していません。
 承認画面を閉じても、取引が送信されなかったことを保証するものではありません。
+
+`signMessage`は、拒否、通信の切断、不正な署名に対して`unavailable`を返します。
+承認中や検証中に接続が変わった場合は`connection_changed`を返します。
+別のリクエストを処理中の場合は`pending_request`を返します。
 
 切断するとローカル状態を消去します。ウォレット側の既存のサイト権限は取り消しません。
 ローカルで切断した後も、拡張機能の承認画面が残る場合があります。

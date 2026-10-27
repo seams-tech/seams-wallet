@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "steady-fjord-p72m6w",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "677dec64-eb96-4168-884c-138523fdbd72",
+    "capturedAtMs": 1792936710698,
+    "durationMs": 3420,
+    "recordingMs": 4976.299999952316,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.1886380326118798,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642
+    },
+    "expectedPhrase": "i can hear music in the kitchen"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "steady-fjord-p72m6w",
+    "accountId": "2ce98c8fd7f4d78a221961ed4475ff74d1b9a86a1a69fa71770608cd03729986",
+    "publicKey": "ed25519:42KVTf7T5Rp38CDqq4oQJ7N84AgqWbpytMm4TMx1t9Ju"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADJjZTk4YzhmZDdmNGQ3OGEyMjE5NjFlZDQ0NzVmZjc0ZDFiOWE4NmExYTY5ZmE3MTc3MDYwOGNkMDM3Mjk5ODYALOmMj9f014oiGWHtRHX/dNG5qGoaafpxdwYIzQNymYYCAAAAAAAAAEAAAAAyY2U5OGM4ZmQ3ZjRkNzhhMjIxOTYxZWQ0NDc1ZmY3NGQxYjlhODZhMWE2OWZhNzE3NzA2MDhjZDAzNzI5OTg2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAluA2DYRl5iIv8j5cyYjif3Vl9dirFlsWSAxFMfKUbPxbWl37+RDoDcVnWwm0qgoayoO/Ub7jK1Iw/w1aIHxsCg==",
+      "signedTransactionSha256": "9448d1d384559c5cbb7f240d29a229c6726efef6a6d41011504f8004f6fa0bdd",
+      "signerId": "2ce98c8fd7f4d78a221961ed4475ff74d1b9a86a1a69fa71770608cd03729986",
+      "receiverId": "2ce98c8fd7f4d78a221961ed4475ff74d1b9a86a1a69fa71770608cd03729986",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

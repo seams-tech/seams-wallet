@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "lunar-meadow-ddyqxt",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "97d7edea-1da8-4960-ba75-955c9f3a7b3a",
+    "capturedAtMs": 1792953227682,
+    "durationMs": 3420,
+    "recordingMs": 4981.899999976158,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.20282182161735152,
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642
+    },
+    "expectedPhrase": "i can see the mountains from here"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "lunar-meadow-ddyqxt",
+    "accountId": "cde6c76b8419a09ee4b1fb24ad12c200560ee02ac921d049f0a4c25dab513c74",
+    "publicKey": "ed25519:ErkgT1PfK9ZCBgd27BejrP3PEEaTbZNNjFQEFwBug8Qj"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGNkZTZjNzZiODQxOWEwOWVlNGIxZmIyNGFkMTJjMjAwNTYwZWUwMmFjOTIxZDA0OWYwYTRjMjVkYWI1MTNjNzQAzebHa4QZoJ7ksfskrRLCAFYO4CrJIdBJ8KTCXatRPHQCAAAAAAAAAEAAAABjZGU2Yzc2Yjg0MTlhMDllZTRiMWZiMjRhZDEyYzIwMDU2MGVlMDJhYzkyMWQwNDlmMGE0YzI1ZGFiNTEzYzc0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAK0JZ5/4ULXX/+/3IlpO4lC8reVVPGtocAwkSfve7OdjM09BoyVU777vCJ594FOiZ7Gqf7PuZGQzLyF7Fc++VAg==",
+      "signedTransactionSha256": "f27e3d1f5cf0540f77bd5701d75f084d751e5f98833568ae936a080d4e4b9453",
+      "signerId": "cde6c76b8419a09ee4b1fb24ad12c200560ee02ac921d049f0a4c25dab513c74",
+      "receiverId": "cde6c76b8419a09ee4b1fb24ad12c200560ee02ac921d049f0a4c25dab513c74",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

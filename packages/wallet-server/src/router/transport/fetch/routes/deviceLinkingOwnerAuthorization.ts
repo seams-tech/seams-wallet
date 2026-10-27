@@ -14,14 +14,13 @@ import type { WalletId } from '@shared/utils/domainIds';
 import {
   buildEmailOtpWalletAuthAuthority,
   buildPasskeyWalletAuthAuthority,
+  buildVoiceIdWalletAuthAuthority,
   walletAuthAuthorityRef,
   type WalletAuthAuthority,
   type WalletAuthAuthorityRef,
 } from '@shared/utils/walletAuthAuthority';
 import type { ThresholdEd25519AuthorityScope } from '../../../../core/types';
-import {
-  thresholdEd25519AuthorityScopeFromWalletAuthAuthority,
-} from '../../../../core/ThresholdService/validation';
+import { thresholdEd25519AuthorityScopeFromWalletAuthAuthority } from '../../../../core/ThresholdService/validation';
 import {
   buildDelegatedWalletAuthorityV1,
   type DelegatedWalletAuthorityV1,
@@ -379,9 +378,7 @@ async function ownerContextFromExactV2AuthorizationV1(input: {
       keyManifestDigestB64u: authority.signerActivationSetDigestB64u,
       curve: 'ed25519',
       authority: authData.authority,
-      authorityScope: thresholdEd25519AuthorityScopeFromWalletAuthAuthority(
-        authData.authority,
-      ),
+      authorityScope: thresholdEd25519AuthorityScopeFromWalletAuthAuthority(authData.authority),
     };
   }
   return {
@@ -430,6 +427,16 @@ function walletAuthAuthorityFromExactV2MethodV1(input: {
     }
   }
 
+  if (input.authMethod.kind === 'voiceid') {
+    return {
+      authority: buildVoiceIdWalletAuthAuthority({
+        walletId: input.walletId,
+        walletAuthMethodId: input.authMethod.walletAuthMethodId,
+        deviceKeyId: input.authMethod.deviceKeyId,
+      }),
+      authSource: { kind: 'voiceid', deviceKeyId: input.authMethod.deviceKeyId },
+    };
+  }
   const providerSubject = parseProviderSubject(input.principalId);
   if (!providerSubject.ok) return null;
   try {
@@ -483,9 +490,7 @@ function methodNotAllowedResponse(): Response {
   return json({ ok: false, code: 'method_not_allowed' }, { status: 405 });
 }
 
-function authDeniedResponse(
-  value: DeviceLinkingAuthDeniedV1,
-): Response {
+function authDeniedResponse(value: DeviceLinkingAuthDeniedV1): Response {
   if (value.code === 'unavailable') return jsonFailure(503, value.code, value.message);
   const status = value.code === 'invalid' ? 403 : 401;
   return jsonFailure(status, value.code, value.message);

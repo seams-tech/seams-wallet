@@ -28,6 +28,8 @@ export type ConfirmUIUpdate = {
   onBack?: () => void;
   title?: string;
   body?: string;
+  authMethodApprovalMessage?: string;
+  authMethodCapture?: HTMLElement | null;
   signingAuthMode?: SigningAuthMode;
   emailOtpPrompt?: EmailOtpConfirmPrompt;
 };
@@ -45,9 +47,7 @@ export interface ConfirmUIHandle {
 export type ConfirmUISurfaceDecision =
   | {
       kind: 'confirmed';
-      emailOtp:
-        | { kind: 'absent' }
-        | { kind: 'provided'; code: string; challengeId: string };
+      emailOtp: { kind: 'absent' } | { kind: 'provided'; code: string; challengeId: string };
     }
   | { kind: 'cancelled'; error: string | null };
 

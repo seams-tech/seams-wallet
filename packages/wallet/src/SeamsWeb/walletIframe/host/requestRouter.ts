@@ -20,6 +20,9 @@ type NearWalletRequestType =
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
+  | 'PM_ACTIVATE_AUTH_METHOD'
+  | 'PM_GET_AUTH_METHOD_AVAILABILITY'
+  | 'PM_SET_AUTH_METHOD_ENABLED'
   | 'PM_ADD_EMAIL_OTP'
   | 'PM_REVOKE_AUTH_METHOD'
   | 'PM_GET_NEAR_PROVISIONING_STATE'
@@ -33,6 +36,7 @@ type AuthWalletRequestType =
   | 'PM_CANCEL_AUTH_MENU'
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
   | 'PM_UNLOCK'
+  | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -75,9 +79,7 @@ type DeviceLinkWalletRequestType =
   | 'PM_CANCEL_DEVICE_LINKING'
   | 'PM_SYNC_ACCOUNT_FLOW';
 type PreferencesWalletRequestType =
-  | 'PM_SET_CONFIRM_BEHAVIOR'
-  | 'PM_SET_CONFIRMATION_CONFIG'
-  | 'PM_GET_CONFIRMATION_CONFIG';
+  'PM_SET_CONFIRM_BEHAVIOR' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_GET_CONFIRMATION_CONFIG';
 
 type WalletHostRoute =
   | {
@@ -157,6 +159,9 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_REGISTER_WALLET':
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
+    case 'PM_ACTIVATE_AUTH_METHOD':
+    case 'PM_GET_AUTH_METHOD_AVAILABILITY':
+    case 'PM_SET_AUTH_METHOD_ENABLED':
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
     case 'PM_GET_NEAR_PROVISIONING_STATE':
@@ -213,6 +218,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
       };
     }
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_LAST_WALLET_MOVE_REQUEST':

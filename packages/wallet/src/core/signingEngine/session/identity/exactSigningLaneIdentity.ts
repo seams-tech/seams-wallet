@@ -1,8 +1,10 @@
 import { alphabetizeStringify } from '@shared/utils/digests';
 import {
+  parseWalletAuthMethodId,
   parseMpcMaterialActivationRef,
   type MpcMaterialActivationRef,
 } from '@shared/utils/domainIds';
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import {
   isImplicitNearAccountId,
   parseNearAccountId,
@@ -86,8 +88,7 @@ export type ExactEcdsaSigningLaneIdentity = {
 };
 
 export type ExactSigningLaneIdentity =
-  | ExactEd25519SigningLaneIdentity
-  | ExactEcdsaSigningLaneIdentity;
+  ExactEd25519SigningLaneIdentity | ExactEcdsaSigningLaneIdentity;
 
 type ExactSigningLaneIdentityCarrier = {
   readonly identity: ExactSigningLaneIdentity;
@@ -121,7 +122,7 @@ type ExactEd25519ExportMaterialIdentityInput<
 
 type ExactEcdsaSigningLaneIdentityInput = {
   signer: EvmFamilyEcdsaSignerBinding;
-  auth: SigningLaneAuthBinding;
+  auth: ExactEcdsaSigningLaneIdentity['auth'];
 };
 
 type NearEd25519SignerBoundaryFields = {
@@ -173,6 +174,15 @@ function rejectPresent(
 function parseSigningLaneAuthBinding(value: unknown): SigningLaneAuthBinding {
   const auth = requireRecord(value, 'exact lane auth');
   switch (auth.kind) {
+    case 'voiceid': {
+      const method = parseWalletAuthMethodId(auth.walletAuthMethodId);
+      if (!method.ok) throw new Error('VoiceID lane method ID is invalid');
+      return {
+        kind: 'voiceid',
+        walletAuthMethodId: method.value,
+        deviceKeyId: parseDigestB64u(auth.deviceKeyId),
+      };
+    }
     case 'passkey':
       return {
         kind: 'passkey',
@@ -303,6 +313,7 @@ function parseEvmFamilyEcdsaSignerBinding(value: unknown): EvmFamilyEcdsaSignerB
 }
 
 type CanonicalSigningLaneAuthBinding =
+  | { kind: 'voiceid'; walletAuthMethodId: string; deviceKeyId: string }
   | {
       kind: 'passkey';
       rpId: string;
@@ -405,6 +416,12 @@ function canonicalKeyIdentity(
 
 function canonicalAuthBinding(auth: SigningLaneAuthBinding): CanonicalSigningLaneAuthBinding {
   switch (auth.kind) {
+    case 'voiceid':
+      return {
+        kind: 'voiceid',
+        walletAuthMethodId: auth.walletAuthMethodId,
+        deviceKeyId: auth.deviceKeyId,
+      };
     case 'passkey':
       return {
         kind: 'passkey',

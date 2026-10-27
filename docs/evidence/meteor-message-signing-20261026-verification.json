@@ -1,0 +1,20 @@
+{
+  "verification": {
+    "valid": true,
+    "changedMessageRejected": true,
+    "changedRecipientRejected": true,
+    "changedNonceRejected": true,
+    "digestHex": "6063e43463682739225cbf556f9fa5a6fbd4725d5055a5bb1231775b1534d1d1",
+    "verifier": "Node.js Ed25519 with independent NEP-413 UTF-8 and Borsh encoding"
+  },
+  "accessKey": {
+    "jsonrpc": "2.0",
+    "result": {
+      "block_hash": "HhWCpLZxafmGaQnh6BU72dr394S7R6f5wN6kTRorRFu9",
+      "block_height": 274865891,
+      "nonce": 196936639000592,
+      "permission": "FullAccess"
+    },
+    "id": "meteor-ownership"
+  }
+}

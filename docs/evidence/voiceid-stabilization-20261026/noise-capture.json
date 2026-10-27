@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "startupCancellationStopsMicrophone": true,
+  "noise": {
+    "attemptId": "65efb821-ff87-48f7-b243-cb6bc1992721",
+    "capturedAtMs": 1792941663725,
+    "durationMs": 7980,
+    "recordingMs": 8008.600000023842,
+    "endedBy": "limit",
+    "voicedMs": 0,
+    "peakFrameRms": 0.011595669354663812,
+    "levelThreshold": 0.006,
+    "requiredVoicedMs": 600,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010432320055143334,
+    "speechToBackgroundDb": null,
+    "noise": "high"
+  },
+  "speech": {
+    "attemptId": "265e9450-b651-42dc-b9e5-c085ec945860",
+    "capturedAtMs": 1792941668496,
+    "durationMs": 3600,
+    "recordingMs": 3645.100000023842,
+    "endedBy": "pause",
+    "voicedMs": 1888,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.01032900411755642,
+    "speechToBackgroundDb": 25.698877477946162,
+    "noise": "normal",
+    "similarity": 0.7968547564192646,
+    "modelInputMs": 2288,
+    "threshold": 0.5,
+    "phraseMatched": true,
+    "phraseRecognition": {
+      "kind": "recognized",
+      "phrase": "we will meet again tomorrow morning",
+      "gap": 2.8178971552850305
+    },
+    "expectedPhrase": "we will meet again tomorrow morning"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGU2MDZiMTA3NDQwMTcyYjg1MjRhZWVlZjI0NGU4N2I1NDMxMzFkZmIxZmM0ZGE3NDc1MWM4MjM0YTcxYzBlNjgA5gaxB0QBcrhSSu7vJE6HtUMTHfsfxNp0dRyCNKccDmgCAAAAAAAAAEAAAABlNjA2YjEwNzQ0MDE3MmI4NTI0YWVlZWYyNDRlODdiNTQzMTMxZGZiMWZjNGRhNzQ3NTFjODIzNGE3MWMwZTY4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAeb9NhHwvs9YxE9pIVrjF24+4mdpJv19py55JXNL7Kcx7/sAyVSOrWnqzNW7X8YfuE9PHBS9rNewlyB+Ea7bNBg==",
+      "signedTransactionSha256": "33ed467f278cb48ccaf6d09962160063ead37d9b69f5198b7041f0fa15cca600",
+      "signerId": "e606b107440172b8524aeeef244e87b543131dfb1fc4da74751c8234a71c0e68",
+      "receiverId": "e606b107440172b8524aeeef244e87b543131dfb1fc4da74751c8234a71c0e68",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

@@ -6,6 +6,7 @@ import type {
   NonceLeaseRef,
 } from '../signingEngine/nonce/NonceCoordinator';
 import type { AuthenticatorOptions } from './authenticatorOptions';
+import type { WalletAuthMethodPlugin } from '../authMethods/plugins';
 import type { WalletHostVariant } from '../browser/walletIframe/hostVariant';
 import type { ClientUserData } from '../accountData/near/nearAccountData.types';
 import type { WasmSignedDelegate } from './signer-worker';
@@ -180,6 +181,8 @@ type SigningSessionSealConfig =
  *   Browser wallet capabilities run through hosted iframe mode.
  */
 export interface SeamsConfigsInput {
+  /** Opt-in wallet auth methods. Their implementation loads on first use. */
+  authMethods?: readonly WalletAuthMethodPlugin[];
   chains?: SeamsChainConfigInput[];
   appearance?: AppearanceConfigInput;
   /**
@@ -922,6 +925,7 @@ interface SeamsUiConfig {
  * All fields that the SDK relies on at runtime are non-optional here.
  */
 interface SeamsConfigsResolved {
+  authMethods: readonly WalletAuthMethodPlugin[];
   network: SeamsNetworkConfig;
   registration: SeamsRegistrationConfig;
   signing: SeamsSigningConfig;

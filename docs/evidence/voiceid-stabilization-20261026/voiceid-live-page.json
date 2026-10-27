@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "harbor-brook-q3jwfy",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "dd8d1313-b7dc-492b-adb2-9cf88db2c99c",
+    "capturedAtMs": 1792941628254,
+    "durationMs": 3420,
+    "recordingMs": 4981.200000047684,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.22095313725940519,
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642
+    },
+    "expectedPhrase": "please bring the water to the table"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "harbor-brook-q3jwfy",
+    "accountId": "02e13e873347f2c5ec50f92b4b4dd9e2fe7ac1a5dd48b84f1f3c5251b4bdf3ae",
+    "publicKey": "ed25519:CF2JsGMnZjQ5gzsZP2GGMhECt5w9RsiDUzMbTmgj2RT"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADAyZTEzZTg3MzM0N2YyYzVlYzUwZjkyYjRiNGRkOWUyZmU3YWMxYTVkZDQ4Yjg0ZjFmM2M1MjUxYjRiZGYzYWUAAuE+hzNH8sXsUPkrS03Z4v56waXdSLhPHzxSUbS9864CAAAAAAAAAEAAAAAwMmUxM2U4NzMzNDdmMmM1ZWM1MGY5MmI0YjRkZDllMmZlN2FjMWE1ZGQ0OGI4NGYxZjNjNTI1MWI0YmRmM2FlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAWJYs8Y6wTbFN9wF6YctIPddlsVYTeJiZxHFASwVFEDyTtk59S8PT/VLHm90gngu32vyDlba8K/qxNc/i/MxhBA==",
+      "signedTransactionSha256": "cbb994e298771e51fd0792b2c683424a51ec0e4791a9d01b79bca6b6257ceb43",
+      "signerId": "02e13e873347f2c5ec50f92b4b4dd9e2fe7ac1a5dd48b84f1f3c5251b4bdf3ae",
+      "receiverId": "02e13e873347f2c5ec50f92b4b4dd9e2fe7ac1a5dd48b84f1f3c5251b4bdf3ae",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

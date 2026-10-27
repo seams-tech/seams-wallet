@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "cedar-comet-s23c93",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "366111de-c068-4bf3-8930-8ab2e065fcf1",
+    "capturedAtMs": 1792895061313,
+    "durationMs": 3420,
+    "recordingMs": 4975.799999952316,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.20181664025897278,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "cedar-comet-s23c93",
+    "accountId": "7f098d2c0e01c979dc7d062c851242859c52234aa0f3a879ceea0db716e6f273",
+    "publicKey": "ed25519:9YuE3oFzvJShoGerKmsfwUFUidtbVPmQcKxFVdG75nyG"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADdmMDk4ZDJjMGUwMWM5NzlkYzdkMDYyYzg1MTI0Mjg1OWM1MjIzNGFhMGYzYTg3OWNlZWEwZGI3MTZlNmYyNzMAfwmNLA4ByXncfQYshRJChZxSI0qg86h5zuoNtxbm8nMCAAAAAAAAAEAAAAA3ZjA5OGQyYzBlMDFjOTc5ZGM3ZDA2MmM4NTEyNDI4NTljNTIyMzRhYTBmM2E4NzljZWVhMGRiNzE2ZTZmMjczAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAY9ffbkQKIE415Auaoh1dtMq5iRouVHcx8r4O9VLCbpNfWkdc7eYbmYXvRcDY4yA5e8lr/50OvsFQsfYjTy+CCA==",
+      "signedTransactionSha256": "4033a6abae35356982dc9381350a328486f4cbf83321dad41af6b68c8c251dcd",
+      "signerId": "7f098d2c0e01c979dc7d062c851242859c52234aa0f3a879ceea0db716e6f273",
+      "receiverId": "7f098d2c0e01c979dc7d062c851242859c52234aa0f3a879ceea0db716e6f273",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

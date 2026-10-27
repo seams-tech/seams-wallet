@@ -1045,7 +1045,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
       openAfterBlink: false,
     });
   });
-  test('shows a dual-method wallet in both groups and enables both methods', async ({ page }) => {
+  test('shows one entry for a dual-method wallet and enables both methods', async ({ page }) => {
     const passkey = {
       walletId: 'jade-brook',
       authMethod: 'passkey',
@@ -1078,18 +1078,12 @@ test.describe('wallet-host Preact auth menu surface', () => {
     await expect(
       page.locator(`${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="passkey"]`),
     ).toHaveCount(1);
-    const emailOtpOption = page.locator(
-      `${AUTH_MENU_TAG} [data-wallet-id="jade-brook"][data-auth-method="email_otp"]`,
-    );
-    await expect(emailOtpOption).toHaveCount(1);
-    await expect(emailOtpOption.locator('.seams-account-menu-account-primary')).toHaveText(
-      'jade-brook',
-    );
-    await expect(emailOtpOption.locator('.seams-account-menu-account-secondary')).toHaveText(
-      'n637805@gmail.com',
-    );
-    await emailOtpOption.focus();
-    await expect(emailOtpOption).toBeFocused();
+    const walletOption = page.locator(`${AUTH_MENU_TAG} [role="option"][data-wallet-id="jade-brook"]`);
+    await expect(walletOption).toHaveCount(1);
+    await expect(walletOption.locator('.seams-account-menu-account-primary')).toHaveText('jade-brook');
+    await walletOption.focus();
+    await expect(walletOption).toBeFocused();
+
   });
 
   test('delivers the submit intent synchronously during trusted user activation', async ({

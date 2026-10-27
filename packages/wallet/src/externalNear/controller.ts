@@ -2,6 +2,7 @@ import { createNearWalletProvider, nearWalletName } from './wallets';
 import { connectedNear } from './types';
 import type { TransactionInput } from '../core/types/actions';
 import { executionStatus, parseAccounts, parseSubmission, validateTransaction } from './boundary';
+import { parseSignedMessage, validateMessage, type ValidatedNearMessage } from './message';
 import type {
   ExternalNearConnection,
   ExternalNearConfig,
@@ -12,6 +13,8 @@ import type {
   ExternalNearSubmission,
   NearWalletProvider,
   ExternalNearWalletId,
+  ExternalNearMessageParams,
+  ExternalNearSignedMessage,
 } from './types';
 
 function failure(
@@ -127,6 +130,51 @@ export class ExternalNearController {
     this.pending = false;
     provider?.dispose();
     this.publish({ kind: 'disconnected' });
+  }
+
+  async signMessage(
+    connection: ExternalNearConnection,
+    input: ExternalNearMessageParams,
+  ): Promise<ExternalNearResult<ExternalNearSignedMessage>> {
+    if (this.pending) return failure('pending_request', 'Complete the pending wallet request.');
+    if (connection !== this.snapshot.connection || !this.provider)
+      return failure('connection_changed', 'Reconnect the wallet before signing.');
+    const provider = this.provider;
+    if (provider.messageSigning === 'unsupported')
+      return failure(
+        'unavailable',
+        'This wallet does not support NEP-413 message signing in Seams.',
+      );
+    let message: ValidatedNearMessage;
+    try {
+      message = validateMessage(input);
+    } catch {
+      return failure('invalid_input', 'Provide a message, recipient, and 32-byte nonce.');
+    }
+    const generation = this.generation;
+    this.pending = true;
+    this.publish(connection);
+    try {
+      const accounts = parseAccounts(await provider.accounts(this.network));
+      if (connection !== this.snapshot.connection || !accounts.includes(connection.accountId))
+        return failure('connection_changed', 'Wallet account changed. Reconnect before signing.');
+      const raw = await provider.signMessage(connection, message);
+      if (connection !== this.snapshot.connection)
+        return failure('connection_changed', 'Wallet selection changed.');
+      const signed = await parseSignedMessage(raw, connection, message);
+      if (connection !== this.snapshot.connection)
+        return failure('connection_changed', 'Wallet selection changed.');
+      return { ok: true, value: signed };
+    } catch {
+      if (connection !== this.snapshot.connection)
+        return failure('connection_changed', 'Wallet selection changed.');
+      return failure('unavailable', 'The wallet did not return a valid NEP-413 message signature.');
+    } finally {
+      if (generation === this.generation) {
+        this.pending = false;
+        this.publish(this.snapshot.connection);
+      }
+    }
   }
 
   async sendTransaction(

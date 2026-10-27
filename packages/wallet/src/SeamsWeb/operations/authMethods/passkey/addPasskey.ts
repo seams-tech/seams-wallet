@@ -112,8 +112,8 @@ async function addPasskeyWalletAuthMethodInternal(args: {
   }
 
   /* The intent names the source it is minted for, so the fresh assertion
-     taken over its digest binds the wallet, authority, source method, source
-     session, authority state, and the server-allocated target method id. */
+     taken over its digest binds the wallet, authority, source method,
+     authority state, and the server-allocated target method id. */
   const sourceClaim = await resolveAddAuthMethodSourceClaimV1(args.walletId);
   if (sourceClaim.kind !== 'resolved') {
     throw new Error(`Wallet add-passkey requires a selected active source: ${sourceClaim.reason}`);
@@ -254,10 +254,9 @@ async function addPasskeyFromEmailOtpSource(args: {
   readonly intentResponse: Awaited<ReturnType<typeof createWalletAddAuthMethodIntent>>;
   readonly options?: AddPasskeyHooksOptions;
 }): Promise<AddPasskeyResult> {
-  /* The seed's door. An Email unlock parked the factor secret with the opened
-     handle, so this addition needs no factor release and no second code. A
-     wallet without the capability has not unlocked in this session — the
-     honest answer is to unlock, not to prompt for another code. */
+  // The selected owner session opened this custody handle. The fresh Email OTP
+  // proof below authorizes the addition, including when VoiceID opened the handle.
+  // A missing handle requires a new unlock before custody can be resealed.
   const capability = readUnlockedWalletEd25519ExportRootCapabilityV1(String(args.walletId));
   if (!capability) {
     throw new Error('Wallet add-passkey from an Email OTP source requires an unlocked wallet');

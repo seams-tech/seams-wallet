@@ -34,7 +34,7 @@ export class MeteorRequest {
   constructor(
     private readonly transport: MeteorTransport,
     private readonly network: ExternalNearNetwork,
-    private readonly actionType: 'login' | 'sign',
+    private readonly actionType: 'login' | 'sign' | 'sign_message',
     private readonly inputs: object,
   ) {
     this.result = new Promise(this.capture);

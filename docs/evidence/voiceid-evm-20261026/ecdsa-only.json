@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "profile": "ecdsa_only",
+  "nearTransfers": [],
+  "network": "deterministic_arc_rpc",
+  "signing": "real_ecdsa_mpc",
+  "inference": "real_redimnet_b1_and_aurora",
+  "speakerThreshold": 0.5,
+  "ownerAddress": "0x0db1fc60285cda3ffece8a3e8eadf5ccaa21acb4",
+  "walletId": "harbor-sequoia-ta8n35",
+  "transactions": [
+    {
+      "hash": "0x9c83dcb1abec2553f8710fe8693b0b287b61bc53536070ca3f878380472efb9c",
+      "raw": "0x02f869834cef5280808477359400825208940db1fc60285cda3ffece8a3e8eadf5ccaa21acb40180c080a018f8654dad71f5e54011f242793d464b1f06f5e2ca9420e8949f4afa53ca4325a015d7bc65b2ac8edfe4b438747ad94d04b3f086c44a42566a42a8a84f2a9dc84f",
+      "sender": "0x0dB1fC60285cda3fFEce8a3E8eadF5cCAa21AcB4",
+      "to": "0x0db1fc60285cda3ffece8a3e8eadf5ccaa21acb4",
+      "value": "1",
+      "chainId": 5042002,
+      "nonce": 0
+    }
+  ],
+  "cancellationPreventedSecondTransfer": true
+}

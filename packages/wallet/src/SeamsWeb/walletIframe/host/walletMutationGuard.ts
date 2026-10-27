@@ -7,7 +7,7 @@ export async function assertWalletHostMutationAllowed(
   request: ParentToChildEnvelope,
   currentWalletId: string | null,
 ): Promise<void> {
-  const walletId = mutationWallet(request, currentWalletId);
+  const walletId = walletForHostRequest(request, currentWalletId);
   if (walletId === null) return;
   const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
   // Missing credentials still follow the operation's normal authentication flow.
@@ -30,13 +30,15 @@ function requiredWallet(raw: unknown): WalletId {
   return parsed.value;
 }
 
-function mutationWallet(
+export function walletForHostRequest(
   request: ParentToChildEnvelope,
   currentWalletId: string | null,
 ): WalletId | null {
   switch (request.type) {
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
+    case 'PM_ACTIVATE_AUTH_METHOD':
+    case 'PM_SET_AUTH_METHOD_ENABLED':
     case 'PM_ADD_EMAIL_OTP':
     case 'PM_REVOKE_AUTH_METHOD':
     case 'PM_ACKNOWLEDGE_WALLET_RECOVERY_CODE_BACKUP':
@@ -63,6 +65,7 @@ function mutationWallet(
     case 'PM_SET_TRANSACTION_VIEW':
     case 'PM_TRANSACTION_BROADCAST_STARTED':
     case 'PING':
+    case 'PM_GET_AUTH_METHOD_AVAILABILITY':
     case 'PM_PREPARE_WALLET_RUNTIME':
     case 'PM_SET_CONFIG':
     case 'PM_ACTIVATE_TRANSACTION_REVIEW':
@@ -73,6 +76,7 @@ function mutationWallet(
     case 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION':
     case 'PM_REGISTER_WALLET':
     case 'PM_UNLOCK':
+    case 'PM_UNLOCK_AUTH_METHOD':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_LAST_WALLET_MOVE_REQUEST':

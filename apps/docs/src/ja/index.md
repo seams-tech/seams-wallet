@@ -15,12 +15,12 @@ Reactアプリと、ウォレットオリジン、リレーヤーURL、管理登
 以下の手順は、Seamsのしきい値ウォレットを作成するためのものです。
 Meteor、HOT Wallet、Intear Walletを接続する場合は、[外部NEARコネクター](/ja/guides/external-near-wallets)を参照してください。
 外部接続にはSeamsのプロバイダーやログインは不要です。
-この機能は開発プレビューで、公開済みの`0.22.0`には含まれていません。
+この機能は開発プレビューです。
 
 ## 1. SDKをインストール {#\_1-install-the-sdk}
 
 ```sh
-pnpm add @seams/wallet@0.22.0
+pnpm add @seams/wallet@0.24.0
 ```
 
 <!-- prettier-ignore -->
@@ -32,12 +32,15 @@ pnpm add @seams/wallet@0.22.0
 同じ環境変数名を使うか、独自の設定ローダーを使用してください。
 別のネットワークを設定する場合は`chains`を渡します。テストネット以外では`defineSeamsConfig`を使います。
 
-このドキュメントは`@seams/wallet` **0.22.0**を対象としています。
+このドキュメントは`@seams/wallet` **0.24.0**を対象としています。
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
+[VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、送金承認に使う任意のパッケージです。
+エンジンとモデルは、VoiceIDを使うときだけ読み込みます。
+
 ウォレットiframeのプロトコルは**16.0.0**、復元CLIは**0.21.0**です。
-導入とデプロイの要件は[リリース 0.22.0](/ja/releases)を参照してください。
+導入とデプロイの要件は[リリース 0.24.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx
 

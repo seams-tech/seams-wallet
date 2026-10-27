@@ -39,10 +39,12 @@ const forbiddenWalletIframeHostPathPatterns = [
   /(^|\/)lucide-react(?:\/|[-.]|$)/i,
   /(?:^|\/)packages\/wallet\/src\/react(?:\/|$)/i,
 ];
+// Preact compat also uses React element symbols and createElement/jsxs names.
+// Require React-specific internals here; the bundler also checks actual module ownership.
 // The minifier writes string literals with backticks, so those count as quotes here.
 const inlinedReactSymbolPattern = /Symbol\.for\(\s*['"`]react\.(?:element|fragment)['"`]\s*\)/;
 const inlinedReactRuntimePattern =
-  /\b(?:ReactCurrentDispatcher|ReactCurrentOwner|ReactSharedInternals|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED|createRoot|hydrateRoot|jsxDEV|jsxs|createElement)\b/;
+  /\b(?:ReactCurrentDispatcher|ReactCurrentOwner|ReactSharedInternals|__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED|__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE|__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE)\b/;
 const forbiddenWalletIframeHostSourcePredicates = [
   {
     label: 'inlined React runtime markers',

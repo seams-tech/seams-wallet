@@ -103,6 +103,8 @@ export function buildActiveWalletAuthorityConfirmationAuthPlan(
 
 function signerAuthMethodForWalletAuthority(authority: WalletAuthAuthority): SignerAuthMethod {
   switch (authority.factor.kind) {
+    case 'voiceid':
+      return 'voiceid';
     case 'passkey':
       return 'passkey';
     case 'email_otp':

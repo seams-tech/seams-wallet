@@ -353,14 +353,6 @@
   line-height: 1.45;
 }
 
-.seams-linked-devices-modal-otp-form {
-  display: grid;
-  gap: 0.5rem;
-  color: var(--seams-colors-textPrimary);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
 .seams-linked-devices-modal-otp-input {
   width: 100%;
   min-height: 44px;
@@ -574,37 +566,9 @@
   border: 0;
   gap: 0.5rem;
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem 0.75rem;
-  font-weight: 400;
-}
-.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form label {
-  grid-column: 1 / -1;
-}
 .seams-auth-methods-modal-content .seams-linked-devices-modal-secondary {
   min-height: 44px;
   font-size: 0.8125rem;
-}
-.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button {
-  background: var(--seams-colors-textPrimary);
-  border-color: transparent;
-  color: var(--seams-colors-colorBackground);
-}
-.seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--seams-colors-textPrimary) 84%,
-    var(--seams-colors-colorBackground)
-  );
-}
-@media (max-width: 480px) {
-  .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .seams-auth-methods-modal-content .seams-linked-devices-modal-otp-form button {
-    justify-self: stretch;
-  }
 }
 .seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-auth-methods-modal-content {
   max-width: 40rem;
@@ -618,4 +582,146 @@
 
 .seams-linked-devices-modal-body::-webkit-scrollbar {
   display: none;
+}
+
+/* Each method is a card: icon, name and state, one trailing control, then an
+   optional footer for further actions or a removal confirmation. */
+.seams-auth-methods-modal-content .seams-account-menu-section > .seams-account-method-tiles {
+  margin-top: 0;
+}
+.seams-auth-methods-modal-content
+  .seams-account-method-tiles
+  .seams-linked-devices-modal-item--row {
+  padding: 0.75rem 0.875rem;
+  border-radius: 0.875rem;
+}
+.seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-icon {
+  align-self: center;
+}
+.seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-main {
+  justify-content: flex-start;
+}
+.seams-auth-method-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  margin: 0.75rem -0.875rem -0.75rem;
+  padding: 0.25rem 0.875rem;
+  border-top: 1px solid var(--seams-colors-borderPrimary);
+}
+.seams-auth-method-footer > .seams-linked-devices-modal-confirm {
+  flex: 1;
+  margin: 0;
+  padding-block: 0.5rem;
+}
+
+/* Quiet text actions; Remove carries the error tone, mixed toward the text
+   colour so it keeps its contrast on both themes. */
+.seams-auth-method-text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-height: 2.25rem;
+  margin-inline: -0.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.seams-auth-method-text-action > svg {
+  color: var(--seams-colors-textSecondary);
+}
+[dir='rtl'] .seams-auth-method-text-action > svg {
+  transform: scaleX(-1);
+}
+.seams-auth-method-text-action[data-tone='danger'],
+.seams-linked-devices-modal-item-detail [data-tone='error'],
+.seams-auth-method-field-error {
+  color: color-mix(in oklab, var(--seams-colors-error) 65%, var(--seams-colors-textPrimary));
+}
+.seams-auth-method-text-action:hover:not(:disabled) {
+  background: var(--seams-colors-surface2, var(--seams-colors-surface));
+}
+.seams-auth-method-text-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.seams-auth-method-text-action:focus-visible {
+  outline: 2px solid var(--seams-colors-textPrimary);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .seams-auth-method-text-action {
+    min-height: 2.75rem;
+  }
+}
+
+/* Email OTP's address form opens in its card footer, below a divider. */
+.seams-auth-method-form {
+  display: grid;
+  flex: 1;
+  gap: 0.5rem;
+  padding-block: 0.625rem 0.5rem;
+  color: var(--seams-colors-textPrimary);
+  font-size: 0.8125rem;
+}
+.seams-auth-method-form label {
+  font-weight: 600;
+}
+.seams-auth-method-note,
+.seams-auth-method-field-error {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.seams-auth-method-note {
+  color: var(--seams-colors-textSecondary);
+}
+.seams-auth-method-field-error {
+  font-weight: 500;
+}
+.seams-auth-method-form .seams-linked-devices-modal-confirm-actions {
+  margin-top: 0.25rem;
+}
+.seams-auth-method-primary {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: var(--seams-colors-textPrimary);
+  color: var(--seams-colors-colorBackground);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.seams-auth-method-primary:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--seams-colors-textPrimary) 84%,
+    var(--seams-colors-colorBackground)
+  );
+}
+.seams-auth-method-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.seams-auth-method-primary:focus-visible {
+  outline: 2px solid var(--seams-colors-textPrimary);
+  outline-offset: 2px;
 }

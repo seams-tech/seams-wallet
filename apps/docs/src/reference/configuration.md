@@ -51,6 +51,14 @@ Use `iframeWallet` for the isolated wallet origin. Set the HTTPS `walletOrigin`.
 `walletServicePath` and `sdkBasePath` to match the assets deployed at that origin.
 `rpIdOverride` changes credential scope and needs an explicit security review.
 
+## Optional VoiceID
+
+SDK 0.24.0 accepts `authMethods: [voiceIdAuthMethod()]`. Import the descriptor from
+`@seams/voiceid`. The Wallet host operator must deploy that package's assets too.
+The descriptor enables availability. The wallet owner chooses enrollment and VoiceID unlock separately.
+It does not load the engine or models during passkey or Email OTP flows.
+See [VoiceID setup](/concepts/auth-methods/voiceid) for installation and code examples.
+
 ## Registration branch
 
 Managed registration requires the `publishableKey` issued for the current origin. The

@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "ivory-vermillion-q6keuy",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:dbcac29e-6911-433b-b05c-53b6646e9f0a",
+  "freshSessionId": "wls_9BpHS9tlRjQPdBONdr0DYuaUhjppSr9-8pxALG1qjhs",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 116.63308299999335,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 382.6497090000048,
+    "runtimeVisibleMs": 115.00162500000442,
+    "loadingCardHeight": 435.03125,
+    "readyCardHeight": 435.03125,
+    "cancellationMs": 59.07524999999441,
+    "readyMs": 4499.214042,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 123.07337499999994,
+  "naturalCapture": {
+    "voicedMs": 1344,
+    "recordingMs": 4916.299999952316,
+    "endedBy": "pause",
+    "similarity": 0.682076504739907,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1088,
+    "recordingMs": 2870.3000000715256,
+    "endedBy": "pause",
+    "similarity": 0.6454106369508732,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "6536b2e9-4921-45cf-99ca-d43f3f79f634",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.20689774188643464,
+      "levelThreshold": 0.006,
+      "recordingMs": 2145,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "4197c312-6fe8-43ad-ac8e-92a3ea21fb8f",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.00022627490222548862,
+      "levelThreshold": 0.006,
+      "recordingMs": 8001.899999976158,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "ivory-vermillion-q6keuy",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "ivory-vermillion-q6keuy",
+    "accountId": "b985594c4aff6864c72a8d68d1e0b3fc29c9449196badcb56b80669db0182413",
+    "publicKey": "ed25519:DVCMnra4kkgSwJVpVk1jvds7rcBCfqgtUd3qwNHFJtAN"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGI5ODU1OTRjNGFmZjY4NjRjNzJhOGQ2OGQxZTBiM2ZjMjljOTQ0OTE5NmJhZGNiNTZiODA2NjlkYjAxODI0MTMAuYVZTEr/aGTHKo1o0eCz/CnJRJGWuty1a4BmnbAYJBMCAAAAAAAAAEAAAABiOTg1NTk0YzRhZmY2ODY0YzcyYThkNjhkMWUwYjNmYzI5Yzk0NDkxOTZiYWRjYjU2YjgwNjY5ZGIwMTgyNDEzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAUTWJIUi4AZRb7rK+E6xuXH8XUOkox3NAAi2XRn1XAmB33ttYTEGcHM84b3OHYUdZEcA/QZO+uG/2Q+NC4HZDBw==",
+      "signedTransactionSha256": "697561cd16adf2f41c8b916830bf178eb4bd3b36b3bad614b74b1f946145827e",
+      "signerId": "b985594c4aff6864c72a8d68d1e0b3fc29c9449196badcb56b80669db0182413",
+      "receiverId": "b985594c4aff6864c72a8d68d1e0b3fc29c9449196badcb56b80669db0182413",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

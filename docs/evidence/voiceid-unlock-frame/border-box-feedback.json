@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "measured_v1",
+    "requestId": "border-feedback",
+    "sequence": 1,
+    "widthCssPx": 420,
+    "heightCssPx": 240
+  }
+]

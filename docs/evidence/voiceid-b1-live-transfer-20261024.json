@@ -1,0 +1,46 @@
+{
+  "verifiedAt": "2026-10-24T09:39:04.815Z",
+  "network": "NEAR testnet",
+  "rpc": "https://rpc.testnet.fastnear.com",
+  "implementationCommit": "79582d0d",
+  "model": "ReDimNet B1",
+  "modelSha256": "e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269",
+  "walletId": "misty-reef-hv6mdb",
+  "enrollment": "user reported three-sample B1 enrollment completed",
+  "unlock": "live page and user screenshot show Authentication: voiceid",
+  "approval": "user submitted the reviewed transfer through the B1 browser plugin",
+  "nativeHost": "none",
+  "transactionHash": "7FbtVoCLVKLJZDK3xFmWJzFj8PtFTfh2sHsjjrrcZpfF",
+  "signerId": "c66c7627b5adb5d43c24692c85fba0e98d06dab9853648943470c99b323fe926",
+  "receiverId": "c66c7627b5adb5d43c24692c85fba0e98d06dab9853648943470c99b323fe926",
+  "actions": [
+    {
+      "Transfer": {
+        "deposit": "1"
+      }
+    }
+  ],
+  "finalExecutionStatus": "FINAL",
+  "status": {
+    "SuccessValue": ""
+  },
+  "transactionBlockHash": "9u1MyQAL2ZfFrY2DyBHJmVJwyGBop6iZXnX6qve6W9tN",
+  "receiptOutcomes": [
+    {
+      "id": "28k1fjfxfdo1Q5vRD6XznhXKd3m9ixnJNpsLwHbsztZc",
+      "blockHash": "9u1MyQAL2ZfFrY2DyBHJmVJwyGBop6iZXnX6qve6W9tN",
+      "status": {
+        "SuccessValue": ""
+      }
+    },
+    {
+      "id": "BWMdvQxaczsKUsi7wDKNC3UcECdD19FAVMozvcPAYg7U",
+      "blockHash": "8FvtwY6FVfcAadNs8BGPckEH3zTotYdzgHqHbp2B1rtj",
+      "status": {
+        "SuccessValue": ""
+      }
+    }
+  ],
+  "qualificationScope": "one user, one browser/device, one live B1 transfer; no population accuracy claim",
+  "cacheValidation": "automated Wallet E2E verified one model fetch across reload; live cache eviction and repeat-download behavior were not separately tested"
+}

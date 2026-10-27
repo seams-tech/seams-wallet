@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "cases": [
+    "enabled_unenrolled_passkey_signs_without_voice_downloads",
+    "enrollment_does_not_select_voice",
+    "voice_unlock_selects_voice_approval",
+    "fresh_passkey_unlock_skips_voice_even_when_enrolled"
+  ],
+  "downloads": [
+    "/sdk/host-u6gHEZAb.js",
+    "/sdk/ort.wasm.bundle.min-BM2y6FPl.js",
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx"
+  ],
+  "voiceCaptureForVoiceSigning": true,
+  "coldPasskeyDownloadsAfterVoiceUse": 0,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADliOWMwOGFhZGU1OWE5NmFkMjI1MGNjZGM1ZGJlMTM0N2YzNWU2YThmZTMxMjBmYzVmOGNhZTdiNzk5MTYzMDMAm5wIqt5ZqWrSJQzNxdvhNH815qj+MSD8X4yue3mRYwMCAAAAAAAAAEAAAAA5YjljMDhhYWRlNTlhOTZhZDIyNTBjY2RjNWRiZTEzNDdmMzVlNmE4ZmUzMTIwZmM1ZjhjYWU3Yjc5OTE2MzAzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAS3v2meOrihySJx1xbyvYr112vZaJMFtvx4zj+gEjHKkZiYpkcZrJ5KgXGbptI2RAoeQvK7kbuztpEucQ6F0gAA==",
+      "signedTransactionSha256": "6cb91be02e0f8b0aaaa3245a2c8acb3deb46612d13b62cc6aa8f12088c134f6f",
+      "signerId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "receiverId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADliOWMwOGFhZGU1OWE5NmFkMjI1MGNjZGM1ZGJlMTM0N2YzNWU2YThmZTMxMjBmYzVmOGNhZTdiNzk5MTYzMDMAm5wIqt5ZqWrSJQzNxdvhNH815qj+MSD8X4yue3mRYwMDAAAAAAAAAEAAAAA5YjljMDhhYWRlNTlhOTZhZDIyNTBjY2RjNWRiZTEzNDdmMzVlNmE4ZmUzMTIwZmM1ZjhjYWU3Yjc5OTE2MzAzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAmLZozW8qeRUpT69aK6aMoSqxEA5z1BHaYByOc9skm1syVKmA0AG+gE4xRyzFlSlpTXWmRIWgq73Ws0XCD/l1AQ==",
+      "signedTransactionSha256": "2a35b501c1e6fe60e38abc0c1fec88d3cb26b61d144e70c3fef24f2714ca229f",
+      "signerId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "receiverId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "amountYocto": "1",
+      "nonce": "3"
+    },
+    {
+      "signedTransactionB64": "QAAAADliOWMwOGFhZGU1OWE5NmFkMjI1MGNjZGM1ZGJlMTM0N2YzNWU2YThmZTMxMjBmYzVmOGNhZTdiNzk5MTYzMDMAm5wIqt5ZqWrSJQzNxdvhNH815qj+MSD8X4yue3mRYwMCAAAAAAAAAEAAAAA5YjljMDhhYWRlNTlhOTZhZDIyNTBjY2RjNWRiZTEzNDdmMzVlNmE4ZmUzMTIwZmM1ZjhjYWU3Yjc5OTE2MzAzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAu5wBr1Ubzo/62k4ZLB4ZkeBku3NeDWikaIDChvky2h74uvrdqHgKhZbGxC0JCwEr5tOmv6Cy93kZD+vShG88BQ==",
+      "signedTransactionSha256": "c38d69dbbf401da9b1f14e11412967cbd858a5e5a5d1df7d8916d0fa8a5d5b20",
+      "signerId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "receiverId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAADliOWMwOGFhZGU1OWE5NmFkMjI1MGNjZGM1ZGJlMTM0N2YzNWU2YThmZTMxMjBmYzVmOGNhZTdiNzk5MTYzMDMAm5wIqt5ZqWrSJQzNxdvhNH815qj+MSD8X4yue3mRYwMCAAAAAAAAAEAAAAA5YjljMDhhYWRlNTlhOTZhZDIyNTBjY2RjNWRiZTEzNDdmMzVlNmE4ZmUzMTIwZmM1ZjhjYWU3Yjc5OTE2MzAzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAPynwADDf9dWPShA1Ra4L8VjzPMLLqeN8qr1vUZJhF2XXM0s3/D1OCdM01rfnHY27yIERmyV7x4WABGl/T4C5CQ==",
+      "signedTransactionSha256": "3583f1b839238113f919f957a7204b41d44ed0f9d574affea1c2ed111dd74bef",
+      "signerId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "receiverId": "9b9c08aade59a96ad2250ccdc5dbe1347f35e6a8fe3120fc5f8cae7b79916303",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc",
+  "inference": "real_browser_redimnet_b1_and_aurora",
+  "signing": "real_ed25519_yao_mpc"
+}

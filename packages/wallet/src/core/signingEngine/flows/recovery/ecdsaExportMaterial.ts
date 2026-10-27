@@ -171,17 +171,19 @@ export function ecdsaSigningTargetFromChainTarget(
   return chainTarget;
 }
 
+export type ConcreteEcdsaExportAvailableLane = ConcreteAvailableEcdsaSigningLane & {
+  auth: Exclude<ConcreteAvailableEcdsaSigningLane['auth'], { kind: 'voiceid' }>;
+};
+
 export function isConcreteEcdsaExportLane(
   lane: AvailableEcdsaSigningLane | null | undefined,
-): lane is Extract<
-  ConcreteAvailableEcdsaSigningLane,
-  { source: 'canonical_capability' | 'active_wallet_authority' }
-> {
+): lane is ConcreteEcdsaExportAvailableLane {
   if (
     !lane ||
     lane.curve !== 'ecdsa' ||
     !lane.chainTarget ||
     !isConcreteAvailableSigningLane(lane) ||
+    lane.auth.kind === 'voiceid' ||
     !String(lane.publicFacts.keyHandle || '').trim()
   ) {
     return false;

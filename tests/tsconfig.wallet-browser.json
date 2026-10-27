@@ -5,6 +5,8 @@
     "noEmit": true,
     "types": ["@playwright/test", "node", "qrcode", "vite/client"],
     "paths": {
+      "@voiceid/*": ["../packages/voiceid/src/*"],
+      "@seams/wallet/voiceid-host": ["../packages/wallet/src/voiceid-host.ts"],
       "@build-paths": ["../packages/wallet/build-paths.ts"],
       "@/*": ["../packages/wallet/src/*"],
       "@shared/*": ["../packages/shared-ts/src/*"]

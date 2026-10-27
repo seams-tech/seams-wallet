@@ -66,6 +66,8 @@ function buildPlanningLane(args: {
     thresholdSessionId: args.selectedLane.thresholdSessionId,
   };
   switch (args.selectedLane.auth.kind) {
+    case 'voiceid':
+      return buildNearTransactionSigningLane({ ...common, auth: args.selectedLane.auth, storageSource: 'login' });
     case 'passkey':
       return buildNearTransactionSigningLane({
         ...common,

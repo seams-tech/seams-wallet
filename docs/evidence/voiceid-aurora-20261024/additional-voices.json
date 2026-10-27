@@ -1,0 +1,258 @@
+[
+  {
+    "index": 0,
+    "voice": "Karen",
+    "expected": "i want to go home",
+    "actual": "i want to go home",
+    "matched": true,
+    "seconds": 1.744125
+  },
+  {
+    "index": 0,
+    "voice": "Moira",
+    "expected": "i want to go home",
+    "actual": "i want to go home",
+    "matched": true,
+    "seconds": 1.7499375
+  },
+  {
+    "index": 1,
+    "voice": "Karen",
+    "expected": "i can hear the music",
+    "actual": "i can hear the music",
+    "matched": true,
+    "seconds": 1.77825
+  },
+  {
+    "index": 1,
+    "voice": "Moira",
+    "expected": "i can hear the music",
+    "actual": "i can hear the music",
+    "matched": true,
+    "seconds": 1.7376875
+  },
+  {
+    "index": 2,
+    "voice": "Karen",
+    "expected": "this is my own voice",
+    "actual": "this is my own voice",
+    "matched": true,
+    "seconds": 1.7630625
+  },
+  {
+    "index": 2,
+    "voice": "Moira",
+    "expected": "this is my own voice",
+    "actual": "this is my own voice",
+    "matched": true,
+    "seconds": 1.8094375
+  },
+  {
+    "index": 3,
+    "voice": "Karen",
+    "expected": "we are going home now",
+    "actual": "we are going home now",
+    "matched": true,
+    "seconds": 1.7034375
+  },
+  {
+    "index": 3,
+    "voice": "Moira",
+    "expected": "we are going home now",
+    "actual": "we are going home n",
+    "matched": false,
+    "seconds": 1.7351875
+  },
+  {
+    "index": 4,
+    "voice": "Karen",
+    "expected": "the little dog is sleeping",
+    "actual": "the little dog is sleeping",
+    "matched": true,
+    "seconds": 1.8711875
+  },
+  {
+    "index": 4,
+    "voice": "Moira",
+    "expected": "the little dog is sleeping",
+    "actual": "the little dog is sleeping",
+    "matched": true,
+    "seconds": 1.960375
+  },
+  {
+    "index": 5,
+    "voice": "Karen",
+    "expected": "the river is running slowly",
+    "actual": "the rivers running slowy",
+    "matched": false,
+    "seconds": 2.0105625
+  },
+  {
+    "index": 5,
+    "voice": "Moira",
+    "expected": "the river is running slowly",
+    "actual": "the river is running slowly",
+    "matched": true,
+    "seconds": 1.960375
+  },
+  {
+    "index": 6,
+    "voice": "Karen",
+    "expected": "i want a glass of water",
+    "actual": "i want a glass of water",
+    "matched": true,
+    "seconds": 2.011375
+  },
+  {
+    "index": 6,
+    "voice": "Moira",
+    "expected": "i want a glass of water",
+    "actual": "i want a glass of waler",
+    "matched": false,
+    "seconds": 2.167875
+  },
+  {
+    "index": 7,
+    "voice": "Karen",
+    "expected": "can you open the window",
+    "actual": "can you open the window",
+    "matched": true,
+    "seconds": 1.7408125
+  },
+  {
+    "index": 7,
+    "voice": "Moira",
+    "expected": "can you open the window",
+    "actual": "can you open the window",
+    "matched": true,
+    "seconds": 1.9156875
+  },
+  {
+    "index": 8,
+    "voice": "Karen",
+    "expected": "we sat beside the river",
+    "actual": "we sat beside the river",
+    "matched": true,
+    "seconds": 1.935625
+  },
+  {
+    "index": 8,
+    "voice": "Moira",
+    "expected": "we sat beside the river",
+    "actual": "we sat beside the river",
+    "matched": true,
+    "seconds": 2.0138125
+  },
+  {
+    "index": 9,
+    "voice": "Karen",
+    "expected": "they are waiting for us",
+    "actual": "they awaging th us",
+    "matched": false,
+    "seconds": 1.73175
+  },
+  {
+    "index": 9,
+    "voice": "Moira",
+    "expected": "they are waiting for us",
+    "actual": "they are wishing for us",
+    "matched": false,
+    "seconds": 1.80225
+  },
+  {
+    "index": 10,
+    "voice": "Karen",
+    "expected": "she is reading a book",
+    "actual": "she is reading a boo",
+    "matched": false,
+    "seconds": 1.6834375
+  },
+  {
+    "index": 10,
+    "voice": "Moira",
+    "expected": "she is reading a book",
+    "actual": "she is reading a book",
+    "matched": true,
+    "seconds": 1.6875625
+  },
+  {
+    "index": 11,
+    "voice": "Karen",
+    "expected": "he is looking at me",
+    "actual": "he is looking at may",
+    "matched": false,
+    "seconds": 1.5495625
+  },
+  {
+    "index": 11,
+    "voice": "Moira",
+    "expected": "he is looking at me",
+    "actual": "he is looking up me",
+    "matched": false,
+    "seconds": 1.5281875
+  },
+  {
+    "index": 12,
+    "voice": "Karen",
+    "expected": "the door is open now",
+    "actual": "the door is open now",
+    "matched": true,
+    "seconds": 1.731875
+  },
+  {
+    "index": 12,
+    "voice": "Moira",
+    "expected": "the door is open now",
+    "actual": "the door is open now",
+    "matched": true,
+    "seconds": 1.693375
+  },
+  {
+    "index": 13,
+    "voice": "Karen",
+    "expected": "let us go home now",
+    "actual": "let us go home now",
+    "matched": true,
+    "seconds": 1.8614375
+  },
+  {
+    "index": 13,
+    "voice": "Moira",
+    "expected": "let us go home now",
+    "actual": "let us go home now",
+    "matched": true,
+    "seconds": 1.7804375
+  },
+  {
+    "index": 14,
+    "voice": "Karen",
+    "expected": "that is a good idea",
+    "actual": "that is a good idea",
+    "matched": true,
+    "seconds": 1.5193125
+  },
+  {
+    "index": 14,
+    "voice": "Moira",
+    "expected": "that is a good idea",
+    "actual": "thou is a good idea",
+    "matched": false,
+    "seconds": 1.6629375
+  },
+  {
+    "index": 15,
+    "voice": "Karen",
+    "expected": "come and sit with me",
+    "actual": "comm and sit with me",
+    "matched": false,
+    "seconds": 1.524875
+  },
+  {
+    "index": 15,
+    "voice": "Moira",
+    "expected": "come and sit with me",
+    "actual": "commonsge with me",
+    "matched": false,
+    "seconds": 1.4503125
+  }
+]

@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "coral-phoenix-mzd4f6",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "a3ca7af1-d5f4-4de0-a1e0-837fcf1b9b58",
+    "capturedAtMs": 1792912558576,
+    "durationMs": 3420,
+    "recordingMs": 4990.200000047684,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.2011106412894516,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "the door is open now",
+      "gap": 212.34777091061767
+    },
+    "expectedPhrase": "this is my own voice"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "coral-phoenix-mzd4f6",
+    "accountId": "4a64efc44322480304d72c5c92f570d170f79553f80a4a37e4e0dd23fe31c2b5",
+    "publicKey": "ed25519:61QSRzktZ5AHC94Gu8NXCHH8PkYpDUEN8c8WDCnJx4bE"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADRhNjRlZmM0NDMyMjQ4MDMwNGQ3MmM1YzkyZjU3MGQxNzBmNzk1NTNmODBhNGEzN2U0ZTBkZDIzZmUzMWMyYjUASmTvxEMiSAME1yxckvVw0XD3lVP4Cko35ODdI/4xwrUCAAAAAAAAAEAAAAA0YTY0ZWZjNDQzMjI0ODAzMDRkNzJjNWM5MmY1NzBkMTcwZjc5NTUzZjgwYTRhMzdlNGUwZGQyM2ZlMzFjMmI1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAeGKDqsCnW6O8Rc2Ek0A/oQrcKccEpatIkm+KhAQdCqtjKs5+IFUk9xAiehCkZHi1BISLlpKJ40Qg0o3gAmb0DA==",
+      "signedTransactionSha256": "d4ee6659c8e45bb6e1a7e624f88d51ffa794bc757ca5f7d0bed64681551a7d15",
+      "signerId": "4a64efc44322480304d72c5c92f570d170f79553f80a4a37e4e0dd23fe31c2b5",
+      "receiverId": "4a64efc44322480304d72c5c92f570d170f79553f80a4a37e4e0dd23fe31c2b5",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

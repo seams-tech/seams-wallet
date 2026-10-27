@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "opal-canyon-g4qcdj",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:4ed99a76-01df-4bfc-b2fd-0179177cb83b",
+  "freshSessionId": "wls_5mUjxxmTp056NlJ59weAaJ67ITJrikmDhhHeKBlMBYY",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 110.64775000000009,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 365.90316600000006,
+    "runtimeVisibleMs": 113.42354200000045,
+    "loadingCardHeight": 343.03125,
+    "readyCardHeight": 309.03125,
+    "cancellationMs": 42.95258299999841,
+    "readyMs": 4707.108500000002,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 125.394542,
+  "naturalCapture": {
+    "voicedMs": 1792,
+    "recordingMs": 5301.699999928474,
+    "endedBy": "pause",
+    "similarity": 0.9137792985615515,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1824,
+    "recordingMs": 3602.5,
+    "endedBy": "pause",
+    "similarity": 0.8941005357014902,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "cc60bbb0-7827-4df9-9e2b-be4772014cff",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.2670538090721484,
+      "levelThreshold": 0.006,
+      "recordingMs": 2076.0999999046326,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "035cb420-83cb-43a2-983f-0f2272c3f9d0",
+      "voicedMs": 0,
+      "durationMs": 2700,
+      "peakFrameRms": 0.0002701373676444058,
+      "levelThreshold": 0.006,
+      "recordingMs": 8135.600000023842,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "opal-canyon-g4qcdj",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "opal-canyon-g4qcdj",
+    "accountId": "cacad2569bb96fb3d6420e87f8d503a366f9548d61d3dd6df27e5eb85a731945",
+    "publicKey": "ed25519:EecjRXbRqwYST75VLMAZSmeCkigjAdHw5RDgtppbh2Pe"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGNhY2FkMjU2OWJiOTZmYjNkNjQyMGU4N2Y4ZDUwM2EzNjZmOTU0OGQ2MWQzZGQ2ZGYyN2U1ZWI4NWE3MzE5NDUAysrSVpu5b7PWQg6H+NUDo2b5VI1h091t8n5euFpzGUUCAAAAAAAAAEAAAABjYWNhZDI1NjliYjk2ZmIzZDY0MjBlODdmOGQ1MDNhMzY2Zjk1NDhkNjFkM2RkNmRmMjdlNWViODVhNzMxOTQ1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAASPmyr4cBrbK9hRpxNwv/GgaFEC3OpYaRn+sHAmsZ6h7QfLPG+axaka7wsdITc0T8YCgmG60x2VIHplO4sjmuCA==",
+      "signedTransactionSha256": "e0755f8a98a463a687c6d6236eb9a67dfd092a15095d97a0d3a13ffca16eea9f",
+      "signerId": "cacad2569bb96fb3d6420e87f8d503a366f9548d61d3dd6df27e5eb85a731945",
+      "receiverId": "cacad2569bb96fb3d6420e87f8d503a366f9548d61d3dd6df27e5eb85a731945",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

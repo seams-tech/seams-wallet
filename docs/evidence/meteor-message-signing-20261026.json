@@ -1,0 +1,50 @@
+{
+  "accountId": "cyan-loong.testnet",
+  "network": "testnet",
+  "message": "Seams ownership acceptance 2026-10-26T14:46:28.867Z",
+  "recipient": "localhost:4286",
+  "nonce": [
+    63,
+    180,
+    200,
+    160,
+    46,
+    249,
+    199,
+    211,
+    251,
+    225,
+    189,
+    195,
+    35,
+    205,
+    46,
+    43,
+    138,
+    183,
+    52,
+    97,
+    208,
+    44,
+    119,
+    157,
+    185,
+    121,
+    49,
+    95,
+    252,
+    138,
+    159,
+    129
+  ],
+  "state": "788108ec-8d89-420e-b12c-7ba722407f3b",
+  "signed": {
+    "ok": true,
+    "value": {
+      "accountId": "cyan-loong.testnet",
+      "publicKey": "ed25519:Autbajq2ZU347erDh5rTdLs9izq7XueTkYvHANyc4qZi",
+      "signature": "FPSHegvpYUACRCgywzYIPpCctIRqBpobFt0sFrjqOB6mdCyBwazFTUoU8h3KAk8U/pdFzkQTWJb1vmJnrF8rAg==",
+      "state": "788108ec-8d89-420e-b12c-7ba722407f3b"
+    }
+  }
+}

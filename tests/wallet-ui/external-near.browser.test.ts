@@ -148,11 +148,11 @@ async function exerciseIntear() {
   return { connected, result, final: controller.getSnapshot() };
 }
 
-async function replyWithIntear(route: Route): Promise<void> {
+async function replyWithIntear(applicationOrigin: string, route: Route): Promise<void> {
   await route.fulfill({
     contentType: 'text/html',
     body: `<!doctype html><script>
-    const target = new URL(document.referrer).origin;
+    const target = ${JSON.stringify(applicationOrigin)};
     window.addEventListener('message', receive);
     function receive(event) {
       if (event.source !== opener || event.origin !== target) return;
@@ -180,7 +180,10 @@ test('Intear binds popup responses to their source and keeps custody grants abse
   baseURL,
 }, testInfo) => {
   await injectImportMap(page, { frontendUrl: baseURL! });
-  await context.route('https://wallet.intear.tech/**', replyWithIntear);
+  await context.route(
+    'https://wallet.intear.tech/**',
+    replyWithIntear.bind(null, new URL(baseURL!).origin),
+  );
   await page.goto(baseURL!);
   const result = await page.evaluate(exerciseIntear);
   expect(result.connected.value.wallet).toBe('intear');

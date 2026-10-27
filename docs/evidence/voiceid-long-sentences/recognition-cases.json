@@ -1,0 +1,482 @@
+[
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i want to go home before it gets dark",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i can hear the music from the other room",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "this is my own voice and i am ready",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we are going home after a very good day",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the little dog is sleeping beside the open door",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the river is running slowly through the quiet town",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i would like a glass of water please",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "can you open the door before we go",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we sat beside the river and watched the water",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the sun is shining and the sky is blue",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "she is reading a book in the living room",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "he is looking at the picture on the wall",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "the door is open and we can go inside",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "there is a little bird outside the window",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "we can try this again in the morning",
+    "voice": "Moira"
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "voice": "Samantha"
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "voice": "Daniel"
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "voice": "Karen"
+  },
+  {
+    "kind": "natural",
+    "expected": "i will open the door for you now",
+    "voice": "Moira"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i can hear the music from the other room"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i want to go home before it gets dark",
+    "spoken": "i want to go"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i can hear the music from the other room",
+    "spoken": "this is my own voice and i am ready"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i can hear the music from the other room",
+    "spoken": "i can hear the"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "we are going home after a very good day"
+  },
+  {
+    "kind": "truncated",
+    "expected": "this is my own voice and i am ready",
+    "spoken": "this is my own"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we are going home after a very good day",
+    "spoken": "the little dog is sleeping beside the open door"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we are going home after a very good day",
+    "spoken": "we are going home"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the river is running slowly through the quiet town"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the little dog is sleeping beside the open door",
+    "spoken": "the little dog is"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "i would like a glass of water please"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the river is running slowly through the quiet town",
+    "spoken": "the river is running"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i would like a glass of water please",
+    "spoken": "can you open the door before we go"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i would like a glass of water please",
+    "spoken": "i would like a"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "can you open the door before we go",
+    "spoken": "we sat beside the river and watched the water"
+  },
+  {
+    "kind": "truncated",
+    "expected": "can you open the door before we go",
+    "spoken": "can you open the"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "the sun is shining and the sky is blue"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we sat beside the river and watched the water",
+    "spoken": "we sat beside the"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "she is reading a book in the living room"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the sun is shining and the sky is blue",
+    "spoken": "the sun is shining"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "she is reading a book in the living room",
+    "spoken": "he is looking at the picture on the wall"
+  },
+  {
+    "kind": "truncated",
+    "expected": "she is reading a book in the living room",
+    "spoken": "she is reading a"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "the door is open and we can go inside"
+  },
+  {
+    "kind": "truncated",
+    "expected": "he is looking at the picture on the wall",
+    "spoken": "he is looking at"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "the door is open and we can go inside",
+    "spoken": "there is a little bird outside the window"
+  },
+  {
+    "kind": "truncated",
+    "expected": "the door is open and we can go inside",
+    "spoken": "the door is open"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "there is a little bird outside the window",
+    "spoken": "we can try this again in the morning"
+  },
+  {
+    "kind": "truncated",
+    "expected": "there is a little bird outside the window",
+    "spoken": "there is a little"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "we can try this again in the morning",
+    "spoken": "i will open the door for you now"
+  },
+  {
+    "kind": "truncated",
+    "expected": "we can try this again in the morning",
+    "spoken": "we can try this"
+  },
+  {
+    "kind": "unrelated",
+    "expected": "i will open the door for you now",
+    "spoken": "i want to go home before it gets dark"
+  },
+  {
+    "kind": "truncated",
+    "expected": "i will open the door for you now",
+    "spoken": "i will open the"
+  }
+]

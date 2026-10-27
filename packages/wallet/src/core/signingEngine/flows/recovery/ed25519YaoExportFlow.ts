@@ -339,6 +339,8 @@ export async function exportEd25519YaoKeyWithFreshAuthorization(
   args: ExportEd25519YaoKeyArgs,
 ): Promise<{ accountId: string; exportedSchemes: Array<'ed25519'> }> {
   switch (args.laneIdentity.auth.kind) {
+    case 'voiceid':
+      throw new Error('Unlock with a passkey or Email OTP before exporting keys.');
     case 'passkey':
       break;
     case 'email_otp':

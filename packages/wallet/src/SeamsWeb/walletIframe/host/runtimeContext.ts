@@ -1,4 +1,8 @@
-import { assertWalletHostMutationAllowed } from './walletMutationGuard';
+import { readAuthMethodEnabled } from '@/core/authMethods/availability';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import type { AuthMethodReviewPolicy } from '@/core/authMethods/hostPlugin';
+import { IndexedDBManager } from '@/core/indexedDB';
+import { assertWalletHostMutationAllowed, walletForHostRequest } from './walletMutationGuard';
 import { WalletHostSessionObserver } from './sessionObserver';
 import { getWalletSession } from '@/SeamsWeb/operations/auth/login';
 import type { WalletIframeExactSessionSnapshot } from '../shared/exactSessionState';
@@ -65,6 +69,7 @@ const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = ne
   'PM_REGISTER_WALLET',
   'PM_ADD_WALLET_SIGNER',
   'PM_ADD_PASSKEY',
+  'PM_ACTIVATE_AUTH_METHOD',
   'PM_ADD_EMAIL_OTP',
   'PM_REVOKE_AUTH_METHOD',
   'PM_REVOKE_LINKED_DEVICE',
@@ -73,6 +78,7 @@ const FOREGROUND_CONFIRMATION_REQUEST_TYPES: ReadonlySet<ParentToChildType> = ne
   'PM_SIGN_DELEGATE_ACTION',
   'PM_SIGN_NEP413',
   'PM_UNLOCK',
+  'PM_UNLOCK_AUTH_METHOD',
   'PM_SIGN_TEMPO',
   'PM_ROTATE_WALLET_RECOVERY_CODES',
   'PM_GET_WALLET_RECOVERY_CODE_STATUS',
@@ -366,8 +372,7 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
     }
 
     const handler = handlers[input.req.type] as unknown as
-      | ((r: ParentToChildEnvelope) => Promise<void>)
-      | undefined;
+      ((r: ParentToChildEnvelope) => Promise<void>) | undefined;
     if (!handler) {
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
@@ -386,4 +391,25 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
       clearSurfaceMeasurementBindingForRequest(ctx, foregroundBinding.requestId);
     }
   }
+}
+
+/** Use the requested wallet's trusted selection; app configuration only grants availability. */
+export async function walletAuthMethodReviewPolicy(
+  state: WalletHostRuntimeState,
+  request: ParentToChildEnvelope,
+): Promise<AuthMethodReviewPolicy> {
+  const ctx = syncRuntimeContext(state);
+  const configuration = ctx.configuration;
+  if (configuration.kind !== 'configured') throw new Error('Wallet service is not configured.');
+  const walletId = walletForHostRequest(request, null);
+  if (walletId === null) return { kind: 'disabled' };
+  ensureRequestWalletRuntime(ctx);
+  const selected = await IndexedDBManager.resolveSelectedWalletAuthority(walletId);
+  if (selected.kind !== 'resolved' || selected.authMethod.kind !== 'voiceid') {
+    return { kind: 'disabled' };
+  }
+  if (!(await readAuthMethodEnabled(walletId, selected.authMethod.walletAuthMethodId)))
+    throw new Error('VoiceID is turned off. Unlock with another method.');
+  const plugin = await loadWalletAuthMethodHostPlugin(configuration.config.authMethods, 'voiceid');
+  return await plugin.review(request, configuration);
 }

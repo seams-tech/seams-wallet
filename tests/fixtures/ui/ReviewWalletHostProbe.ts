@@ -17,6 +17,7 @@ export function prepareReview(
     'mpc',
     postState.bind(null, post),
     postError.bind(null, post, metadata.requestId),
+    { kind: 'disabled' },
   );
   void approve(post, admission);
   return admission;

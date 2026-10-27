@@ -1,0 +1,32 @@
+{
+  "scope": "Isolated Chromium at localhost:4320 with Wallet iframe localhost:4313",
+  "childDomProbe": {
+    "visibleMs": 469.8813340000015,
+    "readyMs": 574.9252919999999,
+    "marks": [
+      {
+        "name": "voiceid-probe-start",
+        "time": 159.90000009536743
+      },
+      {
+        "name": "voiceid-probe-plugin",
+        "time": 164
+      },
+      {
+        "name": "voiceid-probe-lock",
+        "time": 174.80000007152557
+      },
+      {
+        "name": "voiceid-probe-generation",
+        "time": 176.10000002384186
+      }
+    ]
+  },
+  "childDomVisibilityIsNotPaintedVisibility": true,
+  "delayedModuleProbe": {
+    "injectedDownloadDelayMs": 4000,
+    "cancelClickAndSettlementMs": 4345.603958,
+    "screenshot": "before-transparent-modal.png",
+    "parentBehavior": "No dimensions reported; provisional overlay opacity 0 and pointer-events none until 4000 ms fallback."
+  }
+}

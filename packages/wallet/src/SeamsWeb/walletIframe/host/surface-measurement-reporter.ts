@@ -1,8 +1,5 @@
 import type { WalletIframeRequestId } from '@/core/types/walletIframeIdentity';
-import type {
-  HostedAuthMenuSessionId,
-  WalletIframeSurfaceMeasurement,
-} from '../shared/messages';
+import type { HostedAuthMenuSessionId, WalletIframeSurfaceMeasurement } from '../shared/messages';
 
 type SurfaceMeasurementReporterOptions =
   | {
@@ -47,7 +44,10 @@ function sizeFromEntryOrElement(
   element: HTMLElement,
   entry: ResizeObserverEntry | null,
 ): SurfaceSize | null {
-  return sizeFromRect(entry?.contentRect ?? element.getBoundingClientRect());
+  const box = entry?.borderBoxSize[0];
+  return sizeFromRect(
+    box ? { width: box.inlineSize, height: box.blockSize } : element.getBoundingClientRect(),
+  );
 }
 
 function sizeForReporter(
@@ -142,7 +142,7 @@ class SurfaceMeasurementReporter implements WalletIframeSurfaceMeasurementReport
   constructor(private readonly options: SurfaceMeasurementReporterOptions) {
     if (typeof ResizeObserver === 'function') {
       this.observer = new ResizeObserver(this.onResize);
-      this.observer.observe(options.element);
+      this.observer.observe(options.element, { box: 'border-box' });
       // Scroll content can grow while its viewport-constrained outer box stays fixed.
       if (options.kind === 'request_scroll_surface' && options.element.firstElementChild) {
         this.observer.observe(options.element.firstElementChild);

@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "maple-meteor-by6hgy",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "e576626e-4739-4c67-9c5c-f4e71985c75b",
+    "capturedAtMs": 1792979325990,
+    "durationMs": 3420,
+    "recordingMs": 4959.399999976158,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.21925174982667878,
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642
+    },
+    "expectedPhrase": "the sun is shining through the window"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "maple-meteor-by6hgy",
+    "accountId": "d58b918d74c56e1b66f1233128411da565910bf91333422c22e936dc1d0f39a0",
+    "publicKey": "ed25519:FNbGwKnbV9aQE2sZZx4WYNckUtpcWayWvWHsW8ceBkxX"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGQ1OGI5MThkNzRjNTZlMWI2NmYxMjMzMTI4NDExZGE1NjU5MTBiZjkxMzMzNDIyYzIyZTkzNmRjMWQwZjM5YTAA1YuRjXTFbhtm8SMxKEEdpWWRC/kTM0IsIuk23B0POaACAAAAAAAAAEAAAABkNThiOTE4ZDc0YzU2ZTFiNjZmMTIzMzEyODQxMWRhNTY1OTEwYmY5MTMzMzQyMmMyMmU5MzZkYzFkMGYzOWEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAxB/W7bRekY+AKeJZn5LEE5CdTow3HMMm+5K74dtq1QPa/XfRi2hIbgu98CkDmDMNHLXT3IuErTKnpKhj3ZrZDw==",
+      "signedTransactionSha256": "6b2eff8aff7644a97111a461cc139d722ab9af3ce6979d9795e4f4758aeabe7e",
+      "signerId": "d58b918d74c56e1b66f1233128411da565910bf91333422c22e936dc1d0f39a0",
+      "receiverId": "d58b918d74c56e1b66f1233128411da565910bf91333422c22e936dc1d0f39a0",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

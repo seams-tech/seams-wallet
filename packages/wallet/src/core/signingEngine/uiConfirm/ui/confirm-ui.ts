@@ -337,56 +337,115 @@ function returnToApplicationReview(
   if (navigation.kind === 'review_available') admission.returnToReview();
 }
 
-function createConfirmationDecisionChannel(
-  admission?: TransactionReviewAdmission,
-): ConfirmationDecisionChannel {
-  const navigation: ReviewNavigationState = { kind: 'review_available' };
-  const queuedDecisions: ConfirmUISurfaceDecision[] = [];
-  const decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
-  const cancelListeners = new Set<(detail: { error?: string }) => void>();
-  const publishDecision = (decision: ConfirmUISurfaceDecision): void => {
-    navigation.kind = 'decision_published';
-    const waiter = decisionWaiters.shift();
+class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
+  private view: ConfirmationSurfaceController | null = null;
+  private readonly navigation: ReviewNavigationState = { kind: 'review_available' };
+  private readonly queuedDecisions: ConfirmUISurfaceDecision[] = [];
+  private readonly decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
+  private phase: 'pending' | 'checking' | 'published' = 'pending';
+  readonly cancelListeners = new Set<(detail: { error?: string }) => void>();
+  readonly onBack: (() => void) | undefined;
+  readonly callbacks = {
+    confirm: this.confirm.bind(this),
+    cancel: this.cancel.bind(this),
+    submitEmail: this.submitEmail.bind(this),
+  };
+
+  constructor(private readonly admission: TransactionReviewAdmission | undefined) {
+    this.onBack = admission ? this.back.bind(this) : undefined;
+  }
+
+  attachView(view: ConfirmationSurfaceController): void {
+    this.view = view;
+  }
+
+  private publishDecision(decision: ConfirmUISurfaceDecision): void {
+    if (this.phase === 'published') return;
+    this.phase = 'published';
+    this.navigation.kind = 'decision_published';
+    const waiter = this.decisionWaiters.shift();
     if (waiter) {
       waiter(decision);
       return;
     }
-    queuedDecisions.push(decision);
-  };
-  const cancel = (error?: string): void => {
-    publishDecision({ kind: 'cancelled', error: error ?? null });
-    for (const listener of cancelListeners) listener({ ...(error ? { error } : {}) });
-  };
-  return {
-    cancelListeners,
-    onBack: admission ? returnToApplicationReview.bind(null, admission, navigation) : undefined,
-    callbacks: {
-      confirm: () => {
-        if (admission && !admission.allowInteraction()) return;
-        publishDecision({ kind: 'confirmed', emailOtp: { kind: 'absent' } });
-      },
-      cancel: () => cancel(),
-      submitEmail: (code, challengeId) => {
-        if (admission && !admission.allowInteraction()) return;
-        const otpCode = code.trim();
-        const emailOtpChallengeId = challengeId.trim();
-        if (!otpCode || !emailOtpChallengeId) {
-          cancel('Email OTP challenge is missing.');
-          return;
-        }
-        publishDecision({
-          kind: 'confirmed',
-          emailOtp: { kind: 'provided', code: otpCode, challengeId: emailOtpChallengeId },
+    this.queuedDecisions.push(decision);
+  }
+
+  private back(): void {
+    if (this.phase === 'checking') this.cancel('Voice approval was cancelled.');
+    else if (this.admission) returnToApplicationReview(this.admission, this.navigation);
+  }
+
+  private cancel(error?: string): void {
+    if (this.phase === 'published') return;
+    this.publishDecision({ kind: 'cancelled', error: error ?? null });
+    this.admission?.cancel(new Error(error ?? 'Wallet approval was cancelled.'));
+    for (const listener of this.cancelListeners) listener({ ...(error ? { error } : {}) });
+  }
+
+  private confirm(): void {
+    void this.approve({ kind: 'confirmed', emailOtp: { kind: 'absent' } });
+  }
+
+  private submitEmail(code: string, challengeId: string): void {
+    const otpCode = code.trim();
+    const emailOtpChallengeId = challengeId.trim();
+    if (!otpCode || !emailOtpChallengeId) {
+      this.cancel('Email OTP challenge is missing.');
+      return;
+    }
+    void this.approve({
+      kind: 'confirmed',
+      emailOtp: { kind: 'provided', code: otpCode, challengeId: emailOtpChallengeId },
+    });
+  }
+
+  private async approve(decision: ConfirmUISurfaceDecision): Promise<void> {
+    if (this.phase !== 'pending' || (this.admission && !this.admission.allowInteraction())) return;
+    this.phase = 'checking';
+    try {
+      if (this.admission?.authMethodApprovalMessages) {
+        this.view?.update({
+          preparing: true,
+          authMethodCapture: this.admission.authMethodApprovalSurface,
         });
-      },
-    },
-    takeDecision: async () => {
-      const queued = queuedDecisions.shift();
-      if (queued) return queued;
-      return await new Promise<ConfirmUISurfaceDecision>((resolve) => {
-        decisionWaiters.push(resolve);
-      });
-    },
+      }
+      const approval = await this.admission?.approveAuthMethod();
+      if (approval?.kind === 'retry') {
+        this.phase = 'pending';
+        this.view?.update({
+          preparing: false,
+          authMethodCapture: null,
+          authMethodApprovalMessage: approval.message,
+        });
+        return;
+      }
+      // The capture stays on screen until the receipt takes it over, so the
+      // hand-off never shows an empty card.
+      if (this.admission?.authMethodApprovalMessages)
+        this.view?.update({
+          preparing: false,
+          authMethodApprovalMessage: this.admission.authMethodApprovalMessages.approved,
+        });
+      this.publishDecision(decision);
+    } catch (error) {
+      this.cancel(
+        error instanceof Error ? error.message : 'Authentication method approval failed.',
+      );
+    }
+  }
+
+  async takeDecision(): Promise<ConfirmUISurfaceDecision> {
+    const queued = this.queuedDecisions.shift();
+    if (queued) return queued;
+    if (this.phase === 'published') this.phase = 'pending';
+    return await new Promise<ConfirmUISurfaceDecision>(this.waitForDecision);
+  }
+
+  private readonly waitForDecision = (
+    resolve: (decision: ConfirmUISurfaceDecision) => void,
+  ): void => {
+    this.decisionWaiters.push(resolve);
   };
 }
 
@@ -760,7 +819,7 @@ function mountHostElement({
   });
   const portal = ensureConfirmPortal();
   const explorerOverrides = resolveExplorerUrlsFromModel(ctx, model);
-  const channel = createConfirmationDecisionChannel(
+  const channel = new ConfirmationDecisionQueue(
     reviewAdmissionForBinding(ctx.surfaceMeasurementBinding),
   );
   let host: ConfirmationSurfaceController;
@@ -776,6 +835,8 @@ function mountHostElement({
       loading,
       title: summary?.title ?? (summary?.delegate ? 'Sign Delegate Action' : undefined),
       body: summary?.body,
+      confirmText: reviewAdmissionForBinding(ctx.surfaceMeasurementBinding)
+        ?.authMethodApprovalMessages?.confirm,
       signingAuthMode,
       emailOtpPrompt,
       nearExplorerUrl: ctx.nearExplorerUrl ?? explorerOverrides.nearExplorerUrl,
@@ -789,6 +850,7 @@ function mountHostElement({
       postWalletUiClosedIfPortalEmpty();
     },
   });
+  channel.attachView(host);
   confirmationHosts.set(host.element, host);
   confirmationChannels.set(host.element, channel);
   updateConfirmPortalState(portal);

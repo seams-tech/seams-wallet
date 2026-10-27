@@ -192,8 +192,25 @@ wallet can be absent from the Console list and unavailable for region moves.
 - `@seams/wallet/threshold` — session-policy helpers, PRF salts, and intent digests.
 - `@seams/wallet/runtime` — explicit platform ports and custom signing runtime.
 
-Use the documented package exports. Agent-lane issuance and VoiceID
-authentication are planned and have no public API in this release.
+Use the documented package exports. Agent-lane issuance remains planned.
+The VoiceID approval prototype is opt-in:
+
+```ts
+import { defineSeamsConfig } from '@seams/wallet';
+import { voiceIdAuthMethod } from '@seams/voiceid';
+
+const config = defineSeamsConfig({
+  walletOrigin,
+  relayerUrl,
+  publishableKey,
+  authMethods: [voiceIdAuthMethod()],
+});
+```
+
+VoiceID is a separate optional package. The Wallet host operator must deploy its
+assets alongside the Wallet host. The descriptor alone downloads no implementation
+or models. VoiceID supports enrollment, Wallet Session unlock, and reviewed NEAR
+and Arc testnet signing. See [`@seams/voiceid`](../voiceid/README.md) for installation.
 
 ## Develop from source
 

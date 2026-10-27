@@ -69,6 +69,8 @@ const HUG_TOLERANCE_CSS_PX = 1;
 const ANNOUNCE_SAFETY_MS = 1500;
 /** Height changes below this are not worth a motion, and round to nothing. */
 const MIN_ANNOUNCED_DELTA_CSS_PX = 1;
+/** How long a surface that no host resizes takes to ease to its new height. */
+const OWN_RESIZE_MS = 200;
 
 /**
  * What a component hands over when it is about to change its own height.
@@ -247,11 +249,27 @@ export function createSurfaceHeightReflow(args: {
               clampedElement = null;
             },
           });
-          if (!claimed) release();
+          if (claimed) return;
+          release();
+          easeOwnHeight(element, fromCssPx, toCssPx);
         });
     },
     dispose: release,
   };
+}
+
+/**
+ * With no host to ease the box, the element eases its own height, on the auth
+ * menu's resize duration and settle curve, so a change of content never snaps
+ * the card. Reduced motion keeps the snap.
+ */
+function easeOwnHeight(element: HTMLElement, fromCssPx: number, toCssPx: number): void {
+  if (Math.abs(toCssPx - fromCssPx) < MIN_ANNOUNCED_DELTA_CSS_PX) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  element.animate([{ height: `${fromCssPx}px` }, { height: `${toCssPx}px` }], {
+    duration: OWN_RESIZE_MS,
+    easing: 'cubic-bezier(0.32, 0.72, 0, 1)',
+  });
 }
 
 /**

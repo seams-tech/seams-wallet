@@ -72,6 +72,381 @@ An appearance change preserves that work. Invalid configuration remains rejected
 
 Browser enforcement: `tests/wallet-iframe/config.execution.test.ts`.
 
+## Browser VoiceID (prototype)
+
+The Authentication methods settings screen offers VoiceID when the SDK enables it.
+Enable uses the existing owner session. First enrollment records three samples;
+an existing browser enrollment can be reused. Availability
+is stored in Wallet-origin IndexedDB for the wallet's current device authority and
+method ID. Turning it off preserves enrollment and blocks voice unlock and signing.
+Disabling an active VoiceID session locks it. Another active method must remain.
+Re-enabling requires a passkey or Email OTP owner session. Removal remains the
+separate authentication-method revocation operation. Owners can record their voice
+again without changing the availability switch or device method ID.
+
+SeamsAuthMenu shows each saved wallet once. Method choices appear under that wallet.
+VoiceID appears only for an enabled local method and configured plugin. The menu
+hands presentation and size reporting to the minimal voice prompt during capture.
+Back restores the menu and stops capture. Retry retains the chosen voice method. Closing the
+menu cancels capture. Successful voice unlock reports `method: 'voiceid'` through
+the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
+
+Voice-selected transfers show “Confirm with VoiceID” before replacing the review
+with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
+retain their own approval paths. The iframe protocol is version 17 for these APIs
+and the additional authenticated outcome.
+
+Applications import `voiceIdAuthMethod` from the optional `@seams/voiceid` package
+and enable it with `authMethods: [voiceIdAuthMethod()]`. The descriptor
+imports no inference or capture code. The Wallet origin loads the plugin on its
+first enabled operation. Model and inference-runtime downloads start only when
+voice enrollment or verification needs them. No native host, loopback request,
+Chrome extension, Keychain access, or system-settings change is part of this flow.
+
+SDK configuration makes VoiceID available. It does not select VoiceID for every
+wallet or signing operation. The Wallet reads the requested wallet's selected
+authentication method from its trusted authority selection. Passkey and Email OTP
+signing bypass VoiceID policy, UI, model, and inference-runtime loading, even when
+VoiceID is available or enrolled. Enrollment preserves the owner's current method.
+Unlocking with VoiceID selects its method; unlocking with a passkey selects passkey.
+A VoiceID-selected wallet requires the enabled plugin and a reviewed NEAR or Arc testnet transfer.
+The prepared signing method must match the admitted review policy. Switching between
+voice and built-in methods during preparation requires another review; a VoiceID lane cannot sign through a review without voice
+approval or through an unreviewed path.
+
+
+The user first unlocks with a passkey or Email OTP. Activate VoiceID opens the
+Wallet's browser enrollment UI. Each of three samples requires a separate Record
+click. The browser requests microphone permission. Enrollment and verification
+accept natural-paced phrases. Capture stops after 1.5 seconds of quiet following
+at least 100 ms of consecutive audible input. Initial silence does not stop capture.
+The maximum recording time is eight seconds. Live analysis failure retains that
+maximum. The quality precheck requires 600 ms of qualifying audio; phrase and
+speaker checks still decide approval. The level check counts 10 ms frames
+with RMS of at least 0.006; this is an audio-energy proxy, not speech recognition.
+Insufficient audio does not reach phrase matching, speaker matching, or device-key use.
+The prompt gives brief guidance for insufficient audio. Internal measurements carry
+an attempt ID and timestamp. Audio is not retained. Unlock can retry a typed
+insufficient-audio result in place with a fresh phrase. Retries preserve the original
+challenge and expiry timer. Cancellation, expiry, and other failures stay terminal.
+Each enrollment, unlock, and signing attempt displays a randomly selected short
+English phrase from a bank of 16. The phrase remains fixed during capture. A retry
+selects a different phrase. The user reads it at a normal pace, then pauses.
+The VoiceID prompt reports its size through the current request measurement binding.
+The parent reveals measured bounds without waiting for its fallback timer.
+The reporter tracks enrollment content changes and disconnects on disposal.
+The lazy VoiceID host entry mounts a cancellable prompt and yields a frame before
+loading the activation or unlock implementation. Unlock session cleanup and
+generation allocation occur within this visible preparation phase. Recording stays
+disabled while preparation runs. Model download progress stays inside the card.
+Unlock starts listening automatically when preparation finishes, using the first
+Unlock with VoiceID action. It does not require a second unlock click. Retry remains
+explicit. Unlock capture requires a visible, focused Wallet. Enrollment still requires
+a fresh Record action for each sample.
+Cancelling during implementation loading prevents later session preparation or
+challenge requests. The lightweight prompt module itself still needs its first load.
+The capture card shows a large phrase, a live waveform, and a short status. Unlock
+uses a Back button and the Seams footer within one rounded frame. Its activation
+container is transparent, including when it hosts Manage voice. Enrollment and
+signing retain their cancellation controls.
+Enrollment identifies each of three samples. The waveform draws the recorder's own
+32 ms activity frames as a scrolling row of rounded bars: frames that the voice
+activity model and level check accept as speech draw full bars, and ambient sound
+draws short, dim bars. It opens no audio graph, makes no second capture request, and
+does not change the recording or recognition thresholds. No capture event carries
+the microphone stream. After capture the row stops and dims while the Wallet checks
+it; an accepted enrollment sample returns to full strength, and a retry stays dim
+until the next capture. Recording stays disabled until preparation finishes. A delayed server response
+cannot reopen a modal that the user cancelled.
+Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
+after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires
+an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
+envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB,
+scoped to its wallet, authority, method, and device key.
+
+Adding an EVM account from Accounts requests one fresh passkey proof. Successful
+setup displays the returned public address and refreshes the session state. It
+does not automatically unlock again. A later wallet action obtains any required
+new session authorization through the selected authentication method.
+
+### Explicit voice improvements
+
+Authentication methods lists each active method as a card. The method that
+unlocked this session shows **In use now**. The VoiceID card holds its switch for
+this browser, its state, **Manage voice**, and **Remove**. Closing Manage voice or
+the activation surface is a choice, not an error: `registration.activateAuthMethod`
+returns `{ kind: 'cancelled' }`, and the card shows no message.
+The Wallet opens management directly. Improvement, reset, re-recording, and import
+require a fresh user-verified passkey assertion from the selected owner authority.
+The Wallet verifies the signature locally against the stored active passkey and binds
+the assertion to the operation, origin, exact enrollment revision, and owner selection.
+An old unlocked session or a replayed assertion cannot authorize a change.
+The owner session is checked with the server before confirmation and before saving.
+The selected session may use VoiceID. Opening Manage voice does not require a
+separate passkey unlock. Each change uses one fresh passkey confirmation from the
+same authority and preserves the selected session. The server's active-method
+inventory must still contain that exact passkey before confirmation and saving.
+Management does not consume or renew signing quota.
+
+Authentication methods loads the active authority inventory through the selected
+session, including a VoiceID session. A failed inventory request displays an error.
+It cannot present the selected method alone as the complete inventory. A VoiceID
+session with an active passkey can add Email OTP through that passkey's fresh
+addition proof. A VoiceID session backed by Email OTP can add its first passkey
+with one fresh Email OTP proof. The existing custody handle supplies the seed
+inside the custody worker. The selected VoiceID session remains unchanged.
+The intent binds the proving method and authority. It does not require an unrelated
+passkey session or switch the selected authentication method.
+
+Manage voice shows whether the enrollment is original or improved. An improved
+enrollment shows that its added samples are saved on this device. The dialog shows only
+the actions that apply: **Improve recognition** for a present enrollment (labelled
+**Improve again** when improved), **Reset improvements** for an improved enrollment,
+and **Use saved enrollment** when the enrollment is missing and an importable record
+exists. **Record voice again** is always available. A pending passkey confirmation
+or an error appears in the row of its action. Back closes the dialog.
+
+**Improve recognition** collects three accepted, phrase-matched recordings with a normal
+background estimate. Progress counts accepted samples, not recording attempts. A rejected
+attempt keeps earlier accepted samples and offers **Retry sample N** with its reason.
+Only the third accepted sample triggers saving. Each must match the immutable baseline at 0.5 and remain
+consistent with the other new samples. The effective template combines 80% baseline
+with 20% normalized supplemental mean, then normalizes that combination. Its cosine
+against the baseline must remain at least 0.98. The original template stays unchanged.
+
+Supplements remain saved on this device with no time or usage limit. Verification
+never consumes or changes them, including rejected attempts. Existing stored samples
+retain their contents when retired expiry and usage fields are removed at the persistence
+boundary. Invalid supplemental data is ignored and removed at the next enrollment read
+or template read. Corrupt baseline or identity data fails closed.
+**Reset improvements** removes supplements. **Record voice again** explicitly
+replaces the baseline and clears supplements after all three recordings succeed.
+
+Changes commit atomically against the captured generation and revision. Cancellation,
+owner-confirmation expiry, lock, owner-method changes, availability changes, revocation, and competing
+updates prevent a stale write. Method removal through the SDK deletes its scoped
+enrollment. The enrollment record is limited to 32 KiB. Audio and temporary vectors
+are discarded after processing; diagnostics contain no embeddings.
+
+The previous browser-wide enrollment is available only through an explicit,
+passkey-confirmed **Use saved enrollment** action. Verification never falls
+back to it. Import preserves its baseline for the selected wallet method; it does
+not silently grant that enrollment to other wallets. Import deletes the old record
+when all known active VoiceID methods have scoped enrollments. Otherwise, it remains
+solely at this migration boundary for the other methods.
+
+Automatic learning remains disabled. The public-corpus evaluation did not establish
+a reduction in evaluation-group rejection. These manual controls remain experimental
+and require separate live accuracy validation. Speaker threshold 0.5,
+4–6-word trading prompts are used. Server authorization, session budgets, and signing admission remain unchanged.
+
+VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
+VoiceBeam glow. They consume the recorder's activity events without opening a
+second microphone or audio graph. Cancel disposes both visuals with the prompt.
+Reduced motion suppresses traveling ribbon motion. The visuals remain inside the
+optional VoiceID module and do not affect authorization decisions.
+Prompts show concise failure guidance and retry controls. They contain no
+Recording details expander or technical recognition text.
+
+The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
+Silero speech detection adds 2,327,524 bytes. It qualifies speech and detects
+pauses using sequential local audio frames. Noise alone must not qualify as
+sufficient speech or unlock the wallet. High-noise recordings receive brief guidance. Detection is not speaker identification.
+All three share the inference runtime. Each exact model digest is checked before inference. A progress bar shows downloaded bytes and percentage.
+Verified bytes are saved in Wallet-origin Cache Storage and reused after reload.
+Storage failure allows session-only inference with a visible explanation. Browser
+eviction or clearing site data can require another download. The inference runtime
+and model are hosted with the Wallet's static assets. Missing or changed assets fail enrollment and unlock.
+The model deployment instructions live in
+[`plugins/voiceid/README.md`](../packages/voiceid/src/README.md).
+
+The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
+Confirm click. Randomized prompts contain 4–6 trading-oriented words for short, natural-paced
+approval. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
+the displayed phrase from the same recording using its independently decoded text.
+The matcher ignores case, punctuation, and articles, and canonicalizes the listed
+homophones. It compares all 16 phrases using character edit distance divided by
+the longer normalized text length. The best candidate must have at most 30%
+difference and beat the runner-up by at least 10 percentage points. The decoded
+word count must be within two words of the candidate. Negation words must match
+those in the candidate phrase; added, omitted, or changed negation rejects.
+This permits approximate wording, including some content-word errors. It is a
+freshness challenge, not exact transcription or transaction-intent interpretation.
+A different selected phrase, an ambiguous result, or text outside these bounds fails. Speaker
+verification retains its independent similarity threshold of 0.5.
+A local phrase rejection during unlock keeps the prompt open with a fresh phrase
+and an explicit Try again action. The original challenge deadline still applies.
+A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.
+Speaker rejection during unlock also stays in the prompt, with the unchanged
+challenge deadline. Rejections show concise guidance and a new retry phrase.
+They do not alter the enrollment.
+The decoder scores all bank phrases independently of the expected phrase and rejects
+results too far from unconstrained recognition. A failed phrase check cannot add an
+enrollment sample, use a device key, or authorize signing. Cancel is a UI action. The MVP assumes the authorized user possesses and controls the open
+device. The finite phrase bank does not establish replay resistance or liveness.
+Spoof detection and camera input are outside scope.
+
+### Device credentials and fresh sessions
+
+Activation requires an existing full-owner Wallet Session. The browser generates
+one nonextractable Ed25519 private key and a separate random 32-byte custody
+factor for the wallet method. It encrypts the factor with a nonextractable AES-GCM
+key before storing it in IndexedDB. Encryption binds the Wallet origin, wallet,
+method, and device-key digest. Creation for the same method is serialized across
+tabs. A voice sample never derives a wallet key or custody factor.
+
+These are browser-origin credentials, not hardware-attested credentials.
+Nonextractability prevents key export through WebCrypto. Trusted code executing
+in the Wallet origin can use these keys. The server verifies possession of the
+device key; speaker and phrase verification are enforced by trusted Wallet code. The embedding
+application cannot access the Wallet origin's storage. Clearing that storage
+removes enrollment and device credentials. Restoring access then requires an
+owner unlock and fresh browser enrollment.
+
+The custody worker opens an existing wallet seed envelope and reseals that seed
+under the VoiceID method. The envelope binds its device key, wallet, method,
+and custody purpose. JavaScript never receives the wallet custody seed.
+The server activates the method and envelope atomically under the existing owner
+session. Lost activation responses can retry the same pending ciphertext.
+
+For unlock, the plugin loads the model before requesting a short-lived challenge.
+The challenge binds the wallet, method, device key, origin, and audience. A user
+click starts browser voice verification. A match permits signing that exact
+challenge. The server rechecks the active method, authority, and custody envelope,
+consumes the challenge once, and issues a fresh Wallet Session. Expired or reused
+assertions fail. Revocation retires the method's sessions and envelope.
+
+The core installer opens the same-device NEAR custody cache in WASM with the
+method envelope and scoped factor. It installs the live Yao client and exact
+server credential before marking the method unlocked. A concurrent lock prevents
+an older unlock from committing. Failure leaves the wallet locked and clears
+volatile signing state. The plugin erases its factor buffer after installation.
+
+Missing custody requires another owner unlock. Reload requires a fresh VoiceID
+unlock. Key export retains its supported owner methods.
+
+### Reviewed NEAR and Arc transfers
+
+This prototype supports one reviewed NEAR testnet transfer or one Arc testnet
+native EIP-1559 transfer per request. Arc must be configured with chain ID 5042002.
+The request requires an address recipient, empty calldata, and an empty access list.
+Mainnet, Tempo, token transfers, contract calls, contract creation, and reviews
+without an expiry fail when the selected method is VoiceID.
+
+VoiceID unlock also supports ECDSA-only wallets. After the factor opens the existing
+seed envelope, the installer resolves the exact authorized ECDSA material activation.
+It uses the existing same-authority continuity copy for a missing method projection.
+An active sibling method must belong to the same wallet authority. Existing voice
+enrollment and models remain unchanged. The ECDSA worker opens that material before
+unlock commits. Failure or a concurrent lock clears volatile material and the session.
+
+ECDSA signing pairs the durable material with the issued VoiceID Wallet Session and
+live quota status. It does not mint a second session or restore a passkey sealed
+session. The selected method, device, authority, activation, chain membership,
+revocation epoch, expiry, and quota must match. Expired or exhausted sessions require
+another VoiceID unlock. The signature must recover the wallet's original ECDSA address.
+
+The [Arc contract](../tests/e2e/intended-behaviours/voiceid.unlock-arc.contract.test.ts)
+uses real browser voice inference and ECDSA MPC with deterministic Arc RPC responses.
+It verifies the signed self-transfer bytes and cancellation of a second review.
+A live-chain receipt is separate evidence.
+The Wallet freezes and hashes the complete request and execution configuration.
+Confirm replaces the review contents with the plugin's minimal voice prompt and
+starts browser speaker and phrase checks for that review. The Wallet retains the
+original review binding and deadline. Cancel from the prompt stops capture and
+prevents signing. A mismatch returns to the original review. Either mismatch
+keeps the review open, shows the failure, and requires another Confirm click.
+A retry displays a new phrase while retaining the original review and deadline.
+No signature or broadcast occurs for a mismatch. Each retry checks the original
+review deadline. Cancellation, lock,
+expiry, execution changes, and plugin changes invalidate pending approval.
+The signing boundary consumes the approval once. Existing authorization, session,
+quota, and MPC checks still apply.
+
+A broadcast failure retries identical signed bytes without another MPC signature.
+A subsequent review requires fresh approval. Cancelling it prevents another
+signature or broadcast. Unavailable broadcast replies establish no on-chain result.
+
+### Repeatable evidence
+
+The [Aurora evidence](evidence/voiceid-aurora-20261024/README.md) records export parity,
+synthetic phrase screening, and browser contracts. The contracts reject a wrong
+phrase during enrollment and a previous attempt's phrase during signing. They also
+check cache reuse, fresh sessions, and broadcast retry behavior. Synthetic screening
+does not establish human recognition accuracy or production authentication accuracy.
+
+The [B1 integration evidence](evidence/voiceid-b1-live-page-20261024.json) also
+checks visible model download progress, one model fetch across page reload, and
+owner re-enrollment without another server activation.
+
+The [manual-page contract](../tests/e2e/intended-behaviours/voiceid.live-page.contract.test.ts)
+creates a wallet, saves recovery codes, enrolls three browser microphone samples,
+activates VoiceID, locks, unlocks, and signs a transfer. Cancellation stops microphone
+tracks before decoding. Cancelling the final enrollment write aborts that transaction. It verifies that inference
+assets load only after activation and that no native-service requests occur. A different
+synthetic speaker is rejected without signing. An explicit retry with the enrolled
+voice signs the same review. See the [retry evidence](evidence/voiceid-browser-mismatch-retry-20261024.json).
+
+The [unlock contract](../tests/e2e/intended-behaviours/voiceid.unlock-near.contract.test.ts)
+checks fresh session issuance and a concurrent lock during unlock. The
+[broadcast contract](../tests/e2e/intended-behaviours/passkey.voiceid-near.contract.test.ts)
+checks signature reuse for broadcast retries and cancellation of a new review.
+These journeys use synthetic microphone WAV input, real browser ReDimNet B1 inference,
+WebCrypto device keys, and local MPC signing. NEAR RPC is deterministic; these
+runs do not establish live-microphone accuracy or an on-chain transfer.
+
+A separate [live receipt](evidence/voiceid-live-transfer-20261024.json) records the
+2026-10-24 browser-only prototype test. The user enrolled three samples, locked
+and unlocked with VoiceID, and approved a one-yoctoNEAR self-transfer. Independent
+NEAR testnet RPC verification returned FINAL and SuccessValue for transaction
+`3Cqshca4q7RU1xdeUg4NZWEh4SjQqzLzgaAAEz2io7ka`. This establishes one live
+end-to-end run on one device. It does not calibrate speaker accuracy across users.
+
+The subsequent [B1 live receipt](evidence/voiceid-b1-live-transfer-20261024.json)
+records re-enrollment with ReDimNet B1, voice unlock, and another one-yoctoNEAR
+self-transfer. Independent testnet RPC verification returned FINAL and SuccessValue
+for `7FbtVoCLVKLJZDK3xFmWJzFj8PtFTfh2sHsjjrrcZpfF`. This is one live B1 result;
+production accuracy across users and devices remains unqualified.
+
+The [activation contract](../tests/e2e/intended-behaviours/voiceid-activation.contract.test.ts)
+retains server admission, rollback, response-loss recovery, revocation, and
+origin/replay checks against real local D1. The
+[custody contract](../tests/e2e/intended-behaviours/voiceid-custody-factor.contract.test.ts)
+retains Rust-to-browser envelope checks and wrong-factor rejection.
+
+The manual page is `/voiceid?authMethod=voiceid`. New wallets use the SDK's ID
+allocation and retain that ID in the page URL. A `walletId` query selects an
+existing wallet. Save recovery codes opens the existing Wallet backup dialog.
+Transfer review always uses the wallet displayed on the page.
+
+## Optional authentication plugins
+
+The Wallet host owns a typed registry of trusted plugin loaders. Applications
+send declarative descriptors only. Activation and transaction review dispatch
+through the registry. VoiceID's browser implementation lives in `@seams/voiceid`;
+its descriptor imports no implementation. `@seams/wallet` has no VoiceID package,
+ONNX Runtime, or voice-glow dependency and ships no VoiceID engine or model files.
+The operator explicitly composes VoiceID assets into a new Wallet deployment tree.
+The loader uses the fixed same-origin `/sdk/voiceid/host.js` URL and checks its host
+API version. Missing installation fails explicitly. App input cannot select code URLs.
+The plugin imports the Wallet's host API, sharing its storage and worker instances.
+The core review UI receives copy from the plugin and knows no voice commands.
+
+Enabling a plugin does not fetch its implementation. First use loads it after
+the host checks configuration. Disabling it blocks later use even if its module
+was already cached. The browser contract
+[`auth-method-plugin.contract.test.ts`](../tests/e2e/intended-behaviours/auth-method-plugin.contract.test.ts)
+verifies these transitions and writes the fetched chunk list as a JSON artifact.
+
+VoiceID prepares its inference engine and three models only after an explicit
+VoiceID action. One cumulative download indicator covers their verified bytes.
+Its percentage does not restart between assets. After download completes, the
+card shows “Preparing VoiceID…” until all inference sessions are ready. Capture
+starts only after preparation. Cached assets are verified before reuse; an invalid
+entry is downloaded again. Storage failure leaves session-only operation available.
+The [loading browser journey](../tests/wallet-ui/voiceid-loading.browser.test.ts)
+uses real models, throttled downloads, a failed request, cache corruption, and reload.
+
 ## Worker preparation
 
 A fresh signed-out wallet host with no pending registration or recovery work
@@ -196,6 +571,16 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   Export keys opens shared NEAR/EVM selection; preview choices display an
   authentication-required summary without exporting secrets.
 
+- Accounts offers **Add EVM account** when this wallet has no ECDSA address and
+  the app configures EVM or Tempo networks. The action uses the existing add-signer
+  operation and requests a fresh passkey confirmation. If the expanded signer set
+  invalidates the current session, it finishes by unlocking the updated wallet with
+  a passkey. The Accounts screen stays open through setup.
+  An owner without a passkey sees a disabled action and directions to Authentication methods.
+  Setup preserves the wallet and voice enrollment. Success refreshes the session and
+  shows the configured account addresses. Duplicate submission stays disabled during setup.
+  Setup remains pending across menu navigation. A newer wallet selection supersedes
+  pending session reads, so they cannot select the previous wallet again.
 - `WalletSettingsPage`, inside `SeamsWebProvider`, presents the account menu as a
   full-page sidebar and a selected settings panel. Signed-out users authenticate
   through the hosted authentication menu before accessing wallet settings.
@@ -203,6 +588,11 @@ The SDK owns transient read retry and RPC handling. The browser contract is
   the same export, recovery, authentication-method, device-linking, and preference
   operations. Authentication methods and linked devices render inline without
   modal focus trapping; sensitive-operation confirmations retain their existing UI.
+- Authentication methods lists each method that can still be added as a card under
+  Add a method. Email OTP opens its address field only after **Add**, says that a
+  passkey confirmation and an emailed code follow, and sends with **Send code**.
+  It requires a passkey session; otherwise **Add** is disabled and the card says to
+  unlock with a passkey. Address errors appear under the field.
 - Narrow viewports expose the sidebar through an explicit settings disclosure.
   Selecting a section moves focus to its heading. Locking returns to authentication.
 
@@ -521,6 +911,10 @@ CTA belong to the wallet origin.
   its configuration stops the open; the wallet host never shows that menu. A
   menu whose anchor leaves the app document ends as unmounted; it does not move
   to the viewport centre.
+- The menu stays transparent until its card reports its measured size. In the
+  frame where it appears, the anchor reserves that height, hides the loading
+  shell, and carries `data-seams-auth-menu-ready`. The anchor never reserves a
+  guessed height first, so the app's layout moves at most once.
 
 - Hosted exchange redemption publishes the child's home locator before consuming
   the validated one-use exchange. A directory publication failure leaves the
@@ -1191,6 +1585,11 @@ existing send API; callers handle them with `try`/`catch`. There is no separate
 `executeAction` operation or wire command that converts exceptions into a
 `success: false` result. Confirmation, callbacks, wait status, and nonce reporting
 retain the canonical send path's contracts.
+
+Opening an admitted transaction review focuses the review surface. It does not
+focus the Back button automatically. Tab navigation still reaches the controls.
+The transaction review and expanded receipt show the token icon beside the amount
+and currency symbol. Both use the same official USDC and NEAR symbol artwork.
 
 EVM and Tempo use `signTransaction` for signing without broadcast and
 `signAndSendTransaction` for signing, broadcasting, and waiting for finalization.
@@ -2613,3 +3012,29 @@ nonce selection, approval, signing, and broadcast.
 
 Real Meteor evidence: `docs/evidence/refactor-185-meteor-testnet-20261026.json`.
 The run verified final execution and exact greeting readback for `cyan-loong.testnet`.
+
+### External Meteor ownership messages
+
+`ExternalNearController.signMessage(connection, params)` requests a NEP-413 message
+signature through Meteor's captured transport. The request uses `sign_message` and
+includes the captured account and network. HOT and Intear return `unavailable`
+before dispatch because this connector does not implement their message-signing APIs.
+
+The caller supplies a message, recipient, and 32-byte nonce. The boundary copies
+the nonce before asynchronous work. Optional callback URL and state retain their
+exact values. The controller checks the current account before dispatch and rejects
+a changed connection during approval or verification. Concurrent operations return
+`pending_request`. Disconnect cancels approval without clearing a newer operation.
+
+Success requires the captured account, a 32-byte Ed25519 public key, and a 64-byte
+base64 signature. The connector verifies the signature over the SHA-256 digest of
+the standard NEP-413 Borsh payload, including the tag and optional callback URL.
+The response carries the caller's state through the correlated request. A decline,
+malformed reply, or changed signed field returns `unavailable`. No transaction or
+RPC request occurs during message signing. Account-key ownership and challenge
+freshness remain application checks on the selected network.
+
+`tests/wallet-ui/external-near-message.browser.test.ts` verifies ownership messages,
+tamper rejection, nonce copying, concurrent requests, and cancellation across a
+reconnect. It independently encodes and verifies NEP-413 with Node.js crypto.
+Each run writes JSON evidence with the public request, signature, and digest.

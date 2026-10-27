@@ -21,10 +21,8 @@ import {
   type ResolvedEvmFamilyEcdsaKey,
   type VerifiedEcdsaPublicFacts,
 } from '../identity/evmFamilyEcdsaIdentity';
-import {
-  walletAuthAuthorityRef,
-  type WalletAuthAuthority,
-} from '@shared/utils/walletAuthAuthority';
+import { walletAuthAuthorityRef } from '@shared/utils/walletAuthAuthority';
+import type { SignerAuthMethod } from '@shared/utils/signerDomain';
 import {
   thresholdEcdsaChainTargetKey,
   toWalletId,
@@ -100,7 +98,7 @@ type ConcreteAvailableEcdsaSigningLaneAuth =
       linkedOwner?: never;
     }
   | {
-      auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' }>;
+      auth: Extract<SigningLaneAuthBinding, { kind: 'email_otp' | 'voiceid' }>;
       resolvedKey?: never;
       linkedOwner?: never;
     };
@@ -188,8 +186,7 @@ export function activeWalletAuthorityAvailableLaneFromProjection(
 
 /** Authority-native ECDSA lanes carry holder runtime context instead of a canonical capability. */
 export type AvailableEcdsaSigningLane =
-  | MissingAvailableEcdsaSigningLane
-  | ConcreteAvailableEcdsaSigningLane;
+  MissingAvailableEcdsaSigningLane | ConcreteAvailableEcdsaSigningLane;
 
 function ecdsaAuthorizationPolicyMatchesLane(
   lane: Extract<ConcreteAvailableEcdsaSigningLane, { source: 'canonical_capability' }>,
@@ -250,10 +247,10 @@ type EcdsaCanonicalLaneSelection =
       candidateFacts: readonly EcdsaLaneRecordFact[];
     };
 
-export function availableEcdsaSigningLaneAuthMethod(
-  lane: Pick<ConcreteAvailableEcdsaSigningLane, 'auth'>,
-): WalletAuthAuthority['factor']['kind'] {
-  return signingLaneAuthMethod(lane.auth);
+export function availableEcdsaSigningLaneAuthMethod<T extends Pick<ConcreteAvailableEcdsaSigningLane, 'auth'>>(
+  lane: T,
+): T['auth']['kind'] {
+  return lane.auth.kind;
 }
 
 type MissingAvailableEd25519SigningLane = {
@@ -307,12 +304,11 @@ export type ConcreteAvailableEd25519SigningLane = ConcreteAvailableEd25519Signin
   );
 
 export type AvailableEd25519SigningLane =
-  | MissingAvailableEd25519SigningLane
-  | ConcreteAvailableEd25519SigningLane;
+  MissingAvailableEd25519SigningLane | ConcreteAvailableEd25519SigningLane;
 
 export function availableEd25519SigningLaneAuthMethod(
   lane: Pick<ConcreteAvailableEd25519SigningLane, 'auth'>,
-): 'email_otp' | 'passkey' {
+): SignerAuthMethod {
   return signingLaneAuthMethod(lane.auth);
 }
 
@@ -359,20 +355,34 @@ function activeAuthorizationMatchesEd25519Lane(input: {
   ) {
     return false;
   }
-  if (input.auth.kind === 'passkey') {
-    if (
-      authorization.selectedAuthMethod.kind !== 'passkey' ||
-      String(authorization.selectedAuthMethod.rpId) !== String(input.auth.rpId) ||
-      authorization.selectedAuthMethod.credentialIdB64u !== input.auth.credentialIdB64u
-    ) {
+  switch (input.auth.kind) {
+    case 'passkey':
+      if (
+        authorization.selectedAuthMethod.kind !== 'passkey' ||
+        String(authorization.selectedAuthMethod.rpId) !== String(input.auth.rpId) ||
+        authorization.selectedAuthMethod.credentialIdB64u !== input.auth.credentialIdB64u
+      )
+        return false;
+      break;
+    case 'email_otp':
+      if (
+        authorization.selectedAuthMethod.kind !== 'email_otp' ||
+        authorization.selectedFactorAuthority.factor.kind !== 'email_otp' ||
+        authorization.selectedFactorAuthority.factor.providerUserId !== input.auth.providerSubjectId
+      )
+        return false;
+      break;
+    case 'voiceid':
+      if (
+        authorization.selectedAuthMethod.kind !== 'voiceid' ||
+        authorization.selectedAuthMethod.walletAuthMethodId !== input.auth.walletAuthMethodId ||
+        authorization.selectedAuthMethod.deviceKeyId !== input.auth.deviceKeyId
+      )
+        return false;
+      break;
+    default:
+      input.auth satisfies never;
       return false;
-    }
-  } else if (
-    authorization.selectedAuthMethod.kind !== 'email_otp' ||
-    authorization.selectedFactorAuthority.factor.kind !== 'email_otp' ||
-    authorization.selectedFactorAuthority.factor.providerUserId !== input.auth.providerSubjectId
-  ) {
-    return false;
   }
   return Boolean(
     input.ownerScope &&
@@ -521,7 +531,7 @@ type InvalidAvailableSigningLaneDiagnostic =
         | 'missing_threshold_session_id'
         | 'ambiguous_material'
         | 'conflicting_key_material';
-      authMethod?: 'email_otp' | 'passkey';
+      authMethod?: SignerAuthMethod;
       thresholdSessionId?: string;
       message?: string;
     }
@@ -535,7 +545,7 @@ type InvalidAvailableSigningLaneDiagnostic =
         | 'invalid_runtime_public_facts'
         | 'conflicting_key_material'
         | 'ambiguous_material';
-      authMethod?: 'email_otp' | 'passkey';
+      authMethod?: SignerAuthMethod;
       thresholdSessionId?: string;
       targetKey?: string;
       message?: string;
@@ -569,14 +579,13 @@ export type AvailableSigningLanes = {
 };
 
 export type ConcreteAvailableSigningLane =
-  | ConcreteAvailableEcdsaSigningLane
-  | ConcreteAvailableEd25519SigningLane;
+  ConcreteAvailableEcdsaSigningLane | ConcreteAvailableEd25519SigningLane;
 
 export type ReadAvailableSigningLanesInput = {
   walletId: WalletId | string;
   subjectId?: never;
   ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[];
-  authMethod?: 'email_otp' | 'passkey';
+  authMethod?: SignerAuthMethod;
   /**
    * When present, candidates are filtered to this exact owner before
    * canonicalization. Sibling owner lanes and lanes on other signer slots
@@ -592,7 +601,7 @@ export type ReadAvailableSigningLanesForSigningInput =
       walletId: WalletId | string;
       subjectId?: never;
       curve: 'ed25519';
-      authMethod?: 'email_otp' | 'passkey';
+      authMethod?: SignerAuthMethod;
       ownerScope: OwnerLaneScope;
     }
   | {
@@ -600,7 +609,7 @@ export type ReadAvailableSigningLanesForSigningInput =
       subjectId?: never;
       curve: 'ecdsa';
       ecdsaChainTargets: readonly ThresholdEcdsaChainTarget[];
-      authMethod?: 'email_otp' | 'passkey';
+      authMethod?: SignerAuthMethod;
       ownerScope: OwnerLaneScope;
     };
 
@@ -608,7 +617,7 @@ export type ReadAvailableSigningLanesPorts = {
   listSealedRecordsForWallet: (args: {
     walletId: string;
     filter: {
-      authMethod?: 'email_otp' | 'passkey';
+      authMethod?: SignerAuthMethod;
       curve: 'ed25519';
     };
   }) => Promise<SigningSessionSealedStoreRecord[]>;
@@ -648,9 +657,8 @@ export function isConcreteAvailableSigningLane(
     ) {
       return false;
     }
-    return lane.auth.kind === 'email_otp' || lane.auth.kind === 'passkey';
+    return true;
   }
-  if (lane.auth.kind !== 'email_otp' && lane.auth.kind !== 'passkey') return false;
   if (lane.source === 'active_wallet_authority') {
     if (
       lane.state !== 'deferred' ||
@@ -1754,7 +1762,7 @@ async function ed25519LaneMatchesOwnerScope(
   if (lane.state === 'missing') return false;
   if (signingLaneAuthBindingKey(lane.auth) !== signingLaneAuthBindingKey(scope.auth)) return false;
   if (!(await ownerAuthorityMatchesEd25519Lane(lane, scope))) return false;
-  if (scope.auth.kind === 'email_otp') return true;
+  if (scope.auth.kind !== 'passkey') return true;
   if ('keyFamily' in scope && scope.keyFamily === 'ecdsa') return false;
   return lane.signerSlot === scope.signerSlot;
 }
@@ -1774,7 +1782,7 @@ function ownerAuthorityMatchesLane(
   lane: AvailableEcdsaSigningLane,
   scope: OwnerLaneScope,
 ): boolean {
-  const ownerAuthority = scope.auth.kind === 'email_otp' ? scope.ownerAuthority : undefined;
+  const ownerAuthority = scope.auth.kind === 'passkey' ? undefined : scope.ownerAuthority;
   if (!ownerAuthority) return true;
   if (lane.curve === 'ecdsa' && lane.source === 'active_wallet_authority') {
     return (
@@ -1797,7 +1805,7 @@ async function ownerAuthorityMatchesEd25519Lane(
   lane: AvailableEd25519SigningLane,
   scope: OwnerLaneScope,
 ): Promise<boolean> {
-  const ownerAuthority = scope.auth.kind === 'email_otp' ? scope.ownerAuthority : undefined;
+  const ownerAuthority = scope.auth.kind === 'passkey' ? undefined : scope.ownerAuthority;
   if (!ownerAuthority) return true;
   if (lane.state === 'missing' || lane.curve !== 'ed25519') {
     return false;

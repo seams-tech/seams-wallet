@@ -1,3 +1,11 @@
+.seams-auth-menu-surface[hidden] { display: none !important; }
+/* A card handing over to the next one fades out pinned where it was, above it. */
+.seams-auth-card-leaving {
+  position: fixed;
+  z-index: 2;
+  box-sizing: border-box;
+  pointer-events: none;
+}
 .seams-auth-menu-surface {
   display: block;
   inline-size: 100dvw;
@@ -333,10 +341,6 @@
   gap: 0.375rem;
 }
 
-:where(.seams-auth-menu-surface) .seams-passkey-row + .seams-auth-methods {
-  margin-top: 0.5rem;
-}
-
 :where(.seams-auth-menu-surface) .seams-auth-method-btn {
   position: relative;
   display: flex;
@@ -645,7 +649,7 @@
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-bottom: 0;
+  margin-bottom: 0.5rem;
   z-index: 4;
 }
 

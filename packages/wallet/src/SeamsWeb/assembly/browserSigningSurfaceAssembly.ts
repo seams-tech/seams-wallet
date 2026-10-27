@@ -53,10 +53,6 @@ import {
   type ExactNearEd25519WalletSessionAuthorization,
   type NearEd25519WalletSessionAuthorizationReadResult,
 } from '@/core/signingEngine/session/material/nearEd25519YaoSigningPreparation';
-import {
-  isEmailOtpWalletAuthAuthority,
-  isPasskeyWalletAuthAuthority,
-} from '@shared/utils/walletAuthAuthority';
 import { buildPersistedEcdsaRoleLocalMaterial } from '@/core/signingEngine/session/material/ecdsaRoleLocalMaterialResolver';
 import type { ActiveEcdsaCapabilityManifest } from '@/core/signingEngine/session/material/ecdsaCapabilityManifest';
 import { signEvmFamily as signEvmFamilyOperation } from '@/core/signingEngine/flows/signEvmFamily/signEvmFamily';
@@ -708,14 +704,16 @@ async function buildBrowserEcdsaPreprocessingCapability(args: {
   if (!manifest) return { kind: 'inactive', reason: 'Exact ECDSA capability manifest is missing' };
   const capability = await browserCanonicalEcdsaCapabilityFromManifest(manifest);
   const sealedRecords =
-    await args.context.sealedSigningSessionStore.listExactSealedSessionsForWallet({
-      walletId: String(args.walletId),
-      filter: {
-        authMethod: args.selected.authMethod.kind,
-        curve: 'ecdsa',
-        chainTarget: args.chainTarget,
-      },
-    });
+    args.selected.authMethod.kind === 'voiceid'
+      ? []
+      : await args.context.sealedSigningSessionStore.listExactSealedSessionsForWallet({
+          walletId: String(args.walletId),
+          filter: {
+            authMethod: args.selected.authMethod.kind,
+            curve: 'ecdsa',
+            chainTarget: args.chainTarget,
+          },
+        });
   const runtimeResolution = resolveExactEcdsaSealedRuntime({
     manifest,
     walletId: args.walletId,
@@ -1402,12 +1400,8 @@ export async function listBrowserCanonicalEcdsaSigningCapabilitiesForWallet(inpu
          take the surviving method's lanes down with it. */
       continue;
     }
-    const capabilityAuthMethod = isPasskeyWalletAuthAuthority(capability.authority)
-      ? 'passkey'
-      : isEmailOtpWalletAuthAuthority(capability.authority)
-        ? 'email_otp'
-        : null;
-    if (!capabilityAuthMethod || (input.authMethod && capabilityAuthMethod !== input.authMethod)) {
+    const capabilityAuthMethod = capability.authority.factor.kind;
+    if (input.authMethod && capabilityAuthMethod !== input.authMethod) {
       continue;
     }
     capabilities.push(capability);
@@ -1615,6 +1609,7 @@ export function createBrowserSigningSurfaceEnginePorts(
               case 'email_otp':
                 return true;
               case 'passkey':
+              case 'voiceid':
                 return (
                   args.getEnginePorts().ed25519YaoActiveClients.resolve({
                     walletId: reference.walletId,

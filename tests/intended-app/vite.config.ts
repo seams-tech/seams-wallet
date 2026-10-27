@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, workspaceRoot, '');
   const walletDistRoot = String(environment.VITE_SEAMS_WALLET_DIST_ROOT || '').trim();
   const walletAssetHost = environment.VITE_SEAMS_WALLET_ASSET_HOST === '1';
+  const walletPublicRoot = environment.VITE_SEAMS_WALLET_PUBLIC_ROOT || `${walletDistRoot}/public`;
   const walletAliases = walletDistRoot
     ? [
         {
@@ -34,7 +35,7 @@ export default defineConfig(({ mode }) => {
     envDir: workspaceRoot,
     cacheDir: environment.VITE_CACHE_DIR || undefined,
     clearScreen: false,
-    publicDir: walletAssetHost && walletDistRoot ? `${walletDistRoot}/public` : false,
+    publicDir: walletAssetHost && walletDistRoot ? walletPublicRoot : false,
     plugins: [intendedWalletOriginPlugin(walletAssetHost), react()],
     server: {
       host: '127.0.0.1',

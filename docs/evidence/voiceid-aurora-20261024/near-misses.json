@@ -1,0 +1,386 @@
+[
+  {
+    "kind": "changed",
+    "expected": "i want to go home",
+    "spoken": "i want to stay here",
+    "recognized": "i want to go home",
+    "gapToGreedy": 65.71826171875,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "i want to go home",
+    "spoken": "i want to go",
+    "recognized": "i want to go home",
+    "gapToGreedy": 24.61351203918457,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "i want to go home",
+    "spoken": "i want go home",
+    "recognized": "i want to go home",
+    "gapToGreedy": 18.996395111083984,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "i can hear the music",
+    "spoken": "i cannot hear the music",
+    "recognized": "i can hear the music",
+    "gapToGreedy": 11.228859901428223,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "i can hear the music",
+    "spoken": "i can hear the",
+    "recognized": "i can hear the music",
+    "gapToGreedy": 36.45221710205078,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "i can hear the music",
+    "spoken": "i can the music",
+    "recognized": "i can hear the music",
+    "gapToGreedy": 27.46143341064453,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "this is my own voice",
+    "spoken": "this is not my voice",
+    "recognized": "this is my own voice",
+    "gapToGreedy": 54.122589111328125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "this is my own voice",
+    "spoken": "this is my own",
+    "recognized": "this is my own voice",
+    "gapToGreedy": 61.330867767333984,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "this is my own voice",
+    "spoken": "this is own voice",
+    "recognized": "this is my own voice",
+    "gapToGreedy": 13.994097709655762,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "we are going home now",
+    "spoken": "we are not going home",
+    "recognized": "we are going home now",
+    "gapToGreedy": 38.738685607910156,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "we are going home now",
+    "spoken": "we are going home",
+    "recognized": "we are going home now",
+    "gapToGreedy": 26.3961181640625,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "we are going home now",
+    "spoken": "we are home now",
+    "recognized": "we are going home now",
+    "gapToGreedy": 28.208024978637695,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "the little dog is sleeping",
+    "spoken": "the little dog is running",
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 83.97598266601562,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "the little dog is sleeping",
+    "spoken": "the little dog is",
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 55.3788948059082,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "the little dog is sleeping",
+    "spoken": "the little is sleeping",
+    "recognized": "the little dog is sleeping",
+    "gapToGreedy": 34.13027572631836,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "the river is running slowly",
+    "spoken": "the river is running quickly",
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 69.06414031982422,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "the river is running slowly",
+    "spoken": "the river is running",
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 72.34532928466797,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "the river is running slowly",
+    "spoken": "the river running slowly",
+    "recognized": "the river is running slowly",
+    "gapToGreedy": 19.73222541809082,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "i want a glass of water",
+    "spoken": "i want a glass of milk",
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 41.66062927246094,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "i want a glass of water",
+    "spoken": "i want a glass of",
+    "recognized": "i want to go home",
+    "gapToGreedy": 33.73466110229492,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "i want a glass of water",
+    "spoken": "i want glass of water",
+    "recognized": "i want a glass of water",
+    "gapToGreedy": 5.900565147399902,
+    "acceptedExpected": true
+  },
+  {
+    "kind": "changed",
+    "expected": "can you open the window",
+    "spoken": "can you close the window",
+    "recognized": "can you open the window",
+    "gapToGreedy": 53.18730926513672,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "can you open the window",
+    "spoken": "can you open the",
+    "recognized": "can you open the window",
+    "gapToGreedy": 25.589099884033203,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "can you open the window",
+    "spoken": "can you the window",
+    "recognized": "can you open the window",
+    "gapToGreedy": 41.233978271484375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "we sat beside the river",
+    "spoken": "we sat inside the house",
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 74.71643829345703,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "we sat beside the river",
+    "spoken": "we sat beside the",
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 32.58488082885742,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "we sat beside the river",
+    "spoken": "we sat the river",
+    "recognized": "we sat beside the river",
+    "gapToGreedy": 68.34781646728516,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "they are waiting for us",
+    "spoken": "they are leaving without us",
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 54.70834732055664,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "they are waiting for us",
+    "spoken": "they are waiting for",
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 24.291940689086914,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "they are waiting for us",
+    "spoken": "they are for us",
+    "recognized": "they are waiting for us",
+    "gapToGreedy": 55.760196685791016,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "she is reading a book",
+    "spoken": "she is writing a book",
+    "recognized": "she is reading a book",
+    "gapToGreedy": 22.15216064453125,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "she is reading a book",
+    "spoken": "she is reading a",
+    "recognized": "she is reading a book",
+    "gapToGreedy": 45.849918365478516,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "she is reading a book",
+    "spoken": "she is a book",
+    "recognized": "she is reading a book",
+    "gapToGreedy": 58.7844123840332,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "he is looking at me",
+    "spoken": "he is looking at you",
+    "recognized": "he is looking at me",
+    "gapToGreedy": 13.07997989654541,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "he is looking at me",
+    "spoken": "he is looking at",
+    "recognized": "he is looking at me",
+    "gapToGreedy": 13.934170722961426,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "he is looking at me",
+    "spoken": "he is at me",
+    "recognized": "he is looking at me",
+    "gapToGreedy": 46.93343734741211,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "the door is open now",
+    "spoken": "the door is closed now",
+    "recognized": "the door is open now",
+    "gapToGreedy": 55.14019012451172,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "the door is open now",
+    "spoken": "the door is open",
+    "recognized": "the door is open now",
+    "gapToGreedy": 25.611478805541992,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "the door is open now",
+    "spoken": "the door open now",
+    "recognized": "the door is open now",
+    "gapToGreedy": 10.213556289672852,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "let us go home now",
+    "spoken": "let us stay here now",
+    "recognized": "let us go home now",
+    "gapToGreedy": 49.50349426269531,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "let us go home now",
+    "spoken": "let us go home",
+    "recognized": "let us go home now",
+    "gapToGreedy": 27.192665100097656,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "let us go home now",
+    "spoken": "let us home now",
+    "recognized": "let us go home now",
+    "gapToGreedy": 16.288593292236328,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "that is a good idea",
+    "spoken": "that is a bad idea",
+    "recognized": "that is a good idea",
+    "gapToGreedy": 12.889785766601562,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "that is a good idea",
+    "spoken": "that is a good",
+    "recognized": "that is a good idea",
+    "gapToGreedy": 42.83623123168945,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "that is a good idea",
+    "spoken": "that is good idea",
+    "recognized": "that is a good idea",
+    "gapToGreedy": 6.592287063598633,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "changed",
+    "expected": "come and sit with me",
+    "spoken": "come and stand with me",
+    "recognized": "come and sit with me",
+    "gapToGreedy": 39.21580123901367,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_last",
+    "expected": "come and sit with me",
+    "spoken": "come and sit with",
+    "recognized": "come and sit with me",
+    "gapToGreedy": 16.60638427734375,
+    "acceptedExpected": false
+  },
+  {
+    "kind": "missing_middle",
+    "expected": "come and sit with me",
+    "spoken": "come and with me",
+    "recognized": "come and sit with me",
+    "gapToGreedy": 23.70783233642578,
+    "acceptedExpected": false
+  }
+]

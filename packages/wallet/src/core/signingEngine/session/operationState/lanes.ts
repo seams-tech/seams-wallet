@@ -92,15 +92,16 @@ type Ed25519PasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
 type Ed25519EmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   Ed25519EmailOtpSigningLaneInput;
 type NearTransactionSigningLaneInput =
-  | Ed25519PasskeyTransactionSigningLaneInput
+  | ({ auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }> } & Ed25519PasskeySigningLaneInput)
   | Ed25519EmailOtpTransactionSigningLaneInput;
 
-type EcdsaPasskeyTransactionSigningLaneInput = PasskeySigningLaneAuthInput &
-  EcdsaPasskeySigningLaneInput;
+type EcdsaStoredTransactionSigningLaneInput = {
+  auth: Extract<SigningLaneAuthBinding, { kind: 'passkey' | 'voiceid' }>;
+} & EcdsaPasskeySigningLaneInput;
 type EcdsaEmailOtpTransactionSigningLaneInput = EmailOtpSigningLaneAuthInput &
   EcdsaEmailOtpSigningLaneInput;
 type EcdsaTransactionSigningLaneInput =
-  | EcdsaPasskeyTransactionSigningLaneInput
+  | EcdsaStoredTransactionSigningLaneInput
   | EcdsaEmailOtpTransactionSigningLaneInput;
 
 export function buildEd25519PasskeySigningLane(
@@ -150,8 +151,8 @@ function buildEd25519EmailOtpSigningLane(
   });
 }
 
-function buildEcdsaPasskeySigningLane(
-  input: PasskeySigningLaneAuthInput & EcdsaPasskeySigningLaneInput,
+function buildEcdsaStoredSigningLane(
+  input: EcdsaStoredTransactionSigningLaneInput,
 ): EcdsaTransactionSigningLane {
   const selectedLane = selectedEcdsaLane({
     key: input.key,
@@ -198,13 +199,32 @@ function buildEcdsaEmailOtpSigningLane(
 export function buildNearTransactionSigningLane(
   input: NearTransactionSigningLaneInput,
 ): NearTransactionSigningLane {
+  if (input.auth.kind === 'voiceid') {
+    const selected = selectedEd25519Lane({
+      walletId: input.walletId,
+      nearAccountId: input.nearAccountId,
+      nearEd25519SigningKeyId: input.nearEd25519SigningKeyId,
+      signerSlot: input.signerSlot,
+      auth: input.auth,
+      walletSessionId: input.walletSessionId,
+      quotaId: input.quotaId,
+      thresholdSessionId: input.thresholdSessionId,
+    });
+    return buildSigningLane<NearTransactionSigningLane>({
+      ...selected,
+      keyKind: 'threshold_ed25519',
+      chainFamily: 'near',
+      storageSource: 'login',
+      sessionOrigin: 'login',
+      retention: 'session',
+    });
+  }
   if (isEd25519EmailOtpTransactionSigningLaneInput(input)) {
     return buildEd25519EmailOtpSigningLane(input);
   }
   if (isEd25519PasskeyTransactionSigningLaneInput(input)) {
     return buildEd25519PasskeySigningLane(input);
   }
-  input satisfies never;
   throw new Error('[SigningSession] unsupported NEAR lane auth');
 }
 
@@ -232,8 +252,8 @@ function buildEcdsaTransactionSigningLane(
   if (isEcdsaEmailOtpTransactionSigningLaneInput(input)) {
     return buildEcdsaEmailOtpSigningLane(input);
   }
-  if (isEcdsaPasskeyTransactionSigningLaneInput(input)) {
-    return buildEcdsaPasskeySigningLane(input);
+  if (isEcdsaStoredTransactionSigningLaneInput(input)) {
+    return buildEcdsaStoredSigningLane(input);
   }
   input satisfies never;
   throw new Error('[SigningSession] unsupported ECDSA lane auth');
@@ -251,10 +271,10 @@ function isEd25519EmailOtpTransactionSigningLaneInput(
   return input.auth.kind === 'email_otp';
 }
 
-function isEcdsaPasskeyTransactionSigningLaneInput(
+function isEcdsaStoredTransactionSigningLaneInput(
   input: EcdsaTransactionSigningLaneInput,
-): input is EcdsaPasskeyTransactionSigningLaneInput {
-  return input.auth.kind === 'passkey';
+): input is EcdsaStoredTransactionSigningLaneInput {
+  return input.auth.kind === 'passkey' || input.auth.kind === 'voiceid';
 }
 
 function isEcdsaEmailOtpTransactionSigningLaneInput(

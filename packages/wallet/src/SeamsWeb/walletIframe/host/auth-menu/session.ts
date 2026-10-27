@@ -1,3 +1,8 @@
+import type { WalletHostSessionCommands } from '../createSessionCommands';
+import type {
+  AuthMethodCaptureMount,
+  AuthMethodCaptureSettlement,
+} from '@/core/authMethods/hostPlugin';
 import type { AppearanceConfig } from '@/core/types/seams';
 import type { RegistrationResult } from '@/core/types/seams';
 import {
@@ -18,7 +23,10 @@ import {
   passkeyCeremonyHeadline,
   resolveAuthMenuLoginAccount,
 } from './domain';
-import { mountAuthMenuSurface, type AuthMenuSurfaceHandle } from '../ui/auth-menu/mountAuthMenuSurface';
+import {
+  mountAuthMenuSurface,
+  type AuthMenuSurfaceHandle,
+} from '../ui/auth-menu/mountAuthMenuSurface';
 import {
   hostedAuthMenuExternalAuthRequestIdFromBoundary,
   parseHostedAuthMenuErrorEvent,
@@ -98,8 +106,7 @@ type HostedPasskeyMenuPrepared = HostedPasskeyRegistrationPrepared | HostedPassk
  * still structured, so no stage has to guess from an error message.
  */
 type AuthMenuFailure =
-  | { readonly kind: 'dismissed' }
-  | { readonly kind: 'error'; readonly error: unknown };
+  { readonly kind: 'dismissed' } | { readonly kind: 'error'; readonly error: unknown };
 
 type PresentedAuthMenuError = {
   readonly mode: HostedAuthMenuMode;
@@ -821,6 +828,151 @@ function recoveryPasskeyCreationFailureStatus(
 }
 
 export class AuthMenuSession {
+  private voiceLogin:
+    | { kind: 'unavailable' }
+    | { kind: 'ready' | 'running'; unlock: WalletHostSessionCommands['unlockWithAuthMethod'] } = {
+    kind: 'unavailable',
+  };
+  private voiceCapture: HTMLElement | null = null;
+  private menuLeaving: Animation | null = null;
+
+  setVoiceLogin(unlock: WalletHostSessionCommands['unlockWithAuthMethod']): void {
+    if (this.voiceLogin.kind === 'running') return;
+    this.voiceLogin = { kind: 'ready', unlock };
+  }
+
+  private readonly assertVoiceLoginActive = (): void => {
+    if (this.stateValue.kind === 'complete' || this.voiceLogin.kind !== 'running')
+      throw new Error('VoiceID login was cancelled.');
+  };
+
+  private readonly mountVoiceCapture: AuthMethodCaptureMount = (element) => {
+    this.assertVoiceLoginActive();
+    this.measurementReporter?.disconnect();
+    if (this.surface) {
+      // The menu fades out where it is, above the VoiceID card, and is then hidden.
+      const menu = this.surface.element;
+      this.menuLeaving = fadeOutInPlace(menu, menu.getBoundingClientRect());
+      this.menuLeaving.onfinish = this.finishMenuLeaving;
+    }
+    const origin = this.surface?.element.querySelector('.seams-menu-origin');
+    if (origin) element.querySelector('.seams-voiceid-unlock-header')?.prepend(origin.cloneNode(true));
+    document.body.append(element);
+    this.voiceCapture = element;
+    this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
+      kind: 'auth_menu_surface',
+      element,
+      requestId: this.identity.requestId,
+      authMenuSessionId: this.identity.authMenuSessionId,
+      postMeasurement: this.postSurfaceMeasurement,
+    });
+    return this.restoreVoiceCapture.bind(this, element);
+  };
+
+  private restoreVoiceCapture(element: HTMLElement, settlement: AuthMethodCaptureSettlement): void {
+    this.voiceCapture = null;
+    this.measurementReporter?.disconnect();
+    // An unlock that played its own success keeps the menu hidden; the session completes next.
+    if (settlement === 'succeeded' || !this.menuHidden()) {
+      element.remove();
+      return;
+    }
+    // The menu returns at full opacity beneath the card, which fades out where it was.
+    const leaving = fadeOutInPlace(element, element.getBoundingClientRect());
+    const remove = element.remove.bind(element);
+    leaving.onfinish = remove;
+    leaving.oncancel = remove;
+    this.revealMenu();
+  }
+
+  private readonly finishMenuLeaving = (): void => {
+    if (!this.surface || !this.menuLeaving) return;
+    this.surface.element.hidden = true;
+    this.restoreMenuFlow();
+  };
+
+  /** Ends the menu's pinned fade, wherever it is, and puts the menu back in the flow. */
+  private restoreMenuFlow(): void {
+    const leaving = this.menuLeaving;
+    this.menuLeaving = null;
+    leaving?.cancel();
+    this.surface?.element.classList.remove('seams-auth-card-leaving');
+  }
+
+  private menuHidden(): boolean {
+    return (
+      this.stateValue.kind !== 'complete' &&
+      (this.menuLeaving !== null || this.surface?.element.hidden === true)
+    );
+  }
+
+  private revealMenu(): void {
+    if (!this.surface || !this.menuHidden()) return;
+    this.restoreMenuFlow();
+    this.surface.element.hidden = false;
+    this.surface.element.inert = false;
+    this.surface.element.querySelector<HTMLElement>('[data-auth-menu-voiceid]')?.focus();
+    this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
+      kind: 'auth_menu_surface',
+      element: this.surface.element,
+      requestId: this.identity.requestId,
+      authMenuSessionId: this.identity.authMenuSessionId,
+      postMeasurement: this.postSurfaceMeasurement,
+    });
+  }
+
+  private async unlockWithVoice(): Promise<void> {
+    if (
+      this.voiceLogin.kind !== 'ready' ||
+      (this.stateValue.kind !== 'ready' && this.stateValue.kind !== 'preparing')
+    )
+      return;
+    const viewModel = this.currentViewModel();
+    if (viewModel.kind !== 'passkey' || viewModel.mode !== 'login') return;
+    const walletId = resolveAuthMenuLoginAccount(
+      this.loginAccountOptions,
+      this.selectedLoginAccount,
+    ).selectedAccount?.walletId;
+    const account = this.loginAccountOptions.find(voiceAccountForWallet.bind(null, walletId));
+    if (!account || account.authMethod !== 'voiceid') return;
+    const login = this.voiceLogin.unlock;
+    this.invalidatePreparation();
+    this.voiceLogin = { kind: 'running', unlock: login };
+    try {
+      const result = await login(
+        {
+          walletId: account.walletId,
+          walletAuthMethodId: account.walletAuthMethodId,
+          method: 'voiceid',
+        },
+        this.assertVoiceLoginActive,
+        this.mountVoiceCapture,
+      );
+      this.assertVoiceLoginActive();
+      if (!result.success) throw new Error(result.error);
+      this.complete(
+        {
+          kind: 'authenticated',
+          authMenuSessionId: this.identity.authMenuSessionId,
+          walletId: result.walletId,
+          method: 'voiceid',
+        },
+        'capture',
+      );
+    } catch (error) {
+      this.revealMenu();
+      if (this.state.kind !== 'complete') {
+        this.stateValue = {
+          kind: 'preparing',
+          viewModel: { ...viewModel, status: authMenuFailureStatus(errorMessage(error)) },
+        };
+        this.updateElement();
+      }
+    } finally {
+      this.voiceLogin = { kind: 'ready', unlock: login };
+    }
+  }
+
   readonly identity: AuthMenuSessionIdentity;
   readonly request: HostedAuthMenuOpenRequest;
 
@@ -1116,7 +1268,11 @@ export class AuthMenuSession {
     this.schedulePreparationDeadline(generation, cancellationController);
     const preparation = Promise.resolve().then(() =>
       registrationPreparation
-        ? registrationPreparation(this.registrationValue(), cancellation, this.showRegistrationDelay)
+        ? registrationPreparation(
+            this.registrationValue(),
+            cancellation,
+            this.showRegistrationDelay,
+          )
         : prepare!(cancellation),
     );
     void preparation.then(
@@ -1577,6 +1733,7 @@ export class AuthMenuSession {
   }
 
   cleanup(): void {
+    this.voiceCapture?.dispatchEvent(new Event('cancel', { cancelable: true }));
     if (this.cleanedUp) return;
     this.cleanedUp = true;
     for (const timer of this.successTimers) clearTimeout(timer);
@@ -1636,6 +1793,7 @@ export class AuthMenuSession {
 
   private onIntent = (intent: AuthMenuIntent): void => {
     if (this.stateValue.kind === 'complete') return;
+    if (this.voiceLogin.kind === 'running' && intent.kind !== 'close') return;
     switch (intent.kind) {
       case 'mode_selected':
         this.selectMode(intent.mode);
@@ -1724,6 +1882,9 @@ export class AuthMenuSession {
         }
         return;
       }
+      case 'voiceid_selected':
+        void this.unlockWithVoice();
+        return;
       case 'login_account_selected':
         this.selectLoginAccount(intent.walletId, intent.authMethod);
         return;
@@ -3474,11 +3635,13 @@ export class AuthMenuSession {
     );
   }
 
-  private complete(outcome: HostedAuthMenuOutcome): void {
+  /** `capture` means a capture surface already played the success, so the menu finishes at once. */
+  private complete(outcome: HostedAuthMenuOutcome, successView: 'menu' | 'capture' = 'menu'): void {
     if (this.stateValue.kind === 'complete') return;
     const lastView = this.surface ? this.currentViewModel() : null;
     this.stateValue = { kind: 'complete', outcome };
     if (
+      successView === 'menu' &&
       lastView &&
       isAuthMenuSuccessOutcome(outcome) &&
       this.showSuccess(lastView, outcome, 'shown')
@@ -3794,4 +3957,32 @@ function assertNeverHostedPasskeyPrepared(value: never): never {
 
 function assertNeverHostedExternalAuthEvidence(value: never): never {
   throw new Error(`Unhandled hosted external-auth evidence: ${String(value)}`);
+}
+
+/**
+ * Pins a card that is being replaced at `bounds`, above the card that replaces
+ * it, and fades it out. Out of the flow, it changes no measured size.
+ */
+function fadeOutInPlace(element: HTMLElement, bounds: DOMRect): Animation {
+  element.inert = true;
+  element.classList.add('seams-auth-card-leaving');
+  const place = {
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    width: `${bounds.width}px`,
+    height: `${bounds.height}px`,
+    margin: '0px',
+  };
+  return element.animate([{ ...place, opacity: 1 }, { ...place, opacity: 0 }], {
+    duration: 150,
+    easing: 'ease-out',
+    fill: 'both',
+  });
+}
+
+function voiceAccountForWallet(
+  walletId: string | undefined,
+  account: AuthMenuAccountOption,
+): boolean {
+  return account.walletId === walletId && account.authMethod === 'voiceid';
 }

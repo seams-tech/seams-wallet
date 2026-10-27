@@ -92,7 +92,6 @@ export type AddSignerIntentV1 = {
 export type AddAuthMethodIntentSourceV1 = {
   readonly walletAuthorityId: WalletAuthorityId;
   readonly walletAuthMethodId: WalletAuthMethodId;
-  readonly walletSessionId: string;
   readonly authorityDigestB64u: string;
   readonly revocationEpoch: number;
 };
@@ -183,9 +182,6 @@ export function normalizeAddAuthMethodIntentCaller(
   const walletAuthMethodId = parseWalletAuthMethodId(
     'walletAuthMethodId' in source ? source.walletAuthMethodId : undefined,
   );
-  const walletSessionId = trimString(
-    'walletSessionId' in source ? source.walletSessionId : undefined,
-  );
   const authorityDigestB64u = trimString(
     'authorityDigestB64u' in source ? source.authorityDigestB64u : undefined,
   );
@@ -193,7 +189,6 @@ export function normalizeAddAuthMethodIntentCaller(
   if (
     !walletAuthorityId.ok ||
     !walletAuthMethodId.ok ||
-    !walletSessionId ||
     !authorityDigestB64u ||
     typeof revocationEpoch !== 'number' ||
     !Number.isSafeInteger(revocationEpoch) ||
@@ -206,14 +201,13 @@ export function normalizeAddAuthMethodIntentCaller(
     source: {
       walletAuthorityId: walletAuthorityId.value,
       walletAuthMethodId: walletAuthMethodId.value,
-      walletSessionId,
       authorityDigestB64u,
       revocationEpoch,
     },
   };
 }
 
-/** True when the two source claims name the same session on the same authority. */
+/** True when the two source claims name the same proving method on the same authority. */
 function sameAddAuthMethodIntentSourceV1(
   left: AddAuthMethodIntentSourceV1,
   right: AddAuthMethodIntentSourceV1,
@@ -221,7 +215,6 @@ function sameAddAuthMethodIntentSourceV1(
   return (
     left.walletAuthorityId === right.walletAuthorityId &&
     left.walletAuthMethodId === right.walletAuthMethodId &&
-    left.walletSessionId === right.walletSessionId &&
     left.authorityDigestB64u === right.authorityDigestB64u &&
     left.revocationEpoch === right.revocationEpoch
   );
@@ -453,7 +446,6 @@ function validateAddAuthMethodIntentSourceV1(raw: unknown): void {
   const source = exactRegistrationIntentObject(raw, label, [
     'walletAuthorityId',
     'walletAuthMethodId',
-    'walletSessionId',
     'authorityDigestB64u',
     'revocationEpoch',
   ]);
@@ -466,7 +458,6 @@ function validateAddAuthMethodIntentSourceV1(raw: unknown): void {
   if (!walletAuthorityId.ok || !walletAuthMethodId.ok) {
     throw new Error(label + ' has invalid identity');
   }
-  readRegistrationIntentString(source, 'walletSessionId', label);
   readRegistrationIntentString(source, 'authorityDigestB64u', label);
   readRegistrationIntentSafeInteger(source, 'revocationEpoch', label, 0);
 }
@@ -642,9 +633,7 @@ function sameAddSignerIntentChainTargetV1(
   }
 }
 
-function assertNeverThresholdEcdsaAddSignerChainTarget(
-  value: never,
-): never {
+function assertNeverThresholdEcdsaAddSignerChainTarget(value: never): never {
   throw new Error(`Unsupported add-signer chain target: ${String(value)}`);
 }
 

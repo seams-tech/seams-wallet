@@ -146,6 +146,12 @@ export type AuthMenuRegisterViewModel = AuthMenuViewModelCommon & {
 
 export type AuthMenuAccountOption =
   | Readonly<{
+      walletId: string;
+      authMethod: 'voiceid';
+      walletAuthMethodId: string;
+      emailAddress?: never;
+    }>
+  | Readonly<{
       readonly walletId: string;
       readonly authMethod: Extract<WalletAuthMethod, 'passkey'>;
       readonly emailAddress?: never;
@@ -168,6 +174,7 @@ export type AuthMenuLoginAccountResolution =
       readonly selectedAccount: null;
       readonly loginTarget: Extract<GoogleEmailOtpWalletAuthLoginTarget, { kind: 'discoverable' }>;
     }
+  | (ResolvedAuthMenuLoginAccount & { readonly kind: 'voiceid' })
   | (ResolvedAuthMenuLoginAccount & { readonly kind: 'passkey' })
   | (ResolvedAuthMenuLoginAccount & { readonly kind: 'email_otp' })
   | (ResolvedAuthMenuLoginAccount & { readonly kind: 'passkey_and_email_otp' });
@@ -205,6 +212,7 @@ export function resolveAuthMenuLoginAccount(
   if (hasPasskey && hasEmailOtp) return { kind: 'passkey_and_email_otp', ...resolved };
   if (hasPasskey) return { kind: 'passkey', ...resolved };
   if (hasEmailOtp) return { kind: 'email_otp', ...resolved };
+  if (walletMethods.some(isVoiceIdAccount)) return { kind: 'voiceid', ...resolved };
   throw new Error('Selected auth-menu account has no supported authentication method');
 }
 
@@ -215,6 +223,7 @@ export function authMenuLoginAllowsPasskey(resolution: AuthMenuLoginAccountResol
     case 'passkey_and_email_otp':
       return true;
     case 'email_otp':
+    case 'voiceid':
       return false;
   }
 }
@@ -226,6 +235,7 @@ export function authMenuLoginAllowsEmailOtp(resolution: AuthMenuLoginAccountReso
     case 'passkey_and_email_otp':
       return true;
     case 'passkey':
+    case 'voiceid':
       return false;
   }
 }
@@ -485,6 +495,9 @@ export type AuthMenuIntent =
       readonly passkeyName: string;
     }
   | {
+      readonly kind: 'voiceid_selected';
+    }
+  | {
       readonly kind: 'login_account_selected';
       readonly walletId: string;
       readonly authMethod: WalletAuthMethod;
@@ -512,7 +525,6 @@ export type AuthMenuIntent =
   | {
       readonly kind: 'retry';
     };
-
 
 export function isAuthMenuLoadingStatus(status: AuthMenuSurfaceStatus): boolean {
   return status.kind === 'busy';
@@ -576,4 +588,8 @@ export function isAuthMenuGoogleActionReady(viewModel: AuthMenuViewModel): boole
   return authMenuLoginAllowsEmailOtp(
     resolveAuthMenuLoginAccount(viewModel.accountOptions, viewModel.selectedAccount),
   );
+}
+
+function isVoiceIdAccount(account: AuthMenuAccountOption): boolean {
+  return account.authMethod === 'voiceid';
 }

@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "nativeHost": "fake_device_key_and_factor",
+  "microphoneAndKeychainUsed": false,
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "stone-monolith-br92g5",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:94874ecc-1050-461e-a68a-3bdd893a024b",
+  "freshSessionId": "wls_v_IbIb1vtCTTrr8idcUJh-kRFLXs3zP2cnrCVuk5hSU",
+  "concurrentLockRejectedStaleUnlock": true,
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "stone-monolith-br92g5",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "stone-monolith-br92g5",
+    "accountId": "9ac7034175c6a6c61b31a86c1a965abe1782102175420aba8daf890f166477d7",
+    "publicKey": "ed25519:BRBo1hbt5v5KNLvwPHpvQfpRhCy9isWSiHEpvypmefAE"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADlhYzcwMzQxNzVjNmE2YzYxYjMxYTg2YzFhOTY1YWJlMTc4MjEwMjE3NTQyMGFiYThkYWY4OTBmMTY2NDc3ZDcAmscDQXXGpsYbMahsGpZavheCECF1Qgq6ja+JDxZkd9cCAAAAAAAAAEAAAAA5YWM3MDM0MTc1YzZhNmM2MWIzMWE4NmMxYTk2NWFiZTE3ODIxMDIxNzU0MjBhYmE4ZGFmODkwZjE2NjQ3N2Q3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAdVnrv+TeFcXWkhNxhOwR7EQbkYIr3diYfZ4YmtZwWUe0MwJNAuOsovahfQRuYtBRhL7/vMhgeGdmhO22p6idBQ==",
+      "signedTransactionSha256": "7b517d1dd6ab192855715b5d46d6324afe60814cdfe2c3814f166f013925fdfc",
+      "signerId": "9ac7034175c6a6c61b31a86c1a965abe1782102175420aba8daf890f166477d7",
+      "receiverId": "9ac7034175c6a6c61b31a86c1a965abe1782102175420aba8daf890f166477d7",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

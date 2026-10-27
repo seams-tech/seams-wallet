@@ -116,7 +116,6 @@ const linkedIntentWithSource: AddAuthMethodIntentV1 = {
   source: {
     walletAuthorityId: addAuthMethodSourceAuthorityId,
     walletAuthMethodId: addAuthMethodTargetId,
-    walletSessionId: 'wallet-session:fixture',
     authorityDigestB64u: 'digest',
     revocationEpoch: 0,
   },

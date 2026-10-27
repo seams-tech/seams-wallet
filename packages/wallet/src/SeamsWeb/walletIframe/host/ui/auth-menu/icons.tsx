@@ -202,15 +202,6 @@ export function chevronIcon(): ComponentChildren {
   return strokeIcon('13', '1.75', <path d="m9 6 6 6-6 6" />);
 }
 
-export function shieldIcon(): ComponentChildren {
-  return strokeIcon(
-    '14',
-    '1.6',
-    <path d="M12 3 4.5 6v5.5c0 4.2 2.7 7.4 7.5 9.5 4.8-2.1 7.5-5.3 7.5-9.5V6L12 3Z" />,
-    <path d="m8.5 11.5 2.5 2.5 4.5-5" />,
-  );
-}
-
 export function alertIcon(): ComponentChildren {
   return strokeIcon(
     '15',

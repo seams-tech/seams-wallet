@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "calm-peak-ppdjah",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "durationMs": 3420,
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.23146430592326916,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "calm-peak-ppdjah",
+    "accountId": "ac4d524d774ea075e9df0d6f87973a529e77eb1e31c99b6ecbaca5af61ea1d32",
+    "publicKey": "ed25519:CbbWSMVmQ3czKtr5cjQzrDkkuCXhaf45BvxvC8hVf3JZ"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGFjNGQ1MjRkNzc0ZWEwNzVlOWRmMGQ2Zjg3OTczYTUyOWU3N2ViMWUzMWM5OWI2ZWNiYWNhNWFmNjFlYTFkMzIArE1STXdOoHXp3w1vh5c6Up536x4xyZtuy6ylr2HqHTICAAAAAAAAAEAAAABhYzRkNTI0ZDc3NGVhMDc1ZTlkZjBkNmY4Nzk3M2E1MjllNzdlYjFlMzFjOTliNmVjYmFjYTVhZjYxZWExZDMyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAATVbokX3oRkGaFWGm3QgtsqPfYpeKI4RRWpeE/11dpXeLWA1/vRf9qHiIevD2AtWjXFFSgxSl4seBA+H3uA/QBw==",
+      "signedTransactionSha256": "fde42a5265f6cb2085b4fdb3236b790b47d3814c272d988924c19b23b02891d6",
+      "signerId": "ac4d524d774ea075e9df0d6f87973a529e77eb1e31c99b6ecbaca5af61ea1d32",
+      "receiverId": "ac4d524d774ea075e9df0d6f87973a529e77eb1e31c99b6ecbaca5af61ea1d32",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

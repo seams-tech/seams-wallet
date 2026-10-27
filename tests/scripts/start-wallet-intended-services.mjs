@@ -6,6 +6,7 @@ import https from 'node:https';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdtemp } from 'node:fs/promises';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const appOrigin = process.env.SEAMS_INTENDED_APP_URL || 'http://localhost:4201';
@@ -27,14 +28,20 @@ async function main() {
   installSignalHandlers();
   if (externalGateway) assertHostedBenchmarkTarget();
   if (process.env.SEAMS_INTENDED_SKIP_BUILD !== '1') buildWalletRuntime();
+  const composedRoot = await mkdtemp(path.join(tmpdir(), 'seams-intended-voiceid-'));
+  const { composeVoiceIdWalletAssets } = await import('@seams/voiceid/hosting');
+  const walletPublicDirectory = await composeVoiceIdWalletAssets({
+    walletPublicDirectory: path.join(walletDistRoot, 'public'),
+    outputDirectory: path.join(composedRoot, 'public'),
+  });
   if (!externalGateway) startWalletSystem();
   await waitForHttp(
     `${gatewayUrl}/readyz`,
     180_000,
     externalGateway ? requiredBenchmarkEnvironment('SEAMS_INTENDED_BENCHMARK_ACCESS_TOKEN') : null,
   );
-  startIntendedApp('app', appOrigin, 'app');
-  startIntendedApp('wallet-host', walletOrigin, 'wallet-host');
+  startIntendedApp('app', appOrigin, 'app', walletPublicDirectory);
+  startIntendedApp('wallet-host', walletOrigin, 'wallet-host', walletPublicDirectory);
   await waitForHttp(`${appOrigin}/__intended-e2e`, 120_000);
   await waitForHttp(`${walletOrigin}/wallet-service`, 120_000);
   console.log('[wallet-intended] Wallet Gateway and test origins are ready');
@@ -48,6 +55,7 @@ function buildWalletRuntime() {
     ['-C', 'packages/wallet', 'run', productionApp ? 'build:prod' : 'build:sdk-full'],
     process.env,
   );
+  runRequired('VoiceID package build', 'pnpm', ['-C', 'packages/voiceid', 'build']);
   if (externalGateway) return;
   for (const role of [
     'signing-worker',
@@ -87,7 +95,7 @@ function startWalletSystem() {
   trackChild('Wallet system', child);
 }
 
-function startIntendedApp(label, origin, cacheName) {
+function startIntendedApp(label, origin, cacheName, walletPublicDirectory) {
   const url = new URL(origin);
   // Node readiness probes and Chromium must reach the same loopback listener.
   const listenHost = url.hostname === 'localhost' ? '127.0.0.1' : url.hostname;
@@ -110,6 +118,7 @@ function startIntendedApp(label, origin, cacheName) {
       : 'pk_local',
     VITE_SEAMS_WALLET_ASSET_HOST: cacheName === 'wallet-host' ? '1' : '0',
     VITE_SEAMS_WALLET_DIST_ROOT: walletDistRoot,
+    VITE_SEAMS_WALLET_PUBLIC_ROOT: walletPublicDirectory,
     VITE_SIGNING_SESSION_PERSISTENCE_MODE: 'sealed_refresh_v1',
     VITE_WALLET_ORIGIN: walletOrigin,
   };

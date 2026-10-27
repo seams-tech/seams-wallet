@@ -47,6 +47,7 @@ let nextConfirmationId = 0;
 export type ConfirmationContentModel =
   | {
       kind: 'registration';
+      capture?: never;
       registration: Omit<PasskeyRegistrationContentProps, 'styles'>;
       header?: never;
       body?: never;
@@ -55,6 +56,7 @@ export type ConfirmationContentModel =
     }
   | {
       kind: 'transaction';
+      capture: HTMLElement | null;
       registration?: never;
       header: Omit<ConfirmHeaderProps, 'styles' | 'icon'>;
       body: ConfirmationBodyModel;
@@ -144,39 +146,22 @@ export class ConfirmationContent extends Component<{
       model.prompt.kind === 'email' && model.transaction.decision.kind === 'ready'
         ? { kind: 'form' as const, formId: this.otpFormId }
         : model.transaction.decision;
+    // A hosted capture keeps the review's toolbar and footer, so only the middle of
+    // the card changes between the review, the capture and the receipt.
+    if (model.capture)
+      return (
+        <div ref={this.root} class={contentClass}>
+          <div class="seams-review-content seams-review-content--capture">
+            {this.props.variant !== 'drawer' && this.renderToolbar(model, decision)}
+            <AuthMethodCapture element={model.capture} />
+            <WalletReceiptFooter />
+          </div>
+        </div>
+      );
     return (
       <div ref={this.root} class={contentClass}>
         <div class="seams-review-content">
-          {this.props.variant !== 'drawer' && (
-            <div class="seams-review-toolbar">
-              <div class="seams-review-origin">
-                {model.transaction.onBack && (
-                  <button
-                    type="button"
-                    aria-label={walletText(this.context, 'Back to review')}
-                    title={walletText(this.context, 'Back to review')}
-                    disabled={decision.kind === 'preparing'}
-                    onClick={model.transaction.onBack}
-                  >
-                    <ReviewIcon kind="back" />
-                  </button>
-                )}
-                <PadlockIcon />
-                {model.header.website.kind === 'ready' ? (
-                  model.header.website.text
-                ) : (
-                  <LoadingStatus label={walletText(this.context, 'Loading website')} />
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
-                onClick={model.transaction.onCancel}
-              >
-                <ReviewIcon kind="close" />
-              </button>
-            </div>
-          )}
+          {this.props.variant !== 'drawer' && this.renderToolbar(model, decision)}
           {model.review.model && (
             <div class="seams-review-eyebrow">
               {model.review.model.operations.length === 1 ? (
@@ -216,10 +201,66 @@ export class ConfirmationContent extends Component<{
       </div>
     );
   }
+
+  /** The origin the request came from, with the review's back and close controls. */
+  private renderToolbar(
+    model: Extract<ConfirmationContentModel, { kind: 'transaction' }>,
+    decision: { readonly kind: string },
+  ): ComponentChildren {
+    return (
+      <div class="seams-review-toolbar">
+        <div class="seams-review-origin">
+          {model.transaction.onBack && (
+            <button
+              type="button"
+              aria-label={walletText(this.context, 'Back to review')}
+              title={walletText(this.context, 'Back to review')}
+              disabled={decision.kind === 'preparing'}
+              onClick={model.transaction.onBack}
+            >
+              <ReviewIcon kind="back" />
+            </button>
+          )}
+          <PadlockIcon />
+          {model.header.website.kind === 'ready' ? (
+            model.header.website.text
+          ) : (
+            <LoadingStatus label={walletText(this.context, 'Loading website')} />
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label={walletDisplayText(this.context, model.transaction.cancelText)}
+          onClick={model.transaction.onCancel}
+        >
+          <ReviewIcon kind="close" />
+        </button>
+      </div>
+    );
+  }
 }
 
 function ignoreCopyFailure(): void {}
 
 function assertNever(value: never): never {
   throw new Error(`Unexpected confirmation content: ${String(value)}`);
+}
+
+/** The lazy auth plugin owns its contents; the Wallet retains the modal and cancellation. */
+class AuthMethodCapture extends Component<{ element: HTMLElement }> {
+  private readonly container = createRef<HTMLDivElement>();
+  componentDidMount(): void {
+    this.container.current?.append(this.props.element);
+    this.props.element.querySelector<HTMLButtonElement>('button')?.focus();
+  }
+  componentDidUpdate(previous: { element: HTMLElement }): void {
+    if (previous.element !== this.props.element)
+      this.container.current?.replaceChildren(this.props.element);
+  }
+  componentWillUnmount(): void {
+    this.props.element.remove();
+  }
+  render(): ComponentChildren {
+    return <div ref={this.container} class="seams-auth-method-capture" />;
+  }
 }

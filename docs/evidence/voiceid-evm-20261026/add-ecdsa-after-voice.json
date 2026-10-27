@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "profile": "add_ecdsa_after_voice",
+  "nearTransfers": [
+    {
+      "signedTransactionB64": "QAAAADk4MDQ4YmZmODk2NzI0ZmMwNjI0NTE3OTZhNmQ5NDdiNTA4Y2NjMjdkZjM5NjM0ODE2Y2JmOTU5OTU3NzY0NTQAmASL/4lnJPwGJFF5am2Ue1CMzCffOWNIFsv5WZV3ZFQCAAAAAAAAAEAAAAA5ODA0OGJmZjg5NjcyNGZjMDYyNDUxNzk2YTZkOTQ3YjUwOGNjYzI3ZGYzOTYzNDgxNmNiZjk1OTk1Nzc2NDU0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAUSu10zA/unxAdCO8s4oKMTx4i5sdYm7oyL1LtpwpECtqpDQ9413UMltaxiGrosnB8QrhvBmQ8BEjYqEWHNOZAw==",
+      "signedTransactionSha256": "a6ebb63c43e60f219e545878d428a9d1ebc3b535a71113eb9d691ed9fb8cabe8",
+      "signerId": "98048bff896724fc062451796a6d947b508ccc27df39634816cbf95995776454",
+      "receiverId": "98048bff896724fc062451796a6d947b508ccc27df39634816cbf95995776454",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "network": "deterministic_arc_rpc",
+  "signing": "real_ecdsa_mpc",
+  "inference": "real_redimnet_b1_and_aurora",
+  "speakerThreshold": 0.5,
+  "ownerAddress": "0x849ab574eec7d783973069152dac353ecb38c420",
+  "walletId": "willow-ember-pebvac",
+  "transactions": [
+    {
+      "hash": "0x9a149f93f488683e23017f756ab32db4f9f042e4631cdc13ee6627d33de8dd3e",
+      "raw": "0x02f869834cef528080847735940082520894849ab574eec7d783973069152dac353ecb38c4200180c001a09a6fc2d50ef7dd45d5b25599adfcb4c729022c59b10daa211f86970ccb253feea028b4f5d640c13edaae44f27057893474a032f3f8e93242a540b19dce756e076e",
+      "sender": "0x849ab574EeC7d783973069152dac353ECB38C420",
+      "to": "0x849ab574eec7d783973069152dac353ecb38c420",
+      "value": "1",
+      "chainId": 5042002,
+      "nonce": 0
+    }
+  ],
+  "cancellationPreventedSecondTransfer": true
+}

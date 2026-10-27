@@ -93,6 +93,7 @@ const DEFAULT_CHAIN_CONFIGS: SeamsChainConfig[] = [
 //////////////////////////////
 
 export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
+  authMethods: [],
   network: {
     chains: DEFAULT_CHAIN_CONFIGS,
     relayer: {

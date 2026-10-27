@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "downloads": [],
+  "microphoneCaptures": 0,
+  "authentication": "email_otp",
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADhhNmMyNGM1ODdkMjJiZjQ3ZDc1YTk5YWNjMDBlZjA5NzNiY2Y2Njc2NDkzMWExYjlhZWJkZGY4NTFhYTViNTQAimwkxYfSK/R9damazADvCXO89mdkkxobmuvd+FGqW1QCAAAAAAAAAEAAAAA4YTZjMjRjNTg3ZDIyYmY0N2Q3NWE5OWFjYzAwZWYwOTczYmNmNjY3NjQ5MzFhMWI5YWViZGRmODUxYWE1YjU0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAva6sqic1cyqxV8Oa5ZEsMGtyorYQ4ANbD5FJOlYsOPnzWLwCivilT1Kjte2AyZUHmbBrNeFycv3MCDQDteTbBg==",
+      "signedTransactionSha256": "4915d7b73f1b06edf2ac3321fa56649abd3bd282c687c32d425453c0b214c093",
+      "signerId": "8a6c24c587d22bf47d75a99acc00ef0973bcf66764931a1b9aebddf851aa5b54",
+      "receiverId": "8a6c24c587d22bf47d75a99acc00ef0973bcf66764931a1b9aebddf851aa5b54",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc",
+  "signing": "real_ed25519_yao_mpc"
+}

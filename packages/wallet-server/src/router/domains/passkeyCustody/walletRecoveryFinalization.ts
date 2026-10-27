@@ -136,6 +136,12 @@ export function sameWalletCustodyRecoveryReplacementEnvelopeV1(
         left.factor.enrollmentSealKeyVersion === right.factor.enrollmentSealKeyVersion &&
         left.factor.kekVersion === right.factor.kekVersion
       );
+    case 'voiceid':
+      return (
+        right.factor.kind === 'voiceid' &&
+        left.factor.deviceKeyId === right.factor.deviceKeyId &&
+        left.factor.kekVersion === right.factor.kekVersion
+      );
     default:
       return assertNeverWalletRecoveryFinalizationBranch(left.factor, 'custody envelope factor');
   }

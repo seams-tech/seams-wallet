@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SeamsWeb } from '@/SeamsWeb';
 import { toWalletId } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
@@ -41,9 +41,12 @@ export function useLoginStateRefresher(args: {
   setAccountName: SeamsContextType['setAccountName'];
 }) {
   const { seams, setLoginState, setAccountName } = args;
+  const refreshGeneration = useRef(0);
 
   const refreshSession: SeamsContextType['refreshSession'] = useCallback(
     async (walletId?: string) => {
+      const generation = ++refreshGeneration.current;
+      const selectedWallet = seams.preferences.getCurrentWalletId();
       try {
         let exactWalletId: string | null;
         if (seams.configs.wallet.mode === 'iframe') {
@@ -52,6 +55,11 @@ export function useLoginStateRefresher(args: {
             exactWalletId = requestedWalletId;
           } else {
             const state = await seams.getWalletIframeExactSessionState();
+            if (
+              generation !== refreshGeneration.current ||
+              selectedWallet !== seams.preferences.getCurrentWalletId()
+            )
+              return;
             switch (state.kind) {
               case 'active_session':
               case 'expired_session':
@@ -69,6 +77,11 @@ export function useLoginStateRefresher(args: {
           }
         } else {
           exactWalletId = await resolveExactReactLoginWalletId(seams, walletId);
+          if (
+            generation !== refreshGeneration.current ||
+            selectedWallet !== seams.preferences.getCurrentWalletId()
+          )
+            return;
         }
         if (!exactWalletId) {
           setLoginState(buildReactLoggedOutLoginState());
@@ -76,6 +89,12 @@ export function useLoginStateRefresher(args: {
         }
 
         const session = await seams.auth.getSession(exactWalletId);
+        // A newer refresh or wallet selection supersedes this asynchronous read.
+        if (
+          generation !== refreshGeneration.current ||
+          selectedWallet !== seams.preferences.getCurrentWalletId()
+        )
+          return;
         if (
           session.authentication.kind === 'authenticated' &&
           session.appIdentity.kind !== 'resolved'

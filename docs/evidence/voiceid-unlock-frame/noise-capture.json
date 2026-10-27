@@ -1,0 +1,64 @@
+{
+  "status": "passed",
+  "startupCancellationStopsMicrophone": true,
+  "noise": {
+    "attemptId": "b04ccc17-a5ed-4906-ab68-c7fec290aaf7",
+    "capturedAtMs": 1792979219570,
+    "durationMs": 7920,
+    "recordingMs": 8001.200000047684,
+    "endedBy": "limit",
+    "voicedMs": 0,
+    "peakFrameRms": 0.011595669354663812,
+    "levelThreshold": 0.006,
+    "requiredVoicedMs": 600,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010430601965696286,
+    "speechToBackgroundDb": null,
+    "noise": "high"
+  },
+  "speech": {
+    "attemptId": "1e78de70-a1c6-4fb8-af67-008ddecb9912",
+    "capturedAtMs": 1792979224296,
+    "durationMs": 3660,
+    "recordingMs": 3666,
+    "endedBy": "pause",
+    "voicedMs": 1920,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010068028841996444,
+    "speechToBackgroundDb": 24.90159391739063,
+    "noise": "normal",
+    "similarity": 0.7246992252946927,
+    "modelInputMs": 2320,
+    "threshold": 0.5,
+    "phraseMatched": true,
+    "phraseRecognition": {
+      "kind": "recognized",
+      "phrase": "the river is running very slowly",
+      "gap": 0.35803510582003706
+    },
+    "expectedPhrase": "the river is running very slowly"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGRhNmUxZWNkZWFlZWMwMzJhOTA5ZDA4MzI3MGU2NjE3Yzg1NDk1OGVjYzkzMWI1ZTg0YTMyYjkyNmNmMDY5ODAA2m4ezeruwDKpCdCDJw5mF8hUlY7MkxtehKMrkmzwaYACAAAAAAAAAEAAAABkYTZlMWVjZGVhZWVjMDMyYTkwOWQwODMyNzBlNjYxN2M4NTQ5NThlY2M5MzFiNWU4NGEzMmI5MjZjZjA2OTgwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAQMVHpLaaP2IpCUcuqCn5STxoqZfK3JovvCXCBIC99QRziE3r3Wlvnnum65zkCZCzfgXnfhLz6Cm9oY27keNXDQ==",
+      "signedTransactionSha256": "195ef70bb4db679e142213aabec9d1b623118f623b878717e92bbea45f277339",
+      "signerId": "da6e1ecdeaeec032a909d083270e6617c854958ecc931b5e84a32b926cf06980",
+      "receiverId": "da6e1ecdeaeec032a909d083270e6617c854958ecc931b5e84a32b926cf06980",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

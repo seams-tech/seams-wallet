@@ -1,0 +1,91 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "lunar-tempo-6fc335",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:9e2b83f3-224a-45f3-9833-ec316bd5f657",
+  "freshSessionId": "wls_FznaU_XiFkHsAWlstsWe7BOorBWL_Y1m31cB6JK1CpQ",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 111.26720900000146,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 380.8712919999998,
+    "runtimeVisibleMs": 26.47129099999802,
+    "cancellationMs": 41.628875000002154,
+    "readyMs": 4537.3825,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 125.32179200000019,
+  "naturalCapture": {
+    "voicedMs": 1410,
+    "recordingMs": 4926.199999928474,
+    "endedBy": "pause",
+    "similarity": 0.7737370018991447,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1180,
+    "recordingMs": 2925.6999999284744,
+    "endedBy": "pause",
+    "similarity": 0.5963874117149799,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "b2adfda1-171b-4e25-842f-1417a5aeb5fd",
+      "voicedMs": 330,
+      "durationMs": 540,
+      "peakFrameRms": 0.21448294015959757,
+      "levelThreshold": 0.006,
+      "recordingMs": 2128.2000000476837,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "c6395450-7093-445a-9ee4-8a0132e85f79",
+      "voicedMs": 0,
+      "durationMs": 3120,
+      "peakFrameRms": 0.0002405075934444837,
+      "levelThreshold": 0.006,
+      "recordingMs": 8000.799999952316,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "lunar-tempo-6fc335",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "lunar-tempo-6fc335",
+    "accountId": "55d18c177f01a97281943807f51f5913d0fec64bd67b1764c21d58dfb581b61f",
+    "publicKey": "ed25519:6mzynAyfG15rUAocyA4EcoxpCestHpK7Dfwx9Pi8QTwL"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADU1ZDE4YzE3N2YwMWE5NzI4MTk0MzgwN2Y1MWY1OTEzZDBmZWM2NGJkNjdiMTc2NGMyMWQ1OGRmYjU4MWI2MWYAVdGMF38BqXKBlDgH9R9ZE9D+xkvWexdkwh1Y37WBth8CAAAAAAAAAEAAAAA1NWQxOGMxNzdmMDFhOTcyODE5NDM4MDdmNTFmNTkxM2QwZmVjNjRiZDY3YjE3NjRjMjFkNThkZmI1ODFiNjFmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAKfarCF54iO0QBAVBn36B9mbr4ofUa8sUHgwqtFqWf2dbLh6CvHocUc8iUTMLw8i/Ecy7KfnYHqb/mzWdrg1pBw==",
+      "signedTransactionSha256": "748e5639b1118a47654a86e27510d70e35fe165128fee586085381a51194ea60",
+      "signerId": "55d18c177f01a97281943807f51f5913d0fec64bd67b1764c21d58dfb581b61f",
+      "receiverId": "55d18c177f01a97281943807f51f5913d0fec64bd67b1764c21d58dfb581b61f",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

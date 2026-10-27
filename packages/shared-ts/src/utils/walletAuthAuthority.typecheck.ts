@@ -220,3 +220,16 @@ void ({
   // @ts-expect-error authority refs carry stable digest and binding identity, not raw authority data.
   authority: emailOtpAuthority,
 } satisfies WalletAuthAuthorityRef);
+
+// VoiceID binds a device key to one method. It cannot inherit another factor's verifier.
+declare const voiceIdAuthority: import('./walletAuthAuthority').VoiceIdWalletAuthAuthority;
+declare const deviceKeyId: import('./canonicalPrimitives').DigestB64u;
+void ({ kind: 'voiceid', deviceKeyId } satisfies AuthFactorIdentity);
+// @ts-expect-error VoiceID requires a device key digest.
+void ({ kind: 'voiceid' } satisfies AuthFactorIdentity);
+// @ts-expect-error A spread must not add a passkey credential to the VoiceID factor.
+void ({ ...voiceIdAuthority.factor, credentialIdB64u } satisfies AuthFactorIdentity);
+// @ts-expect-error A VoiceID authority cannot carry a WebAuthn verifier.
+void ({ ...voiceIdAuthority, verifier: { kind: 'webauthn', rpId } } satisfies WalletAuthAuthority);
+// @ts-expect-error A branded device digest cannot come from a raw string.
+void ({ kind: 'voiceid', deviceKeyId: 'unparsed' } satisfies AuthFactorIdentity);

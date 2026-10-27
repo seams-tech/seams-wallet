@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "coral-arbor-2kuyby",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:5cc78398-167b-4ef3-9c1d-f50e40becf6b",
+  "freshSessionId": "wls_VlwTvhWVVX5AOdGs184SPOMscLqz8lhBsYapUr-HqBY",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 113.53862500000105,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 374.51408399999855,
+    "runtimeVisibleMs": 18.363541000002442,
+    "loadingCardHeight": 343.03125,
+    "readyCardHeight": 309.03125,
+    "cancellationMs": 42.05804199999693,
+    "readyMs": 4961.818332999999,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 117.87487499999997,
+  "naturalCapture": {
+    "voicedMs": 1376,
+    "recordingMs": 5005.5,
+    "endedBy": "pause",
+    "similarity": 0.8827628179430126,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1424,
+    "recordingMs": 3239.8000000715256,
+    "endedBy": "pause",
+    "similarity": 0.8101689730360577,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "023ea990-1f93-4e66-92cc-00d08086d114",
+      "voicedMs": 284,
+      "durationMs": 540,
+      "peakFrameRms": 0.2616317698769446,
+      "levelThreshold": 0.006,
+      "recordingMs": 2147.399999976158,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "888bb203-b3bf-40ea-96b4-634028f8913d",
+      "voicedMs": 0,
+      "durationMs": 1800,
+      "peakFrameRms": 0.0002671732912515048,
+      "levelThreshold": 0.006,
+      "recordingMs": 8006.399999976158,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "coral-arbor-2kuyby",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "coral-arbor-2kuyby",
+    "accountId": "ae7815213920e5bd6c8748b51345617e73b1e7073ef701b21bf75bcd0270005b",
+    "publicKey": "ed25519:Ck49BNunXPgsLfMomqd5dFM18PKbENauUdEmWJCWMJwk"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGFlNzgxNTIxMzkyMGU1YmQ2Yzg3NDhiNTEzNDU2MTdlNzNiMWU3MDczZWY3MDFiMjFiZjc1YmNkMDI3MDAwNWIArngVITkg5b1sh0i1E0VhfnOx5wc+9wGyG/dbzQJwAFsCAAAAAAAAAEAAAABhZTc4MTUyMTM5MjBlNWJkNmM4NzQ4YjUxMzQ1NjE3ZTczYjFlNzA3M2VmNzAxYjIxYmY3NWJjZDAyNzAwMDViAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAqqRf7Y2NkiA1nIEFrSh8xk2Zazs8lfIWbziv42xaVlKPLrypfMjDacgrEX4oHx3Q+GCVhaB1Gd4uZU1Bmjr4Cw==",
+      "signedTransactionSha256": "fcafd0c4bad38a1ad7da69d531eb8e1217153118e62f3df90671163f6e8ee34d",
+      "signerId": "ae7815213920e5bd6c8748b51345617e73b1e7073ef701b21bf75bcd0270005b",
+      "receiverId": "ae7815213920e5bd6c8748b51345617e73b1e7073ef701b21bf75bcd0270005b",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

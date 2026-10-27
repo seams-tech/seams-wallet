@@ -405,6 +405,12 @@ export type WalletRevokeAuthMethodResponse =
       rpId?: never;
     }
   | {
+      ok: true;
+      walletId: WalletId;
+      authMethod: { kind: 'voiceid'; status: 'revoked' };
+      rpId?: never;
+    }
+  | {
       ok: false;
       code: string;
       message: string;

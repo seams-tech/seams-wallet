@@ -1,6 +1,6 @@
 {
   "name": "@seams/wallet",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "type": "module",
   "description": "Seams web and runtime TypeScript SDK for NEAR and EVM-family wallets",
   "main": "./dist/esm/index.js",
@@ -76,6 +76,11 @@
       "types": "./dist/types/wallet/src/react/externalNear.d.ts",
       "import": "./dist/esm/react/externalNear.js",
       "default": "./dist/esm/react/externalNear.js"
+    },
+    "./voiceid-host": {
+      "types": "./dist/types/wallet/src/voiceid-host.d.ts",
+      "import": "./dist/esm/voiceid-host.js",
+      "default": "./dist/esm/voiceid-host.js"
     }
   },
   "files": [
@@ -194,13 +199,13 @@
     }
   },
   "dependencies": {
+    "@levischuck/tiny-cbor": "0.2.11",
     "@near-js/types": "^2.4.0",
     "borsh": "1.0.0",
     "bs58": "^6.0.0",
     "idb": "^8.0.3",
     "preact": "10.29.8",
-    "viem": "^2.38.6",
-    "voice-glow": "0.2.1"
+    "viem": "^2.38.6"
   },
   "devDependencies": {
     "@simplewebauthn/server": "^13.2.2",

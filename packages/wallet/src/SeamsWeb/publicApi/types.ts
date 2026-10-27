@@ -1,3 +1,4 @@
+import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type {
   HostedAuthMenuOpenRequest,
@@ -96,9 +97,7 @@ import type {
 import type { TempoSigningRequest } from '@/core/signingEngine/chains/tempo/tempoSigning.types';
 import type { TempoFeeTokenValidation } from '@/core/signingEngine/chains/tempo/feeToken';
 import type { EvmFamilyNonceLaneStatus } from '@/core/signingEngine/flows/signEvmFamily/types';
-import type {
-  SigningEngineExportKeypairWithUIInput,
-} from '@/core/signingEngine/flows/recovery/public';
+import type { SigningEngineExportKeypairWithUIInput } from '@/core/signingEngine/flows/recovery/public';
 import type { ThresholdEcdsaSessionBootstrapResult } from '@/core/signingEngine/threshold/ecdsa/activation';
 import type { EmailOtpBootstrapRecovery } from '@/core/signingEngine/stepUpConfirmation/otpPrompt/bootstrapRecovery';
 import type {
@@ -112,10 +111,10 @@ import type {
   LinkedDeviceRevokeResultV1,
   QrLinkedDeviceSessionPayloadV5,
 } from '@shared/device-linking';
-import type {
-  WalletEmailOtpChannel,
-} from '@shared/utils/emailOtpDomain';
+import type { WalletEmailOtpChannel } from '@shared/utils/emailOtpDomain';
 import type { WalletId } from '@shared/utils/registrationIntent';
+import type { WalletAuthMethodPlugin } from '@/core/authMethods/plugins';
+import type { AuthMethodActivationResult } from '@/core/authMethods/hostPlugin';
 import type {
   AddSignerSelection,
   RegistrationSignerSetSelection,
@@ -339,8 +338,7 @@ export type FinalizedTempoEip2718PayloadExpectation = {
 };
 
 export type FinalizedEvmTxPayloadExpectation =
-  | FinalizedEvmEip1559PayloadExpectation
-  | FinalizedTempoEip2718PayloadExpectation;
+  FinalizedEvmEip1559PayloadExpectation | FinalizedTempoEip2718PayloadExpectation;
 
 type FinalizedEvmEip1559PayloadObservation = {
   kind: 'evm_eip1559';
@@ -360,8 +358,7 @@ type FinalizedTempoEip2718PayloadObservation = {
 };
 
 export type FinalizedEvmTxPayloadObservation =
-  | FinalizedEvmEip1559PayloadObservation
-  | FinalizedTempoEip2718PayloadObservation;
+  FinalizedEvmEip1559PayloadObservation | FinalizedTempoEip2718PayloadObservation;
 
 export type FinalizedEvmTxPayloadVerification =
   | {
@@ -430,8 +427,7 @@ type ExecuteTempoTransactionArgs = Omit<ExecuteEvmFamilyTransactionBaseArgs, 'ch
  * the request, the chain, and the payload expectation matched to one family.
  */
 export type ExecuteEvmFamilyTransactionArgs =
-  | ExecuteEvmTransactionArgs
-  | ExecuteTempoTransactionArgs;
+  ExecuteEvmTransactionArgs | ExecuteTempoTransactionArgs;
 
 export type ExecuteEvmFamilyTransactionResult = {
   txHash: `0x${string}`;
@@ -581,8 +577,7 @@ export type GoogleEmailOtpWalletAuthFailure = {
 };
 
 export type GoogleEmailOtpWalletAuthResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: GoogleEmailOtpWalletAuthFailure };
+  { ok: true; value: T } | { ok: false; error: GoogleEmailOtpWalletAuthFailure };
 
 export type GoogleEmailOtpWalletAuthPromptCopy = {
   title: string;
@@ -643,8 +638,7 @@ export type GoogleEmailOtpWalletAuthLoginFlow = GoogleEmailOtpWalletAuthBaseFlow
 };
 
 export type GoogleEmailOtpWalletAuthFlow =
-  | GoogleEmailOtpWalletAuthRegistrationFlow
-  | GoogleEmailOtpWalletAuthLoginFlow;
+  GoogleEmailOtpWalletAuthRegistrationFlow | GoogleEmailOtpWalletAuthLoginFlow;
 
 type GoogleEmailOtpWalletAuthStartBaseInput = {
   idToken: string;
@@ -682,6 +676,11 @@ export type RequestEmailCodeInput = ExclusiveUnion<
 };
 
 export interface AuthCapability {
+  unlockWithAuthMethod(args: {
+    walletId: WalletId | string;
+    walletAuthMethodId: string;
+    method: WalletAuthMethodPlugin['kind'];
+  }): Promise<LoginAndCreateSessionResult>;
   onSessionChange(listener: (session: WalletSession) => void): () => void;
   unlock(walletId: string, options?: LoginHooksOptions): Promise<LoginAndCreateSessionResult>;
   lock(): Promise<void>;
@@ -701,12 +700,22 @@ export interface AuthCapability {
 }
 
 export interface RegistrationCapability {
-  getNearAccountState(args: {
+  getAuthMethodAvailability(args: {
     walletId: WalletId | string;
-  }): Promise<NearProvisioningState | null>;
-  onNearAccountChange(
-    listener: (event: NearProvisioningStateChangedEvent) => void,
-  ): () => void;
+    method: WalletAuthMethodPlugin['kind'];
+  }): Promise<AuthMethodAvailability>;
+  setAuthMethodEnabled(args: {
+    walletId: WalletId | string;
+    method: WalletAuthMethodPlugin['kind'];
+    enabled: boolean;
+  }): Promise<AuthMethodAvailability>;
+  /** Activate an enabled host plugin after an owner unlock. */
+  activateAuthMethod(args: {
+    walletId: WalletId | string;
+    method: WalletAuthMethodPlugin['kind'];
+  }): Promise<AuthMethodActivationResult>;
+  getNearAccountState(args: { walletId: WalletId | string }): Promise<NearProvisioningState | null>;
+  onNearAccountChange(listener: (event: NearProvisioningStateChangedEvent) => void): () => void;
   /**
    * Waits for a pending NEAR account to become ready.
    *
@@ -782,7 +791,6 @@ type NearSubjectInput = {
 export interface NearSignerCapability {
   /** Returns false only for an absent account; unavailable RPC reads reject. */
   accountExists(accountId: string): Promise<boolean>;
-
 
   signAndSendTransaction(
     args: NearSubjectInput & {
@@ -862,16 +870,16 @@ export interface TempoSignerCapability {
   /** Sign an EIP-2718 typed transaction without broadcasting. */
   signTransaction(args: SignTempoArgs): Promise<TempoSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  signAndSendTransaction(args: ExecuteTempoTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  signAndSendTransaction(
+    args: ExecuteTempoTransactionArgs,
+  ): Promise<ExecuteEvmFamilyTransactionResult>;
   /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
 
   /** Tempo pays fees in a configurable token; this is that preference. */
   getFeeToken(args: GetTempoFeeTokenPreferenceArgs): Promise<EvmAddress | null>;
   validateFeeToken(args: ValidateTempoFeeTokenArgs): Promise<TempoFeeTokenValidation>;
-  setFeeToken(
-    args: SetTempoFeeTokenPreferenceArgs,
-  ): Promise<ExecuteEvmFamilyTransactionResult>;
+  setFeeToken(args: SetTempoFeeTokenPreferenceArgs): Promise<ExecuteEvmFamilyTransactionResult>;
 }
 
 /**
@@ -885,14 +893,15 @@ export interface EvmSignerCapability {
   /** Sign an EIP-1559 transaction without broadcasting. */
   signTransaction(args: SignEvmTransactionArgs): Promise<EvmSignedResult>;
   /** Sign, broadcast, and await finalization. The usual entry point. */
-  signAndSendTransaction(args: ExecuteEvmTransactionArgs): Promise<ExecuteEvmFamilyTransactionResult>;
+  signAndSendTransaction(
+    args: ExecuteEvmTransactionArgs,
+  ): Promise<ExecuteEvmFamilyTransactionResult>;
   /** Post-broadcast lifecycle reporting; `signAndSendTransaction` already drives it. */
   readonly advanced: EvmFamilyAdvancedCapability;
 }
 
 export type WalletRecoveryOwnerFactor =
-  | { readonly kind: 'passkey' }
-  | { readonly kind: 'email_otp' };
+  { readonly kind: 'passkey' } | { readonly kind: 'email_otp' };
 
 export interface RecoveryCapability {
   syncAccount(args: {
@@ -925,9 +934,7 @@ export interface RecoveryCapability {
 }
 
 export interface DevicesCapability {
-  startLinking(
-    args: StartDevice2LinkingFlowArgs,
-  ): Promise<StartDevice2LinkingFlowResults>;
+  startLinking(args: StartDevice2LinkingFlowArgs): Promise<StartDevice2LinkingFlowResults>;
 
   cancelLinking(): Promise<void>;
 

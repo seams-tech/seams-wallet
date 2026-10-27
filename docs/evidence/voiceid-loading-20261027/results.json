@@ -1,0 +1,35 @@
+[
+  {
+    "report": "final-results.json",
+    "stats": {
+      "startTime": "2026-10-26T17:16:34.123Z",
+      "duration": 89940.5,
+      "expected": 9,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  {
+    "report": "cache-final-results.json",
+    "stats": {
+      "startTime": "2026-10-26T17:18:30.477Z",
+      "duration": 42055.25,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  {
+    "report": "intended-results.json",
+    "stats": {
+      "startTime": "2026-10-26T17:16:35.261Z",
+      "duration": 277186.056,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  }
+]

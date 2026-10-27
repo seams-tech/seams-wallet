@@ -1,5 +1,8 @@
 import { base64UrlEncode } from './base64';
 import { alphabetizeStringify, sha256BytesUtf8 } from './digests';
+import { parseDigestB64u, type DigestB64u } from './canonicalPrimitives';
+import { requireRecord } from './validation';
+import { rejectUnknownFields } from './exactRecord';
 import {
   parseEmailOtpProviderUserId,
   parseWalletAuthorityBindingDigest,
@@ -25,6 +28,7 @@ export type PasskeyFactorIdentity = {
   rpId?: never;
   provider?: never;
   providerUserId?: never;
+  deviceKeyId?: never;
 };
 
 export type EmailOtpFactorIdentity = {
@@ -33,9 +37,20 @@ export type EmailOtpFactorIdentity = {
   providerUserId: EmailOtpProviderUserId;
   rpId?: never;
   credentialIdB64u?: never;
+  deviceKeyId?: never;
 };
 
-export type AuthFactorIdentity = PasskeyFactorIdentity | EmailOtpFactorIdentity;
+export type VoiceIdFactorIdentity = {
+  kind: 'voiceid';
+  deviceKeyId: DigestB64u;
+  rpId?: never;
+  credentialIdB64u?: never;
+  provider?: never;
+  providerUserId?: never;
+};
+
+export type AuthFactorIdentity =
+  PasskeyFactorIdentity | EmailOtpFactorIdentity | VoiceIdFactorIdentity;
 
 export type PasskeyWalletAuthAuthority = {
   walletId: WalletId;
@@ -67,7 +82,39 @@ export type EmailOtpWalletAuthAuthority = {
   providerUserId?: never;
 };
 
-export type WalletAuthAuthority = PasskeyWalletAuthAuthority | EmailOtpWalletAuthAuthority;
+export type VoiceIdWalletAuthAuthority = {
+  walletId: WalletId;
+  factor: VoiceIdFactorIdentity;
+  verifier: { kind: 'device_signature' };
+  bindingId: WalletAuthMethodId;
+  kind?: never;
+  rpId?: never;
+  credentialIdB64u?: never;
+  provider?: never;
+  providerUserId?: never;
+};
+
+export type WalletAuthAuthority =
+  PasskeyWalletAuthAuthority | EmailOtpWalletAuthAuthority | VoiceIdWalletAuthAuthority;
+
+export function buildVoiceIdWalletAuthAuthority(input: {
+  walletId: WalletId;
+  walletAuthMethodId: WalletAuthMethodId;
+  deviceKeyId: DigestB64u;
+}): VoiceIdWalletAuthAuthority {
+  return {
+    walletId: input.walletId,
+    bindingId: input.walletAuthMethodId,
+    factor: { kind: 'voiceid', deviceKeyId: input.deviceKeyId },
+    verifier: { kind: 'device_signature' },
+  };
+}
+
+export function isVoiceIdWalletAuthAuthority(
+  authority: WalletAuthAuthority,
+): authority is VoiceIdWalletAuthAuthority {
+  return authority.factor.kind === 'voiceid';
+}
 
 export function isPasskeyWalletAuthAuthority(
   authority: WalletAuthAuthority,
@@ -99,6 +146,11 @@ export function walletAuthAuthoritiesMatch(
       left.factor.provider === right.factor.provider &&
       left.factor.providerUserId === right.factor.providerUserId &&
       left.verifier.emailHashHex === right.verifier.emailHashHex
+    );
+  }
+  if (isVoiceIdWalletAuthAuthority(left)) {
+    return (
+      isVoiceIdWalletAuthAuthority(right) && left.factor.deviceKeyId === right.factor.deviceKeyId
     );
   }
   left satisfies never;
@@ -355,7 +407,37 @@ function parseEmailOtpWalletAuthAuthorityObject(
 export function parseWalletAuthAuthority(raw: unknown): WalletAuthAuthority | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const obj = raw as Record<string, unknown>;
-  return parsePasskeyWalletAuthAuthorityObject(obj) || parseEmailOtpWalletAuthAuthorityObject(obj);
+  return (
+    parsePasskeyWalletAuthAuthorityObject(obj) ||
+    parseEmailOtpWalletAuthAuthorityObject(obj) ||
+    parseVoiceIdWalletAuthAuthority(obj)
+  );
+}
+
+function parseVoiceIdWalletAuthAuthority(raw: unknown): VoiceIdWalletAuthAuthority | null {
+  try {
+    const record = requireRecord(raw, 'device authority');
+    rejectUnknownFields(
+      record,
+      ['walletId', 'bindingId', 'factor', 'verifier'],
+      'device authority',
+    );
+    const factor = requireRecord(record.factor, 'device factor');
+    const verifier = requireRecord(record.verifier, 'device verifier');
+    rejectUnknownFields(factor, ['kind', 'deviceKeyId'], 'device factor');
+    rejectUnknownFields(verifier, ['kind'], 'device verifier');
+    if (factor.kind !== 'voiceid' || verifier.kind !== 'device_signature') return null;
+    const walletId = parseWalletId(record.walletId);
+    const method = parseWalletAuthMethodId(record.bindingId);
+    if (!walletId.ok || !method.ok) return null;
+    return buildVoiceIdWalletAuthAuthority({
+      walletId: walletId.value,
+      walletAuthMethodId: method.value,
+      deviceKeyId: parseDigestB64u(factor.deviceKeyId),
+    });
+  } catch {
+    return null;
+  }
 }
 
 export function parseEmailOtpWalletAuthAuthority(raw: unknown): EmailOtpWalletAuthAuthority | null {

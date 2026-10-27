@@ -1,0 +1,76 @@
+{
+  "revision": "cd307b54b4d666d6ad7dc982a7a58a96d6e7f942",
+  "sourceHashes": {
+    "modeling_auroraasr.py": "99960866ec2be21bb6c376eb046296df09338a9c3da3fc44b354db9d4f7d4236",
+    "configuration_auroraasr.py": "b51c70d7462ae25058326aa1992c7a4bb71c0c31f4d0d72b3f54a54353818cf4",
+    "feature_extraction_auroraasr.py": "c2f44853f7090bbe50d7772d6e801c6ef7b6b0cf027ec57e81622ba80cba9c23",
+    "config.json": "13d237c9c1a1b3824af92c733fdeb6c7ad731a82bf1655f463c5c1de3756d521",
+    "model.safetensors": "de81448323150495b3e7fce8a3fa10edaf2a409a67aa6d57e0322c8e7fb42db8",
+    "bpe256.model": "a8d3ae6336de7cdbd7d78c9f460536c7e51c6f5be42afffaadadd73e1e333abf",
+    "int8/model.safetensors": "293ab678c7d07f4301897ec39e9e1138499df8810b6ea75b8070cdb1102cfc02",
+    "int8/config.json": "3b89571b5b2849f02d2a80808acc5b78c3aa3c80cc5ea9ff2cb58f68856c39cd"
+  },
+  "models": [
+    {
+      "precision": "fp32",
+      "bytes": 4057061,
+      "sha256": "b04ad10f6cec91e3a01fdc2bbd50e79a84189b1bd8ed20f6b3a793ff253bf78b",
+      "checks": [
+        {
+          "samples": 16000,
+          "maxAbsoluteLogitError": 3.528594970703125e-05,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 32000,
+          "maxAbsoluteLogitError": 7.867813110351562e-05,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 64000,
+          "maxAbsoluteLogitError": 0.00010538101196289062,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 128001,
+          "maxAbsoluteLogitError": 0.00017547607421875,
+          "argmaxAgreement": 1.0
+        }
+      ]
+    },
+    {
+      "precision": "int8",
+      "bytes": 1342384,
+      "sha256": "83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6",
+      "checks": [
+        {
+          "samples": 16000,
+          "maxAbsoluteLogitError": 1.8835067749023438e-05,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 32000,
+          "maxAbsoluteLogitError": 3.170967102050781e-05,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 64000,
+          "maxAbsoluteLogitError": 0.00012826919555664062,
+          "argmaxAgreement": 1.0
+        },
+        {
+          "samples": 128001,
+          "maxAbsoluteLogitError": 0.00038886070251464844,
+          "argmaxAgreement": 1.0
+        }
+      ]
+    }
+  ],
+  "vocabularySha256": "f4c2a0dd7eb99ff1d3f7d564e149d1b88d7086b49b9ee768e55a9b066e412f48",
+  "versions": {
+    "torch": "2.6.0",
+    "onnx": "1.17.0",
+    "onnxruntime": "1.23.2",
+    "numpy": "2.2.6"
+  }
+}

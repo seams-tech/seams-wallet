@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "glacier-wave-nv4kpk",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "rejectedActivationVisibleAndRetrySucceeded": true,
+  "keychainDenialBeforeCaptureReported": true,
+  "nativeHost": "fake_device_key_and_factor",
+  "microphoneAndKeychainUsed": false,
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "glacier-wave-nv4kpk",
+    "accountId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
+    "publicKey": "ed25519:3KD7nADBTh1e5JyhP7g4HQpenNMyRu9T173rdwf67JXV"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADIyNjE4NzZkMDZlODIwM2U1NDM0NTQzMWQ5MTRkOGY0ODk4NTNjODBkYTkyMmJmZmI4NzczOWM1Njk2NTYyY2MAImGHbQboID5UNFQx2RTY9ImFPIDakiv/uHc5xWllYswCAAAAAAAAAEAAAAAyMjYxODc2ZDA2ZTgyMDNlNTQzNDU0MzFkOTE0ZDhmNDg5ODUzYzgwZGE5MjJiZmZiODc3MzljNTY5NjU2MmNjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA+xWbgVCzKqFsSA8/4T6oUEYRDwVaBRdUDMbUbY2NA3LN3BCbXNC3wj75DFRr0gCB2umo5SZJmvGq1TVdeY4eDg==",
+      "signedTransactionSha256": "48932fb8f26c85dad93c0142434bfd644d3b2c0ccde1397535e06754002ecd5d",
+      "signerId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
+      "receiverId": "2261876d06e8203e54345431d914d8f489853c80da922bffb87739c5696562cc",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

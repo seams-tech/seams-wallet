@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "rapid-phoenix-tythre",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:66cc30e8-b5d1-493f-97ee-b74c7aa7e2f6",
+  "freshSessionId": "wls_yhVS7saZ3iNM95rXK_pW492Aedi-vpRzKQxDx8SfJlg",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 118.67029199999888,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 371.5315410000003,
+    "runtimeVisibleMs": 114.10820800000147,
+    "loadingCardHeight": 435.03125,
+    "readyCardHeight": 435.03125,
+    "cancellationMs": 56.484167000002344,
+    "readyMs": 4604.531083000002,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 122.60249999999996,
+  "naturalCapture": {
+    "voicedMs": 1952,
+    "recordingMs": 5581.700000047684,
+    "endedBy": "pause",
+    "similarity": 0.8728392654096815,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1696,
+    "recordingMs": 3482,
+    "endedBy": "pause",
+    "similarity": 0.854056441001819,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "58bbef37-3cc3-46bb-bf03-d513a51ae4c4",
+      "voicedMs": 316,
+      "durationMs": 540,
+      "peakFrameRms": 0.22291441733111192,
+      "levelThreshold": 0.006,
+      "recordingMs": 2161.5,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "231b670d-ae1e-4e10-8584-050316d6c735",
+      "voicedMs": 0,
+      "durationMs": 2640,
+      "peakFrameRms": 0.0002561902161687426,
+      "levelThreshold": 0.006,
+      "recordingMs": 8001.299999952316,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "rapid-phoenix-tythre",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "rapid-phoenix-tythre",
+    "accountId": "03ece907f4f6638dc6d1131695544e0867836e8e2c6380408a3147ff83037788",
+    "publicKey": "ed25519:GKkNQo8sfp36ZTAanQ9dz1sbWaJYnWTZ3mAAefFxTbu"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADAzZWNlOTA3ZjRmNjYzOGRjNmQxMTMxNjk1NTQ0ZTA4Njc4MzZlOGUyYzYzODA0MDhhMzE0N2ZmODMwMzc3ODgAA+zpB/T2Y43G0RMWlVROCGeDbo4sY4BAijFH/4MDd4gCAAAAAAAAAEAAAAAwM2VjZTkwN2Y0ZjY2MzhkYzZkMTEzMTY5NTU0NGUwODY3ODM2ZThlMmM2MzgwNDA4YTMxNDdmZjgzMDM3Nzg4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAdU2IAuGShUs1ERLmN95ub6K7KpOYPcnsEPiNMZzuybl+mWSzHVS4oowaUUy3qPYvH3Bxy58xnV8W7a+rXlpjCQ==",
+      "signedTransactionSha256": "a1673c8d9be8818100eee6c15cf9cb2c3847545743c5f17a8acc4c0c72afd8ef",
+      "signerId": "03ece907f4f6638dc6d1131695544e0867836e8e2c6380408a3147ff83037788",
+      "receiverId": "03ece907f4f6638dc6d1131695544e0867836e8e2c6380408a3147ff83037788",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

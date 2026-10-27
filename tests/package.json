@@ -9,19 +9,20 @@
     "type-check:intended": "tsrs -p tsconfig.wallet-intended.json",
     "type-check:wallet-state": "tsrs -p tsconfig.wallet-typecheck.json",
     "test:intended": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs --require-google-token",
-    "test:intended:representative": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.contract.test.ts",
+    "test:intended:representative": "pnpm run type-check:intended && node scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.registration.contract.test.ts e2e/intended-behaviours/auth-method-plugin.contract.test.ts",
     "test:intended:list": "node scripts/run-wallet-intended-isolated.mjs --list-cases",
     "test:wallet-browser": "playwright test -c playwright.wallet-browser.config.ts",
-    "test:wallet-browser:representative": "playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.connectionClosed.test.ts wallet-ui/confirm-ui.browser.test.ts",
+    "test:wallet-browser:representative": "playwright test -c playwright.wallet-browser.config.ts wallet-iframe/router.connectionClosed.test.ts wallet-ui/confirm-ui.browser.test.ts wallet-ui/voiceid-loading.browser.test.ts",
     "test:wallet-unit": "playwright test -c playwright.wallet-browser.config.ts unit"
   },
   "devDependencies": {
     "@babel/plugin-transform-typescript": "7.28.5",
     "@noble/ed25519": "^2.1.0",
-    "@playwright/test": "^1.40.0",
+    "@playwright/test": "^1.56.1",
     "@types/node": "^24.1.0",
     "miniflare": "4.20260710.0",
     "viem": "^2.38.6",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "@seams/voiceid": "workspace:*"
   }
 }

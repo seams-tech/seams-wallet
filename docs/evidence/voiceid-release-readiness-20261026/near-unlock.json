@@ -1,0 +1,93 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "mossy-harvest-d6ecrm",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:662f3be4-0b89-4923-8656-c459e784b97e",
+  "freshSessionId": "wls_fqXFRR-d8jFbxvnVuZ1Stb8QMheyDeP3tZXxf0Ua1I8",
+  "concurrentLockRejectedStaleUnlock": true,
+  "preparation": {
+    "dialogVisibleMs": 109.30641699999978,
+    "delayedChallengeMs": 5000,
+    "cancelDuringPreparation": true
+  },
+  "coldPreparation": {
+    "moduleVisibleMs": 368.841416999996,
+    "runtimeVisibleMs": 116.64787500000239,
+    "loadingCardHeight": 343.03125,
+    "readyCardHeight": 309.03125,
+    "cancellationMs": 42.49187499999971,
+    "readyMs": 4697.372583000004,
+    "injectedDelayMs": 4000,
+    "cancelledModuleStartedNoChallenge": true,
+    "microphoneStartedDuringPreparation": false
+  },
+  "activationDialogMs": 116.71391600000061,
+  "naturalCapture": {
+    "voicedMs": 1584,
+    "recordingMs": 5107.800000071526,
+    "endedBy": "pause",
+    "similarity": 0.8114307968057973,
+    "phraseMatched": true
+  },
+  "naturalSigningCapture": {
+    "voicedMs": 1152,
+    "recordingMs": 2907.2000000476837,
+    "endedBy": "pause",
+    "similarity": 0.7498785233460362,
+    "phraseMatched": true
+  },
+  "qualityRetries": {
+    "shortQuality": {
+      "attemptId": "527e5c80-0be4-40e2-aa54-836c8fbc50c5",
+      "voicedMs": 284,
+      "durationMs": 540,
+      "peakFrameRms": 0.2616317698769446,
+      "levelThreshold": 0.006,
+      "recordingMs": 2147.600000023842,
+      "endedBy": "pause"
+    },
+    "quietQuality": {
+      "attemptId": "6d6737e0-b801-4ffb-a489-29eb85465293",
+      "voicedMs": 0,
+      "durationMs": 1800,
+      "peakFrameRms": 0.0002671732912515048,
+      "levelThreshold": 0.006,
+      "recordingMs": 8005.200000047684,
+      "endedBy": "limit"
+    },
+    "oneChallenge": true,
+    "verifiesBeforeGoodAudio": 0
+  },
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "mossy-harvest-d6ecrm",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "mossy-harvest-d6ecrm",
+    "accountId": "f53ccd324a964ec719485cc934f53a04dde0fc547cbc3cd0347260593676dffe",
+    "publicKey": "ed25519:HWJfENwvfgecnyRzJj5Fiy4pTAZAyzRAURaHZRByB27o"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGY1M2NjZDMyNGE5NjRlYzcxOTQ4NWNjOTM0ZjUzYTA0ZGRlMGZjNTQ3Y2JjM2NkMDM0NzI2MDU5MzY3NmRmZmUA9TzNMkqWTscZSFzJNPU6BN3g/FR8vDzQNHJgWTZ23/4CAAAAAAAAAEAAAABmNTNjY2QzMjRhOTY0ZWM3MTk0ODVjYzkzNGY1M2EwNGRkZTBmYzU0N2NiYzNjZDAzNDcyNjA1OTM2NzZkZmZlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAALPXey/Xvz+MdfVd6dnHT3n45y+CiqcpDsKfLm6NQ32T+7YX7+By5edUacPN81c/5BuJcuzwOpOf6tQiKXvn/AQ==",
+      "signedTransactionSha256": "4f0c31db7ea2ae39c24e9f8a7e98a14dbb46acc7d26f8e94cbc131bc1bbcd599",
+      "signerId": "f53ccd324a964ec719485cc934f53a04dde0fc547cbc3cd0347260593676dffe",
+      "receiverId": "f53ccd324a964ec719485cc934f53a04dde0fc547cbc3cd0347260593676dffe",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

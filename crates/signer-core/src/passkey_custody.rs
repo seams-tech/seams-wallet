@@ -26,6 +26,7 @@ pub const WALLET_CUSTODY_ENVELOPE_VERSION_V2: &str = "wallet_custody_envelope_v2
 pub const WALLET_CUSTODY_ENVELOPE_VERSION_V3: &str = "wallet_custody_envelope_v3";
 pub const PASSKEY_CUSTODY_KEK_VERSION_V1: &str = "passkey_prf_kek_hkdf_sha256_v1";
 pub const EMAIL_OTP_FACTOR_KEK_VERSION_V1: &str = "email_otp_factor_kek_hkdf_sha256_v1";
+pub const VOICEID_DEVICE_FACTOR_KEK_VERSION_V1: &str = "voiceid_device_factor_kek_hkdf_sha256_v1";
 pub const WALLET_SEED_DERIVATION_SCHEME_V1: &str = "wallet_seed_parallel_hkdf_sha256_v1";
 
 const PASSKEY_CUSTODY_KEK_SALT_V1: &[u8] = b"seams/passkey-custody/kek/salt/v1";
@@ -178,6 +179,11 @@ pub enum WalletCustodyEnvelopeFactorV1 {
         enrollment_seal_key_version: String,
         kek_version: String,
     },
+    #[serde(rename = "voiceid", rename_all = "camelCase")]
+    VoiceId {
+        device_key_id: String,
+        kek_version: String,
+    },
 }
 
 impl WalletCustodyEnvelopeFactorV1 {
@@ -185,12 +191,15 @@ impl WalletCustodyEnvelopeFactorV1 {
         match self {
             Self::Passkey { .. } => "passkey",
             Self::EmailOtp { .. } => "email_otp",
+            Self::VoiceId { .. } => "voiceid",
         }
     }
 
     pub fn kek_version(&self) -> &str {
         match self {
-            Self::Passkey { kek_version, .. } | Self::EmailOtp { kek_version, .. } => kek_version,
+            Self::Passkey { kek_version, .. }
+            | Self::EmailOtp { kek_version, .. }
+            | Self::VoiceId { kek_version, .. } => kek_version,
         }
     }
 
@@ -200,6 +209,19 @@ impl WalletCustodyEnvelopeFactorV1 {
         let expected = match self {
             Self::Passkey { .. } => PASSKEY_CUSTODY_KEK_VERSION_V1,
             Self::EmailOtp { .. } => EMAIL_OTP_FACTOR_KEK_VERSION_V1,
+            Self::VoiceId { device_key_id, .. } => {
+                let decoded = Base64UrlUnpadded::decode_vec(device_key_id).map_err(|_| {
+                    SignerCoreError::invalid_input("VoiceID deviceKeyId must be base64url")
+                })?;
+                if decoded.len() != 32
+                    || Base64UrlUnpadded::encode_string(&decoded) != *device_key_id
+                {
+                    return Err(SignerCoreError::invalid_input(
+                        "VoiceID deviceKeyId must be a canonical 32-byte digest",
+                    ));
+                }
+                VOICEID_DEVICE_FACTOR_KEK_VERSION_V1
+            }
         };
         if self.kek_version() != expected {
             return Err(SignerCoreError::invalid_input(format!(
@@ -374,6 +396,13 @@ fn encode_factor(out: &mut Vec<u8>, factor: &WalletCustodyEnvelopeFactorV1) -> C
                 b"enrollmentSealKeyVersion",
                 enrollment_seal_key_version,
             );
+            labeled_str(out, b"kekVersion", kek_version);
+        }
+        WalletCustodyEnvelopeFactorV1::VoiceId {
+            device_key_id,
+            kek_version,
+        } => {
+            labeled_str(out, b"deviceKeyId", device_key_id);
             labeled_str(out, b"kekVersion", kek_version);
         }
     }
@@ -569,7 +598,7 @@ pub fn derive_passkey_custody_kek_v1(
 ) -> CoreResult<Zeroizing<[u8; PASSKEY_CUSTODY_KEY_LEN]>> {
     if prf_first.len() != PASSKEY_PRF_LEN {
         return Err(SignerCoreError::invalid_length(format!(
-            "passkey PRF.first must be {PASSKEY_PRF_LEN} bytes"
+            "custody factor secret must be {PASSKEY_PRF_LEN} bytes"
         )));
     }
     let context_digest = sha256_digest(&encode_kek_context(binding)?);

@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "nativeHost": "none",
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "priorAuthentication": {
+    "kind": "authenticated",
+    "walletId": "fern-sequoia-5gfaax",
+    "authMethod": "passkey"
+  },
+  "voiceIdMethodId": "wallet-auth-method:453758c3-21c0-4cc9-9363-246c517e6eaa",
+  "freshSessionId": "wls_q5QFBzP6YWfvGUM5XR6egwGtb46FMLsV8U8Ausnl2Fc",
+  "concurrentLockRejectedStaleUnlock": true,
+  "authentication": {
+    "kind": "authenticated",
+    "walletId": "fern-sequoia-5gfaax",
+    "authMethod": "voiceid"
+  },
+  "signing": "real_ed25519_yao_mpc",
+  "signatureVerification": "registered_wallet_public_key",
+  "identity": {
+    "walletId": "fern-sequoia-5gfaax",
+    "accountId": "e5dba9c89547befae90e5fb781cbe70c12464e9e18f3c58698e1c7724a08a644",
+    "publicKey": "ed25519:GUGdmwkJwy1xXYUDLH3Zg2UYzkk3HHEAr7YkFYpSAPPR"
+  },
+  "chain": "deterministic_near_rpc",
+  "onChainConfirmed": false,
+  "remainingUses": 2,
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGU1ZGJhOWM4OTU0N2JlZmFlOTBlNWZiNzgxY2JlNzBjMTI0NjRlOWUxOGYzYzU4Njk4ZTFjNzcyNGEwOGE2NDQA5dupyJVHvvrpDl+3gcvnDBJGTp4Y88WGmOHHckoIpkQCAAAAAAAAAEAAAABlNWRiYTljODk1NDdiZWZhZTkwZTVmYjc4MWNiZTcwYzEyNDY0ZTllMThmM2M1ODY5OGUxYzc3MjRhMDhhNjQ0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAUflgVnlI5Jh6+rMIxMjQfJfdVzDUtkf17tbNP/txmGlvtC/Lc4FP3Xun1eeH0p9ntFOuGh35vlsOlc6ciRfdCQ==",
+      "signedTransactionSha256": "a802f148544b2e957b43d8c0171f9c125712b8a9106da61c2201a19d1f75df68",
+      "signerId": "e5dba9c89547befae90e5fb781cbe70c12464e9e18f3c58698e1c7724a08a644",
+      "receiverId": "e5dba9c89547befae90e5fb781cbe70c12464e9e18f3c58698e1c7724a08a644",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

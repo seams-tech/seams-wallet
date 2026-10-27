@@ -25,6 +25,16 @@ import {
   lock as lockCore,
 } from '@/SeamsWeb/operations/auth/login';
 import { IndexedDBManager } from '@/core/indexedDB';
+import type {
+  AuthMethodSessionInstaller,
+  AuthMethodCaptureMount,
+} from '@/core/authMethods/hostPlugin';
+import { loadWalletAuthMethodHostPlugin } from '@/core/authMethods/hostRegistry';
+import { parseWalletAuthMethodId } from '@shared/utils/domainIds';
+import type {
+  WalletAuthenticationSurface,
+  WalletIframeSurfaceMeasurementSurface,
+} from '@/SeamsWeb/signingSurface/ports';
 import type { LocalWalletAuthMethodRecordV2 } from '@/core/indexedDB/passkeyClientDB.types';
 import { SIGNER_AUTH_METHODS } from '@shared/utils/signerDomain';
 import type {
@@ -41,14 +51,25 @@ import {
 
 type WalletHostAuthContext = WalletAuthWebContext & {
   signingEngine: Pick<WalletIframeWarmupSurface, 'warmCriticalResources'> &
-    PendingRegistrationRecoverySigningSurface;
+    PendingRegistrationRecoverySigningSurface &
+    WalletIframeSurfaceMeasurementSurface &
+    Pick<WalletAuthenticationSurface, 'installAuthMethodSession'>;
+};
+
+export type WalletHostSessionCommands = Omit<WalletSessionCommands, 'unlockWithAuthMethod'> & {
+  unlockWithAuthMethod(
+    args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
+    assertActive?: () => void,
+    mountCapture?: AuthMethodCaptureMount,
+  ): ReturnType<WalletSessionCommands['unlockWithAuthMethod']>;
 };
 
 export function createWalletHostSessionCommands(
   getContext: () => WalletHostAuthContext,
-): WalletSessionCommands {
+): WalletHostSessionCommands {
   return {
     unlock: unlock.bind(null, getContext),
+    unlockWithAuthMethod: unlockWithAuthMethod.bind(null, getContext),
     lock: lock.bind(null, getContext),
     getSession: getSession.bind(null, getContext),
     getRecentUnlocks: getRecentUnlocks.bind(null, getContext),
@@ -59,6 +80,48 @@ export function createWalletHostSessionCommands(
 function isActivePasskey(record: LocalWalletAuthMethodRecordV2): boolean {
   return record.kind === SIGNER_AUTH_METHODS.passkey && record.status === 'active';
 }
+
+async function unlockWithAuthMethod(
+  getContext: () => WalletHostAuthContext,
+  args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
+  assertActive: () => void = allowActiveRequest,
+  mountCapture?: AuthMethodCaptureMount,
+): ReturnType<WalletSessionCommands['unlockWithAuthMethod']> {
+  const context = getContext();
+  const walletId = toWalletId(args.walletId);
+  const methodId = parseWalletAuthMethodId(args.walletAuthMethodId);
+  if (!methodId.ok) throw new Error('Wallet unlock method ID is invalid.');
+  const plugin = await loadWalletAuthMethodHostPlugin(context.configs.authMethods, args.method);
+  assertActive();
+  return await plugin.unlock({
+    walletId,
+    walletAuthMethodId: methodId.value,
+    relayerUrl: context.configs.network.relayer.url,
+    assertActive,
+    mountCapture,
+    surfaceMeasurementBinding: context.signingEngine.getWalletIframeSurfaceMeasurementBinding(),
+    prepareSession: prepareAuthMethodSession.bind(null, context, walletId, assertActive),
+  });
+}
+
+async function prepareAuthMethodSession(
+  context: WalletHostAuthContext,
+  walletId: ReturnType<typeof toWalletId>,
+  assertActive: () => void,
+  signal: AbortSignal,
+): Promise<AuthMethodSessionInstaller> {
+  signal.throwIfAborted();
+  assertActive();
+  await lockCore(context);
+  signal.throwIfAborted();
+  assertActive();
+  const generation = await context.signingEngine.advanceWalletLockGeneration(walletId);
+  signal.throwIfAborted();
+  assertActive();
+  return context.signingEngine.installAuthMethodSession.bind(context.signingEngine, generation);
+}
+
+function allowActiveRequest(): void {}
 
 function walletUnlockCapabilityScope(
   selection: LoginHooksOptions['unlockSelection'] | undefined,

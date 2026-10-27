@@ -38,7 +38,10 @@ import {
   type RecoveryAdministrationProbe,
 } from './recoveryAdministrationProbe';
 import { ReviewedSigning } from './ReviewedSigning';
+import { ReviewedNearTransfer } from './ReviewedNearTransfer';
+import { ReviewedArcTransfer } from './ReviewedArcTransfer';
 import { IntendedNearSigningHelpers, type IntendedNearSigningContext } from './nearSigningHelpers';
+import { IntendedVoiceIdHelpers } from './voiceIdHelpers';
 
 type IntendedActionName =
   | 'registerPasskeyWallet'
@@ -70,7 +73,7 @@ type IntendedActionName =
   | 'revokeLinkedDeviceWithEmailOtp';
 
 type IntendedAuthMethodIdentity = {
-  readonly kind: 'passkey' | 'email_otp';
+  readonly kind: 'passkey' | 'email_otp' | 'voiceid';
   readonly walletAuthMethodId: string;
 };
 
@@ -753,6 +756,8 @@ export const IntendedBehaviourE2EPage: React.FC = () => {
             request: buildIntendedArcEvmSigningRequest(),
           }}
         />
+        <ReviewedNearTransfer walletId={state.walletId} />
+        <ReviewedArcTransfer walletId={state.walletId} />
         <dl style={definitionListStyle}>
           <dt>Flow</dt>
           <dd>{query.flow}</dd>
@@ -1253,6 +1258,14 @@ class IntendedPageController {
       walletSession: this.walletId,
       signerSlot: this.nearSignerSlot,
       onEvent: this.recordLifecycleEvent,
+    };
+  }
+
+  readVoiceIdContext() {
+    return {
+      walletId: this.walletId,
+      auth: this.seams.auth,
+      registration: this.seams.registration,
     };
   }
 
@@ -3860,6 +3873,7 @@ function installIntendedE2EHelpers(controller: IntendedPageController): void {
   window.__seamsIntendedE2EMoveWallet = controller.moveWalletForIntendedTest;
   window.__seamsIntendedE2EReadWalletMove = controller.readWalletMoveForIntendedTest;
   new IntendedNearSigningHelpers(controller.readNearSigningContext.bind(controller)).install();
+  new IntendedVoiceIdHelpers(controller.readVoiceIdContext.bind(controller)).install();
   window.__seamsIntendedE2ECancelDeviceLink = controller.cancelDeviceLinkForIntendedTest;
   window.__seamsIntendedE2EReadWalletLockState = controller.readWalletLockStateForIntendedTest;
   window.__seamsIntendedE2EReadAuthenticationMethods =

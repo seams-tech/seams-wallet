@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "brisk-prism-xyn3j7",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "082daac7-11a7-460f-a2f9-409f338726f2",
+    "capturedAtMs": 1792925162801,
+    "durationMs": 3420,
+    "recordingMs": 5029.100000023842,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.19716680679250895,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "the door is open now",
+      "gap": 212.34777091061767
+    },
+    "expectedPhrase": "they are waiting for us"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "brisk-prism-xyn3j7",
+    "accountId": "37ad89e2f32a868a26164b2ed77795530f35d31ad53a69fd9770b88d69e2374d",
+    "publicKey": "ed25519:4kLuJhEf1D4wPewuaXry99bD16CvDjFxYb8eYkHHhzu2"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADM3YWQ4OWUyZjMyYTg2OGEyNjE2NGIyZWQ3Nzc5NTUzMGYzNWQzMWFkNTNhNjlmZDk3NzBiODhkNjllMjM3NGQAN62J4vMqhoomFksu13eVUw810xrVOmn9l3C4jWniN00CAAAAAAAAAEAAAAAzN2FkODllMmYzMmE4NjhhMjYxNjRiMmVkNzc3OTU1MzBmMzVkMzFhZDUzYTY5ZmQ5NzcwYjg4ZDY5ZTIzNzRkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXrw8WH+5avs1cdIQml4d7cRvWCli1mW6JBTTc1ZMNz5KceSPg28WTMSEsUCNepbeNPTo9Fgp9r8b8y2iQxIrAA==",
+      "signedTransactionSha256": "a74b63c4ce66e873e6453839bfd40148554e64cb232262e86a093247d442c9b4",
+      "signerId": "37ad89e2f32a868a26164b2ed77795530f35d31ad53a69fd9770b88d69e2374d",
+      "receiverId": "37ad89e2f32a868a26164b2ed77795530f35d31ad53a69fd9770b88d69e2374d",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

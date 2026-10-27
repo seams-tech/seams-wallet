@@ -1,0 +1,61 @@
+### Result
+"{\"quietHeight\":4,\"speechHeight\":29.788822650909424,\"settledHeight\":4,\"cancelStopsTracks\":true,\"completionStopsTracks\":true,\"latePermissionStopsTracks\":true}"
+### Ran Playwright code
+```js
+await (async (page) => {
+  await page.reload();
+  await page.evaluate(() => {
+    window.__waveCaptures = [];
+    window.__makeWaveStream = async () => {
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const destination = context.createMediaStreamDestination();
+      oscillator.frequency.value = 220;
+      gain.gain.value = 0;
+      oscillator.connect(gain).connect(destination);
+      oscillator.start();
+      await context.resume();
+      const capture = { context, gain, stream: destination.stream };
+      window.__waveCaptures.push(capture);
+      return capture.stream;
+    };
+    navigator.mediaDevices.getUserMedia = window.__makeWaveStream;
+  });
+  await page.getByRole('button', { name: 'Record', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: /^Listening$/ }).waitFor();
+  await page.waitForTimeout(600);
+  const quiet = await page.locator('svg.waveform rect').evaluateAll(nodes => Math.max(...nodes.map(node => Number(node.getAttribute('height')))));
+  await page.evaluate(() => { window.__waveCaptures[0].gain.gain.value = 0.08; });
+  await page.waitForTimeout(750);
+  const loud = await page.locator('svg.waveform rect').evaluateAll(nodes => Math.max(...nodes.map(node => Number(node.getAttribute('height')))));
+  if (quiet > 6 || loud < 20) throw new Error(`Waveform did not follow amplitude: ${quiet}, ${loud}`);
+  await page.evaluate(() => { window.__waveCaptures[0].gain.gain.value = 0; });
+  await page.waitForTimeout(2600);
+  const settled = await page.locator('svg.waveform rect').evaluateAll(nodes => Math.max(...nodes.map(node => Number(node.getAttribute('height')))));
+  if (settled > 6) throw new Error(`Waveform continued during silence: ${settled}`);
+  await page.getByRole('button', { name: 'Cancel recording', exact: true }).click();
+  const cancelledTracks = await page.evaluate(() => window.__waveCaptures[0].stream.getTracks().every(track => track.readyState === 'ended'));
+  if (!cancelledTracks) throw new Error('Cancel left the microphone active');
+  await page.getByRole('button', { name: 'Record again', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Recording complete' }).waitFor({ timeout: 11000 });
+  const completedTracks = await page.evaluate(() => window.__waveCaptures[1].stream.getTracks().every(track => track.readyState === 'ended'));
+  if (!completedTracks) throw new Error('Timed completion left the microphone active');
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = () => new Promise(resolve => { window.__resolveWavePermission = resolve; });
+  });
+  await page.getByRole('button', { name: 'Record again', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: 'Opening microphone' }).waitFor();
+  await page.waitForFunction(() => typeof window.__resolveWavePermission === 'function');
+  await page.getByRole('button', { name: 'Cancel recording', exact: true }).click();
+  await page.evaluate(async () => window.__resolveWavePermission(await window.__makeWaveStream()));
+  await page.waitForTimeout(250);
+  const lateTracks = await page.evaluate(() => window.__waveCaptures[2].stream.getTracks().every(track => track.readyState === 'ended'));
+  if (!lateTracks || await page.getByRole('status').textContent() !== 'Recording cancelled') throw new Error('Late permission reopened capture');
+  await page.evaluate(async () => { for (const capture of window.__waveCaptures) await capture.context.close(); });
+  return JSON.stringify({quietHeight: quiet, speechHeight: loud, settledHeight: settled, cancelStopsTracks: cancelledTracks, completionStopsTracks: completedTracks, latePermissionStopsTracks: lateTracks});
+}
+)(page);
+```
+### Events
+- New console entries: .playwright-cli/console-2026-10-24T11-11-22-545Z.log#L10-L11

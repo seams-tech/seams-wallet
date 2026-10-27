@@ -50,7 +50,7 @@ export const TransactionSettingsSection: React.FC<TransactionSettingsSectionProp
       style={style}
       onClick={compact ? handleClick : undefined}
     >
-      <div className="seams-transaction-review">
+      <div className="seams-transaction-review-setting">
         <div className="seams-transaction-review-row">
           <span className="seams-transaction-review-text">
             <strong id={reviewLabelId}>

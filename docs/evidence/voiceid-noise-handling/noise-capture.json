@@ -1,0 +1,63 @@
+{
+  "status": "passed",
+  "startupCancellationStopsMicrophone": true,
+  "noise": {
+    "attemptId": "75518525-23bf-4461-bfe3-112e3b4febc9",
+    "capturedAtMs": 1792912801144,
+    "durationMs": 7920,
+    "recordingMs": 8001.899999976158,
+    "endedBy": "limit",
+    "voicedMs": 0,
+    "peakFrameRms": 0.011595669354663812,
+    "levelThreshold": 0.006,
+    "requiredVoicedMs": 600,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.010430601965696286,
+    "speechToBackgroundDb": null,
+    "noise": "high"
+  },
+  "speech": {
+    "attemptId": "624cdfec-9c78-4e13-86a7-b50ae83b7278",
+    "capturedAtMs": 1792912805361,
+    "durationMs": 3180,
+    "recordingMs": 3185,
+    "endedBy": "pause",
+    "voicedMs": 1472,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.009857669197611513,
+    "speechToBackgroundDb": 24.132586978287073,
+    "noise": "normal",
+    "similarity": 0.6414623469019484,
+    "threshold": 0.5,
+    "phraseMatched": true,
+    "phraseRecognition": {
+      "kind": "recognized",
+      "phrase": "i want a glass of water",
+      "gap": 0
+    },
+    "expectedPhrase": "i want a glass of water"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADRjOGY0ZWZiNmYxYjMxNmY5ZDc0MmY0NmUzMDI0YjRiZjFiY2U0MDdjZDk0MDNhYzViNzNjYzQ3NmY2Yjc1YTIATI9O+28bMW+ddC9G4wJLS/G85AfNlAOsW3PMR29rdaICAAAAAAAAAEAAAAA0YzhmNGVmYjZmMWIzMTZmOWQ3NDJmNDZlMzAyNGI0YmYxYmNlNDA3Y2Q5NDAzYWM1YjczY2M0NzZmNmI3NWEyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAreJKBCAwRhl81vhkINHPherrxP9SD7K2lnvUXjjV+kK6hos9+JM1jI3WL6tXqdpZxuy8b8MEkVJS0+xGI9/IBQ==",
+      "signedTransactionSha256": "bc9784954c4324f7f9105b3a8578c06f36ebb05e8dce237c0d3755169f077508",
+      "signerId": "4c8f4efb6f1b316f9d742f46e3024b4bf1bce407cd9403ac5b73cc476f6b75a2",
+      "receiverId": "4c8f4efb6f1b316f9d742f46e3024b4bf1bce407cd9403ac5b73cc476f6b75a2",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

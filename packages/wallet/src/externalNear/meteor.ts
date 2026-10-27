@@ -10,7 +10,8 @@ import {
   type TransactionInput,
 } from '../core/types/actions';
 import { MeteorRequest, meteorTransportFromWindow } from './meteorRequest';
-import type { ExternalNearConnection, ExternalNearNetwork, NearWalletProvider } from './types';
+import type { ExternalNearConnection, ExternalNearNetwork } from './types';
+import type { ValidatedNearMessage } from './message';
 
 const transactionSchema: Schema = {
   struct: {
@@ -63,7 +64,8 @@ function meteorAction(action: ActionArgs) {
   }
 }
 
-export class MeteorExtensionProvider implements NearWalletProvider {
+export class MeteorExtensionProvider {
+  readonly messageSigning = 'nep413';
   private lifecycle: 'active' | 'disposed' = 'active';
   private readonly transport = meteorTransportFromWindow();
   private request: MeteorRequest | null = null;
@@ -71,7 +73,7 @@ export class MeteorExtensionProvider implements NearWalletProvider {
   constructor(private readonly rpcUrl: string) {}
   private async execute(
     network: ExternalNearNetwork,
-    action: 'login' | 'sign',
+    action: 'login' | 'sign' | 'sign_message',
     inputs: object,
   ): Promise<unknown> {
     if (this.lifecycle !== 'active') throw new Error('Meteor connection disposed.');
@@ -92,6 +94,24 @@ export class MeteorExtensionProvider implements NearWalletProvider {
   }
   async accounts(network: ExternalNearNetwork): Promise<unknown> {
     return this.account?.network === network ? [this.account.accountId] : [];
+  }
+  async signMessage(
+    connection: ExternalNearConnection,
+    message: ValidatedNearMessage,
+  ): Promise<unknown> {
+    if (
+      this.account?.accountId !== connection.accountId ||
+      this.account.network !== connection.network
+    )
+      throw new Error('Meteor account changed.');
+    return this.execute(connection.network, 'sign_message', {
+      accountId: connection.accountId,
+      message: message.message,
+      nonce: Array.from(message.nonce),
+      recipient: message.recipient,
+      callbackUrl: message.callbackUrl ?? undefined,
+      state: message.state ?? undefined,
+    });
   }
   async send(connection: ExternalNearConnection, transaction: TransactionInput): Promise<unknown> {
     if (

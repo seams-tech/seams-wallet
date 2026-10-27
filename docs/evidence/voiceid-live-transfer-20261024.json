@@ -1,0 +1,43 @@
+{
+  "verifiedAt": "2026-10-24T08:33:58.752Z",
+  "network": "NEAR testnet",
+  "rpc": "https://rpc.testnet.fastnear.com",
+  "walletId": "misty-reef-hv6mdb",
+  "implementationCommit": "46903ff0",
+  "enrollment": "three real microphone samples completed by user",
+  "unlock": "user reported voice unlock; Wallet UI authentication voiceid",
+  "approval": "user confirmed transfer and completed browser voice check",
+  "nativeHost": "none",
+  "transactionHash": "3Cqshca4q7RU1xdeUg4NZWEh4SjQqzLzgaAAEz2io7ka",
+  "signerId": "c66c7627b5adb5d43c24692c85fba0e98d06dab9853648943470c99b323fe926",
+  "receiverId": "c66c7627b5adb5d43c24692c85fba0e98d06dab9853648943470c99b323fe926",
+  "actions": [
+    {
+      "Transfer": {
+        "deposit": "1"
+      }
+    }
+  ],
+  "finalExecutionStatus": "FINAL",
+  "status": {
+    "SuccessValue": ""
+  },
+  "transactionBlockHash": "2ET9G7GWvB4587o5ZSEEKswUFtXQnvvtKns6m6Xh5TDh",
+  "receiptOutcomes": [
+    {
+      "id": "FNksn3874BVr31nfd6Ske8hw42zLHPFxmGzqQ2oskgZ4",
+      "blockHash": "2ET9G7GWvB4587o5ZSEEKswUFtXQnvvtKns6m6Xh5TDh",
+      "status": {
+        "SuccessValue": ""
+      }
+    },
+    {
+      "id": "9sXwDnc8oybQmRBxRFpJdjGNo4k2CR8ChMZkX7Jqt7kc",
+      "blockHash": "91HXsbAGwknZWdqCofF8gVnpf2zksUvV6xEyvnBpyqYj",
+      "status": {
+        "SuccessValue": ""
+      }
+    }
+  ],
+  "qualificationScope": "one user, one browser/device, one live testnet transfer; does not measure population accuracy or spoof resistance"
+}

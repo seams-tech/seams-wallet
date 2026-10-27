@@ -150,6 +150,7 @@ function serializeProjection(value: ActiveOwnerWalletExecutionLaneProjection) {
   const lane = value.lane;
   switch (lane.laneKind) {
     case 'owner_passkey':
+    case 'owner_voiceid':
     case 'owner_email_otp':
       return {
         kind: value.kind,

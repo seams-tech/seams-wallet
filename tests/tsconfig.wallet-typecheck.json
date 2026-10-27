@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
+    "typecheck/voice-assistant-card.typecheck.ts",
+    "typecheck/voiceid-enrollment-store.typecheck.ts",
     "typecheck/wallet-locale.typecheck.ts",
     "typecheck/wallet-object-addresses.typecheck.ts",
     "typecheck/yao-registration-ceremony.typecheck.ts",
@@ -23,6 +25,7 @@
     "typecheck/wallet-signing-lifecycle.typecheck.ts",
     "typecheck/external-evm-state.typecheck.ts",
     "typecheck/transaction-review.typecheck.ts",
+    "typecheck/voiceid-auth-method-plugin.typecheck.ts",
     "typecheck/seams-context.typecheck.ts",
     "wallet-ui/confirm-content.typecheck.ts",
     "wallet-ui/confirmation-mount.typecheck.ts",

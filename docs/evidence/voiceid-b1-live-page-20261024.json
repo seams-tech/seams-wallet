@@ -1,0 +1,55 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "mossy-thunder-zkusjq",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "durationMs": 7920,
+    "voicedMs": 7700,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.1457179912255549,
+    "threshold": 0.5
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 2,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "mossy-thunder-zkusjq",
+    "accountId": "bf6cbc2daef08c323828e7ce5718a35208316d99157e68faed5cc3de7ecef1df",
+    "publicKey": "ed25519:DtF36WiDPoY3R8Fb8bRrbCSkvV9XRCp7C8gUkELnKhzN"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGJmNmNiYzJkYWVmMDhjMzIzODI4ZTdjZTU3MThhMzUyMDgzMTZkOTkxNTdlNjhmYWVkNWNjM2RlN2VjZWYxZGYAv2y8La7wjDI4KOfOVxijUggxbZkVfmj67VzD3n7O8d8CAAAAAAAAAEAAAABiZjZjYmMyZGFlZjA4YzMyMzgyOGU3Y2U1NzE4YTM1MjA4MzE2ZDk5MTU3ZTY4ZmFlZDVjYzNkZTdlY2VmMWRmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAA7vTNrgC39lNDakSJEiCgMckMkClcLvvZPwrMMORz8KOHSr+A6SHSEj56zxR1/zgXFiCleQxTNmp6aZCZ1jibCQ==",
+      "signedTransactionSha256": "5dfbf721a56d2ae00fdae6c8ee8bd5291eca629bbf2b1ab61218017f6d89b2c4",
+      "signerId": "bf6cbc2daef08c323828e7ce5718a35208316d99157e68faed5cc3de7ecef1df",
+      "receiverId": "bf6cbc2daef08c323828e7ce5718a35208316d99157e68faed5cc3de7ecef1df",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

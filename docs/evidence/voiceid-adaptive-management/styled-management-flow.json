@@ -1,0 +1,130 @@
+{
+  "status": "passed",
+  "passkeyCredentialAlgorithm": "es256",
+  "walletSigner": "ed25519_yao",
+  "passkeyCoseAlgorithm": -7,
+  "settings": "enroll_disable_reenable_and_lock_active_voice_session",
+  "login": "one_wallet_with_method_choices_and_cancel_restores_menu",
+  "disabledSdkUnlockRejected": true,
+  "reenrollmentPreservedMethodId": true,
+  "explicitImport": {
+    "originalEnrollment": {
+      "generation": "68e9f1cf-6612-4d1f-b232-52e988c36c95",
+      "revision": 0,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "importedEnrollment": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 0,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "obsoleteRecordRemoved": true
+  },
+  "adaptation": {
+    "baseline": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 0,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "improved": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 1,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "adapted",
+      "samples": 3,
+      "remainingUses": 32,
+      "expiresAtMs": 1793041960396,
+      "serializedBytes": 16522,
+      "legacyPresent": false
+    },
+    "used": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 3,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "adapted",
+      "samples": 3,
+      "remainingUses": 30,
+      "expiresAtMs": 1793041960396,
+      "serializedBytes": 16522,
+      "legacyPresent": false
+    },
+    "reset": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 4,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "exhausted": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 6,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "expired": {
+      "generation": "ed20208a-b410-4f77-8970-0d44bb2f15ea",
+      "revision": 8,
+      "baselineHash": "64535c6f6bee282865b0606a3a9bd8adb38bd7e00ce1d5eb5768a1b30d700144",
+      "adaptation": "baseline",
+      "samples": 0,
+      "remainingUses": 0,
+      "expiresAtMs": 0,
+      "serializedBytes": 4483,
+      "legacyPresent": false
+    },
+    "cancellationPreservedEnrollment": true,
+    "replayedPasskeyRejected": true,
+    "invalidPasskeySignatureRejected": true,
+    "lockDuringCaptureReleasedMicrophone": true,
+    "ownerSessionUnchanged": true,
+    "removalDeletedEnrollment": true,
+    "lifetimeBoundarySetup": "same generated enrollment with controlled stored expiry or remaining count"
+  },
+  "signing": "minimal_voice_prompt",
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAAGI4ZDIyOWQxZGM2MzgzN2FmODNmYmNkN2FjMDZkMjRkMWUwOTE0MTc0ZGUzZmI0YzY0MTA4NjQzODFhNGMwMmIAuNIp0dxjg3r4P7zXrAbSTR4JFBdN4/tMZBCGQ4GkwCsCAAAAAAAAAEAAAABiOGQyMjlkMWRjNjM4MzdhZjgzZmJjZDdhYzA2ZDI0ZDFlMDkxNDE3NGRlM2ZiNGM2NDEwODY0MzgxYTRjMDJiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAsIoymHWXUTPrTt5ot+UmVypoZDubfwSrF2MEaF7UbbmKAfuKHxbf4tXHb/9i9Yblv7+qnBaoV6huODzDsLPJBw==",
+      "signedTransactionSha256": "ddefd015c3b6ef91f59feeb212fa3fe62b33d2f93c4f70212dbf4aae70f62431",
+      "signerId": "b8d229d1dc63837af83fbcd7ac06d24d1e0914174de3fb4c6410864381a4c02b",
+      "receiverId": "b8d229d1dc63837af83fbcd7ac06d24d1e0914174de3fb4c6410864381a4c02b",
+      "amountYocto": "1",
+      "nonce": "2"
+    },
+    {
+      "signedTransactionB64": "QAAAAGI4ZDIyOWQxZGM2MzgzN2FmODNmYmNkN2FjMDZkMjRkMWUwOTE0MTc0ZGUzZmI0YzY0MTA4NjQzODFhNGMwMmIAuNIp0dxjg3r4P7zXrAbSTR4JFBdN4/tMZBCGQ4GkwCsCAAAAAAAAAEAAAABiOGQyMjlkMWRjNjM4MzdhZjgzZmJjZDdhYzA2ZDI0ZDFlMDkxNDE3NGRlM2ZiNGM2NDEwODY0MzgxYTRjMDJiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAC8trVSdHK7Go3hafPBOFz7nXs7wos3SnGryYiHQRBXT8tlcyL7cVpTqSNV8bXC6UiWRqlwqlg/yEoEPNm8ROCg==",
+      "signedTransactionSha256": "2f32f2e81d2f5db98bfa0827440662186f6bec329db76465f15a1bd7d29c2b6f",
+      "signerId": "b8d229d1dc63837af83fbcd7ac06d24d1e0914174de3fb4c6410864381a4c02b",
+      "receiverId": "b8d229d1dc63837af83fbcd7ac06d24d1e0914174de3fb4c6410864381a4c02b",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ],
+  "chain": "deterministic_near_rpc"
+}

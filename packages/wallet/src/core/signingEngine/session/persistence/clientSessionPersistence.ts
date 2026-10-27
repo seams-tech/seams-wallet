@@ -156,6 +156,10 @@ function selectedAuthorityMatchesEd25519Lane(
     return false;
   }
   switch (identity.auth.kind) {
+    case 'voiceid':
+      return selected.authMethod.kind === 'voiceid' &&
+        selected.authMethod.walletAuthMethodId === identity.auth.walletAuthMethodId &&
+        selected.authMethod.deviceKeyId === identity.auth.deviceKeyId;
     case 'passkey':
       return (
         selected.authMethod.kind === 'passkey' &&

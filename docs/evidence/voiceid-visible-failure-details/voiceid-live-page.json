@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "crystal-anchor-h8s5dk",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "7dbcdb98-d42d-4966-91b5-d08c387891b3",
+    "capturedAtMs": 1792942326472,
+    "durationMs": 3420,
+    "recordingMs": 5010.700000047684,
+    "endedBy": "pause",
+    "voicedMs": 3164,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "processing": {
+      "noiseSuppression": null,
+      "echoCancellation": null,
+      "autoGainControl": null,
+      "sampleRate": 48000
+    },
+    "backgroundRms": 0.006330651723173312,
+    "speechToBackgroundDb": 25.514838148796287,
+    "noise": "normal",
+    "similarity": 0.21743770153195274,
+    "modelInputMs": 3396,
+    "threshold": 0.5,
+    "phraseMatched": false,
+    "phraseRecognition": {
+      "kind": "uncertain",
+      "candidate": "i am ready to open my wallet",
+      "gap": 233.78363751829642
+    },
+    "expectedPhrase": "we sat together and watched the river"
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "crystal-anchor-h8s5dk",
+    "accountId": "750361c871988845922f016818e98dc52eb5b72e55cf25a1afef373d42ffc6ca",
+    "publicKey": "ed25519:8smh7m7dYGLT8ucLRDPTRucQyeccYmGJ6i1BeRXneUYZ"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADc1MDM2MWM4NzE5ODg4NDU5MjJmMDE2ODE4ZTk4ZGM1MmViNWI3MmU1NWNmMjVhMWFmZWYzNzNkNDJmZmM2Y2EAdQNhyHGYiEWSLwFoGOmNxS61ty5VzyWhr+83PUL/xsoCAAAAAAAAAEAAAAA3NTAzNjFjODcxOTg4ODQ1OTIyZjAxNjgxOGU5OGRjNTJlYjViNzJlNTVjZjI1YTFhZmVmMzczZDQyZmZjNmNhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAMtAn2v4ACAKJXgf/2D3HgZUfksvrHP3KGWLvzn+OVmUhP87bDuHtoqbAyQNMq8JeAkKSO9krGHv/nklabAPJCg==",
+      "signedTransactionSha256": "cd79267f593ea07b2a931dda6889fdc584eaa5a0f3923d6cf1124ba172c03a89",
+      "signerId": "750361c871988845922f016818e98dc52eb5b72e55cf25a1afef373d42ffc6ca",
+      "receiverId": "750361c871988845922f016818e98dc52eb5b72e55cf25a1afef373d42ffc6ca",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}

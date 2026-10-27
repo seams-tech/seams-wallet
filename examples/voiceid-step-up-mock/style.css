@@ -1,0 +1,315 @@
+:root {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #eff2f3;
+  background: #101416;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 150ms ease,
+    transform 120ms ease-out;
+}
+button:focus-visible {
+  outline: 2px solid #b7d4ff;
+  outline-offset: 5px;
+}
+button:active {
+  transform: scale(0.97);
+}
+.preview {
+  max-width: 1100px;
+  margin: auto;
+  padding: 0 40px;
+}
+.preview-header {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  border-bottom: 1px solid #272e31;
+  color: #86979f;
+  font-size: 12px;
+}
+.wordmark {
+  font-size: 27px;
+  letter-spacing: -1.4px;
+  font-weight: 650;
+  color: #e9eeee;
+}
+.concept-tag {
+  margin-left: auto;
+  border: 1px solid #303b40;
+  border-radius: 20px;
+  padding: 7px 11px;
+  font-size: 10px;
+}
+main {
+  padding: 68px 0 50px;
+  text-align: center;
+}
+.context {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 1.8px;
+  color: #6c818b;
+  margin: 0 0 24px;
+}
+.voice-card {
+  position: relative;
+  width: 480px;
+  max-width: 100%;
+  margin: auto;
+  border: 1px solid #364147;
+  border-radius: 28px;
+  background: #192024;
+  box-shadow: 0 22px 65px #0003;
+}
+.voice-beam {
+  border-radius: 28px;
+  overflow: hidden;
+}
+.close {
+  position: absolute;
+  z-index: 6;
+  right: 16px;
+  top: 13px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 0;
+  color: #8b9ca4;
+  font-size: 25px;
+  font-weight: 300;
+  border-radius: 50%;
+}
+.voice-content {
+  position: relative;
+  z-index: 5;
+  min-height: 440px;
+  padding: 55px 34px 37px;
+  pointer-events: none;
+}
+.voice-content button {
+  pointer-events: auto;
+}
+h1 {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #9caeb7;
+  margin: 0 0 22px;
+}
+.phrase {
+  font-size: 40px;
+  line-height: 1.17;
+  letter-spacing: -1.5px;
+  font-weight: 450;
+  text-wrap: balance;
+  max-width: 330px;
+  min-height: 94px;
+  margin: 0 auto;
+}
+.waveform {
+  display: block;
+  width: 340px;
+  height: 64px;
+  max-width: 100%;
+  margin: 23px auto 8px;
+  overflow: visible;
+}
+.waveform path,
+.waveform circle {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.trace-future {
+  fill: none;
+  stroke: #3f4d54;
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+}
+.trace-capture {
+  transition: opacity 200ms ease;
+}
+.trace-ripple {
+  fill: none;
+  stroke: #59717e;
+  stroke-width: 1;
+}
+.trace-body {
+  fill: #c8d6dd14;
+}
+.trace-contour,
+.trace-check {
+  fill: none;
+  stroke: #c8d6dd;
+  stroke-width: 1.25;
+}
+.trace-check {
+  stroke-width: 1.5;
+  stroke-dasharray: 1 1;
+}
+.trace-pen {
+  fill: #c8d6dd;
+}
+.status {
+  font-size: 11px;
+  line-height: 18px;
+  min-height: 18px;
+  color: #91a7b2;
+  margin: 0;
+}
+.voice-card[data-state='listening'] .status {
+  color: #c1d3df;
+}
+.voice-card[data-state='approved'] .status {
+  color: #a4d6bd;
+}
+.voice-card[data-state='retry'] .status,
+.voice-card[data-state='error'] .status {
+  color: #e1bb9f;
+}
+.record-slot {
+  height: 63px;
+  padding-top: 20px;
+}
+.record {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 117px;
+  height: 42px;
+  padding: 0 19px;
+  background: #ebf0f2;
+  color: #1c262c;
+  border: 0;
+  border-radius: 23px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.record svg {
+  height: 16px;
+  width: 16px;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.privacy {
+  font-size: 10px;
+  color: #6e858f;
+  margin: 20px 0 0;
+}
+.preview-controls {
+  border-top: 1px solid #272e31;
+  padding: 25px 0 30px;
+  text-align: center;
+}
+.preview-controls > div {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.preview-controls button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: transparent;
+  color: #8da1ac;
+  font-size: 11px;
+}
+.preview-controls button[aria-pressed='true'] {
+  border-color: #3c4b53;
+  background: #222e34;
+  color: #e0e9ee;
+}
+.preview-controls p {
+  font-size: 10px;
+  line-height: 1.7;
+  color: #6e828d;
+  margin: 18px 0 0;
+}
+@media (hover: hover) {
+  .record:hover {
+    background: #fff;
+  }
+  .close:hover {
+    background: #ffffff08;
+    color: white;
+  }
+  .preview-controls button:hover {
+    background: #222e34;
+    color: white;
+  }
+}
+@media (max-width: 600px) {
+  .preview {
+    padding: 0 18px;
+  }
+  .preview-header {
+    height: 68px;
+    gap: 14px;
+  }
+  .preview-header > span:nth-child(2) {
+    display: none;
+  }
+  .concept-tag {
+    font-size: 9px;
+  }
+  main {
+    padding: 44px 0 38px;
+  }
+  .context {
+    font-size: 8px;
+    margin-bottom: 20px;
+  }
+  .voice-content {
+    min-height: 410px;
+    padding: 49px 22px 26px;
+  }
+  .phrase {
+    font-size: 36px;
+    max-width: 285px;
+    min-height: 85px;
+  }
+  .waveform {
+    margin-top: 24px;
+  }
+  .preview-controls {
+    padding-top: 20px;
+  }
+  .preview-controls button {
+    font-size: 10px;
+    padding: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

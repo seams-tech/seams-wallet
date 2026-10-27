@@ -1,0 +1,68 @@
+{
+  "status": "passed",
+  "initialRequestedId": "voiceid-live-20261024",
+  "sdkAllocatedWalletId": "crystal-solstice-x42ra9",
+  "defaultAllocationUsed": true,
+  "pageUrlRetainsAllocatedId": true,
+  "setupRequiredBeforeUnlock": true,
+  "ownerLockBeforeActivationRecovered": true,
+  "nativeHost": "none",
+  "nativeRequests": [],
+  "inferenceLoadedOnlyAfterActivation": true,
+  "modelDownloadProgressVisible": true,
+  "modelFetchedOnceAcrossReload": true,
+  "phraseModelFetchedOnceAcrossReload": true,
+  "incorrectEnrollmentPhraseRejected": true,
+  "previousAttemptPhraseRejectedBeforeSigning": true,
+  "phraseRecognition": "real_aurora_int8_constrained_ctc",
+  "minimalPromptReplacesReviewDuringCapture": true,
+  "liveWaveformUsesSingleRecordingStream": true,
+  "cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning": true,
+  "ownerReenrollmentReusesDeviceCredential": true,
+  "mismatchCapture": {
+    "attemptId": "47dc78f4-6264-47cb-a51e-51586765c898",
+    "capturedAtMs": 1792898927341,
+    "durationMs": 3420,
+    "recordingMs": 5006.299999952316,
+    "endedBy": "pause",
+    "voicedMs": 3170,
+    "microphone": "MediaStreamAudioDestinationNode",
+    "similarity": 0.194775678420468,
+    "threshold": 0.5,
+    "phraseMatched": false
+  },
+  "mismatchPreventsSigning": true,
+  "explicitRetrySignsSameReview": true,
+  "cancellationStopsMicrophone": true,
+  "cancellationAbortsEnrollmentCommit": true,
+  "inferenceAssets": [
+    "/sdk/voiceid/redimnet-b1.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm",
+    "/sdk/voiceid/aurora-int8.onnx",
+    "/sdk/ort-wasm-simd-threaded.mjs",
+    "/sdk/ort-wasm-simd-threaded.wasm"
+  ],
+  "microphone": "synthetic_wav_through_browser_mediarecorder",
+  "keychainUsed": false,
+  "speakerInference": "real_redimnet_b1_onnx_webassembly",
+  "authentication": "voiceid",
+  "remainingUses": 1,
+  "signing": "real_ed25519_yao_mpc",
+  "chain": "deterministic_near_rpc",
+  "identity": {
+    "walletId": "crystal-solstice-x42ra9",
+    "accountId": "2650665505543e3e5fb5cb9818f8c88b04b307c730aef75742ef071048fc4b53",
+    "publicKey": "ed25519:3aZbiBP7GRbwCcWTeNyJWYNb1x4X5SqpsuWYcZhCHiNW"
+  },
+  "transfers": [
+    {
+      "signedTransactionB64": "QAAAADI2NTA2NjU1MDU1NDNlM2U1ZmI1Y2I5ODE4ZjhjODhiMDRiMzA3YzczMGFlZjc1NzQyZWYwNzEwNDhmYzRiNTMAJlBmVQVUPj5ftcuYGPjIiwSzB8cwrvdXQu8HEEj8S1MCAAAAAAAAAEAAAAAyNjUwNjY1NTA1NTQzZTNlNWZiNWNiOTgxOGY4Yzg4YjA0YjMwN2M3MzBhZWY3NTc0MmVmMDcxMDQ4ZmM0YjUzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAwEAAAAAAAAAAAAAAAAAAAAAXGoF7eZB9OsaxggTVf6Ya7kH7NSYxaFverbgPRHj3a85p7ashLRLImQIPPPeD0RCStBhz7YlUV0Z6cconp7aAw==",
+      "signedTransactionSha256": "299e79421a8b4e5daa57f556d0a854f55762fa8aabb9040ac3e27fed5cd3c9f8",
+      "signerId": "2650665505543e3e5fb5cb9818f8c88b04b307c730aef75742ef071048fc4b53",
+      "receiverId": "2650665505543e3e5fb5cb9818f8c88b04b307c730aef75742ef071048fc4b53",
+      "amountYocto": "1",
+      "nonce": "2"
+    }
+  ]
+}
