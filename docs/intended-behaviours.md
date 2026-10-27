@@ -31,6 +31,16 @@ The catalogue requires a Japanese translation for every message key.
 `tests/typecheck/wallet-locale.typecheck.ts` checks supported locales and message selection.
 Existing browser and lifecycle contracts continue to enforce their original behavior.
 
+## React component styling
+
+SDK theme boundaries carry `data-seams-root` and the `seams-theme-provider` class.
+These markers also belong to theme boundaries inside portals and standalone SDK overlays.
+Account-menu and device-link styles start with `[data-seams-root].seams-theme-provider`, followed by component classes.
+These controls keep their sizes, spacing, borders, text, and icons under broad application rules such as `button` and `.app button`.
+Control defaults apply only inside SDK surfaces. Application controls retain their own styles, including controls inside a theme boundary.
+Applications can customize theme tokens and CSS variables. A later rule with the same SDK selector can replace a component default.
+The account-menu browser flow verifies host CSS, portal rendering, navigation, and deliberate customization.
+
 ## Application confirmation preferences
 
 Preference setters update the application's display immediately. Each write captures

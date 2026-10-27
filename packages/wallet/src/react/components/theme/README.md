@@ -4,7 +4,7 @@ A single theme module powers the UI using a scoped token → CSS variable system
 
 ## Exports (single module)
 
-- `Theme` — consolidated component. By default provides theme context and renders a boundary that applies CSS variables and `data-seams-theme`. `mode` controls behavior: `'provider+scope' | 'provider-only' | 'scope-only'`.
+- `Theme` provides theme context and renders a boundary with CSS variables, `data-seams-root`, `data-seams-theme`, and the `seams-theme-provider` class.
 - `useTheme` — reads from context and returns `{ theme, tokens, isDark }`.
 
 Import from the barrel for clarity:
@@ -50,7 +50,7 @@ Pass partial overrides for dark/light only for the keys you need to change:
 <Theme tokens={{
   dark: { colors: { colorBackground: 'oklch(0.25 0.012 240)' } },
   light: { colors: { borderHover: '#cbd5e1' } }
-}} as="div" className="seams-theme-provider">
+}} tag="div" className="wallet-theme">
   ...
 ```
 
@@ -89,6 +89,23 @@ The following CSS variables are generated from `tokens.colors.*` with the defaul
 --seams-colors-borderHover
 ```
 
-## Notes
+## Component styles and application CSS
 
-- `variables.css` in AccountMenuButton is legacy and safe to remove if unused.
+Import `@seams/wallet/react/styles` to load the SDK styles.
+`Theme` always retains `data-seams-root` and `seams-theme-provider`, including when you pass a custom class or theme attribute.
+Standalone SDK overlays apply their own theme boundary. Keep the boundary inside the portal when you portal an SDK component.
+
+Themed component selectors start with `[data-seams-root].seams-theme-provider` and use component classes.
+A single component class gives specificity `0,3,0`: three class or attribute selectors.
+This exceeds broad application selectors such as `button` and `.app button`.
+The SDK uses no `!important` declarations to enforce this boundary.
+Controls inside SDK surfaces receive explicit defaults. Other application controls retain their styles.
+
+Use theme tokens or `--seams-*` variables for routine customization.
+For structural changes, load a matching component selector after the SDK stylesheet:
+
+```css
+[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+  padding-block: 10px;
+}
+```

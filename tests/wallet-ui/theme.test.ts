@@ -24,11 +24,24 @@ test('native React theme scope updates without changing the document theme', asy
           .trim(),
       });
     }
+    const customTheme = React.createElement(
+      Theme,
+      { theme: 'dark', className: 'customer-theme', dataAttr: 'data-customer-theme' },
+      'Custom theme fixture',
+    );
+    flushSync(root.render.bind(root, customTheme));
+    const customScope = mount.querySelector<HTMLElement>('[data-seams-root].seams-theme-provider');
+    if (!customScope) throw new Error('Missing custom React theme scope');
+    const customBoundary = {
+      classPreserved: customScope.classList.contains('customer-theme'),
+      theme: customScope.getAttribute('data-customer-theme'),
+    };
     flushSync(() => root.unmount());
     const emptyAfterUnmount = mount.childElementCount === 0;
     mount.remove();
     return {
       samples,
+      customBoundary,
       emptyAfterUnmount,
       documentThemeUnchanged:
         document.documentElement.getAttribute('data-seams-theme') === originalDocumentTheme,
@@ -39,6 +52,7 @@ test('native React theme scope updates without changing the document theme', asy
   expect(result.samples[0].background).not.toBe('');
   expect(result.samples[1].background).not.toBe('');
   expect(result.samples[0].background).not.toBe(result.samples[1].background);
+  expect(result.customBoundary).toEqual({ classPreserved: true, theme: 'dark' });
   expect(result.emptyAfterUnmount).toBe(true);
   expect(result.documentThemeUnchanged).toBe(true);
 });

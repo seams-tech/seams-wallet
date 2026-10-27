@@ -1,10 +1,110 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 
-const artifacts = '.artifacts/account-menu-mock';
+const artifacts = fileURLToPath(
+  new URL('../../output/playwright/account-menu-mock', import.meta.url),
+);
 const url = process.env.SEAMS_ACCOUNT_MOCK_URL || 'http://127.0.0.1:4017/account-menu-mock.html';
+const hostStyles = `
+  .customer-app button {
+    box-sizing: content-box;
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 120px;
+    min-height: 40px;
+    padding: 6px 18px;
+    margin: 8px;
+    border: 1px solid rgb(136, 136, 136);
+    border-radius: 4px;
+    background: rgb(20, 25, 30);
+    color: rgb(255, 100, 100);
+    font: 700 20px / 2 serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 0 4px red;
+  }
+  .customer-app svg { width: 40px; height: 40px; }
+  .customer-app h2 { margin: 30px; font-size: 40px; }
+`;
 const walletRequests = [];
+function addHostControl() {
+  document.body.classList.add('customer-app');
+  const button = document.createElement('button');
+  button.id = 'host-control';
+  button.textContent = 'App control';
+  const container = document.createElement('aside');
+  container.style.width = '160px';
+  container.append(button);
+  document.querySelector('[data-seams-root]').append(container);
+}
+async function waitForResize(element) {
+  for (const animation of element.getAnimations()) {
+    try {
+      await animation.finished;
+    } catch {
+      // A reversed transition cancels its previous animation.
+    }
+  }
+}
+async function captureScreen(page, name) {
+  const resize = page.locator('.seams-account-resize');
+  if (await resize.count()) {
+    await expect.poll(resize.evaluate.bind(resize, panelHeightDifference)).toBeLessThan(1);
+  }
+  await page.screenshot({ path: `${artifacts}/${name}.png`, animations: 'disabled' });
+}
+function panelHeightDifference(panel) {
+  return Math.abs(
+    panel.getBoundingClientRect().height - panel.firstElementChild.getBoundingClientRect().height,
+  );
+}
+function measureControl(element) {
+  const style = getComputedStyle(element);
+  const icons = [];
+  for (const icon of element.querySelectorAll('svg')) {
+    const bounds = icon.getBoundingClientRect();
+    icons.push([bounds.width, bounds.height]);
+  }
+  return {
+    width: element.getBoundingClientRect().width,
+    height: element.getBoundingClientRect().height,
+    padding: style.padding,
+    margin: style.margin,
+    border: style.border,
+    radius: style.borderRadius,
+    font: style.font,
+    textTransform: style.textTransform,
+    letterSpacing: style.letterSpacing,
+    shadow: style.boxShadow,
+    icons,
+  };
+}
+async function measureOverview(page) {
+  return {
+    close: await page
+      .getByRole('button', { name: 'Close wallet settings', exact: true })
+      .evaluate(measureControl),
+    accounts: await page.locator('[data-account-menu-item="accounts"]').evaluate(measureControl),
+    lock: await page
+      .getByRole('button', { name: 'Lock Wallet', exact: true })
+      .evaluate(measureControl),
+  };
+}
+async function measureTransactions(page) {
+  await page.locator('[data-account-menu-item="transaction-settings"]').click();
+  const measurements = {
+    back: await page.getByRole('button', { name: 'Back', exact: true }).evaluate(measureControl),
+    review: await page
+      .getByRole('switch', { name: 'Review before signing', exact: true })
+      .evaluate(measureControl),
+    modal: await page.getByRole('button', { name: 'Modal', exact: true }).evaluate(measureControl),
+  };
+  await back(page);
+  return measurements;
+}
 function recordRequest(request) {
   if (request.method() !== 'GET' && request.method() !== 'HEAD') walletRequests.push(request.url());
 }
@@ -46,9 +146,23 @@ try {
   page.on('pageerror', recordError.bind(null, errors));
   await page.goto(url);
   await expect(page.locator('[data-account-menu-item]')).toHaveCount(7);
+  const cleanOverview = await measureOverview(page);
+  const cleanTransactions = await measureTransactions(page);
+  await page.evaluate(addHostControl);
+  await page.addStyleTag({ content: hostStyles });
+  const hostControl = await page.locator('#host-control').evaluate(measureControl);
+  assert.equal(hostControl.textTransform, 'uppercase', 'Host CSS must apply to the app control');
+  const hostOverview = await measureOverview(page);
+  const hostTransactions = await measureTransactions(page);
+  assert.deepEqual(hostOverview, cleanOverview, 'Host CSS must preserve the overview');
+  assert.deepEqual(
+    hostTransactions,
+    cleanTransactions,
+    'Host CSS must preserve transaction controls',
+  );
   await page.locator('[data-account-menu-item="export-keys"]').click();
   await expect(page.getByRole('heading', { name: 'Export keys', exact: true })).toBeVisible();
-  await page.screenshot({ path: `${artifacts}/export-keys.png` });
+  await captureScreen(page, 'export-keys');
   await page.getByRole('button', { name: /Export NEAR Key/ }).click();
   await expect(page.getByRole('heading', { name: 'Export NEAR key', exact: true })).toBeVisible();
   await expect(page.getByText('Ed25519', { exact: true })).toBeVisible();
@@ -57,8 +171,9 @@ try {
   await expect(page.getByText('ECDSA', { exact: true })).toBeVisible();
   await back(page);
   await back(page);
-  await page.screenshot({ path: `${artifacts}/overview.png` });
+  await captureScreen(page, 'overview');
   await page.addScriptTag({ content: sampleResize.toString() });
+  await page.locator('.seams-account-resize').evaluate(waitForResize);
   await page.evaluate(recordResize);
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
   await expect(
@@ -73,6 +188,7 @@ try {
   await expect(page.getByText('MacBook Pro', { exact: true })).toHaveCount(0);
   await page.waitForTimeout(450);
   const resize = await page.evaluate(() => window.accountResizeEvidence);
+  await writeFile(`${artifacts}/resize.json`, JSON.stringify(resize, null, 2));
   const first = resize[0].height;
   const last = resize.at(-1).height;
   assert.ok(Math.abs(first - last) > 4, 'Screens must have different intrinsic heights');
@@ -87,14 +203,14 @@ try {
     resize.every((sample) => Math.abs(sample.width - resize[0].width) < 1),
     'Width must stay fixed',
   );
-  await page.screenshot({ path: `${artifacts}/authentication-methods.png` });
+  await captureScreen(page, 'authentication-methods');
   await expect(page.getByRole('button', { name: 'Link a device', exact: true })).toHaveCount(0);
   await back(page);
   await page.locator('[data-account-menu-item="scan-link-device"]').click();
   await expect(page.locator('.qr-scanner-camera-container')).toBeVisible();
   await expect(page.locator('video')).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.screenshot({ path: `${artifacts}/scanner.png` });
+  await captureScreen(page, 'scanner');
   await back(page);
   await page.locator('[data-account-menu-item="recovery-codes"]').click();
   await page.getByRole('button', { name: 'Reveal with passkey' }).click();
@@ -114,14 +230,14 @@ try {
   await download.saveAs(`${artifacts}/recovery-codes.txt`);
   assert.equal(await readFile(`${artifacts}/recovery-codes.txt`, 'utf8'), `${codes.join('\n')}\n`);
   await expect(page.getByRole('status')).toHaveText('Downloaded all codes.');
-  await page.screenshot({ path: `${artifacts}/recovery-16-digits.png` });
+  await captureScreen(page, 'recovery-16-digits');
   await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeDisabled();
   await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).check();
   await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeEnabled();
   await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).uncheck();
   await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeDisabled();
   await page.getByRole('checkbox', { name: /I’ve saved these codes/ }).check();
-  await page.screenshot({ path: `${artifacts}/recovery-acknowledged.png` });
+  await captureScreen(page, 'recovery-acknowledged');
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.locator('[data-account-menu-item="accounts"]').click();
   await expect(page.getByRole('link', { name: /Base/ })).toBeVisible();
@@ -140,7 +256,7 @@ try {
   await expect(
     page.getByRole('switch', { name: 'Review before signing', exact: true }),
   ).toHaveAttribute('aria-checked', 'false');
-  await page.screenshot({ path: `${artifacts}/transaction-screen.png` });
+  await captureScreen(page, 'transaction-screen');
   await back(page);
   await page.locator('[data-account-menu-item="linked-devices"]').click();
   await expect(page.getByRole('heading', { name: 'Linked devices' })).toBeVisible();
@@ -170,7 +286,7 @@ try {
     .locator('.seams-profile-button-morphable')
     .evaluate((element) => element.getBoundingClientRect().width);
   assert.ok(loggedOutWidth < 240, 'Logged-out trigger must shrink to its content');
-  await page.screenshot({ path: `${artifacts}/logged-out.png` });
+  await captureScreen(page, 'logged-out');
   await page.locator('[aria-haspopup="menu"]').click();
   await expect(page.getByRole('group', { name: 'Wallet account' })).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -178,15 +294,66 @@ try {
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
   await expect(page.locator('.seams-account-resize')).toHaveCSS('transition-duration', '0s');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await page.screenshot({ path: `${artifacts}/mobile-reduced-motion.png` });
+  await captureScreen(page, 'mobile-reduced-motion');
+  const portalUrl = new URL(url);
+  portalUrl.searchParams.set('portal', '1');
+  await page.goto(portalUrl.href);
+  await page.evaluate(addHostControl);
+  await page.addStyleTag({ content: hostStyles });
+  await expect(
+    page.locator('body > [data-seams-root] .seams-profile-button-morphable'),
+  ).toBeVisible();
+  await expect(page.locator('[data-account-menu-item="accounts"]')).toHaveCSS(
+    'border-top-width',
+    '0px',
+  );
+  await page.locator('[data-account-menu-item="transaction-settings"]').click();
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toHaveCSS('width', '24px');
+  await expect(page.getByRole('switch')).toHaveCSS('width', '44px');
+  await captureScreen(page, 'portal-host-css');
+  await back(page);
+  const portalHostControl = await page.locator('#host-control').evaluate(measureControl);
+  await page.addStyleTag({
+    content: `
+    [data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+      padding-block: 10px;
+    }
+    [data-seams-root] .seams-profile-button-morphable { --seams-colors-textPrimary: rgb(24, 80, 160); }
+  `,
+  });
+  await expect(page.locator('[data-account-menu-item="accounts"]')).toHaveCSS(
+    'padding-top',
+    '10px',
+  );
+  await expect(page.locator('.seams-dropdown-menu-item-label').first()).toHaveCSS(
+    'color',
+    'rgb(24, 80, 160)',
+  );
+  assert.deepEqual(await page.locator('#host-control').evaluate(measureControl), portalHostControl);
+  await captureScreen(page, 'intentional-customization');
   assert.deepEqual(walletRequests, []);
   assert.deepEqual(errors, []);
   await writeFile(
     `${artifacts}/result.json`,
-    JSON.stringify({ passed: true, resize, fit, walletRequests, errors }, null, 2),
+    JSON.stringify(
+      {
+        passed: true,
+        cleanOverview,
+        cleanTransactions,
+        hostOverview,
+        hostTransactions,
+        hostControl,
+        resize,
+        fit,
+        walletRequests,
+        errors,
+      },
+      null,
+      2,
+    ),
   );
   console.log(
-    'Passed: shared account navigation, resize/interruption, local preferences, recovery preview, keyboard focus, mobile/reduced motion, no wallet requests.',
+    'Passed: host CSS isolation, portal rendering, intentional customization, account navigation, resize/interruption, preferences, recovery preview, keyboard focus, mobile/reduced motion, no wallet requests.',
   );
 } finally {
   await context.tracing.stop({ path: `${artifacts}/trace.zip` });

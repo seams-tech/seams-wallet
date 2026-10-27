@@ -3,6 +3,7 @@ import React from 'react';
 import type { DesignTokens, UseThemeReturn } from './design-tokens';
 import { LIGHT_TOKENS, DARK_TOKENS } from './design-tokens';
 import { createCSSVariables, mergeTokens, PartialDeep } from './utils';
+import './Theme.css';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -67,7 +68,13 @@ const ThemeScope: React.FC<ThemeScopeProps> = ({
   const Comp: any = tag;
   const attrs: any = { [dataAttr]: theme };
   return (
-    <Comp lang={locale} className={className} style={{ ...vars, ...style }} {...attrs}>
+    <Comp
+      {...attrs}
+      data-seams-root=""
+      lang={locale}
+      className={`seams-theme-provider${className ? ` ${className}` : ''}`}
+      style={{ ...vars, ...style }}
+    >
       {children}
     </Comp>
   );
@@ -140,7 +147,7 @@ export interface ThemeProps
 export const Theme: React.FC<ThemeProps> = ({
   children,
   tag = 'main', // div, main, etc
-  className = 'seams-theme-provider',
+  className,
   style,
   dataAttr,
   // Provider props

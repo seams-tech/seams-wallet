@@ -1,5 +1,7 @@
 /* React Component Styles for @seams/wallet/react */
 
+@import './components/theme/Theme.css';
+
 /* Import AccountMenuButton styles */
 @import './components/AccountMenuButton/ExportKeysSection.css';
 @import './components/AccountMenuButton/MenuItem.css';
@@ -10,7 +12,6 @@
 @import './components/AccountMenuButton/UserAccountButton.css';
 @import './components/AccountMenuButton/Web3AuthProfileButton.css';
 @import './components/AccountMenuButton/WalletSettingsLayout.css';
-
 
 /* Import QR Code Scanner styles */
 @import './components/QRCodeScanner.css';

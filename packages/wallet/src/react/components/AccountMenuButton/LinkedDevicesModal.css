@@ -1,4 +1,4 @@
-.seams-linked-devices-modal-backdrop {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: var(
@@ -18,7 +18,7 @@
   animation: seams-linked-devices-backdrop-opacity 80ms ease-out;
 }
 
-.seams-linked-devices-modal-content {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-content {
   position: relative;
   z-index: var(
     --seams-z-underlay-content,
@@ -46,11 +46,11 @@
   box-sizing: border-box;
 }
 
-.seams-linked-devices-modal-content:focus {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-content:focus {
   outline: none;
 }
 
-.seams-account-menu-dialog-main {
+[data-seams-root].seams-theme-provider .seams-account-menu-dialog-main {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -60,19 +60,19 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .seams-linked-devices-modal-content {
+  [data-seams-root].seams-theme-provider .seams-linked-devices-modal-content {
     animation: seams-linked-devices-modal-content-enter 80ms ease-out both;
   }
 }
 
-.seams-auth-methods-modal-intro {
+[data-seams-root].seams-theme-provider .seams-auth-methods-modal-intro {
   margin: -0.25rem 0 0.75rem;
   color: var(--seams-colors-textSecondary);
   font-size: 0.9rem;
   line-height: 1.45;
 }
 
-.seams-linked-devices-modal-title {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-title {
   margin: 0 0 0.75rem;
   font-size: 1.375rem;
   font-weight: 500;
@@ -81,7 +81,7 @@
   color: var(--seams-colors-textPrimary);
 }
 
-.seams-linked-devices-modal-subtitle {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-subtitle {
   margin: -0.5rem 0 1rem;
   color: var(--seams-colors-textSecondary);
   font-size: 0.875rem;
@@ -89,7 +89,7 @@
   line-height: 1.5;
 }
 
-.seams-linked-devices-modal-body {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-body {
   display: grid;
   min-height: 0;
   gap: var(--seams-spacing-sm, 0.5rem);
@@ -100,7 +100,7 @@
 
 /* Both the loading and the loaded state render one card per row, so the box
    the list occupies does not jump when the devices arrive. */
-.seams-linked-devices-modal-placeholder {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-placeholder {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -115,7 +115,7 @@
   font-weight: 600;
 }
 
-.seams-linked-devices-modal-list {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-list {
   display: grid;
   gap: var(--seams-spacing-sm, 0.5rem);
   margin: 0;
@@ -123,7 +123,7 @@
   list-style: none;
 }
 
-.seams-linked-devices-modal-item {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item {
   display: grid;
   gap: 0.35rem;
   padding: 0.75rem 0.9rem;
@@ -132,14 +132,14 @@
   background: var(--seams-colors-surface);
 }
 
-.seams-linked-devices-modal-item-main {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-main {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.seams-linked-devices-modal-item-name {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-name {
   color: var(--seams-colors-textPrimary);
   font-size: 0.95rem;
   font-weight: 600;
@@ -148,7 +148,7 @@
 
 /* The state chip carries the only status a person needs. A normal state is a
    quiet neutral tag; colour marks only the states that need attention. */
-.seams-linked-devices-modal-standing {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-standing {
   flex: none;
   padding: 0.1875rem 0.5rem;
   border-radius: 6px;
@@ -160,21 +160,23 @@
   white-space: nowrap;
 }
 
-.seams-linked-devices-modal-standing.tone-pending {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-standing.tone-pending {
   background: color-mix(in srgb, oklch(0.72 0.15 85), transparent 88%);
   color: oklch(0.5 0.13 85);
 }
 
-.seams-linked-devices-modal-standing.tone-off {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-standing.tone-off {
   background: color-mix(in srgb, var(--seams-colors-textSecondary), transparent 90%);
   color: var(--seams-colors-textSecondary);
 }
 
-.theme-dark .seams-linked-devices-modal-standing.tone-pending {
+[data-seams-root].seams-theme-provider
+  .theme-dark
+  .seams-linked-devices-modal-standing.tone-pending {
   color: oklch(0.82 0.13 85);
 }
 
-.seams-linked-devices-modal-item-detail {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-detail {
   color: var(--seams-colors-textSecondary);
   font-size: 0.8rem;
   font-weight: 500;
@@ -182,11 +184,11 @@
 
 /* A grouped inventory is a plain list: no box around it, a hairline under
    every row, so the rows read as entries on the card itself. */
-.seams-linked-devices-modal-list--grouped {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-list--grouped {
   gap: 0;
 }
 
-.seams-linked-devices-modal-item--row {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item--row {
   position: relative;
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
@@ -198,7 +200,7 @@
   background: transparent;
 }
 
-.seams-linked-devices-modal-item-icon {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -209,18 +211,18 @@
   color: var(--seams-colors-textSecondary);
 }
 
-.seams-linked-devices-modal-item-icon svg {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-icon svg {
   width: 20px;
   height: 20px;
 }
 
 /* Section labels name each group of rows, in small caps above it. */
-.seams-account-menu-section {
+[data-seams-root].seams-theme-provider .seams-account-menu-section {
   display: grid;
   gap: 0.5rem;
 }
 
-.seams-account-menu-section-label {
+[data-seams-root].seams-theme-provider .seams-account-menu-section-label {
   margin: 0;
   color: var(--seams-colors-textSecondary);
   font-size: 0.6875rem;
@@ -230,13 +232,17 @@
   text-transform: uppercase;
 }
 
-.seams-account-menu-section > .seams-linked-devices-modal-list--grouped {
+[data-seams-root].seams-theme-provider
+  .seams-account-menu-section
+  > .seams-linked-devices-modal-list--grouped {
   margin-top: -0.25rem;
 }
 
 /* A section's main action is a full-width outline button; an add action leads
    with its plus sign. */
-.seams-linked-devices-modal-content .seams-account-menu-wide-button {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-content
+  .seams-account-menu-wide-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -249,14 +255,16 @@
   font-weight: 500;
 }
 
-.seams-linked-devices-modal-item-content {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-content {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
 }
 
 /* Title on the left, status chip at the end of the row. */
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-main {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-main {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
@@ -264,20 +272,24 @@
   min-height: 1.25rem;
 }
 
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-name {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-name {
   font-size: 0.9375rem;
   font-weight: 500;
   line-height: 1.25rem;
 }
 
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-detail {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-item-detail {
   margin-top: 0.125rem;
   font-size: 0.8125rem;
   font-weight: 400;
 }
 
 /* Why this row cannot be removed right now, shaped as part of the row. */
-.seams-linked-devices-modal-hint {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-hint {
   display: flex;
   gap: 0.5rem;
   align-items: flex-start;
@@ -291,26 +303,28 @@
   line-height: 1.4;
 }
 
-.seams-linked-devices-modal-hint svg {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-hint svg {
   flex: none;
   margin-top: 1px;
 }
 
-.seams-linked-devices-modal-remove {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-remove {
   align-self: start;
   margin-top: 2px;
   color: oklch(0.52 0.17 25);
 }
 
-.theme-dark .seams-linked-devices-modal-remove {
+[data-seams-root].seams-theme-provider .theme-dark .seams-linked-devices-modal-remove {
   color: oklch(0.74 0.15 25);
 }
 
-.seams-linked-devices-modal-item--row .seams-linked-devices-modal-confirm {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-item--row
+  .seams-linked-devices-modal-confirm {
   margin-top: 0.6rem;
 }
 
-.seams-linked-devices-modal-confirm {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-confirm {
   display: grid;
   gap: 0.5rem;
   color: var(--seams-colors-textSecondary);
@@ -319,17 +333,17 @@
   line-height: 1.35;
 }
 
-.seams-linked-devices-modal-confirm-actions {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-confirm-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.seams-linked-devices-modal-confirm-actions > button {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-confirm-actions > button {
   flex: 1 1 0;
 }
 
-.seams-linked-devices-modal-add-method {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-add-method {
   display: grid;
   gap: 0.65rem;
   padding: 0.85rem;
@@ -337,7 +351,7 @@
   border-radius: 0.75rem;
 }
 
-.seams-linked-devices-modal-add-method h3 {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-add-method h3 {
   margin: 0;
   color: var(--seams-colors-textPrimary);
   font-size: 0.9375rem;
@@ -345,7 +359,7 @@
   line-height: 1.35;
 }
 
-.seams-linked-devices-modal-security-note {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-security-note {
   margin: 0;
   color: var(--seams-colors-textSecondary);
   font-size: 0.82rem;
@@ -353,7 +367,7 @@
   line-height: 1.45;
 }
 
-.seams-linked-devices-modal-otp-input {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-otp-input {
   width: 100%;
   min-height: 44px;
   padding: 0.55rem 0.7rem;
@@ -366,7 +380,7 @@
   box-sizing: border-box;
 }
 
-.seams-linked-devices-modal-otp-input:focus-visible {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-otp-input:focus-visible {
   outline: none;
   border-color: transparent;
   background:
@@ -382,8 +396,8 @@
       border-box;
 }
 
-.seams-linked-devices-modal-secondary,
-.seams-linked-devices-modal-danger {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary,
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger {
   justify-self: start;
   min-height: 36px;
   padding: 0.4rem 0.75rem;
@@ -394,44 +408,44 @@
   transition: background-color 140ms ease;
 }
 
-.seams-linked-devices-modal-secondary {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary {
   border: 1px solid var(--seams-colors-borderPrimary);
   background: var(--seams-colors-colorBackground);
   color: var(--seams-colors-textPrimary);
 }
 
-.seams-linked-devices-modal-secondary:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:hover:not(:disabled) {
   background: var(--seams-colors-surface2, var(--seams-colors-surface));
 }
 
-.seams-linked-devices-modal-danger {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger {
   justify-self: stretch;
   border: 1px solid transparent;
   background: oklch(0.55 0.19 25);
   color: #ffffff;
 }
 
-.seams-linked-devices-modal-danger:hover {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:hover {
   background: oklch(0.49 0.19 25);
 }
 
-.seams-linked-devices-modal-secondary:disabled {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:disabled {
   cursor: default;
   opacity: 0.6;
 }
 
-.seams-linked-devices-modal-danger:disabled {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:disabled {
   cursor: default;
   opacity: 0.6;
 }
 
-.seams-linked-devices-modal-secondary:focus-visible,
-.seams-linked-devices-modal-danger:focus-visible {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-secondary:focus-visible,
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-danger:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 2px;
 }
 
-.seams-linked-devices-modal-error {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-error {
   padding: 0.6rem 0.75rem;
   border: 1px solid color-mix(in srgb, oklch(0.58 0.18 25), transparent 75%);
   border-radius: 0.75rem;
@@ -443,12 +457,12 @@
   overflow-wrap: anywhere;
 }
 
-.theme-dark .seams-linked-devices-modal-error {
+[data-seams-root].seams-theme-provider .theme-dark .seams-linked-devices-modal-error {
   color: oklch(0.74 0.15 25);
 }
 
 /* Announced only — a visible copy would shift the card as it changes. */
-.seams-linked-devices-modal-live {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-live {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -479,40 +493,43 @@
 }
 
 @media (max-width: 480px) {
-  .seams-linked-devices-modal-backdrop {
+  [data-seams-root].seams-theme-provider .seams-linked-devices-modal-backdrop {
     align-items: flex-start;
     padding: var(--seams-spacing-sm, 8px);
   }
 
-  .seams-linked-devices-modal-content {
+  [data-seams-root].seams-theme-provider .seams-linked-devices-modal-content {
     max-height: calc(100vh - 16px);
     max-height: calc(100dvh - 16px);
     border-radius: var(--seams-shape-card, 1rem);
   }
 
-  .seams-account-menu-dialog-main {
+  [data-seams-root].seams-theme-provider .seams-account-menu-dialog-main {
     padding: var(--seams-spacing-md, 1rem);
   }
 
-  .seams-linked-devices-modal-item-main {
+  [data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-main {
     align-items: flex-start;
     flex-direction: column;
   }
 
   /* Row layout keeps the chip beside the title; it wraps on its own. */
-  .seams-linked-devices-modal-item--row .seams-linked-devices-modal-item-main {
+  [data-seams-root].seams-theme-provider
+    .seams-linked-devices-modal-item--row
+    .seams-linked-devices-modal-item-main {
     align-items: center;
     flex-direction: row;
   }
 }
 
 @media (max-height: 520px) {
-  .seams-linked-devices-modal-backdrop {
+  [data-seams-root].seams-theme-provider .seams-linked-devices-modal-backdrop {
     align-items: flex-start;
   }
 }
 
-.seams-linked-devices-modal-backdrop[data-presentation='page'] {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-backdrop[data-presentation='page'] {
   position: static;
   display: block;
   padding: 0;
@@ -520,7 +537,9 @@
   overflow: visible;
   animation: none;
 }
-.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-content {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-backdrop[data-presentation='page']
+  .seams-linked-devices-modal-content {
   width: 100%;
   box-shadow: none;
   max-height: none;
@@ -529,27 +548,39 @@
   border: 1px solid var(--seams-colors-borderPrimary);
   animation: none;
 }
-.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-account-menu-dialog-main {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-backdrop[data-presentation='page']
+  .seams-account-menu-dialog-main {
   padding: 0;
 }
-.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-linked-devices-modal-body {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-backdrop[data-presentation='page']
+  .seams-linked-devices-modal-body {
   overflow: visible;
 }
 
-.seams-auth-methods-modal-content .seams-auth-methods-modal-intro {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-auth-methods-modal-intro {
   margin-bottom: 1.5rem;
   font-size: 0.875rem;
 }
 /* The body scrolls, so the last action needs its own room above the card edge. */
-.seams-auth-methods-modal-content .seams-linked-devices-modal-body {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-body {
   gap: 1.5rem;
   padding-bottom: 1.5rem;
 }
 /* A method's icon sits on a tile, like the recovery-code row. */
-.seams-auth-methods-modal-content .seams-linked-devices-modal-item--row {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item--row {
   grid-template-columns: 2.5rem minmax(0, 1fr) auto;
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-item-icon {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item-icon {
   width: 2.5rem;
   height: 2.5rem;
   margin-top: 0;
@@ -557,55 +588,69 @@
   background: color-mix(in srgb, var(--seams-colors-textPrimary), transparent 93%);
   color: var(--seams-colors-textPrimary);
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-item-detail {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-item-detail {
   font-weight: 400;
   line-height: 1.5;
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-add-method {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-add-method {
   padding: 0;
   border: 0;
   gap: 0.5rem;
 }
-.seams-auth-methods-modal-content .seams-linked-devices-modal-secondary {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-linked-devices-modal-secondary {
   min-height: 44px;
   font-size: 0.8125rem;
 }
-.seams-linked-devices-modal-backdrop[data-presentation='page'] .seams-auth-methods-modal-content {
+[data-seams-root].seams-theme-provider
+  .seams-linked-devices-modal-backdrop[data-presentation='page']
+  .seams-auth-methods-modal-content {
   max-width: 40rem;
 }
 
-.seams-linked-devices-modal-content *,
-.seams-linked-devices-modal-content *::before,
-.seams-linked-devices-modal-content *::after {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-content *,
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-content *::before,
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-content *::after {
   box-sizing: border-box;
 }
 
-.seams-linked-devices-modal-body::-webkit-scrollbar {
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-body::-webkit-scrollbar {
   display: none;
 }
 
 /* Each method is a card: icon, name and state, one trailing control, then an
    optional footer for further actions or a removal confirmation. */
-.seams-auth-methods-modal-content .seams-account-menu-section > .seams-account-method-tiles {
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
+  .seams-account-menu-section
+  > .seams-account-method-tiles {
   margin-top: 0;
 }
-.seams-auth-methods-modal-content
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
   .seams-account-method-tiles
   .seams-linked-devices-modal-item--row {
   padding: 0.75rem 0.875rem;
   border-radius: 0.875rem;
 }
-.seams-auth-methods-modal-content
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
   .seams-linked-devices-modal-item--row
   .seams-linked-devices-modal-item-icon {
   align-self: center;
 }
-.seams-auth-methods-modal-content
+[data-seams-root].seams-theme-provider
+  .seams-auth-methods-modal-content
   .seams-linked-devices-modal-item--row
   .seams-linked-devices-modal-item-main {
   justify-content: flex-start;
 }
-.seams-auth-method-footer {
+[data-seams-root].seams-theme-provider .seams-auth-method-footer {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
@@ -616,7 +661,9 @@
   padding: 0.25rem 0.875rem;
   border-top: 1px solid var(--seams-colors-borderPrimary);
 }
-.seams-auth-method-footer > .seams-linked-devices-modal-confirm {
+[data-seams-root].seams-theme-provider
+  .seams-auth-method-footer
+  > .seams-linked-devices-modal-confirm {
   flex: 1;
   margin: 0;
   padding-block: 0.5rem;
@@ -624,7 +671,7 @@
 
 /* Quiet text actions; Remove carries the error tone, mixed toward the text
    colour so it keeps its contrast on both themes. */
-.seams-auth-method-text-action {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action {
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
@@ -642,36 +689,36 @@
   cursor: pointer;
   transition: background-color 140ms ease;
 }
-.seams-auth-method-text-action > svg {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action > svg {
   color: var(--seams-colors-textSecondary);
 }
-[dir='rtl'] .seams-auth-method-text-action > svg {
+[data-seams-root].seams-theme-provider [dir='rtl'] .seams-auth-method-text-action > svg {
   transform: scaleX(-1);
 }
-.seams-auth-method-text-action[data-tone='danger'],
-.seams-linked-devices-modal-item-detail [data-tone='error'],
-.seams-auth-method-field-error {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action[data-tone='danger'],
+[data-seams-root].seams-theme-provider .seams-linked-devices-modal-item-detail [data-tone='error'],
+[data-seams-root].seams-theme-provider .seams-auth-method-field-error {
   color: color-mix(in oklab, var(--seams-colors-error) 65%, var(--seams-colors-textPrimary));
 }
-.seams-auth-method-text-action:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action:hover:not(:disabled) {
   background: var(--seams-colors-surface2, var(--seams-colors-surface));
 }
-.seams-auth-method-text-action:disabled {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action:disabled {
   opacity: 0.45;
   cursor: default;
 }
-.seams-auth-method-text-action:focus-visible {
+[data-seams-root].seams-theme-provider .seams-auth-method-text-action:focus-visible {
   outline: 2px solid var(--seams-colors-textPrimary);
   outline-offset: 2px;
 }
 @media (pointer: coarse) {
-  .seams-auth-method-text-action {
+  [data-seams-root].seams-theme-provider .seams-auth-method-text-action {
     min-height: 2.75rem;
   }
 }
 
 /* Email OTP's address form opens in its card footer, below a divider. */
-.seams-auth-method-form {
+[data-seams-root].seams-theme-provider .seams-auth-method-form {
   display: grid;
   flex: 1;
   gap: 0.5rem;
@@ -679,25 +726,27 @@
   color: var(--seams-colors-textPrimary);
   font-size: 0.8125rem;
 }
-.seams-auth-method-form label {
+[data-seams-root].seams-theme-provider .seams-auth-method-form label {
   font-weight: 600;
 }
-.seams-auth-method-note,
-.seams-auth-method-field-error {
+[data-seams-root].seams-theme-provider .seams-auth-method-note,
+[data-seams-root].seams-theme-provider .seams-auth-method-field-error {
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.45;
 }
-.seams-auth-method-note {
+[data-seams-root].seams-theme-provider .seams-auth-method-note {
   color: var(--seams-colors-textSecondary);
 }
-.seams-auth-method-field-error {
+[data-seams-root].seams-theme-provider .seams-auth-method-field-error {
   font-weight: 500;
 }
-.seams-auth-method-form .seams-linked-devices-modal-confirm-actions {
+[data-seams-root].seams-theme-provider
+  .seams-auth-method-form
+  .seams-linked-devices-modal-confirm-actions {
   margin-top: 0.25rem;
 }
-.seams-auth-method-primary {
+[data-seams-root].seams-theme-provider .seams-auth-method-primary {
   min-height: 2.5rem;
   padding: 0.4rem 0.75rem;
   border: 1px solid transparent;
@@ -710,18 +759,18 @@
   cursor: pointer;
   transition: background-color 140ms ease;
 }
-.seams-auth-method-primary:hover:not(:disabled) {
+[data-seams-root].seams-theme-provider .seams-auth-method-primary:hover:not(:disabled) {
   background: color-mix(
     in srgb,
     var(--seams-colors-textPrimary) 84%,
     var(--seams-colors-colorBackground)
   );
 }
-.seams-auth-method-primary:disabled {
+[data-seams-root].seams-theme-provider .seams-auth-method-primary:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.seams-auth-method-primary:focus-visible {
+[data-seams-root].seams-theme-provider .seams-auth-method-primary:focus-visible {
   outline: 2px solid var(--seams-colors-textPrimary);
   outline-offset: 2px;
 }

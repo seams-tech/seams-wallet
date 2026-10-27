@@ -119,6 +119,7 @@ export function AccountMenuButtonView({
               <span>{typeof window === 'undefined' ? '' : window.location.host}</span>
               <button
                 type="button"
+                className="seams-account-close"
                 aria-label={walletText(locale, 'Close wallet settings')}
                 onClick={dropdown.onClose}
               >

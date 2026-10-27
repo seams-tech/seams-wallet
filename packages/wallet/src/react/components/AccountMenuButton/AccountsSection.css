@@ -1,6 +1,6 @@
 /* Expander (AccountsSection) — same grid-rows collapse mechanism as the
    Transaction Settings expander so the two sections open with one motion */
-.seams-dropdown-accounts-root {
+[data-seams-root].seams-theme-provider .seams-dropdown-accounts-root {
   background-color: var(--seams-expander-surface, var(--seams-colors-surface));
   transform-origin: top;
   display: grid;
@@ -8,19 +8,19 @@
   transition: grid-template-rows 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.seams-dropdown-accounts-root.is-expanded {
+[data-seams-root].seams-theme-provider .seams-dropdown-accounts-root.is-expanded {
   border-top: 1px solid var(--seams-colors-borderPrimary);
   border-bottom: 1px solid var(--seams-colors-borderPrimary);
   grid-template-rows: 1fr;
 }
 
-.seams-dropdown-accounts-clip {
+[data-seams-root].seams-theme-provider .seams-dropdown-accounts-clip {
   overflow: hidden;
   min-height: 0;
   min-width: 0;
 }
 
-.seams-dropdown-accounts-content {
+[data-seams-root].seams-theme-provider .seams-dropdown-accounts-content {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -32,12 +32,14 @@
   transform: translateY(4px);
 }
 
-.seams-dropdown-accounts-root.is-expanded .seams-dropdown-accounts-content {
+[data-seams-root].seams-theme-provider
+  .seams-dropdown-accounts-root.is-expanded
+  .seams-dropdown-accounts-content {
   opacity: 1;
   transform: translateY(0);
 }
 
-.seams-accounts-row {
+[data-seams-root].seams-theme-provider .seams-accounts-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -48,7 +50,7 @@
   transition: background 150ms ease;
 }
 
-.seams-accounts-row:hover {
+[data-seams-root].seams-theme-provider .seams-accounts-row:hover {
   /* a shade off the expander surface behind the rows, which is often surface2;
      mixing follows a theme's surface where a fixed surface step does not */
   background: color-mix(
@@ -58,7 +60,7 @@
   );
 }
 
-.seams-accounts-row-chain {
+[data-seams-root].seams-theme-provider .seams-accounts-row-chain {
   flex: 0 0 auto;
   min-width: 56px;
   font-size: 13px;
@@ -66,7 +68,7 @@
   color: var(--seams-colors-textPrimary);
 }
 
-.seams-accounts-row-address {
+[data-seams-root].seams-theme-provider .seams-accounts-row-address {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -77,11 +79,11 @@
   color: var(--seams-colors-textSecondary);
 }
 
-.seams-accounts-row-arrow {
+[data-seams-root].seams-theme-provider .seams-accounts-row-arrow {
   flex: 0 0 auto;
   color: var(--seams-colors-textSecondary);
 }
 
-.seams-accounts-row:hover .seams-accounts-row-arrow {
+[data-seams-root].seams-theme-provider .seams-accounts-row:hover .seams-accounts-row-arrow {
   color: var(--seams-colors-textPrimary);
 }

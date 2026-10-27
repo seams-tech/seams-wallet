@@ -9,12 +9,21 @@ interface TouchIconProps {
   style?: React.CSSProperties;
 }
 
-const TouchIcon: React.FC<TouchIconProps> = ({ className, strokeWidth, width, height, style }) => (
+const TouchIcon: React.FC<TouchIconProps> = ({
+  className,
+  strokeWidth,
+  width = 24,
+  height = 24,
+  style,
+}) => (
   <svg
     className={`seams-fingerprint-icon ${className || ''}`}
-    style={{ ...style }}
-    width={width || 24}
-    height={height || 24}
+    style={{
+      ...{ '--seams-icon-width': `${width}px`, '--seams-icon-height': `${height}px` },
+      ...style,
+    }}
+    width={width}
+    height={height}
     viewBox="0 0 24 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"

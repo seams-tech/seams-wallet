@@ -1,11 +1,11 @@
 /* TouchIcon specific styles and animations */
 
-.seams-fingerprint-icon path {
+[data-seams-root].seams-theme-provider .seams-fingerprint-icon path {
   /* Normalize path length so dash animations are simple */
   stroke: currentColor;
 }
 
-.seams-fingerprint-icon.open path {
+[data-seams-root].seams-theme-provider .seams-fingerprint-icon.open path {
   /* Draw the fingerprint when expanding/opening */
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -13,7 +13,7 @@
 }
 
 /* Animate when closing the menu */
-.seams-fingerprint-icon.closed path {
+[data-seams-root].seams-theme-provider .seams-fingerprint-icon.closed path {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation: seams-fp-close 1.6s ease-out 0.1s both;

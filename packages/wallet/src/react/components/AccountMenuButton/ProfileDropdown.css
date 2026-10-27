@@ -1,12 +1,12 @@
-.seams-account-menu-group {
+[data-seams-root].seams-theme-provider .seams-account-menu-group {
   margin-top: 16px;
 }
-.seams-account-menu-group + .seams-account-menu-group {
+[data-seams-root].seams-theme-provider .seams-account-menu-group + .seams-account-menu-group {
   border-top: 1px solid var(--seams-colors-borderPrimary);
   padding-top: 12px;
   margin-top: 10px;
 }
-.seams-account-menu-group h3 {
+[data-seams-root].seams-theme-provider .seams-account-menu-group h3 {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -14,10 +14,10 @@
   color: var(--seams-colors-textSecondary);
   margin: 0 0 4px;
 }
-.seams-profile-dropdown-menu {
+[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu {
   --seams-expander-surface: var(--seams-colors-surface2);
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item {
+[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
   position: relative;
   isolation: isolate;
   min-height: 40px;
@@ -34,37 +34,53 @@
   align-items: center;
   cursor: pointer;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item:disabled {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item:disabled {
   color: var(--seams-colors-textSecondary);
   opacity: 0.6;
   cursor: default;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item-icon {
+[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item-icon {
   width: 22px;
   height: 22px;
   color: var(--seams-colors-textSecondary);
   flex-shrink: 0;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item-icon svg {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item-icon
+  svg {
   width: 20px;
   height: 20px;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item-label {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item-label {
   font-size: 14px;
   font-weight: 400;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item-description {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item-description {
   display: none;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item-content {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item-content {
   flex: 1;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item > .seams-hover-arrow {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item
+  > .seams-hover-arrow {
   margin-inline-end: 4px;
 }
 /* The hover shade bleeds past the row edges so the icons and labels stay
    aligned with the group headings. */
-.seams-profile-dropdown-menu .seams-dropdown-menu-item:not(.seams-lock-menu-item)::before {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item:not(.seams-lock-menu-item)::before {
   content: '';
   position: absolute;
   z-index: -1;
@@ -74,37 +90,47 @@
   opacity: 0;
   transition: opacity 150ms ease;
 }
-.seams-profile-dropdown-menu .seams-dropdown-menu-item:focus-visible::before {
+[data-seams-root].seams-theme-provider
+  .seams-profile-dropdown-menu
+  .seams-dropdown-menu-item:focus-visible::before {
   opacity: 1;
 }
-.seams-profile-dropdown-menu .seams-lock-menu-item {
+[data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-lock-menu-item {
   border: 1px solid var(--seams-colors-borderPrimary);
   border-radius: 11px;
   justify-content: center;
   margin-top: 12px;
 }
-.seams-lock-menu-item .seams-dropdown-menu-item-content {
+[data-seams-root].seams-theme-provider .seams-lock-menu-item .seams-dropdown-menu-item-content {
   flex: 0 1 auto;
 }
 @media (hover: hover) {
-  .seams-profile-dropdown-menu .seams-dropdown-menu-item:not(:disabled):hover {
+  [data-seams-root].seams-theme-provider
+    .seams-profile-dropdown-menu
+    .seams-dropdown-menu-item:not(:disabled):hover {
     background: transparent;
   }
-  .seams-profile-dropdown-menu .seams-dropdown-menu-item:not(:disabled):hover::before {
+  [data-seams-root].seams-theme-provider
+    .seams-profile-dropdown-menu
+    .seams-dropdown-menu-item:not(:disabled):hover::before {
     opacity: 1;
   }
-  .seams-profile-dropdown-menu .seams-lock-menu-item:not(:disabled):hover {
+  [data-seams-root].seams-theme-provider
+    .seams-profile-dropdown-menu
+    .seams-lock-menu-item:not(:disabled):hover {
     background: var(--seams-colors-surface2);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .seams-profile-dropdown-menu .seams-dropdown-menu-item::before {
+  [data-seams-root].seams-theme-provider
+    .seams-profile-dropdown-menu
+    .seams-dropdown-menu-item::before {
     transition: none;
   }
 }
 
 @media (pointer: coarse) {
-  .seams-profile-dropdown-menu .seams-dropdown-menu-item {
+  [data-seams-root].seams-theme-provider .seams-profile-dropdown-menu .seams-dropdown-menu-item {
     min-height: 44px;
   }
 }

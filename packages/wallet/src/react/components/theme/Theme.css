@@ -1,0 +1,38 @@
+/* Reset controls only inside SDK-owned surfaces. Theme can also wrap app content.
+   Component selectors add one class to this baseline's specificity. */
+[data-seams-root]
+  :is(
+    .seams-profile-button-morphable,
+    .seams-settings-page,
+    .seams-linked-devices-modal-content,
+    .qr-scanner-modal,
+    .qr-code-container,
+    .seams-link-device-failure
+  )
+  :where(button) {
+  box-sizing: border-box;
+  appearance: none;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  text-indent: 0;
+  box-shadow: none;
+}
+
+[data-seams-root].seams-theme-provider
+  :is(.seams-icon, .seams-hover-arrow, .seams-fingerprint-icon) {
+  flex-shrink: 0;
+  width: var(--seams-icon-width, 24px);
+  height: var(--seams-icon-height, 24px);
+}

@@ -1,21 +1,23 @@
 /* Transaction settings: a review switch, then the review layout as cards
    with a small drawing. The settings page and the account menu share these
    rules; the menu adds a compact variant. */
-.seams-transaction-page {
+[data-seams-root].seams-theme-provider .seams-transaction-page {
   display: grid;
   gap: 40px;
 }
-.seams-transaction-group {
+[data-seams-root].seams-theme-provider .seams-transaction-group {
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
 }
-.seams-transaction-review-setting + .seams-transaction-group {
+[data-seams-root].seams-theme-provider
+  .seams-transaction-review-setting
+  + .seams-transaction-group {
   padding-top: 40px;
   border-top: 1px solid var(--seams-colors-borderPrimary);
 }
-.seams-transaction-group legend {
+[data-seams-root].seams-theme-provider .seams-transaction-group legend {
   /* A floated legend leaves the fieldset border, so the divider above a
      group runs above its title, not through it. */
   float: inline-start;
@@ -24,21 +26,21 @@
   font-size: 18px;
   font-weight: 600;
 }
-.seams-transaction-group legend + * {
+[data-seams-root].seams-theme-provider .seams-transaction-group legend + * {
   clear: both;
 }
-.seams-transaction-group > p {
+[data-seams-root].seams-theme-provider .seams-transaction-group > p {
   margin: 6px 0 20px;
   color: var(--seams-colors-textSecondary);
   font-size: 14px;
   line-height: 1.5;
 }
-.seams-transaction-choices {
+[data-seams-root].seams-theme-provider .seams-transaction-choices {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
-.seams-transaction-choice {
+[data-seams-root].seams-theme-provider .seams-transaction-choice {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -54,27 +56,27 @@
     border-color 120ms ease,
     background-color 120ms ease;
 }
-.seams-transaction-choice-text {
+[data-seams-root].seams-theme-provider .seams-transaction-choice-text {
   display: grid;
   gap: 6px;
   padding-inline: 4px;
 }
-.seams-transaction-choice-head {
+[data-seams-root].seams-theme-provider .seams-transaction-choice-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.seams-transaction-choice strong {
+[data-seams-root].seams-theme-provider .seams-transaction-choice strong {
   font-size: 15px;
   font-weight: 600;
 }
-.seams-transaction-choice-description {
+[data-seams-root].seams-theme-provider .seams-transaction-choice-description {
   color: var(--seams-colors-textSecondary);
   font-size: 13px;
   line-height: 1.5;
 }
-.seams-transaction-choice-indicator {
+[data-seams-root].seams-theme-provider .seams-transaction-choice-indicator {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
@@ -82,21 +84,24 @@
   border: 1.5px solid var(--seams-colors-borderPrimary);
   border-radius: 50%;
 }
-.seams-transaction-choice[aria-pressed='true'] {
+[data-seams-root].seams-theme-provider .seams-transaction-choice[aria-pressed='true'] {
   border-color: var(--seams-colors-primary);
   box-shadow: inset 0 0 0 1px var(--seams-colors-primary);
 }
-.seams-transaction-choice[aria-pressed='true'] .seams-transaction-choice-indicator {
+[data-seams-root].seams-theme-provider
+  .seams-transaction-choice[aria-pressed='true']
+  .seams-transaction-choice-indicator {
   border: 5px solid var(--seams-colors-primary);
 }
-.seams-transaction-choice:hover:not(:disabled):not([aria-pressed='true']) {
+[data-seams-root].seams-theme-provider
+  .seams-transaction-choice:hover:not(:disabled):not([aria-pressed='true']) {
   background: var(--seams-colors-surface);
 }
-.seams-transaction-choice:focus-visible {
+[data-seams-root].seams-theme-provider .seams-transaction-choice:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 4px;
 }
-.seams-transaction-choice:disabled {
+[data-seams-root].seams-theme-provider .seams-transaction-choice:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -104,22 +109,22 @@
 /* The switch row uses the card grid, so its edge lines up with the cards. It has its
    own class: the transaction confirmer's review is .seams-transaction-review, and a
    page that loads both must not lay that review out on this grid. */
-.seams-transaction-review-setting {
+[data-seams-root].seams-theme-provider .seams-transaction-review-setting {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 16px;
 }
-.seams-transaction-review-setting > * {
+[data-seams-root].seams-theme-provider .seams-transaction-review-setting > * {
   grid-column: span 2;
 }
-.seams-transaction-review-setting > p {
+[data-seams-root].seams-theme-provider .seams-transaction-review-setting > p {
   margin: 0;
   padding-inline: 4px;
   color: var(--seams-colors-textSecondary);
   font-size: 13px;
   line-height: 1.5;
 }
-.seams-transaction-review-row {
+[data-seams-root].seams-theme-provider .seams-transaction-review-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -129,20 +134,20 @@
   border-radius: 16px;
   background: var(--seams-colors-colorBackground);
 }
-.seams-transaction-review-text {
+[data-seams-root].seams-theme-provider .seams-transaction-review-text {
   display: grid;
   gap: 6px;
 }
-.seams-transaction-review-text strong {
+[data-seams-root].seams-theme-provider .seams-transaction-review-text strong {
   font-size: 16px;
   font-weight: 600;
 }
-.seams-transaction-review-text > span {
+[data-seams-root].seams-theme-provider .seams-transaction-review-text > span {
   color: var(--seams-colors-textSecondary);
   font-size: 14px;
   line-height: 1.5;
 }
-.seams-transaction-switch {
+[data-seams-root].seams-theme-provider .seams-transaction-switch {
   position: relative;
   flex-shrink: 0;
   width: 44px;
@@ -154,7 +159,7 @@
   cursor: pointer;
   transition: background-color 150ms ease;
 }
-.seams-transaction-switch > span {
+[data-seams-root].seams-theme-provider .seams-transaction-switch > span {
   position: absolute;
   inset-block-start: 3px;
   inset-inline-start: 3px;
@@ -165,32 +170,35 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   transition: transform 150ms ease;
 }
-.seams-transaction-switch[aria-checked='true'] {
+[data-seams-root].seams-theme-provider .seams-transaction-switch[aria-checked='true'] {
   background: var(--seams-colors-primary);
 }
-.seams-transaction-switch[aria-checked='true'] > span {
+[data-seams-root].seams-theme-provider .seams-transaction-switch[aria-checked='true'] > span {
   transform: translateX(18px);
 }
-[dir='rtl'] .seams-transaction-switch[aria-checked='true'] > span {
+[data-seams-root].seams-theme-provider
+  [dir='rtl']
+  .seams-transaction-switch[aria-checked='true']
+  > span {
   transform: translateX(-18px);
 }
-.seams-transaction-switch:focus-visible {
+[data-seams-root].seams-theme-provider .seams-transaction-switch:focus-visible {
   outline: 2px solid var(--seams-colors-primary);
   outline-offset: 3px;
 }
-.seams-transaction-switch:disabled {
+[data-seams-root].seams-theme-provider .seams-transaction-switch:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 @media (prefers-reduced-motion: reduce) {
-  .seams-transaction-switch,
-  .seams-transaction-switch > span {
+  [data-seams-root].seams-theme-provider .seams-transaction-switch,
+  [data-seams-root].seams-theme-provider .seams-transaction-switch > span {
     transition: none;
   }
 }
 
 /* The preview draws a page with the review surface on top of it. */
-.seams-transaction-preview {
+[data-seams-root].seams-theme-provider .seams-transaction-preview {
   position: relative;
   display: block;
   aspect-ratio: 16 / 9;
@@ -199,38 +207,40 @@
   background: var(--seams-colors-surface);
   color: var(--seams-colors-textSecondary);
 }
-.seams-transaction-choice[aria-pressed='true'] .seams-transaction-preview {
+[data-seams-root].seams-theme-provider
+  .seams-transaction-choice[aria-pressed='true']
+  .seams-transaction-preview {
   color: var(--seams-colors-textPrimary);
 }
-.seams-tp-page {
+[data-seams-root].seams-theme-provider .seams-tp-page {
   position: absolute;
   inset: 14% 12%;
   display: grid;
   align-content: start;
   gap: 8%;
 }
-.seams-tp-page i,
-.seams-tp-panel i {
+[data-seams-root].seams-theme-provider .seams-tp-page i,
+[data-seams-root].seams-theme-provider .seams-tp-panel i {
   display: block;
   height: 6px;
   border-radius: 3px;
   background: currentColor;
   opacity: 0.18;
 }
-.seams-tp-page i:nth-child(1) {
+[data-seams-root].seams-theme-provider .seams-tp-page i:nth-child(1) {
   width: 38%;
   height: 8px;
   opacity: 0.28;
 }
-.seams-tp-page i:nth-child(3) {
+[data-seams-root].seams-theme-provider .seams-tp-page i:nth-child(3) {
   width: 72%;
 }
-.seams-tp-scrim {
+[data-seams-root].seams-theme-provider .seams-tp-scrim {
   position: absolute;
   inset: 0;
   background: rgb(0 0 0 / 0.1);
 }
-.seams-tp-panel {
+[data-seams-root].seams-theme-provider .seams-tp-panel {
   position: absolute;
   display: flex;
   flex-direction: column;
@@ -241,11 +251,11 @@
   background: var(--seams-colors-colorBackground);
   box-shadow: 0 6px 16px rgb(0 0 0 / 0.08);
 }
-.seams-tp-panel i:nth-child(1) {
+[data-seams-root].seams-theme-provider .seams-tp-panel i:nth-child(1) {
   width: 60%;
   opacity: 0.32;
 }
-.seams-tp-panel b {
+[data-seams-root].seams-theme-provider .seams-tp-panel b {
   display: block;
   align-self: flex-end;
   width: 48%;
@@ -254,10 +264,10 @@
   border-radius: 4px;
   background: var(--seams-colors-primary);
 }
-[data-preview='modal'] .seams-tp-panel {
+[data-seams-root].seams-theme-provider [data-preview='modal'] .seams-tp-panel {
   inset: 18% 26%;
 }
-[data-preview='drawer'] .seams-tp-panel {
+[data-seams-root].seams-theme-provider [data-preview='drawer'] .seams-tp-panel {
   inset-block: 0;
   inset-inline: auto 0;
   width: 40%;
@@ -268,44 +278,47 @@
 }
 
 @media (max-width: 600px) {
-  [data-presentation='page'] .seams-transaction-review-setting > * {
+  [data-seams-root].seams-theme-provider
+    [data-presentation='page']
+    .seams-transaction-review-setting
+    > * {
     grid-column: 1 / -1;
   }
-  [data-presentation='page'] .seams-transaction-review-row {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-transaction-review-row {
     padding: 16px;
   }
-  [data-presentation='page'] .seams-transaction-choices {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-transaction-choices {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
-  [data-presentation='page'] .seams-transaction-choice {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-transaction-choice {
     flex-direction: row;
     align-items: center;
     gap: 14px;
     padding: 10px 14px 10px 10px;
   }
-  [data-presentation='page'] .seams-transaction-preview {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-transaction-preview {
     flex-shrink: 0;
     width: 104px;
   }
-  [data-presentation='page'] .seams-transaction-choice-text {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-transaction-choice-text {
     flex: 1;
     min-width: 0;
     padding-inline: 0;
   }
-  [data-presentation='page'] .seams-tp-panel {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-tp-panel {
     gap: 4px;
     padding: 6px;
     border-radius: 5px;
   }
-  [data-presentation='page'] .seams-tp-page i,
-  [data-presentation='page'] .seams-tp-panel i {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-tp-page i,
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-tp-panel i {
     height: 4px;
   }
-  [data-presentation='page'] .seams-tp-page i:nth-child(1) {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-tp-page i:nth-child(1) {
     height: 5px;
   }
-  [data-presentation='page'] .seams-tp-panel b {
+  [data-seams-root].seams-theme-provider [data-presentation='page'] .seams-tp-panel b {
     height: 6px;
     border-radius: 2px;
   }
@@ -313,42 +326,47 @@
 
 /* The account menu is about 300px wide: three small cards per row, labels
    only, and smaller drawings. */
-.seams-transaction-page[data-presentation='menu'] {
+[data-seams-root].seams-theme-provider .seams-transaction-page[data-presentation='menu'] {
   gap: 16px;
   padding-bottom: 4px;
 }
-[data-presentation='menu'] .seams-transaction-review-setting + .seams-transaction-group {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-setting
+  + .seams-transaction-group {
   padding-top: 16px;
 }
-[data-presentation='menu'] .seams-transaction-group legend {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-group legend {
   font-size: 14px;
 }
-[data-presentation='menu'] .seams-transaction-group > p {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-group > p {
   margin: 2px 0 10px;
   font-size: 12px;
   line-height: 1.4;
 }
-[data-presentation='menu'] .seams-transaction-choices {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-choices {
   gap: 8px;
 }
-[data-presentation='menu'] .seams-transaction-choice {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-choice {
   gap: 8px;
   padding: 5px 5px 8px;
   border-radius: 12px;
 }
-[data-presentation='menu'] .seams-transaction-choice-text {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-choice-text {
   padding-inline: 3px;
 }
-[data-presentation='menu'] .seams-transaction-choice {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-choice {
   position: relative;
 }
-[data-presentation='menu'] .seams-transaction-choice strong {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-choice strong {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.3;
 }
 /* The dot sits on the drawing's corner, so a long label gets the full width. */
-[data-presentation='menu'] .seams-transaction-choice-indicator {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-choice-indicator {
   position: absolute;
   inset-block-start: 10px;
   inset-inline-end: 10px;
@@ -356,48 +374,68 @@
   height: 14px;
   background: var(--seams-colors-colorBackground);
 }
-[data-presentation='menu'] .seams-transaction-choice[aria-pressed='true'] .seams-transaction-choice-indicator {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-choice[aria-pressed='true']
+  .seams-transaction-choice-indicator {
   border-width: 4px;
 }
-[data-presentation='menu'] .seams-transaction-preview {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-preview {
   border-radius: 8px;
 }
-[data-presentation='menu'] .seams-tp-panel {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-tp-panel {
   gap: 3px;
   padding: 5px;
   border-radius: 4px;
 }
-[data-presentation='menu'] .seams-tp-page i,
-[data-presentation='menu'] .seams-tp-panel i {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-tp-page i,
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-tp-panel i {
   height: 3px;
   border-radius: 2px;
 }
-[data-presentation='menu'] .seams-tp-page i:nth-child(1) {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-tp-page i:nth-child(1) {
   height: 4px;
 }
-[data-presentation='menu'] .seams-tp-panel b {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-tp-panel b {
   height: 5px;
   border-radius: 2px;
 }
-[data-presentation='menu'] [data-preview='drawer'] .seams-tp-panel {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  [data-preview='drawer']
+  .seams-tp-panel {
   padding-top: 7px;
 }
-[data-presentation='menu'] .seams-transaction-review-setting > * {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-setting
+  > * {
   grid-column: 1 / -1;
 }
-[data-presentation='menu'] .seams-transaction-review-setting {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-setting {
   gap: 8px;
 }
-[data-presentation='menu'] .seams-transaction-review-row {
+[data-seams-root].seams-theme-provider [data-presentation='menu'] .seams-transaction-review-row {
   gap: 14px;
   padding: 14px;
   border-radius: 12px;
 }
-[data-presentation='menu'] .seams-transaction-review-text strong {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-text
+  strong {
   font-size: 14px;
 }
-[data-presentation='menu'] .seams-transaction-review-text > span,
-[data-presentation='menu'] .seams-transaction-review-setting > p {
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-text
+  > span,
+[data-seams-root].seams-theme-provider
+  [data-presentation='menu']
+  .seams-transaction-review-setting
+  > p {
   font-size: 12px;
   line-height: 1.4;
 }

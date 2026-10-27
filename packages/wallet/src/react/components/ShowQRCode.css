@@ -1,9 +1,9 @@
-.qr-code-container {
+[data-seams-root].seams-theme-provider .qr-code-container {
   padding-top: 0.25rem;
 }
 
 /* Modal Header */
-.qr-header {
+[data-seams-root].seams-theme-provider .qr-header {
   position: relative;
   display: grid;
   place-content: center;
@@ -13,7 +13,7 @@
 /* Sized off the auth menu's own title (21px) rather than louder than it: this
    heading sits inside the same card, so a heavier scale reads as a second,
    competing header. */
-.qr-title {
+[data-seams-root].seams-theme-provider .qr-title {
   font-size: 1.3125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -24,7 +24,7 @@
   text-wrap: balance;
 }
 
-.qr-body {
+[data-seams-root].seams-theme-provider .qr-body {
   padding: 0rem;
   flex: 1;
   display: flex;
@@ -32,14 +32,14 @@
   align-items: center;
 }
 
-.seams-device-link-email-field {
+[data-seams-root].seams-theme-provider .seams-device-link-email-field {
   display: grid;
   width: min(100%, 320px);
   gap: 0.4rem;
   margin-top: 0.25rem;
 }
 
-.seams-device-link-factor-options {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-options {
   box-sizing: border-box;
   display: grid;
   width: min(100%, 320px);
@@ -49,11 +49,11 @@
   border: 0;
 }
 
-.seams-device-link-factor-options > legend {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-options > legend {
   margin-bottom: 0.25rem;
 }
 
-.seams-device-link-factor-option {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-option {
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -67,51 +67,51 @@
   cursor: pointer;
 }
 
-.seams-device-link-factor-option:has(input:checked) {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-option:has(input:checked) {
   border-color: var(--seams-colors-textPrimary, #1e293b);
   background: var(--seams-colors-surface2, #f1f5f9);
 }
 
-.seams-device-link-factor-icon {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-icon {
   display: grid;
   flex: 0 0 22px;
   place-items: center;
   color: var(--seams-colors-textSecondary, #64748b);
 }
 
-.seams-device-link-factor-icon svg {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-icon svg {
   display: block;
 }
 
-.seams-device-link-factor-label {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-label {
   flex: 1;
   text-align: start;
 }
 
-.seams-device-link-factor-label span {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-label span {
   color: var(--seams-colors-textSecondary, #64748b);
   font-size: 0.8125rem;
 }
 
-.seams-device-link-factor-option input {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-option input {
   flex: 0 0 auto;
   width: 1rem;
   height: 1rem;
   margin: 0 0 0 auto;
 }
 
-.seams-device-link-factor-option input:focus-visible {
+[data-seams-root].seams-theme-provider .seams-device-link-factor-option input:focus-visible {
   outline: 2px solid var(--seams-colors-primary, #3b82f6);
   outline-offset: 3px;
 }
 
-.seams-device-link-email-field .seams-field-label {
+[data-seams-root].seams-theme-provider .seams-device-link-email-field .seams-field-label {
   color: var(--seams-colors-textSecondary, #64748b);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.seams-device-link-email-field input {
+[data-seams-root].seams-theme-provider .seams-device-link-email-field input {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
@@ -123,7 +123,7 @@
   font: inherit;
 }
 
-.seams-device-link-email-field input:focus-visible {
+[data-seams-root].seams-theme-provider .seams-device-link-email-field input:focus-visible {
   outline: none;
   border-color: transparent;
   background:
@@ -139,7 +139,7 @@
       border-box;
 }
 
-.qr-code-section {
+[data-seams-root].seams-theme-provider .qr-code-section {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -151,7 +151,7 @@
    so on a dark theme an unbacked image reads as a raw white rectangle. The
    plate is a fixed square in both states — the placeholder below occupies the
    same box, so nothing under it moves when the image arrives. */
-.qr-code-display {
+[data-seams-root].seams-theme-provider .qr-code-display {
   display: grid;
   place-items: center;
   width: min(100%, 232px);
@@ -164,7 +164,7 @@
     0 14px 28px -20px rgba(15, 23, 42, 0.45);
 }
 
-.qr-code-placeholder {
+[data-seams-root].seams-theme-provider .qr-code-placeholder {
   display: grid;
   place-items: center;
   width: 100%;
@@ -176,7 +176,7 @@
 
 /* On the white plate a translucent-white spinner track is invisible; state the
    track against the plate rather than the card. */
-.qr-code-placeholder .seams-spinner {
+[data-seams-root].seams-theme-provider .qr-code-placeholder .seams-spinner {
   width: 28px;
   height: 28px;
   border-radius: 999px;
@@ -207,13 +207,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qr-code-placeholder {
+  [data-seams-root].seams-theme-provider .qr-code-placeholder {
     animation: none;
   }
 }
 
-.qr-instruction,
-.qr-status {
+[data-seams-root].seams-theme-provider .qr-instruction,
+[data-seams-root].seams-theme-provider .qr-status {
   margin: 0;
   font-weight: 500;
   color: var(--seams-colors-textSecondary, #1e293b);
@@ -221,7 +221,7 @@
   text-wrap: pretty;
 }
 
-.qr-instruction {
+[data-seams-root].seams-theme-provider .qr-instruction {
   max-width: 34ch;
   font-size: 0.95rem;
   line-height: 1.45;
@@ -230,20 +230,20 @@
 /* The status is a running commentary on the pairing, not a peer of the
    instruction — one step quieter and smaller so the two lines stack as a
    hierarchy instead of a paragraph. */
-.qr-status {
+[data-seams-root].seams-theme-provider .qr-status {
   margin-bottom: 0.25rem;
   color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 25%);
   font-size: 0.8125rem;
   line-height: 1.4;
 }
 
-.animated-ellipsis {
+[data-seams-root].seams-theme-provider .animated-ellipsis {
   display: inline-block;
   width: 1.2em;
   text-align: left;
 }
 
-.animated-ellipsis::after {
+[data-seams-root].seams-theme-provider .animated-ellipsis::after {
   content: '...';
   animation: ellipsis 1.5s infinite;
 }
@@ -266,7 +266,7 @@
   }
 }
 
-.qr-code-image {
+[data-seams-root].seams-theme-provider .qr-code-image {
   width: 100%;
   max-width: 200px;
   height: auto;
@@ -276,7 +276,7 @@
 /* Failure view. Same skeleton as the link-device confirmation — badge, title,
    copy, one control. Styles are restated here because ShowQRCode is also
    shared by device-linking surfaces. */
-.seams-link-device-failure {
+[data-seams-root].seams-theme-provider .seams-link-device-failure {
   min-height: 300px;
   width: min(100%, 360px);
   margin-inline: auto;
@@ -289,7 +289,7 @@
   text-align: center;
 }
 
-.seams-link-device-failure-icon {
+[data-seams-root].seams-theme-provider .seams-link-device-failure-icon {
   width: 56px;
   height: 56px;
   display: grid;
@@ -303,7 +303,7 @@
 /* The detail is a raw error string, so it is sized and coloured as evidence
    rather than as prose: quiet, tight, and allowed to break mid-token so a long
    technical message wraps instead of forcing the card wider. */
-.seams-link-device-failure-detail {
+[data-seams-root].seams-theme-provider .seams-link-device-failure-detail {
   max-width: 34ch;
   margin: 0;
   color: color-mix(in srgb, var(--seams-colors-textSecondary, #64748b), transparent 15%);
@@ -316,7 +316,7 @@
 
 /* Device-linking button styling keeps the button looking
    the same whether or not that sheet is loaded alongside this one. */
-.seams-link-device-failure .seams-link-device-btn {
+[data-seams-root].seams-theme-provider .seams-link-device-failure .seams-link-device-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,7 +336,9 @@
   font-size: 0.875rem;
 }
 
-.seams-link-device-failure .seams-link-device-btn:hover,
-.seams-link-device-failure .seams-link-device-btn:focus-visible {
+[data-seams-root].seams-theme-provider .seams-link-device-failure .seams-link-device-btn:hover,
+[data-seams-root].seams-theme-provider
+  .seams-link-device-failure
+  .seams-link-device-btn:focus-visible {
   background: var(--seams-colors-surface2, #f1f5f9);
 }

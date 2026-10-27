@@ -4,21 +4,27 @@ import type { IconProps } from './strokeIcon';
 // The svg frame every lucide stroke icon here shares; `name` is the lucide icon name.
 export function lucideIconSvg(
   name: string,
-  { size = 24, className, strokeWidth = 2, ...rest }: IconProps,
+  { size = 24, width = size, height = size, className, strokeWidth = 2, style, ...rest }: IconProps,
   shapes: React.ReactNode,
 ): React.ReactElement {
+  const iconStyle = {
+    '--seams-icon-width': typeof width === 'number' ? `${width}px` : width,
+    '--seams-icon-height': typeof height === 'number' ? `${height}px` : height,
+    ...style,
+  };
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
+      width={width}
+      height={height}
+      style={iconStyle}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={`lucide lucide-${name}-icon lucide-${name}${className ? ` ${className}` : ''}`}
+      className={`seams-icon seams-icon-${name}${className ? ` ${className}` : ''}`}
       aria-hidden="true"
       focusable="false"
       {...rest}
