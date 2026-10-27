@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact @seams/wallet and @seams/wallet-server version
+        description: Exact Wallet, server, and VoiceID package version
         required: true
         type: string
       package:

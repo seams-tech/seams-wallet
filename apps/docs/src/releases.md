@@ -1,15 +1,37 @@
 ---
-title: Release 0.22.0
-description: Current SDK, server, CLI, and hosted runtime requirements for Seams Wallet 0.22.0.
+title: Release 0.24.0
+description: Optional VoiceID authentication and the 0.24.0 Wallet package requirements.
 ---
 
-# Release 0.22.0
+# Release 0.24.0
+
+Version **0.24.0** adds optional VoiceID enrollment, unlock, and reviewed NEAR and Arc testnet signing.
+
+| Component | Version |
+| --- | --- |
+| Browser SDK `@seams/wallet` | **0.24.0** |
+| Server SDK `@seams/wallet-server` | **0.24.0** |
+| Optional plugin `@seams/voiceid` | **0.24.0** |
+| Wallet iframe protocol | **17.0.0** |
+
+VoiceID models and inference code ship in `@seams/voiceid`. The base Wallet package has no VoiceID model or engine payload.
+Import `voiceIdAuthMethod` from `@seams/voiceid` and explicitly enable it in `authMethods`.
+The Wallet host operator also installs the plugin assets with `seams-voiceid-host`.
+Enabling the descriptor alone causes no VoiceID download.
+
+The first VoiceID operation shows one download indicator for the engine and three models, then **Preparing VoiceID…**.
+Voice samples persist until the owner changes or removes them. Speaker verification remains at 0.5.
+`VoiceBeam` and `VoiceAssistantCard` now come from `@seams/voiceid/react`; card styles come from `@seams/voiceid/styles`.
+
+## Previous releases
+
+## Release 0.22.0
 
 These docs target version **0.22.0** of the browser and server SDKs. The recovery CLI uses **0.21.0**.
 
 Prepared on 2026-10-25. Check npm publication and each hosted deployment separately.
 
-## Changes in 0.22.0
+### Changes in 0.22.0
 
 - The unlock menu shows saved wallets while authentication prepares.
 - Transaction settings provide a review switch and modal or drawer layouts.
@@ -27,25 +49,25 @@ Prepared on 2026-10-25. Check npm publication and each hosted deployment separat
 The CLI pins a new prelaunch recovery root. Recovery packages signed under the earlier root
 need new packages and certificates. The old root has no continuity bridge.
 
-## Recovery security
+### Recovery security
 
 The browser SDK removes passkey PRF outputs before it sends recovery assertions to the server.
 The server rejects recovery assertions and registrations that still contain extension output values.
 ECDSA signing step-up and key-export proofs also omit PRF output, and the server requires redacted assertions.
 Recovery administration requires a fresh, operation-bound full-owner proof.
 
-## Documentation
+### Documentation
 
 The Japanese docs now cover the complete documentation site, including deployment, recovery, examples, and API references.
 The formal verification docs distinguish proved invariants from assumptions and remaining work.
 
-## Hosted wallet controls
+### Hosted wallet controls
 
 - Hosted authentication confirms success before closing and returning the result to the app.
 - Cancelling a menu before it opens prevents the wallet host from showing it.
 - Account panels, key export rows, and QR camera views fit narrow screens and scaled hosts.
 
-## English and Japanese controls
+### English and Japanese controls
 
 This release aligns the browser and server SDKs at `0.22.0`. The recovery CLI uses `0.21.0`.
 The wallet iframe protocol remains 16.0.0.
@@ -69,7 +91,7 @@ Applications provide translations for their own headings and custom copy overrid
 Pin the exact `0.22.0` browser and server packages in Console and deploy the matching wallet-origin assets.
 An application-only update cannot translate an older hosted wallet build.
 
-## Integration
+### Integration
 
 Install the browser SDK through [Start here](/). Follow
 [hosted integration](/deploy-and-operate/hosted-integration) for the wallet host
@@ -90,7 +112,7 @@ Registration defaults to a server-assigned wallet ID. Omit `wallet` in
 Omit `signerSelection` to use the configured chains and provisioning defaults.
 Custom signer selections remain available.
 
-## Deployment
+### Deployment
 
 Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
 both Derivers, and Signing Worker. Apply the packaged D1 migrations before the
@@ -101,7 +123,7 @@ hosted deployment are separate steps. Follow the
 [production checklist](/deploy-and-operate/production-checklist) and verify the
 [recovery CLI](/deploy-and-operate/recovery-cli) before relying on recovery tooling.
 
-## Prepared NEAR connector
+### Prepared NEAR connector
 
 Each wallet is explicitly enabled through `wallets`. The demo and examples select
 Meteor only. `setWallets` supports runtime changes, including an empty list to

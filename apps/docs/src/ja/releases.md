@@ -1,15 +1,38 @@
 ---
-title: リリース 0.22.0
-description: Seams Wallet 0.22.0のSDK、サーバー、CLI、ホスト環境のランタイム要件。
+title: リリース 0.24.0
+description: オプションのVoiceID認証とWallet 0.24.0のパッケージ要件。
 ---
 
-# リリース 0.22.0 {#release-0-22-0}
+# リリース 0.24.0
+
+バージョン **0.24.0** では、VoiceIDの登録、アンロック、NEARおよびArcテストネットの取引承認を利用できます。
+
+| 構成要素 | バージョン |
+| --- | --- |
+| ブラウザーSDK `@seams/wallet` | **0.24.0** |
+| サーバーSDK `@seams/wallet-server` | **0.24.0** |
+| オプションプラグイン `@seams/voiceid` | **0.24.0** |
+| Wallet iframeプロトコル | **17.0.0** |
+
+VoiceIDのモデルと推論コードは、別パッケージの `@seams/voiceid` に含まれます。
+基本のWalletパッケージには、VoiceIDのモデルや推論エンジンは含まれません。
+`voiceIdAuthMethod` を `@seams/voiceid` からインポートし、`authMethods` で明示的に有効にします。
+Walletホストの運用者も、`seams-voiceid-host` を使ってプラグインのアセットを配置します。
+設定を有効にするだけでは、VoiceIDのダウンロードは始まりません。
+
+初回のVoiceID操作では、エンジンと3つのモデルに共通の進捗バーを表示し、その後に **Preparing VoiceID…** を表示します。
+音声サンプルは、所有者が変更または削除するまで保持されます。話者照合のしきい値は0.5です。
+`VoiceBeam` と `VoiceAssistantCard` は `@seams/voiceid/react` から、カードのスタイルは `@seams/voiceid/styles` から読み込みます。
+
+## 過去のリリース
+
+## リリース 0.22.0 {#release-0-22-0}
 
 このドキュメントは、ブラウザーSDKとサーバーSDKのバージョン**0.22.0**を対象とします。復元CLIは**0.21.0**です。
 
 2026-10-25に準備しました。npmへの公開と各ホスト環境へのデプロイは、個別に確認してください。
 
-## 0.22.0の変更点 {#changes-in-0-22-0}
+### 0.22.0の変更点 {#changes-in-0-22-0}
 
 - アンロックメニューは、認証の準備中に保存済みウォレットを表示します。
 - トランザクション設定には、確認スイッチとモーダルまたはドロワーの表示形式があります。
@@ -27,25 +50,25 @@ description: Seams Wallet 0.22.0のSDK、サーバー、CLI、ホスト環境の
 CLIは公開前に交換した新しい復元ルートを固定します。以前のルートで署名した復元パッケージには、
 新しいパッケージと証明書が必要です。古いルートとの継続ブリッジはありません。
 
-## 復元の安全性 {#recovery-security}
+### 復元の安全性 {#recovery-security}
 
 ブラウザーSDKは、復元の認証情報をサーバーへ送る前にパスキーPRF出力を取り除きます。
 サーバーは、拡張機能の出力値が残る復元の認証情報と登録情報を拒否します。
 ECDSA署名の追加認証と鍵エクスポートの証明もPRF出力を送らず、サーバーは除去済みの認証情報だけを受け付けます。
 復元の管理には、操作に結び付いた新しい完全所有者の証明が必要です。
 
-## ドキュメント {#documentation}
+### ドキュメント {#documentation}
 
 日本語ドキュメントは、デプロイ、復元、実装例、APIリファレンスを含むサイト全体に対応しました。
 形式検証のドキュメントでは、証明済みの不変条件、仮定、残る作業を区別します。
 
-## ホストするウォレットの操作 {#hosted-wallet-controls}
+### ホストするウォレットの操作 {#hosted-wallet-controls}
 
 - ホスト環境での認証は、成功を確認してから画面を閉じ、アプリへ結果を返します。
 - メニューが開く前にキャンセルすると、ウォレットホストはメニューを表示しません。
 - アカウントパネル、鍵のエクスポート行、QRカメラ画面は、狭い画面や拡大縮小したホストに収まります。
 
-## 英語と日本語の表示 {#english-and-japanese-controls}
+### 英語と日本語の表示 {#english-and-japanese-controls}
 
 このリリースでは、ブラウザーSDKとサーバーSDKを`0.22.0`に統一します。復元CLIは`0.21.0`です。
 ウォレットiframeプロトコルは16.0.0のままです。
@@ -69,7 +92,7 @@ SDKのプレビューでも、`AccountMenuButtonMock`と`SeamsAuthMenuMock`の`l
 Consoleのブラウザー・サーバーパッケージを正確な`0.22.0`に固定し、対応するウォレットオリジンのアセットをデプロイしてください。
 アプリだけを更新しても、古いホスト環境のウォレットは翻訳されません。
 
-## 導入 {#integration}
+### 導入 {#integration}
 
 [はじめに](/ja/)に従ってブラウザーSDKをインストールしてください。
 ウォレットホストとバックエンドについては、[ホスト環境への導入](/ja/deploy-and-operate/hosted-integration)を参照してください。
@@ -89,7 +112,7 @@ const { unlock, lock, wallet } = useSeams();
 設定済みチェーンと既定のプロビジョニングを使うには、`signerSelection`を省略してください。
 独自の署名対象も指定できます。
 
-## デプロイ {#deployment}
+### デプロイ {#deployment}
 
 対応するウォレットホスト、Gateway、Wallet Runtime、Router、コントロールプレーン、両Deriver、Signing Workerをデプロイしてください。
 各Workerがトラフィックを処理する前に、同梱のD1マイグレーションを適用してください。
@@ -97,7 +120,7 @@ const { unlock, lock, wallet } = useSeams();
 デプロイした各サービスのリリース識別情報を確認してください。パッケージの公開とホスト環境へのデプロイは別の手順です。
 [本番環境の確認事項](/ja/deploy-and-operate/production-checklist)に従い、復元ツールに依存する前に[復元CLI](/ja/deploy-and-operate/recovery-cli)を確認してください。
 
-## 準備中のNEARコネクター {#prepared-near-connector}
+### 準備中のNEARコネクター {#prepared-near-connector}
 
 各ウォレットは`wallets`で明示的に有効化します。デモと実装例はMeteorのみを選択します。
 `setWallets`による実行中の変更と、空のリストによる全無効化にも対応します。

@@ -35,13 +35,14 @@ fs.mkdirSync(tarballDirectory, { recursive: true });
 fs.mkdirSync(nodeModulesDirectory, { recursive: true });
 
 try {
+  const tarballs = [];
   for (const packageDefinition of packages) {
     const tarball = pack(packageDefinition.directory);
+    tarballs.push(tarball);
     const unpacked = unpack(tarball, packageDefinition.name);
     inspectPackage(unpacked, packageDefinition);
-    copyPackage(unpacked, packageDefinition.name);
   }
-  linkRuntimeDependencies();
+  installPackedPackages(tarballs);
   await smokePackedEntries();
   process.stdout.write('[check-packed-wallet-boundaries] passed\n');
 } finally {
@@ -118,30 +119,14 @@ function listFiles(directory) {
   return files;
 }
 
-function copyPackage(source, packageName) {
-  const destination = path.join(nodeModulesDirectory, packageName);
-  fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.cpSync(source, destination, { recursive: true });
-}
-
-function linkRuntimeDependencies() {
-  const dependencyNames = new Set();
-  for (const packageDefinition of packages) {
-    const packageJson = JSON.parse(
-      fs.readFileSync(path.join(repoRoot, packageDefinition.directory, 'package.json'), 'utf8'),
-    );
-    for (const section of ['dependencies', 'peerDependencies']) {
-      for (const name of Object.keys(packageJson[section] ?? {})) dependencyNames.add(name);
-    }
-  }
-  for (const name of dependencyNames) {
-    const source = path.join(repoRoot, 'node_modules', name);
-    if (!fs.existsSync(source)) continue;
-    const destination = path.join(nodeModulesDirectory, name);
-    if (fs.existsSync(destination)) continue;
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.symlinkSync(source, destination, 'dir');
-  }
+function installPackedPackages(tarballs) {
+  fs.writeFileSync(path.join(workDirectory, 'package.json'), JSON.stringify({
+    name: 'seams-release-consumer', private: true, type: 'module',
+  }));
+  execFileSync('npm', [
+    'install', '--ignore-scripts', '--no-audit', '--no-fund', '--no-package-lock',
+    '--strict-peer-deps', ...tarballs,
+  ], { cwd: workDirectory, stdio: 'pipe', env: process.env });
 }
 
 async function smokePackedEntries() {
