@@ -16,7 +16,8 @@ Version **0.24.0** adds optional VoiceID enrollment, unlock, and reviewed NEAR a
 
 VoiceID models and inference code ship in `@seams/voiceid`. The base Wallet package has no VoiceID model or engine payload.
 Import `voiceIdAuthMethod` from `@seams/voiceid` and explicitly enable it in `authMethods`.
-The Wallet host operator also installs the plugin assets with `seams-voiceid-host`.
+The Wallet host operator installs the plugin assets with `seams-voiceid-host ./wallet-with-voiceid`.
+See [VoiceID setup](/concepts/auth-methods/voiceid) for the complete application and host steps.
 Enabling the descriptor alone causes no VoiceID download.
 
 The first VoiceID operation shows one download indicator for the engine and three models, then **Preparing VoiceID…**.

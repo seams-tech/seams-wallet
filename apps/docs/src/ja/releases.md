@@ -17,7 +17,8 @@ description: オプションのVoiceID認証とWallet 0.24.0のパッケージ�
 VoiceIDのモデルと推論コードは、別パッケージの `@seams/voiceid` に含まれます。
 基本のWalletパッケージには、VoiceIDのモデルや推論エンジンは含まれません。
 `voiceIdAuthMethod` を `@seams/voiceid` からインポートし、`authMethods` で明示的に有効にします。
-Walletホストの運用者も、`seams-voiceid-host` を使ってプラグインのアセットを配置します。
+Walletホストの運用者は、`seams-voiceid-host ./wallet-with-voiceid`でプラグインのアセットを配置します。
+アプリとホストの手順は[VoiceIDの設定](/ja/concepts/auth-methods/voiceid)を参照してください。
 設定を有効にするだけでは、VoiceIDのダウンロードは始まりません。
 
 初回のVoiceID操作では、エンジンと3つのモデルに共通の進捗バーを表示し、その後に **Preparing VoiceID…** を表示します。

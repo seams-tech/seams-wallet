@@ -37,17 +37,16 @@ contains no VoiceID implementation, engine, or models.
 Compose a separate deployment directory from the two installed packages:
 
 ```sh
-npx --no-install seams-voiceid-host \
-  node_modules/@seams/wallet/dist/public \
-  ./wallet-with-voiceid
+npx --no-install seams-voiceid-host ./wallet-with-voiceid
 ```
 
+The command finds the installed Wallet package automatically, including pnpm layouts.
 The output directory must be new and separate from the installed package trees.
 Serve its `/wallet-service`, `/sdk/*`, and manifest files from the Wallet origin.
 The command preserves the plain Wallet package and extends the existing asset
 manifest with `/sdk/voiceid/*`.
 
-Node deployments can call the same operation directly:
+Node deployments that compose a specific Wallet build can call the operation directly:
 
 ```ts
 import { composeVoiceIdWalletAssets } from '@seams/voiceid/hosting';

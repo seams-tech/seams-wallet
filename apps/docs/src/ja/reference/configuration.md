@@ -49,6 +49,14 @@ Seamsのプロバイダー設定は不要です。公開済みの`0.22.0`には�
 `walletServicePath`と`sdkBasePath`を、そのオリジンにデプロイしたアセットへ合わせてください。
 `rpIdOverride`は認証情報の範囲を変更するため、明示的なセキュリティレビューが必要です。
 
+## 任意のVoiceID {#optional-voiceid}
+
+SDK 0.24.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
+記述子は`@seams/voiceid`からインポートします。Walletホストにも、このパッケージのアセットが必要です。
+記述子は利用可能な方法を定めます。所有者は、登録とVoiceIDでのアンロックを別に選びます。
+パスキーやメールOTPの処理中は、エンジンやモデルを読み込みません。
+インストールとコード例は[VoiceIDの設定](/ja/concepts/auth-methods/voiceid)を参照してください。
+
 ## 登録の設定 {#registration-branch}
 
 管理型の登録には、現在のオリジン用に発行した`publishableKey`が必要です。

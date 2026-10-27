@@ -63,10 +63,13 @@ Use the published `@seams/wallet/web/wallet-iframe-client-html` asset only for t
 supported hosted-wallet build path. Keep package code and hosted assets on the
 same compatible release.
 
-## Release 0.22.0
+## Release 0.24.0
 
-Pin `@seams/wallet` and `@seams/wallet-server` to **0.22.0**. Pin `@seams/wallet-cli` to **0.21.0**.
-See [Release 0.22.0](/releases) for the supported integration.
+Pin `@seams/wallet` and `@seams/wallet-server` to **0.24.0**. Pin `@seams/wallet-cli` to **0.21.0**.
+VoiceID hosts also install `@seams/voiceid` **0.24.0** and compose the static deployment with
+`npx --no-install seams-voiceid-host ./wallet-with-voiceid`.
+See [VoiceID setup](/concepts/auth-methods/voiceid#prepare-the-wallet-host) for the app and host steps.
+See [Release 0.24.0](/releases) for the supported integration.
 
 APAC wallet objects request Southeast Asia placement through `apac-se`.
 Verify the actual object and database locations before accepting a hosted

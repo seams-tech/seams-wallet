@@ -17,6 +17,9 @@ importers:
 
   apps/docs:
     devDependencies:
+      '@seams/voiceid':
+        specifier: workspace:*
+        version: link:../../packages/voiceid
       '@seams/wallet':
         specifier: workspace:*
         version: link:../../packages/wallet

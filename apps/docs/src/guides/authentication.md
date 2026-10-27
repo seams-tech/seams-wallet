@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: Select passkey, email OTP, and step-up authentication flows while preserving wallet and application trust boundaries.
+description: Select passkey, Email OTP, optional VoiceID, and step-up authentication flows while preserving wallet and application trust boundaries.
 ---
 
 # Authentication
@@ -16,9 +16,9 @@ authentication method and handle each resulting state.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID** — a proposed additional proof for a high-risk operation. The published SDK
-  has no public VoiceID enrollment or authentication API. See the
-  [concept](/concepts/auth-methods/voiceid) for the intended boundary.
+- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.24.0.
+  Install `@seams/voiceid`, enable its descriptor, and prepare the Wallet host.
+  See [VoiceID setup](/concepts/auth-methods/voiceid) for code examples and enrollment steps.
 
 ## Keep auth state explicit
 

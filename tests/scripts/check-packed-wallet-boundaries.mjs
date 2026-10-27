@@ -12,10 +12,15 @@ const walletPackage = packageDefinition('packages/wallet', '@seams/wallet');
 const walletServerPackage = packageDefinition('packages/wallet-server', '@seams/wallet-server');
 const voiceIdPackage = packageDefinition('packages/voiceid', '@seams/voiceid');
 const packageTarget = process.argv[2] ?? 'all';
-assert.ok(['all', 'wallet', 'voiceid'].includes(packageTarget), `Unknown package target: ${packageTarget}`);
+assert.ok(
+  ['all', 'wallet', 'voiceid'].includes(packageTarget),
+  `Unknown package target: ${packageTarget}`,
+);
 assert.ok(process.argv.length <= 3, 'Expected one package target: all, wallet, or voiceid');
 const packages =
-  packageTarget === 'all' ? [walletPackage, walletServerPackage, voiceIdPackage] : [walletPackage, voiceIdPackage];
+  packageTarget === 'all'
+    ? [walletPackage, walletServerPackage, voiceIdPackage]
+    : [walletPackage, voiceIdPackage];
 const forbidden = [
   '@seams-internal/console',
   '@seams-internal/wallet-console',
@@ -81,7 +86,11 @@ function inspectPackage(packageDirectory, packageDefinition) {
   if (packageName === '@seams/wallet') {
     for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
       for (const dependency of ['@seams/voiceid', 'onnxruntime-web', 'voice-glow']) {
-        assert.equal(packageJson[section]?.[dependency], undefined, `${dependency} must remain opt-in`);
+        assert.equal(
+          packageJson[section]?.[dependency],
+          undefined,
+          `${dependency} must remain opt-in`,
+        );
       }
     }
   }
@@ -98,7 +107,10 @@ function inspectPackage(packageDirectory, packageDefinition) {
     const relativePath = path.relative(packageDirectory, file);
     if (packageName === '@seams/wallet') {
       assert.ok(!relativePath.endsWith('.onnx'), 'VoiceID models must not ship in @seams/wallet');
-      assert.ok(!relativePath.includes('ort-wasm'), 'VoiceID engine must not ship in @seams/wallet');
+      assert.ok(
+        !relativePath.includes('ort-wasm'),
+        'VoiceID engine must not ship in @seams/wallet',
+      );
     }
     assert.ok(!relativePath.endsWith('.map'), `${packageName} contains source map ${relativePath}`);
     if (!/\.(?:js|mjs|cjs|d\.ts|json|toml|sql)$/u.test(file) || file.endsWith('.wasm')) continue;
@@ -120,13 +132,27 @@ function listFiles(directory) {
 }
 
 function installPackedPackages(tarballs) {
-  fs.writeFileSync(path.join(workDirectory, 'package.json'), JSON.stringify({
-    name: 'seams-release-consumer', private: true, type: 'module',
-  }));
-  execFileSync('npm', [
-    'install', '--ignore-scripts', '--no-audit', '--no-fund', '--no-package-lock',
-    '--strict-peer-deps', ...tarballs,
-  ], { cwd: workDirectory, stdio: 'pipe', env: process.env });
+  fs.writeFileSync(
+    path.join(workDirectory, 'package.json'),
+    JSON.stringify({
+      name: 'seams-release-consumer',
+      private: true,
+      type: 'module',
+    }),
+  );
+  execFileSync(
+    'npm',
+    [
+      'install',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
+      '--no-package-lock',
+      '--strict-peer-deps',
+      ...tarballs,
+    ],
+    { cwd: workDirectory, stdio: 'pipe', env: process.env },
+  );
 }
 
 async function smokePackedEntries() {
@@ -135,7 +161,11 @@ async function smokePackedEntries() {
   const voiceUi = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react.js'));
   assert.equal(typeof voiceUi.VoiceAssistantCard, 'function');
   assert.ok('VoiceBeam' in voiceUi);
-  assert.ok(fs.existsSync(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react/VoiceAssistantCard.css')));
+  assert.ok(
+    fs.existsSync(
+      path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react/VoiceAssistantCard.css'),
+    ),
+  );
   const hosting = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/hosting.mjs'));
   const walletPublicDirectory = path.join(nodeModulesDirectory, '@seams/wallet/dist/public');
   const combined = await hosting.composeVoiceIdWalletAssets({
@@ -145,6 +175,48 @@ async function smokePackedEntries() {
   assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/host.js')));
   assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/aurora-int8.onnx')));
   assert.ok(!fs.existsSync(path.join(walletPublicDirectory, 'sdk/voiceid')));
+  const cliOutput = path.join(workDirectory, 'cli-wallet');
+  const cliResult = execFileSync('npx', ['--no-install', 'seams-voiceid-host', './cli-wallet'], {
+    cwd: workDirectory,
+    encoding: 'utf8',
+  });
+  assert.equal(fs.realpathSync(cliResult.trim()), fs.realpathSync(cliOutput));
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(cliOutput, 'wallet-assets.manifest.json'), 'utf8'),
+  );
+  const routes = manifest.assets.map(assetRoute);
+  for (const route of [
+    '/wallet-service',
+    '/sdk/voiceid-host.js',
+    '/sdk/voiceid/host.js',
+    '/sdk/voiceid/redimnet-b1.onnx',
+    '/sdk/voiceid/aurora-int8.onnx',
+    '/sdk/voiceid/silero-vad.onnx',
+    '/sdk/voiceid/ort-wasm-simd-threaded.wasm',
+  ]) {
+    assert.ok(routes.includes(route), `Composed Wallet host must serve ${route}`);
+  }
+  for (const asset of manifest.assets) {
+    assert.ok(fs.existsSync(path.join(cliOutput, asset.sourceFile)), asset.sourceFile);
+  }
+  assert.ok(!fs.existsSync(path.join(walletPublicDirectory, 'sdk/voiceid')));
+  const reportPath = path.join(repoRoot, '.artifacts/packed-wallet-boundaries/voiceid-host.json');
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(
+    reportPath,
+    JSON.stringify(
+      {
+        walletVersion: walletPackage.version,
+        voiceIdVersion: voiceIdPackage.version,
+        command: 'npx --no-install seams-voiceid-host ./cli-wallet',
+        installedFromTarballs: true,
+        walletPackageHasNoVoiceAssets: true,
+        routes,
+      },
+      null,
+      2,
+    ) + '\n',
+  );
   const runtime = await import(
     path.join(nodeModulesDirectory, '@seams/wallet/dist/esm/runtime.js')
   );
@@ -185,6 +257,10 @@ async function smokePackedEntries() {
   );
   assert.equal(artifactManifest.schemaVersion, 'seams_wallet_server_artifact_manifest_v1');
   assert.equal(artifactManifest.package.version, walletServerPackage.version);
+}
+
+function assetRoute(asset) {
+  return asset.route;
 }
 
 function packageDefinition(directory, name) {
