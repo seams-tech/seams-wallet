@@ -8,7 +8,12 @@ const artifacts = fileURLToPath(
 );
 const url = process.env.SEAMS_ACCOUNT_MOCK_URL || 'http://127.0.0.1:4017/account-menu-mock.html';
 const hostStyles = `
-  .customer-app button, .customer-app button[type], .customer-app a[href], .customer-app input[type], .customer-app select {
+  .customer-app button,
+  .customer-app button[type],
+  .customer-app a[href],
+  .customer-app input[type],
+  .customer-app select,
+  .customer-app textarea {
     box-sizing: content-box;
     display: block;
     width: 100%;
@@ -88,6 +93,9 @@ function measureControl(element) {
     border: style.border,
     radius: style.borderRadius,
     font: style.font,
+    lineHeight: style.lineHeight,
+    overflowWrap: style.overflowWrap,
+    resize: style.resize,
     textTransform: style.textTransform,
     letterSpacing: style.letterSpacing,
     shadow: style.boxShadow,
@@ -149,6 +157,9 @@ function recordResize() {
 function recordError(errors, error) {
   errors.push(error.message);
 }
+function pageOverflows() {
+  return document.documentElement.scrollWidth > innerWidth;
+}
 function setRtl() {
   document.documentElement.dir = 'rtl';
 }
@@ -205,14 +216,22 @@ try {
   await captureScreen(page, 'rtl-host-css');
   await back(page);
   await page.evaluate(setLtr);
-  await page.locator('[data-account-menu-item="export-keys"]').click();
-  await expect(page.getByRole('heading', { name: 'Export keys', exact: true })).toBeVisible();
-  await captureScreen(page, 'export-keys');
-  await page.getByRole('button', { name: /Export NEAR Key/ }).click();
+  await page.locator('[data-account-menu-item="signing-keys"]').click();
+  await expect(page.getByRole('heading', { name: 'Signing keys', exact: true })).toBeVisible();
+  await captureScreen(page, 'signing-keys');
+  await page
+    .locator('.seams-signing-key-row')
+    .filter({ hasText: 'Ed25519 · NEAR' })
+    .getByRole('button', { name: 'Export key', exact: true })
+    .click();
   await expect(page.getByRole('heading', { name: 'Export NEAR key', exact: true })).toBeVisible();
   await expect(page.getByText('Ed25519', { exact: true })).toBeVisible();
   await back(page);
-  await page.getByRole('button', { name: /Export EVM Keys/ }).click();
+  await page
+    .locator('.seams-signing-key-row')
+    .filter({ hasText: 'ECDSA · EVM' })
+    .getByRole('button', { name: 'Export key', exact: true })
+    .click();
   await expect(page.getByText('ECDSA', { exact: true })).toBeVisible();
   await back(page);
   await back(page);
@@ -338,7 +357,7 @@ try {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.locator('[data-account-menu-item="authentication-methods"]').click();
   await expect(page.locator('.seams-account-resize')).toHaveCSS('transition-duration', '0s');
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  assert.equal(await page.evaluate(pageOverflows), false);
   await captureScreen(page, 'mobile-reduced-motion');
   const portalUrl = new URL(url);
   portalUrl.searchParams.set('portal', '1');
@@ -456,6 +475,37 @@ try {
   await captureScreen(page, 'live-controlled-modal');
   await page.getByRole('button', { name: 'Close wallet settings', exact: true }).click();
   await expect(page.locator('dialog.seams-account-dialog')).toHaveCount(0);
+  const signingKeyEvidence = [];
+  for (const theme of ['light', 'dark']) {
+    catalogUrl.search = `?view=signing-key&portal=1&theme=${theme}`;
+    await page.setViewportSize({ width: theme === 'light' ? 460 : 320, height: 1000 });
+    await page.goto(catalogUrl.href);
+    const key = page.getByRole('region', { name: 'ML-DSA-65', exact: true });
+    const field = key.getByRole('textbox', {
+      name: 'ML-DSA public key (base64url)',
+      exact: true,
+    });
+    await expect(field).toBeVisible();
+    await expect(field).toHaveCSS('font-family', 'monospace');
+    await expect(field).toHaveCSS('resize', 'vertical');
+    const controls = key.locator('button, textarea, h2');
+    const clean = await measureMany(controls);
+    await page.evaluate(addHostControl);
+    await page.addStyleTag({ content: hostStyles });
+    const styled = await measureMany(controls);
+    assert.deepEqual(styled, clean, 'Host CSS must preserve ML-DSA key details and native fields');
+    await field.selectText();
+    await expect(field).toBeFocused();
+    await expect(field).toHaveCSS('outline-width', '2px');
+    await expect(
+      key.getByRole('button', { name: 'Default signing key', exact: true }),
+    ).toBeDisabled();
+    assert.equal(await page.evaluate(pageOverflows), false);
+    const appControl = await page.locator('#host-control').evaluate(measureControl);
+    assert.equal(appControl.textTransform, 'uppercase');
+    await captureScreen(page, `ml-dsa-key-details-${theme}`);
+    signingKeyEvidence.push({ theme, clean, styled, appControl });
+  }
   assert.deepEqual(walletRequests, []);
   assert.deepEqual(errors, []);
   await writeFile(
@@ -472,6 +522,7 @@ try {
         cleanLink,
         styledLink,
         surfaceEvidence,
+        signingKeyEvidence,
         resize,
         fit,
         walletRequests,

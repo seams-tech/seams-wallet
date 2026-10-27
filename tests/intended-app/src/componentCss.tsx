@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import { useState, type ReactElement } from 'react';
+import { SigningKeyDetails } from '@/react/components/AccountMenuButton/SigningKeyDetails';
 import { ExternalNearController } from '@seams/wallet/external-near';
 import { ExternalNearWalletPicker } from '@seams/wallet/react/external-near';
 import {
@@ -18,6 +19,7 @@ import {
   WalletSettingsPage,
   AccountMenuButton,
   defineSeamsConfig,
+  Theme,
 } from '@seams/wallet/react';
 import '@seams/wallet/react/styles';
 
@@ -81,6 +83,31 @@ let walletSurface: ReactElement | null = null;
 switch (view) {
   case 'account-settings-modal':
     walletSurface = <LiveSettingsModal />;
+    break;
+  case 'signing-key':
+    walletSurface = (
+      <Theme theme={params.get('theme') === 'dark' ? 'dark' : 'light'}>
+        <div className="seams-profile-button-morphable" style={{ width: 420, maxWidth: '100%' }}>
+          <div className="seams-signing-keys">
+            <SigningKeyDetails
+              title="ML-DSA-65"
+              account="alex.near"
+              status="Active on NEAR"
+              publicKey={`display-only-public-key-${'aBcD0123456789'.repeat(260)}`}
+              publicKeyLabel="ML-DSA public key (base64url)"
+              keyId="near-ml-dsa-65:preview"
+              onBack={ignorePreviewEvent}
+              onExport={ignorePreviewEvent}
+              exportNote="Export contains the standard FIPS ML-DSA seed."
+            >
+              <button type="button" className="seams-account-action" disabled>
+                Default signing key
+              </button>
+            </SigningKeyDetails>
+          </div>
+        </div>
+      </Theme>
+    );
     break;
   case 'settings':
     walletSurface = <WalletSettingsPage />;
