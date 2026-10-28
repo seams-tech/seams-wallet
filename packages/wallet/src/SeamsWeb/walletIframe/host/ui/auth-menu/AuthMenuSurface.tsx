@@ -992,7 +992,9 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             >
               {googleIcon()}
               <span>
-                <WalletText copy={viewModel.mode === 'login' ? 'Email code (Google)' : 'Continue with Google'} />
+                <WalletText
+                  copy={viewModel.mode === 'login' ? 'Unlock with email code' : 'Continue with Google'}
+                />
               </span>
             </button>
           ) : null}

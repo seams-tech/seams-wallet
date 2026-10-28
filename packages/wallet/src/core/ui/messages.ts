@@ -402,6 +402,7 @@ const walletMessages = [
   ['Create a wallet', 'ウォレットを作成'],
   ['Create wallet with passkey', 'パスキーでウォレットを作成'],
   ['Unlock with passkey', 'パスキーでロック解除'],
+  ['Unlock with email code', 'メールのコードでロック解除'],
   ['Saved wallets', '保存済みウォレット'],
   ['Generate another name', '別の名前を生成'],
   ['Other options', 'その他の方法'],
