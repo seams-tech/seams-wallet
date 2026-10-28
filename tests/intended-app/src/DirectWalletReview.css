@@ -1,3 +1,5 @@
 .seams-demo-direct-wallet-review {
-  display: none;
+  visibility: hidden;
+  width: min(420px, calc(100vw - 32px));
+  min-height: 1px;
 }
