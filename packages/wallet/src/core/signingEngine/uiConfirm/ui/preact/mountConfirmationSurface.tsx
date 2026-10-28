@@ -78,6 +78,7 @@ type ReceiptAnchor = {
   text: string | null;
   bounds: DOMRect;
   fontSize: string;
+  textGeometry: { bounds: DOMRect; lineCount: number } | null;
 };
 
 type ReceiptResize = {
@@ -97,9 +98,39 @@ function captureReceiptAnchors(surface: HTMLElement): ReceiptAnchor[] {
       text: element.textContent,
       bounds: element.getBoundingClientRect(),
       fontSize: getComputedStyle(element).fontSize,
+      textGeometry: element.matches('[role="status"]') ? receiptTextGeometry(element) : null,
     });
   }
   return anchors;
+}
+
+function receiptTextGeometry(element: HTMLElement): { bounds: DOMRect; lineCount: number } {
+  const range = element.ownerDocument.createRange();
+  range.selectNodeContents(element);
+  return { bounds: range.getBoundingClientRect(), lineCount: range.getClientRects().length };
+}
+
+function receiptAnchorTransform(anchor: ReceiptAnchor, element: HTMLElement): string {
+  const destination = element.getBoundingClientRect();
+  const fontScale = parseFloat(anchor.fontSize) / parseFloat(getComputedStyle(element).fontSize);
+  let scaleX = fontScale;
+  let scaleY = fontScale;
+  let left = anchor.bounds.left - destination.left;
+  let top = anchor.bounds.top - destination.top;
+  if (anchor.textGeometry) {
+    const text = receiptTextGeometry(element);
+    const source = anchor.textGeometry.bounds;
+    const target = text.bounds;
+    if (anchor.textGeometry.lineCount === text.lineCount && target.width > 0 && target.height > 0) {
+      // System fonts can change optical metrics with size. Match the text
+      // fragment bounds across the two layouts.
+      scaleX = source.width / target.width;
+      scaleY = source.height / target.height;
+      left = source.left - destination.left - (target.left - destination.left) * scaleX;
+      top = source.top - destination.top - (target.top - destination.top) * scaleY;
+    }
+  }
+  return `translate(${left}px, ${top}px) scale(${scaleX}, ${scaleY})`;
 }
 
 /**
@@ -270,13 +301,11 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
       for (const anchor of anchors) {
         const element = target.querySelector<HTMLElement>(anchor.selector);
         if (!element || element.textContent !== anchor.text) continue;
-        const destination = element.getBoundingClientRect();
         shared.add(element);
-        const scale = parseFloat(anchor.fontSize) / parseFloat(getComputedStyle(element).fontSize);
         const animation = element.animate(
           [
             {
-              transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
+              transform: receiptAnchorTransform(anchor, element),
               transformOrigin: 'top left',
             },
             {

@@ -524,6 +524,11 @@
   color: var(--seams-colors-textSecondary);
   font-size: 0.6875rem;
 }
+:where(.seams-wallet-ui) .seams-transaction-toast-text > strong {
+  font-weight: 550;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
 :where(.seams-wallet-ui) .seams-receipt-open {
   display: flex;
   align-items: center;
@@ -702,6 +707,8 @@
 :where(.seams-wallet-ui) .seams-receipt-morph-shell--hosted {
   width: 100vw;
   height: 100dvh;
+  border: 0;
+  box-shadow: none;
 }
 :where(.seams-wallet-ui) .seams-receipt-footer--hosted {
   transform: translateY(calc(100dvh - var(--seams-receipt-target-height)));
@@ -915,6 +922,7 @@
 }
 .seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
   z-index: 1;
+  align-content: start;
   background: transparent;
   box-shadow: none;
 }

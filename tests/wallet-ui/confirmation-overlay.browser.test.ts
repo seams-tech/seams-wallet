@@ -11,7 +11,7 @@ import { provisionalWalletIframeSurfaceGeometry, measuredWalletIframeSurfaceGeom
 import { walletIframeRequestIdFromBoundary, walletIframeSurfaceIdFromBoundary } from '/_test-sdk/esm/core/types/walletIframeIdentity.js';
 
 const iframe = document.createElement('iframe');
-iframe.src = '/confirmation-overlay-child';
+iframe.src = '/confirmation-overlay-child' + location.search;
 iframe.title = 'Wallet confirmation';
 const presentation = modalWalletIframeSurfacePresentation('Transaction receipt');
 const identity = requestSurfaceIdentity({
@@ -85,7 +85,7 @@ const surface = mountConfirmationSurface({
   parent: document.body,
   presentation: { variant: 'modal', context: 'wallet-iframe' },
   model: {
-    appearance: { palette: 'default', theme: { id: 'default', mode: 'light', colors: {} } },
+    appearance: { palette: 'default', theme: { id: 'default', mode: new URLSearchParams(location.search).get('theme') === 'dark' ? 'dark' : 'light', colors: {} } },
     content: {
       kind: 'transaction',
       capture: null,
@@ -181,7 +181,7 @@ function showReceipt(view) {
 `;
 
 function serveOverlayPage(route: Route) {
-  const child = route.request().url().endsWith('-child');
+  const child = new URL(route.request().url()).pathname.endsWith('-child');
   return route.fulfill({
     contentType: 'text/html',
     body: `<!doctype html><html><head>${buildTestBrowserImportMapHtml()}
@@ -310,6 +310,67 @@ function assertReceiptFrames(frames: ReceiptFrame[]): void {
     }
   }
 }
+
+function receiptTextBounds() {
+  const label = document.querySelector('[role="status"]');
+  if (!label) throw new Error('Receipt status is missing');
+  const range = document.createRange();
+  range.selectNodeContents(label);
+  const bounds = range.getBoundingClientRect();
+  return { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height };
+}
+
+function pauseReceiptAtStart(selector: string) {
+  const target = document.querySelector<HTMLButtonElement>(selector);
+  if (!target) throw new Error('Receipt control is missing');
+  target.click();
+  for (const animation of document.getAnimations()) {
+    if (animation.effect?.getTiming().iterations === Infinity) continue;
+    animation.pause();
+    animation.currentTime = 0;
+  }
+  const label = document.querySelector('[role="status"]');
+  if (!label) throw new Error('Receipt status is missing');
+  const range = document.createRange();
+  range.selectNodeContents(label);
+  const bounds = range.getBoundingClientRect();
+  return { top: bounds.top, left: bounds.left, width: bounds.width, height: bounds.height };
+}
+
+function finishReceiptAnimations() {
+  for (const animation of document.getAnimations()) {
+    if (animation.effect?.getTiming().iterations !== Infinity) animation.finish();
+  }
+}
+
+test('receipt title keeps its position and text dimensions when minimizing and expanding', async ({ page }, testInfo) => {
+  await injectImportMap(page);
+  await routePreactModules(page);
+  await page.route('**/confirmation-overlay-*', serveOverlayPage);
+  await page.goto('/confirmation-overlay-parent?theme=dark');
+  const child = page.frameLocator('iframe');
+  await child.getByRole('button', { name: 'Confirm', exact: true }).click();
+  const frame = page.frames()[1];
+  await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+  await expectCardBounds(page, 448);
+  const expanded = await frame.evaluate(receiptTextBounds);
+  const minimizeStart = await frame.evaluate(pauseReceiptAtStart, '.seams-review-toolbar button');
+  await frame.evaluate(finishReceiptAnimations);
+  await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+  await expectCardBounds(page, 352);
+  const minimized = await frame.evaluate(receiptTextBounds);
+  const expandStart = await frame.evaluate(pauseReceiptAtStart, '.seams-receipt-open');
+  await page.waitForTimeout(90);
+  await page.screenshot({ path: testInfo.outputPath('receipt-expand-midpoint.png') });
+  await frame.evaluate(finishReceiptAnimations);
+  await writeFile(testInfo.outputPath('receipt-text-motion.json'), JSON.stringify({ expanded, minimizeStart, minimized, expandStart }, null, 2));
+  expect(Math.abs(expanded.top - minimizeStart.top)).toBeLessThanOrEqual(2);
+  expect(Math.abs(expanded.left - minimizeStart.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(expanded.width - minimizeStart.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(minimized.top - expandStart.top)).toBeLessThanOrEqual(2);
+  expect(Math.abs(minimized.left - expandStart.left)).toBeLessThanOrEqual(2);
+  expect(Math.abs(minimized.width - expandStart.width)).toBeLessThanOrEqual(2);
+});
 
 test('review-to-receipt shell and footer stay inside the resizing iframe', async ({
   page,
