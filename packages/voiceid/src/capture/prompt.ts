@@ -17,7 +17,7 @@ const CSS = `
   margin: 0 auto;
   padding: 3.5rem 1.5rem 1.5rem;
   display: grid;
-  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) 5rem;
+  grid-template-rows: auto minmax(6rem, auto) 5rem minmax(3.375rem, auto) minmax(5rem, auto);
   border: 1px solid var(--seams-colors-borderPrimary, #303b41);
   border-radius: var(--seams-shape-card, 16px);
   background: var(--seams-colors-colorBackground, #192024);

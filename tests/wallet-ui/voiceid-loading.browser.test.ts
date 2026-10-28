@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -27,7 +27,9 @@ class LoadingServer {
       { encoding: 'utf8' },
     ),
   );
-  private failEngine = true;
+  readonly failures = new Map([[assetPaths[0], 2]]);
+  readonly corrupted = new Set<string>();
+  readonly stallOnce = new Set<string>();
 
   async start(): Promise<string> {
     this.server.on('request', this.handle);
@@ -77,9 +79,15 @@ class LoadingServer {
       response.end(chunk?.code ?? '');
       return;
     }
-    if (pathname === assetPaths[0] && this.failEngine) {
-      this.failEngine = false;
+    const failures = this.failures.get(pathname) ?? 0;
+    if (failures > 0) {
+      this.failures.set(pathname, failures - 1);
       response.writeHead(503).end();
+      return;
+    }
+    if (this.stallOnce.delete(pathname)) {
+      response.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+      response.flushHeaders();
       return;
     }
     const permitted = [...assetPaths, '/sdk/voiceid/ort-wasm-simd-threaded.mjs', '/sdk/wallet-ui.css'];
@@ -88,6 +96,7 @@ class LoadingServer {
       return;
     }
     const bytes = readFileSync(assetFile(pathname));
+    if (this.corrupted.has(pathname)) bytes[0] ^= 1;
     response.setHeader('Content-Type', assetContentType(pathname));
     response.setHeader('Content-Length', bytes.length);
     for (let offset = 0; offset < bytes.length; offset += 131_072) {
@@ -188,11 +197,24 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
     await page.goto(origin);
     expect(server.requests.filter(isAsset)).toEqual([]);
     await page.getByRole('button', { name: 'Load VoiceID' }).click();
-    await expect(page.locator('body')).toHaveAttribute('data-result', 'failed');
-    await expect(page.getByText('VoiceID engine is unavailable from this Wallet.')).toBeVisible();
+    const retry = page.getByRole('button', { name: 'Retry loading' });
+    await expect(retry).toBeVisible();
+    await expect(
+      page.getByText('VoiceID engine download was interrupted. Check your connection and retry.'),
+    ).toBeVisible();
+    expect(server.requests.filter(isAsset)).toEqual([assetPaths[0], assetPaths[0]]);
+    const failedRequests = [...server.requests];
+    await page.screenshot({ path: testInfo.outputPath('retry-loading.png') });
+    await page.getByRole('button', { name: 'Cancel loading' }).click();
+    await expect(page.locator('body')).toHaveAttribute('data-result', 'cancelled');
+    expect(server.requests.filter(isAsset)).toEqual([assetPaths[0], assetPaths[0]]);
+
+    server.failures.set(assetPaths[0], 2);
+    await page.getByRole('button', { name: 'Load VoiceID' }).click();
+    await expect(retry).toBeVisible();
     server.requests.length = 0;
 
-    await page.getByRole('button', { name: 'Load VoiceID' }).click();
+    await retry.click();
     const meter = page.getByRole('progressbar', { name: 'VoiceID download' });
     await expect(meter).toHaveCount(1);
     await expect(page.getByText(/Downloading VoiceID: .*%/)).toBeVisible();
@@ -222,11 +244,32 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
       expect(requiredDownloads(repairCache)).toEqual(['/sdk/voiceid/aurora-int8.onnx']);
     }
     server.requests.length = 0;
+    server.failures.set('/sdk/voiceid/aurora-int8.onnx', 1);
     await page.getByRole('button', { name: 'Load VoiceID' }).click();
     await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', { timeout: 60_000 });
     // WebKit can discard Cache Storage on navigation. Only absent or invalid bytes may refetch.
-    expect(server.requests.filter(isAsset)).toEqual(requiredDownloads(repairCache));
+    const repairDownloads = requiredDownloads(repairCache);
+    if (repairDownloads.includes('/sdk/voiceid/aurora-int8.onnx')) {
+      const phraseIndex = repairDownloads.indexOf('/sdk/voiceid/aurora-int8.onnx');
+      repairDownloads.splice(phraseIndex, 0, '/sdk/voiceid/aurora-int8.onnx');
+    }
+    expect(server.requests.filter(isAsset)).toEqual(repairDownloads);
     const repairedRequests = [...server.requests];
+
+    await page.evaluate(corruptCachedPhrase);
+    await page.reload();
+    server.requests.length = 0;
+    server.corrupted.add('/sdk/voiceid/aurora-int8.onnx');
+    await page.getByRole('button', { name: 'Load VoiceID' }).click();
+    await expect(retry).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByText('Phrase recognition integrity check failed. Retry loading.'),
+    ).toBeVisible();
+    expect(server.requests.filter(isPhraseAsset)).toHaveLength(1);
+    const integrityRequests = [...server.requests];
+    server.corrupted.clear();
+    await retry.click();
+    await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', { timeout: 60_000 });
 
     await page.reload();
     const warmCache = await page.evaluate(cacheSummary);
@@ -241,12 +284,20 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
         {
           status: 'passed',
           realModels: true,
+          failedRequests,
+          recovery: [
+            'bounded_automatic_retry',
+            'explicit_retry',
+            'cancel_during_retry',
+            'transient_cache_repair',
+          ],
           cold,
           coldRequests,
           coldCache,
           corrupted,
           repairCache,
           repairedRequests,
+          integrityRequests,
           warmCache,
           warmRequests: server.requests,
         },
@@ -261,6 +312,58 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
 
 function isAsset(request: string): boolean {
   return assetPaths.includes(request);
+}
+
+test(
+  'a stalled VoiceID download times out and recovers with one automatic retry',
+  runStalledDownload,
+);
+
+async function runStalledDownload({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+  test.setTimeout(90_000);
+  const server = new LoadingServer();
+  server.failures.clear();
+  server.stallOnce.add(assetPaths[0]);
+  try {
+    const origin = await server.start();
+    await page.clock.install();
+    await page.goto(origin);
+    await page.getByRole('button', { name: 'Load VoiceID' }).click();
+    await expect.poll(engineRequestCount.bind(null, server)).toBe(1);
+    await page.clock.fastForward(30_001);
+    await expect.poll(engineRequestCount.bind(null, server)).toBe(2);
+    await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', { timeout: 60_000 });
+    expect(engineRequestCount(server)).toBe(2);
+    await page.screenshot({ path: testInfo.outputPath('recovered-from-stall.png') });
+    writeFileSync(
+      testInfo.outputPath('voiceid-stalled-download.json'),
+      JSON.stringify(
+        {
+          status: 'passed',
+          idleTimeoutMs: 30_000,
+          engineRequests: engineRequestCount(server),
+          realPhraseModelMatched: true,
+          requests: server.requests,
+        },
+        null,
+        2,
+      ),
+    );
+  } finally {
+    server.close();
+  }
+}
+
+function engineRequestCount(server: LoadingServer): number {
+  return server.requests.filter(isEngineAsset).length;
+}
+
+function isEngineAsset(request: string): boolean {
+  return request === assetPaths[0];
+}
+
+function isPhraseAsset(request: string): boolean {
+  return request === '/sdk/voiceid/aurora-int8.onnx';
 }
 
 function isDownloading(progress: Window['voiceLoadingObservations'][number]): boolean {

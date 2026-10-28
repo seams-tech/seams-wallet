@@ -57,6 +57,7 @@ export interface AuthMethodReviewApproval {
     confirm?: string;
   }>;
   readonly surface: HTMLElement;
+  prepare(signal: AbortSignal): Promise<void>;
   approve(signal: AbortSignal): Promise<AuthMethodApprovalResult>;
   consume(): void;
 }

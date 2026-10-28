@@ -149,6 +149,7 @@ void approvedWithRetry;
 // @ts-expect-error A review approval must supply its trusted host capture surface.
 const missingCaptureSurface: AuthMethodReviewApproval = {
   messages: approval.messages,
+  prepare: approval.prepare,
   approve: approval.approve,
   consume: approval.consume,
 };
@@ -156,6 +157,15 @@ void missingCaptureSurface;
 // @ts-expect-error Capture UI is a trusted DOM element, not raw markup.
 const captureMarkup: AuthMethodReviewApproval = { ...approval, surface: '<button>Record</button>' };
 void captureMarkup;
+
+// @ts-expect-error Preparation must finish before approval can start.
+const missingPreparation: AuthMethodReviewApproval = {
+  messages: approval.messages,
+  surface: approval.surface,
+  approve: approval.approve,
+  consume: approval.consume,
+};
+void missingPreparation;
 
 import type { VoiceCaptureEvent } from '../../packages/voiceid/src/browser/microphone';
 declare const captureStream: MediaStream;

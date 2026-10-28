@@ -189,6 +189,19 @@ export class TransactionReviewAdmission {
     this.notify('signing');
   };
 
+  async prepareAuthMethod(): Promise<void> {
+    this.assertPending();
+    if (this.authMethodPolicy.kind === 'required') {
+      await this.authMethodPolicy.approval.prepare(this.abortController.signal);
+    }
+    this.assertPending();
+    assertTransactionReviewValid(this.metadata.validity);
+  }
+
+  get requiresAuthMethodApproval(): boolean {
+    return this.authMethodPolicy.kind === 'required';
+  }
+
   async approveAuthMethod(): Promise<AuthMethodApprovalResult> {
     this.assertActive();
     if (this.authMethodPolicy.kind === 'disabled') return { kind: 'approved' };

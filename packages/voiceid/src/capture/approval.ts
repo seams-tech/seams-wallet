@@ -29,6 +29,8 @@ export type VoiceIdPolicy =
 type ApprovalState =
   | { readonly kind: 'pending' }
   | { readonly kind: 'preparing' }
+  | { readonly kind: 'prepared' }
+  | { readonly kind: 'authorizing' }
   | {
       readonly kind: 'listening';
       readonly binding: VoiceBinding;
@@ -219,6 +221,27 @@ export class VoiceIdApproval {
     return new VoiceIdApproval(review.validity.atMs, operationHash, walletId, confirmation);
   }
 
+  async prepare(signal: AbortSignal): Promise<void> {
+    if (this.state.kind !== 'pending') throw new Error('VoiceID preparation already started.');
+    this.state = { kind: 'preparing' };
+    this.prompt.title.textContent = 'VoiceID';
+    this.prompt.status.textContent = 'Loading VoiceID…';
+    try {
+      await prepareVoiceModelWithProgress(this.prompt.progress, signal);
+      signal.throwIfAborted();
+      if (this.state.kind !== 'preparing') throw new Error('VoiceID preparation was interrupted.');
+      if (Date.now() >= this.reviewExpiresAtMs) {
+        throw new TransactionReviewError('review_expired', 'This review has expired.');
+      }
+      this.prompt.progress.replaceChildren();
+      this.prompt.title.textContent = 'Read aloud';
+      this.state = { kind: 'prepared' };
+    } catch (error) {
+      this.state = { kind: 'closed' };
+      throw error;
+    }
+  }
+
   async approve(signal: AbortSignal): Promise<AuthMethodApprovalResult> {
     if (this.state.kind === 'approved') {
       if (
@@ -230,7 +253,7 @@ export class VoiceIdApproval {
       }
       return { kind: 'approved' };
     }
-    if (this.state.kind !== 'pending') throw new Error('Voice approval already started.');
+    if (this.state.kind !== 'prepared') throw new Error('Prepare VoiceID before voice approval.');
     if (
       !navigator.userActivation.isActive ||
       document.visibilityState !== 'visible' ||
@@ -238,8 +261,7 @@ export class VoiceIdApproval {
     ) {
       throw new Error('Open the Wallet review and select Confirm to start voice capture.');
     }
-    this.state = { kind: 'preparing' };
-    this.prompt.status.textContent = 'Loading VoiceID…';
+    this.state = { kind: 'authorizing' };
     try {
       const selected = await IndexedDBManager.resolveSelectedWalletAuthority(this.walletId);
       if (
@@ -253,8 +275,6 @@ export class VoiceIdApproval {
         this.walletId,
         selected.authMethod.walletAuthMethodId,
       );
-      await prepareVoiceModelWithProgress(this.prompt.progress);
-      this.prompt.progress.replaceChildren();
       let attempt = this.beginAttempt(signal);
       for (;;) {
         const { binding, deadline, remaining } = attempt;

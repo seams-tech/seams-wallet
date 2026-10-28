@@ -2,6 +2,7 @@ import { test, expect, type Page, type Route, type TestInfo } from '@playwright/
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import type {} from '../fixtures/ui/VoiceIdWalletHostProbe';
 
 type ProbeChunk = { fileName: string; code: string };
@@ -48,6 +49,18 @@ async function routeCss(route: Route): Promise<void> {
   await route.fulfill({ contentType: 'text/css', body: fs.readFileSync(file, 'utf8') });
 }
 
+async function routeVoiceAsset(route: Route): Promise<void> {
+  const file = path.basename(new URL(route.request().url()).pathname);
+  if (file.endsWith('.wasm')) await delay(1_000);
+  const bytes = fs.readFileSync(
+    path.resolve(import.meta.dirname, '../../packages/voiceid/dist/public/sdk/voiceid', file),
+  );
+  await route.fulfill({
+    contentType: file.endsWith('.mjs') ? 'text/javascript' : 'application/octet-stream',
+    body: bytes,
+  });
+}
+
 test(
   'a wallet review consumes only its current voice approval at the signing boundary',
   runVoiceJourney,
@@ -56,6 +69,7 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   await page.route('**/voiceid-probe/*', routeWalletProbe);
   await page.route('**/voiceid-wallet', routePage);
   await page.route('**/wallet-ui.css', routeCss);
+  await page.route('**/sdk/voiceid/*', routeVoiceAsset);
   await page.goto('/voiceid-wallet');
   const cases: string[] = [];
 
@@ -75,14 +89,19 @@ async function runVoiceJourney({ page }: { page: Page }, testInfo: TestInfo): Pr
   cases.push('arc_transfer_frozen_and_requires_fresh_voice');
 
 
-  await begin(page, 10_000);
+  await page.evaluate(startReview, 500);
+  await expect(page.locator('button.confirm')).not.toBeVisible();
+  await settled(page, 'cancelled', 0);
+  cases.push('confirm_unavailable_during_preparation', 'expired_review_cannot_finish_preparation');
+
+  await begin(page, 60_000);
   expect(await page.evaluate(tryPasskeySelection)).toContain('authentication method changed');
   expect(await page.evaluate(tryBypass)).toContain('current voice approval is required');
   await page.evaluate(cancelReview);
   await settled(page, 'cancelled', 0);
   cases.push('signing_without_voice_rejected', 'voice_review_cannot_prepare_a_passkey_lane');
 
-  await begin(page, 10_000);
+  await begin(page, 60_000);
   expect(await page.evaluate(tryChange)).toBe(true);
   expect(await page.evaluate(tryBypass)).toContain('current voice approval is required');
   await page.evaluate(cancelReview);
@@ -131,7 +150,8 @@ function startReview(timeoutMs: number): Promise<void> {
 }
 async function begin(page: Page, timeoutMs: number): Promise<void> {
   await page.evaluate(startReview, timeoutMs);
-  await expect(page.locator('button.confirm')).toBeVisible();
+  await expect(page.locator('button.confirm')).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('button.confirm')).toBeEnabled();
   await expect(page.locator('.seams-confirmation-surface')).not.toHaveAttribute('inert', '');
 }
 async function settled(page: Page, result: string, count: number): Promise<void> {

@@ -474,8 +474,21 @@ Its percentage does not restart between assets. After download completes, the
 card shows “Preparing VoiceID…” until all inference sessions are ready. Capture
 starts only after preparation. Cached assets are verified before reuse; an invalid
 entry is downloaded again. Storage failure leaves session-only operation available.
+An interrupted download receives one automatic retry. Thirty seconds without
+download progress counts as an interruption. Further failures keep the same card
+open with an explicit “Retry loading” control. Integrity failures require that
+explicit retry. Retry preserves verified assets and enrollment, and repeats only
+preparation. It cannot repeat activation, capture, or signing. Closing the card
+cancels preparation and allows the person to choose another authentication method.
+Missing host modules and incompatible host APIs have distinct errors. Other module
+load failures give connection, reload, and passkey recovery instructions.
+For a reviewed transaction, preparation finishes before the Confirm control becomes
+available. The voice attempt deadline starts only after Confirm. The transaction's
+absolute expiry remains in force during preparation and retry. An expired or
+cancelled review cannot become actionable when a pending load later completes.
 The [loading browser journey](../tests/wallet-ui/voiceid-loading.browser.test.ts)
-uses real models, throttled downloads, a failed request, cache corruption, and reload.
+uses real models, throttled downloads, repeated failures, cancellation, explicit
+retry, cache corruption, an integrity failure, and reload.
 
 ## Worker preparation
 

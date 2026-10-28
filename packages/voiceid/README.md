@@ -97,6 +97,16 @@ One cumulative indicator covers the engine WASM and three models. It then shows
 **Preparing VoiceID…** until inference is ready. Downloaded assets are checked by
 length and SHA-256 before use. Browser cache retention is best effort.
 
+Interrupted downloads receive one automatic retry. A stalled download times out
+after 30 seconds without progress. Further failures show **Retry loading** in the
+same card. Retry keeps verified assets and voice enrollment. Close the card to
+choose a passkey instead. A missing or incompatible host package requires an
+operator fix; other module failures include connection and reload instructions.
+
+Transaction reviews prepare VoiceID before enabling **Confirm with VoiceID**.
+The voice attempt timer starts after that click. The transaction's expiry remains
+in force while loading or retrying, so an expired transaction needs a fresh review.
+
 The package remains a roughly 27 MB cold payload before transfer compression.
 Splitting it removes that payload from Wallet-only installations. It does not
 reduce the bytes needed for the first VoiceID operation.

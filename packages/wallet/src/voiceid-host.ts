@@ -1,6 +1,6 @@
 // Trusted Wallet-host API used by the separately installed VoiceID implementation.
 // Keep these exports in the host bundle so the plugin shares Wallet state and workers.
-export const VOICE_ID_HOST_API_VERSION = 1;
+export const VOICE_ID_HOST_API_VERSION = 2;
 export type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 export type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
 export {

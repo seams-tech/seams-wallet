@@ -53,7 +53,7 @@ export async function prepareUnlockSurface(
       'Unlock with a passkey, then open Manage voice to import or record your enrollment.',
     );
   }
-  await prepareVoiceModelWithProgress(parent);
+  await prepareVoiceModelWithProgress(parent, signal);
   signal.throwIfAborted();
   input.assertActive();
   const challenge = await http.challenge({

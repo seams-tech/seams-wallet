@@ -345,7 +345,7 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
   private readonly navigation: ReviewNavigationState = { kind: 'review_available' };
   private readonly queuedDecisions: ConfirmUISurfaceDecision[] = [];
   private readonly decisionWaiters: Array<(decision: ConfirmUISurfaceDecision) => void> = [];
-  private phase: 'pending' | 'checking' | 'published' = 'pending';
+  private phase: 'preparing' | 'pending' | 'checking' | 'published' = 'pending';
   readonly cancelListeners = new Set<(detail: { error?: string }) => void>();
   readonly onBack: (() => void) | undefined;
   readonly callbacks = {
@@ -360,6 +360,27 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
 
   attachView(view: ConfirmationSurfaceController): void {
     this.view = view;
+    const admission = this.admission;
+    if (admission?.requiresAuthMethodApproval) void this.prepareAuthMethod(admission, view);
+  }
+
+  private async prepareAuthMethod(
+    admission: TransactionReviewAdmission,
+    view: ConfirmationSurfaceController,
+  ): Promise<void> {
+    this.phase = 'preparing';
+    view.update({
+      preparing: true,
+      authMethodCapture: admission.authMethodApprovalSurface,
+    });
+    try {
+      await admission.prepareAuthMethod();
+      if (this.phase !== 'preparing') return;
+      this.phase = 'pending';
+      view.update({ preparing: false, authMethodCapture: null });
+    } catch (error) {
+      this.cancel(error instanceof Error ? error.message : 'VoiceID preparation failed.');
+    }
   }
 
   private publishDecision(decision: ConfirmUISurfaceDecision): void {
@@ -375,8 +396,11 @@ class ConfirmationDecisionQueue implements ConfirmationDecisionChannel {
   }
 
   private back(): void {
-    if (this.phase === 'checking') this.cancel('Voice approval was cancelled.');
-    else if (this.admission) returnToApplicationReview(this.admission, this.navigation);
+    if (this.phase === 'preparing' || this.phase === 'checking') {
+      this.cancel('Voice approval was cancelled.');
+    } else if (this.admission) {
+      returnToApplicationReview(this.admission, this.navigation);
+    }
   }
 
   private cancel(error?: string): void {

@@ -146,7 +146,7 @@ function isModelOrEngine(name: string): boolean {
 
 test('a Wallet host rejects missing and incompatible VoiceID packages', async ({
   page,
-}) => {
+}, testInfo) => {
   const chunks: Chunk[] = JSON.parse(
     execFileSync(
       process.execPath,
@@ -170,7 +170,39 @@ test('a Wallet host rejects missing and incompatible VoiceID packages', async ({
   await page.waitForFunction(ready);
   await page.evaluate(enable);
   await expect(page.evaluate(load)).rejects.toThrow('VoiceID is incompatible with this Wallet host');
+  await page.route('**/sdk/voiceid/host.js', serveBrokenDependency);
+  await page.route('**/sdk/voiceid/missing.js', serveMissingDependency);
+  await page.reload();
+  await page.waitForFunction(ready);
+  await page.evaluate(enable);
+  await expect(page.evaluate(load)).rejects.toThrow('Check your connection and retry');
+  await writeFile(
+    testInfo.outputPath('voiceid-module-load-failures.json'),
+    JSON.stringify(
+      {
+        status: 'passed',
+        cases: [
+          'missing_package',
+          'incompatible_api',
+          'dependency_failure_is_not_reported_as_missing_package',
+        ],
+      },
+      null,
+      2,
+    ),
+  );
 });
+
+async function serveBrokenDependency(route: Route): Promise<void> {
+  await route.fulfill({
+    contentType: 'text/javascript',
+    body: 'import "./missing.js";',
+  });
+}
+
+async function serveMissingDependency(route: Route): Promise<void> {
+  await route.fulfill({ status: 503, body: 'Temporarily unavailable' });
+}
 
 async function serveIncompatiblePlugin(route: Route): Promise<void> {
   await route.fulfill({

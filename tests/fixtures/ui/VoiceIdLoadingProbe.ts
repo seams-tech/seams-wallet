@@ -14,10 +14,15 @@ window.voiceLoadingObservations = [];
 const start = document.createElement('button');
 start.textContent = 'Load VoiceID';
 start.addEventListener('click', begin);
+const cancel = document.createElement('button');
+cancel.textContent = 'Cancel loading';
+cancel.hidden = true;
+cancel.addEventListener('click', cancelLoading);
+let controller = new AbortController();
 const parent = document.createElement('section');
 parent.className = 'seams-wallet-ui seams-voiceid-activation-surface';
 parent.dataset.theme = 'dark';
-document.body.append(start, parent);
+document.body.append(start, cancel, parent);
 new MutationObserver(observe).observe(parent, { subtree: true, childList: true, attributes: true });
 
 function observe(): void {
@@ -33,7 +38,9 @@ function observe(): void {
 }
 
 async function begin(): Promise<void> {
+  controller = new AbortController();
   start.disabled = true;
+  cancel.hidden = false;
   window.voiceLoadingObservations = [];
   const prompt = new VoicePrompt(document, 'VoiceID', SPOKEN_PHRASES[0]);
   prompt.title.textContent = 'VoiceID';
@@ -42,7 +49,7 @@ async function begin(): Promise<void> {
   parent.replaceChildren(prompt.element);
   document.body.dataset.result = 'loading';
   try {
-    await prepareVoiceModelWithProgress(prompt.progress);
+    await prepareVoiceModelWithProgress(prompt.progress, controller.signal);
     const response = await fetch('/speech.wav');
     const audio = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(
       await response.arrayBuffer(),
@@ -53,8 +60,13 @@ async function begin(): Promise<void> {
     document.body.dataset.result = 'ready';
   } catch (error) {
     prompt.status.textContent = error instanceof Error ? error.message : String(error);
-    document.body.dataset.result = 'failed';
+    document.body.dataset.result = controller.signal.aborted ? 'cancelled' : 'failed';
   } finally {
     start.disabled = false;
+    cancel.hidden = true;
   }
+}
+
+function cancelLoading(): void {
+  controller.abort();
 }

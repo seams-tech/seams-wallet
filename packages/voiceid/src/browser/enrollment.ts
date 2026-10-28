@@ -61,7 +61,7 @@ export async function enrollBrowserVoice(
 ): Promise<void> {
   const parent = document.querySelector('.seams-voiceid-activation-surface');
   if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID activation in the Wallet.');
-  await prepareVoiceModelWithProgress(parent);
+  await prepareVoiceModelWithProgress(parent, signal);
   signal.throwIfAborted();
   const surface = new VoiceEnrollmentSurface(parent, plan, signal);
   try {

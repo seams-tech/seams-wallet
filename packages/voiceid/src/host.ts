@@ -2,7 +2,7 @@ import type { WalletAuthMethodHostPlugin } from '@seams/wallet/voiceid-host';
 import { showVoiceIdCaptureSurface, VoiceIdCaptureCancelledError } from './capture/surface';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 1;
+export const hostApiVersion = 2;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }
