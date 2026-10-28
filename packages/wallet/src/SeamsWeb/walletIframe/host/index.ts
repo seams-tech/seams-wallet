@@ -30,6 +30,7 @@ import {
 import { WalletIframeDomEvents } from '@/core/browser/walletIframe/events';
 import { isObject, isPlainObject } from '@shared/utils/validation';
 import { errorMessage } from '@shared/utils/errors';
+import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
 import type { WalletHostRuntimeState } from './runtimeContext';
 import {
   loadWalletHostRuntime,
@@ -145,6 +146,30 @@ function postExecutionMessage(
   if (state.executionGeneration === generation) post(message);
 }
 
+function postReviewCancellation(
+  post: (message: ChildToParentEnvelope) => void,
+  requestType: ParentToChildEnvelope['type'],
+  requestId: string | undefined,
+  error: Error,
+): void {
+  if (requestType === 'PM_SIGN_AND_SEND_TX') {
+    post({
+      type: 'PM_RESULT',
+      requestId,
+      payload: { ok: true, result: nearTransactionFailure(error, 'not_submitted') },
+    });
+    return;
+  }
+  post({
+    type: 'ERROR',
+    requestId,
+    payload: {
+      code: error instanceof TransactionReviewError ? error.code : 'cancelled',
+      message: error.message,
+    },
+  });
+}
+
 function executionRequestIsCancelled(
   state: WalletHostRuntimeState,
   generation: number,
@@ -234,7 +259,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     const ownsRequestId = typeof requestId === 'string' && req.type !== 'PM_CANCEL';
     if (ownsRequestId) {
       if (ownedRequestIds.has(requestId)) {
-        post({ type: 'ERROR', requestId, payload: { code: 'request_in_progress', message: 'Request identity is already active' } });
+        post({
+          type: 'ERROR',
+          requestId,
+          payload: { code: 'request_in_progress', message: 'Request identity is already active' },
+        });
         return;
       }
       ownedRequestIds.add(requestId);
@@ -243,6 +272,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
 
     let reviewAdmission: TransactionReviewAdmission | null = null;
+    let execution: 'admission' | 'runtime' = 'admission';
     try {
       const authMethodPolicy = req.type.startsWith('PM_SIGN_')
         ? await (await import('./runtimeContext')).walletAuthMethodReviewPolicy(state, req)
@@ -272,19 +302,11 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         reviewAdmission = new TransactionReviewAdmission(
           metadata,
           req.type === 'PM_SIGN_TEMPO' &&
-            req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
+          req.payload?.request.senderSignatureAlgorithm !== 'secp256k1'
             ? 'credential'
             : 'mpc',
           (payload) => postForRequest({ type: 'TRANSACTION_REVIEW_STATE', requestId, payload }),
-          (error) =>
-            postForRequest({
-              type: 'ERROR',
-              requestId,
-              payload: {
-                code: error instanceof TransactionReviewError ? error.code : 'cancelled',
-                message: error.message,
-              },
-            }),
+          postReviewCancellation.bind(null, postForRequest, req.type, requestId),
           authMethodPolicy,
         );
       }
@@ -409,8 +431,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
             const view =
               payload && typeof payload === 'object' ? Reflect.get(payload, 'view') : null;
             if (typeof target === 'string' && (view === 'toast' || view === 'closed')) {
-              const activity =
-                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity = await import(
+                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
+              );
               activity.setTransactionActivityView(target, view);
             }
             return;
@@ -422,8 +445,9 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
                 ? Reflect.get(payload, 'signedTransaction')
                 : null;
             if (typeof signedTransaction === 'string') {
-              const activity =
-                await import('@/core/signingEngine/uiConfirm/ui/transaction-activity');
+              const activity = await import(
+                '@/core/signingEngine/uiConfirm/ui/transaction-activity'
+              );
               activity.transactionBroadcastStarted(signedTransaction);
             }
             return;
@@ -462,6 +486,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       walletRuntimeRequested = true;
       const runtime = await loadWalletHostRuntime(route);
       if (requestExecutionGeneration !== state.executionGeneration) return;
+      execution = 'runtime';
       await runtime.handleWalletHostRuntimeRequest({
         transactionReview: reviewAdmission,
         state,
@@ -485,6 +510,17 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
       if (requestExecutionGeneration !== state.executionGeneration && req.type !== 'PM_SET_CONFIG')
         return;
       if (reviewAdmission?.cancelled) return;
+      if (
+        execution === 'admission' &&
+        (req.type === 'PM_SIGN_AND_SEND_TX' || req.type === 'PM_SEND_TRANSACTION')
+      ) {
+        postForRequest({
+          type: 'PM_RESULT',
+          requestId,
+          payload: { ok: true, result: nearTransactionFailure(err, 'not_submitted') },
+        });
+        return;
+      }
       const canonicalSignerErrors = await import('./canonicalSignerErrorCode');
       if (requestExecutionGeneration !== state.executionGeneration && req.type !== 'PM_SET_CONFIG')
         return;

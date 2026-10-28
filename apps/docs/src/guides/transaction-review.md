@@ -99,9 +99,14 @@ starts, the call preserves the wallet's actual result.
 
 ## Errors and styling
 
-Before dispatch, review failures reject with `TransactionReviewError` and invoke no
-signing callbacks. After dispatch, signing failures reject through the canonical
-transaction API. Existing connection and router errors retain their types.
+NEAR returns the [transaction outcome](/reference/results-and-errors#signing-and-actions)
+for review cancellation, pre-submission failure, and uncertain submission. Clear
+pending state and offer another review only for `not_submitted`. Retain a hash
+from `unresolved` until its chain outcome is known. Before dispatch, review
+failures invoke no signing callbacks.
+
+EVM and Tempo review failures before dispatch reject with `TransactionReviewError`.
+Their signing and transport failures retain the canonical methods' error contracts.
 
 | `TransactionReviewError.code` | Meaning |
 | --- | --- |

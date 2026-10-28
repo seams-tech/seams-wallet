@@ -14,6 +14,7 @@ import {
   reviewedConfirmationConfig,
 } from './snapshot';
 import type { ReviewHostController, ReviewOwner } from './controller';
+import { nearTransactionFailure } from '../../core/signingEngine/nearTransactionSubmission';
 
 type BoundReviewEnvironment = {
   readonly seams: SeamsWeb;
@@ -48,37 +49,44 @@ async function nearSign(
   env: BoundReviewEnvironment,
   args: Parameters<BoundNearSigner['signAndSendTransaction']>[0],
 ): ReturnType<BoundNearSigner['signAndSendTransaction']> {
-  if (!env.nearAccount)
-    throw new TransactionReviewError('review_identity_changed', 'This wallet has no NEAR account');
-  const { review, ...ordinary } = args;
-  if (review === undefined)
-    return env.seams.near.signAndSendTransaction({
-      ...ordinary,
+  try {
+    if (!env.nearAccount)
+      throw new TransactionReviewError(
+        'review_identity_changed',
+        'This wallet has no NEAR account',
+      );
+    const { review, ...ordinary } = args;
+    if (review === undefined)
+      return env.seams.near.signAndSendTransaction({
+        ...ordinary,
+        walletSession: env.walletSession,
+        nearAccount: env.nearAccount,
+      });
+    const host = requireHost(env);
+    const { options, actions, ...data } = ordinary;
+    const copied = snapshotTransactionInput({ ...data, actions: actions.map(snapshotNearAction) });
+    const reviewSnapshot = validateTransactionReview(review);
+    const copiedOptions = snapshotTransactionOptions(options ?? {});
+    reviewedConfirmationConfig(
+      { uiMode: 'modal', behavior: 'requireClick' },
+      copiedOptions.confirmationConfig,
+    );
+    const input = {
+      ...copied,
       walletSession: env.walletSession,
       nearAccount: env.nearAccount,
-    });
-  const host = requireHost(env);
-  const { options, actions, ...data } = ordinary;
-  const copied = snapshotTransactionInput({ ...data, actions: actions.map(snapshotNearAction) });
-  const reviewSnapshot = validateTransactionReview(review);
-  const copiedOptions = snapshotTransactionOptions(options ?? {});
-  reviewedConfirmationConfig(
-    { uiMode: 'modal', behavior: 'requireClick' },
-    copiedOptions.confirmationConfig,
-  );
-  const input = {
-    ...copied,
-    walletSession: env.walletSession,
-    nearAccount: env.nearAccount,
-    options: copiedOptions,
-  };
-  return host.run(
-    env.owner,
-    env.walletId,
-    reviewSnapshot,
-    copiedOptions.confirmationConfig,
-    dispatchNearSign.bind(null, input),
-  );
+      options: copiedOptions,
+    };
+    return await host.run(
+      env.owner,
+      env.walletId,
+      reviewSnapshot,
+      copiedOptions.confirmationConfig,
+      dispatchNearSign.bind(null, input),
+    );
+  } catch (error) {
+    return nearTransactionFailure(error, 'not_submitted');
+  }
 }
 
 function dispatchNearSign(

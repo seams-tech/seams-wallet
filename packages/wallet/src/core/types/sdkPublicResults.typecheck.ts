@@ -14,6 +14,21 @@ import type {
   RegistrationResult,
 } from './seams';
 import type { SignNEP413MessageResult, SyncAccountResult } from './sdkPublicResults';
+import type { FinalExecutionOutcome } from '@near-js/types';
+import { SignedTransaction } from '../rpcClients/near/NearClient';
+
+declare const finalExecutionOutcome: FinalExecutionOutcome;
+declare const signedTransaction: SignedTransaction;
+
+// @ts-expect-error SDK signed transactions require their reconciliation hash.
+SignedTransaction.fromPlain({
+  transaction: signedTransaction.transaction,
+  signature: signedTransaction.signature,
+  borsh_bytes: signedTransaction.borsh_bytes,
+});
+
+// @ts-expect-error the reconciliation hash cannot change after SDK construction.
+signedTransaction.transactionHash = 'different-hash';
 
 const walletId = walletIdFromString('frost-vermillion-k7p9m2');
 const nearEd25519SigningKeyId = nearEd25519SigningKeyIdFromString('ed25519ks_example');
@@ -67,11 +82,13 @@ void invalidEcdsaLoginSuccess;
 const actionSuccess: ActionResult = {
   success: true,
   transactionId: 'txid',
+  result: finalExecutionOutcome,
 };
 void actionSuccess;
 
 const actionFailure: ActionResult = {
   success: false,
+  kind: 'not_submitted',
   error: 'Action failed',
 };
 void actionFailure;
@@ -79,10 +96,40 @@ void actionFailure;
 // @ts-expect-error action failure cannot carry a transaction id.
 const invalidActionFailure: ActionResult = {
   success: false,
+  kind: 'not_submitted',
   error: 'Action failed',
   transactionId: 'txid',
 };
 void invalidActionFailure;
+
+const unresolvedAction: ActionResult = {
+  success: false,
+  kind: 'unresolved',
+  transactionId: 'txid',
+  error: 'Check this transaction before another send',
+};
+void unresolvedAction;
+
+// @ts-expect-error unresolved submission requires a transaction hash.
+const invalidUnresolvedAction: ActionResult = {
+  success: false,
+  kind: 'unresolved',
+  error: 'Lost reply',
+};
+void invalidUnresolvedAction;
+
+// @ts-expect-error an unknown submission cannot claim a transaction hash.
+const invalidUnknownAction: ActionResult = { ...unresolvedAction, kind: 'submission_unknown' };
+void invalidUnknownAction;
+
+// @ts-expect-error a failure cannot become success while retaining its failure branch.
+const invalidSpreadAction: ActionResult = {
+  ...actionFailure,
+  success: true,
+  transactionId: 'txid',
+  result: finalExecutionOutcome,
+};
+void invalidSpreadAction;
 
 const nep413Success: SignNEP413MessageResult = {
   success: true,

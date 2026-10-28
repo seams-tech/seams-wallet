@@ -62,6 +62,10 @@ import type {
 } from '@/core/types/sdkSentEvents';
 import type { WalletIframeTransportDiagnostics } from './transport/IframeTransport';
 import {
+  NearTransactionRequest,
+  parseNearTransactionResult,
+} from '@/core/signingEngine/nearTransactionSubmission';
+import {
   AccountSyncEventPhase,
   classifyLinkDeviceFlowEvent,
   createAccountSyncFlowEvent,
@@ -319,6 +323,7 @@ type Pending = {
 };
 
 type WalletIframePostOptionsBase = {
+  onDispatched?: () => void;
   transactionDispatch?: TransactionDispatch;
   requestId?: WalletIframeRequestId;
   shouldContinue?: () => boolean;
@@ -3976,39 +3981,44 @@ export class WalletIframeRouter {
     },
     transactionDispatch: TransactionDispatch = { kind: 'ordinary' },
   ): Promise<ActionResult> {
-    if (transactionDispatch.kind === 'reviewed') {
-      payload = {
-        ...payload,
-        options: {
-          ...payload.options,
-          confirmationConfig: transactionDispatch.reservation.confirmationConfig,
-        },
+    const request = new NearTransactionRequest({ kind: 'sign_and_send' });
+    try {
+      if (transactionDispatch.kind === 'reviewed') {
+        payload = {
+          ...payload,
+          options: {
+            ...payload.options,
+            confirmationConfig: transactionDispatch.reservation.confirmationConfig,
+          },
+        };
+      }
+      const { options } = payload;
+      // cannot send objects/functions through postMessage(), clean options first
+      const safeOptions = {
+        waitUntil: options.waitUntil,
+        ...(options.voiceId !== undefined ? { voiceId: options.voiceId } : {}),
+        confirmationConfig: options.confirmationConfig,
+        ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
+        ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
       };
-    }
-    const { options } = payload;
-    // cannot send objects/functions through postMessage(), clean options first
-    const safeOptions = {
-      waitUntil: options.waitUntil,
-      ...(options.voiceId !== undefined ? { voiceId: options.voiceId } : {}),
-      confirmationConfig: options.confirmationConfig,
-      ...(typeof options.signerSlot === 'number' ? { signerSlot: options.signerSlot } : {}),
-      ...(options.confirmerText ? { confirmerText: options.confirmerText } : {}),
-    };
 
-    const res = await this.post<ActionResult>(
-      {
-        type: 'PM_SIGN_AND_SEND_TX',
-        payload: {
-          walletId: payload.walletId,
-          nearAccountId: payload.nearAccountId,
-          transaction: payload.transaction,
-          options: safeOptions,
+      const res = await this.post<unknown>(
+        {
+          type: 'PM_SIGN_AND_SEND_TX',
+          payload: {
+            walletId: payload.walletId,
+            nearAccountId: payload.nearAccountId,
+            transaction: payload.transaction,
+            options: safeOptions,
+          },
+          options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
         },
-        options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
-      },
-      { transactionDispatch },
-    );
-    return res.result;
+        { transactionDispatch, onDispatched: request.dispatched },
+      );
+      return parseNearTransactionResult(res.result);
+    } catch (error) {
+      return request.failed(error);
+    }
   }
 
   async hasPasskeyCredential(walletId: string): Promise<boolean> {
@@ -4058,21 +4068,32 @@ export class WalletIframeRouter {
     signedTransaction: SignedTransaction;
     options?: SendTransactionHooksOptions;
   }): Promise<ActionResult> {
-    // Strip non-cloneable functions from options; host emits PROGRESS events
-    const { options } = args;
-    const safeOptions = options ? { waitUntil: options.waitUntil } : undefined;
-
-    const res = await this.post<ActionResult>({
-      type: 'PM_SEND_TRANSACTION',
-      payload: {
-        walletId: args.walletId,
-        nearAccountId: args.nearAccountId,
-        signedTransaction: args.signedTransaction,
-        options: safeOptions,
-      },
-      options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
+    const request = new NearTransactionRequest({
+      kind: 'send',
+      transactionId: args.signedTransaction.transactionHash,
     });
-    return res.result;
+    try {
+      // Strip non-cloneable functions from options; host emits PROGRESS events
+      const { options } = args;
+      const safeOptions = options ? { waitUntil: options.waitUntil } : undefined;
+
+      const res = await this.post<unknown>(
+        {
+          type: 'PM_SEND_TRANSACTION',
+          payload: {
+            walletId: args.walletId,
+            nearAccountId: args.nearAccountId,
+            signedTransaction: args.signedTransaction,
+            options: safeOptions,
+          },
+          options: { onProgress: this.wrapOnEvent(options?.onEvent, isSigningFlowEvent) },
+        },
+        { onDispatched: request.dispatched },
+      );
+      return parseNearTransactionResult(res.result);
+    } catch (error) {
+      return request.failed(error);
+    }
   }
 
   async resolveExactKeyExportLane(
@@ -4326,6 +4347,8 @@ export class WalletIframeRouter {
       this.progressBus.dispatch({ requestId: requestId, payload: payload });
       if (
         !this.reviews.has(requestId) &&
+        this.state.pending.get(requestId)?.requestType !== 'PM_SIGN_AND_SEND_TX' &&
+        this.state.pending.get(requestId)?.requestType !== 'PM_SEND_TRANSACTION' &&
         isWalletFlowEvent(payload) &&
         payload.status === 'cancelled'
       ) {
@@ -4596,6 +4619,7 @@ export class WalletIframeRouter {
 
           // Send message to iframe via MessagePort after its surface owns visibility.
           this.state.port!.postMessage(serializableFull);
+          postOpts?.onDispatched?.();
         } catch (err) {
           // Step 8: Handle send errors - clean up and reject
           this.state.pending.delete(requestId);
@@ -4794,6 +4818,7 @@ function normalizeSignedTransactionResult(result: SignTransactionResult): SignTr
       transaction: signedTransaction.transaction,
       signature: signedTransaction.signature,
       borsh_bytes: extractBorshBytesFromPlainSignedTx(signedTransaction),
+      transactionHash: signedTransaction.transactionHash,
       ...(nonceLease ? { nonceLease } : {}),
       ...(serverDispatch ? { serverDispatch } : {}),
     }),

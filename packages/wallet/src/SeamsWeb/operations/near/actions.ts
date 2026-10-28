@@ -19,6 +19,10 @@ import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import type { WalletSessionRef } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import { emitNearSigningEvent } from './signingEventHelpers';
 import { resolveNearCommandSubject } from './commandSubject';
+import {
+  nearTransactionFailure,
+  unresolvedNearTransaction,
+} from '@/core/signingEngine/nearTransactionSubmission';
 
 function signedTransactionSignerId(signedTransaction: SignedTransaction): string {
   const tx = signedTransaction.transaction;
@@ -185,23 +189,31 @@ export async function sendTransaction({
   signedTransaction: SignedTransaction;
   options?: SendTransactionHooksOptions;
 }): Promise<ActionResult> {
-  const commandSubject = resolveNearCommandSubject({ nearAccountId, walletSession });
-  const accountId = commandSubject.nearAccount.accountId;
-  assertSignedTransactionSubject({ signedTransaction, nearAccountId: accountId });
-  assertSignedTransactionReadiness(signedTransaction);
   const nonceLease = signedTransaction.nonceLease;
-  emitNearSigningEvent(options?.onEvent, accountId, {
-    phase: SigningEventPhase.STEP_12_BROADCAST_STARTED,
-    status: 'running',
-    interaction: { kind: 'none', overlay: 'none' },
-  });
-
+  let submission:
+    | { kind: 'not_started' }
+    | { kind: 'dispatching' }
+    | { kind: 'accepted'; transactionId: string } = { kind: 'not_started' };
   let transactionResult;
   let txId;
   try {
+    const commandSubject = resolveNearCommandSubject({ nearAccountId, walletSession });
+    const accountId = commandSubject.nearAccount.accountId;
+    assertSignedTransactionSubject({ signedTransaction, nearAccountId: accountId });
+    assertSignedTransactionReadiness(signedTransaction);
+    emitNearSigningEvent(options?.onEvent, accountId, {
+      phase: SigningEventPhase.STEP_12_BROADCAST_STARTED,
+      status: 'running',
+      interaction: { kind: 'none', overlay: 'none' },
+    });
     if (signedTransaction.serverDispatch) {
+      submission = { kind: 'dispatching' };
       transactionResult = signedTransaction.serverDispatch.rpcResult as FinalExecutionOutcome;
       txId = requireNearTransactionHash(signedTransaction.serverDispatch.transactionHash);
+      if (txId !== signedTransaction.transactionHash) {
+        throw new Error('NEAR dispatch returned a different transaction hash');
+      }
+      submission = { kind: 'accepted', transactionId: txId };
       if (nonceLease) {
         await context.signingEngine.getNonceCoordinator().markBroadcastAccepted({
           leaseId: nonceLease.leaseId,
@@ -237,11 +249,16 @@ export async function sendTransaction({
       };
     }
 
+    submission = { kind: 'dispatching' };
     transactionResult = await context.nearClient.sendTransaction(
       signedTransaction,
       options?.waitUntil,
     );
     txId = requireNearTransactionHash(transactionResult.transaction.hash);
+    if (txId !== signedTransaction.transactionHash) {
+      throw new Error('NEAR RPC returned a different transaction hash');
+    }
+    submission = { kind: 'accepted', transactionId: txId };
 
     if (nonceLease) {
       await context.signingEngine.getNonceCoordinator().markBroadcastAccepted({
@@ -280,25 +297,22 @@ export async function sendTransaction({
       // Surface full details at error level for visibility during debugging
       console.error('[sendTransaction] RPC error details:', details);
     }
-    try {
-      if (nonceLease) {
-        await context.signingEngine.getNonceCoordinator().markBroadcastRejected({
-          leaseId: nonceLease.leaseId,
-          operationId: nonceLease.operationId,
-          operationFingerprint: nonceLease.operationFingerprint,
-          error: e,
-        });
-      }
-    } catch (nonceError) {
-      console.warn('[sendTransaction]: Failed to release nonce after failure:', nonceError);
-    }
-    emitNearSigningEvent(options?.onEvent, accountId, {
+    emitNearSigningEvent(options?.onEvent, nearAccountId, {
       phase: SigningEventPhase.FAILED,
       status: 'failed',
       interaction: { kind: 'none', overlay: 'hide' },
       error: { message: e.message },
     });
-    throw e;
+    switch (submission.kind) {
+      case 'not_started':
+        return nearTransactionFailure(e, 'not_submitted');
+      case 'dispatching':
+        return unresolvedNearTransaction(signedTransaction.transactionHash, e);
+      case 'accepted':
+        return unresolvedNearTransaction(submission.transactionId, e);
+      default:
+        return assertNeverNearSubmission(submission);
+    }
   }
 
   return {
@@ -306,6 +320,10 @@ export async function sendTransaction({
     transactionId: txId,
     result: transactionResult,
   };
+}
+
+function assertNeverNearSubmission(value: never): never {
+  throw new Error(`Unsupported NEAR submission state: ${String(value)}`);
 }
 
 //////////////////////////////
@@ -361,8 +379,7 @@ async function signAndSendTransactionInternal({
       interaction: { kind: 'none', overlay: 'hide' },
       error: { message: short },
     });
-    options?.onError?.(e);
-    throw e;
+    return nearTransactionFailure(e, 'not_submitted');
   }
 }
 

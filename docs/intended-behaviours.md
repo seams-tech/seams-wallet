@@ -1631,11 +1631,31 @@ does not change, fills all three once signed, and labels only the first, Signed.
 
 NEAR transaction submission uses `near.signAndSendTransaction({ receiverId,
 actions, options })`, including React bindings. A single action is a one-element
-`actions` array. Signing and submission failures reject the promise through the
-existing send API; callers handle them with `try`/`catch`. There is no separate
-`executeAction` operation or wire command that converts exceptions into a
-`success: false` result. Confirmation, callbacks, wait status, and nonce reporting
-retain the canonical send path's contracts.
+`actions` array. The send API returns `ActionResult` for recoverable outcomes.
+Unexpected programming faults can reject the promise. Recoverable failures use
+`success: false` and one of these branches:
+
+- `not_submitted`: wallet selection, admission, confirmation, or signing ended
+  before submission. The application can offer a fresh review immediately.
+- `unresolved`: submission started, and its outcome needs reconciliation. The
+  result retains the exact signed transaction's `transactionId`. The application
+  checks that hash before another send.
+- `submission_unknown`: a dispatched iframe command lost its terminal response.
+  The application must reconcile wallet activity before another send.
+
+A successful result requires `transactionId` and the network outcome. Application
+hooks cannot replace that result with a callback error. Progress events describe
+the operation; applications do not reconstruct submission certainty from events
+or error text. A lost RPC response retains the signed nonce reservation. Explicit
+review cancellation proves `not_submitted` only before signing starts. A local
+cancel after dispatch does not prove that the wallet stopped submission.
+
+The [submission outcome contract](../tests/e2e/intended-behaviours/passkey.near-submission.contract.test.ts)
+cancels a real wallet review, submits a fresh review without reconnecting, loses
+an RPC response, and closes an iframe before approval. It verifies typed outcomes
+without a progress observer, retains the uncertain transaction hash, and checks
+that application hook errors cannot change the result. Its JSON artifact records
+the outcomes and verifies identical signed bytes across RPC retries.
 
 Opening an admitted transaction review focuses the review surface. It does not
 focus the Back button automatically. Tab navigation still reaches the controls.

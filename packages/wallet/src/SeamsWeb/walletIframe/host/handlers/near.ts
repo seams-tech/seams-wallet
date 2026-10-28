@@ -8,6 +8,7 @@ import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator'
 import {
   extractBorshBytesFromPlainSignedTx,
   isPlainSignedTransactionLike,
+  requireCanonicalString,
   type PlainSignedTransactionLike,
 } from '@shared/utils/validation';
 import type { RegistrationAuthMethodInput } from '@shared/utils/registrationAuthMethodInput';
@@ -35,6 +36,10 @@ function normalizeSignedTransaction(
         transaction: candidate.transaction,
         signature: candidate.signature,
         borsh_bytes: borsh,
+        transactionHash: requireCanonicalString(
+          Reflect.get(candidate, 'transactionHash'),
+          'transactionHash',
+        ),
         ...(nonceLease ? { nonceLease } : {}),
         ...(serverDispatch ? { serverDispatch } : {}),
       });
@@ -240,7 +245,6 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         },
       });
 
-      if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
 
@@ -257,7 +261,6 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
         },
       });
 
-      if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
 

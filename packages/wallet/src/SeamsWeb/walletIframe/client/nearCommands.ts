@@ -3,16 +3,16 @@ import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { TransactionDispatch } from '@/SeamsWeb/walletIframe/client/transactionReviewReservation';
 import type { WalletIframeCoordinator } from '@/SeamsWeb/walletIframe/coordinator';
 import { toError } from '@shared/utils/errors';
+import {
+  nearTransactionFailure,
+  notifyNearTransactionResult,
+} from '@/core/signingEngine/nearTransactionSubmission';
 export function createApplicationNearCommands(
   walletIframe: Pick<WalletIframeCoordinator, 'requireRouter'>,
   beforeSigning: (walletId: WalletId) => Promise<void>,
   transactionDispatch: TransactionDispatch,
 ): NearCommands {
-  const commands = new ApplicationNearCommands(
-    walletIframe,
-    beforeSigning,
-    transactionDispatch,
-  );
+  const commands = new ApplicationNearCommands(walletIframe, beforeSigning, transactionDispatch);
   return {
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransaction: commands.signTransaction.bind(commands),
@@ -48,13 +48,12 @@ class ApplicationNearCommands {
         },
         this.transactionDispatch,
       );
-      await args.options?.afterCall?.(true, result);
+      await notifyNearTransactionResult(args.options, result);
       return result;
     } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.onError?.(e);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
+      const result = nearTransactionFailure(error, 'not_submitted');
+      await notifyNearTransactionResult(args.options, result);
+      return result;
     }
   }
   async signTransaction(
@@ -108,13 +107,12 @@ class ApplicationNearCommands {
             : {}),
         },
       });
-      await args.options?.afterCall?.(true, result);
+      await notifyNearTransactionResult(args.options, result);
       return result;
     } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.onError?.(e);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
+      const result = nearTransactionFailure(error, 'not_submitted');
+      await notifyNearTransactionResult(args.options, result);
+      return result;
     }
   }
   async signDelegateAction(

@@ -1,4 +1,3 @@
-import type { ActionResult } from './seams';
 import type { AfterCall, EventCallback, LinkDeviceFlowEvent } from './sdkSentEvents';
 import type { ConfirmationConfig } from './signer-worker';
 import type {
@@ -36,12 +35,14 @@ export type LinkDeviceResult =
       readonly deviceId: LinkedDeviceId;
       readonly error?: never;
     }
-  | (Extract<ActionResult, { success: false }> & {
+  | {
+      readonly success: false;
+      readonly error: string;
       readonly kind?: never;
       readonly walletId?: never;
       readonly enrollmentId?: never;
       readonly deviceId?: never;
-    });
+    };
 
 export class DeviceLinkingError extends Error {
   readonly name = 'DeviceLinkingError';

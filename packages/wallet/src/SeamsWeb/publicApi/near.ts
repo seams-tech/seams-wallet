@@ -3,6 +3,7 @@ import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { NearSignerCapability } from '@/SeamsWeb/signingSurface/types';
 import type { SeamsConfigsReadonly } from '@/core/types/seams';
 import { toError } from '@shared/utils/errors';
+import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
 import type { CurrentWalletResolver } from './currentWallet';
 import type { NearCommands } from './nearCommands';
 import { requireBrowserCapabilityOperation } from './capabilitySelection';
@@ -44,16 +45,21 @@ class NearSigner {
   async signAndSendTransaction(
     rawArgs: Parameters<NearSignerCapability['signAndSendTransaction']>[0],
   ): ReturnType<NearSignerCapability['signAndSendTransaction']> {
-    const args = {
+    let subject: Awaited<ReturnType<CurrentWalletResolver['nearSubject']>>;
+    try {
+      subject = await this.deps.currentWallet.nearSubject(rawArgs);
+      requireBrowserCapabilityOperation(this.deps.configs, {
+        capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
+        operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
+      });
+    } catch (error) {
+      return nearTransactionFailure(error, 'not_submitted');
+    }
+    return this.deps.commands.signAndSendTransaction({
       ...rawArgs,
-      ...(await this.deps.currentWallet.nearSubject(rawArgs)),
+      ...subject,
       options: rawArgs.options ?? {},
-    };
-    requireBrowserCapabilityOperation(this.deps.configs, {
-      capabilityKind: CAPABILITY_KINDS.nearEd25519MpcSigning,
-      operationKind: NEAR_ED25519_MPC_OPERATION_KINDS.signTransaction,
     });
-    return await this.deps.commands.signAndSendTransaction(args);
   }
 
   async signTransaction(
@@ -74,13 +80,17 @@ class NearSigner {
   async sendTransaction(
     rawArgs: Parameters<NearSignerCapability['sendTransaction']>[0],
   ): ReturnType<NearSignerCapability['sendTransaction']> {
-    const args = {
+    let subject: Awaited<ReturnType<CurrentWalletResolver['nearSubject']>>;
+    try {
+      subject = await this.deps.currentWallet.nearSubject(rawArgs);
+    } catch (error) {
+      return nearTransactionFailure(error, 'not_submitted');
+    }
+    return this.deps.commands.sendTransaction({
       ...rawArgs,
-      ...(await this.deps.currentWallet.nearSubject(rawArgs)),
+      ...subject,
       options: rawArgs.options ?? {},
-    };
-
-    return await this.deps.commands.sendTransaction(args);
+    });
   }
 
   async signDelegateAction(

@@ -9,6 +9,7 @@ import {
 import { NearRpcError } from './NearRpcError';
 import type { WasmTransaction, WasmSignature } from '@/core/types/signer-worker';
 import type { NonceLeaseRef } from '@/core/signingEngine/nonce/NonceCoordinator';
+import { requireCanonicalString } from '@shared/utils/validation';
 
 export { encodeSignedTransactionBase64 } from '@shared/near/nearClient';
 // re-export near-js types
@@ -19,10 +20,25 @@ export class SignedTransaction extends SharedSignedTransaction<
   WasmSignature,
   NonceLeaseRef
 > {
+  readonly transactionHash: string;
+
+  constructor(input: {
+    transaction: WasmTransaction;
+    signature: WasmSignature;
+    borsh_bytes: number[];
+    transactionHash: string;
+    nonceLease?: NonceLeaseRef;
+    serverDispatch?: { transactionHash: string; rpcResult: unknown };
+  }) {
+    super(input);
+    this.transactionHash = input.transactionHash;
+  }
+
   static fromPlain(input: {
     transaction: unknown;
     signature: unknown;
     borsh_bytes: number[];
+    transactionHash: string;
     nonceLease?: NonceLeaseRef;
     serverDispatch?: {
       transactionHash: string;
@@ -33,6 +49,7 @@ export class SignedTransaction extends SharedSignedTransaction<
       transaction: input.transaction as WasmTransaction,
       signature: input.signature as WasmSignature,
       borsh_bytes: input.borsh_bytes,
+      transactionHash: requireCanonicalString(input.transactionHash, 'signed transaction hash'),
       ...(input.nonceLease ? { nonceLease: input.nonceLease } : {}),
       ...(input.serverDispatch ? { serverDispatch: input.serverDispatch } : {}),
     });

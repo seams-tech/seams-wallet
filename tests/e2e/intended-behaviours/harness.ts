@@ -8,6 +8,7 @@ import type {
   SignNEP413MessageResult,
 } from '../../../packages/wallet/src/core/types/sdkPublicResults';
 import { verifyNearMessageSignature } from './near-message-signatures';
+import { nearTransactionHash } from './near-transaction-hash';
 import { readPendingWalletRecoveryCommitIdentity } from './recovery-journal';
 import {
   concealFirstRecoveryFinalizationResponse,
@@ -5532,6 +5533,7 @@ function lifecycleFlowFromTestFile(filePath: string): IntendedLifecycleFlow {
     normalized.endsWith('presign-generation-storage.contract.test.ts') ||
     normalized.endsWith('passkey.ed25519-yao-local.contract.test.ts') ||
     normalized.endsWith('passkey.near-registration-commit.contract.test.ts') ||
+    normalized.endsWith('passkey.near-submission.contract.test.ts') ||
     normalized.endsWith('passkey.add-email-otp.contract.test.ts') ||
     normalized.endsWith('passkey.device-linking.contract.test.ts') ||
     normalized.endsWith('auth-method-addition.matrix.contract.test.ts') ||
@@ -5705,13 +5707,16 @@ function nearRpcStubResult(request: { method: string; params: unknown }): unknow
           prev_hash: NEAR_STUB_BLOCK_HASH,
         },
       };
-    case 'send_tx':
+    case 'send_tx': {
+      const params = requireRecord(request.params, 'send_tx params');
+      const signedTransaction = requireString(params.signed_tx_base64, 'signed transaction');
+      const transactionHash = nearTransactionHash(signedTransaction);
       return {
         final_execution_status: 'FINAL',
         status: { SuccessValue: '' },
-        transaction: { hash: 'intended-near-tx' },
+        transaction: { hash: transactionHash },
         transaction_outcome: {
-          id: 'intended-near-tx',
+          id: transactionHash,
           outcome: {
             status: { SuccessValue: '' },
             logs: [],
@@ -5723,6 +5728,7 @@ function nearRpcStubResult(request: { method: string; params: unknown }): unknow
         },
         receipts_outcome: [],
       };
+    }
     default:
       return {};
   }

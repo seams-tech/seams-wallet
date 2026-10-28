@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import {
-  TransactionReviewError,
   transfer,
   useSeams,
   type BoundNearSigner,
   type TransactionReviewControls,
 } from '@seams/wallet/react';
+
+type TransferState =
+  | { kind: 'ready'; message: string }
+  | { kind: 'pending' }
+  | { kind: 'blocked'; message: string };
 
 function TransferReview({ controls }: { controls: TransactionReviewControls }) {
   return (
@@ -25,8 +29,8 @@ function renderReview(controls: TransactionReviewControls) {
   return <TransferReview controls={controls} />;
 }
 
-async function submitTransfer(signer: BoundNearSigner, setMessage: (message: string) => void) {
-  setMessage('Waiting for review and wallet approval…');
+async function submitTransfer(signer: BoundNearSigner, setState: (state: TransferState) => void) {
+  setState({ kind: 'pending' });
   try {
     const result = await signer.signAndSendTransaction({
       receiverId: signer.accountId,
@@ -40,27 +44,56 @@ async function submitTransfer(signer: BoundNearSigner, setMessage: (message: str
         render: renderReview,
       },
     });
-    setMessage(result.success ? 'Transfer submitted.' : result.error);
-  } catch (error) {
-    if (error instanceof TransactionReviewError && error.code === 'cancelled') {
-      setMessage('Review cancelled.');
+    if (result.success) {
+      setState({ kind: 'ready', message: `Transfer submitted: ${result.transactionId}` });
       return;
     }
-    setMessage(error instanceof Error ? error.message : 'Transfer failed.');
+    switch (result.kind) {
+      case 'not_submitted':
+        setState({ kind: 'ready', message: `${result.error} You can review a new attempt.` });
+        return;
+      case 'unresolved':
+        setState({
+          kind: 'blocked',
+          message: `Check transaction ${result.transactionId} before another send.`,
+        });
+        return;
+      case 'submission_unknown':
+        setState({ kind: 'blocked', message: 'Check wallet activity before another send.' });
+        return;
+      default:
+        return assertNeverTransferResult(result);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The wallet response was interrupted.';
+    setState({
+      kind: 'blocked',
+      message: `${message} Check wallet activity before another send.`,
+    });
   }
+}
+
+function assertNeverTransferResult(value: never): never {
+  throw new Error(`Unsupported transfer state: ${String(value)}`);
 }
 
 export function ReviewedTransferButton() {
   const { wallet } = useSeams();
-  const [message, setMessage] = useState('');
+  const [state, setState] = useState<TransferState>({ kind: 'ready', message: '' });
   if (!wallet?.near) return <p>Sign in with a NEAR account to try this example.</p>;
 
   return (
     <>
-      <button type="button" onClick={submitTransfer.bind(null, wallet.near, setMessage)}>
+      <button
+        type="button"
+        disabled={state.kind !== 'ready'}
+        onClick={submitTransfer.bind(null, wallet.near, setState)}
+      >
         Review transfer
       </button>
-      <p role="status">{message}</p>
+      <p role="status">
+        {state.kind === 'pending' ? 'Waiting for review and wallet approval…' : state.message}
+      </p>
     </>
   );
 }

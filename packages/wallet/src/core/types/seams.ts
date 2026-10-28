@@ -637,12 +637,25 @@ export type ThresholdWarmLoginAndCreateSessionResult = Extract<
 };
 
 export type ActionResult = ExclusiveUnion<
-  | { success: true; transactionId?: string; result?: FinalExecutionOutcome }
+  | { success: true; transactionId: string; result: FinalExecutionOutcome }
   | {
       success: false;
+      /** This attempt did not submit a transaction. A new review is safe. */
+      kind: 'not_submitted';
       error: string;
-      // Optional structured error details when available (e.g., NEAR RPC error payload)
-      errorDetails?: unknown;
+    }
+  | {
+      success: false;
+      /** Signing or submission may have completed. Never automatically resend. */
+      kind: 'submission_unknown';
+      error: string;
+    }
+  | {
+      success: false;
+      /** Reconcile this hash before starting another transaction. */
+      kind: 'unresolved';
+      transactionId: string;
+      error: string;
     }
 >;
 

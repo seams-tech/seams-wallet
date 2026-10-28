@@ -31,10 +31,23 @@ wallet identity when signing.
 
 ## Signing and actions
 
-`ActionResult`, `SignNEP413MessageResult`, and EVM-family results preserve user
-cancellation, policy denial, transport failure, broadcast acceptance, and
-finalization as separate outcomes where the operation exposes them. Show the
-user the recovery action associated with the current branch.
+NEAR `signAndSendTransaction` and `sendTransaction` return `ActionResult` for
+recoverable outcomes. Successful results require `transactionId` and `result`.
+For `success: false`, handle `kind`:
+
+| Kind | Meaning | Application action |
+| --- | --- | --- |
+| `not_submitted` | This attempt did not submit a transaction. | Clear the attempt's pending state. Offer a fresh review. |
+| `unresolved` | Submission started. The result retains `transactionId`. | Check that hash. Do not create another send while its outcome remains unresolved. |
+| `submission_unknown` | A dispatched wallet command lost its terminal response. | Reconcile wallet activity before another send. |
+
+Await the result and use its branch for application state. Progress events are
+for display. Missing events and generic cancellation errors cannot establish
+whether submission occurred. Completion-hook errors cannot change a settled
+transaction result. `try`/`catch` still handles unexpected programming faults.
+
+NEP-413 message signing and EVM-family methods retain their own result and error
+contracts. A message signature does not submit a transaction.
 
 ## External NEAR connector
 

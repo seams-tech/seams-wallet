@@ -193,7 +193,12 @@ type StartNearTransactionPrepareArgs = Parameters<
 async function startWarmNearTransactionPrepare(
   args: Pick<
     StartNearTransactionPrepareArgs,
-    'ctx' | 'thresholdKeyMaterial' | 'walletId' | 'nearAccountId' | 'operationId' | 'txSigningRequest'
+    | 'ctx'
+    | 'thresholdKeyMaterial'
+    | 'walletId'
+    | 'nearAccountId'
+    | 'operationId'
+    | 'txSigningRequest'
   > & {
     warmMaterial: Promise<WarmNearSigningMaterial>;
     sessionCoordinator: SigningSessionCoordinator;
@@ -1388,12 +1393,15 @@ function toSignedTransactionResult(args: {
     throw new Error('Incomplete signed transaction data received');
   }
   const nonceLease = args.nonceLeases?.[0];
+  const transactionHash = args.okResponse.payload.transactionHashes?.[0];
+  if (!transactionHash) throw new Error('Signed transaction is missing its hash');
   const serverDispatch = (signedTx as { serverDispatch?: SignedTransaction['serverDispatch'] })
     .serverDispatch;
   const signedTransaction = new SignedTransaction({
     transaction: signedTx.transaction,
     signature: signedTx.signature,
     borsh_bytes: Array.from(signedTx.borshBytes || []),
+    transactionHash,
     ...(nonceLease ? { nonceLease } : {}),
     ...(serverDispatch ? { serverDispatch } : {}),
   });

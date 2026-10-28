@@ -8,7 +8,10 @@ import { signMessage as signNEP413MessageCore } from '@/SeamsWeb/operations/near
 import type { NearCommands } from '@/SeamsWeb/publicApi/nearCommands';
 import type { NearSigningWebContext } from '@/SeamsWeb/signingSurface/types';
 import { toError } from '@shared/utils/errors';
-export function createWalletHostNearCommands(getContext: () => NearSigningWebContext): NearCommands {
+import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
+export function createWalletHostNearCommands(
+  getContext: () => NearSigningWebContext,
+): NearCommands {
   const commands = new WalletHostNearCommands(getContext);
   return {
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
@@ -37,9 +40,7 @@ class WalletHostNearCommands {
         options: args.options,
       });
     } catch (error: unknown) {
-      const e = toError(error);
-      await args.options?.afterCall?.(false, undefined, e);
-      throw e;
+      return nearTransactionFailure(error, 'not_submitted');
     }
   }
   async signTransaction(
