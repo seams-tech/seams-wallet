@@ -271,12 +271,13 @@ def public_durable_boundary(value, timestamp):
         "finish_registration", "authorize_key", "commit_key", "key_state",
         "initialize_registration_storage", "install_registration_stock",
         "install_material", "install_pool", "check_material", "publish_refill", "reserve",
+        "inventory", "wake_refill",
     }
     stages = {
         "authorized", "entered", "authorize", "transaction", "callback_started",
         "callback_finished", "get", "put", "delete", "schedule_alarm",
         "pool_dispatch", "admission_dispatch", "role_dispatch", "get_chunks",
-        "put_chunk", "delete_many",
+        "put_chunk", "delete_many", "wake_alarm",
     }
     if value.get("command") not in commands or value.get("stage") not in stages:
         return None
@@ -564,11 +565,12 @@ def public_refill_wake(value, timestamp):
         "ml_dsa_refill_controller_v1": ["key", "epoch", "at_ms"],
         "ml_dsa_refill_settled_v1": ["batch", "wake_count", "at_ms"],
         "ml_dsa_refill_woken_v1": ["batch", "key", "epoch", "at_ms"],
+        "ml_dsa_refill_alarm_v1": ["actor", "key", "epoch", "requested_ms", "at_ms"],
     }.get(value.get("event"))
     if fields is None or not public_time(timestamp):
         return None
     for field in fields:
-        if field in ("batch", "key"):
+        if field in ("actor", "batch", "key"):
             check = public_id
         elif field == "at_ms":
             check = public_time
@@ -577,9 +579,15 @@ def public_refill_wake(value, timestamp):
         if not check(value.get(field)):
             return None
     result = {"event": value["event"], **{field: value[field] for field in fields}, "log_timestamp_ms": timestamp}
+    if value["event"] == "ml_dsa_refill_alarm_v1":
+        if not all(public_time(value.get(field)) for field in ("before_ms", "after_ms")):
+            return None
+        if any(value.get(field) is not None and not public_call_id(value[field]) for field in ("call_id", "module_instance")):
+            return None
+        result.update({field: value.get(field) for field in ("before_ms", "after_ms", "call_id", "module_instance")})
     if value["event"] == "ml_dsa_refill_settled_v1":
         outcome = value.get("outcome")
-        if outcome not in (None, "published", "failed", "interrupted"):
+        if outcome not in (None, "published", "failed", "interrupted", "unused"):
             return None
         result["outcome"] = outcome
     return result
@@ -741,7 +749,8 @@ def records(path, role):
                             and value.get("stage") in ("controller_selected", "activation_checked", "local_inventory_checked", "peer_inventory_checked",
                                                      "claim_acquired", "dispatch_started", "dispatch_acknowledged", "producer_received",
                                                      "producer_authorized", "queue_checked", "receipt_ready", "producer_running",
-                                                     "recovery_armed", "role_claimed", "peer_received", "peer_connected",
+                                                     "recovery_armed", "stock_rechecked", "preparation_not_needed",
+                                                     "role_claimed", "peer_received", "peer_connected",
                                                      "load_started", "crypto_started", "correlations_completed",
                                                      "commitment_started", "commitment_completed", "crypto_completed",
                                                      "serialized", "sealed", "published") and public_time(value.get("at_ms"))):
@@ -766,9 +775,16 @@ def records(path, role):
                         public_refill = {key: value[key] for key in [
                             "batch", "published", "elapsed_ms", "candidates",
                         ] if key in value}
+                        outcome = value.get("outcome")
+                        if outcome not in (None, "published", "failed", "interrupted", "unused"):
+                            raise ValueError("Invalid preparation outcome")
+                        if outcome is not None:
+                            public_refill["outcome"] = outcome
+                        if outcome == "unused" and (value.get("published") is not None or value.get("candidates") != 0 or value.get("batches") != []):
+                            raise ValueError("Unused preparation reported produced material")
                         if "batches" in value:
                             batches = value["batches"]
-                            if not (isinstance(batches, list) and 1 <= len(batches) <= 2
+                            if outcome != "unused" and not (isinstance(batches, list) and 1 <= len(batches) <= 2
                                     and all(isinstance(item, str) and re.fullmatch("[0-9a-f]{64}", item) for item in batches)
                                     and len(set(batches)) == len(batches) and batches[0] == batch):
                                 raise ValueError("Invalid preparation publication identities")

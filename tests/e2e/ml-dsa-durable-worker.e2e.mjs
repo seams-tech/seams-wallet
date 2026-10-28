@@ -61,6 +61,7 @@ const bindings = {
   INTERNAL_AUTH: serviceAuth,
   ROUTER_AB_GATEWAY_TO_ROUTER_AUTH_SECRET: gatewayAuth,
   ML_DSA_ADMISSION_POLICY: JSON.stringify(policy),
+  ML_DSA_WAIT_DIAGNOSTICS: '1',
 };
 let takeFaultEnabled = false;
 const publicationBarrierScript = `
@@ -196,6 +197,14 @@ export class AdmissionBarrier {
       await this.state.storage.put('armed', await request.json());
       return new Response('Armed');
     }
+    if (new URL(request.url).pathname === '/arm-unused') {
+      await this.state.storage.put('unused_job', await request.json());
+      return new Response('Armed');
+    }
+    if (new URL(request.url).pathname === '/unused-state') {
+      return Response.json({ before: await this.state.storage.get('unused_before') ?? 0,
+        after: await this.state.storage.get('unused_after') ?? 0 });
+    }
     if (new URL(request.url).pathname === '/state') {
       return Response.json({ settlementFailures: await this.state.storage.get('failures') ?? 0,
         settlementReplyFailures: await this.state.storage.get('reply_failures') ?? 0,
@@ -221,8 +230,19 @@ export class AdmissionBarrier {
       await this.state.storage.put('lose_reply', command.job.batch);
       return new Response('Injected settlement failure', {status:503});
     }
+    const unused = await this.state.storage.get('unused_job');
+    const unusedFinish = command.command === 'finish_refill' && command.outcome === 'unused'
+      && unused && JSON.stringify(command.job.batch) === JSON.stringify(unused.batch);
+    if (unusedFinish && !await this.state.storage.get('unused_before')) {
+      await this.state.storage.put('unused_before', 1);
+      return new Response('Injected unused settlement failure', { status: 503 });
+    }
     const id = this.env.REAL_ADMISSION.idFromName('ml-dsa-admission-v1');
     const response = await this.env.REAL_ADMISSION.get(id).fetch(request);
+    if (unusedFinish && response.status === 200 && !await this.state.storage.get('unused_after')) {
+      await this.state.storage.put('unused_after', 1);
+      return new Response('Injected lost unused settlement reply', { status: 503 });
+    }
     if (command.command === 'finish_refill' && response.status === 200 && await this.state.storage.get('handoff_armed')) {
       await this.state.storage.put('handoff_armed', false);
       await this.state.storage.put('held_settlement', command.job);
@@ -237,10 +257,38 @@ export class AdmissionBarrier {
     return response;
   }
 }
-async function fetch() { return new Response('Local fault fixture'); }
+let holdNextPeerInventory = false;
+let peerInventoryHeld = false;
+let peerInventoryRelease = null;
+function holdPeerInventory(resolve) { peerInventoryRelease = resolve; }
+async function fetch(request, env) {
+  const path = new URL(request.url).pathname;
+  if (path === '/arm-peer-inventory') {
+    holdNextPeerInventory = true;
+    return new Response('Armed');
+  }
+  if (path === '/peer-inventory-state') return Response.json({ held: peerInventoryHeld });
+  if (path === '/release-peer-inventory') {
+    if (peerInventoryRelease) peerInventoryRelease();
+    return new Response('Released');
+  }
+  if (holdNextPeerInventory && path === '/router-ab/ml-dsa/role') {
+    const command = await request.clone().json();
+    if (command.command === 'inventory') {
+      holdNextPeerInventory = false;
+      peerInventoryHeld = true;
+      await new Promise(holdPeerInventory);
+      peerInventoryHeld = false;
+      peerInventoryRelease = null;
+    }
+  }
+  return env.PEER.fetch(request);
+}
 export default { fetch };
 `;
 const producerEvents = [];
+const refillAlarmEvents = [];
+const executionCompletionEvents = [];
 const observations = {
   scope: 'Local workerd, real strict Worker bundles, synthetic canonical wallet key, typed Gateway owner admission, and durable signing. Verified factor inputs, claimed-operation persistence, and custody activation are injected. HTTP login, public session routes, and hosted latency remain outside this test.',
   policy,
@@ -276,6 +324,7 @@ observations.provenance = {
     'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/workers/preparation/producer.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/workers.rs',
+    'crates/router-ab-cloudflare/src/ml_dsa/workers/durable_trace.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/refill.rs',
     'crates/router-ab-cloudflare/src/ml_dsa/pool.rs',
   ].map(fileDigest))),
@@ -354,6 +403,8 @@ try {
     };
     profileConnections = [];
   }
+  observations.refillWakeInterleaving = await checkRefillWakeInterleaving();
+  observations.unusedPreparation = await checkUnusedPreparation();
   // Let the full-pool maintenance alarm settle before the first consumption.
   await new Promise(waitForQuietPool);
   const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
@@ -820,7 +871,7 @@ function workers() {
         ADMISSION_BARRIER: { className: 'AdmissionBarrier', useSQLite: true },
         REAL_ADMISSION: { className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router' },
       },
-      serviceBindings: { ROLE: 'a' },
+      serviceBindings: { ROLE: 'a', PEER: 'b' },
     },
     {
       name: 'timer-control',
@@ -852,7 +903,7 @@ function roleWorker(role, index) {
         className: 'RouterAbMlDsaAdmissionDurableObject', scriptName: 'router',
       },
     },
-    serviceBindings: { DERIVER_B: 'b' },
+    serviceBindings: { DERIVER_B: role === 'a' ? 'publication-barrier' : 'b' },
   };
   if (takeFaultEnabled) {
     worker.durableObjects.ML_DSA_POOL_DO = { className: role === 'a' ? 'TakeBarrierA' : 'TakeBarrier', scriptName: 'publication-barrier' };
@@ -1132,9 +1183,11 @@ function recordProducerEvent(line) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
   if (event.event === 'ml_dsa_producer_job_v1') producerEvents.push(event);
+  if (event.event === 'ml_dsa_refill_controller_v1' || event.event === 'ml_dsa_refill_alarm_v1') refillAlarmEvents.push(event);
   if (event.event === 'ml_dsa_stage_trace_v1') stageEvents.push(event);
   if (event.event === 'ml_dsa_signing_trace_v1') signingEvents.push(event);
   if (event.event === 'ml_dsa_preparation_stage_v1') preparationEvents.push(event);
+  if (event.event === 'ml_dsa_socket_completion_v1' || event.event === 'ml_dsa_signing_outcome_v1') executionCompletionEvents.push(event);
 }
 
 function preparationResourceEvidence() {
@@ -1285,6 +1338,148 @@ async function checkProducerHandoff(restart) {
 }
 function isRunningJob(event) { return event.stage === 'running' && event.batch === this; }
 
+async function checkRefillWakeInterleaving() {
+  await waitForTerminalProducerSettlement();
+  const barrier = await runtime.getWorker('publication-barrier');
+  assert.equal((await barrier.fetch('https://fault.internal/arm-peer-inventory')).status, 200);
+  await post('a', '/router-ab/ml-dsa/role', { command: 'wake_refill', key: records[0].activation.key });
+  const deadline = performance.now() + 10000;
+  let held = false;
+  while (performance.now() < deadline) {
+    const state = await (await barrier.fetch('https://fault.internal/peer-inventory-state')).json();
+    if (state.held) { held = true; break; }
+    await new Promise(waitForMarker);
+  }
+  assert.equal(held, true, 'The controller did not reach the held peer inventory');
+  const previous = refillAlarmEvents.filter(isControllerAlarm).length;
+  const eventCount = refillAlarmEvents.length;
+  await post('a', '/router-ab/ml-dsa/role', { command: 'wake_refill', key: records[0].activation.key });
+  const scheduled = refillAlarmEvents.slice(eventCount).filter(isWakeAlarm);
+  assert.ok(scheduled.length > 0, 'The wake alarm observation is missing');
+  for (const event of scheduled) {
+    assert.ok(event.after_ms <= event.requested_ms + 50, 'Wake acknowledgement retained the maintenance delay');
+  }
+  const releasedAt = performance.now();
+  assert.equal((await barrier.fetch('https://fault.internal/release-peer-inventory')).status, 200);
+  while (performance.now() - releasedAt < 3000 && refillAlarmEvents.filter(isControllerAlarm).length <= previous) {
+    await new Promise(waitForMarker);
+  }
+  const next = refillAlarmEvents.filter(isControllerAlarm).length;
+  assert.ok(next > previous, 'Maintenance scheduling postponed a pending refill wake');
+  const stocks = await inventories();
+  for (const stock of stocks) assert.equal(stock.ready.length, policy.refill_target_batches);
+  return { heldPeerInventory: true, wakeAcknowledgedDuringAlarm: true,
+    maintenanceDidNotPostponeWake: true, releaseToNextAlarmUpperBoundMs: performance.now() - releasedAt,
+    sameActorAlarmObservations: scheduled };
+}
+function isControllerAlarm(event) { return event.event === 'ml_dsa_refill_controller_v1'; }
+function isWakeAlarm(event) { return event.event === 'ml_dsa_refill_alarm_v1'; }
+
+async function claimPreparation(groups) {
+  const result = await admissionCheck({ command: 'claim_refill', key: records[0].activation.key, groups });
+  assert.equal(result.status, 'acquired');
+  return result.job;
+}
+
+async function waitUnused(job) {
+  const deadline = performance.now() + 15000;
+  while (performance.now() < deadline) {
+    if (await producerState(job) === 'unused') return;
+    await new Promise(waitForMarker);
+  }
+  throw new Error('An unnecessary producer did not settle without cryptographic work');
+}
+
+async function checkUnusedPreparation() {
+  await waitForTerminalProducerSettlement();
+  const initial = await inventories();
+  const markers = await preprocessingStarts();
+  for (const role of initial) assert.equal(role.ready.length, policy.refill_target_batches);
+  const failed = await claimPreparation('two');
+  await admissionCheck({ command: 'finish_refill', job: failed, outcome: 'failed' });
+  const blocked = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+  assert.equal(blocked.status, 'busy');
+  await delayUntil(blocked.retry_at_ms);
+  const unused = await claimPreparation('two');
+  const barrier = await admissionBarrier();
+  assert.equal((await barrier.fetch('https://fault.internal/arm-unused', {
+    method: 'POST', body: JSON.stringify(unused),
+  })).status, 200);
+  assert.equal((await producerReceipt(unused, serviceAuth)).status, 202);
+  await waitUnused(unused);
+  const failureDeadline = performance.now() + 5000;
+  let faults;
+  while (performance.now() < failureDeadline) {
+    faults = await (await barrier.fetch('https://fault.internal/unused-state')).json();
+    if (faults.before === 1) break;
+    await new Promise(waitForMarker);
+  }
+  assert.equal(faults.before, 1);
+  assert.equal(await admissionCheck({ command: 'check_refill', job: unused }), true);
+  await runtime.dispose();
+  runtime = createRuntime();
+  await runtime.ready;
+  await waitForLeaseRelease(unused);
+  await waitForTerminalProducerSettlement();
+  const restartedBarrier = await admissionBarrier();
+  faults = await (await restartedBarrier.fetch('https://fault.internal/unused-state')).json();
+  assert.deepEqual(faults, { before: 1, after: 1 });
+  assert.equal(await producerState(unused), 'unused');
+  assert.deepEqual(await preprocessingStarts(), markers, 'Unused work claimed participant material');
+  const after = await inventories();
+  for (let index = 0; index < initial.length; index++) {
+    assert.deepEqual(after[index].ready.map(batchId).sort(), initial[index].ready.map(batchId).sort());
+  }
+  const running = producerEvents.filter(isRunningJob, batchId(unused.batch));
+  assert.equal(running.length, 1, 'Unused recovery restarted the producer');
+  const cryptographicStages = preparationEvents.filter(matchesCryptoJob.bind(null, unused));
+  assert.deepEqual(cryptographicStages, [], 'Unused work entered the cryptographic protocol');
+  const replacement = await claimPreparation('two');
+  assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: unused, outcome: 'unused' }), []);
+  assert.equal(await admissionCheck({ command: 'check_refill', job: replacement }), true);
+  await admissionCheck({ command: 'finish_refill', job: replacement, outcome: 'failed' });
+  const finishedAt = Date.now();
+  const secondBackoff = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+  assert.equal(secondBackoff.status, 'busy');
+  assert.ok(secondBackoff.retry_at_ms - finishedAt >= 3500, 'Unused settlement reset failure backoff');
+  await delayUntil(secondBackoff.retry_at_ms);
+  const onePair = initial[0].ready.slice(0, 1);
+  for (const role of ['a', 'b']) {
+    await post(role, '/router-ab/ml-dsa/role', {
+      command: 'retire_unpaired', key: failed.key, batches: onePair,
+    });
+  }
+  const oversized = await claimPreparation('two');
+  assert.equal((await producerReceipt(oversized, serviceAuth)).status, 202);
+  await waitUnused(oversized);
+  await waitForLeaseRelease(oversized);
+  await waitReady(policy.refill_target_batches);
+  await waitForTerminalProducerSettlement();
+  const restored = await inventories();
+  for (const role of restored) assert.equal(role.ready.length, policy.refill_target_batches);
+  const freshJobs = await rolePreprocessingJobs('a');
+  const beforeJobs = new Set((await rolePreprocessingJobs('b')).map(preparationIdentity));
+  const bounded = freshJobs.filter(isSingleGroup);
+  assert.ok(bounded.length > 0, 'A smaller replacement did not refill the single missing pair');
+  for (const job of bounded) assert.ok(beforeJobs.has(preparationIdentity(job)));
+  return { unusedJob: unused, shrunkJob: oversized, fullStockUnchanged: true,
+    roleClaimsAbsent: true, cryptoStagesAbsent: true, producerExecutions: running.length,
+    restart: true, lostSettlementBeforeAndAfterCommit: faults,
+    staleFinishPreservedNewLease: true, failureBackoffPreserved: true,
+    smallerReplacement: true, readyPairs: restored.map(readyCount) };
+}
+
+function matchesCryptoJob(job, event) {
+  return event.job === batchId(job.batch) && event.stage === 'crypto_started';
+}
+function preparationIdentity(job) { return batchId(job.batch); }
+function isSingleGroup(job) { return job.groups === 'one'; }
+function readyCount(value) { return value.ready.length; }
+async function delayUntil(timestamp) {
+  const deadline = timestamp + 50;
+  while (Date.now() < deadline) await new Promise(waitForMarker);
+}
+
 async function waitForTerminalProducerSettlement() {
   const directory = join(persistence, 'preparer-a-RouterAbMlDsaProducerDurableObject');
   const files = (await readdir(directory)).filter(walletDatabase);
@@ -1295,7 +1490,7 @@ async function waitForTerminalProducerSettlement() {
       const rows = database.prepare("SELECT value FROM _cf_KV WHERE key LIKE 'producer-job/%'").all();
       for (const row of rows) {
         const value = deserialize(row.value);
-        if (['published', 'failed', 'interrupted'].includes(value.state)) jobs.push(value.job);
+        if (['published', 'unused', 'failed', 'interrupted'].includes(value.state)) jobs.push(value.job);
       }
     } finally { database.close(); }
   }
@@ -1562,9 +1757,17 @@ async function checkUnopenedAfterFailure() {
   const namespace = await runtime.getDurableObjectNamespace('TAKE_BARRIER', 'publication-barrier');
   const barrier = namespace.get(namespace.idFromName(fixturePoolName()));
   assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
+  const failureStarted = performance.now();
   const failed = await dispatchFixtureMessage('retained-after-failure');
+  const failureSettledMs = performance.now() - failureStarted;
+  assert.ok(failureSettledMs < 5000, 'Input-load failure waited for signing expiry');
   assert.equal(failed.result.status, 'existing');
   assert.equal(failed.result.operation.state, 'failed');
+  const operationId = batchId(failed.operation);
+  const closeEvents = executionCompletionEvents.filter(isFailedSocketClose, operationId);
+  assert.ok(closeEvents.length > 0, 'Initialization failure did not request peer closure');
+  const outcomes = executionCompletionEvents.filter(isDispatchFailure, operationId);
+  assert.ok(outcomes.length > 0, 'Initialization failure reached the signing deadline');
   const lost = await (await barrier.fetch('https://fault.internal/lost')).json();
   assert.ok(lost && lost.batches.length === policy.refill_target_batches);
   const rows = await inventories();
@@ -1595,13 +1798,21 @@ async function checkUnopenedAfterFailure() {
   takeFaultEnabled = false;
   runtime = createRuntime();
   await runtime.ready;
-  return { retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
+  return { failureSettledMs, failureRequestedPeerClose: true, failureOutcome: outcomes[0].outcome, retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
     failedOperation: batchId(failed.operation), freshOperation: freshId, retainedIds: [...retainedIds],
     committedTakesA: aConsumed, committedTakesB: bConsumed,
     lostReplyAfterConsumption: true, oldTakeRejected: true, freshSignatureVerifiedByOpenSsl: true,
     messageHex: Buffer.from(fresh.message).toString('hex'), signatureHex: Buffer.from(fresh.result.operation.signature).toString('hex') };
 }
 
+function isFailedSocketClose(event) {
+  return event.event === 'ml_dsa_socket_completion_v1' && event.kind === 'signing'
+    && event.id === this && event.close_code === 1011 && event.close_requested === true;
+}
+function isDispatchFailure(event) {
+  return event.event === 'ml_dsa_signing_outcome_v1' && event.operation === this
+    && event.outcome.status === 'dispatch_error';
+}
 function retainedTake(operation, retained, event) {
   return batchId(event.operation) === operation && retained.has(batchId(event.material));
 }
