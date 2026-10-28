@@ -11,6 +11,10 @@ import { ConfirmationDrawer } from './ConfirmationDrawer';
 import { TransactionReceipt } from './TransactionReceipt';
 import { PadlockIcon } from './PadlockIcon';
 import { receiptIsPending, type TransactionReceiptModel } from '../transaction-receipt';
+import {
+  announceSurfaceResize,
+  CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR,
+} from '../confirm-surface-resize';
 
 export { normalizeConfirmationModel } from '../confirmation-model';
 
@@ -76,6 +80,13 @@ type ReceiptAnchor = {
   fontSize: string;
 };
 
+type ReceiptResize = {
+  element: HTMLElement;
+  animations: Animation[];
+  fromHeight: number;
+  toHeight: number;
+};
+
 function captureReceiptAnchors(surface: HTMLElement): ReceiptAnchor[] {
   const anchors: ReceiptAnchor[] = [];
   for (const selector of RECEIPT_ANCHORS) {
@@ -137,8 +148,15 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
   private receiptShell: HTMLElement | null = null;
   private receiptGhost: HTMLElement | null = null;
   private receiptSegments: HTMLElement[] = [];
+  private receiptResize: ReceiptResize | null = null;
 
   private clearReceiptMotion = (): void => {
+    this.element
+      .querySelector('.seams-receipt-footer--hosted')
+      ?.classList.remove('seams-receipt-footer--hosted');
+    this.receiptResize?.element.classList.remove('seams-surface-height-driven');
+    this.receiptResize = null;
+    this.styles.deleteDynamicRule(`${this.element.id}-receipt-resize`);
     for (const animation of this.receiptMotion) animation.cancel();
     this.receiptMotion = [];
     this.receiptShell?.remove();
@@ -199,13 +217,13 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
 
   showReceipt(model: TransactionReceiptModel): void {
     if (this.state.kind !== 'mounted' || this.state.model.content.kind !== 'transaction') return;
-    const viewChanged = this.receipt?.view !== model.view;
+    const shouldMorph = this.receipt?.view !== model.view || this.receiptMotion.length > 0;
     const previousShell = this.receiptShell ?? this.element.querySelector('.modal-container-root');
     const previousBounds = previousShell?.getBoundingClientRect();
-    const anchors = viewChanged ? captureReceiptAnchors(this.element) : [];
-    const leaving = viewChanged ? this.liveCapture() : null;
+    const anchors = shouldMorph ? captureReceiptAnchors(this.element) : [];
+    const leaving = shouldMorph ? this.liveCapture() : null;
     const previousRadius = previousShell ? getComputedStyle(previousShell).borderRadius : '26px';
-    if (viewChanged) this.clearReceiptMotion();
+    if (shouldMorph) this.clearReceiptMotion();
     this.receipt = model;
     this.element.dataset.receiptView = model.view;
     this.element.dataset.seamsConfirmSurface = 'wallet-iframe';
@@ -213,7 +231,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
     this.renderSurface();
     const target = this.element.querySelector<HTMLElement>('.modal-container-root');
     if (
-      viewChanged &&
+      shouldMorph &&
       previousBounds &&
       target &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -246,6 +264,7 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING, fill: 'both' },
       );
       this.receiptMotion = [morph];
+      const geometryAnimations = [morph];
       const handedOver = leaving ? this.handOverCapture(leaving, target) : false;
       const shared = new Set<HTMLElement>();
       for (const anchor of anchors) {
@@ -254,21 +273,21 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         const destination = element.getBoundingClientRect();
         shared.add(element);
         const scale = parseFloat(anchor.fontSize) / parseFloat(getComputedStyle(element).fontSize);
-        this.receiptMotion.push(
-          element.animate(
-            [
-              {
-                transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
-                transformOrigin: 'top left',
-              },
-              {
-                transform: 'translate(0, 0) scale(1)',
-                transformOrigin: 'top left',
-              },
-            ],
-            { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING },
-          ),
+        const animation = element.animate(
+          [
+            {
+              transform: `translate(${anchor.bounds.left - destination.left}px, ${anchor.bounds.top - destination.top}px) scale(${scale})`,
+              transformOrigin: 'top left',
+            },
+            {
+              transform: 'translate(0, 0) scale(1)',
+              transformOrigin: 'top left',
+            },
+          ],
+          { duration: RECEIPT_MORPH_DURATION_MS, easing: RECEIPT_MORPH_EASING },
         );
+        this.receiptMotion.push(animation);
+        geometryAnimations.push(animation);
       }
       const details = target.querySelectorAll<HTMLElement>(
         '.seams-transaction-receipt > :not(.seams-receipt-heading), ' +
@@ -281,9 +300,10 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         if (shared.has(detail)) continue;
         // A capture's card had a toolbar in the same row, so the receipt's fades in there at once.
         const toolbar = leaving !== null && detail.matches('.seams-review-toolbar');
+        const stationary = toolbar || detail.matches('.seams-receipt-footer');
         this.receiptMotion.push(
           detail.animate(
-            toolbar
+            stationary
               ? [{ opacity: 0 }, { opacity: 1 }]
               : [
                   { opacity: 0, transform: 'translateY(8px)' },
@@ -311,12 +331,98 @@ class MountedConfirmationSurface implements ConfirmationSurfaceHandle {
         );
         if (!toolbar) order += 1;
       }
+      this.resizeReceipt({
+        element: target,
+        animations: geometryAnimations,
+        fromHeight: previousBounds.height,
+        toHeight: bounds.height,
+      });
       // The details outlast the card's morph, so the overlays leave after the last one.
       const motion = this.receiptMotion;
       void Promise.all(motion.map((animation) => animation.finished)).then(() => {
         if (this.receiptMotion === motion) this.clearReceiptMotion();
       }, ignoreCancelledMotion);
     }
+  }
+
+  private resizeReceipt(resize: ReceiptResize): void {
+    if (Math.abs(resize.toHeight - resize.fromHeight) < 1) return;
+    this.receiptResize = resize;
+    for (const animation of resize.animations) {
+      animation.pause();
+      animation.effect?.updateTiming({ easing: 'linear' });
+    }
+    resize.element.classList.add('seams-surface-height-driven');
+    this.setReceiptHeight(resize, resize.fromHeight);
+    const hosted = announceSurfaceResize(resize.element, {
+      reason: 'receipt-transition',
+      fromCssPx: resize.fromHeight,
+      toCssPx: resize.toHeight,
+      setHeightCssPx: this.setReceiptHeight.bind(this, resize),
+      finish: this.finishReceiptResize.bind(this, resize),
+    });
+    if (hosted) {
+      this.fitReceiptToViewport(resize);
+      return;
+    }
+    this.receiptResize = null;
+    resize.element.classList.remove('seams-surface-height-driven');
+    this.styles.deleteDynamicRule(`${this.element.id}-receipt-resize`);
+    for (const animation of resize.animations) {
+      animation.effect?.updateTiming({ easing: RECEIPT_MORPH_EASING });
+      animation.play();
+    }
+  }
+
+  private fitReceiptToViewport(resize: ReceiptResize): void {
+    const footer = resize.element.querySelector('.seams-receipt-footer');
+    // Viewport units follow iframe layout before JavaScript receives the next
+    // resize frame, including a fast reversal of the parent's animation.
+    for (const animation of resize.animations) {
+      const effect = animation.effect;
+      if (!(effect instanceof KeyframeEffect)) continue;
+      if (effect.target === this.receiptShell) {
+        this.receiptShell?.classList.add('seams-receipt-morph-shell--hosted');
+        const frames = effect.getKeyframes();
+        for (const frame of frames) {
+          delete frame.height;
+          delete frame.width;
+        }
+        effect.setKeyframes(frames);
+      } else if (footer && effect.target === footer) {
+        const frames = effect.getKeyframes();
+        for (const frame of frames) delete frame.transform;
+        effect.setKeyframes(frames);
+      }
+    }
+    footer?.classList.add('seams-receipt-footer--hosted');
+  }
+
+  private setReceiptHeight(resize: ReceiptResize, height: number): void {
+    if (this.receiptResize !== resize) return;
+    this.styles.setDynamicDeclarations(
+      `${this.element.id}-receipt-resize`,
+      `#${resize.element.id}`,
+      {
+        [CONFIRM_SURFACE_HEIGHT_DRIVEN_VAR]: `${height}px`,
+        '--seams-receipt-target-height': `${resize.toHeight}px`,
+      },
+    );
+    const progress = (height - resize.fromHeight) / (resize.toHeight - resize.fromHeight);
+    for (const animation of resize.animations) {
+      animation.currentTime = Math.max(0, Math.min(1, progress)) * RECEIPT_MORPH_DURATION_MS;
+    }
+  }
+
+  private finishReceiptResize(resize: ReceiptResize): void {
+    if (this.receiptResize !== resize) return;
+    this.receiptResize = null;
+    resize.element.classList.remove('seams-surface-height-driven');
+    resize.element
+      .querySelector('.seams-receipt-footer--hosted')
+      ?.classList.remove('seams-receipt-footer--hosted');
+    this.styles.deleteDynamicRule(`${this.element.id}-receipt-resize`);
+    for (const animation of resize.animations) animation.finish();
   }
 
   /** The auth method capture still on screen, measured before the receipt replaces it. */

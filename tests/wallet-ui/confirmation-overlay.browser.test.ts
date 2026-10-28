@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
 import { routePreactModules } from '../setup/preact';
@@ -67,6 +68,18 @@ const childScript = `
 import { mountConfirmationSurface } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/preact/mountConfirmationSurface.js';
 import { createWalletIframeSurfaceMeasurementReporter } from '/_test-sdk/esm/SeamsWeb/walletIframe/host/surface-measurement-reporter.js';
 import { walletIframeRequestIdFromBoundary } from '/_test-sdk/esm/core/types/walletIframeIdentity.js';
+import { attachConfirmSurfaceResizeChoreographer } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/confirm-surface-resize.js';
+import { buildDisplayTreeFromModel } from '/_test-sdk/esm/core/signingEngine/uiConfirm/ui/transaction-display/tree.js';
+
+const model = {
+  chain: 'tempo',
+  chainId: 42431,
+  signerAccount: 'lunar-feather-bxpjp2',
+  operations: [{
+    id: 'contract-call', kind: 'generic.contractCall', label: 'Transaction to contract',
+    to: '0xBB442B54c85efBa2D7B81eA52990ad638CbA483',
+  }],
+};
 
 const surface = mountConfirmationSurface({
   parent: document.body,
@@ -75,7 +88,8 @@ const surface = mountConfirmationSurface({
     appearance: { palette: 'default', theme: { id: 'default', mode: 'light', colors: {} } },
     content: {
       kind: 'transaction',
-      review: { model: null, tree: null },
+      capture: null,
+      review: { model, tree: buildDisplayTreeFromModel(model) },
       header: {
         heading: 'Review transfer',
         website: { kind: 'ready', text: 'example.test' },
@@ -97,11 +111,52 @@ const surface = mountConfirmationSurface({
   onClosed: dismiss,
 });
 createWalletIframeSurfaceMeasurementReporter({
-  kind: 'request_surface',
+  kind: 'request_scroll_surface',
   element: surface.element,
   requestId: walletIframeRequestIdFromBoundary('confirmation-overlay'),
   postMeasurement,
 });
+attachConfirmSurfaceResizeChoreographer(surface.element);
+window.__receiptTransition = { frames: [], done: false };
+let receiptState = { kind: 'confirmed', hash: null };
+function prepareSigningReceipt() {
+  receiptState = { kind: 'signing' };
+}
+function submitReceipt() {
+  receiptState = { kind: 'submitted', hash: null };
+  showReceipt('expanded');
+}
+window.prepareSigningReceipt = prepareSigningReceipt;
+window.submitReceipt = submitReceipt;
+function readReceiptFrame(time = performance.now()) {
+  const card = surface.element.querySelector('.modal-container-root');
+  const shell = surface.element.querySelector('.seams-receipt-morph-shell');
+  const footer = surface.element.querySelector('.seams-receipt-footer');
+  return {
+    time,
+    viewport: document.documentElement.clientHeight,
+    surfaceBottom: surface.element.getBoundingClientRect().bottom,
+    surfaceOverflow: getComputedStyle(surface.element).overflowY,
+    shellBottom: (shell ?? card).getBoundingClientRect().bottom,
+    footerBottom: footer?.getBoundingClientRect().bottom ?? null,
+    footerOpacity: footer ? Number(getComputedStyle(footer).opacity) : 0,
+    footerHosted: footer?.classList.contains('seams-receipt-footer--hosted') ?? false,
+    cardHeight: card.getBoundingClientRect().height,
+    drivenHeight: getComputedStyle(card).getPropertyValue('--seams-surface-height-driven-target'),
+    targetHeight: getComputedStyle(card).getPropertyValue('--seams-receipt-target-height'),
+    morphing: surface.element.hasAttribute('data-receipt-morphing'),
+  };
+}
+window.readReceiptFrame = readReceiptFrame;
+function sampleTransition(trace, time) {
+  if (window.__receiptTransition !== trace) return;
+  trace.frames.push(readReceiptFrame(time));
+  if (surface.element.hasAttribute('data-receipt-morphing')) {
+    requestAnimationFrame(sampleTransition.bind(null, trace));
+  } else {
+    window.__receiptTransition.done = true;
+  }
+}
 function postMeasurement(value) {
   parent.postMessage({ kind: 'measurement', value }, location.origin);
 }
@@ -112,14 +167,16 @@ function dismiss() {
   surface.dispose();
 }
 function showReceipt(view) {
+  window.__receiptTransition = { frames: [], done: false };
   parent.postMessage({ kind: 'view', value: view }, location.origin);
   surface.showReceipt({
     subject: 'transaction',
-    state: { kind: 'confirmed', hash: null },
+    state: receiptState,
     view,
     onView: showReceipt,
     onDismiss: dismiss,
   });
+  requestAnimationFrame(sampleTransition.bind(null, window.__receiptTransition));
 }
 `;
 
@@ -230,4 +287,97 @@ function scrollHorizontally() {
 }
 function readScroll(page: Page) {
   return page.evaluate(browserScroll);
+}
+
+type ReceiptFrame = {
+  time: number;
+  viewport: number;
+  surfaceBottom: number;
+  surfaceOverflow: string;
+  shellBottom: number;
+  footerBottom: number | null;
+  footerOpacity: number;
+};
+
+function assertReceiptFrames(frames: ReceiptFrame[]): void {
+  expect(frames.length).toBeGreaterThan(0);
+  for (const sample of frames) {
+    expect(sample.shellBottom - sample.viewport).toBeLessThanOrEqual(1);
+    if (sample.footerBottom === null || sample.footerOpacity === 0) continue;
+    expect(sample.footerBottom - sample.viewport).toBeLessThanOrEqual(1);
+    if (sample.surfaceOverflow !== 'visible') {
+      expect(sample.footerBottom - sample.surfaceBottom).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+test('review-to-receipt shell and footer stay inside the resizing iframe', async ({
+  page,
+}, testInfo) => {
+  await injectImportMap(page);
+  await routePreactModules(page);
+  await page.route('**/confirmation-overlay-*', serveOverlayPage);
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/confirmation-overlay-parent');
+  await expectCardBounds(page, 448);
+  const child = page.frameLocator('iframe');
+  await child.getByRole('button', { name: 'Confirm', exact: true }).click();
+  const frame = page.frames()[1];
+  await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+  const transitions: Record<string, ReceiptFrame[]> = {};
+  transitions.review = await frame.evaluate('window.__receiptTransition.frames');
+  expect(transitions.review.length).toBeGreaterThan(8);
+  for (const action of ['Minimize transaction', 'Open']) {
+    await child.getByRole('button', { name: action, exact: true }).click();
+    await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+    transitions[action] = await frame.evaluate('window.__receiptTransition.frames');
+  }
+  await child.getByRole('button', { name: 'Minimize transaction', exact: true }).click();
+  await page.waitForTimeout(60);
+  transitions.interrupted = await frame.evaluate('window.__receiptTransition.frames');
+  await child.getByRole('button', { name: 'Open', exact: true }).click({ force: true });
+  await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+  transitions.reversed = await frame.evaluate('window.__receiptTransition.frames');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const action of ['Minimize transaction', 'Open']) {
+    await child.getByRole('button', { name: action, exact: true }).click();
+    await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+    await expectCardBounds(page, action === 'Open' ? 448 : 352);
+    transitions[`reduced-${action}`] = [await frame.evaluate('window.readReceiptFrame()')];
+  }
+  await writeFile(
+    testInfo.outputPath('receipt-transition-frames.json'),
+    JSON.stringify(transitions, null, 2),
+  );
+  for (const frames of Object.values(transitions)) assertReceiptFrames(frames);
+  await page.screenshot({ path: testInfo.outputPath('receipt-transition.png') });
+});
+
+for (const statusDelay of [45, 220]) {
+  test(`receipt status can change ${statusDelay} ms into the mobile transition`, async ({
+    page,
+  }, testInfo) => {
+    await injectImportMap(page);
+    await routePreactModules(page);
+    await page.route('**/confirmation-overlay-*', serveOverlayPage);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/confirmation-overlay-parent');
+    await expectCardBounds(page, 358);
+    const frame = page.frames()[1];
+    await frame.evaluate('window.prepareSigningReceipt()');
+    await page.frameLocator('iframe').getByRole('button', { name: 'Confirm', exact: true }).click();
+    await page.waitForTimeout(statusDelay);
+    const signing: ReceiptFrame[] = await frame.evaluate('window.__receiptTransition.frames');
+    await frame.evaluate('window.submitReceipt()');
+    await expect.poll(frame.evaluate.bind(frame, 'window.__receiptTransition.done')).toBe(true);
+    const submitted: ReceiptFrame[] = await frame.evaluate('window.__receiptTransition.frames');
+    await writeFile(
+      testInfo.outputPath('receipt-status-frames.json'),
+      JSON.stringify({ signing, submitted }, null, 2),
+    );
+    assertReceiptFrames(signing);
+    assertReceiptFrames(submitted);
+    await expectCardBounds(page, 358);
+    await page.screenshot({ path: testInfo.outputPath('receipt-status-transition.png') });
+  });
 }

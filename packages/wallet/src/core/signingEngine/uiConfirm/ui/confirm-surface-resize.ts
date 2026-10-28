@@ -498,7 +498,9 @@ export function attachConfirmSurfaceResizeChoreographer(
     // The pinned target is what the parent applies, rounded on both sides, so
     // the box reaches it exactly; a box the parent clamps short settles below.
     const progress = clamp((viewportPx - current.originHostPx) / current.deltaCssPx, 0, 1);
-    if (progress >= 1) {
+    // A reversal can pass the new target before returning. Land when the box reaches it.
+    const targetPx = Math.round(current.originHostPx + current.deltaCssPx);
+    if (viewportPx === targetPx) {
       current.framesAtTarget += 1;
       if (current.sawIntermediate || current.framesAtTarget >= LANDING_CONFIRM_FRAMES) {
         settle();
@@ -512,7 +514,7 @@ export function attachConfirmSurfaceResizeChoreographer(
     // destination before the ease reached it.
     if (current.framesAtTarget > 0) surfaceMotionDiagnostics.blipFrames += 1;
     current.framesAtTarget = 0;
-    if (progress > 0) current.sawIntermediate = true;
+    if (progress > 0 && progress < 1) current.sawIntermediate = true;
     current.driver.setProgress(progress);
     const settledFrames = current.moved
       ? SETTLED_FRAMES_AFTER_MOTION

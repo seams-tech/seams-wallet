@@ -699,6 +699,13 @@
   border: 1px solid var(--seams-colors-borderPrimary);
   box-shadow: 0 16px 32px -16px rgb(0 0 0 / 0.22);
 }
+:where(.seams-wallet-ui) .seams-receipt-morph-shell--hosted {
+  width: 100vw;
+  height: 100dvh;
+}
+:where(.seams-wallet-ui) .seams-receipt-footer--hosted {
+  transform: translateY(calc(100dvh - var(--seams-receipt-target-height)));
+}
 /* The replaced auth method capture stays in place above the receipt while it fades. */
 :where(.seams-wallet-ui) .seams-receipt-capture-ghost {
   position: fixed;
@@ -901,6 +908,7 @@
 }
 
 /* Shared receipt content stays visible above the moving surface. */
+.seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'][data-receipt-morphing],
 .seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal,
 .seams-wallet-ui[data-receipt-morphing] .seams-confirmation-modal .modal-container-root {
   overflow: visible;
