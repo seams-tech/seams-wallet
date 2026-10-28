@@ -47,6 +47,8 @@ async function calibrationJourney({ page }: { page: Page }, testInfo: TestInfo):
         await recordAndLabel(page, 'I read it correctly');
         attempts += 1;
       }
+      await expect(page.locator('#capture')).toContainText('Enrollment complete · 3 of 3');
+      await expect(page.locator('.seams-voiceid-prompt')).toHaveAttribute('data-capture', 'ready');
       if (id === 'p02') {
         await page.getByRole('button', { name: 'Freeze calibration', exact: true }).click();
         await expect(page.locator('#status')).toContainText('at least two enrolled people');

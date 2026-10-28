@@ -274,6 +274,9 @@ class HumanCalibration {
     this.select.disabled = false;
     if (participant.kind === 'enrolled' && participant.enrollmentSession === assignment.session) {
       this.phase = { kind: 'selecting' };
+      this.prompt.title.textContent = 'Enrollment complete · 3 of 3';
+      this.prompt.ready('Use a new session label for fresh comparison recordings.');
+      this.prompt.record.hidden = true;
       this.prompt.record.disabled = true;
       this.status.textContent = 'Enrollment complete. Take a break, then use a new session label for probes. Keep this page open.';
       this.render();

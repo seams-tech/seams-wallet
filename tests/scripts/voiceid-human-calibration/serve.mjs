@@ -40,6 +40,7 @@ button:disabled{opacity:.45;cursor:default}button[hidden]{display:none}#status{m
 <button id="export" disabled>Export scores</button>
 </section><div id="capture" class="seams-wallet-ui seams-voiceid-activation-surface"></div></div>
 <h2>Results</h2><p class="notes">Use at least two distinct people per cohort. Each person needs three enrollment clips, then later-session probes. Spread recordings across microphones, rooms, and days. Phrase assignments are balanced across the current phrase bank.</p>
+<p class="notes">Phrase rankings use probe recordings. Enrollment attempts stay in the export and do not count toward these rates.</p>
 <p class="notes">Enrollment for measurement accepts three correctly read clips with usable audio. Model rejections are recorded, rather than filtering out difficult examples. Participant and session labels are self-reported.</p>
 <div id="results"></div></main><script type="module" src="/lab/probe.js"></script></html>`;
 
