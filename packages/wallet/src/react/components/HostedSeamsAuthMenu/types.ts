@@ -34,6 +34,10 @@ export type HostedAuthMenuExternalAuthBroker = (
 
 type HostedAuthMenuOutcomeHandler = (outcome: HostedAuthMenuOutcome) => void;
 export interface HostedSeamsAuthMenuProps {
+  /** Initial panel height for a continuous transition from an app-origin menu. */
+  initialHeightCssPx?: number;
+  /** Inert app-origin content displayed while the wallet-origin menu loads. */
+  placeholder?: import('react').ReactNode;
   /** Initial view selected by the wallet-host menu. Defaults to login. */
   initialMode?: HostedAuthMenuMode;
   /** Wallet/account policy used by registration. Defaults to implicit wallet. */

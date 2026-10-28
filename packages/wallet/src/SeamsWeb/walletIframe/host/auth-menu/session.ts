@@ -1176,6 +1176,7 @@ export class AuthMenuSession {
     this.surface = mountAuthMenuSurface({
       parent: root,
       viewModel: this.currentViewModel(),
+      initialHeightCssPx: this.request.initialHeightCssPx,
       onIntent: this.onIntent,
     });
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({

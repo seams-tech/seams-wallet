@@ -3,6 +3,7 @@
 @import './components/theme/Theme.css';
 @import './components/AccountMenuButton/icons/Icon.css';
 @import './externalWalletPicker.css';
+@import './components/HostedSeamsAuthMenu/WalletConnectorMenu.css';
 
 /* Import AccountMenuButton styles */
 @import './components/AccountMenuButton/ExportKeysSection.css';

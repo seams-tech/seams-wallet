@@ -72,10 +72,46 @@ await wallet.near.signAndSendTransaction({
 
 ## コンポーネント {#components}
 
-安定版のAPIには、`HostedSeamsAuthMenu`、`WalletSettingsPage`、`AccountMenuButton`、`ProfileSettingsButton`、`QRCodeScanner`、`ShowQRCode`を含みます。
+安定版のAPIには、`WalletConnectorMenu`、`HostedSeamsAuthMenu`、`WalletSettingsPage`、`AccountMenuButton`、`ProfileSettingsButton`、`QRCodeScanner`、`ShowQRCode`を含みます。
 ウォレットオリジン側で認証体験全体を管理する場合は、ホストする認証メニューを使います。
 `SeamsAuthMenuMock`は、操作を実行しない読み込み用プレースホルダー兼プレビューです。
 `HostedSeamsAuthMenu`は、ウォレットUIを開く間にこれを表示します。
+
+### ウォレット接続メニュー {#wallet-connector-menu}
+
+`WalletConnectorMenu`は、Seamsと外部NEARウォレットを選ぶ標準UIです。
+`SeamsWebProvider`内に配置します。Seamsを選ぶと、同じパネルがサイズを変えながら
+`HostedSeamsAuthMenu`に切り替わります。認証操作はウォレットオリジンのiframe内で行います。
+
+```tsx [部分的な実装例]
+import { WalletConnectorMenu } from '@seams/wallet/react/hosted-seams-auth-menu';
+import { ExternalNearController } from '@seams/wallet/external-near';
+import '@seams/wallet/react/styles';
+
+const nearWallets = new ExternalNearController({
+  network: 'testnet',
+  rpcUrl: 'https://rpc.testnet.near.org',
+  wallets: ['meteor'],
+});
+
+<WalletConnectorMenu
+  onOutcome={handleSeamsOutcome}
+  externalNear={{ controller: nearWallets, onConnected: handleExternalConnection }}
+  options={{ meteor: { label: 'Meteorを接続', icon: <MeteorIcon /> } }}
+  authMenu={{ initialMode: 'register' }}
+/>;
+```
+
+`externalNear`を省略するとSeamsだけを表示します。外部ウォレットの一覧と順序は
+コントローラーの`wallets`で指定します。`setWallets`による変更も反映します。
+`options`で各項目の`label`、`description`、`icon`を変更できます。
+パネルには`title`、`description`、`closeLabel`、`className`、`style`を指定できます。
+色と角丸は既存のプロバイダー設定を使用し、認証画面の文言は`authMenu.copy`で変更します。
+
+`onClose`を渡すと閉じるボタンを表示します。認証結果は`onOutcome`へ通知します。
+外部接続の成功は`externalNear.onConnected`へ通知します。
+接続後にメニューを閉じても接続を維持します。接続待ちの間にメニューを削除した場合は、
+その接続要求をキャンセルします。動きを減らすブラウザー設定にも対応します。
 
 `AccountMenuButton`の既定値は`presentation="dropdown"`です。SDKのトリガーボタンを表示します。
 アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`を指定します。

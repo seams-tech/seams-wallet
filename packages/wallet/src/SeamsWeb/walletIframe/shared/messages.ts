@@ -148,6 +148,7 @@ export type HostedAuthMenuOpenRequest = {
   kind: 'hosted_auth_menu_open_v1';
   authMenuSessionId: HostedAuthMenuSessionId;
   initialMode: HostedAuthMenuMode;
+  initialHeightCssPx?: number;
   loginTarget: HostedAuthMenuLoginTarget;
   registrationAccountInput: HostedAuthMenuRegistrationAccountInput;
   showRegistrationInput: boolean;
@@ -519,6 +520,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
       'kind',
       'authMenuSessionId',
       'initialMode',
+      'initialHeightCssPx',
       'loginTarget',
       'registrationAccountInput',
       'showRegistrationInput',
@@ -532,6 +534,15 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
   }
   const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(record.authMenuSessionId);
   const initialMode = parseAuthMenuMode(record.initialMode);
+  const initialHeightCssPx = record.initialHeightCssPx;
+  if (
+    initialHeightCssPx !== undefined &&
+    (typeof initialHeightCssPx !== 'number' ||
+      !Number.isFinite(initialHeightCssPx) ||
+      initialHeightCssPx <= 0)
+  ) {
+    return null;
+  }
   const loginTargetRecord = recordFromBoundary(record.loginTarget);
   const loginWalletId =
     loginTargetRecord?.kind === 'wallet' || loginTargetRecord?.kind === 'wallet_sync'
@@ -567,6 +578,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     kind: 'hosted_auth_menu_open_v1',
     authMenuSessionId,
     initialMode,
+    initialHeightCssPx,
     loginTarget,
     registrationAccountInput,
     showRegistrationInput: record.showRegistrationInput,
@@ -579,6 +591,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
 export function buildHostedAuthMenuOpenRequest(args: {
   authMenuSessionId: HostedAuthMenuSessionId;
   initialMode?: HostedAuthMenuMode;
+  initialHeightCssPx?: number;
   loginTarget?: HostedAuthMenuLoginTarget;
   registrationAccountInput?: HostedAuthMenuRegistrationAccountInput;
   showRegistrationInput?: boolean;
@@ -595,6 +608,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
     !hasOnlyKeys(argsRecord, [
       'authMenuSessionId',
       'initialMode',
+      'initialHeightCssPx',
       'loginTarget',
       'registrationAccountInput',
       'showRegistrationInput',
@@ -612,6 +626,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
     kind: 'hosted_auth_menu_open_v1',
     authMenuSessionId: parsedSessionId,
     initialMode: args.initialMode ?? 'login',
+    initialHeightCssPx: args.initialHeightCssPx,
     loginTarget: args.loginTarget ?? { kind: 'discoverable' },
     registrationAccountInput: args.registrationAccountInput ?? 'implicit_wallet',
     showRegistrationInput: args.showRegistrationInput ?? false,

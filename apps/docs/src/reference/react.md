@@ -75,11 +75,58 @@ account input. It retains lowercase normalization and saved-wallet matching.
 
 ## Components
 
-The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,
+The stable surface includes `WalletConnectorMenu`, `HostedSeamsAuthMenu`, `WalletSettingsPage`,
 `AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`. Use the
 hosted auth menu when the wallet-origin boundary owns the complete auth experience.
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
+
+### Wallet connector menu
+
+Use `WalletConnectorMenu` for the default “Connect wallet” panel. It offers a Seams
+wallet and the external NEAR wallets enabled by your controller. Selecting Seams
+resizes the panel into `HostedSeamsAuthMenu`. Authentication remains on the wallet
+origin. The component uses the provider's theme tokens and supports reduced motion.
+
+```tsx [Partial example]
+import { WalletConnectorMenu } from '@seams/wallet/react/hosted-seams-auth-menu';
+import { ExternalNearController } from '@seams/wallet/external-near';
+import '@seams/wallet/react/styles';
+
+const nearWallets = new ExternalNearController({
+  network: 'testnet',
+  rpcUrl: 'https://rpc.testnet.near.org',
+  wallets: ['meteor'],
+});
+
+<WalletConnectorMenu
+  onOutcome={handleSeamsOutcome}
+  externalNear={{ controller: nearWallets, onConnected: handleExternalConnection }}
+  title="Connect wallet"
+  options={{
+    seams: { label: 'Create a wallet', description: 'Start with a passkey' },
+    meteor: { label: 'Connect Meteor', icon: <MeteorIcon /> },
+  }}
+  authMenu={{ initialMode: 'register' }}
+/>;
+```
+
+Mount the component inside `SeamsWebProvider`. `externalNear` is optional. Without it,
+the panel offers only Seams. The controller's `wallets` list controls the enabled
+wallets and their order, including changes through `setWallets`.
+
+Customize `title`, `description`, `closeLabel`, `className`, and `style`. The `options`
+map accepts `label`, `description`, and a React `icon` for `seams`, `meteor`, `hot`,
+and `intear`. Pass authentication copy and provider options through `authMenu`.
+Configure colors and corners through the existing provider appearance settings.
+
+Supply `onClose` to show a close button. Canceling authentication returns to the
+connector and calls `onClose` when supplied. Authentication failures return to the
+connector with an error. Every auth outcome also reaches `onOutcome`.
+
+External connection success calls `externalNear.onConnected`. The app owns that
+controller: closing the connector preserves a completed connection. Unmounting
+while an external connection is pending cancels that pending request.
 
 `AccountMenuButton` defaults to `presentation="dropdown"` and includes the SDK trigger.
 Use `presentation="modal"` to open the same settings from an application button.

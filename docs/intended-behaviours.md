@@ -3095,6 +3095,27 @@ nonce selection, approval, signing, and broadcast.
 Real Meteor evidence: `docs/evidence/refactor-185-meteor-testnet-20261026.json`.
 The run verified final execution and exact greeting readback for `cyan-loong.testnet`.
 
+### Wallet connector menu
+
+`WalletConnectorMenu` provides the default application-origin wallet selection UI.
+It offers Seams and the external NEAR wallets explicitly enabled by the supplied
+`ExternalNearController`, in that controller's order. Apps can override labels,
+descriptions, icons, and panel styling. The existing appearance configuration styles
+both selection and wallet-origin authentication.
+
+Selecting Seams replaces selection with the existing hosted auth menu in the same
+panel. The panel follows measured content height and respects reduced motion.
+Authentication controls remain in the wallet-origin iframe. Cancellation returns
+to selection and calls the optional close handler. Failure returns to selection
+with an error. The configured auth outcome callback receives every terminal outcome.
+
+External selection delegates to the existing controller. Unsupported networks stay
+disabled. Closing the menu after connection preserves the connection. Removing the
+menu or disabling the selected wallet during connection prevents a late result from
+connecting the app. The browser contract is
+`tests/wallet-ui/wallet-connector.browser.test.ts` and produces screenshots and a
+connection outcome artifact.
+
 ### External Meteor ownership messages
 
 `ExternalNearController.signMessage(connection, params)` requests a NEP-413 message

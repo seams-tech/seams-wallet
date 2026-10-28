@@ -1,0 +1,159 @@
+:where([data-seams-root]) .seams-wallet-connector {
+  box-sizing: border-box;
+  position: relative;
+  width: min(100%, 420px);
+  border-radius: var(--seams-shape-card, 16px);
+  background: var(--seams-colors-colorBackground);
+  color: var(--seams-colors-textPrimary);
+  font-family: var(--seams-font-family, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: height 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:where([data-seams-root]) .seams-wallet-connector-content {
+  width: 100%;
+  min-width: 0;
+  border-radius: inherit;
+}
+
+:where([data-seams-root])
+  .seams-wallet-connector[data-connector-view='auth']
+  .seams-wallet-connector-content {
+  animation: seams-connector-enter 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:where([data-seams-root]) .seams-wallet-connector-choices {
+  box-sizing: border-box;
+  padding: 28px 24px 24px;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: inherit;
+}
+
+:where([data-seams-root]) .seams-wallet-connector h2 {
+  margin: 0 28px 12px 0;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  outline: none;
+}
+
+:where([data-seams-root]) .seams-wallet-connector p {
+  margin: 0 0 24px;
+  color: var(--seams-colors-textSecondary);
+  font-size: 13px;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-options {
+  display: grid;
+  gap: 10px;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 78px;
+  padding: 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--seams-colors-borderPrimary);
+  border-radius: var(--seams-shape-control, 10px);
+  background: var(--seams-colors-surface2);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-option:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  flex: none;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-label {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-label strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-label small {
+  font-size: 12px;
+  color: var(--seams-colors-textSecondary);
+}
+
+:where([data-seams-root]) .seams-wallet-connector-option > svg {
+  flex: none;
+  color: var(--seams-colors-textSecondary);
+}
+
+:where([data-seams-root]) .seams-wallet-connector-close {
+  position: absolute;
+  z-index: calc(var(--seams-wallet-inline-dialog-z, 0) + 1);
+  inset: 12px 12px auto auto;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--seams-colors-textSecondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+:where([data-seams-root]) .seams-wallet-connector button:focus-visible {
+  outline: 2px solid var(--seams-colors-focus, currentColor);
+  outline-offset: 3px;
+}
+
+:where([data-seams-root]) .seams-wallet-connector p[role] {
+  margin: 16px 0 0;
+}
+
+:where([data-seams-root]) .seams-wallet-connector .seams-wallet-connector-error {
+  color: var(--seams-colors-error);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where([data-seams-root]) .seams-wallet-connector-option:not(:disabled):hover,
+  :where([data-seams-root]) .seams-wallet-connector-close:hover {
+    background: var(--seams-colors-hover);
+  }
+}
+
+@keyframes seams-connector-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-seams-root]) .seams-wallet-connector {
+    transition: none;
+  }
+  :where([data-seams-root]) .seams-wallet-connector-content {
+    animation: none;
+  }
+}

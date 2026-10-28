@@ -31,6 +31,7 @@ type HostedAuthMenuSessionArgs = {
   anchorElement: HTMLElement;
   authMenuSessionId: HostedAuthMenuSessionId;
   initialMode: HostedAuthMenuMode;
+  initialHeightCssPx: HostedSeamsAuthMenuProps['initialHeightCssPx'];
   registrationAccountInput: HostedSeamsAuthMenuProps['registrationAccountInput'];
   showRegistrationInput: boolean;
   showProgress: boolean;
@@ -49,6 +50,7 @@ type ExternalAuthEvidenceRecord = {
 
 type HostedAuthMenuEffectConfig = {
   readonly initialMode: HostedAuthMenuMode;
+  readonly initialHeightCssPx: HostedSeamsAuthMenuProps['initialHeightCssPx'];
   readonly registrationAccountInput: HostedSeamsAuthMenuProps['registrationAccountInput'];
   readonly showRegistrationInput: boolean;
   readonly showProgress: boolean;
@@ -166,6 +168,7 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
     const normalized = buildHostedAuthMenuOpenRequest({
       authMenuSessionId: configSessionId,
       initialMode: config.initialMode,
+      initialHeightCssPx: config.initialHeightCssPx,
       registrationAccountInput: config.registrationAccountInput,
       showRegistrationInput: config.showRegistrationInput,
       showProgress: config.showProgress,
@@ -174,6 +177,7 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
     });
     return JSON.stringify({
       initialMode: normalized.initialMode,
+      initialHeightCssPx: normalized.initialHeightCssPx,
       registrationAccountInput: normalized.registrationAccountInput,
       showRegistrationInput: normalized.showRegistrationInput,
       showProgress: normalized.showProgress,
@@ -190,6 +194,7 @@ class HostedAuthMenuSessionController {
   private readonly anchorElement: HTMLElement;
   private readonly authMenuSessionId: HostedAuthMenuSessionId;
   private readonly initialMode: HostedAuthMenuMode;
+  private readonly initialHeightCssPx: HostedSeamsAuthMenuProps['initialHeightCssPx'];
   private readonly registrationAccountInput: HostedSeamsAuthMenuProps['registrationAccountInput'];
   private readonly showRegistrationInput: boolean;
   private readonly showProgress: boolean;
@@ -211,6 +216,7 @@ class HostedAuthMenuSessionController {
     this.anchorElement = args.anchorElement;
     this.authMenuSessionId = args.authMenuSessionId;
     this.initialMode = args.initialMode;
+    this.initialHeightCssPx = args.initialHeightCssPx;
     this.registrationAccountInput = args.registrationAccountInput;
     this.showRegistrationInput = args.showRegistrationInput;
     this.showProgress = args.showProgress;
@@ -253,6 +259,7 @@ class HostedAuthMenuSessionController {
       request = buildHostedAuthMenuOpenRequest({
         authMenuSessionId: this.authMenuSessionId,
         initialMode: this.initialMode,
+        initialHeightCssPx: this.initialHeightCssPx,
         loginTarget: { kind: 'discoverable' },
         registrationAccountInput: this.registrationAccountInput,
         showRegistrationInput: this.showRegistrationInput,
@@ -416,6 +423,8 @@ function forwardHostedAuthMenuOutcome(
 
 export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   initialMode = 'login',
+  initialHeightCssPx,
+  placeholder,
   registrationAccountInput = 'implicit_wallet',
   showRegistrationInput = false,
   showProgress = false,
@@ -428,6 +437,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   syncTerminalGate(terminalGate, isLoggedIn);
   const effectConfigRef = React.useRef<HostedAuthMenuEffectConfig>({
     initialMode,
+    initialHeightCssPx,
     registrationAccountInput,
     showRegistrationInput,
     showProgress,
@@ -443,6 +453,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   const anchorRef = React.useRef<HTMLSpanElement | null>(null);
   effectConfigRef.current = {
     initialMode,
+    initialHeightCssPx,
     registrationAccountInput,
     showRegistrationInput,
     showProgress,
@@ -473,6 +484,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
       anchorElement,
       authMenuSessionId: createHostedAuthMenuSessionId(),
       initialMode: config.initialMode,
+      initialHeightCssPx: config.initialHeightCssPx,
       registrationAccountInput: config.registrationAccountInput,
       showRegistrationInput: config.showRegistrationInput,
       showProgress: config.showProgress,
@@ -496,7 +508,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
         width: 'min(100%, 420px)',
         // The wallet host measures the menu and publishes its height back onto
         // this element, so the anchor reserves the space the menu paints over.
-        minHeight: 'var(--seams-auth-menu-height, 450px)',
+        minHeight: `var(--seams-auth-menu-height, ${initialHeightCssPx ?? 450}px)`,
         position: 'relative',
         boxSizing: 'border-box',
         margin: 0,
@@ -510,9 +522,10 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
             position: 'absolute',
             inset: '0 0 auto',
             opacity: 'var(--seams-auth-menu-placeholder-opacity, 1)',
+            pointerEvents: 'none',
           }}
         >
-          <SeamsAuthMenuMock initialMode={initialMode} />
+          {placeholder ?? <SeamsAuthMenuMock initialMode={initialMode} />}
         </span>
       )}
     </span>
