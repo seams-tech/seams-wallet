@@ -80,6 +80,10 @@
   width: 34px;
   flex: none;
 }
+:where([data-seams-root]) .seams-wallet-connector-icon img {
+  display: block;
+  object-fit: contain;
+}
 
 :where([data-seams-root]) .seams-wallet-connector-label {
   display: grid;
@@ -104,7 +108,8 @@
   color: var(--seams-colors-textSecondary);
 }
 
-:where([data-seams-root]) .seams-wallet-connector-close {
+:where([data-seams-root]) .seams-wallet-connector-close,
+:where([data-seams-root]) .seams-wallet-connector-back {
   position: absolute;
   z-index: calc(var(--seams-wallet-inline-dialog-z, 0) + 1);
   inset: 12px 12px auto auto;
@@ -118,6 +123,10 @@
   color: var(--seams-colors-textSecondary);
   background: transparent;
   cursor: pointer;
+}
+
+:where([data-seams-root]) .seams-wallet-connector-back:has(+ .seams-wallet-connector-close) {
+  right: 52px;
 }
 
 :where([data-seams-root]) .seams-wallet-connector button:focus-visible {
@@ -135,7 +144,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   :where([data-seams-root]) .seams-wallet-connector-option:not(:disabled):hover,
-  :where([data-seams-root]) .seams-wallet-connector-close:hover {
+  :where([data-seams-root]) .seams-wallet-connector-close:hover,
+  :where([data-seams-root]) .seams-wallet-connector-back:hover {
     background: var(--seams-colors-hover);
   }
 }

@@ -7,6 +7,7 @@ import {
   type ExternalNearNetwork,
 } from '../externalNear';
 import { Theme, useTheme } from './components/theme';
+import { ExternalNearWalletIcon } from './components/ExternalNearWalletIcon';
 import './externalWalletPicker.css';
 
 export function useExternalNear(controller: ExternalNearController): ExternalNearSnapshot {
@@ -87,8 +88,6 @@ class NearWalletPicker extends Component<
   }
 }
 
-const walletIcons: Record<ExternalNearWalletId, string> = { meteor: 'M', hot: '🔥', intear: 'I' };
-
 function NearWalletButton({
   wallet,
   network,
@@ -107,7 +106,7 @@ function NearWalletButton({
   return (
     <button type="button" disabled={busy || unavailable} onClick={onConnect.bind(null, wallet)}>
       <span className={`seams-near-icon seams-near-${wallet}`} aria-hidden="true">
-        {walletIcons[wallet]}
+        <ExternalNearWalletIcon wallet={wallet} />
       </span>
       <strong>{nearWalletName(wallet)}</strong>
       <small>{description}</small>

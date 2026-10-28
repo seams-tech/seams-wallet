@@ -154,6 +154,11 @@ test('default menu transitions into the isolated auth menu, returns on cancel, a
   await page.goto('/wallet-connector-test');
   const panel = page.locator('.seams-wallet-connector');
   await expect(page.getByRole('heading', { name: 'Connect wallet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to wallet selection' })).toHaveCount(0);
+  const meteorIcon = page.getByRole('button', { name: /Connect Meteor Wallet/ }).locator('img');
+  const hotIcon = page.getByRole('button', { name: /Connect HOT Wallet/ }).locator('img');
+  await expect.poll(meteorIcon.evaluate.bind(meteorIcon, loadedWalletIcon)).toBe(true);
+  await expect.poll(hotIcon.evaluate.bind(hotIcon, loadedWalletIcon)).toBe(true);
   await expect(page.getByRole('button', { name: /Connect HOT Wallet/ })).toBeDisabled();
   const chooser = await panel.boundingBox();
   await page.screenshot({ path: testInfo.outputPath('connector-choices.png') });
@@ -187,6 +192,12 @@ test('default menu transitions into the isolated auth menu, returns on cancel, a
     expect(Math.abs(sample.top - sample.frameTop)).toBeLessThanOrEqual(1);
   }
   await page.screenshot({ path: testInfo.outputPath('connector-auth.png') });
+  await page.getByRole('button', { name: 'Back to wallet selection' }).click();
+  await expect(page.getByRole('heading', { name: 'Connect wallet' })).toBeFocused();
+  expect(await page.evaluate('window.__connector.closes')).toBe(0);
+  expect(await page.evaluate('window.__connector.outcomes.length')).toBe(0);
+  await page.getByRole('button', { name: /Create a Seams Wallet/ }).click();
+  await expect(auth.locator('.seams-title')).toHaveText('Create a wallet');
   await auth.locator('.auth-menu-root').press('Escape');
   await expect(page.getByRole('heading', { name: 'Connect wallet' })).toBeFocused();
   await page.getByRole('button', { name: /Connect Meteor Wallet/ }).click();
@@ -200,6 +211,7 @@ test('default menu transitions into the isolated auth menu, returns on cancel, a
   expect(result.connection.kind).toBe('connected');
   expect(result.connection.accountId).toBe('alice.testnet');
   expect(result.connections).toHaveLength(1);
+  expect(result.outcomes).toHaveLength(1);
   expect(result.outcomes[0].kind).toBe('cancelled');
   await writeFile(
     testInfo.outputPath('connector-results.json'),
@@ -237,4 +249,8 @@ function readPanelGeometry(element: HTMLElement) {
 
 function isIntermediateFrame(minHeight: number, maxHeight: number, frame: { height: number }) {
   return frame.height > minHeight + 1 && frame.height < maxHeight - 1;
+}
+
+function loadedWalletIcon(element: Element): boolean {
+  return element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0;
 }

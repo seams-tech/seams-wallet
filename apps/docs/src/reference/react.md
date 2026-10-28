@@ -115,10 +115,15 @@ Mount the component inside `SeamsWebProvider`. `externalNear` is optional. Witho
 the panel offers only Seams. The controller's `wallets` list controls the enabled
 wallets and their order, including changes through `setWallets`.
 
-Customize `title`, `description`, `closeLabel`, `className`, and `style`. The `options`
+Customize `title`, `description`, `closeLabel`, `backLabel`, `className`, and `style`. The `options`
 map accepts `label`, `description`, and a React `icon` for `seams`, `meteor`, `hot`,
 and `intear`. Pass authentication copy and provider options through `authMenu`.
 Configure colors and corners through the existing provider appearance settings.
+Meteor and HOT use bundled official wallet icons by default. App-supplied icons override them.
+
+When opened from the connector, the auth view includes a back button that returns to
+wallet selection and cancels the pending auth session without calling `onClose`.
+The standalone `HostedSeamsAuthMenu` does not show this connector navigation button.
 
 Supply `onClose` to show a close button. Canceling authentication returns to the
 connector and calls `onClose` when supplied. Authentication failures return to the

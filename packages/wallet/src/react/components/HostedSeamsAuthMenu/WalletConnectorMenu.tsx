@@ -7,7 +7,7 @@ import { useSeams } from '@/react/context';
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletDisplayText } from '@/core/ui/messages';
 import { Theme, useTheme } from '../theme';
-import { WalletIcon } from '../AccountMenuButton/icons/WalletIcon';
+import { ExternalNearWalletIcon } from '../ExternalNearWalletIcon';
 import { HostedSeamsAuthMenu } from './shell';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from './types';
 import './WalletConnectorMenu.css';
@@ -31,6 +31,7 @@ export type WalletConnectorMenuProps = {
   title?: string;
   description?: string;
   closeLabel?: string;
+  backLabel?: string;
   /** Customize the built-in Seams row and each enabled external wallet row. */
   options?: Partial<Record<'seams' | ExternalNearWalletId, WalletConnectorOptionAppearance>>;
   className?: string;
@@ -176,6 +177,10 @@ class ConnectorPanel extends Component<ConnectorPanelProps, ConnectorPanelState>
     this.props.onClose?.();
   };
 
+  private back = (): void => {
+    this.setState({ view: { kind: 'choices', error: null } });
+  };
+
   private connect = async (wallet: ExternalNearWalletId): Promise<void> => {
     const external = this.props.externalNear;
     if (!external || this.pending) return;
@@ -209,7 +214,7 @@ class ConnectorPanel extends Component<ConnectorPanelProps, ConnectorPanelState>
           description={
             unavailable ? 'Mainnet only' : (appearance?.description ?? 'Use your existing wallet')
           }
-          icon={appearance?.icon ?? <WalletIcon width={28} height={28} />}
+          icon={appearance?.icon ?? <ExternalNearWalletIcon wallet={wallet} />}
           disabled={busy || unavailable}
           external
           onClick={this.connect.bind(this, wallet)}
@@ -277,6 +282,23 @@ class ConnectorPanel extends Component<ConnectorPanelProps, ConnectorPanelState>
         style={this.props.style}
         data-connector-view={this.state.view.kind}
       >
+        {this.state.view.kind === 'auth' && (
+          <button
+            type="button"
+            className="seams-wallet-connector-back"
+            aria-label={walletDisplayText(
+              this.props.locale,
+              this.props.backLabel ?? 'Back to wallet selection',
+            )}
+            title={walletDisplayText(
+              this.props.locale,
+              this.props.backLabel ?? 'Back to wallet selection',
+            )}
+            onClick={this.back}
+          >
+            <ConnectorArrow kind="back" />
+          </button>
+        )}
         {this.props.onClose && (
           <button
             type="button"
@@ -330,11 +352,14 @@ function ConnectorOption(props: {
   );
 }
 
-function ConnectorArrow({ kind }: { kind: 'forward' | 'external' | 'close' }) {
+function ConnectorArrow({ kind }: { kind: 'forward' | 'back' | 'external' | 'close' }) {
   let path: string;
   switch (kind) {
     case 'forward':
       path = 'M5 12h14m-5-5 5 5-5 5';
+      break;
+    case 'back':
+      path = 'M19 12H5m5-5-5 5 5 5';
       break;
     case 'external':
       path = 'M7 17 17 7M7 7h10v10';

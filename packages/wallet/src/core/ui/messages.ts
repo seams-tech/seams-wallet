@@ -58,6 +58,7 @@ const walletMessages = [
   ['Create new passkey', '新しいパスキーを作成'],
   ['Continue with Google', 'Google で続ける'],
   ['Connect wallet', 'ウォレットを接続'],
+  ['Back to wallet selection', 'ウォレットの選択に戻る'],
   ['Choose how you’d like to get started.', '開始方法を選択してください。'],
   ['Create a Seams Wallet', 'Seams ウォレットを作成'],
   ['Get started with a passkey', 'パスキーで開始'],

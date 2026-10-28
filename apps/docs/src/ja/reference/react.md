@@ -105,8 +105,13 @@ const nearWallets = new ExternalNearController({
 `externalNear`を省略するとSeamsだけを表示します。外部ウォレットの一覧と順序は
 コントローラーの`wallets`で指定します。`setWallets`による変更も反映します。
 `options`で各項目の`label`、`description`、`icon`を変更できます。
-パネルには`title`、`description`、`closeLabel`、`className`、`style`を指定できます。
+パネルには`title`、`description`、`closeLabel`、`backLabel`、`className`、`style`を指定できます。
 色と角丸は既存のプロバイダー設定を使用し、認証画面の文言は`authMenu.copy`で変更します。
+MeteorとHOTの公式アイコンを同梱しています。`options`の`icon`で置き換えることもできます。
+
+コネクターから開いた認証画面には、ウォレット選択へ戻るボタンを表示します。
+戻る操作は認証セッションをキャンセルし、`onClose`を呼び出さずに選択画面へ戻ります。
+単独で表示する`HostedSeamsAuthMenu`には、このボタンを表示しません。
 
 `onClose`を渡すと閉じるボタンを表示します。認証結果は`onOutcome`へ通知します。
 外部接続の成功は`externalNear.onConnected`へ通知します。

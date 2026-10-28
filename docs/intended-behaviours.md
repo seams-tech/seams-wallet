@@ -3105,6 +3105,10 @@ both selection and wallet-origin authentication.
 
 Selecting Seams replaces selection with the existing hosted auth menu in the same
 panel. The panel follows measured content height and respects reduced motion.
+The connector's back button returns from auth to wallet selection without dismissing
+the connector or forwarding an abandoned auth result. Standalone auth menus do not
+show this button. Meteor and HOT options use bundled official wallet artwork unless
+the app provides an icon override.
 Authentication controls remain in the wallet-origin iframe. Cancellation returns
 to selection and calls the optional close handler. Failure returns to selection
 with an error. The configured auth outcome callback receives every terminal outcome.
