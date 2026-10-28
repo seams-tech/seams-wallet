@@ -56,6 +56,11 @@ function sizeForReporter(
 ): SurfaceSize | null {
   if (options.kind === 'request_scroll_surface') {
     const rect = options.element.getBoundingClientRect();
+    // During confirmation motion, the pinned box is the destination. Its children
+    // can still occupy the old height while the parent iframe approaches it.
+    if (options.element.classList.contains('seams-confirm-surface-pinned')) {
+      return sizeFromRect(rect);
+    }
     return sizeFromRect({
       width: Math.max(options.element.scrollWidth, rect.width),
       height: Math.max(options.element.scrollHeight, rect.height),

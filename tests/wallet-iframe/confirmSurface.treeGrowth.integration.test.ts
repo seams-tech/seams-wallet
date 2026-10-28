@@ -88,7 +88,6 @@ type MotionTrace = {
 /** The interior changes this surface can make, each through the same seam. */
 type MotionAction =
   | { kind: 'details'; open: boolean }
-  | { kind: 'raw-data'; open: boolean }
   | { kind: 'error-banner'; message: string };
 
 async function openRealModal(page: Page, options: { greeting?: string } = {}): Promise<Frame> {
@@ -217,6 +216,17 @@ function readRawDisclosureGeometry() {
   };
 }
 
+function scrollTechnicalDetailsToEnd() {
+  const details = document.querySelector<HTMLElement>('.seams-review-technical > div');
+  if (!details) throw new Error('Transaction details are required');
+  details.scrollTop = details.scrollHeight;
+  return {
+    top: details.scrollTop,
+    height: details.clientHeight,
+    contentHeight: details.scrollHeight,
+  };
+}
+
 async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionTrace> {
   return frame.evaluate(async (action) => {
     const host = document.getElementById('seams-confirm-portal')!.firstElementChild as HTMLElement;
@@ -262,15 +272,12 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       case 'details':
         click(`.seams-review-technical${action.open ? ':not([open])' : '[open]'} > summary`);
         break;
-      case 'raw-data':
-        click(
-          `.seams-review-technical .seams-review-raw${action.open ? ':not([open])' : '[open]'} > summary`,
-        );
-        break;
       case 'error-banner':
-        const handle = (window as unknown as {
-          __confirmHandle?: { update: (update: { errorMessage: string }) => void };
-        }).__confirmHandle;
+        const handle = (
+          window as unknown as {
+            __confirmHandle?: { update: (update: { errorMessage: string }) => void };
+          }
+        ).__confirmHandle;
         if (!handle) throw new Error('confirmation handle is missing');
         handle.update({ errorMessage: action.message });
         break;
@@ -298,8 +305,8 @@ async function recordMotion(frame: Frame, action: MotionAction): Promise<MotionT
       frames,
       finalHostPx: host.getBoundingClientRect().height,
       blipFrames:
-        (window as unknown as { __seamsSurfaceMotion?: { blipFrames: number } }).__seamsSurfaceMotion
-          ?.blipFrames ?? 0,
+        (window as unknown as { __seamsSurfaceMotion?: { blipFrames: number } })
+          .__seamsSurfaceMotion?.blipFrames ?? 0,
     };
   }, action);
 }
@@ -376,20 +383,36 @@ test.describe('wallet iframe host-driven interior motion', () => {
     });
   });
 
-  test('revealing the raw calldata moves the box, not the card', async ({ page }, testInfo) => {
-    // Tall enough that the parent does not clamp the box short of the raw bytes.
-    await page.setViewportSize({ width: 1280, height: 1200 });
-    // Long enough that the raw bytes wrap over several lines.
+  test('long raw calldata scrolls inside the details while the modal stays within the screen', async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     const frame = await openRealModal(page, { greeting: `Hello Tempo ${'x'.repeat(120)}` });
     await recordMotion(frame, { kind: 'details', open: true });
     await page.waitForTimeout(400);
 
-    const opening = await recordMotion(frame, { kind: 'raw-data', open: true });
-    assertMotionInvariants(opening, { sign: 1 });
-    const closing = await recordMotion(frame, { kind: 'raw-data', open: false });
-    assertMotionInvariants(closing, { sign: -1 });
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     const rawSummary = frame.locator('.seams-review-raw > summary');
+    const before = await frame.evaluate(readRawDisclosureGeometry);
+    await rawSummary.click();
+    await expect.poll(frame.evaluate.bind(frame, readRawDisclosureGeometry)).toMatchObject({
+      open: true,
+      fits: true,
+      cardHeight: before.cardHeight,
+    });
+    const opening = await frame.evaluate(readRawDisclosureGeometry);
+    const scrolled = await frame.evaluate(scrollTechnicalDetailsToEnd);
+    expect(scrolled.top).toBeGreaterThan(0);
+    expect(Math.abs(scrolled.top + scrolled.height - scrolled.contentHeight)).toBeLessThanOrEqual(
+      1,
+    );
+    await page.screenshot({ path: testInfo.outputPath('scrollable-transaction-details.png') });
+    await rawSummary.click();
+    await expect.poll(frame.evaluate.bind(frame, readRawDisclosureGeometry)).toMatchObject({
+      open: false,
+      fits: true,
+    });
+    const closing = await frame.evaluate(readRawDisclosureGeometry);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await rawSummary.click();
     await expect.poll(frame.evaluate.bind(frame, readRawDisclosureGeometry)).toMatchObject({
       open: true,
@@ -404,7 +427,7 @@ test.describe('wallet iframe host-driven interior motion', () => {
     const reducedClosing = await frame.evaluate(readRawDisclosureGeometry);
     await writeFile(
       testInfo.outputPath('raw-disclosure-motion.json'),
-      JSON.stringify({ opening, closing, reducedOpening, reducedClosing }, null, 2),
+      JSON.stringify({ opening, scrolled, closing, reducedOpening, reducedClosing }, null, 2),
     );
   });
 

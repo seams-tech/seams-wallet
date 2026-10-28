@@ -260,7 +260,10 @@ function createConfirmSurfaceMeasurementReporter(
       return null;
     case 'wallet_iframe':
       return createWalletIframeSurfaceMeasurementReporter({
-        kind: 'request_surface',
+        kind:
+          element.getAttribute('data-seams-confirm-variant') === 'modal'
+            ? 'request_scroll_surface'
+            : 'request_surface',
         element,
         requestId: binding.requestId,
         postMeasurement: binding.postMeasurement,

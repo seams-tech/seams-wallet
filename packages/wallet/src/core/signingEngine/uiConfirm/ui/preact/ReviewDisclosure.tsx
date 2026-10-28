@@ -87,8 +87,16 @@ export class ReviewDisclosure extends Component<{
       return;
     }
     details.open = true;
+    const scrollArea = details.parentElement?.closest<HTMLElement>('.seams-review-technical > div');
+    if (scrollArea && scrollArea.scrollHeight > scrollArea.clientHeight) {
+      // Nested raw data stays inside the bounded details area. Report only its
+      // resulting layout instead of requesting space for the full raw payload.
+      details.open = opening;
+      details.removeAttribute('data-closing');
+      return;
+    }
     details.setAttribute('data-resizing', '');
-    const target = opening ? body.scrollHeight : 0;
+    const target = opening ? body.getBoundingClientRect().height : 0;
     this.motion = { kind: 'hosted', opening };
     if (
       announceClampedSurfaceResize({

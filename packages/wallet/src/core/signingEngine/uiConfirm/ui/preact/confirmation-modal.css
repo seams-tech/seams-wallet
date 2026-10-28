@@ -38,6 +38,16 @@ html:has([data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant
 /* Report the card's preferred width, independent of the iframe's current size. */
 .seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'] {
   inline-size: var(--seams-modal__container-max-width, 26rem);
+  max-block-size: 100dvh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  border-radius: min(var(--seams-shape-card, 16px), 2rem);
+}
+
+/* The resize reporter must see the requested height while the parent makes room. */
+.seams-confirmation-surface[data-seams-confirm-surface='wallet-iframe'][data-seams-confirm-variant='modal'].seams-confirm-surface-pinned {
+  max-block-size: none;
 }
 
 :where(.seams-wallet-ui) .seams-confirmation-modal--hosted {

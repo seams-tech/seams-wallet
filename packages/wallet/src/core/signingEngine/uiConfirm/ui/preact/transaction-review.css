@@ -118,6 +118,11 @@
   border-top: 1px solid var(--seams-colors-borderPrimary);
   margin-block: 0.75rem;
 }
+:where(.seams-wallet-ui) .seams-review-technical > div {
+  max-block-size: 16rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 :where(.seams-wallet-ui) .seams-review-raw > div {
   display: flow-root;
 }
