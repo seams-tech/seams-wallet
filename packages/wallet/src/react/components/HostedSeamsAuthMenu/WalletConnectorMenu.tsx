@@ -8,6 +8,7 @@ import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletDisplayText } from '@/core/ui/messages';
 import { Theme, useTheme } from '../theme';
 import { ExternalNearWalletIcon } from '../ExternalNearWalletIcon';
+import { HoverArrowIcon } from '../AccountMenuButton/icons/HoverArrowIcon';
 import { HostedSeamsAuthMenu } from './shell';
 import type { HostedAuthMenuOutcome, HostedSeamsAuthMenuProps } from './types';
 import './WalletConnectorMenu.css';
@@ -296,7 +297,7 @@ class ConnectorPanel extends Component<ConnectorPanelProps, ConnectorPanelState>
             )}
             onClick={this.back}
           >
-            <ConnectorArrow kind="back" />
+            <HoverArrowIcon size={16} direction="left" />
           </button>
         )}
         {this.props.onClose && (
@@ -306,7 +307,7 @@ class ConnectorPanel extends Component<ConnectorPanelProps, ConnectorPanelState>
             aria-label={walletDisplayText(this.props.locale, this.props.closeLabel ?? 'Close')}
             onClick={this.close}
           >
-            <ConnectorArrow kind="close" />
+            <ConnectorCloseIcon />
           </button>
         )}
         <div ref={this.content} className="seams-wallet-connector-content">
@@ -347,29 +348,12 @@ function ConnectorOption(props: {
           <WalletText copy={props.description} />
         </small>
       </span>
-      <ConnectorArrow kind={props.external ? 'external' : 'forward'} />
+      <HoverArrowIcon size={16} direction={props.external ? 'up-right' : 'right'} />
     </button>
   );
 }
 
-function ConnectorArrow({ kind }: { kind: 'forward' | 'back' | 'external' | 'close' }) {
-  let path: string;
-  switch (kind) {
-    case 'forward':
-      path = 'M5 12h14m-5-5 5 5-5 5';
-      break;
-    case 'back':
-      path = 'M19 12H5m5-5-5 5 5 5';
-      break;
-    case 'external':
-      path = 'M7 17 17 7M7 7h10v10';
-      break;
-    case 'close':
-      path = 'm6 6 12 12M6 18 18 6';
-      break;
-    default:
-      return assertNever(kind);
-  }
+function ConnectorCloseIcon() {
   return (
     <svg
       width="20"
@@ -380,7 +364,7 @@ function ConnectorArrow({ kind }: { kind: 'forward' | 'back' | 'external' | 'clo
       strokeWidth="1.5"
       aria-hidden="true"
     >
-      <path d={path} />
+      <path d="m6 6 12 12M6 18 18 6" />
     </svg>
   );
 }

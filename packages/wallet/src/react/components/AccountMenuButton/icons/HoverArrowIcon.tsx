@@ -4,7 +4,13 @@ import './Icon.css';
 
 /** A chevron that grows a shaft on its parent's hover (">" to "->"). Place it
  * as a direct child of the row that triggers it (HoverArrowIcon.css). */
-export function HoverArrowIcon({ size = 12 }: { size?: number }): React.JSX.Element {
+export function HoverArrowIcon({
+  size = 12,
+  direction = 'right',
+}: {
+  size?: number;
+  direction?: 'right' | 'left' | 'up-right';
+}): React.JSX.Element {
   const style: React.CSSProperties & {
     '--seams-icon-width': string;
     '--seams-icon-height': string;
@@ -17,7 +23,7 @@ export function HoverArrowIcon({ size = 12 }: { size?: number }): React.JSX.Elem
   return (
     <svg
       data-seams-root=""
-      className="seams-icon seams-hover-arrow"
+      className={`seams-icon seams-hover-arrow seams-hover-arrow--${direction}`}
       width={size}
       height={size}
       style={style}

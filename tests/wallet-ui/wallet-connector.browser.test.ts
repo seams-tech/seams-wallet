@@ -160,6 +160,15 @@ test('default menu transitions into the isolated auth menu, returns on cancel, a
   await expect.poll(meteorIcon.evaluate.bind(meteorIcon, loadedWalletIcon)).toBe(true);
   await expect.poll(hotIcon.evaluate.bind(hotIcon, loadedWalletIcon)).toBe(true);
   await expect(page.getByRole('button', { name: /Connect HOT Wallet/ })).toBeDisabled();
+  const seamsOption = page.getByRole('button', { name: /Create a Seams Wallet/ });
+  const forwardShaft = seamsOption.locator('.seams-hover-arrow-line');
+  await expect(forwardShaft).toHaveCSS('opacity', '0');
+  await seamsOption.hover();
+  await expect(forwardShaft).toHaveCSS('opacity', '1');
+  await page.getByRole('button', { name: /Connect HOT Wallet/ }).hover();
+  await expect(
+    page.getByRole('button', { name: /Connect HOT Wallet/ }).locator('.seams-hover-arrow-line'),
+  ).toHaveCSS('opacity', '0');
   const chooser = await panel.boundingBox();
   await page.screenshot({ path: testInfo.outputPath('connector-choices.png') });
   await page.evaluate('window.__connector.recordTransition()');
@@ -192,6 +201,12 @@ test('default menu transitions into the isolated auth menu, returns on cancel, a
     expect(Math.abs(sample.top - sample.frameTop)).toBeLessThanOrEqual(1);
   }
   await page.screenshot({ path: testInfo.outputPath('connector-auth.png') });
+  await page.getByRole('button', { name: 'Back to wallet selection' }).hover();
+  await expect(
+    page
+      .getByRole('button', { name: 'Back to wallet selection' })
+      .locator('.seams-hover-arrow-line'),
+  ).toHaveCSS('opacity', '1');
   await page.getByRole('button', { name: 'Back to wallet selection' }).click();
   await expect(page.getByRole('heading', { name: 'Connect wallet' })).toBeFocused();
   expect(await page.evaluate('window.__connector.closes')).toBe(0);
