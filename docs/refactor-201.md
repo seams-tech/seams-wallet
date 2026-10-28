@@ -27,7 +27,14 @@ Four-candidate preparation has a 17.1-second median checkpoint span in this depl
 The participant Wasm matches the preceding hosted baseline. Compatibility dates and execution conditions were not independently controlled.
 All final successful Router calls take less than five seconds, while complete successful demands have a 14.7-second median including waits.
 One demand remains unfinished at the cutoff. These private Router results exclude the public SDK and client network.
-All eight temporary Workers are deleted. The next priority is matched producer CPU calibration before another inner-loop change.
+All eight temporary Workers from that campaign are deleted.
+The [matched producer calibration](router-ab/ml-dsa-65-producer-calibration-report.md) profiles fixed public workloads and tests an equivalent masked-word AES transpose.
+All sixty-four comparison jobs publish matching fresh material. Two candidate signatures verify with the standard verifier.
+The candidate provides no consistent useful gain and is removed. Production cryptographic source is restored.
+Direct B calibration does not match protocol instances. Routing through A improves matching; unmatched samples stay excluded from attribution.
+Provider timestamp metadata does not always bound logs. The wider log-envelope check finds no eligible heavy-calibration overlap.
+Fresh instrumented jobs again take roughly 9–11 seconds, but first-touch, warmup, and placement remain confounds.
+The cause of the broader CPU variation remains unresolved. The next comparison must separate those effects from ordinary uninstrumented execution.
 
 ## Objective and measurement boundaries
 
@@ -197,6 +204,7 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 - [x] Establish an exact-version baseline and calibrated inner-stage sampling.
 - [x] Run producer workload/slot crossover and isolated-versus-concurrent comparisons.
 - [x] Separate AES setup, rounds, conversion, and erasure. Reject native context reuse after the hosted bridge screen.
+- [x] Add matched in-producer calibration and compare a proven masked-shift AES candidate. Reject the candidate after the hosted controls.
 - [x] Verify the merged Signing keys flow against hostile CSS and narrow screens.
 - [ ] Continue optimizing measured preparation costs. Chunk consumption remains as a small CPU optimization. No additional AES runtime prototype remains.
 - [ ] Qualify retained material under hosted failures and measure useful throughput.
