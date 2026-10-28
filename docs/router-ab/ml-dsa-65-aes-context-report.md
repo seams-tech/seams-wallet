@@ -140,9 +140,9 @@ The initial campaign uses the existing sixty-second load driver. Four wallets th
 A five-signature-per-minute experiment requires a separately identified shorter benchmark cooldown.
 No larger reserve or dedicated preparation server is proposed.
 
-Automatic approval review rejects the fresh eight-Worker deployment.
-Deployment and credential uploads await exact approval.
-No private campaign Worker is created and no private credential is uploaded by that rejected action.
+Automatic approval review initially rejected the fresh eight-Worker deployment.
+The user then approved its exact credentials and destinations.
+The completed [four-wallet capacity campaign](ml-dsa-65-four-wallet-capacity-report.md) records the subsequent deployment, measurements, and cleanup.
 Wallet-seed recovery, FIPS export, participant separation, and per-wallet capacity remain unchanged.
 
 [Replayable evidence and hashes](../evidence/ml-dsa-65-aes-context-20261028.json) contain the complete public capture and cleanup receipts.

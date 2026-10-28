@@ -20,8 +20,14 @@ The native bridge and fixed AES round-loop unrolling are removed. Production cry
 All 270 public benchmark requests match provider CPU records. Independent fixture verification and temporary Worker cleanup pass.
 The merged browser settings E2E also passes with hostile CSS, narrow screens, and light/dark themes.
 Registration, signing tails, and sustained four-wallet throughput still need qualification against the targets below.
-The current eight-Worker capacity setup is prepared. Automatic approval review rejects deployment for fresh credentials and destinations.
-Exact approval is pending. No private campaign Worker is created by that rejected action.
+The [four-wallet capacity campaign](router-ab/ml-dsa-65-four-wallet-capacity-report.md) completes with 38 verified signatures in ten minutes.
+Observed reserve restoration gives approximately 3.78 signatures/minute. The four-to-five-signature target remains open.
+All 121 consumed pairs receive fresh replacements, and both ledgers balance.
+Four-candidate preparation has a 17.1-second median checkpoint span in this deployment. Idle controls remain slow at 18–24 seconds.
+The participant Wasm matches the preceding hosted baseline. Compatibility dates and execution conditions were not independently controlled.
+All final successful Router calls take less than five seconds, while complete successful demands have a 14.7-second median including waits.
+One demand remains unfinished at the cutoff. These private Router results exclude the public SDK and client network.
+All eight temporary Workers are deleted. The next priority is matched producer CPU calibration before another inner-loop change.
 
 ## Objective and measurement boundaries
 
@@ -196,7 +202,8 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 - [ ] Qualify retained material under hosted failures and measure useful throughput.
 - [ ] Shorten the measured registration critical path.
 - [ ] Reduce first-use and repeated-pair signing overhead.
-- [ ] Run four-wallet capacity profiles with complete reserve restoration.
+- [x] Run the sixty-second four-wallet capacity profile with complete material replacement and observed reserve restoration.
+- [ ] Qualify improved sustainable capacity. Defer the forty-five-second profile until preparation improves.
 - [x] Retain this checkpoint's report, replayable public evidence, exact versions, and cleanup receipts.
 
 Use existing native vectors, type fixtures, and meaningful Worker/browser E2Es. Add no unit tests or source-text guard framework.
