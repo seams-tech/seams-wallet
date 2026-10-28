@@ -121,7 +121,8 @@ export function toError(e: unknown): Error {
  */
 export function isTouchIdCancellationError(error: unknown): boolean {
   const msg = errorMessage(error);
-  if (isWebAuthnRpIdOriginConfigurationError(error)) return false;
+  if (isWebAuthnRpIdOriginConfigurationError(error) || isWebAuthnBrowserSecurityError(error))
+    return false;
   if (isUserCancellationError(error)) return true;
 
   // Normalize for case-insensitive substring checks on user-facing phrases
@@ -154,8 +155,21 @@ export function isWebAuthnRpIdOriginConfigurationError(error: unknown): boolean 
   );
 }
 
+const WEB_AUTHN_BROWSER_SECURITY_MESSAGE =
+  'Passkeys require trusted HTTPS for the app and wallet. Check both origins and their certificates.';
+
+export function isWebAuthnBrowserSecurityError(error: unknown): boolean {
+  const message = errorMessage(error);
+  // Unlock results can carry the friendly message after the DOMException is flattened.
+  return (
+    message === WEB_AUTHN_BROWSER_SECURITY_MESSAGE ||
+    message.toLowerCase().includes('tls certificate errors')
+  );
+}
+
 export function isUserCancellationError(error: unknown): boolean {
-  if (isWebAuthnRpIdOriginConfigurationError(error)) return false;
+  if (isWebAuthnRpIdOriginConfigurationError(error) || isWebAuthnBrowserSecurityError(error))
+    return false;
   const msg = errorMessage(error);
   const lower = msg.toLowerCase();
   const maybe = error as { name?: unknown; code?: unknown };
@@ -218,6 +232,10 @@ export function getUserFriendlyErrorMessage(
   accountId?: string,
 ): string {
   const msg = errorMessage(error);
+
+  if (isWebAuthnBrowserSecurityError(error)) {
+    return WEB_AUTHN_BROWSER_SECURITY_MESSAGE;
+  }
 
   if (isWebAuthnRpIdOriginConfigurationError(error)) {
     const op = context === 'registration' ? 'Registration' : 'Login';

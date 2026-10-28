@@ -10,7 +10,8 @@ security identities. Each validates and normalizes its own external input once.
 
 ## Browser boundary
 
-- Use HTTPS outside local development.
+- Use trusted HTTPS for both application and wallet origins when embedding a
+  remote wallet, including during local development.
 - Allow exact application origins. Avoid wildcard credentialed CORS.
 - Validate every iframe message origin, source window, protocol version, and
   session identity.

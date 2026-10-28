@@ -1,4 +1,5 @@
 import type { WalletHostSessionCommands } from '../createSessionCommands';
+import { isUserCancellationError } from '@shared/utils/errors';
 import type {
   AuthMethodCaptureMount,
   AuthMethodCaptureSettlement,
@@ -3883,8 +3884,7 @@ export class AuthMenuSession {
       this.fail({ kind: 'dismissed' });
       return;
     }
-    const name = error instanceof Error ? error.name : '';
-    if (name === 'NotAllowedError' || name === 'AbortError') {
+    if (isUserCancellationError(error)) {
       this.fail({ kind: 'dismissed' });
       return;
     }

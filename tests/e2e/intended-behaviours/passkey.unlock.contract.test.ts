@@ -15,9 +15,12 @@ import { intendedTest as test, type IntendedBehaviourHarness } from './harness';
 import { verifyFreshUnlockWins, verifyLockWins } from './session-restore-lock';
 import { verifyPassiveWalletLock } from './session-passive-lock';
 import { verifyLockPreservesPresignatures } from './session-presign-retention';
+import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
 
 // Export flows retain sanitized evidence instead of secret-bearing DOM or network captures.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
+
+test('browser security failures remain visible and a cancelled retry can unlock the same wallet', verifyBrowserSecurityFailureAndRetry);
 
 test('lock retains durable presignatures across a fresh unlock', verifyLockPreservesPresignatures);
 test('locking a wallet updates an idle tab without a session query', verifyPassiveWalletLock);

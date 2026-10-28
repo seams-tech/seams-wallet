@@ -7,11 +7,7 @@ import type {
 import type { UserConfirmProgressEvent } from '../types';
 import { UserConfirmMessageType } from './confirmTypes';
 import { isObject, isFunction, isString } from '@shared/utils/validation';
-import {
-  toError,
-  isTouchIdCancellationError,
-  isWebAuthnRpIdOriginConfigurationError,
-} from '@shared/utils/errors';
+import { isTouchIdCancellationError } from '@shared/utils/errors';
 import { normalizeOptionalNonEmptyString } from '@shared/utils/normalize';
 
 export function parseTransactionSummary(summaryData: unknown): TransactionSummary {
@@ -134,12 +130,5 @@ export function sendConfirmProgress(
 }
 
 export function isUserCancelledUserConfirm(error: unknown): boolean {
-  if (isWebAuthnRpIdOriginConfigurationError(error)) return false;
-  return (
-    isTouchIdCancellationError(error) ||
-    (() => {
-      const e = toError(error);
-      return e?.name === 'NotAllowedError' || e?.name === 'AbortError';
-    })()
-  );
+  return isTouchIdCancellationError(error);
 }

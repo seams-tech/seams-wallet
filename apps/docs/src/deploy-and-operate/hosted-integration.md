@@ -22,6 +22,25 @@ the runtime assets.
 Set the relayer URL in the application's SDK configuration. The wallet service
 uses that URL without a separate list of relayer origins in its HTML document.
 
+## Local development with a hosted wallet
+
+Use trusted HTTPS for the local application when it embeds a remote HTTPS wallet.
+Chrome can reject passkey registration and unlock from an HTTP loopback application,
+including `http://localhost` and `http://127.0.0.1`. Its error can say
+“WebAuthn is not supported on sites with TLS certificate errors.” This message can
+refer to the containing application tab even when the wallet certificate is valid.
+
+Serve the application through a local HTTPS server or reverse proxy. Use a
+certificate issued by a local certificate authority that the browser trusts.
+For example, proxy `https://localhost:4319` to a development server at
+`http://127.0.0.1:4318`. Do not bypass certificate validation.
+
+Register the exact HTTPS application origin, including its port, in the
+environment's browser-origin policies. Check Gateway CORS, wallet framing policy,
+and iframe message origins. Preserve the hosted wallet origin and its RP ID.
+Verify registration and existing-wallet unlock with the browser's native device
+prompt. A virtual authenticator does not verify native browser security checks.
+
 ## Prepare registration through the hosted menu
 
 Use `HostedSeamsAuthMenu` for registration when setup should start before the

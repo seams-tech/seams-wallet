@@ -929,6 +929,9 @@ CTA belong to the wallet origin.
   same prepared surface; it does not open a second registration-confirmation modal.
 - The wallet host owns passkey and Email OTP validation, OTP state,
   registration continuation, and unlock continuation.
+- A browser TLS security rejection during registration or unlock shows trusted
+  HTTPS guidance. It does not count as a dismissed passkey prompt. Actual prompt
+  cancellation keeps its existing cancellation behaviour.
 - Demo email delivery displays its code inside the wallet-origin OTP prompt.
   Replacement delivery replaces the displayed code. Provider-only delivery shows
   no demo code. Displaying a code never submits it automatically. Hosted demo
