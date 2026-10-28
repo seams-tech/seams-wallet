@@ -1,0 +1,328 @@
+{
+  "schema": "seams.ml-dsa-aes-context-campaign.v1",
+  "source_revision": "38f52be22bc6dbf29d84ad026c082fda968ebec1",
+  "observed_date": "2026-10-28",
+  "decision": "Discard the instrumented native AES bridge and fixed-round prototype. Keep software AES. No complete preparation gain established.",
+  "scope": "Public-fixture AES kernel comparison, merged browser E2E, and local native recovery checks. No sustained signature-throughput claim.",
+  "hosted": {
+    "compatibility_date": "2026-06-12",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "kernel_version": "c3e1a171-ea57-4e46-9eda-be0a1ed30be3",
+    "requests": 270,
+    "full_output_fixtures": 60,
+    "timing_samples": 168,
+    "exact_capture": {
+      "expected": 270,
+      "observed": 270,
+      "missing": []
+    },
+    "medians": [
+      {
+        "count": 1,
+        "bytesPerCall": 16,
+        "mode": 0,
+        "cpuMedianMs": 6.5,
+        "httpMedianMs": 23.229645999999775
+      },
+      {
+        "count": 1,
+        "bytesPerCall": 16,
+        "mode": 1,
+        "cpuMedianMs": 473,
+        "httpMedianMs": 569.4033749999994
+      },
+      {
+        "count": 1,
+        "bytesPerCall": 16,
+        "mode": 2,
+        "cpuMedianMs": 76.5,
+        "httpMedianMs": 113.02329149999991
+      },
+      {
+        "count": 8,
+        "bytesPerCall": 128,
+        "mode": 0,
+        "cpuMedianMs": 5,
+        "httpMedianMs": 21.352125000000342
+      },
+      {
+        "count": 8,
+        "bytesPerCall": 128,
+        "mode": 1,
+        "cpuMedianMs": 462,
+        "httpMedianMs": 547.1767709999995
+      },
+      {
+        "count": 8,
+        "bytesPerCall": 128,
+        "mode": 2,
+        "cpuMedianMs": 83,
+        "httpMedianMs": 108.08095850000063
+      },
+      {
+        "count": 16,
+        "bytesPerCall": 256,
+        "mode": 0,
+        "cpuMedianMs": 10,
+        "httpMedianMs": 27.134562500001266
+      },
+      {
+        "count": 16,
+        "bytesPerCall": 256,
+        "mode": 1,
+        "cpuMedianMs": 450.5,
+        "httpMedianMs": 558.4076465000016
+      },
+      {
+        "count": 16,
+        "bytesPerCall": 256,
+        "mode": 2,
+        "cpuMedianMs": 93,
+        "httpMedianMs": 112.96850000000086
+      },
+      {
+        "count": 64,
+        "bytesPerCall": 1024,
+        "mode": 0,
+        "cpuMedianMs": 43,
+        "httpMedianMs": 60.347083500000736
+      },
+      {
+        "count": 64,
+        "bytesPerCall": 1024,
+        "mode": 1,
+        "cpuMedianMs": 532.5,
+        "httpMedianMs": 599.9881464999999
+      },
+      {
+        "count": 64,
+        "bytesPerCall": 1024,
+        "mode": 2,
+        "cpuMedianMs": 183.5,
+        "httpMedianMs": 207.87420849999944
+      },
+      {
+        "count": 128,
+        "bytesPerCall": 2048,
+        "mode": 0,
+        "cpuMedianMs": 41.5,
+        "httpMedianMs": 59.197604500001034
+      },
+      {
+        "count": 128,
+        "bytesPerCall": 2048,
+        "mode": 1,
+        "cpuMedianMs": 275.5,
+        "httpMedianMs": 338.90568749999875
+      },
+      {
+        "count": 128,
+        "bytesPerCall": 2048,
+        "mode": 2,
+        "cpuMedianMs": 140.5,
+        "httpMedianMs": 176.71264599999995
+      },
+      {
+        "count": 256,
+        "bytesPerCall": 4096,
+        "mode": 0,
+        "cpuMedianMs": 42.5,
+        "httpMedianMs": 60.85087500000009
+      },
+      {
+        "count": 256,
+        "bytesPerCall": 4096,
+        "mode": 1,
+        "cpuMedianMs": 188.5,
+        "httpMedianMs": 220.98004149999906
+      },
+      {
+        "count": 256,
+        "bytesPerCall": 4096,
+        "mode": 2,
+        "cpuMedianMs": 96.5,
+        "httpMedianMs": 122.91139599999951
+      },
+      {
+        "count": 1024,
+        "bytesPerCall": 16384,
+        "mode": 0,
+        "cpuMedianMs": 43,
+        "httpMedianMs": 62.40772899999865
+      },
+      {
+        "count": 1024,
+        "bytesPerCall": 16384,
+        "mode": 1,
+        "cpuMedianMs": 93,
+        "httpMedianMs": 111.42608299999847
+      },
+      {
+        "count": 1024,
+        "bytesPerCall": 16384,
+        "mode": 2,
+        "cpuMedianMs": 64.5,
+        "httpMedianMs": 82.25072949999958
+      }
+    ],
+    "claim_limit": "Whole instrumented bridge requests. Native counters, copying, cleanup, and crossings included. Provider internals and host contention unmeasured.",
+    "all_workers_absent": true,
+    "credentials_uploaded": false,
+    "wallet_data_uploaded": false
+  },
+  "browser": {
+    "passed": true,
+    "hostile_css": true,
+    "wallet_mutations": 0,
+    "errors": []
+  },
+  "final_component_screen": {
+    "passed": true,
+    "components": [
+      {
+        "mode": 0,
+        "name": "scalar key schedule and drop",
+        "medianNsPerCall": 249.88746643066392
+      },
+      {
+        "mode": 1,
+        "name": "widen existing schedule and drop",
+        "medianNsPerCall": 233.31769561767655
+      },
+      {
+        "mode": 2,
+        "name": "AES rounds on preconverted state",
+        "medianNsPerCall": 160.67663574218827
+      },
+      {
+        "mode": 3,
+        "name": "input/output conversion and state wipe",
+        "medianNsPerCall": 19.326530456541605
+      },
+      {
+        "mode": 4,
+        "name": "state wipe only",
+        "medianNsPerCall": 5.82218170165974
+      },
+      {
+        "mode": 5,
+        "name": "complete production eight-block call",
+        "medianNsPerCall": 182.0605621337887
+      }
+    ],
+    "nonadditive": true
+  },
+  "worker_builds": [
+    "router",
+    "deriver-a",
+    "deriver-b"
+  ],
+  "production_cryptographic_sources_changed": false,
+  "fixed_requirements": {
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true,
+    "preparation_group_size": 4,
+    "candidate_group_size": 2,
+    "candidate_capacity_per_wallet": 32,
+    "admission_minimum_candidates": 16,
+    "production_cooldown_ms": 60000
+  },
+  "remaining": "Four-wallet capacity campaign prepared; automatic review rejected deployment for new credentials/destinations. Exact approval pending. No private deployment occurred.",
+  "bloat_check": {
+    "passed": false,
+    "reason": "Inherited Rust duplication excess",
+    "baseline": 13754,
+    "observed": 13992,
+    "production_rust_added": 0
+  },
+  "offline_replay": {
+    "passed": true,
+    "requests": 270,
+    "fullOutputFixturesReproduced": 60,
+    "cpuAndHttpMediansReproduced": 21,
+    "cleanupVerified": true,
+    "referenceNode": "v24.18.0",
+    "referenceOpenSsl": "3.5.7"
+  },
+  "credential_scan": {
+    "passed": true,
+    "exact_private_patterns_checked": 6
+  },
+  "archive": {
+    "path": "ml-dsa-65-aes-context-20261028.tar.gz",
+    "sha256": "b6d6fcc04c3c7efc0beb813e2422749a8edc9535567e47c71ac47e979d153e63",
+    "bytes": 790629,
+    "members": 68,
+    "file_sha256": {
+      "README.md": "0ca2e3c40b8b9c474d688911afa62e8e42c508516c4b8676aa3430f15392c05b",
+      "aes-kernel.wasm": "401c31f577bced508649f87b0266e528ca8638ac2e8578adf2278ce89f4d5367",
+      "bloat-check.log": "7fffa9db146e8a813c98e4c993ba8653551d775cc10b762c842878ee3cf85562",
+      "bridge/Cargo.lock": "97955e294c1c34e2d58c21c01f67c37e5db2842135ace86c6329a670bb033ee1",
+      "bridge/Cargo.toml": "a9f50da05f712c6cce9cbf68709197aab637a20a2b3bb3ef9b383cbbf5bf130f",
+      "bridge/bridge-aes.mjs": "4f56500c2c2565cf72e29a31daaf918e93a2e59539aed2d079ec6e529e9f828d",
+      "bridge/pkg/entry.mjs": "d36c35aeca4469b20ec006f29c6d2f9c3afbe80c568220766a1eaebabc8c419a",
+      "bridge/pkg/hosted-entry.mjs": "e2262a215368226fbc9fb5f7b4011a3abbad8e86a7a660c71a62e9fb3b5fe69f",
+      "bridge/pkg/ml_dsa_aes_context_probe.d.ts": "55d2d59391c33a6a2d305dc30637f23de5099aacf443b2caf0de718d2bfef138",
+      "bridge/pkg/ml_dsa_aes_context_probe.js": "38d25ae53e23d17756ead650511042fe0eb806d829019f2f70d6991b69442b80",
+      "bridge/pkg/ml_dsa_aes_context_probe_bg.js": "b0ee2bd746ff351134858e08800f299764e52ab95e5c4c1fcc0234b63af3de2e",
+      "bridge/pkg/ml_dsa_aes_context_probe_bg.wasm": "005ca644a281ffad7995db7ae750577313e64463ecaa7e3004c7e385ee0f19a0",
+      "bridge/pkg/ml_dsa_aes_context_probe_bg.wasm.d.ts": "42574dfd720a5ae099ed56b56b4c26a81ac4ae0f7c544566f06b5b6d06901e0d",
+      "bridge/pkg/snippets/ml-dsa-aes-context-probe-9d93e4d7e9e9acad/bridge-aes.mjs": "4f56500c2c2565cf72e29a31daaf918e93a2e59539aed2d079ec6e529e9f828d",
+      "bridge/src/lib.rs": "8006f6ec83c6a365923303ec372c7a93709257bddc964c55bdf9b75bda21b397",
+      "bridge-context-import-setup-failed.json": "b1594b604eddc9db167445a088f90a0858225e75d49383df1891231ce024ee6d",
+      "bridge-context-import-setup-failed.log": "7f4899dcc308beaeba457a4536b006c246d5257fc728867397d942f8053478d3",
+      "bridge-context.json": "c9a3e8612b947fc4ba37952d308eae2c7cf7bcfdfd3762318c88366579575415",
+      "browser/live-controlled-modal.png": "cb69fda60e72763f3140168c462a40630c69f86746995fde5327abd705a3ee47",
+      "browser/ml-dsa-key-details-dark.png": "a73496ca41bc6e451172ac754edace60fdc948935b16d40567daf7eceb0efe7d",
+      "browser/ml-dsa-key-details-light.png": "bcd96c229800b3cadd992a26ee08838b3a6ec55fe4fc399a307d69ba131afd91",
+      "browser/signing-keys.png": "d456d25c379aa6a14c511ba96efd3693ca0da5f2f91f860650fe5da3706f8d3f",
+      "browser-flow.log": "a82229ce778c00d5f0d3e374b535927acff8faa44e175b32396d2f94efe5b49d",
+      "browser-result.json": "3390f4cbf10aff5df032bb004e9eda8e6c5a809c102a142eef5366faff2d9c01",
+      "canonical-keygen.json": "db58c9cbd96427b4db62d38d97963739699d17ce9dfa4bf27a265cb398859eb9",
+      "components-with-batch.json": "7d273f1f76be537ec2f527547e1e0ff4b696f35f6742d34597ca9b8c9b2617c9",
+      "components.json": "cf89f24af7c605ec359493fbf0efceecd617f2dfafd1192dcadbb0a64249be99",
+      "deriver-a-build.log": "ecd8257eb78138ff5aa24e95bafefac7b612897cb9aeea815104d25f4b826568",
+      "deriver-b-build.log": "541bf37ad669d625d0f28685449a4b39416c94c45ddb3d6933e1e75e78ef2817",
+      "final-aes-kernel.wasm": "3fdd9330f406ab46f127b6e6aca6f52cc457a8ffb539883efb9ae7f6c1b4a50a",
+      "final-components.json": "f2fe69c75974b1ab61d9e78e2388e4ecc9f7f8d36610c9f3a8e14b43e49e8ebd",
+      "hosted/absence-collector.log": "9b07f412d4941e336d7ff28a53bac196fc6d0709202d7d9f18839821ff31c912",
+      "hosted/absence-kernel.log": "0d5f011fe6d0cd86cab6e753075f3609433ad0e1d4b0aad3a1966372e7b65960",
+      "hosted/cleanup.json": "d60078628614eec6ca3cd5ac606b5fca67e031a364ed0fa07cdcc85032a51ebd",
+      "hosted/collector-deploy.log": "71ef662701e5bb404cf57f38a8588ae525e404af0527f12613d231a64bd565d7",
+      "hosted/collector.json": "2ca0ff187b7dfeddfc4d837e3ef98b309fc57a5e9b72cec3ef45a740deb1a1cd",
+      "hosted/collector.mjs": "e41902dce5b0d64deef1cff3b3fc61a5582a68f9b9b446fce3218e4f1518fb6d",
+      "hosted/delete-collector.log": "f6cc1b6caa95e4ee277238036f356270b736d3eeb318889b5d8ee950dc8051b3",
+      "hosted/delete-kernel.log": "a44af27379e78b9abe84021185a7d750b9bb2500f913152c8b1bcc0c33ce2161",
+      "hosted/deployment-history.json": "8f82e0e3ee239b9192cb819cfa3fff2bd8a7fdf09f48037da78e90f4304db600",
+      "hosted/kernel-deploy.log": "97eb7d47f652517b42add8b4fec15ba0da776d90188dcbaeab918368acf5444c",
+      "hosted/kernel.json": "f2dea0cf3bb9e301c94c1c5e153482458da5d5b44571f3795aef4ab40271e2fa",
+      "hosted/results.json": "58b37712861ef4163ec732b74a595babde99f7e961e476375c55b7acf99479f5",
+      "hosted/scope.json": "0a151c9d8e5a16f0b81c1de789ab82b4a5486be3e6c1d83ed130a924cf9ceba7",
+      "independent-review.md": "f27bf60bc9d6528d71e498c9ba6dd42a46f0774c20aed528204c2f8072af29fc",
+      "measured-private-aes-screen.py": "9cec5a963f4f1410f18fc6f285314328ad3d9947372eb3df3855e4fac2dca25a",
+      "offline-replay.json": "4b69651436b2ce3604814381a01fec250815daed25aa7486f0bc75a0ce606fdf",
+      "provider-context-signed-checksum-failed.json": "80b50bac3cb38777587fa3aef3850087e88f2ca88f03d8586672816a1977601f",
+      "provider-context-signed-checksum-failed.log": "a0c9a59ce886dc149965510f5fa5b165d331c6d2a1c91ef674b5aa8a543d24b6",
+      "provider-context-startup-failed.json": "e3a6d91c76976448757739bc1dff9bc0173f1decc866611dff897302bdc2751d",
+      "provider-context-startup-failed.log": "ed9c942902e6903c715043cf1fe9014d44caffadbc80ec4398576b853da38163",
+      "provider-context.json": "37570c5216dcf914091c66115ad02429669e2c39b974f261614648bcb95c239b",
+      "provider-probe.mjs": "98c113392a92b6e92eb7230dac963912507caac6a6b4b2285d0152975e141a7c",
+      "rejected-fixed-rounds.patch": "e920f93dbf9be151b9df73c3a314cc9e2ae62761c10b27b19f66b8bc8251eb92",
+      "replay-hosted.mjs": "233f8fb6e45aa0589d737b850a487925b81854b9915502613a48025ae51adb96",
+      "router-build.log": "13ea969fe173d2f4f66d3c27a59b3fd4af020433e7944cf1f762d21b7a45c6b1",
+      "run-bridge-probe.mjs": "86e987f49d63500addb5495456ff6452489259bea8a903f582267c78d148dd13",
+      "run-hosted-bridge.mjs": "85800ab4c0d733be96fbfbdf02118d2fa98c6dc09a9de5e4dea3757601abfb13",
+      "run-provider-probe.mjs": "2c8968241d763f31f4ef2c5f8e34a41a9a693c19708bf49af530337bbb658243",
+      "source/crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs": "ff60709396f9627819acdae9e7d8dfb0073a6b38486bfc08a0963364b887cda2",
+      "source/crates/two-party-primitives/src/gate_aes/eight.rs": "d546254880c31f64c9c9b9b1c79b528dd77104a4f59921b7a5c71067351c651c",
+      "source/crates/two-party-primitives/src/gate_aes.rs": "d205b30aa4bff0a3b4852c49b89c5d79f68ff52c6be656aacfd7bac8ffa95361",
+      "source/tests/e2e/account-menu-mock.e2e.mjs": "3676b3ea104a5bd7865d9a3df8e9ea7a9b60bc2dd5bcd6fb1a94f3abeac10cc4",
+      "source/tools/ml-dsa-investigation/research/run_private_aes_screen.py": "1b2251c85b2f2be3aecd5b3aabc8e229609ea73e5f287733ae0fe4e3e0c94b18",
+      "unrolled-aes-kernel.wasm": "be0221cf6eebacba490cc49a7a53179fb0af44f02d6d5226f51dc96b68aa097f",
+      "unrolled-components.json": "ce7f615abfa1a6dc356372d71338a390ff16c04b98b2de7a0a8da896bf639c33",
+      "wallet-recovery.json": "84fb2fdcb942f998f57a47418da40e56f0fc0231d15efe87a21cb6b375318550"
+    }
+  }
+}
