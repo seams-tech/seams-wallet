@@ -1,6 +1,6 @@
 # ML-DSA latency and sustainable preparation
 
-Status: in progress. Date: October 27, 2026.
+Status: in progress. Date: October 28, 2026.
 
 The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
 The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
@@ -13,8 +13,15 @@ Wallet-seed recovery, canonical FIPS export, two-at-once consumption, and pool c
 The [grouped accumulator experiment](router-ab/ml-dsa-65-grouped-accumulator-report.md) improves the local encoder by about 22%, but provides no useful hosted gain.
 Its paired producer CPU totals are 152.5 seconds, versus 147.1 and 144.9 seconds for the controls.
 Both prototypes are removed. Corrected baseline snapshots and public benchmark diagnostics remain.
-Four-candidate job wall medians remain near ten seconds. The next target is finer attribution of private AES setup, rounds, and buffer handling.
+Four-candidate job wall medians remain near ten seconds.
+The [AES profiling checkpoint](router-ab/ml-dsa-65-aes-context-report.md) separates setup, rounds, conversion, and erasure through temporary diagnostics.
+Production already reuses software AES schedules. A real native bridge has no median hosted CPU advantage at any tested size.
+The native bridge and fixed AES round-loop unrolling are removed. Production cryptographic sources remain unchanged.
+All 270 public benchmark requests match provider CPU records. Independent fixture verification and temporary Worker cleanup pass.
+The merged browser settings E2E also passes with hostile CSS, narrow screens, and light/dark themes.
 Registration, signing tails, and sustained four-wallet throughput still need qualification against the targets below.
+The current eight-Worker capacity setup is prepared. Automatic approval review rejects deployment for fresh credentials and destinations.
+Exact approval is pending. No private campaign Worker is created by that rejected action.
 
 ## Objective and measurement boundaries
 
@@ -183,7 +190,9 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 
 - [x] Establish an exact-version baseline and calibrated inner-stage sampling.
 - [x] Run producer workload/slot crossover and isolated-versus-concurrent comparisons.
-- [ ] Continue optimizing measured preparation costs. The AES experiment regressed. Chunk consumption remains as a small CPU optimization.
+- [x] Separate AES setup, rounds, conversion, and erasure. Reject native context reuse after the hosted bridge screen.
+- [x] Verify the merged Signing keys flow against hostile CSS and narrow screens.
+- [ ] Continue optimizing measured preparation costs. Chunk consumption remains as a small CPU optimization. No additional AES runtime prototype remains.
 - [ ] Qualify retained material under hosted failures and measure useful throughput.
 - [ ] Shorten the measured registration critical path.
 - [ ] Reduce first-use and repeated-pair signing overhead.
