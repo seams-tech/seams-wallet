@@ -264,6 +264,18 @@ export class WalletSessionStatusReadScope {
     }
   }
 
+  /** Recovery changes the authority projected by an existing session. */
+  invalidateCredential(token: string): void {
+    const credentialKey = statusCredentialKey(token);
+    for (const reads of this.readsByFetch.values()) {
+      for (const key of reads.keys()) {
+        if (key.startsWith(credentialKey)) reads.delete(key);
+      }
+    }
+    this.suppliedStatus = { kind: 'remote' };
+    WalletSessionStatusReadScope.forgetCredential(token);
+  }
+
   static observationForConfirmation(
     options: RelayerExactWalletSessionStatusPortOptions,
     identity: ExactWalletSessionStatusIdentity,

@@ -113,7 +113,12 @@ import { IndexedDBManager } from '@/core/indexedDB';
 import {
   exactPasskeyWalletAuthAuthorityRefForCredential,
   exactPasskeyWalletAuthMethodForCredential,
+  resolveActivePasskeyWalletSessionAuthority,
+  reconcilePasskeyWalletSessionAfterRecovery,
+  readActivePasskeyAuthorityForRecovery,
+  type ValidatedPasskeyWalletSessionAuthority,
 } from '@/SeamsWeb/operations/authMethods/passkey/exactPasskeyAuthority';
+import { reconcileRecoveredEd25519Authority } from '@/core/indexedDB/seamsWalletDB/recoveredEd25519Authority';
 import {
   walletSessionAuthorizations,
   WalletSessionAuthorizationUpgradeRequiredError,
@@ -180,7 +185,6 @@ import {
 import type { WebAuthnAllowCredential } from '@/core/signingEngine/webauthnAuth/credentials/collectAuthenticationCredentialForChallengeB64u';
 import type { EcdsaBootstrapRequest } from '@/core/signingEngine/session/passkey/ecdsaBootstrap';
 import {
-  exactWalletSessionAuthorityIdentity,
   type ExactWalletSessionAuthorization,
   type ExactWalletSessionAuthorityIdentity,
 } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
@@ -4778,47 +4782,6 @@ function passkeyWalletUnlockInput(args: {
   };
 }
 
-type ValidatedPasskeyWalletSessionAuthority = {
-  readonly reference: WalletAuthAuthorityRef;
-  readonly identity: ExactWalletSessionAuthorityIdentity;
-};
-
-async function resolveActivePasskeyWalletSessionAuthority(args: {
-  readonly walletId: WalletId;
-  readonly authorization: ExactWalletSessionAuthorization;
-}): Promise<ValidatedPasskeyWalletSessionAuthority> {
-  const authMethod = await IndexedDBManager.getWalletAuthMethodV2(
-    args.authorization.record.authMethodId,
-  );
-  if (
-    !authMethod ||
-    authMethod.kind !== 'passkey' ||
-    authMethod.status !== 'active' ||
-    authMethod.walletId !== args.walletId ||
-    authMethod.walletAuthorityId !== args.authorization.record.authorityId
-  ) {
-    throw new Error('Passkey Wallet Session authorization changed auth-method identity');
-  }
-  const authority = await IndexedDBManager.getWalletAuthority(authMethod.walletAuthorityId);
-  if (
-    !authority ||
-    authority.state !== 'active' ||
-    authority.walletId !== args.walletId ||
-    authority.authorityId !== args.authorization.record.authorityId ||
-    authority.authorityDigestB64u !== args.authorization.record.authorityDigestB64u ||
-    authority.revocationEpoch !== args.authorization.record.authorityRevocationEpoch
-  ) {
-    throw new Error('Passkey Wallet Session authorization changed authority identity');
-  }
-  return {
-    reference: await walletAuthAuthorityRefForSelectedPasskeyMethod(authMethod),
-    identity: exactWalletSessionAuthorityIdentity({
-      authority,
-      walletAuthMethodId: authMethod.walletAuthMethodId,
-    }),
-  };
-}
-
 async function validatePasskeyWalletSessionAuthorization(args: {
   readonly walletIdentity: ResolvedLoginWalletIdentity;
   readonly rpId: string;
@@ -4929,6 +4892,15 @@ async function completePasskeyWalletUnlock(
     walletIdentity: args.walletIdentity,
     activation,
   });
+  const selectedMethod = await exactPasskeyWalletAuthMethodForCredential({
+    walletId: args.walletIdentity.walletId,
+    rpId: args.rpId,
+    credentialIdB64u: passkeyCredentialIdB64uFromAuthentication(credential),
+  });
+  const previousAuthority = await readActivePasskeyAuthorityForRecovery({
+    walletId: args.walletIdentity.walletId,
+    authMethodId: selectedMethod.walletAuthMethodId,
+  });
   const result = await verifyPasskeyWalletUnlock(args.relayUrl, unlockInput, statusReads);
   if (!result.success) {
     throw new Error(result.error || 'Passkey wallet unlock failed');
@@ -4943,6 +4915,12 @@ async function completePasskeyWalletUnlock(
     throw new Error('Passkey wallet unlock omitted the requested ECDSA activation');
   }
   const walletSessionAuthorizationToPersist = result.walletSessionAuthorization ?? null;
+  if (walletSessionAuthorizationToPersist) {
+    await reconcileRecoveredEd25519Authority({
+      session: walletSessionAuthorizationToPersist.record,
+      previous: previousAuthority,
+    });
+  }
   const passkeySessionAuthority = walletSessionAuthorizationToPersist
     ? await validatePasskeyWalletSessionAuthorization({
         walletIdentity: args.walletIdentity,
@@ -5451,6 +5429,14 @@ type PasskeyEd25519CustodyLoginInput = {
   relayerUrl: string;
 };
 
+type PasskeyEd25519CustodyLoginOutcome =
+  | { readonly kind: 'unchanged' }
+  | {
+      readonly kind: 'recovered';
+      readonly materialActivation: MpcMaterialActivationRef;
+      readonly previousAuthority: ActiveWalletAuthorityV1;
+    };
+
 function requireLoginWarmEd25519OperationCredential(
   session: LoginWarmEd25519Session,
 ): WalletSessionOperationCredentialV1 {
@@ -5535,7 +5521,7 @@ function assertWalletCustodyLoginIdentity(input: PasskeyEd25519CustodyLoginInput
 
 async function openAndActivatePasskeyEd25519CustodyLogin(
   input: PasskeyEd25519CustodyLoginInput,
-): Promise<void> {
+): Promise<PasskeyEd25519CustodyLoginOutcome> {
   assertWalletCustodyLoginIdentity(input);
   const capability = input.custody.ed25519.capability;
   const cached = await input.signingEngine.loadWalletCustodyEd25519Material({
@@ -5551,6 +5537,10 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
   }
   const activation = walletCustodyLoginActivationFacts(input.custody, thresholdSessionId.value);
   const envelope = walletCustodyCacheEnvelopeFromRecordV1(input.custody.envelope);
+  const previousAuthority = await readActivePasskeyAuthorityForRecovery({
+    walletId: input.walletBinding.walletId,
+    authMethodId: input.authority.walletAuthMethodId,
+  });
   let activeClient: Awaited<ReturnType<typeof openWalletCustodyEd25519ActiveClientV1>> | null =
     null;
   let rejoinSecret: Uint8Array<ArrayBuffer> | null = null;
@@ -5743,6 +5733,9 @@ async function openAndActivatePasskeyEd25519CustodyLogin(
       walletSessionId: String(input.walletSession.walletSessionId),
       expiresAtMs: input.walletSession.expiresAtMs,
     });
+    return cached.kind === 'found'
+      ? { kind: 'unchanged' }
+      : { kind: 'recovered', materialActivation: activated.materialActivation, previousAuthority };
   } catch (error) {
     activeClient?.dispose();
     throw error;
@@ -5917,6 +5910,9 @@ async function primeThresholdLoginWarmSigners(args: {
   const unlockRemainingUses = args.unlockRemainingUses;
   const ecdsaBootstraps: ThresholdEcdsaSessionBootstrapResult[] = [];
   let ed25519Session: LoginWarmEd25519Session | null = null;
+  const custodyRecovery: { outcome: PasskeyEd25519CustodyLoginOutcome } = {
+    outcome: { kind: 'unchanged' },
+  };
   let ecdsaAuthorizedEd25519Mint: ThresholdEcdsaAuthorizedEd25519Mint | null = null;
 
   const tasks: ThresholdLoginWarmupTask[] = [];
@@ -6056,7 +6052,7 @@ async function primeThresholdLoginWarmSigners(args: {
           if (!passkeyPrfFirstB64u) {
             throw new Error('[login] wallet custody requires WebAuthn PRF.first');
           }
-          await args.signingEngine.withExactEd25519MaterialOwner({
+          custodyRecovery.outcome = await args.signingEngine.withExactEd25519MaterialOwner({
             materialActivation: expectedMaterialActivation,
             nearAccountId: walletBinding.nearAccountId,
             task: openAndActivatePasskeyEd25519CustodyLogin.bind(undefined, {
@@ -6325,6 +6321,18 @@ async function primeThresholdLoginWarmSigners(args: {
   }
 
   await runThresholdLoginWarmupTasks(tasks);
+  if (custodyRecovery.outcome.kind === 'recovered') {
+    if (!args.passkeyUnlockWalletSessionAuthorization) {
+      throw new Error('Recovered passkey material requires its exact Wallet Session');
+    }
+    await reconcilePasskeyWalletSessionAfterRecovery({
+      authorization: args.passkeyUnlockWalletSessionAuthorization,
+      materialActivation: custodyRecovery.outcome.materialActivation,
+      relayerUrl: args.relayerUrl,
+      statusReads: args.statusReads,
+      previousAuthority: custodyRecovery.outcome.previousAuthority,
+    });
+  }
   return { ecdsaBootstraps, ed25519Session };
 }
 

@@ -2141,7 +2141,7 @@ export function parseWalletAuthorityStorageRow(value: unknown): WalletAuthorityR
   };
 }
 
-function walletAuthorityStorageRow(record: WalletAuthorityV1): WalletAuthorityRow {
+export function walletAuthorityStorageRow(record: WalletAuthorityV1): WalletAuthorityRow {
   return {
     authority_id: record.authorityId,
     wallet_id: record.walletId,
@@ -5576,6 +5576,20 @@ export class SeamsWalletRepositories {
     input: Parameters<SeamsWalletRepositories['replaceExactActiveWalletSessionFromStatus']>[0],
     ctx: SeamsWalletTransactionContext,
   ): Promise<{ readonly kind: 'replaced' } | { readonly kind: 'superseded' }> {
+    const current = await readExactActiveWalletSessionForScopeInTransaction({
+      ctx,
+      walletId: input.active.walletId,
+      authorityId: input.active.authorityId,
+      authMethodId: input.active.authMethodId,
+    });
+    // A delayed status response cannot replace a later unlock's credential.
+    if (
+      current.kind !== 'found' ||
+      current.operationCredential.token !== input.operationCredential.token ||
+      current.operationCredential.walletSessionId !== input.operationCredential.walletSessionId
+    ) {
+      return { kind: 'superseded' };
+    }
     const authority = parseWalletAuthorityStorageRow(
       await ctx.store(SEAMS_WALLET_STORES.walletAuthorities).get(input.active.authorityId),
     );

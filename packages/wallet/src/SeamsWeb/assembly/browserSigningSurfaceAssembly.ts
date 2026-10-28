@@ -1,3 +1,4 @@
+import { walletSessionImmutableIdentityMatches } from '@/core/signingEngine/session/persistence/walletSessionAuthorizationProjection';
 import {
   activeWalletSessionV1RecordsEqual,
   walletSessionPreservesCapabilities,
@@ -141,22 +142,6 @@ type BrowserEcdsaWalletSessionAuthorizationInput = Pick<
   >[0],
   'walletId' | 'chainTarget' | 'materialActivation'
 >;
-
-function walletSessionImmutableIdentityMatches(
-  left: ActiveWalletSessionV1,
-  right: ActiveWalletSessionV1,
-): boolean {
-  return (
-    left.kind === right.kind &&
-    left.walletId === right.walletId &&
-    left.authorityId === right.authorityId &&
-    left.authMethodId === right.authMethodId &&
-    left.authorizationId === right.authorizationId &&
-    left.quotaId === right.quotaId &&
-    left.issuedAtMs === right.issuedAtMs &&
-    left.expiresAtMs === right.expiresAtMs
-  );
-}
 
 function walletSessionMatchesSelectedAuthority(
   session: ActiveWalletSessionV1,

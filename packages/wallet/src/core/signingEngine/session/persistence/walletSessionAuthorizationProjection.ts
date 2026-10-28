@@ -120,3 +120,19 @@ export async function persistExactWalletSessionAuthorizationFromEcdsaBootstrap(
     operationCredential: exact.operationCredential,
   };
 }
+
+export function walletSessionImmutableIdentityMatches(
+  left: ActiveWalletSessionV1,
+  right: ActiveWalletSessionV1,
+): boolean {
+  return (
+    left.kind === right.kind &&
+    left.walletId === right.walletId &&
+    left.authorityId === right.authorityId &&
+    left.authMethodId === right.authMethodId &&
+    left.authorizationId === right.authorizationId &&
+    left.quotaId === right.quotaId &&
+    left.issuedAtMs === right.issuedAtMs &&
+    left.expiresAtMs === right.expiresAtMs
+  );
+}

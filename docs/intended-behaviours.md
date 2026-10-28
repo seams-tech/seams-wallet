@@ -1428,6 +1428,14 @@ Expected behaviour:
 
 ## Wallet Unlock
 
+Cold passkey custody recovery can replace Ed25519 material while preserving the
+wallet authority's identity, permissions, and revocation epoch. The browser adopts
+that replacement only when its recomputed authority digest matches the authenticated
+Wallet Session. It removes seals for the replaced activation in the same transaction.
+A later unlock repairs an interrupted local authority update under the same checks.
+Authority snapshots precede server operations. Delayed responses cannot overwrite
+a newer authority, a later unlock's credential, or a wallet lock.
+
 ### Passkey authentication
 
 Expected behaviour:
