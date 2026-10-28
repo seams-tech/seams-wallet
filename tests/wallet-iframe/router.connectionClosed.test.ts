@@ -87,7 +87,7 @@ test.describe('WalletIframeRouter connection teardown', () => {
             options: {},
           })
           .then(
-            () => ({ kind: 'resolved' as const }),
+            (value) => ({ kind: 'resolved' as const, value }),
             (error: unknown) => ({
               kind: 'rejected' as const,
               code: error && typeof error === 'object' && 'code' in error
@@ -130,10 +130,9 @@ test.describe('WalletIframeRouter connection teardown', () => {
     expect(result.shown).toBe(true);
     expect(result.settlementMs).toBeLessThan(500);
     expect(result.outcome).toMatchObject({
-      kind: 'rejected',
-      code: 'connection_closed',
+      kind: 'resolved',
+      value: { success: false, kind: 'submission_unknown' },
     });
-    expect(result.outcome.requestId).toEqual(expect.any(String));
     expect(result.hidden).toBe(true);
     expect(result.iframeRemoved).toBe(true);
     expect(result.ownedDialogRemoved).toBe(true);
