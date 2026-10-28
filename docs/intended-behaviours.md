@@ -139,10 +139,23 @@ maximum. The quality precheck requires 600 ms of qualifying audio; phrase and
 speaker checks still decide approval. The level check counts 10 ms frames
 with RMS of at least 0.006; this is an audio-energy proxy, not speech recognition.
 Insufficient audio does not reach phrase matching, speaker matching, or device-key use.
+Enrollment, unlock, and signing use the same mono capture constraints with echo
+cancellation, noise suppression, and automatic gain control. After usable audio,
+VoiceID remembers the concrete microphone in Wallet-origin storage. Later captures
+request that device explicitly, including after reload or a system-default change.
+If that input is unavailable, capture can use the current default. Permission and
+device-read failures do not trigger that fallback. A temporary replacement does
+not overwrite the saved preference, so reconnecting the preferred input restores it.
+The retry prompt offers “Use system microphone” to choose a different system input
+without clearing voice enrollment. This choice does not start recording.
+Capture settings are measured before tracks stop. A muted or disconnected input
+rejects the current clip and offers another attempt within the existing expiry.
+It cannot approve from a truncated recording or change a voice enrollment.
 The prompt gives brief guidance for insufficient audio. Internal measurements carry
 an attempt ID and timestamp. Audio is not retained. Unlock can retry a typed
-insufficient-audio result in place with a fresh phrase. Retries preserve the original
-challenge and expiry timer. Cancellation, expiry, and other failures stay terminal.
+insufficient-audio result or a microphone interruption in place with a fresh phrase.
+Retries preserve the original challenge and expiry timer. Cancellation, expiry, and
+authorization failures stay terminal.
 Each enrollment, unlock, and signing attempt displays a randomly selected short
 English phrase from a bank of 16. The phrase remains fixed during capture. A retry
 selects a different phrase. The user reads it at a normal pace, then pauses.

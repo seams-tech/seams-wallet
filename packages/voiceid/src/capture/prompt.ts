@@ -6,6 +6,7 @@ import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceCaptureEvent } from '../browser/microphone';
 import type { VoiceCheckingStyle } from '../browser/ribbon';
 import { VoiceVisual } from './visual';
+import { useSystemVoiceMicrophone } from '../browser/microphoneInput';
 
 const CSS = `
 .seams-voiceid-activation-surface { width: min(100%, 26.25rem); margin: 0 auto; background: transparent; }
@@ -291,6 +292,14 @@ const CSS = `
   opacity: 0.5;
   cursor: wait;
 }
+.seams-voiceid-prompt .seams-voiceid-microphone {
+  margin-top: 0.5rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--seams-colors-textSecondary, #9cabb3);
+  font-size: 0.75rem;
+}
 .seams-voiceid-prompt button[hidden],
 .seams-voiceid-prompt [hidden] {
   display: none !important;
@@ -333,6 +342,8 @@ export class VoicePrompt {
   readonly record: HTMLButtonElement;
   readonly cancel: HTMLButtonElement;
   readonly progress: HTMLElement;
+  private readonly microphone: HTMLButtonElement;
+  private microphoneRequested = false;
   private readonly visual: VoiceVisual;
   private disposed = false;
 
@@ -393,7 +404,13 @@ export class VoicePrompt {
     this.progress.className = 'seams-voiceid-progress-slot';
     const slot = document.createElement('div');
     slot.className = 'seams-voiceid-record-slot';
-    slot.append(this.record);
+    this.microphone = document.createElement('button');
+    this.microphone.type = 'button';
+    this.microphone.className = 'seams-voiceid-microphone';
+    this.microphone.textContent = 'Use system microphone';
+    this.microphone.hidden = true;
+    this.microphone.addEventListener('click', this.changeMicrophone);
+    slot.append(this.record, this.microphone);
     this.element.append(
       this.visual.glow,
       this.cancel,
@@ -415,7 +432,12 @@ export class VoicePrompt {
   readonly capture = (event: VoiceCaptureEvent): void => {
     if (this.disposed) return;
     switch (event.kind) {
+      case 'opening':
+        this.microphoneRequested = true;
+        this.microphone.hidden = true;
+        return;
       case 'listening':
+        this.microphone.hidden = true;
         delete this.status.dataset.voiceCaptureQuality;
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
@@ -460,6 +482,7 @@ export class VoicePrompt {
     if (this.disposed) return;
     this.element.dataset.capture = 'succeeded';
     this.record.hidden = true;
+    this.microphone.hidden = true;
     await this.visual.succeed(this.beginSuccess.bind(this, headline, message, area));
   }
 
@@ -470,10 +493,28 @@ export class VoicePrompt {
     this.status.textContent = message;
     this.record.hidden = false;
     this.record.disabled = false;
+    this.microphone.hidden = !this.microphoneRequested;
+  }
+
+  private readonly changeMicrophone = (): void => {
+    void this.useSystemMicrophone();
+  };
+
+  private async useSystemMicrophone(): Promise<void> {
+    this.record.disabled = true;
+    this.microphone.disabled = true;
+    await useSystemVoiceMicrophone();
+    if (this.disposed) return;
+    this.status.textContent = 'The next recording will use your system microphone.';
+    this.record.disabled = false;
+    this.microphone.disabled = false;
+    this.microphone.hidden = true;
+    this.record.focus();
   }
 
   dispose(): void {
     this.disposed = true;
+    this.microphone.removeEventListener('click', this.changeMicrophone);
     this.visual.stop();
   }
 

@@ -107,6 +107,14 @@ Transaction reviews prepare VoiceID before enabling **Confirm with VoiceID**.
 The voice attempt timer starts after that click. The transaction's expiry remains
 in force while loading or retrying, so an expired transaction needs a fresh review.
 
+VoiceID remembers the microphone used for usable audio in this browser. Enrollment,
+unlock, and signing request that input even when the system default changes.
+If it is unavailable, VoiceID can use the current default. Reconnecting the saved
+microphone restores it. Interrupted recordings require a new attempt. Voice
+enrollment and verification thresholds stay unchanged.
+Choose **Use system microphone** on the retry prompt to switch inputs. The next
+Record click uses the system default and remembers it after usable audio.
+
 The package remains a roughly 27 MB cold payload before transfer compression.
 Splitting it removes that payload from Wallet-only installations. It does not
 reduce the bytes needed for the first VoiceID operation.

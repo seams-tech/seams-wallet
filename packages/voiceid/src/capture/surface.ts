@@ -15,6 +15,7 @@ import { InsufficientVoiceAudioError, type VoiceCaptureObserver } from '../brows
 import { VoicePrompt } from './prompt';
 import { VoiceUnlockFrame } from './unlockFrame';
 import { toError } from '@seams/wallet/voiceid-host';
+import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 
 type CaptureAction<T> = (
   signal: AbortSignal,
@@ -182,6 +183,7 @@ class VoiceIdCaptureSurface<T> {
       if (
         error instanceof InsufficientVoiceAudioError ||
         error instanceof VoicePhraseMismatchError ||
+        error instanceof VoiceMicrophoneInterruptedError ||
         error instanceof VoiceSpeakerMismatchError
       ) {
         if (capture.expiresAtMs !== null && Date.now() >= capture.expiresAtMs) {

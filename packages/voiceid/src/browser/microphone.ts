@@ -1,5 +1,11 @@
 import { createVoiceActivity } from './voiceActivity';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
+import {
+  openVoiceMicrophone,
+  rememberVoiceMicrophone,
+  VoiceMicrophoneInterruptedError,
+  type VoiceMicrophone,
+} from './microphoneInput';
 
 /** One 32 ms frame as the recorder judged it. No capture event carries the stream. */
 export type VoiceActivityEvent = Readonly<{
@@ -10,6 +16,7 @@ export type VoiceActivityEvent = Readonly<{
   stream?: never;
 }>;
 export type VoiceCaptureEvent =
+  | { readonly kind: 'opening'; readonly stream?: never }
   | { readonly kind: 'listening'; readonly stream?: never }
   | VoiceActivityEvent
   | { readonly kind: 'processing'; readonly stream?: never }
@@ -27,12 +34,8 @@ export type VoiceCaptureQuality = Readonly<{
   levelThreshold: number;
   requiredVoicedMs: number;
   microphone: string;
-  processing: Readonly<{
-    noiseSuppression: boolean | null;
-    echoCancellation: boolean | string | null;
-    autoGainControl: boolean | null;
-    sampleRate: number | null;
-  }>;
+  microphoneSelection: VoiceMicrophone['selection'];
+  processing: VoiceMicrophone['processing'];
   backgroundRms: number;
   speechToBackgroundDb: number | null;
   noise: 'high' | 'normal' | 'unknown';
@@ -92,15 +95,9 @@ export async function recordVoice(
 ): Promise<VoiceRecordingResult> {
   if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
   const attemptId = crypto.randomUUID();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      channelCount: 1,
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
-    },
-    video: false,
-  });
+  onCapture({ kind: 'opening' });
+  const microphone = await openVoiceMicrophone(signal);
+  const { stream } = microphone;
   try {
     if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
     const recording = new VoiceRecording(stream, signal, onCapture);
@@ -123,7 +120,6 @@ export async function recordVoice(
         if (signal.aborted) throw new Error('VoiceID recording was cancelled.');
         const samples = rendered.getChannelData(0);
         const measurement = await measureAudio(samples, signal);
-        const settings = stream.getAudioTracks()[0]?.getSettings();
         const quality: VoiceCaptureQuality = {
           attemptId,
           capturedAtMs: Date.now(),
@@ -134,13 +130,9 @@ export async function recordVoice(
           peakFrameRms: measurement.peakFrameRms,
           levelThreshold: LEVEL_THRESHOLD,
           requiredVoicedMs: REQUIRED_VOICED_MS,
-          microphone: stream.getAudioTracks()[0]?.label || 'Default microphone',
-          processing: {
-            noiseSuppression: settings?.noiseSuppression ?? null,
-            echoCancellation: settings?.echoCancellation ?? null,
-            autoGainControl: settings?.autoGainControl ?? null,
-            sampleRate: settings?.sampleRate ?? null,
-          },
+          microphone: microphone.label,
+          microphoneSelection: microphone.selection,
+          processing: microphone.processing,
           backgroundRms: measurement.backgroundRms,
           speechToBackgroundDb: measurement.speechToBackgroundDb,
           noise: measurement.noise,
@@ -153,6 +145,11 @@ export async function recordVoice(
           Math.max(0, measurement.first - 3_200),
           Math.min(samples.length, measurement.last + 3_200),
         );
+        await rememberVoiceMicrophone(microphone);
+        if (signal.aborted) {
+          speech.fill(0);
+          signal.throwIfAborted();
+        }
         return { kind: 'captured', samples: speech, quality };
       } finally {
         wipeAudioBuffer(rendered);
@@ -190,6 +187,10 @@ class VoiceRecording {
     this.recorder.addEventListener('dataavailable', this.data);
     this.recorder.addEventListener('stop', this.stopped);
     this.recorder.addEventListener('error', this.failed);
+    for (const track of stream.getAudioTracks()) {
+      track.addEventListener('ended', this.interrupted);
+      track.addEventListener('mute', this.interrupted);
+    }
     signal.addEventListener('abort', this.cancelled, { once: true });
     this.timer = setTimeout(this.startupFailed, MAX_RECORDING_MS);
     void this.start();
@@ -242,25 +243,33 @@ class VoiceRecording {
     this.cleanup();
     this.completion.reject(new Error('VoiceID could not record this microphone.'));
   };
+  private readonly interrupted = (): void => {
+    this.cleanup();
+    this.completion.reject(new VoiceMicrophoneInterruptedError());
+  };
   private readonly stopped = (): void => {
+    const end = this.ended;
     this.cleanup();
     if (this.signal.aborted) {
       this.completion.reject(new Error('VoiceID recording was cancelled.'));
       return;
     }
+    if (end === null) {
+      this.completion.reject(new VoiceMicrophoneInterruptedError());
+      return;
+    }
     void new Blob(this.chunks, { type: this.recorder.mimeType })
       .arrayBuffer()
-      .then(this.complete, this.completion.reject.bind(this.completion));
+      .then(this.complete.bind(this, end), this.completion.reject.bind(this.completion));
   };
-  private readonly complete = (bytes: ArrayBuffer): void => {
+  private readonly complete = (
+    end: Pick<RecordedAudio, 'recordingMs' | 'endedBy'>,
+    bytes: ArrayBuffer,
+  ): void => {
     if (this.signal.aborted) {
       this.completion.reject(new Error('VoiceID recording was cancelled.'));
       return;
     }
-    const end = this.ended ?? {
-      endedBy: 'stream_ended' as const,
-      recordingMs: performance.now() - this.startedAtMs,
-    };
     this.completion.resolve({ bytes, recordingMs: end.recordingMs, endedBy: end.endedBy });
   };
 
@@ -361,6 +370,10 @@ class VoiceRecording {
     for (const track of this.stream.getTracks()) track.stop();
   }
   private cleanup(): void {
+    for (const track of this.stream.getAudioTracks()) {
+      track.removeEventListener('ended', this.interrupted);
+      track.removeEventListener('mute', this.interrupted);
+    }
     this.stopPauseDetection();
     this.stopTracks();
     if (this.timer !== null) clearTimeout(this.timer);

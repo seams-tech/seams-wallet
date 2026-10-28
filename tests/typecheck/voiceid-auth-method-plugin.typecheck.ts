@@ -172,6 +172,9 @@ declare const captureStream: MediaStream;
 // @ts-expect-error The trace draws recorder frames; no capture event carries the stream.
 const listeningWithStream: VoiceCaptureEvent = { kind: 'listening', stream: captureStream };
 const liveStreamFields = { stream: captureStream };
+// @ts-expect-error Opening a microphone cannot expose its stream through a spread.
+const openingWithStream: VoiceCaptureEvent = { kind: 'opening', ...liveStreamFields };
+void openingWithStream;
 // @ts-expect-error Processing cannot retain a live stream through a broad spread.
 const processingWithStream: VoiceCaptureEvent = { kind: 'processing', ...liveStreamFields };
 // @ts-expect-error Activity frames cannot carry a live stream through a broad spread.
@@ -213,6 +216,16 @@ const rejectedAudioWithSamples: RecordingResult = {
 const captureWithoutSamples: RecordingResult = { kind: 'captured', quality: captureQuality };
 void rejectedAudioWithSamples;
 void captureWithoutSamples;
+
+import type { VoiceMicrophone } from '../../packages/voiceid/src/browser/microphoneInput';
+type MicrophonePreference = VoiceMicrophone['preference'];
+// @ts-expect-error A selected microphone requires its concrete device identity.
+const microphoneWithoutIdentity: MicrophonePreference = { kind: 'device' };
+const microphoneIdentity = { deviceId: 'physical-input' };
+// @ts-expect-error A system-default choice cannot retain a concrete device through a spread.
+const crossedMicrophone: MicrophonePreference = { kind: 'system_default', ...microphoneIdentity };
+void microphoneWithoutIdentity;
+void crossedMicrophone;
 
 import type { AuthMethodAvailability } from '../../packages/wallet/src/core/authMethods/availabilityTypes';
 import type {

@@ -4,6 +4,7 @@ import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
 import { verifyBrowserVoice } from '../browser/enrollment';
 import type { VoiceEnrollmentScope } from '../browser/enrollmentStore';
+import { VoiceMicrophoneInterruptedError } from '../browser/microphoneInput';
 
 export type VoiceBinding = Readonly<{
   attemptId: string;
@@ -30,7 +31,15 @@ export async function listenForVoiceApproval(
   const deadline = Math.min(binding.expiresAtMs, Date.now() + timeoutMs);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
-  const result = await verifyBrowserVoice({ kind: 'active', scope }, signal, onCapture, phrase);
+  let result: Awaited<ReturnType<typeof verifyBrowserVoice>>;
+  try {
+    result = await verifyBrowserVoice({ kind: 'active', scope }, signal, onCapture, phrase);
+  } catch (error) {
+    if (!(error instanceof VoiceMicrophoneInterruptedError)) throw error;
+    if (signal.aborted || deadline <= Date.now())
+      throw new Error('VoiceID review expired or was cancelled.');
+    return { kind: 'retry', message: error.message };
+  }
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
   switch (result.kind) {
