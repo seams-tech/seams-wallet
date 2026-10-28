@@ -28,7 +28,7 @@ export async function reconcileRecoveredEd25519Authority(input: {
   )
     return;
   const subject = session.capabilitySubjects.find(isEd25519SigningSubject);
-  if (!subject || subject.kind !== 'sign') return;
+  if (!subject || subject.kind !== 'sign' || subject.keyFamily !== 'ed25519') return;
   const replacement = await replaceActiveWalletAuthorityEd25519MaterialActivationV1({
     authority: previous,
     materialActivation: subject.materialActivation,
