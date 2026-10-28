@@ -260,6 +260,7 @@ export async function signMlDsaNearTransaction(
     const signedTransaction = SignedTransaction.fromPlain({
       transaction: signed.transaction,
       signature: signed.signature,
+      transactionHash: result.transaction.transactionHash,
       borsh_bytes: Array.from(base64UrlDecode(result.transaction.signedTransactionBorshB64u)),
       nonceLease,
     });
