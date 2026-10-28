@@ -227,6 +227,32 @@ const crossedMicrophone: MicrophonePreference = { kind: 'system_default', ...mic
 void microphoneWithoutIdentity;
 void crossedMicrophone;
 
+import type {} from '../fixtures/ui/VoiceIdHumanCalibration';
+import type {
+  Attempt as VoiceCalibrationAttempt,
+  SpeakerScore as VoiceCalibrationScore,
+  CutoffFit as VoiceCutoffFit,
+} from '../scripts/voiceid-human-calibration/report';
+declare const calibrationAttempt: VoiceCalibrationAttempt;
+declare const calibrationScore: VoiceCalibrationScore;
+const calibrationVector = { embedding: [0.1, 0.2] };
+// @ts-expect-error A calibration export cannot acquire a voice vector through a spread.
+const leakedCalibrationAttempt: VoiceCalibrationAttempt = { ...calibrationAttempt, ...calibrationVector };
+// @ts-expect-error Cross-speaker score exports cannot contain voice vectors.
+const leakedCalibrationScore: VoiceCalibrationScore = { ...calibrationScore, ...calibrationVector };
+void leakedCalibrationAttempt;
+void leakedCalibrationScore;
+// @ts-expect-error A public capture result cannot acquire an embedding through a spread.
+const leakedCalibrationResult: VoiceCalibrationAttempt['result'] = { ...calibrationAttempt.result, ...calibrationVector };
+void leakedCalibrationResult;
+const fittedThreshold = { threshold: 0.45 };
+// @ts-expect-error A collecting state cannot carry a fitted threshold through a spread.
+const prematureVoiceCutoff: VoiceCutoffFit = { kind: 'collecting', ...fittedThreshold };
+// @ts-expect-error A frozen cutoff must name the data and time that fixed its threshold.
+const unboundVoiceCutoff: VoiceCutoffFit = { kind: 'frozen', threshold: 0.45 };
+void prematureVoiceCutoff;
+void unboundVoiceCutoff;
+
 import type { AuthMethodAvailability } from '../../packages/wallet/src/core/authMethods/availabilityTypes';
 import type {
   HostedAuthMenuOutcome,
