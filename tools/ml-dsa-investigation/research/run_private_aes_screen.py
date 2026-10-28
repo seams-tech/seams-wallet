@@ -309,7 +309,7 @@ for (let mode = 0; mode < componentNames.length; mode++) {
 await writeFile(process.argv[3], JSON.stringify({
   scope: 'Isolated Node Wasm SIMD. Full-byte RustCrypto AES 0.9.1 comparison for 256 keys and 256 blocks per key in each of baseline scalar, production wide, and production scalar. Production CorrelationAes lengths 0..33 also checked for each key, including unchanged suffix. Timing compares the previous complete SIMD AES backend (mode 3) with the current backend (mode 4), using repeated encryption, with checksum outside the loop. Modes 5 and 2 additionally compare the previous and current scalar kernels. No complete Worker speed claim.',
   timingModes: ['baseline SIMD adapter (3)', 'candidate SIMD adapter (4)', 'baseline scalar (5)', 'candidate scalar (2)'],
-  componentScope: 'Diagnostic copies expose setup, AES rounds, conversion, and erasure separately. Black-box barriers prevent cancellation. Component times are nonadditive and cannot predict complete preparation. Production source is unchanged.',
+  componentScope: 'Diagnostic copies expose setup, AES rounds, conversion, and erasure separately. Black-box barriers prevent cancellation. Component times are nonadditive and cannot predict complete preparation. The measurement harness does not modify checked-in sources.',
   components, componentSamples,
   passed: true, node: process.version,
   wasmSha256: createHash('sha256').update(bytes).digest('hex'), samples, medians,

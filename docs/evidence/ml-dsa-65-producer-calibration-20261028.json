@@ -1,0 +1,1001 @@
+{
+  "schema": "seams.ml-dsa-producer-calibration.v1",
+  "observed_date": "2026-10-28",
+  "source_revision": "51ca21d364dfa9eea009ff36883c0369d6acaff0",
+  "decision": "Reject the masked-word transpose. Paired CPU and restoration do not show a consistent useful gain.",
+  "policy": {
+    "wallet_cooldown": {
+      "mode": "enabled",
+      "interval_ms": 60000
+    },
+    "max_active_operations": 1,
+    "operation_timeout_ms": 30000,
+    "candidate_group_size": 2,
+    "preparation_group_size": 4,
+    "minimum_ready_batches": 8,
+    "refill_target_batches": 16,
+    "max_active_preparations": 2
+  },
+  "comparison": {
+    "baseline-window": {
+      "jobs": 16,
+      "paired_invocation_cpu_ms": 142282,
+      "client_restoration_ms": 93979,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793179895965,
+        "last_publication_since_start_ms": 88737,
+        "client_detection_lag_ms": 5242
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 9,
+          "warm_jobs": 9,
+          "all": {
+            "cpu_a_ms": {
+              "count": 9,
+              "min": 3696,
+              "median": 3852,
+              "max": 3943
+            },
+            "cpu_b_ms": {
+              "count": 9,
+              "min": 3909,
+              "median": 4075,
+              "max": 5760
+            },
+            "wall_a_ms": {
+              "count": 9,
+              "min": 8721,
+              "median": 9098,
+              "max": 10893
+            },
+            "correlation_span_ms": {
+              "count": 9,
+              "min": 6767,
+              "median": 7269,
+              "max": 9282
+            },
+            "commitment_span_ms": {
+              "count": 9,
+              "min": 297,
+              "median": 321,
+              "max": 430
+            },
+            "publication_span_ms": {
+              "count": 9,
+              "min": 781,
+              "median": 922,
+              "max": 1302
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 9,
+              "min": 3696,
+              "median": 3852,
+              "max": 3943
+            },
+            "correlation_span_ms": {
+              "count": 9,
+              "min": 6767,
+              "median": 7269,
+              "max": 9282
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 9,
+            "min": 3909,
+            "median": 4075,
+            "max": 5760
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 9
+          },
+          "versions_a": [
+            "d2b93613-e121-47bb-84dd-21d69ba423e8"
+          ],
+          "versions_b": [
+            "ce71d67f-e5e3-43b2-b532-ea1325f808eb"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 7,
+          "warm_jobs": 6,
+          "all": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4122,
+              "median": 4442,
+              "max": 5580
+            },
+            "cpu_b_ms": {
+              "count": 7,
+              "min": 4263,
+              "median": 4831,
+              "max": 5899
+            },
+            "wall_a_ms": {
+              "count": 7,
+              "min": 9718,
+              "median": 10959,
+              "max": 12272
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7705,
+              "median": 8975,
+              "max": 10222
+            },
+            "commitment_span_ms": {
+              "count": 7,
+              "min": 309,
+              "median": 437,
+              "max": 481
+            },
+            "publication_span_ms": {
+              "count": 7,
+              "min": 866,
+              "median": 1122,
+              "max": 1361
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 6,
+              "min": 4122,
+              "median": 4422.5,
+              "max": 5580
+            },
+            "correlation_span_ms": {
+              "count": 6,
+              "min": 7705,
+              "median": 8574.0,
+              "max": 10222
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 6,
+            "min": 4263,
+            "median": 4932.5,
+            "max": 5899
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 7
+          },
+          "versions_a": [
+            "aa39dd05-6933-4506-9763-c9cd0ebf23fb"
+          ],
+          "versions_b": [
+            "a614a627-8785-4a72-b481-0996453b26b2"
+          ]
+        }
+      },
+      "instance_counts": {
+        "preparer-a": 1,
+        "preparer-b": 1,
+        "preparer-a-secondary": 1,
+        "preparer-b-secondary": 1
+      },
+      "eligible_calibration_samples": 48,
+      "calibration_samples": 96,
+      "eligible_overlap_count": 0
+    },
+    "matched-baseline-window": {
+      "jobs": 16,
+      "paired_invocation_cpu_ms": 149294,
+      "client_restoration_ms": 99318,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793180872247,
+        "last_publication_since_start_ms": 96287,
+        "client_detection_lag_ms": 3031
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 9,
+          "warm_jobs": 8,
+          "all": {
+            "cpu_a_ms": {
+              "count": 9,
+              "min": 3727,
+              "median": 3935,
+              "max": 5379
+            },
+            "cpu_b_ms": {
+              "count": 9,
+              "min": 3990,
+              "median": 4574,
+              "max": 5516
+            },
+            "wall_a_ms": {
+              "count": 9,
+              "min": 9157,
+              "median": 10155,
+              "max": 11618
+            },
+            "correlation_span_ms": {
+              "count": 9,
+              "min": 7205,
+              "median": 7942,
+              "max": 9478
+            },
+            "commitment_span_ms": {
+              "count": 9,
+              "min": 548,
+              "median": 641,
+              "max": 797
+            },
+            "publication_span_ms": {
+              "count": 9,
+              "min": 690,
+              "median": 1006,
+              "max": 1130
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 3727,
+              "median": 3882.0,
+              "max": 5379
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7205,
+              "median": 7981.5,
+              "max": 9478
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 8,
+            "min": 3990,
+            "median": 4655.5,
+            "max": 5516
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 9
+          },
+          "versions_a": [
+            "bdce01c7-d226-448a-904a-e8b2b54fe8a0"
+          ],
+          "versions_b": [
+            "f0e7d128-e970-4a1c-9a04-f053b3cd18fb"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 7,
+          "warm_jobs": 6,
+          "all": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4358,
+              "median": 4826,
+              "max": 5728
+            },
+            "cpu_b_ms": {
+              "count": 7,
+              "min": 4243,
+              "median": 4708,
+              "max": 7343
+            },
+            "wall_a_ms": {
+              "count": 7,
+              "min": 10441,
+              "median": 11551,
+              "max": 13979
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7864,
+              "median": 8735,
+              "max": 11315
+            },
+            "commitment_span_ms": {
+              "count": 7,
+              "min": 664,
+              "median": 808,
+              "max": 1003
+            },
+            "publication_span_ms": {
+              "count": 7,
+              "min": 1192,
+              "median": 1313,
+              "max": 1558
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 6,
+              "min": 4358,
+              "median": 4654.5,
+              "max": 5728
+            },
+            "correlation_span_ms": {
+              "count": 6,
+              "min": 7864,
+              "median": 9025.5,
+              "max": 11315
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 6,
+            "min": 4243,
+            "median": 4709.5,
+            "max": 7343
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 7
+          },
+          "versions_a": [
+            "91dbdd01-5e79-4754-bc88-93542947f0da"
+          ],
+          "versions_b": [
+            "789f8b59-ce3a-4691-8c09-5ad18d3ccebb"
+          ]
+        }
+      },
+      "instance_counts": {
+        "preparer-a": 1,
+        "preparer-b": 1,
+        "preparer-a-secondary": 1,
+        "preparer-b-secondary": 1
+      },
+      "eligible_calibration_samples": 74,
+      "calibration_samples": 96,
+      "eligible_overlap_count": 0
+    },
+    "candidate-window": {
+      "jobs": 16,
+      "paired_invocation_cpu_ms": 148516,
+      "client_restoration_ms": 96999,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793181614475,
+        "last_publication_since_start_ms": 95538,
+        "client_detection_lag_ms": 1461
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 3734,
+              "median": 4069.5,
+              "max": 5430
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 3920,
+              "median": 4117.5,
+              "max": 5691
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 9122,
+              "median": 10217.0,
+              "max": 11009
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7246,
+              "median": 8068.5,
+              "max": 9118
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 579,
+              "median": 654.0,
+              "max": 698
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 819,
+              "median": 931.0,
+              "max": 1097
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 3734,
+              "median": 3935,
+              "max": 5430
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7246,
+              "median": 8699,
+              "max": 9118
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 3920,
+            "median": 4097,
+            "max": 5691
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "597449ee-ade7-4d0b-b53f-97b6ed72060f"
+          ],
+          "versions_b": [
+            "6868d13b-ca1f-49d8-80d3-be8d27cc7f81"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 8,
+          "warm_jobs": 7,
+          "all": {
+            "cpu_a_ms": {
+              "count": 8,
+              "min": 4096,
+              "median": 4712.5,
+              "max": 5943
+            },
+            "cpu_b_ms": {
+              "count": 8,
+              "min": 4414,
+              "median": 4777.0,
+              "max": 5723
+            },
+            "wall_a_ms": {
+              "count": 8,
+              "min": 10284,
+              "median": 11243.5,
+              "max": 13428
+            },
+            "correlation_span_ms": {
+              "count": 8,
+              "min": 7915,
+              "median": 8777.0,
+              "max": 10929
+            },
+            "commitment_span_ms": {
+              "count": 8,
+              "min": 623,
+              "median": 698.0,
+              "max": 874
+            },
+            "publication_span_ms": {
+              "count": 8,
+              "min": 1187,
+              "median": 1293.0,
+              "max": 1382
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 7,
+              "min": 4096,
+              "median": 4731,
+              "max": 5943
+            },
+            "correlation_span_ms": {
+              "count": 7,
+              "min": 7915,
+              "median": 8816,
+              "max": 10929
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 7,
+            "min": 4414,
+            "median": 4680,
+            "max": 5723
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 8
+          },
+          "versions_a": [
+            "83266a36-5ff7-476f-8275-95985d92b982"
+          ],
+          "versions_b": [
+            "f8f6dd49-b3e0-44dc-9e25-5ee122cb1f21"
+          ]
+        }
+      },
+      "instance_counts": {
+        "preparer-a": 1,
+        "preparer-b": 1,
+        "preparer-a-secondary": 1,
+        "preparer-b-secondary": 1
+      },
+      "eligible_calibration_samples": 72,
+      "calibration_samples": 96,
+      "eligible_overlap_count": 0
+    },
+    "return-window": {
+      "jobs": 16,
+      "paired_invocation_cpu_ms": 144013,
+      "client_restoration_ms": 98189,
+      "material_accounting": {
+        "retired_pairs": 32,
+        "fresh_published_pairs": 32,
+        "final_ready_pairs": 32,
+        "both_participants_match": true,
+        "all_publications_inside_window": true,
+        "retired_reuse": false,
+        "latest_publication_checkpoint_ms": 1793182221025,
+        "last_publication_since_start_ms": 97019,
+        "client_detection_lag_ms": 1170
+      },
+      "slots": {
+        "preparer-a": {
+          "jobs": 10,
+          "warm_jobs": 9,
+          "all": {
+            "cpu_a_ms": {
+              "count": 10,
+              "min": 3762,
+              "median": 3931.5,
+              "max": 4135
+            },
+            "cpu_b_ms": {
+              "count": 10,
+              "min": 3890,
+              "median": 4081.0,
+              "max": 4173
+            },
+            "wall_a_ms": {
+              "count": 10,
+              "min": 9177,
+              "median": 9517.0,
+              "max": 9918
+            },
+            "correlation_span_ms": {
+              "count": 10,
+              "min": 6991,
+              "median": 7358.5,
+              "max": 7652
+            },
+            "commitment_span_ms": {
+              "count": 10,
+              "min": 569,
+              "median": 643.0,
+              "max": 772
+            },
+            "publication_span_ms": {
+              "count": 10,
+              "min": 786,
+              "median": 986.5,
+              "max": 1418
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 9,
+              "min": 3762,
+              "median": 3916,
+              "max": 4099
+            },
+            "correlation_span_ms": {
+              "count": 9,
+              "min": 6991,
+              "median": 7348,
+              "max": 7652
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 9,
+            "min": 3890,
+            "median": 4072,
+            "max": 4173
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 10
+          },
+          "versions_a": [
+            "3d76a7c0-d500-4cca-8dc9-78f5db3f6b03"
+          ],
+          "versions_b": [
+            "e78f2bba-8950-46bd-ab35-9bbd9c71a571"
+          ]
+        },
+        "preparer-a-secondary": {
+          "jobs": 6,
+          "warm_jobs": 5,
+          "all": {
+            "cpu_a_ms": {
+              "count": 6,
+              "min": 4722,
+              "median": 5168.5,
+              "max": 6463
+            },
+            "cpu_b_ms": {
+              "count": 6,
+              "min": 4542,
+              "median": 5040.5,
+              "max": 6597
+            },
+            "wall_a_ms": {
+              "count": 6,
+              "min": 11158,
+              "median": 12438.0,
+              "max": 15260
+            },
+            "correlation_span_ms": {
+              "count": 6,
+              "min": 8639,
+              "median": 9842.5,
+              "max": 12635
+            },
+            "commitment_span_ms": {
+              "count": 6,
+              "min": 771,
+              "median": 801.0,
+              "max": 1157
+            },
+            "publication_span_ms": {
+              "count": 6,
+              "min": 1169,
+              "median": 1286.5,
+              "max": 1438
+            }
+          },
+          "a_warm": {
+            "cpu_a_ms": {
+              "count": 5,
+              "min": 4722,
+              "median": 5130,
+              "max": 5564
+            },
+            "correlation_span_ms": {
+              "count": 5,
+              "min": 8639,
+              "median": 9541,
+              "max": 10489
+            }
+          },
+          "b_warm_cpu_ms": {
+            "count": 5,
+            "min": 4542,
+            "median": 4852,
+            "max": 5996
+          },
+          "wasm_a_sizes": [
+            94502912
+          ],
+          "wasm_b_sizes": [
+            94371840
+          ],
+          "active_crypto": {
+            "1": 6
+          },
+          "versions_a": [
+            "38584a34-3655-4882-8b25-933636992473"
+          ],
+          "versions_b": [
+            "ee6f821a-6d94-45ea-a6e3-b64d86900282"
+          ]
+        }
+      },
+      "instance_counts": {
+        "preparer-a": 1,
+        "preparer-b": 1,
+        "preparer-a-secondary": 1,
+        "preparer-b-secondary": 1
+      },
+      "eligible_calibration_samples": 72,
+      "calibration_samples": 96,
+      "eligible_overlap_count": 0
+    }
+  },
+  "signature_verification": {
+    "passed": true,
+    "setupSignatures": 4,
+    "candidateSignatures": 2,
+    "alteredMessagesRejected": 6,
+    "recoveredCanonicalKeys": 2,
+    "node": "v24.18.0",
+    "openssl": "3.5.7"
+  },
+  "transpose_equivalence": {
+    "passed": true,
+    "basis_and_zero_cases": 771,
+    "scope": "Both transforms use only XOR, constant AND masks, and fixed logical shifts. They are linear over GF(2). Equality on the complete 256-bit input basis proves equality on every input pair for each of the three masks. This does not prove a speedup.",
+    "linear_input_bits": 256,
+    "parameter_sets": 3
+  },
+  "limits": [
+    "Calibration uses a separately compiled small working set.",
+    "Software instance IDs do not identify hardware.",
+    "Calibration first touches A producers before ordinary wallet setup; placement or warmup can be affected.",
+    "Per-invocation CPU includes complete role work, not individual stage CPU.",
+    "Provider eventTimestamp plus wallTime can exclude later logs. Overlap checks use the envelope of metadata and all retained log timestamps.",
+    "Provider-start outcome cohorts are not complete causal-window outcome sets."
+  ],
+  "production_crypto_restored": true,
+  "all_eight_workers_absent": true,
+  "credential_scan": {
+    "passed": true,
+    "exact_patterns_checked": 6
+  },
+  "bloat_check": {
+    "passed": false,
+    "reason": "Inherited Rust duplication excess",
+    "baseline": 13754,
+    "observed": 13992
+  },
+  "archive": {
+    "path": "ml-dsa-65-producer-calibration-20261028.tar.gz",
+    "bytes": 2035098,
+    "sha256": "68288047e5a40b120ab37c14b2ea0daa959ec0494e331a3157eaa5c7f2a61fb1",
+    "members": 197,
+    "file_sha256": {
+      "README.md": "335db7a387fa938a6bb8838975940ad813b6254b342f010a7268c1b84fd9ec03",
+      "a.json": "746414c4407e5b7dde9b9840c96954bf05cc88165412021276eb52282e4fd142",
+      "analysis.json": "4dd20a16970ec7d0b67805e35167bb2a2f5003ce89c4d5d41ed76b2d91572c2b",
+      "analyze-campaign.py": "79dcdcf19e9b5a84a7941d767186daa66177d347dac4e5fa8cd8b9822a35754c",
+      "b.json": "0a809ae09f79eb4ae9715574b89b46b2d3e2b4ce6dd6d55dcc6c76b8d963803b",
+      "baseline-complete-quiescent.json": "fd3c62036806fc6b4173805ee4d3978344d7742f037d55ed59480c328a3d36e8",
+      "baseline-qualified-quiescent.json": "5ce8f1959145c976554e1c1bd0f4e85d5b95c80cbef5c1ea4b4d7e627fe90ae9",
+      "baseline-window/result.json": "629fe5004bda3be9e78a6579cc6a8252d31fbd5fe88748a14bf0c8b50d615582",
+      "baseline-window/start.json": "c223d01865888a8b8097b90d902891233cd57140900f71ddfbd79ab090434683",
+      "bloat-check.log": "e23b289593293d54d297e13e1bf1f44aeb978196fec430d2b88c37ff21bf5e85",
+      "bootstrap/a.json": "043973c0b58745b58c72dde48fe79c96336eb0c3e7ac755be3ca278985b07743",
+      "bootstrap/b.json": "9528d68053328b42ee080b79815fb79ba741482112f4c0bb7e115e4fd7e20ad0",
+      "bootstrap/front.json": "6afa08e2ba5e30b8f8d3591d08d7dbd994bd5f5735f0ac2b023c75a5d24cf7fb",
+      "bootstrap/preparer-a-secondary.json": "f686b385d59c38ebecf82a28c7965900cc8d8580bf5cc3bdef899b151621355e",
+      "bootstrap/preparer-a.json": "eb135c22ba1b1a948e7ed95c4cf2daccc8f79a06e17a78c08d2ad7d7a14aba13",
+      "bootstrap/preparer-b-secondary.json": "4f27b9a5b9085257d4826cc3d8fbd3df2cc000981b6ea751e225a7bd689c1b03",
+      "bootstrap/preparer-b.json": "cdb628280cdecb436a5b612a19fbfbcbcbf36c0d112c1ee22e7740add8b3b8c2",
+      "bootstrap/receipts.json": "7bc3b3f991630a9908bd7913d7360ed9a9b279645b72c49c16da9550009fb366",
+      "bootstrap/router.json": "9dc3bfe45dba44789a9a541543622f5c9ccdf09c649860ced75378de69ce90ac",
+      "build-artifacts.json": "f6b77a4c8b9aa3060cb80bddd8ccf1669f0b053c848db4a9686be68cbb1a4c1c",
+      "calibrate.mjs": "bde0ee6cb2387ac07c9912f56a05c8e8c4d619adc7b2a25925fabdaf76d120bf",
+      "calibration/Cargo.lock": "8f127e7b63e155f1dad216b380aa01b5220f40bacc5def0fff6e4ef94cbc3be4",
+      "calibration/Cargo.toml": "ce21b2e8264fb6e7541c278ec6221fcee0e967f80da04737e84d18593636ffb4",
+      "calibration/src/lib.rs": "4ec6d9498dea33fdcd256733e0b203aa776c1ba06bfff4942e3567b47740295d",
+      "calibration-build-symbol-lint-failed.log": "75eec2edfa656712fa9c557bf68ca85ad69777bdce6336ca68dceea95ca65dac",
+      "calibration-memory.json": "3423489074f46dbc88a518ca375712e29f2865e799b38a9f0f43c77c3a72a8ce",
+      "calibration.mjs": "822f52f5dcd2e15c3fe936f2f0c74ee3bc2b243140072150bc2cf8afe65ffbf4",
+      "calibration.wasm": "b70026bcee72170c1e55e4e129be3b17db2bfc1ff4e9962e44c921e464772725",
+      "calibrations/candidate-after/results.json": "39eb35dccf605c1263b0b57380b28c6fd6ace37dce0c2dd85f8b6b33ca576818",
+      "calibrations/candidate-before/results.json": "8a02ee71c62949406a0334fc52d5ac5685d7208abe495eb7b4928efc468bfa2c",
+      "calibrations/cold/results.json": "cc86c16f34345d00323fb382dbafd0a430029757a42ae74b90252e91a747c0ca",
+      "calibrations/cold/summary.json": "a554ca66d9b2ab58b143af5a7cc1800c2841c6dc763cc498cf0569b344b42eeb",
+      "calibrations/matched-after/results.json": "f6e42de85e7120f29215e588805886004297865c06db71a5bc8c870d32053b7a",
+      "calibrations/matched-after/summary.json": "71e117b19b5f44b53bd2e1b879bf81e16243cc5a773ba509c07b1974395c9753",
+      "calibrations/matched-before/results.json": "03e89732b2959f5aa4bf9b556982763a650eca84321b64c4b19c02067902060e",
+      "calibrations/matched-before/summary.json": "a68b88bb12a2363653828045b54b4971f070d73a8e9c0015a6b60113c9b29738",
+      "calibrations/return-after/results.json": "9f1ae6129a258b0e56f12bcf31d8088a6291497442ff2feb9d8608cafde790ae",
+      "calibrations/return-before/results.json": "647a892666d88a8b83b54ee42a89ddcec2004c8088bdf13a67e2a97f6d03c1f2",
+      "calibrations/warm-after/results.json": "2860fe63a05a620ed52869043c6eade4a5ad1006342cfa2f68549908af175c9d",
+      "calibrations/warm-after/summary.json": "e1863500e356478118e33b8f40911492aacc648034f3a5362f23fe34467d0431",
+      "calibrations/warm-before/results.json": "241ea5d14f8b322ced813939d18da9c2302cd4eb3353a90a78877574ad411ee3",
+      "calibrations/warm-before/summary.json": "e53a5d476abf59b19392c3d28da4daa68d8ce28a455473a20937c0c58a51dd85",
+      "candidate-1/preparer-a-secondary.json": "713328e47b3d8cf3dbd06825df825e33571f7ed3608136d138bb0eb23b487960",
+      "candidate-1/preparer-a.json": "a1aac272fa9e86648c2b8034546ab6c049f01b0eb28e4628d290fb69d86e97b3",
+      "candidate-1/preparer-b-secondary.json": "d885c35d72bd65c2d8a24fa260b31b21f220e69ae6347f51010f81d6b96ed61d",
+      "candidate-1/preparer-b.json": "48b44dc196138edee75da50f8346d80dc47368e8b3858c76e0db4418b6c6e8db",
+      "candidate-1/receipts.json": "af935696185c6b521106e3da1f0c8feda98717cb46e8a65f0b11c366d69d9924",
+      "candidate-a-build.log": "2611ee02857c217900bdf9a52789d45ba22a621d97cea10e6df5c5b93f91a125",
+      "candidate-aes-screen.json": "61b6e6b4ea48a81acfd4c0807f0fdc9ec5e127e8d4aeac95975a6e5c30efb673",
+      "candidate-aes-screen.wasm": "64a608bfeb2bc1e510718cd586e8ff29239443c3f3ee812e38404bd0cd5c492f",
+      "candidate-b-build.log": "05e88f430cb4235669c4d45874e27d96b74ec421083670b9a00c9299f8ad7405",
+      "candidate-complete-quiescent.json": "48194d283b85edbdb4df17ee8514ae7a46c1efcf2a6e7d466e35493b751cb181",
+      "candidate-eight.rs": "a187b934e6eb83c0364669792d2f808c5d7fb1a9922390d6a9db5716a773886c",
+      "candidate-signatures.json": "44eba2217db7d376ea8fcf6b3a1e712a52d1fa26324fd28f167278c19a99f71a",
+      "candidate-window/result.json": "7a6f7947f402c620b0283c9c84b2939c2c89f6b5d90b4d8e61b394fb52c6769f",
+      "candidate-window/start.json": "d655f2e14a4d918175864a934a5d65a390e9824b5fe5705b2a1104d52a9b866f",
+      "candidate.patch": "5515fb908df727d01bf3a53072e09ad6b335907e1e57b169174da9e948ba4034",
+      "capture-history.py": "b3f153be38152ddb3d1923059a94ae54b31893601decf09a236a44e9c44ef200",
+      "cleanup/a-absence.log": "15c8e54ca2f8264b108c4bd992122fc893441a5fbd7f8ef449b2c116e043eadb",
+      "cleanup/a-delete.log": "f1fd32ece896ca9ed550df1e4d8148a6b645c5a62410d171c81a0e19e7caee4f",
+      "cleanup/absence.json": "2f2319589cf5f8707c7fb55de91a14f549c09fd2363aababf5123db882985002",
+      "cleanup/b-absence.log": "e504efb59113724c9becea52557e69c76dab377e58c1d8e390363fd2405fe0e5",
+      "cleanup/b-delete.log": "d7086ad9d5fb3a6980f3df0a51cf2b71ffd9441d9b323d2d9c9bbde42fcfb699",
+      "cleanup/deletions.json": "796bd3e8bee46fd8480644f39f284b70b1ce97641216e85877afa6b9ee40a762",
+      "cleanup/front-absence.log": "bfc55b2bba27ce109adcc0196d48dc984acf0664b09885aeedfbf3765c2065f8",
+      "cleanup/front-delete.log": "0a9c444d425159ec361f5539b5e5db405fd1915f8dc9a3206c96ead686e30b1d",
+      "cleanup/preparer-a-absence.log": "2b2245207951a81594f321d79ec3736aa4bb068bb8efcd2572a847f38f27e87c",
+      "cleanup/preparer-a-delete.log": "6a79d4a77d435ca17ed42c0a6bf49e6f483fa7a53da2083e4d2a1a1a42381b0f",
+      "cleanup/preparer-a-secondary-absence.log": "689e450653c458308b36de3a1d4a32d9a810f88f7d04d7532cc6b80080209d77",
+      "cleanup/preparer-a-secondary-delete.log": "d036afe928f98481e044cfb94ffa794acdaf5acc93aac01b8f5d2ddc2d87a73f",
+      "cleanup/preparer-b-absence.log": "96d0e2fe21d915441d7debb49aa97a746d3a6c518dcc8768b937d249bdc7e173",
+      "cleanup/preparer-b-delete.log": "3d0ed390110a5d96ac0647a8c5f899967e5500e04eb24b3f229a3179ab60db22",
+      "cleanup/preparer-b-secondary-absence.log": "1f71e2b27fad9a5316f0babe882e51acd9f826ea9f7c3d8c3b81ec23dfd2c127",
+      "cleanup/preparer-b-secondary-delete.log": "5f9163a009946f7a82d9354ce443f4ed371f7e7d223a93f5b3dde6ed6630f2bb",
+      "cleanup/router-absence.log": "92c1c2de0592fb239f1ac3ff5c2b537356e7ed48d1cddbaa9a909637100532a9",
+      "cleanup/router-delete.log": "226622d4bb59842d32c3f1e7694964623bd5c446ae2365fd5c12f4db52844d9d",
+      "cleanup.py": "c75b0b2afa65b3c218a1dd5804474e638ccb2e5e373c3662e98e3a1772023192",
+      "cloud-driver/final/a-raw.jsonl": "184b53655ea3999b175f53374e40c359371c63b54f83b108541bd1a31ca003e2",
+      "cloud-driver/final/b-raw.jsonl": "2fef1a76e824cf7f6b1bf4e696903419709a46533083b5323629aa3f8fd68c13",
+      "cloud-driver/final/collection.log": "79b598636f088f070b5454f44df287e26d2d2e6c484f60a6e1621249fdc55c5e",
+      "cloud-driver/final/preparer-a-raw.jsonl": "0f1ede5e7a4e4bc7127341a0bd53588f8984dac721d5974fc02db49f7fa375cd",
+      "cloud-driver/final/preparer-a-secondary-raw.jsonl": "5dfcc148b1de1bfb530251b975e62ba30bf537669763c4f82f138ebc957e9abb",
+      "cloud-driver/final/preparer-b-raw.jsonl": "1cf70538a9f48311795cfc3e1357eef08cca35ab7d4d55874783d449356bc31e",
+      "cloud-driver/final/preparer-b-secondary-raw.jsonl": "fb9578daf53916529f4a945f0e067fb49c6dd2427d398bf0636f894244a7a79c",
+      "cloud-driver/final/router-raw.jsonl": "4c0f12b577888bbbbb06a9195e0b583af475fedebbca6594ea5b6d929cb7caec",
+      "cloud-driver/final/traces.json": "00b16baffca346fe53c5694abe2cfd5318e09485795760a78e679c2572708776",
+      "cloud-driver/matched-baseline-final/traces.json": "25b8844ae591df59ed2e73486186de1c8660ad8831086f6eec5b2e50fb74ade0",
+      "cloud-driver/matched-baseline-recheck/traces.json": "c52d5ab7b0ba715bd98520a22e2a6cfc009adc7c9210fe2112afef8b16a24edf",
+      "comparison.json": "c081e61c862f52ed880bc8749a72008a7db9d9d82fd1af2c033868733555cdd8",
+      "credentials/a.json": "746414c4407e5b7dde9b9840c96954bf05cc88165412021276eb52282e4fd142",
+      "credentials/b.json": "0a809ae09f79eb4ae9715574b89b46b2d3e2b4ce6dd6d55dcc6c76b8d963803b",
+      "credentials/front.json": "d0640f85b4857a1b896c0166e500581004fb63453487513e534cb69421ef8654",
+      "credentials/preparer-a-secondary.json": "8ac6e36e50f2f8da55f2fd15b1b60b9bfb2ddaced47adb5191fe72b30ae892ad",
+      "credentials/preparer-a.json": "0067b8b7a5ce459534c60d25c801e1b2d240de7ba1f009a85ab38fcb6029a9c9",
+      "credentials/preparer-b-secondary.json": "3a7d9805e17e42824d8dc6bd7d2956f6f91aa9735a1a5109a46869294ab1697a",
+      "credentials/preparer-b.json": "bf7dcce830ff3a2481922b70cdb98097f75832179d3631ba1cb936c03074c13d",
+      "credentials/receipts.json": "907e79eb6442a1da0e784652dbe2122ea523a6dcee75c8f475c8fac0ab5bd250",
+      "credentials/router.json": "545f02547ca0bad71ae653751235651abf1cadd059c32175df1c11da36a4aa30",
+      "deployment-history.json": "fbd39bb68931a6034ec52d74fbc95df8e51ffac26bd2fbbbe02c3f24fc5e555a",
+      "final-stock.json": "4c3cfdd29d6380af9841575f1297a90947c1936341ac6cc44f31205632d78b5b",
+      "fleet.py": "68e3a2b1c5579c1399673c26563399aa45dad6aaf1d4269b1f0e7b804a56594e",
+      "front.json": "04ff8d0d84e7a4fdff44740cef3c107e50d39fac7baeddd7e9a8f1ca575d9d91",
+      "front.mjs": "defba58db08da8ab330d40ebbd43631363057d6d7a40567075621670cf7a1fe6",
+      "hosted-scope.json": "0044508e66d131aa1a895e20013728077855783ab96cb6aa16c9e893f069ffbf",
+      "hosted-upload-scope.md": "1a0075bcff25d8e79d6a0bb4a8025e8f21fed46e527e363e85b130b4effffe4b",
+      "independent-review.md": "a6cbc6f386e1c2bb7cb6e55d7d7fdb210d1fd2c45b2b7c217e7f3c04ad135134",
+      "initial-diagnostic-source/calibration.mjs": "822f52f5dcd2e15c3fe936f2f0c74ee3bc2b243140072150bc2cf8afe65ffbf4",
+      "initial-diagnostic-source/calibration.wasm": "b70026bcee72170c1e55e4e129be3b17db2bfc1ff4e9962e44c921e464772725",
+      "initial-diagnostic-source/front.mjs": "f3736e5d8a16227a1e6c5500745ade566aa2f0a8fdd850c32517e12251ec6d97",
+      "initial-diagnostic-source/load-worker.mjs": "7ca6f846a443e0fea05010f5ebb18118a9791e423831fb7a19cc0ca9d8160c9d",
+      "initial-diagnostic-source/preparer-a-entry.mjs": "e66fc840e979f0bd4b370b92aa9f0b88f09fdaf70a5d08d4ffe41ed304a4e19f",
+      "initial-diagnostic-source/preparer-a-secondary-entry.mjs": "e66fc840e979f0bd4b370b92aa9f0b88f09fdaf70a5d08d4ffe41ed304a4e19f",
+      "initial-diagnostic-source/preparer-b-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "initial-diagnostic-source/preparer-b-secondary-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "initial-stock.json": "348a62b79f0371a42c9202f107db33e2ac2ea2a577b80e81b7f615caeba26f3f",
+      "initial-wait-quiescent.py": "415700bc57e04e229791790981df29413b7a8af8caf4fad0f3e5682e03a61850",
+      "load-worker.mjs": "7ca6f846a443e0fea05010f5ebb18118a9791e423831fb7a19cc0ca9d8160c9d",
+      "local-calibration-global-rng-failed.log": "e6dc03f1523ab1f012ebabd042cc498f27c3dcb139b59f3a5e39a04064981951",
+      "local-calibration.json": "7c678ce1bab2851abb668798b50a30d5220665b84ac4e6f796dc32d34a1f9508",
+      "local-calibration.log": "c91a6a65282bf63d1fa5f90ec91634a9573a30b58bc031ebb05503b8a3c25022",
+      "local-calibration.mjs": "36cab950585b5ccf92751a90e611c947be14946d38a0bd76d9f43962167ce7b0",
+      "matched-baseline-complete-quiescent.json": "5acc9a6ad678f219408c8801aee782ba998a55540c344213dfddb2391ed151b8",
+      "matched-baseline-window/result.json": "e5fca3aec76c79a1b1b433081eba4765b4a67960f10058560359249012c457e8",
+      "matched-baseline-window/start.json": "45c358c246a2eee1d2d1fb4b600d378800f248793760714bfce6985aebe8569a",
+      "matched-route/preparer-a-secondary.json": "b9f77c3f05cfd9ec0f6aed07f56015cf9c35d20cf9bd20e96e3bc477da78693f",
+      "matched-route/preparer-a.json": "26fa3f6ad161e4a7018a5c7d5708ea2a9ef82355573270418cc75dc012775e73",
+      "matched-route/preparer-b-secondary.json": "cc6e21509ea022db4c89de00e31ed53ad58a0da73bc188b8db6c5af0da2e9ab9",
+      "matched-route/preparer-b.json": "024f90ac1774b282d1a5c47c038e88905f56bd7eb12ed9c39aeb9611a0db6878",
+      "matched-route/receipts.json": "b3fd2383373ca3b96e116e25324edbd14835c16c37c6641a3e361867ceaaef1a",
+      "measure.mjs": "6cf8ae49565acdaea29eb5d2edca3261ad5a8e2cfa7de7e362060dd98ebcddef",
+      "measured-private-aes-screen.py": "1b2251c85b2f2be3aecd5b3aabc8e229609ea73e5f287733ae0fe4e3e0c94b18",
+      "measurement-plan.md": "20062410cae43fb987fbc3f694a464e596e22311788456c9e23f3d685d67cba4",
+      "native-keygen.json": "ddc60616f2789f55527e7618e663a8248e27680a02d11c003e4400257aab821d",
+      "offline-signatures.json": "bf03757cc2c5bbdcaebc7785e113545e6da5fa1da2e4ce07b4a11ea9fb3e8ed9",
+      "prepare-hosted.py": "7ac0d1ecc35450d507a1ef50c57e794460450260cdb2d53e707499bbd438e46c",
+      "prepare-scope.py": "1fedba323239fed3e01f00c090af764a6609912d9fad36ec6444809f95cb847a",
+      "prepare-wallets.mjs": "a3861d469f74302253a4838f8216c4cd2e9e755029354867dbb58538435c8799",
+      "preparer-a-candidate-1-entry.mjs": "e5af0dbd8bc0a60e80394f734d520e74c931d905953b6df027356cadefa59049",
+      "preparer-a-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-matched-route-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-return-1-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-secondary-candidate-1-entry.mjs": "e5af0dbd8bc0a60e80394f734d520e74c931d905953b6df027356cadefa59049",
+      "preparer-a-secondary-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-secondary-matched-route-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-secondary-return-1-entry.mjs": "4914f5f9553e7c83e10b028cb60160b068e44b3ccca15119c922f036c18aaa3e",
+      "preparer-a-secondary.json": "8ac6e36e50f2f8da55f2fd15b1b60b9bfb2ddaced47adb5191fe72b30ae892ad",
+      "preparer-a.json": "0067b8b7a5ce459534c60d25c801e1b2d240de7ba1f009a85ab38fcb6029a9c9",
+      "preparer-b-candidate-1-entry.mjs": "9d61d388e4ac992bb193e351e73b544c968a6162b84fd6646756eca1a0046d69",
+      "preparer-b-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-matched-route-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-return-1-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-secondary-candidate-1-entry.mjs": "9d61d388e4ac992bb193e351e73b544c968a6162b84fd6646756eca1a0046d69",
+      "preparer-b-secondary-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-secondary-matched-route-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-secondary-return-1-entry.mjs": "151a35984c26f6045e5a34f916dd0df44c4f604d59ad7b095c3a5cd4c4522df5",
+      "preparer-b-secondary.json": "3a7d9805e17e42824d8dc6bd7d2956f6f91aa9735a1a5109a46869294ab1697a",
+      "preparer-b.json": "bf7dcce830ff3a2481922b70cdb98097f75832179d3631ba1cb936c03074c13d",
+      "prove-transpose.py": "2fca2c11197e2043bbb2876b6fd586f9f468f9aa08436d53a951854a091399d6",
+      "register-wallets.py": "1f8dc0b95c648208a60b19cdd0df44428bf5aff7dd5e9178c883f1a710f63c4b",
+      "registration-1.json": "78d9058614369c505e88de7a32edd1f63a39b8c9bcf7f0e3cd79ab52e2ec27ea",
+      "registration-2.json": "bd4fc2359f20f2d4858b458d428d189b468e634acfedba468d118a4215f5feb5",
+      "release/a.json": "746414c4407e5b7dde9b9840c96954bf05cc88165412021276eb52282e4fd142",
+      "release/b.json": "0a809ae09f79eb4ae9715574b89b46b2d3e2b4ce6dd6d55dcc6c76b8d963803b",
+      "release/front.json": "d0640f85b4857a1b896c0166e500581004fb63453487513e534cb69421ef8654",
+      "release/preparer-a-secondary.json": "8ac6e36e50f2f8da55f2fd15b1b60b9bfb2ddaced47adb5191fe72b30ae892ad",
+      "release/preparer-a.json": "0067b8b7a5ce459534c60d25c801e1b2d240de7ba1f009a85ab38fcb6029a9c9",
+      "release/preparer-b-secondary.json": "3a7d9805e17e42824d8dc6bd7d2956f6f91aa9735a1a5109a46869294ab1697a",
+      "release/preparer-b.json": "bf7dcce830ff3a2481922b70cdb98097f75832179d3631ba1cb936c03074c13d",
+      "release/receipts.json": "798369e269212d0c92721c04b3fdfec9c6514dd79e9020940c7ab40f34d3524b",
+      "release/router.json": "545f02547ca0bad71ae653751235651abf1cadd059c32175df1c11da36a4aa30",
+      "replay.py": "00784091ae5d3606fce745aa42614cd69e99d6c40ff98d3264d1165f49cf52ca",
+      "return-1/preparer-a-secondary.json": "508ed389107de9c7a07b12ef037230dca9822deb8028683ead82f82a01b61b50",
+      "return-1/preparer-a.json": "48abeaff294da17c0482999cdece59410bad603019e0e3891e7b0296638b9b1e",
+      "return-1/preparer-b-secondary.json": "4ac5588af0f7f8c6365996d2474b97490b5b453d6d0a46d4d991ddfab539e28c",
+      "return-1/preparer-b.json": "9d7835e4031972378edd492fa224297028763e0ea64e4313941ac8b24940e0a5",
+      "return-1/receipts.json": "a288aa5a775dad44a4c165b0093619f90a0439f49c4497603081e43bd9420ea4",
+      "return-complete-quiescent.json": "b3ffe97281f1a12e23783e1aaeae19cc2fa2fdd70bf3804af63fc6c14fba0044",
+      "return-window/result.json": "6c7274ea6e922144bc0086c748819ec3dff9e535c9b661512b73da2a93e666c6",
+      "return-window/start.json": "7ea4416e38574f97ca6b93d0fafb06013142a41a41b67e2e3a4bd4487e8bfaf4",
+      "router.json": "545f02547ca0bad71ae653751235651abf1cadd059c32175df1c11da36a4aa30",
+      "scope.json": "8d8c4160d4a337eddad6702af515de1de5bfce325ea36108ac07c8ab3a431dbd",
+      "setup-complete-quiescent.json": "6ded993a43d0206a2f6b3868c833d2a3928fbaab0b0e92b07d51cb1ace6b4cf7",
+      "source/crates/ml-dsa-threshold/src/runtime/boolean_mpc/silent/correlation_aes.rs": "ff60709396f9627819acdae9e7d8dfb0073a6b38486bfc08a0963364b887cda2",
+      "source/crates/two-party-primitives/src/gate_aes/eight.rs": "d546254880c31f64c9c9b9b1c79b528dd77104a4f59921b7a5c71067351c651c",
+      "source/crates/two-party-primitives/src/gate_aes.rs": "d205b30aa4bff0a3b4852c49b89c5d79f68ff52c6be656aacfd7bac8ffa95361",
+      "source/tests/e2e/ml-dsa-cloud-load-worker.mjs": "10496089ed6eb3272531ae1a1f2a7c777638fe3f8e788b95bcfedb0fbf1300ff",
+      "source/tests/e2e/ml-dsa-cloud-load.e2e.mjs": "6460758b77f58d98ad636d9cd6a92e037bb32e0aa0b74856a9b73198bc31c3c8",
+      "source/tests/e2e/ml-dsa-registration-worker.e2e.mjs": "1eff002f147339d1ee61f02901ad9382655a47ed660d0b2252c8d70089e72da4",
+      "source/tools/ml-dsa-investigation/research/collect_worker_traces.py": "91ed9a3fb7b781a588484a760bbd48303c3fa30a7db7557ca200a671972e8058",
+      "source/tools/ml-dsa-investigation/research/summarize_producer_variation.py": "08023b8ba18d9a4d6bf3c35c170cf1d6240451ce5b751105745985e7bb840d37",
+      "stock.mjs": "fab5facdd0881d5c0db6460f38e801fa25624de8b43429f7a7814d05c8c302a9",
+      "summarize-calibration.py": "f6b979d159efee0b30b84af7e5ceb4b1afe4981c5bf207bdc29c698617d4507a",
+      "transpose-proof.json": "1fc172f1e953b20c5fc098122a0088dafc9b61902317beb9bb696fa85c784008",
+      "verify-candidate.mjs": "6f02b71cf1811438968ee3e50793fcf136111d6a79d10f43d39503c08495d1f6",
+      "verify-signatures.mjs": "419ce04d328173ead7ebeec721d1ba80ffdd0f184fbc90e64ecfc2598e7bbcc6",
+      "wait-quiescent.py": "20588a16826b3c5fd82a03c773dc66506a48962e9e92f4f74d24f6c0e37163fd"
+    }
+  },
+  "offline_replay": {
+    "member_hashes_verified": 196,
+    "comparison_windows": 4,
+    "complete_preparation_jobs": 64,
+    "analysis_reproduced": true,
+    "signature_checks": {
+      "passed": true,
+      "setupSignatures": 4,
+      "candidateSignatures": 2,
+      "alteredMessagesRejected": 6,
+      "recoveredCanonicalKeys": 2,
+      "node": "v24.18.0",
+      "openssl": "3.5.7"
+    }
+  },
+  "local_private_files_removed": 17
+}
