@@ -3,7 +3,7 @@
   "walletSecurityPolicy": "scoped_seals_and_owner_proofs_v1",
   "package": {
     "name": "@seams/wallet-server",
-    "version": "0.25.0"
+    "version": "0.26.0"
   },
   "workers": {
     "router": {

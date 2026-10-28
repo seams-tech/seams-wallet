@@ -11,7 +11,7 @@ Offer two wallet choices in your application:
 - **Connect an existing wallet:** choose from the wallets your app enables and approve requests in that wallet.
 
 ::: warning Message-signing availability
-`@seams/wallet@0.25.0` includes external NEAR connections and transactions.
+`@seams/wallet@0.26.0` includes external NEAR connections and transactions.
 Meteor's `signMessage` API is implemented on `dev` for the next release.
 Use an exact release containing this API after publication.
 :::
@@ -179,5 +179,5 @@ Allow Intear's popup for the application origin. The adapter accepts replies onl
 from its fixed wallet origin and the popup opened for that request. It rejects
 redirected wallet origins and native bridge sessions.
 
-If imports cannot be resolved, check that `@seams/wallet` version `0.25.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
+If imports cannot be resolved, check that `@seams/wallet` version `0.26.0` is installed. See [external NEAR troubleshooting](/deploy-and-operate/troubleshooting#external-near-wallets)
 for the same boundaries in the operational guide.

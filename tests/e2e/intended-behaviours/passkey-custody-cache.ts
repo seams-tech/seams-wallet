@@ -109,6 +109,7 @@ export async function verifyColdCustodyRecoveryThenUnlock(
   const afterRecovery = await (await walletFrame(page)).evaluate(readAuthorityInBrowser, walletId);
   const evidence = {
     kind: 'cold_custody_authority_recovery_evidence_v1',
+    reproduce: "SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'cold custody recovery preserves authority'",
     walletId,
     before,
     afterRecovery,

@@ -16,7 +16,7 @@ authentication method and handle each resulting state.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.25.0.
+- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.26.0.
   Install `@seams/voiceid`, enable its descriptor, and prepare the Wallet host.
   See [VoiceID setup](/concepts/auth-methods/voiceid) for code examples and enrollment steps.
 

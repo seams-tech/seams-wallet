@@ -27,7 +27,7 @@ const config = seamsTestnetConfig({
 
 開発プレビューの外部NEARコネクターは、専用の`ExternalNearConfig`を使用します。
 `network`、`rpcUrl`、`wallets`を`ExternalNearController`に直接渡してください。
-Seamsのプロバイダー設定は不要です。バージョン`0.25.0`には、このコネクターが含まれます。
+Seamsのプロバイダー設定は不要です。バージョン`0.26.0`には、このコネクターが含まれます。
 
 | 設定                                   | 動作                                                     |
 | -------------------------------------- | -------------------------------------------------------- |
@@ -51,7 +51,7 @@ Seamsのプロバイダー設定は不要です。バージョン`0.25.0`には�
 
 ## 任意のVoiceID {#optional-voiceid}
 
-SDK 0.25.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
+SDK 0.26.0では、`authMethods: [voiceIdAuthMethod()]`を設定できます。
 記述子は`@seams/voiceid`からインポートします。Walletホストにも、このパッケージのアセットが必要です。
 記述子は利用可能な方法を定めます。所有者は、登録とVoiceIDでのアンロックを別に選びます。
 パスキーやメールOTPの処理中は、エンジンやモデルを読み込みません。

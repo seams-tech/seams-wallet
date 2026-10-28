@@ -1,9 +1,31 @@
 ---
-title: Release 0.25.0
-description: CSS isolation, app-controlled settings modals, and matching 0.25.0 package versions.
+title: Release 0.26.0
+description: Passkey recovery reconciliation, browser security errors, and explicit device-link consent.
 ---
 
-# Release 0.25.0
+# Release 0.26.0
+
+Version **0.26.0** repairs stale browser authority records after cold passkey custody recovery.
+
+| Component | Version |
+| --- | --- |
+| Browser SDK `@seams/wallet` | **0.26.0** |
+| Server SDK `@seams/wallet-server` | **0.26.0** |
+| Optional plugin `@seams/voiceid` | **0.26.0** |
+| Native CLI launcher `@seams/wallet-cli` | **0.25.0** |
+| Wallet iframe protocol | **17.0.0** |
+
+- Recovery adopts the verified Ed25519 activation and removes superseded local seals. Existing stale records can reconnect through normal passkey unlock.
+- Authority identity, permissions, revocation, and concurrent lock checks remain enforced. Delayed responses cannot replace a newer session.
+- Browser TLS passkey failures show trusted HTTPS guidance. Actual user cancellation remains silent.
+- Device linking requires explicit approval inside the Wallet origin. Parent applications cannot supply that approval.
+
+Upgrade the application SDK and hosted wallet assets together. VoiceID hosts use the matching plugin version.
+Avoid browser SDK **0.25.0** because cold recovery can leave a stale authority record that prevents later unlocks.
+
+## Previous releases
+
+## Release 0.25.0
 
 Version **0.25.0** protects SDK controls from broad application CSS and adds an app-controlled settings modal.
 
@@ -25,8 +47,6 @@ See the [recovery CLI guide](/deploy-and-operate/recovery-cli) for installation 
 
 See the [React reference](/reference/react) for the settings API.
 Deploy the matching wallet host assets with the browser SDK.
-
-## Previous releases
 
 ## Release 0.24.0
 
