@@ -34,7 +34,15 @@ The candidate provides no consistent useful gain and is removed. Production cryp
 Direct B calibration does not match protocol instances. Routing through A improves matching; unmatched samples stay excluded from attribution.
 Provider timestamp metadata does not always bound logs. The wider log-envelope check finds no eligible heavy-calibration overlap.
 Fresh instrumented jobs again take roughly 9–11 seconds, but first-touch, warmup, and placement remain confounds.
-The cause of the broader CPU variation remains unresolved. The next comparison must separate those effects from ordinary uninstrumented execution.
+The [first-touch screen](router-ab/ml-dsa-65-first-touch-report.md) completes forty selected jobs and eighty fresh pairs across five cohorts.
+Ordinary controls retain a roughly twofold CPU gap after reuse. Early-touch cohorts have both slots near ten seconds.
+Heavy compute adds no clear gain over light first-touch. Fixed order, routing, and software-instance changes prevent a causal speedup claim.
+The screen finds a stale inventory race that produces an unnecessary four-candidate batch, costing 17.243 seconds of combined participant CPU.
+The configured capacity stays unchanged; the race briefly creates surplus, which is explicitly retired and accounted.
+A separate first-touch block exposes a roughly twenty-seven-second dispatch gap. Its wake/controller cause remains unresolved.
+The next priorities are deficit revalidation under the acquired lease, the delayed wake, and a balanced reversed-order first-touch replication.
+All six setup/final signatures verify, recovery preserves the canonical key, and all eight temporary Workers are deleted.
+Production cryptographic source and defaults remain unchanged.
 
 ## Objective and measurement boundaries
 
