@@ -207,6 +207,7 @@ const deployAndOperateSection: DefaultTheme.SidebarItem = {
     { text: 'Hosting targets', link: '/deploy-and-operate/hosting-targets' },
     { text: 'Hosted integration', link: '/deploy-and-operate/hosted-integration' },
     { text: 'Security boundaries', link: '/deploy-and-operate/security-boundaries' },
+    { text: 'Future TEE hardening', link: '/deploy-and-operate/tee-hardening' },
     { text: 'Tenant-root backups', link: '/deploy-and-operate/tenant-root-backups' },
     { text: 'Recovery CLI', link: '/deploy-and-operate/recovery-cli' },
     { text: 'Recovery and portability', link: '/deploy-and-operate/recovery-and-portability' },

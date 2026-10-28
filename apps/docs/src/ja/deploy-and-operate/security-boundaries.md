@@ -35,3 +35,5 @@ SDKのiframeは、`publickey-credentials-create`と`publickey-credentials-get`�
 ブラウザー設定に、鍵管理ロールの秘密情報を含めないでください。
 
 Router A/Bの厳密な分離には、AとBそれぞれで、管理、認証情報、ストレージ、ログ、デプロイ権限を独立させる必要があります。
+
+2者間プロトコルを維持しながら、アテステーションを使う実行環境をクラウド間で分離する構成案は、[将来のTEEによる保護強化](/ja/deploy-and-operate/tee-hardening)を参照してください。

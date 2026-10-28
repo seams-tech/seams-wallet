@@ -140,6 +140,7 @@ const japaneseSidebarLabels: Record<string, string> = {
   'Hosting targets': 'ホスティング先',
   'Hosted integration': 'ホスト環境への導入',
   'Security boundaries': 'セキュリティの境界',
+  'Future TEE hardening': '将来のTEEによる保護強化',
   'Tenant-root backups': 'テナントルートのバックアップ',
   'Recovery CLI': '復元CLI',
   'Recovery and portability': '復元と移行',

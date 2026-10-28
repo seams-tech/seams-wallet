@@ -40,3 +40,7 @@ admission. Never place custody-role secrets in browser configuration.
 
 Strict Router A/B isolation requires independent administration, credentials,
 storage, logs, and deployment authority for roles A and B.
+
+See [future TEE hardening](/deploy-and-operate/tee-hardening) for a proposed
+deployment that preserves two-party protocols while separating attested
+execution across cloud providers.
