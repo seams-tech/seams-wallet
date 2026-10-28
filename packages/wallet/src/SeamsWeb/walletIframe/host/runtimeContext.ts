@@ -358,10 +358,6 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
   const foregroundBinding = isForegroundConfirmationRequest(input)
     ? surfaceMeasurementBindingForRequest(input)
     : null;
-  if (foregroundBinding) {
-    takeForegroundSurfaceBinding(ctx, foregroundBinding.binding);
-  }
-
   try {
     const runtime = getRequestWalletRuntime(ctx, input);
     await assertWalletHostMutationAllowed(input.req, runtime.preferences.getCurrentWalletId());
@@ -376,6 +372,9 @@ export async function handleWalletHostRuntimeRequestWithHandlers(
     if (!handler) {
       throw new Error(`Unsupported wallet iframe request type: ${input.req.type}`);
     }
+    // Bind after the asynchronous mutation guard. Another request may have
+    // used the shared surface while this request was waiting.
+    if (foregroundBinding) takeForegroundSurfaceBinding(ctx, foregroundBinding.binding);
     await handler(input.req);
     if (input.executionGeneration === input.state.executionGeneration) {
       observeTransactionLifecycleReport(input.req);

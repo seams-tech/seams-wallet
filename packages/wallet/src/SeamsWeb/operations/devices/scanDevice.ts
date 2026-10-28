@@ -149,8 +149,8 @@ export async function scanAndLinkDevice(
   emitScannerEvent(options.onEvent, parsedQrData, {
     phase: LinkDeviceEventPhase.STEP_02_QR_SCAN_STARTED,
     status: 'started',
-    message: 'Scanning QR code',
-    interaction: { kind: 'qr_scan', overlay: 'hide' },
+    message: 'Review the device link',
+    interaction: { kind: 'qr_scan', overlay: 'show' },
   });
 
   try {
@@ -160,6 +160,12 @@ export async function scanAndLinkDevice(
       requestedAtMs: Date.now(),
     });
     assertAuthorizationSourcesMatch(owner.ownerAuthorization, owner.authentication.source);
+    emitScannerEvent(options.onEvent, parsedQrData, {
+      phase: LinkDeviceEventPhase.STEP_02_QR_SCAN_STARTED,
+      status: 'started',
+      message: 'Linking the approved device',
+      interaction: { kind: 'qr_scan', overlay: 'hide' },
+    });
     const claim = await ports.transport.claimSessionV1({
       request: buildLinkedDeviceSessionClaimRequestV1(parsedQrData),
       authentication: owner.authentication,

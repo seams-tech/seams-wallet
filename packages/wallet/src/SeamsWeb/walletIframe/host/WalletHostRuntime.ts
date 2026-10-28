@@ -1,3 +1,4 @@
+import { confirmDeviceLinkApproval } from './deviceLinkApproval';
 import { clearHostedWalletSessions } from './hostedWalletSeamsSession';
 import { createWalletHostPlacementCommands } from './createPlacementCommands';
 import type { WalletPlacementCapability } from '@/SeamsWeb/publicApi/placement';
@@ -186,6 +187,7 @@ export class WalletHostRuntime {
       browserSigningSurface.getSignerWorkerContext(),
     );
     const ownerAuthorities = createWalletHostOwnerAuthoritiesV1({
+      confirmDeviceLinking: confirmDeviceLinkApproval,
       http: platform.http,
       relayerUrl: String(this.configs.network.relayer?.url || '').trim(),
       walletSessions: walletSessionAuthorizations,
@@ -203,6 +205,7 @@ export class WalletHostRuntime {
         browserSigningSurface.readWalletAuthenticationState.bind(browserSigningSurface),
     });
     const deviceDomain = createWalletHostDeviceDomain({
+      readAppearance: this.readAppearance.bind(this),
       platform,
       ownerAuthorities,
       configs: this.configs,
@@ -349,6 +352,9 @@ export class WalletHostRuntime {
   dispose(): void {
     this.deviceLinkingDispose();
     this.signingEngine.dispose();
+  }
+  private readAppearance(): AppearanceConfig {
+    return this.appearance;
   }
   setTheme(next: ThemeMode): void {
     if (next !== 'light' && next !== 'dark') return;

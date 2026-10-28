@@ -1,3 +1,4 @@
+import { runDeviceLinkConsentScenario } from './device-link-consent-scenario';
 import { verifyLinkedDeviceCleanup } from './linked-device-cleanup-evidence';
 import { verifyLinkSource } from './linked-device-source-evidence';
 import { LostLinkedAcknowledgement } from './linked-device-acknowledgement-fault';
@@ -594,3 +595,5 @@ test('material retirement between resolution and admission rejects canonical and
     contentType: 'application/json',
   });
 });
+
+test('hostile parent cannot approve, replace, or cancel-and-revive a device link', runDeviceLinkConsentScenario);

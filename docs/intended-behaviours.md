@@ -1917,6 +1917,17 @@ than chosen by the caller.
 
 Expected behaviour:
 
+- A parent application's device-link request requires explicit approval inside the
+  Wallet origin. An unlocked session alone cannot approve a target device.
+- Approval binds the exact QR snapshot, including both target keys, link session,
+  requested permissions, target factor, target email when present, and expiry.
+  The Wallet displays the requested permissions and a fingerprint of that snapshot.
+  It forwards only that approved snapshot. Parent confirmation options and messages
+  cannot supply or bypass the decision.
+- Cancellation, expired QR data, owner changes, and runtime replacement prevent
+  a pending approval from claiming a link or transferring source material. A second
+  pending request cannot replace the target shown by an existing approval.
+
 - Target passkey creation and verification run on the configured wallet origin.
   A cross-origin wallet iframe never forwards those operations to the parent
   application origin.

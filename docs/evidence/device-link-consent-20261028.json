@@ -1,0 +1,54 @@
+{
+  "schema": "seams.device-link-consent.v1",
+  "date": "2026-10-28",
+  "source_base": "b7a63562422af3cef5b290820486d47e086c29e0",
+  "branch": "dev",
+  "scope": "Local browser E2E through the public SDK and Wallet iframe, local Gateway and real participant Workers. Synthetic keys only.",
+  "result": {
+    "passed": true,
+    "displayedQrDigest": "AVG-LlRcCugz7AyRC5KgWAz8J6DjANqxUNKdQWb9UWk",
+    "hostileParentBypassRejected": true,
+    "competingRequestRejected": true,
+    "walletCancellationBeforeClaim": true,
+    "parentCancellationBeforeClaim": true,
+    "claimsBeforeApproval": 0,
+    "explicitApprovalLinkedSameSignerKeys": true,
+    "ed25519AndEcdsaSigningAndExportPassed": true,
+    "approvedFlowRequestPaths": [
+      "/wallet/device-linking/v1/sessions/link-session-U4gFvdXsOTBLpM_xrzKIehl7PIcqlNzoCcb3wPINOgE/claim",
+      "/wallet/device-linking/v1/sessions/link-session-U4gFvdXsOTBLpM_xrzKIehl7PIcqlNzoCcb3wPINOgE/approval",
+      "/wallet/device-linking/v1/sessions/link-session-U4gFvdXsOTBLpM_xrzKIehl7PIcqlNzoCcb3wPINOgE/ed25519-export-root",
+      "/wallet/device-linking/v1/sessions/link-session-U4gFvdXsOTBLpM_xrzKIehl7PIcqlNzoCcb3wPINOgE/source-contribution/execute",
+      "/wallet/device-linking/v1/sessions/link-session-U4gFvdXsOTBLpM_xrzKIehl7PIcqlNzoCcb3wPINOgE/source-contribution"
+    ]
+  },
+  "execution_ms": 44600,
+  "source_sha256": {
+    "packages/wallet/src/SeamsWeb/operations/devices/scanDevice.ts": "68e7c3a2aaacd919e5d9d87e160415049cfbd264154cb6ba6e46fdaf02607525",
+    "packages/wallet/src/SeamsWeb/operations/devices/walletHostOwnerAuthority.ts": "d7e6cb4da84e03cff74cb8a5a0f3f7648278f33bdf21618561c4027f30abae57",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/WalletHostRuntime.ts": "069262c8302e4222a6b60d8246a22840cad8cd4ba209daee1aff797a4f184833",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/createDeviceDomain.ts": "727b04baa0d6b56da92dcb8d5489e18488a1fedf5651421ee74595b071533b66",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/index.ts": "888078224783c1453d2256d41e0af1a5c39d969a134444e71062cabf02660d62",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/runtimeContext.ts": "bb7fbf20404c47d77a996dc45bf6437c211d1ea61533d8d5c4501c9bbc71053c",
+    "packages/wallet/src/SeamsWeb/walletIframe/host/deviceLinkApproval.ts": "19187b4972409568b1296192f65c971031a2cfae1f7d4d404ad163a709ab3ba7",
+    "tests/e2e/intended-behaviours/passkey.device-linking.contract.test.ts": "75015394499a2dd0db596e6f51ebdc8d07dbd6925bb05cd17d340c588d2d2110",
+    "tests/e2e/intended-behaviours/device-link-consent-parent.js": "88bfa1deea441512be6313f0917621636f750120948acdbbaaa928225916c6e4",
+    "tests/e2e/intended-behaviours/device-link-consent-scenario.ts": "a166090d033107f0ff5f835429fdbfa80d7cc73767b2755fd68177cc1d6772cd"
+  },
+  "bloat_check": "Passed. No ratcheted measure grew.",
+  "security_review": "Independent source review checked authenticated owner binding, cancellation latching, and concurrent request identity.",
+  "failed_attempts": [
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "cause": "Shared test ports or SDK build outputs changed during the test. Final run uses separate ports and a frozen SDK."
+    },
+    {
+      "classification": "valid_test_needs_update",
+      "cause": "New scenario needed the existing lifecycle entry, target-page navigation, and the real Wallet iframe selector."
+    },
+    {
+      "classification": "production_regression",
+      "cause": "The earlier scan-start event hid the new consent surface. The surface now stays visible until approval."
+    }
+  ]
+}

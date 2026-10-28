@@ -165,6 +165,7 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
 
   const cancelledRequests = new Set<string>();
   const activeRuntimeRequests = new Set<string>();
+  const ownedRequestIds = new Set<string>();
   // Set by the first request that the wallet runtime handles. From then on the
   // runtime answers every read, because it holds the session and preference state.
   let walletRuntimeRequested = false;
@@ -230,6 +231,14 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
     const req = e.data;
     if (!req || !isObject(req)) return;
     const requestId = req.requestId;
+    const ownsRequestId = typeof requestId === 'string' && req.type !== 'PM_CANCEL';
+    if (ownsRequestId) {
+      if (ownedRequestIds.has(requestId)) {
+        post({ type: 'ERROR', requestId, payload: { code: 'request_in_progress', message: 'Request identity is already active' } });
+        return;
+      }
+      ownedRequestIds.add(requestId);
+    }
     const requestExecutionGeneration = state.executionGeneration;
     const postForRequest = postExecutionMessage.bind(null, state, requestExecutionGeneration, post);
 
@@ -384,6 +393,10 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
               return;
             }
             markCancelled(rid);
+            const deviceLink = await import('./deviceLinkApproval');
+            deviceLink.cancelDeviceLinkApproval(
+              typeof rid === 'string' ? { kind: 'request', requestId: rid } : { kind: 'all' },
+            );
             cancelOpenConfirmers();
             if (rid) emitCancellationPayload(rid);
             post({ type: 'PONG', requestId });
@@ -504,7 +517,8 @@ export function initWalletIFrame(options: WalletHostEntryOptions = {}): void {
         },
       });
     } finally {
-      if (requestId) {
+      if (ownsRequestId) {
+        ownedRequestIds.delete(requestId);
         activeRuntimeRequests.delete(requestId);
         clearCancelled(requestId);
       }

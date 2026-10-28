@@ -1,6 +1,7 @@
+import { approveDeviceLinkWithConsent, cancelDeviceLinkApproval } from './deviceLinkApproval';
 import { authorizeWalletAuthMethodRemoval } from '@/SeamsWeb/operations/authMethods/revokeAuthMethod';
 import type { BrowserSigningSurface } from '@/SeamsWeb/signingSurface/BrowserSigningSurface';
-import type { SeamsConfigsReadonly } from '@/core/types/seams';
+import type { AppearanceConfig, SeamsConfigsReadonly } from '@/core/types/seams';
 import type { DeviceCommands } from '@/SeamsWeb/publicApi/devices';
 import { DeviceLinkingDomain } from '@/SeamsWeb/operations/devices/linkDevice';
 import type { DeviceLinkingWebContext } from '@/SeamsWeb/signingSurface/types';
@@ -56,6 +57,7 @@ async function authorizeSelectedDeviceRemoval(
 
 export function createWalletHostDeviceDomain(args: {
   readonly configs: SeamsConfigsReadonly;
+  readonly readAppearance: () => AppearanceConfig;
   readonly signingEngine: BrowserSigningSurface;
   readonly getContext: () => DeviceLinkingWebContext;
   readonly platform: ReturnType<typeof createBrowserHostPlatformRuntime>;
@@ -102,11 +104,15 @@ export function createWalletHostDeviceDomain(args: {
     domain: {
       linkedDeviceManagement: composition.linkedDeviceManagement,
       startLinking: deviceLinking.startDevice2LinkingFlow.bind(deviceLinking),
-      cancelLinking: deviceLinking.cancelDeviceLinking.bind(deviceLinking),
-      approveLinking: deviceLinking.scanAndLinkDevice.bind(deviceLinking),
+      cancelLinking: cancelDeviceLinking.bind(null, deviceLinking),
+      approveLinking: approveDeviceLinkWithConsent.bind(null, {
+        execute: deviceLinking.scanAndLinkDevice.bind(deviceLinking),
+        readAppearance: args.readAppearance,
+        readMeasurementBinding: args.signingEngine.getWalletIframeSurfaceMeasurementBinding.bind(args.signingEngine),
+      }),
     },
     resumePendingAcknowledgementsV1: composition.deviceLinkingPorts.resumePendingAcknowledgementsV1,
-    dispose: composition.dispose,
+    dispose: disposeDeviceLinking.bind(null, composition.dispose),
   };
 }
 
@@ -239,4 +245,14 @@ function createWalletHostApprovalSubscriptionV1(args: {
       timer = null;
     },
   };
+}
+
+async function cancelDeviceLinking(domain: DeviceLinkingDomain): Promise<void> {
+  cancelDeviceLinkApproval({ kind: 'all' });
+  await domain.cancelDeviceLinking();
+}
+
+function disposeDeviceLinking(dispose: () => void): void {
+  cancelDeviceLinkApproval({ kind: 'all' });
+  dispose();
 }

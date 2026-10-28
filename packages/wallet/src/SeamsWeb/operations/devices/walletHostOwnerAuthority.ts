@@ -1,3 +1,4 @@
+import type { DeviceLinkOwnerConfirmation } from '@/SeamsWeb/walletIframe/host/deviceLinkApproval';
 import type { HttpTransport } from '@/core/platform/http';
 import { DeviceLinkingError, DeviceLinkingErrorCode } from '@/core/types/linkDevice';
 import type { UnlockedEd25519ExportRootLinkingCapabilityV1 } from '@/core/signingEngine/workerManager/workerTypes';
@@ -52,6 +53,7 @@ export type WalletHostOwnerAuthoritiesV1 = {
 };
 
 export function createWalletHostOwnerAuthoritiesV1(input: {
+  readonly confirmDeviceLinking: DeviceLinkOwnerConfirmation;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly walletSessions: Pick<
@@ -86,6 +88,7 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
 }
 
 type WalletHostOwnerAuthorityContextV1 = {
+  readonly confirmDeviceLinking: DeviceLinkOwnerConfirmation;
   readonly http: HttpTransport;
   readonly baseUrl: string;
   readonly walletSessions: Pick<
@@ -102,6 +105,7 @@ type WalletHostOwnerAuthorityContextV1 = {
 };
 
 function normalizeContext(input: {
+  readonly confirmDeviceLinking: DeviceLinkOwnerConfirmation;
   readonly http: HttpTransport;
   readonly relayerUrl: string;
   readonly walletSessions: Pick<
@@ -188,6 +192,20 @@ async function authorizeOwnerForLinkingV1(
   ) {
     throw walletUnlockRequiredV1();
   }
+  const approval = await context.confirmDeviceLinking({
+    walletId: state.walletId,
+    payload: input.payload,
+  });
+  const current = context.readWalletAuthenticationState();
+  if (current.kind !== 'authenticated' || current.walletId !== state.walletId) {
+    throw walletUnlockRequiredV1();
+  }
+  const currentSession = await requireActiveWalletSessionForSelectedMethodV1(context, state.walletId);
+  approval.assertCurrent();
+  if (
+    currentSession.operationCredential.walletSessionId !== session.operationCredential.walletSessionId ||
+    currentSession.record.authorizationId !== session.record.authorizationId
+  ) throw walletUnlockRequiredV1();
   if (exportRootRequired) {
     if (!ed25519ExportRootCapability) throw walletUnlockRequiredV1();
     return {
