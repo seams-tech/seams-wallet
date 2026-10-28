@@ -6,6 +6,13 @@ import { setupBasicPasskeyTest, DEFAULT_TEST_CONFIG } from '../setup';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { registerWalletServiceRoute } from './harness';
 import { WALLET_PROTOCOL_VERSION } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';
+import type { ActionResult } from '@/core/types/seams';
+
+declare global {
+  interface Window {
+    mlDsaTimedClientResult: ActionResult | null;
+  }
+}
 
 // This campaign tests the real host, commands, signing flow, retry loop and HTTP.
 // Custody authorization, codec and Gateway results are controlled fixtures.
@@ -504,8 +511,15 @@ for (const mode of [
       await expect.poll(page.evaluate.bind(page, readMessages)).toContainEqual(
         expect.objectContaining({
           requestId: mode,
-          type: 'ERROR',
-          payload: expect.objectContaining({ message: 'ML-DSA signing approval expired' }),
+          type: 'PM_RESULT',
+          payload: {
+            ok: true,
+            result: {
+              success: false,
+              kind: 'not_submitted',
+              error: 'ML-DSA signing approval expired',
+            },
+          },
         }),
       );
     }
@@ -553,7 +567,7 @@ async function startTimedClientSigning(): Promise<void> {
     sdkBasePath: '/sdk',
   });
   await router.init();
-  (window as any).mlDsaTimedClient = { error: null };
+  window.mlDsaTimedClientResult = null;
   void router
     .signAndSendTransaction({
       signer: {
@@ -568,19 +582,15 @@ async function startTimedClientSigning(): Promise<void> {
       transaction: { receiverId: 'alice.testnet', actions: [{ type: 'Transfer', amount: '0' }] },
       options: {},
     })
-    .then(unexpectedTimedSuccess, recordClientTimeout);
+    .then(recordClientTimeoutResult);
 }
 
-function unexpectedTimedSuccess(): void {
-  (window as any).mlDsaTimedClient.error = 'Unexpected success';
+function recordClientTimeoutResult(result: ActionResult): void {
+  window.mlDsaTimedClientResult = result;
 }
 
-function recordClientTimeout(error: Error): void {
-  (window as any).mlDsaTimedClient.error = error.message;
-}
-
-function readClientTimeout(): string | null {
-  return (window as any).mlDsaTimedClient?.error ?? null;
+function readClientTimeoutResult(): ActionResult | null {
+  return window.mlDsaTimedClientResult;
 }
 
 async function runClientTimeoutCampaign(
@@ -600,15 +610,17 @@ async function runClientTimeoutCampaign(
   });
   await page.route('**/__ml-dsa-client.js', serveBundle.bind(null, client.outputFiles[0]!.text));
   await page.addScriptTag({
-    content: unexpectedTimedSuccess.toString() + '\n' + recordClientTimeout.toString(),
+    content: recordClientTimeoutResult.toString(),
   });
   await page.evaluate(startTimedClientSigning);
   const frame = page.frames().find(isWalletFrame);
   if (!frame) throw new Error('The Wallet RPC did not create its host frame');
   await expect.poll(frame.evaluate.bind(frame, readProbe)).toMatchObject({ responses: 1 });
-  await expect
-    .poll(page.evaluate.bind(page, readClientTimeout))
-    .toMatch(/Wallet request timeout for PM_SIGN_AND_SEND_TX/);
+  await expect.poll(page.evaluate.bind(page, readClientTimeoutResult)).toMatchObject({
+    success: false,
+    kind: 'submission_unknown',
+    error: expect.stringMatching(/Wallet request timeout for PM_SIGN_AND_SEND_TX/),
+  });
   await expect
     .poll(frame.evaluate.bind(frame, readProbe))
     .toMatchObject({ reserved: 1, released: 0, signed: 0, broadcast: 0 });
@@ -625,7 +637,7 @@ async function runClientTimeoutCampaign(
         mode: gateway.mode,
         state,
         executions: gateway.executions,
-        error: await page.evaluate(readClientTimeout),
+        result: await page.evaluate(readClientTimeoutResult),
         scope:
           'Chromium production client timeout sender, host, commands, signing flow and retry loop. A 300ms test RPC timeout replaces the normal 20s setting. Controlled custody, codec, nonce storage and Gateway; no cryptographic or performance qualification.',
       },
