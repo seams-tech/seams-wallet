@@ -38,11 +38,12 @@ const PUBLIC_LOG_FIELDS = {
   ml_dsa_signing_outcome_v1: ['operation', 'outcome'],
   ml_dsa_material_stage_v1: ['operation', 'role', 'value'],
   ml_dsa_refill_claim_v1: ['key', 'epoch', 'claim'],
-  ml_dsa_refill_completed_v1: ['batch', 'batches', 'published', 'elapsed_ms', 'candidates'],
+  ml_dsa_refill_completed_v1: ['batch', 'batches', 'published', 'outcome', 'elapsed_ms', 'candidates'],
   ml_dsa_refill_recovery_v1: ['batch', 'stage', 'expires_at_ms'],
   ml_dsa_refill_controller_v1: ['key', 'epoch', 'at_ms'],
   ml_dsa_refill_settled_v1: ['batch', 'outcome', 'wake_count', 'at_ms'],
   ml_dsa_refill_woken_v1: ['batch', 'key', 'epoch', 'at_ms'],
+  ml_dsa_refill_alarm_v1: ['actor', 'key', 'epoch', 'call_id', 'before_ms', 'requested_ms', 'after_ms', 'at_ms', 'module_instance'],
   ml_dsa_producer_job_v1: ['producer', 'batch', 'batches', 'key', 'epoch', 'stage'],
   ml_dsa_producer_entered_v1: ['producer'],
   ml_dsa_producer_entry_v1: [

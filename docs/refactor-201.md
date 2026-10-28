@@ -1,6 +1,6 @@
 # ML-DSA latency and sustainable preparation
 
-Status: in progress. Date: October 28, 2026.
+Status: in progress. Date: October 29, 2026.
 
 The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
 The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
@@ -40,7 +40,13 @@ Heavy compute adds no clear gain over light first-touch. Fixed order, routing, a
 The screen finds a stale inventory race that produces an unnecessary four-candidate batch, costing 17.243 seconds of combined participant CPU.
 The configured capacity stays unchanged; the race briefly creates surplus, which is explicitly retired and accounted.
 A separate first-touch block exposes a roughly twenty-seven-second dispatch gap. Its wake/controller cause remains unresolved.
-The next priorities are deficit revalidation under the acquired lease, the delayed wake, and a balanced reversed-order first-touch replication.
+The [refill guard checkpoint](router-ab/ml-dsa-65-refill-guard-report.md) now rechecks paired stock inside the leased producer before cryptographic work.
+Unneeded or oversized jobs settle durably without participant claims, preserve backoff, and wake a fresh bounded replacement.
+The local counterfactual grows to eighteen pairs on the baseline and remains at sixteen with the guard.
+The same investigation repairs early socket-error propagation. Injected input failure now settles in roughly 248–250 milliseconds and retains fifteen unopened pairs.
+Ordinary and profiling-mode release Worker E2Es pass, with eight independently checked final signatures.
+A controlled local pending-wake/maintenance test passes. Its approximately sixty-millisecond observation is an upper bound, and the earlier hosted dispatch gap remains unresolved.
+Next, measure guard overhead and wake/dispatch behavior on Cloudflare, then repeat sustained capacity and balanced early-touch controls.
 All six setup/final signatures verify, recovery preserves the canonical key, and all eight temporary Workers are deleted.
 Production cryptographic source and defaults remain unchanged.
 
@@ -214,6 +220,10 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 - [x] Separate AES setup, rounds, conversion, and erasure. Reject native context reuse after the hosted bridge screen.
 - [x] Add matched in-producer calibration and compare a proven masked-shift AES candidate. Reject the candidate after the hosted controls.
 - [x] Verify the merged Signing keys flow against hostile CSS and narrow screens.
+- [x] Skip stale-capacity preparation under the durable producer lease and verify neutral settlement, restart, replay, backoff, and bounded top-ups.
+- [x] Propagate initialization failures before signing expiry and retain the exact unopened-material safety assertions.
+- [x] Add opt-in same-actor wake/alarm observations and verify the pending-wake/maintenance interleaving locally.
+- [ ] Qualify the guard's lookup overhead and dispatch behavior on Cloudflare at unchanged capacity.
 - [ ] Continue optimizing measured preparation costs. Chunk consumption remains as a small CPU optimization. No additional AES runtime prototype remains.
 - [ ] Qualify retained material under hosted failures and measure useful throughput.
 - [ ] Shorten the measured registration critical path.

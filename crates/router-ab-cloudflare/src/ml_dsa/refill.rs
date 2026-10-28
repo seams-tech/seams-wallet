@@ -81,6 +81,7 @@ pub enum Claim {
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Published,
+    Unused,
     Failed,
     Interrupted,
 }
@@ -290,6 +291,7 @@ pub async fn finish(
         Some(_) => {
             match outcome {
                 Outcome::Published => store.delete(job.producer_slot.backoff_key()).await?,
+                Outcome::Unused => {}
                 Outcome::Failed | Outcome::Interrupted => {
                     record_failure(store, job.producer_slot, now).await?;
                 }

@@ -655,8 +655,14 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
                 .await
                 .map_err(protocol_error)?;
         }
-        let waking = matches!(command, RoleCommand::WakeRefill { .. });
-        if role == Participant::A && !waking && preparation::refill_key(&command).is_some() {
+        let wake_key = match &command {
+            RoleCommand::WakeRefill { key } => Some(key.clone()),
+            _ => None,
+        };
+        if role == Participant::A
+            && wake_key.is_none()
+            && preparation::refill_key(&command).is_some()
+        {
             durable_trace::observe(
                 durable.as_ref(),
                 "schedule_alarm",
@@ -673,10 +679,37 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         if let Some(trace) = &trace {
             trace.mark("transaction_committed");
         }
-        if waking {
+        if let Some(key) = wake_key {
             // Acknowledge only after the alarm write. Producer recovery retries
             // a lost reply; scheduling never postpones an earlier alarm.
-            schedule_refill_alarm(&self.state, 50).await?;
+            let before = if durable.is_some() {
+                self.state.storage().get_alarm().await?
+            } else {
+                None
+            };
+            let requested = crate::cloudflare_now_unix_ms_v1()
+                .map_err(protocol_error)?
+                .saturating_add(50);
+            durable_trace::observe(
+                durable.as_ref(),
+                "wake_alarm",
+                schedule_refill_alarm(&self.state, 50),
+            )
+            .await?;
+            if durable.is_some() {
+                let after = self.state.storage().get_alarm().await?;
+                worker::console_log!(
+                    "{}",
+                    serde_json::json!({
+                        "event": "ml_dsa_refill_alarm_v1", "actor": self.state.id().to_string(),
+                        "key": hex(&key.public_key_digest), "epoch": key.epoch,
+                        "call_id": call.map(crate::CloudflareTraceIdV1::as_hex),
+                        "before_ms": before, "requested_ms": requested, "after_ms": after,
+                        "at_ms": crate::cloudflare_now_unix_ms_v1().ok(),
+                        "module_instance": signing_trace::module_identity(),
+                    })
+                );
+            }
         }
         let response = Response::from_json(&value);
         if response.is_ok() {

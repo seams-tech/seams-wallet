@@ -3630,6 +3630,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Keep signing capacity reserved through both role settlements. New key-bound refill must wait for active signing settlement and registration to finish or expire.
 - Record public role-dispatch outcomes separately from final signing status. Distinguish candidate exhaustion, request failure, HTTP failure, response-body failure, and response-decoding failure.
 - B drains final data acknowledgments before requesting normal socket closure. A waits for peer close code 1000 within the operation deadline before returning the completed signing result.
+- For authenticated signing requests, establish bounded transport before fallible material initialization. Request peer closure immediately if initialization fails. Keep authoritative permit checks before loading or using secret material.
 - Require an exact ML-DSA transaction approval before preparing a private Router signing request.
 - Load signing keys from the durable publication journal. Obtain the epoch, manifest, schedule, tenant, and wallet generation from trusted storage.
 - Decode the unsigned NEAR transaction through the existing Rust encoder. Require its full ML-DSA public key to match the publication.

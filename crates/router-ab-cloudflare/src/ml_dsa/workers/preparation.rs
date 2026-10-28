@@ -408,8 +408,49 @@ async fn publish(
     Ok(())
 }
 
-async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
+enum PreparationOutcome {
+    Published,
+    Unused,
+}
+
+async fn local_inventory(env: &Env, command: &RoleCommand) -> Result<pool::Inventory> {
+    let mut response = local_call(env, command, None).await?;
+    if response.status_code() != 200 {
+        return Err(invalid("ML-DSA local preparation inventory failed"));
+    }
+    response.json().await.map_err(storage_error)
+}
+
+async fn preparation_needed(env: &Env, job: &refill::Job) -> Result<bool> {
+    let policy = policy(env)?;
+    let now = crate::cloudflare_now_unix_ms_v1()?;
+    let command = RoleCommand::Inventory {
+        key: job.key.clone(),
+        target: policy.refill_target_batches(),
+        ready_until_ms: policy.deadline(now)?,
+    };
+    let (a, b) = futures::join!(
+        local_inventory(env, &command),
+        coordinator::role_call::<pool::Inventory>(env, "DERIVER_B", &command),
+    );
+    let (a, b) = (a?, b?);
+    log_inventory(&job.key, &a, &b);
+    log_stage(job, Participant::A, job.batch, "stock_rechecked");
+    let a = a.stock_batches();
+    let b = b.stock_batches();
+    let paired = a.iter().filter(|batch| b.contains(batch)).count();
+    let missing = policy.refill_target_batches().saturating_sub(paired);
+    Ok(missing != 0 && policy.preparation_groups(missing).count() >= job.groups.count())
+}
+
+async fn produce_a(env: &Env, job: &refill::Job) -> Result<PreparationOutcome> {
     check_job(env, job).await?;
+    // A previous producer can finish between the controller's inventory read
+    // and its lease claim. Recheck while this immutable job owns the lease.
+    if !preparation_needed(env, job).await? {
+        log_stage(job, Participant::A, job.batch, "preparation_not_needed");
+        return Ok(PreparationOutcome::Unused);
+    }
     let public_key = claim_role(env, job).await?;
     log_stage(job, Participant::A, job.batch, "role_claimed");
     let request = socket_request(env, PREPARE_PATH, job)?;
@@ -431,7 +472,7 @@ async fn produce_a(env: &Env, job: &refill::Job) -> Result<()> {
         Some(if result.is_ok() { 1000 } else { 1011 }),
         Some("ML-DSA preparation ended"),
     );
-    result
+    result.map(|()| PreparationOutcome::Published)
 }
 async fn produce_a_connected(
     env: &Env,

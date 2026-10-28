@@ -126,6 +126,10 @@ async fn execute(
 ) -> Result<(Vec<u8>, execution::Outcome)> {
     let role = configured_role(env).map_err(storage_error)?;
     let mut trace = signing_trace::SigningTrace::new(input.permit.request.operation, role);
+    // Both entrypoints authenticated the permit before opening this socket.
+    // Accept before fallible initialization so failures can close the peer.
+    let mut transport =
+        transport::Duplex::new(socket, input.permit.expires_at_ms).map_err(storage_error)?;
     require_permit(env, input).await?;
     trace.mark("permit_checked");
     let mut response = local_call(
@@ -155,8 +159,6 @@ async fn execute(
         .map_err(|_| invalid("Invalid ML-DSA public key"))?;
     let schedules = schedules::load()?;
     trace.mark("schedules_loaded");
-    let mut transport =
-        transport::Duplex::new(socket, input.permit.expires_at_ms).map_err(storage_error)?;
     let outcome = execution::run(
         input,
         public_key,

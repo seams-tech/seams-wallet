@@ -15,6 +15,7 @@ enum ProducerState {
     Queued { job: refill::Job },
     Running { job: refill::Job },
     Published { job: refill::Job },
+    Unused { job: refill::Job },
     Failed { job: refill::Job },
     Interrupted { job: refill::Job },
 }
@@ -24,8 +25,20 @@ impl ProducerState {
             Self::Queued { job }
             | Self::Running { job }
             | Self::Published { job }
+            | Self::Unused { job }
             | Self::Failed { job }
             | Self::Interrupted { job } => job,
+        }
+    }
+    fn outcome(&self) -> Result<refill::Outcome> {
+        match self {
+            Self::Published { .. } => Ok(refill::Outcome::Published),
+            Self::Unused { .. } => Ok(refill::Outcome::Unused),
+            Self::Failed { .. } => Ok(refill::Outcome::Failed),
+            Self::Interrupted { .. } => Ok(refill::Outcome::Interrupted),
+            Self::Queued { .. } | Self::Running { .. } => {
+                Err(invalid("ML-DSA producer has no terminal outcome"))
+            }
         }
     }
 }
@@ -161,27 +174,26 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 let elapsed = crate::cloudflare_now_unix_ms_v1()
                     .ok()
                     .and_then(|now| now.checked_sub(start));
-                let published = if result.is_ok() {
-                    true
-                } else {
-                    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                    // Publication precedes the final transport acknowledgement.
-                    // An inspection error leaves Running and its recovery alarm intact.
-                    let confirmed = before_deadline(
-                        job.expires_at_ms.min(now.saturating_add(RECOVERY_CHECK_MS)),
-                        paired_publication(&self.env, &job),
-                    )
-                    .await
-                    .map_err(protocol_error)?;
-                    if confirmed {
-                        log_recovery(&job, "paired_publication_confirmed");
+                let terminal = match result {
+                    Ok(PreparationOutcome::Published) => ProducerState::Published { job },
+                    Ok(PreparationOutcome::Unused) => ProducerState::Unused { job },
+                    Err(_) => {
+                        let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+                        // Publication precedes the final transport acknowledgement.
+                        // An inspection error leaves Running and its recovery alarm intact.
+                        let confirmed = before_deadline(
+                            job.expires_at_ms.min(now.saturating_add(RECOVERY_CHECK_MS)),
+                            paired_publication(&self.env, &job),
+                        )
+                        .await
+                        .map_err(protocol_error)?;
+                        if confirmed {
+                            log_recovery(&job, "paired_publication_confirmed");
+                            ProducerState::Published { job }
+                        } else {
+                            ProducerState::Failed { job }
+                        }
                     }
-                    confirmed
-                };
-                let terminal = if published {
-                    ProducerState::Published { job }
-                } else {
-                    ProducerState::Failed { job }
                 };
                 (terminal, elapsed)
             }
@@ -222,19 +234,29 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
                 .put(&job_record(terminal.job().batch), &terminal)
                 .await?;
         }
-        let published = match &terminal {
-            ProducerState::Published { .. } => Some(true),
-            ProducerState::Failed { .. } => Some(false),
-            ProducerState::Interrupted { .. } => None,
-            ProducerState::Queued { .. } | ProducerState::Running { .. } => unreachable!(),
+        let outcome = terminal.outcome().map_err(protocol_error)?;
+        let published = match outcome {
+            refill::Outcome::Published => Some(true),
+            refill::Outcome::Failed => Some(false),
+            refill::Outcome::Interrupted | refill::Outcome::Unused => None,
+        };
+        let (candidates, batches) = if matches!(outcome, refill::Outcome::Unused) {
+            (0, Vec::new())
+        } else {
+            let candidates = usize::from(
+                policy(&self.env)
+                    .map_err(protocol_error)?
+                    .candidate_group_size(),
+            ) * terminal.job().groups.count();
+            (candidates, terminal.job().batch_ids())
         };
         worker::console_log!(
             "{}",
             serde_json::json!({
                 "event": "ml_dsa_refill_completed_v1", "batch": hex(&terminal.job().batch),
-                "published": published, "elapsed_ms": elapsed,
-                "candidates": usize::from(policy(&self.env).map_err(protocol_error)?.candidate_group_size()) * terminal.job().groups.count(),
-                "batches": terminal.job().batch_ids().iter().map(|id| hex(id)).collect::<Vec<_>>(),
+                "published": published, "outcome": outcome, "elapsed_ms": elapsed,
+                "candidates": candidates,
+                "batches": batches.iter().map(|id| hex(id)).collect::<Vec<_>>(),
             })
         );
         self.settle(&terminal).await
@@ -380,14 +402,8 @@ async fn remove_head(store: TransactionStore, batch: [u8; 32]) -> Result<()> {
 }
 
 async fn settle_remote(env: &Env, terminal: &ProducerState) -> Result<()> {
-    let (job, outcome) = match terminal {
-        ProducerState::Published { job } => (job, refill::Outcome::Published),
-        ProducerState::Failed { job } => (job, refill::Outcome::Failed),
-        ProducerState::Interrupted { job } => (job, refill::Outcome::Interrupted),
-        ProducerState::Queued { .. } | ProducerState::Running { .. } => {
-            return Err(invalid("ML-DSA producer has no terminal outcome"));
-        }
-    };
+    let job = terminal.job();
+    let outcome = terminal.outcome()?;
     let wake: Vec<KeyScope> = service_call(
         env,
         CallAuthority::Internal,
