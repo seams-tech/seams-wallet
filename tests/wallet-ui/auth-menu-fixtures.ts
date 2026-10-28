@@ -12,8 +12,29 @@ import QRCode from 'qrcode';
 export type AuthMenuTheme = 'light' | 'dark';
 
 export function registration(theme: AuthMenuTheme): AuthMenuRegisterViewModel {
+  return registrationModel(
+    { theme: { id: 'default', mode: theme, colors: {} }, palette: 'default' },
+    { kind: 'idle', interaction: 'actionable' },
+  );
+}
+
+export function registrationSuccess(
+  appearance: AuthMenuRegisterViewModel['appearance'],
+): AuthMenuRegisterViewModel {
+  return registrationModel(appearance, {
+    kind: 'succeeded',
+    headline: 'Wallet created',
+    message: 'Your wallet is ready on this device.',
+    phase: 'shown',
+  });
+}
+
+function registrationModel(
+  appearance: AuthMenuRegisterViewModel['appearance'],
+  status: AuthMenuRegisterViewModel['status'],
+): AuthMenuRegisterViewModel {
   return {
-    appearance: { theme: { id: 'default', mode: theme, colors: {} }, palette: 'default' },
+    appearance,
     hostname: 'wallet.example.test',
     closeLabel: 'Close authentication menu',
     heading: 'Create your passkey',
@@ -27,7 +48,7 @@ export function registration(theme: AuthMenuTheme): AuthMenuRegisterViewModel {
     passkeyNameLabel: 'Passkey name',
     passkeyName: 'Visual fixture',
     enabledExternalProviders: ['google'],
-    status: { kind: 'idle', interaction: 'actionable' },
+    status,
   };
 }
 

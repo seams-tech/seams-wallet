@@ -1,9 +1,4 @@
 export { SeamsAuthMenuMock } from './SeamsAuthMenuMock';
-export { WalletConnectorMenu } from './WalletConnectorMenu';
-export type {
-  WalletConnectorMenuProps,
-  WalletConnectorOptionAppearance,
-} from './WalletConnectorMenu';
 import { HostedSeamsAuthMenu } from './shell';
 
 export { HostedSeamsAuthMenu };

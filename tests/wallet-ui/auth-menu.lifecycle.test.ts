@@ -1,13 +1,70 @@
 import { expect, test } from '@playwright/test';
 import { injectImportMap } from '../setup/bootstrap';
 import { buildTestBrowserImportMapHtml } from '../setup/importMap';
-import { authBranchFixtures, registration } from './auth-menu-fixtures';
+import { authBranchFixtures, registration, registrationSuccess } from './auth-menu-fixtures';
 import { mountAuthMenu, prepareAuthMenuDocument } from './auth-menu.harness';
 
 declare global {
   interface Window {
     __authCspViolations: string[];
   }
+}
+
+test('authentication success follows custom brand colors through a live theme change', async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await prepareAuthMenuDocument(page);
+  await mountAuthMenu(page, registration('light'));
+  const rose = registrationSuccess({
+    palette: 'default',
+    theme: {
+      id: 'rose',
+      mode: 'light',
+      colors: {
+        colorBackground: '#fff7f8',
+        textPrimary: '#34141f',
+        textSecondary: '#79515f',
+        buttonBackground: '#8d2e35',
+        textButton: '#fff5e7',
+        passkeyHaloBackground: '#f3d5dc',
+      },
+    },
+  });
+  await page.evaluate((model) => window.__authMenu.handle.update(model), rose);
+  const seal = page.locator('.seams-success-ring-seal');
+  const check = page.locator('.seams-success-ring-check');
+  const halo = page.locator('.seams-success-prompt');
+  await expect(seal).toHaveCSS('fill', 'rgb(141, 46, 53)');
+  await expect(check).toHaveCSS('stroke', 'rgb(255, 245, 231)');
+  await expect.poll(halo.evaluate.bind(halo, successHaloColor)).toBe('rgb(243, 213, 220)');
+  await page.screenshot({ path: testInfo.outputPath('auth-success-rose.png') });
+  const forest = registrationSuccess({
+    palette: 'default',
+    theme: {
+      id: 'forest',
+      mode: 'dark',
+      colors: {
+        colorBackground: '#12241d',
+        textPrimary: '#d6f2e4',
+        textSecondary: '#a1c6b3',
+        buttonBackground: '#a2dbbd',
+        textButton: '#10291c',
+        passkeyHaloBackground: '#294f3e',
+      },
+    },
+  });
+  await page.evaluate((model) => window.__authMenu.handle.update(model), forest);
+  await expect(seal).toHaveCSS('fill', 'rgb(162, 219, 189)');
+  await expect(check).toHaveCSS('stroke', 'rgb(16, 41, 28)');
+  await expect.poll(halo.evaluate.bind(halo, successHaloColor)).toBe('rgb(41, 79, 62)');
+  await expect(page.locator('.auth-menu-root')).toHaveCSS('background-color', 'rgb(18, 36, 29)');
+  await expect(page.locator('.seams-auth-menu-surface')).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('auth-success-forest.png') });
+});
+
+function successHaloColor(element: Element): string {
+  return getComputedStyle(element, '::before').backgroundColor;
 }
 
 test.beforeEach(async ({ page, baseURL }) => {

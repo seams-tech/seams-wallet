@@ -89,7 +89,7 @@ resizes the panel into `HostedSeamsAuthMenu`. Authentication remains on the wall
 origin. The component uses the provider's theme tokens and supports reduced motion.
 
 ```tsx [Partial example]
-import { WalletConnectorMenu } from '@seams/wallet/react/hosted-seams-auth-menu';
+import { WalletConnectorMenu } from '@seams/wallet/react';
 import { ExternalNearController } from '@seams/wallet/external-near';
 import '@seams/wallet/react/styles';
 
@@ -119,6 +119,15 @@ Customize `title`, `description`, `closeLabel`, `backLabel`, `className`, and `s
 map accepts `label`, `description`, and a React `icon` for `seams`, `meteor`, `hot`,
 and `intear`. Pass authentication copy and provider options through `authMenu`.
 Configure colors and corners through the existing provider appearance settings.
+Connector rows use `secondaryButtonBackground`, `secondaryButtonHoverBackground`,
+`secondaryButtonBorder`, and `secondaryButtonText`. Panel spacing, corners, control
+height, and elevation follow `spacing`, `shape`, and `shadows` from the active theme.
+The optional CSS variables `--seams-font-family` and `--seams-font-size-base` control
+the connector's typography.
+
+Authentication success uses `buttonBackground` for its seal and animated ring,
+`textButton` for the check, and optional `passkeyHaloBackground` for the halo.
+These values also apply to the wallet-created and login-success showcase cards.
 Meteor and HOT use bundled official wallet icons by default. App-supplied icons override them.
 
 When opened from the connector, the auth view includes a back button that returns to

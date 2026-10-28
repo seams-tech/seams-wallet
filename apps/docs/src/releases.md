@@ -1,9 +1,32 @@
 ---
-title: Release 0.26.0
-description: Passkey recovery reconciliation, browser security errors, and explicit device-link consent.
+title: Release 0.27.0
+description: Customizable wallet connection UI, consistent theming, explicit NEAR outcomes, and VoiceID recovery.
 ---
 
-# Release 0.26.0
+# Release 0.27.0
+
+Version **0.27.0** adds the default customizable wallet connector and improves authentication, receipt, and VoiceID flows.
+
+| Component | Version |
+| --- | --- |
+| Browser SDK `@seams/wallet` | **0.27.0** |
+| Server SDK `@seams/wallet-server` | **0.27.0** |
+| Optional plugin `@seams/voiceid` | **0.27.0** |
+| Native CLI launcher `@seams/wallet-cli` | **0.25.0** |
+| Wallet iframe protocol | **17.0.0** |
+
+- `WalletConnectorMenu` supplies wallet selection, official wallet icons, configurable copy, and a continuous transition into hosted authentication.
+- Back navigation returns to wallet selection. Connector controls and authentication success indicators use SDK theme tokens.
+- Transaction details scroll within the viewport. Receipt transitions retain their text position and stay inside the iframe.
+- NEAR transaction results distinguish rejection before submission, uncertain submission, and unresolved final outcomes.
+- VoiceID supports loading recovery, explicit retry, and consistent microphone capture across attempts.
+
+Upgrade the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+See the [React reference](/reference/react) for connector configuration.
+
+## Previous releases
+
+## Release 0.26.0
 
 Version **0.26.0** repairs stale browser authority records after cold passkey custody recovery.
 
@@ -22,8 +45,6 @@ Version **0.26.0** repairs stale browser authority records after cold passkey cu
 
 Upgrade the application SDK and hosted wallet assets together. VoiceID hosts use the matching plugin version.
 Avoid browser SDK **0.25.0** because cold recovery can leave a stale authority record that prevents later unlocks.
-
-## Previous releases
 
 ## Release 0.25.0
 

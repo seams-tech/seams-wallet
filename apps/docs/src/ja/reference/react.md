@@ -84,7 +84,7 @@ await wallet.near.signAndSendTransaction({
 `HostedSeamsAuthMenu`に切り替わります。認証操作はウォレットオリジンのiframe内で行います。
 
 ```tsx [部分的な実装例]
-import { WalletConnectorMenu } from '@seams/wallet/react/hosted-seams-auth-menu';
+import { WalletConnectorMenu } from '@seams/wallet/react';
 import { ExternalNearController } from '@seams/wallet/external-near';
 import '@seams/wallet/react/styles';
 
@@ -107,6 +107,11 @@ const nearWallets = new ExternalNearController({
 `options`で各項目の`label`、`description`、`icon`を変更できます。
 パネルには`title`、`description`、`closeLabel`、`backLabel`、`className`、`style`を指定できます。
 色と角丸は既存のプロバイダー設定を使用し、認証画面の文言は`authMenu.copy`で変更します。
+接続項目には`secondaryButtonBackground`、`secondaryButtonHoverBackground`、
+`secondaryButtonBorder`、`secondaryButtonText`を使います。余白、角丸、高さ、影は
+テーマの`spacing`、`shape`、`shadows`に従います。
+成功表示の円とリングには`buttonBackground`、チェックには`textButton`、
+ハローには省略可能な`passkeyHaloBackground`を使います。
 MeteorとHOTの公式アイコンを同梱しています。`options`の`icon`で置き換えることもできます。
 
 コネクターから開いた認証画面には、ウォレット選択へ戻るボタンを表示します。

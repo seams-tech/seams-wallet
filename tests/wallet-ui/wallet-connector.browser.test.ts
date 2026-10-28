@@ -38,7 +38,7 @@ export function useSeams() { return { seams, loginState: { isLoggedIn: false } }
 const application = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { WalletConnectorMenu } from '/_test-sdk/esm/react/components/HostedSeamsAuthMenu/public.js';
+import { WalletConnectorMenu } from '/_test-sdk/esm/react/components/HostedSeamsAuthMenu/WalletConnectorMenu.js';
 import { Theme } from '/_test-sdk/esm/react/components/theme/ThemeProvider.js';
 import { ExternalNearController } from '/_test-sdk/esm/externalNear/index.js';
 
@@ -70,6 +70,36 @@ function outcome(value) { window.__connector.outcomes.push(value); }
 function connected(connection) { window.__connector.connections.push(connection); root.unmount(); }
 function close() { window.__connector.closes += 1; }
 const custom = new URLSearchParams(location.search).has('custom');
+const brandedThemes = {
+  rose: {
+    mode: 'light',
+    tokens: {
+      colors: {
+        colorBackground: '#fff7f8', textPrimary: '#34141f', textSecondary: '#79515f',
+        secondaryButtonBackground: '#ffffff', secondaryButtonHoverBackground: '#fce5ea',
+        secondaryButtonBorder: '#dda3b2', secondaryButtonText: '#532531', borderHover: '#ad304c',
+        buttonBackground: '#8d2e35', textButton: '#fff5e7', passkeyHaloBackground: '#f3d5dc',
+      },
+      shape: { card: '28px', control: '18px', controlHeight: '52px' },
+      spacing: { xs: '6px', sm: '10px', md: '18px', lg: '28px' },
+      shadows: { md: '0 5px 15px rgb(70 20 40 / 0.2)' },
+    },
+  },
+  forest: {
+    mode: 'dark',
+    tokens: {
+      colors: {
+        colorBackground: '#12241d', textPrimary: '#d6f2e4', textSecondary: '#a1c6b3',
+        secondaryButtonBackground: '#1c4032', secondaryButtonHoverBackground: '#285a46',
+        secondaryButtonBorder: '#426a57', secondaryButtonText: '#d6f2e4', borderHover: '#bce9d1',
+        buttonBackground: '#a2dbbd', textButton: '#10291c', passkeyHaloBackground: '#294f3e',
+      },
+      shape: { card: '32px', control: '24px', controlHeight: '56px' },
+      spacing: { xs: '4px', sm: '8px', md: '16px', lg: '24px' },
+      shadows: { md: '0 5px 15px rgb(0 0 0 / 0.3)' },
+    },
+  },
+};
 const props = {
   onOutcome: outcome,
   onClose: close,
@@ -87,6 +117,16 @@ const props = {
 root.render(React.createElement(React.StrictMode, null,
   React.createElement(Theme, { tag: 'div', theme: 'light', tokens: { light: { colors: { buttonBackground: '#8d2e35' } } } },
     React.createElement(WalletConnectorMenu, props))));
+async function applyTheme(name) {
+  const theme = brandedThemes[name];
+  root.render(React.createElement(React.StrictMode, null,
+    React.createElement(Theme, { tag: 'div', theme: theme.mode, tokens: { [theme.mode]: theme.tokens } },
+      React.createElement(WalletConnectorMenu, props))));
+  await window.__connectorRouter.setAppearance({ palette: 'default', theme: {
+    id: name, mode: theme.mode, colors: theme.tokens.colors, shape: theme.tokens.shape,
+  }});
+}
+window.__connector.applyTheme = applyTheme;
 `;
 
 function serveContext(route: Route) {
@@ -269,3 +309,35 @@ function isIntermediateFrame(minHeight: number, maxHeight: number, frame: { heig
 function loadedWalletIcon(element: Element): boolean {
   return element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0;
 }
+
+test('connector follows branded light and dark tokens through hover, auth, and back navigation', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/wallet-connector-test');
+  const panel = page.locator('.seams-wallet-connector');
+  const option = page.getByRole('button', { name: /Create a Seams Wallet/ });
+  await expect(option).toBeVisible();
+  await page.evaluate("window.__connector.applyTheme('rose')");
+  await expect(panel).toHaveCSS('background-color', 'rgb(255, 247, 248)');
+  await expect(panel).toHaveCSS('border-radius', '28px');
+  await expect(option).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(option).toHaveCSS('color', 'rgb(83, 37, 49)');
+  await expect(option).toHaveCSS('border-radius', '18px');
+  await expect(option).toHaveCSS('padding-top', '18px');
+  await option.hover();
+  await expect(option).toHaveCSS('background-color', 'rgb(252, 229, 234)');
+  await page.screenshot({ path: testInfo.outputPath('connector-rose.png') });
+  await option.click();
+  const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
+  await expect(auth.locator('.auth-menu-root')).toHaveCSS('background-color', 'rgb(255, 247, 248)');
+  await page.evaluate("window.__connector.applyTheme('forest')");
+  await expect(auth.locator('.auth-menu-root')).toHaveCSS('background-color', 'rgb(18, 36, 29)');
+  await expect(auth.locator('.auth-menu-root')).toHaveCSS('border-radius', '32px');
+  await page.getByRole('button', { name: 'Back to wallet selection' }).click();
+  await expect(option).toHaveCSS('background-color', 'rgb(28, 64, 50)');
+  await expect(option).toHaveCSS('color', 'rgb(214, 242, 228)');
+  await expect(option).toHaveCSS('border-radius', '24px');
+  await expect(panel).toHaveCSS('background-color', 'rgb(18, 36, 29)');
+  await expect(panel).toHaveCSS('border-radius', '32px');
+  await page.screenshot({ path: testInfo.outputPath('connector-forest.png') });
+});

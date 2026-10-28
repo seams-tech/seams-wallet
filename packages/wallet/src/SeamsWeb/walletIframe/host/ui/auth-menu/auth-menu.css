@@ -2194,7 +2194,8 @@
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%);
+  background: var(--seams-colors-passkeyHaloBackground,
+    color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-textPrimary) 4%));
   content: '';
   animation: seams-passkey-halo 1.4s ease-in-out infinite alternate;
 }
@@ -2273,7 +2274,12 @@
    seal behind a check; the new copy fades in as the seal lands. The session
    holds the view for AUTH_MENU_SUCCESS_HOLD_MS, so the timeline here must end
    before that. */
+:where(.seams-auth-menu-surface) .seams-success-prompt {
+  color: var(--seams-colors-buttonBackground);
+}
 :where(.seams-auth-menu-surface) .seams-success-prompt::before {
+  background: var(--seams-colors-passkeyHaloBackground,
+    color-mix(in srgb, var(--seams-colors-colorBackground), var(--seams-colors-buttonBackground) 10%));
   animation: seams-success-halo 300ms cubic-bezier(0.2, 0, 0, 1) 700ms both;
 }
 
@@ -2320,7 +2326,7 @@
 }
 
 :where(.seams-auth-menu-surface) .seams-success-ring-check {
-  stroke: var(--seams-colors-colorBackground);
+  stroke: var(--seams-colors-textButton);
   stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;

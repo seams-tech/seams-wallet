@@ -1,8 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider, defineSeamsConfig } from '@seams/wallet/react';
+import { SeamsWebProvider, defineSeamsConfig, WalletConnectorMenu } from '@seams/wallet/react';
 import {
-  WalletConnectorMenu,
   type HostedAuthMenuOutcome,
 } from '@seams/wallet/react/hosted-seams-auth-menu';
 import '@seams/wallet/react/styles';

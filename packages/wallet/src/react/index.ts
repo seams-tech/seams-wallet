@@ -180,15 +180,12 @@ export { QRCodeScanner } from './components/QRCodeScanner';
 export type { QRCodeScannerProps } from './components/QRCodeScanner';
 export { ShowQRCode } from './components/ShowQRCode';
 export type { ShowQRCodeProps } from './components/ShowQRCode';
-export {
-  HostedSeamsAuthMenu,
-  SeamsAuthMenuMock,
-  WalletConnectorMenu,
-} from './components/HostedSeamsAuthMenu/public';
+export { HostedSeamsAuthMenu, SeamsAuthMenuMock } from './components/HostedSeamsAuthMenu/public';
+export { WalletConnectorMenu } from './components/HostedSeamsAuthMenu/WalletConnectorMenu';
 export type {
   WalletConnectorMenuProps,
   WalletConnectorOptionAppearance,
-} from './components/HostedSeamsAuthMenu/public';
+} from './components/HostedSeamsAuthMenu/WalletConnectorMenu';
 export type {
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,

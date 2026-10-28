@@ -70,6 +70,8 @@ export interface DesignTokens {
     // Optional CSS gradient for a focused text field's border; without it the
     // border takes `focus`.
     focusGradient?: string;
+    /** Optional face behind the passkey and authentication success indicator. */
+    passkeyHaloBackground?: string;
 
     // Status colors
     success: string;
