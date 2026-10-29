@@ -1,3 +1,5 @@
+import { parseOwnerNearCommand } from '../shared/ownerNearOperation';
+import { parseExternalAuthCommand } from '@shared/auth/externalAuth';
 import type { ParentToChildEnvelope, ParentToChildType } from '../shared/messages';
 import {
   parseHostedAuthMenuCancelPayload,
@@ -17,6 +19,7 @@ type BootWalletRequestType =
   | 'PM_SET_TRANSACTION_VIEW'
   | 'PM_TRANSACTION_BROADCAST_STARTED';
 type NearWalletRequestType =
+  | 'PM_OWNER_NEAR_TRANSACTION'
   | 'PM_REGISTER_WALLET'
   | 'PM_ADD_WALLET_SIGNER'
   | 'PM_ADD_PASSKEY'
@@ -38,6 +41,7 @@ type AuthWalletRequestType =
   | 'PM_UNLOCK'
   | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_EXTERNAL_AUTH'
+  | 'PM_EXTERNAL_OWNER_AUTH'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -159,6 +163,9 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     case 'PM_TRANSACTION_BROADCAST_STARTED':
       return { kind: 'boot', type: request.type, request };
 
+    case 'PM_OWNER_NEAR_TRANSACTION':
+      return { kind: 'near', type: request.type, request: { type: request.type, requestId: walletIframeRequestIdFromBoundary(request.requestId), payload: parseOwnerNearCommand(request.payload) } };
+
     case 'PM_REGISTER_WALLET':
     case 'PM_ADD_WALLET_SIGNER':
     case 'PM_ADD_PASSKEY':
@@ -217,6 +224,17 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
             parseHostedAuthMenuExternalAuthResolution(request.payload),
             'hosted auth-menu external-auth resolution',
           ),
+        },
+      };
+    }
+    case 'PM_EXTERNAL_OWNER_AUTH': {
+      const command = parseExternalAuthCommand(request.payload);
+      if (command.action !== 'associate' && command.action !== 'unlink') throw new Error('Owner request is invalid');
+      return {
+        kind: 'auth', type: request.type,
+        request: {
+          type: request.type, requestId: walletIframeRequestIdFromBoundary(request.requestId),
+          payload: command, options: request.options,
         },
       };
     }

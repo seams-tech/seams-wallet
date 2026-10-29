@@ -21,6 +21,7 @@ import type {
 } from './walletRegistrationSetupPayload';
 
 export type WalletRegistrationSetupRequest = {
+  readonly completion: import('@shared/utils/registrationIntent').RegistrationCompletion;
   readonly registrationOperationId: string;
   readonly wallet?: RegisterWalletInput;
   readonly signerSelection: RegistrationSignerSetSelection;

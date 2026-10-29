@@ -278,6 +278,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+    completion: 'wallet_session',
   foundingWalletAuthMethodId: allocateWalletAuthMethodId('founding-fixture'),
   walletId: walletIdFromString('wallet_alice'),
   authMethod: { kind: 'passkey', rpId },
@@ -312,6 +313,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+    completion: 'wallet_session',
   foundingWalletAuthMethodId: allocateWalletAuthMethodId('founding-fixture'),
   walletId: walletIdFromString('wallet_alice'),
   // @ts-expect-error registration intent cannot carry a root rpId
@@ -377,6 +379,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+    completion: 'wallet_session',
   foundingWalletAuthMethodId: allocateWalletAuthMethodId('founding-fixture'),
   // @ts-expect-error registration intent requires a branded wallet id
   walletId: 'wallet_alice',
@@ -387,6 +390,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+    completion: 'wallet_session',
   foundingWalletAuthMethodId: allocateWalletAuthMethodId('founding-fixture'),
   walletId: walletIdFromString('wallet_alice'),
   authMethod: { kind: 'passkey', rpId },

@@ -39,6 +39,7 @@ export type WalletRegistrationCommand = Omit<
   Parameters<RegistrationCapability['registerWallet']>[0],
   'wallet' | 'signerSelection'
 > & {
+  readonly completion: import('@shared/utils/registrationIntent').RegistrationCompletion;
   readonly wallet: RegisterWalletInput;
   readonly signerSelection: RegistrationSignerSetSelection;
 };
@@ -122,6 +123,7 @@ export function createPublicApi(
       setAuthMethodEnabled: deps.registration.setAuthMethodEnabled,
       addEmail: deps.registration.addEmail,
       removeAuthMethod: deps.registration.removeAuthMethod,
+      registerOwnerWallet: registerOwnerWallet.bind(null, deps.registration),
       registerWallet: registerWallet.bind(null, deps.registration, deps.configs),
     },
     recovery: deps.recovery,
@@ -154,6 +156,7 @@ async function registerWallet(
           })
         : args.signerSelection;
     command = {
+      completion: 'wallet_session',
       authMethod: args.authMethod,
       wallet,
       signerSelection,
@@ -209,4 +212,8 @@ function createReviewedCapabilities(
     tempo: evmFamily.tempo,
     evm: evmFamily.evm,
   };
+}
+
+async function registerOwnerWallet(commands: WalletRegistrationCommands, args: Parameters<RegistrationCapability['registerOwnerWallet']>[0]): Promise<import('@/core/types/seams').RegistrationResult> {
+  return await commands.registerWallet({ completion: 'owner_operations', authMethod: args.authMethod, wallet: args.wallet ?? { kind: 'server_allocated' }, signerSelection: args.signerSelection, options: args.options });
 }

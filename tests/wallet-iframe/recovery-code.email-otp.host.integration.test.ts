@@ -2,7 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { build } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';
+import { computeWalletOwnerAdminChallengeDigest } from '@shared/authorization/walletOwnerOperation';
 import { buildWalletServiceHtml } from '@/plugins/plugin-utils';
 import { setupBasicPasskeyTest } from '../setup';
 import { injectImportMap } from '../setup/bootstrap';
@@ -91,7 +91,7 @@ async function replyToRecoveryRelay(observations: RelayObservation[], route: Rou
   if (pathname === '/wallets/custody/email-otp/challenge') {
     const operation = String(body.operation);
     const payload = body.payload as { walletId: string; requestId: string; expectedIssuedAtMs?: number };
-    const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
+    const challengeDigest = await computeWalletOwnerAdminChallengeDigest({
       walletId: body.walletId,
       operation: operation as 'recovery_status' | 'recovery_backup_acknowledge',
       payload,

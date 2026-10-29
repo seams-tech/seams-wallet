@@ -70,6 +70,9 @@ importers:
         specifier: ^19.1.1
         version: 19.1.1(react@19.1.1)
     devDependencies:
+      '@seams/wallet-server':
+        specifier: workspace:*
+        version: link:../../packages/wallet-server
       '@types/react':
         specifier: ^19.1.12
         version: 19.1.12

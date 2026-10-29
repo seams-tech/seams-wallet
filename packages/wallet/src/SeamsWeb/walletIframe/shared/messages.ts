@@ -1,3 +1,4 @@
+import type { OwnerNearCommand } from './ownerNearOperation';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
@@ -30,7 +31,7 @@ import type {
   WalletSessionRef,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { EmailOtpAuthPolicy } from '@/core/types/seams';
-import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
+import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
 import type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 import type {
   RegistrationTimingSpanV1,
@@ -824,7 +825,7 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
   }
 }
 
-export const WALLET_PROTOCOL_VERSION = '18.0.0' as const;
+export const WALLET_PROTOCOL_VERSION = '19.0.0' as const;
 
 export const WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH =
   'WALLET_IFRAME_PROTOCOL_VERSION_MISMATCH' as const;
@@ -855,6 +856,7 @@ export type ParentToChildType =
   | 'PM_UNLOCK'
   | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_EXTERNAL_AUTH'
+  | 'PM_EXTERNAL_OWNER_AUTH'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -876,6 +878,7 @@ export type ParentToChildType =
   | 'PM_ROTATE_WALLET_RECOVERY_CODES'
   | 'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE'
   | 'PM_SIGN_TX_WITH_ACTIONS'
+  | 'PM_OWNER_NEAR_TRANSACTION'
   | 'PM_SIGN_AND_SEND_TX'
   | 'PM_SEND_TRANSACTION'
   | 'PM_SIGN_DELEGATE_ACTION'
@@ -1066,6 +1069,7 @@ export type PMRegistrationAuthMethodInput =
   | PMGoogleSsoRegistrationAuthMethod;
 
 interface PMRegisterWalletPayload {
+  completion: import('@shared/utils/registrationIntent').RegistrationCompletion;
   authMethod: PMRegistrationAuthMethodInput;
   wallet: RegisterWalletInput;
   signerSelection: RegistrationSignerSetSelection;
@@ -1353,7 +1357,7 @@ interface PMWalletRecoverySessionPayload {
 interface PMRequestWalletCustodyEmailOtpChallengePayload {
   walletId: string;
   providerSubjectId: string;
-  operation: WalletCustodyAdminOperation;
+  operation: WalletOwnerAdminOperation;
   payload: Record<string, unknown>;
   requestOrigin?: string;
 }
@@ -1515,6 +1519,7 @@ export function parseDeviceLinkTargetFactorActionPayloadV1(value: unknown): {
 }
 
 export type ProgressPayload =
+  | import('./ownerNearOperation').OwnerNearSubmissionProgress
   | WalletFlowEvent
   | RegistrationTimingSpanV1
   | DeviceLinkTargetFactorActivationProgressV1
@@ -1647,6 +1652,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_EXTERNAL_AUTH', import('@shared/auth/externalAuth').ExternalAuthCommand>
+  | (RpcEnvelope<'PM_EXTERNAL_OWNER_AUTH', Extract<import('@shared/auth/externalAuth').ExternalAuthCommand, { action: 'associate' | 'unlink' }>> & { payload: Extract<import('@shared/auth/externalAuth').ExternalAuthCommand, { action: 'associate' | 'unlink' }> })
   | RpcEnvelope<
       'PM_UNLOCK_AUTH_METHOD',
       {
@@ -1692,6 +1698,7 @@ export type ParentToChildEnvelope =
       'PM_REQUEST_WALLET_CUSTODY_EMAIL_OTP_CHALLENGE',
       PMRequestWalletCustodyEmailOtpChallengePayload
     >
+  | (RpcEnvelope<'PM_OWNER_NEAR_TRANSACTION', OwnerNearCommand> & { payload: OwnerNearCommand })
   | RpcEnvelope<'PM_SIGN_TX_WITH_ACTIONS', PMSignTxPayload>
   | ReviewedTransactionEnvelope<RpcEnvelope<'PM_SIGN_AND_SEND_TX', PMSignAndSendTxPayload>>
   | RpcEnvelope<'PM_SEND_TRANSACTION', PMSendTxPayload>

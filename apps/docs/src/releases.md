@@ -1,9 +1,40 @@
 ---
-title: Release 0.28.0
-description: Google BYO authentication for wallet settings, settings drawers, and configurable VoiceID models.
+title: Release 0.29.0
+description: Trusted application sessions, owner-only NEAR onboarding, fresh transaction approval, and recoverable submission states.
 ---
 
-# Release 0.28.0
+# Release 0.29.0
+
+Version **0.29.0** connects an application's authenticated user to a readable wallet.
+Fresh wallet-origin owner proof approves each NEAR transaction.
+
+| Component | Version |
+| --- | --- |
+| `@seams/wallet` | **0.29.0** |
+| `@seams/wallet-server` | **0.29.0** |
+| `@seams/voiceid` | **0.29.0** |
+| `@seams/wallet-cli` | **0.29.0** |
+| Wallet iframe protocol | **19.0.0** |
+| Wallet-management protocol | **5** |
+
+- Configure an Ed25519 application issuer in the existing Console environment trust setting.
+- Google and application-passkey login can resolve to one stable application subject.
+- Associate and unlink identities through fresh owner approval without opening a reusable signing session.
+- Register a NEAR-only passkey wallet through `registration.registerOwnerWallet`.
+- Use `near.prepareOwnerTransaction` for one fresh transaction approval, including after reload.
+- Observe capability-specific React wallets and operation states. A read connection supplies no reusable signer.
+- Persist a public recovery descriptor. Recover an existing submission by status query, with no repeat broadcast.
+
+Upgrade the browser package, hosted Wallet assets, server package, and enabled VoiceID plugin together.
+Apply signer migrations `0086` and `0087` and Console migration `0112`.
+These migrations replace the previous identity and trust storage shapes.
+Complete or cancel unfinished relocation operations before applying signer migrations.
+
+The initial owner-operation API supports NEAR and an enrolled wallet-origin owner passkey.
+GetSignal's passkeys authenticate GetSignal's application session.
+Read the [application-session guide](/guides/application-auth) and maintained example before integration.
+
+## Release 0.28.0
 
 Version **0.28.0** lets applications reuse a Google ID token to open associated wallet settings. Signing and custody operations keep their owner authentication requirements.
 

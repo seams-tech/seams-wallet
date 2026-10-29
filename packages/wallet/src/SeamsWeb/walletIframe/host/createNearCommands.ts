@@ -1,3 +1,5 @@
+import type { WalletHostRuntime } from './WalletHostRuntime';
+import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import {
   sendTransaction,
   signAndSendTransaction,
@@ -11,9 +13,11 @@ import { toError } from '@shared/utils/errors';
 import { nearTransactionFailure } from '@/core/signingEngine/nearTransactionSubmission';
 export function createWalletHostNearCommands(
   getContext: () => NearSigningWebContext,
+  runOwnerOperation: WalletHostRuntime['runOwnerNearOperation'],
 ): NearCommands {
   const commands = new WalletHostNearCommands(getContext);
   return {
+    ownerOperation: executeOwnerOperation.bind(null, runOwnerOperation),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -107,3 +111,10 @@ class WalletHostNearCommands {
     return result;
   }
 }
+
+async function executeOwnerOperation(run: WalletHostRuntime['runOwnerNearOperation'], ...args: Parameters<ExecuteOwnerNearOperation>): ReturnType<ExecuteOwnerNearOperation> {
+  const [command, execution] = args;
+  return await run(command, execution.signal.throwIfAborted.bind(execution.signal), ignoreOwnerSigningEvent, execution.onSubmission);
+}
+
+function ignoreOwnerSigningEvent(_event: import('@/core/types/sdkSentEvents').SigningFlowEvent): void {}

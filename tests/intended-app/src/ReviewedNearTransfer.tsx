@@ -12,7 +12,7 @@ type TransferState =
 export function ReviewedNearTransfer({ walletId }: { walletId: string | null }): React.ReactNode {
   const { wallet } = useSeams();
   const [state, setState] = React.useState<TransferState>({ kind: 'idle' });
-  const signer = wallet?.walletId === walletId ? wallet.near : null;
+  const signer = wallet?.access === 'wallet' && wallet.walletId === walletId ? wallet.near : null;
   const readiness = transferReadiness(walletId, wallet, state);
   return (
     <section>

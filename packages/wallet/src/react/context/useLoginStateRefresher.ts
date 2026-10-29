@@ -61,6 +61,7 @@ export function useLoginStateRefresher(args: {
             )
               return;
             switch (state.kind) {
+              case 'external_read':
               case 'active_session':
               case 'expired_session':
               case 'wallet_authenticated_identity_unresolvable':

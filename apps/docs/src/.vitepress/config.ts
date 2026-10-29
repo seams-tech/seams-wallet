@@ -47,7 +47,7 @@ const getStartedSection: DefaultTheme.SidebarItem = {
   text: 'Get started',
   items: [
     { text: 'Installation', link: '/' },
-    { text: 'Release 0.28.0', link: '/releases' },
+    { text: 'Release 0.29.0', link: '/releases' },
     { text: 'Create a wallet', link: '/getting-started/create-wallet' },
     { text: 'Sign with policy', link: '/getting-started/sign-with-policy' },
     {
@@ -64,6 +64,7 @@ const guidesSection: DefaultTheme.SidebarItem = {
     { text: 'Overview', link: '/guides/' },
     { text: 'Authentication', link: '/guides/authentication' },
     { text: 'Google SSO (BYO auth)', link: '/guides/google-sso' },
+    { text: 'Application sessions', link: '/guides/application-auth' },
     { text: 'VoiceID', link: '/concepts/auth-methods/voiceid' },
     { text: 'Embedded wallets', link: '/guides/embedded-wallets' },
     { text: 'External NEAR wallets', link: '/guides/external-near-wallets' },

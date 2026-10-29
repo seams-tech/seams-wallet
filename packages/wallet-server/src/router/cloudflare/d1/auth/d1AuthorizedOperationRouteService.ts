@@ -1,13 +1,18 @@
 import { parseTenantId } from '@shared/authorization/capabilityKinds';
 import type { AuthorizationService } from '../../../../authorization/service';
+import type { D1WalletAuthMethodStore } from '../../../../core/d1WalletAuthMethodStore';
 import type { RouterApiServiceBag } from '../../../framework/authServicePort';
 import type { CloudflareD1AuthorizationStore } from '../authorization/d1AuthorizationStore';
+import type { CloudflareD1WalletAuthMethodService } from '../wallet/d1WalletAuthMethodService';
+import { resolveRecordedPasskeyOwnerOperation } from './d1RecordedOwnerOperation';
 import type { NormalizedCloudflareD1RouterApiAuthServiceOptions } from './d1RouterApiAuthConfig';
 
 type D1AuthorizedOperationRouteServiceAssembly = {
   readonly authorizationService: AuthorizationService;
   readonly authorizationStore: CloudflareD1AuthorizationStore;
-  readonly options: Pick<NormalizedCloudflareD1RouterApiAuthServiceOptions, 'orgId'>;
+  readonly options: Pick<NormalizedCloudflareD1RouterApiAuthServiceOptions, 'database' | 'namespace' | 'orgId' | 'projectId' | 'envId'>;
+  readonly walletAuthMethodStore: D1WalletAuthMethodStore;
+  readonly walletAuthMethods: CloudflareD1WalletAuthMethodService;
 };
 
 export function createD1AuthorizedOperationRouteService(
@@ -19,6 +24,7 @@ export function createD1AuthorizedOperationRouteService(
   }
   return {
     tenantId: tenantId.value,
+    resolveRecordedPasskeyOwnerOperation: resolveRecordedPasskeyOwnerOperation.bind(null, assembly, tenantId.value),
     resolveEcdsaWalletSessionOperation: assembly.authorizationStore.resolveEcdsaWalletSessionOperation.bind(
       assembly.authorizationStore,
     ),

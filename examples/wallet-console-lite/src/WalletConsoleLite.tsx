@@ -315,7 +315,7 @@ function WalletPlayground({
   }, []);
 
   const runMessageSigningCheck = useCallback(async () => {
-    if (!wallet?.near || !loginState.isLoggedIn) return;
+    if (wallet?.access !== 'wallet' || !wallet.near || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'message' });
     try {
       const result = await wallet.near.signMessage({
@@ -345,7 +345,7 @@ function WalletPlayground({
   }, [loginState.isLoggedIn, wallet]);
 
   const runTransactionSigningCheck = useCallback(async () => {
-    if (!wallet?.near || !loginState.isLoggedIn) return;
+    if (wallet?.access !== 'wallet' || !wallet.near || !loginState.isLoggedIn) return;
     setSigningCheck({ kind: 'signing', operation: 'transaction' });
     try {
       await seams.near.signTransaction({

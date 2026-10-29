@@ -7,6 +7,7 @@ import {
   EXTERNAL_AUTH_PATH,
   externalAuthFailure,
   parseExternalWalletSettings,
+  parseExternalOwnerChallenge,
   parseExternalAuthFailure,
   type ExternalAuthenticateInput,
   type ExternalAuthAttempt,
@@ -14,14 +15,39 @@ import {
   type ExternalWalletAuthentication,
   type ExternalWalletSettings,
 } from '@shared/auth/externalAuth';
-import type { WalletHostOwnerAuthoritiesV1 } from '@/SeamsWeb/operations/devices/walletHostOwnerAuthority';
+import { ExternalOwnerApprovalError, type ExternalOwnerApproval } from './externalOwnerApproval';
 
 type Attempt = { walletId: string; attemptId: string; binding: string; sessionToken: string };
-type State =
+type ConnectionState =
   | { kind: 'empty' }
-  | { kind: 'prepared'; attempt: Attempt }
   | { kind: 'restoring'; attempt: Attempt }
   | { kind: 'authenticated'; attempt: Attempt; settings: ExternalWalletSettings };
+type State = ConnectionState
+  | { kind: 'prepared'; attempt: Attempt }
+  | {
+      kind: 'owner_operation'; purpose: 'associate' | 'unlink'; attempt: Attempt;
+      connection: ConnectionState;
+      approval: { kind: 'ready' } | { kind: 'pending'; controller: AbortController };
+    };
+
+function externalConnection(state: State): ConnectionState {
+  switch (state.kind) {
+    case 'owner_operation':
+      return state.connection;
+    case 'prepared':
+      return { kind: 'empty' };
+    case 'empty':
+    case 'restoring':
+    case 'authenticated':
+      return state;
+    default:
+      return assertNever(state);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported external authentication state: ${String(value)}`);
+}
 
 export class HostedExternalAuth {
   private state: State = { kind: 'empty' };
@@ -30,7 +56,7 @@ export class HostedExternalAuth {
   constructor(
     private readonly configs: SeamsConfigsReadonly,
     private readonly lockOwner: () => Promise<void>,
-    private readonly readOwnerCredential: WalletHostOwnerAuthoritiesV1['readOwnerCredential'],
+    private readonly approveOwner: ExternalOwnerApproval,
     private readonly parentOrigin: string,
   ) {
     this.restore();
@@ -81,6 +107,10 @@ export class HostedExternalAuth {
 
   async lock(): Promise<void> {
     const previous = this.state;
+    const connection = externalConnection(previous);
+    if (previous.kind === 'owner_operation' && previous.approval.kind === 'pending') {
+      previous.approval.controller.abort();
+    }
     this.generation += 1;
     this.state = { kind: 'empty' };
     sessionStorage.removeItem(this.storageKey());
@@ -88,6 +118,12 @@ export class HostedExternalAuth {
       await this.request('logout', {
         walletId: previous.attempt.walletId,
         sessionToken: previous.attempt.sessionToken,
+      });
+    }
+    if (previous.kind === 'owner_operation' && connection.kind !== 'empty') {
+      await this.request('logout', {
+        walletId: connection.attempt.walletId,
+        sessionToken: connection.attempt.sessionToken,
       });
     }
   }
@@ -112,13 +148,13 @@ export class HostedExternalAuth {
     if (result.ok !== true) return parseExternalAuthFailure(result);
     const value = requireRecord(result.value, 'external authentication attempt');
     const attemptId = requireCanonicalString(value.attemptId, 'attemptId');
-    if (typeof value.expiresAtMs !== 'number' || value.walletId !== parsed.value)
+    if (typeof value.expiresAtMs !== 'number' || value.walletId !== parsed.value || value.purpose !== 'authenticate')
       throw new Error('Invalid attempt');
     const attempt = { walletId: parsed.value, attemptId, binding, sessionToken };
     this.state = { kind: 'prepared', attempt };
     return {
       ok: true,
-      value: { walletId: parsed.value, attemptId, expiresAtMs: value.expiresAtMs },
+      value: { purpose: 'authenticate', walletId: parsed.value, attemptId, expiresAtMs: value.expiresAtMs },
     };
   }
 
@@ -185,23 +221,153 @@ export class HostedExternalAuth {
     return { ok: true, value: settings.authentication };
   }
 
-  async associate(input: { walletId: string; idToken: string }): Promise<ExternalAuthResult<null>> {
-    const wallet = parseWalletId(input.walletId);
+  async prepareAssociation(walletId: string): Promise<ExternalAuthResult<ExternalAuthAttempt<'associate'>>> {
+    const wallet = parseWalletId(walletId);
     if (!wallet.ok) return externalAuthFailure('invalid_request');
-    const owner = await this.readOwnerCredential(wallet.value);
-    const result = await this.request('associate', {
-      walletId: input.walletId,
-      idToken: input.idToken,
-      ownerCredential: owner.token,
-    });
-    return result.ok === true ? { ok: true, value: null } : externalAuthFailure('access_denied');
+    const previous = this.state;
+    const connection = externalConnection(previous);
+    const generation = ++this.generation;
+    if (previous.kind === 'owner_operation' && previous.approval.kind === 'pending') {
+      previous.approval.controller.abort();
+    }
+    this.state = connection;
+    if (previous.kind === 'prepared' || previous.kind === 'owner_operation') {
+      await this.request('logout', {
+        walletId: previous.attempt.walletId,
+        sessionToken: previous.attempt.sessionToken,
+      });
+    }
+    const binding = randomSecret();
+    const sessionToken = randomSecret();
+    const result = await this.request('prepare-association', { walletId: wallet.value, binding, sessionToken });
+    if (generation !== this.generation) return externalAuthFailure('superseded');
+    if (result.ok !== true) return parseExternalAuthFailure(result);
+    const value = requireRecord(result.value, 'external association attempt');
+    const attemptId = requireCanonicalString(value.attemptId, 'attemptId');
+    if (typeof value.expiresAtMs !== 'number' || value.walletId !== wallet.value || value.purpose !== 'associate') {
+      throw new Error('Invalid external association attempt');
+    }
+    this.state = {
+      kind: 'owner_operation', purpose: 'associate', approval: { kind: 'ready' },
+      attempt: { walletId: wallet.value, attemptId, binding, sessionToken },
+      connection,
+    };
+    return {
+      ok: true,
+      value: { purpose: 'associate', walletId: wallet.value, attemptId, expiresAtMs: value.expiresAtMs },
+    };
+  }
+
+  async associate(
+    input: ExternalAuthenticateInput,
+    assertActive: () => void = activeRequest,
+  ): Promise<ExternalAuthResult<null>> {
+    assertActive();
+    if (input.method === 'google') {
+      const prepared = await this.prepareAssociation(input.walletId);
+      if (!prepared.ok) return prepared;
+    }
+    const current = this.state;
+    if (current.kind !== 'owner_operation' || current.purpose !== 'associate' || current.attempt.walletId !== input.walletId) {
+      return externalAuthFailure('access_denied');
+    }
+    const generation = this.generation;
+    let code: string;
+    if (input.method === 'google') {
+      const exchanged = await this.request('exchange', {
+        walletId: input.walletId, attemptId: current.attempt.attemptId, idToken: input.idToken,
+      });
+      if (exchanged.ok !== true) return parseExternalAuthFailure(exchanged);
+      code = requireCanonicalString(requireRecord(exchanged.value, 'association exchange').code, 'code');
+    } else {
+      if (input.attemptId !== current.attempt.attemptId) return externalAuthFailure('access_denied');
+      code = input.code;
+    }
+    return this.completeOwnerOperation(current.attempt, code, generation, assertActive);
+  }
+
+  private assertOwnerOperation(generation: number, attemptId: string, assertActive: () => void): void {
+    assertActive();
+    if (generation !== this.generation || this.state.kind !== 'owner_operation' || this.state.attempt.attemptId !== attemptId) {
+      throw new ExternalOwnerApprovalError('cancelled');
+    }
+  }
+
+  private async completeOwnerOperation(
+    attempt: Attempt,
+    code: string,
+    generation: number,
+    assertActive: () => void,
+  ): Promise<ExternalAuthResult<null>> {
+    const assertCurrent = this.assertOwnerOperation.bind(this, generation, attempt.attemptId, assertActive);
+    try {
+      assertCurrent();
+      const response = await this.request('owner-challenge', {
+        walletId: attempt.walletId, attemptId: attempt.attemptId,
+        binding: attempt.binding, sessionToken: attempt.sessionToken, code,
+      });
+      assertCurrent();
+      if (response.ok !== true) return parseExternalAuthFailure(response);
+      const challenge = parseExternalOwnerChallenge(response.value);
+      if (this.state.kind !== 'owner_operation' || challenge.kind !== this.state.purpose ||
+          challenge.walletId !== attempt.walletId || challenge.attemptId !== attempt.attemptId) {
+        return externalAuthFailure('access_denied');
+      }
+      const controller = new AbortController();
+      this.state = {
+        kind: 'owner_operation', purpose: this.state.purpose, attempt,
+        connection: this.state.connection, approval: { kind: 'pending', controller },
+      };
+      const factorProof = await this.approveOwner({ challenge, signal: controller.signal, assertCurrent });
+      assertCurrent();
+      if (challenge.expiresAtMs <= Date.now()) return externalAuthFailure('expired');
+      const result = await this.request(challenge.kind, {
+        walletId: attempt.walletId, attemptId: attempt.attemptId,
+        binding: attempt.binding, sessionToken: attempt.sessionToken, code, factorProof,
+      });
+      assertCurrent();
+      return result.ok === true ? { ok: true, value: null } : parseExternalAuthFailure(result);
+    } catch (error) {
+      if (generation !== this.generation) return externalAuthFailure('superseded');
+      if (error instanceof ExternalOwnerApprovalError) return externalAuthFailure(error.code);
+      return externalAuthFailure('unavailable');
+    } finally {
+      if (generation === this.generation && this.state.kind === 'owner_operation' && this.state.attempt.attemptId === attempt.attemptId) {
+        const current = this.state;
+        if (current.approval.kind === 'pending') current.approval.controller.abort();
+        this.state = current.connection;
+        try {
+          await this.request('logout', { walletId: attempt.walletId, sessionToken: attempt.sessionToken });
+        } catch {}
+      }
+    }
+  }
+
+  async captureOwnerOperation(authentication: ExternalWalletAuthentication): Promise<() => void> {
+    const session = await this.getSession(String(authentication.walletId));
+    if (
+      session?.authentication.kind !== 'external_authenticated' ||
+      session.authentication.sessionId !== authentication.sessionId ||
+      session.authentication.associationId !== authentication.associationId
+    ) throw new Error('The external wallet connection changed.');
+    return this.assertOwnerOperationCurrent.bind(this, this.generation, authentication);
+  }
+
+  private assertOwnerOperationCurrent(generation: number, authentication: ExternalWalletAuthentication): void {
+    const connection = externalConnection(this.state);
+    if (
+      generation !== this.generation ||
+      connection.kind !== 'authenticated' ||
+      connection.settings.authentication.sessionId !== authentication.sessionId ||
+      connection.settings.authentication.expiresAtMs <= Date.now()
+    ) throw new Error('The external wallet connection changed or expired.');
   }
 
   async getSession(walletId?: string): Promise<WalletSession | null> {
-    const current = this.state;
+    const state = this.state;
+    const current = externalConnection(state);
     if (
       current.kind === 'empty' ||
-      current.kind === 'prepared' ||
       (walletId && walletId !== current.attempt.walletId)
     )
       return null;
@@ -212,7 +378,12 @@ export class HostedExternalAuth {
     });
     if (generation !== this.generation) return null;
     if (result.ok !== true) {
-      await this.lock();
+      if (this.state.kind === 'owner_operation') {
+        this.state = { kind: 'owner_operation', purpose: this.state.purpose, attempt: this.state.attempt, approval: this.state.approval, connection: { kind: 'empty' } };
+        sessionStorage.removeItem(this.storageKey());
+      } else {
+        await this.lock();
+      }
       return null;
     }
     const settings = parseBoundSettings(
@@ -220,24 +391,41 @@ export class HostedExternalAuth {
       current.attempt,
       this.configs.registration.projectEnvironmentId,
     );
-    this.state = { kind: 'authenticated', attempt: current.attempt, settings };
+    const connection: ConnectionState = { kind: 'authenticated', attempt: current.attempt, settings };
+    this.state = this.state.kind === 'owner_operation'
+      ? { kind: 'owner_operation', purpose: this.state.purpose, attempt: this.state.attempt, approval: this.state.approval, connection }
+      : connection;
     return sessionFromSettings(settings);
   }
 
   async remove(input: {
     walletId: string;
     associationId: string;
-  }): Promise<ExternalAuthResult<null>> {
+  }, assertActive: () => void = activeRequest): Promise<ExternalAuthResult<null>> {
+    assertActive();
     const wallet = parseWalletId(input.walletId);
     if (!wallet.ok) return externalAuthFailure('invalid_request');
-    const owner = await this.readOwnerCredential(wallet.value);
-    const result = await this.request('unlink', {
-      walletId: wallet.value,
-      associationId: input.associationId,
-      ownerCredential: owner.token,
+    const previous = this.state;
+    const connection = externalConnection(previous);
+    const generation = ++this.generation;
+    if (previous.kind === 'owner_operation' && previous.approval.kind === 'pending') previous.approval.controller.abort();
+    this.state = connection;
+    const binding = randomSecret();
+    const sessionToken = randomSecret();
+    const response = await this.request('prepare-unlink', {
+      walletId: wallet.value, associationId: input.associationId, binding, sessionToken,
     });
-    return result.ok === true ? { ok: true, value: null } : externalAuthFailure('access_denied');
+    if (generation !== this.generation) return externalAuthFailure('superseded');
+    if (response.ok !== true) return parseExternalAuthFailure(response);
+    const prepared = requireRecord(response.value, 'association removal attempt');
+    const attempt: Attempt = {
+      walletId: wallet.value,
+      attemptId: requireCanonicalString(prepared.attemptId, 'attemptId'), binding, sessionToken,
+    };
+    this.state = { kind: 'owner_operation', purpose: 'unlink', attempt, connection, approval: { kind: 'ready' } };
+    return this.completeOwnerOperation(attempt, requireCanonicalString(prepared.code, 'code'), generation, assertActive);
   }
+
 }
 
 function randomSecret(): string {

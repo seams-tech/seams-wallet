@@ -100,12 +100,14 @@ function walletOriginRegistrationAuthMethod(
 
 export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
+    PM_OWNER_NEAR_TRANSACTION: handleOwnerNearTransaction.bind(null, deps),
     PM_REGISTER_WALLET: async (req: Req<'PM_REGISTER_WALLET'>) => {
       const pm = deps.getWalletRuntime();
       const payload = req.payload!;
       if (deps.respondIfCancelled(req.requestId)) return;
       const hooksOptions = withRegistrationProgress(deps, req.requestId, payload.options || {});
-      const result = await pm.registration.registerWallet({
+      const result = await pm.registerWalletCommand({
+        completion: payload.completion,
         authMethod: walletOriginRegistrationAuthMethod(payload.authMethod),
         wallet: payload.wallet,
         signerSelection: payload.signerSelection,
@@ -117,7 +119,7 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       if (deps.respondIfCancelled(req.requestId)) return;
       // The parent receives the registered session before the result, so it
       // does not ask for it again.
-      if (result.success) await deps.publishCurrentSession();
+      if (result.success && result.kind !== 'wallet_owner_registered') await deps.publishCurrentSession();
       if (deps.respondIfCancelled(req.requestId)) return;
       respondOkResult(deps, req.requestId, result);
     },
@@ -294,4 +296,17 @@ export function createNearWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       respondOkResult(deps, req.requestId, result);
     },
   };
+}
+
+async function handleOwnerNearTransaction(deps: HandlerDeps, request: Req<'PM_OWNER_NEAR_TRANSACTION'>): Promise<void> {
+  const result = await deps.getWalletRuntime().runOwnerNearOperation(request.payload, assertOwnerRequestActive.bind(null, deps, request.requestId), deps.postProgress.bind(deps, request.requestId), postOwnerNearSubmission.bind(null, deps, request));
+  respondOkResult(deps, request.requestId, result);
+}
+
+function assertOwnerRequestActive(deps: HandlerDeps, requestId: string | undefined): void {
+  if (deps.isCancelled(requestId)) throw new DOMException('The owner operation was cancelled.', 'AbortError');
+}
+
+function postOwnerNearSubmission(deps: HandlerDeps, request: Req<'PM_OWNER_NEAR_TRANSACTION'>): void {
+  deps.postProgress(request.requestId, { event: 'owner_near_submitting', operationId: request.payload.recovery.operationId });
 }

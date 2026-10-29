@@ -12,7 +12,7 @@ type TransferState =
 export function ReviewedArcTransfer({ walletId }: { walletId: string | null }): React.ReactNode {
   const { wallet, seams } = useSeams();
   const [state, setState] = React.useState<TransferState>({ kind: 'idle' });
-  const selected = wallet?.walletId === walletId ? wallet : null;
+  const selected = wallet?.access === 'wallet' && wallet.walletId === walletId ? wallet : null;
   return (
     <section aria-label="Arc transfer">
       <p>
@@ -71,7 +71,7 @@ async function readGasPrice(rpcUrl: string): Promise<bigint> {
 
 async function transfer(
   seams: Seams,
-  wallet: BoundWallet,
+  wallet: Extract<BoundWallet, { access: 'wallet' }>,
   setState: React.Dispatch<React.SetStateAction<TransferState>>,
 ): Promise<void> {
   setState({ kind: 'pending' });

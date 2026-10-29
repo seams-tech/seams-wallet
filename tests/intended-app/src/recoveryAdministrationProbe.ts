@@ -1,6 +1,6 @@
 import type { SeamsWeb } from '@seams/wallet';
 import { toWalletId } from '@seams/wallet/advanced';
-import { computeWalletCustodyAdminChallengeDigest } from '../../../packages/shared-ts/src/authorization/walletCustodyOperation';
+import { computeWalletOwnerAdminChallengeDigest } from '../../../packages/shared-ts/src/authorization/walletOwnerOperation';
 import { base64UrlDecode, base64UrlEncode } from '../../../packages/shared-ts/src/utils/base64';
 
 type RecoveryProbeResponse = {
@@ -64,7 +64,7 @@ async function createStaleAcknowledgementPasskeyProof(input: {
   }
   if (!credentialIdB64u) throw new Error('Recovery probe needs one owner passkey');
 
-  const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
+  const challengeDigest = await computeWalletOwnerAdminChallengeDigest({
     walletId: input.walletId,
     operation: 'recovery_backup_acknowledge',
     payload: {

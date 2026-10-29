@@ -190,6 +190,7 @@ export function inferRuntimePolicyScopeFromSigningRoot(input: {
 }
 
 export function buildRegistrationIntent(input: {
+  readonly completion: RegistrationIntentV1['completion'];
   readonly nonceB64u: string;
   readonly walletId: WalletId;
   readonly authMethod: RegistrationAuthMethodInput;
@@ -206,6 +207,7 @@ export function buildRegistrationIntent(input: {
   if (input.runtimePolicyScope) {
     return {
       version: 'registration_intent_v1',
+      completion: input.completion,
       walletId: input.walletId,
       authMethod: input.authMethod,
       signerSelection: input.signerSelection,
@@ -216,6 +218,7 @@ export function buildRegistrationIntent(input: {
   }
   return {
     version: 'registration_intent_v1',
+      completion: input.completion,
     walletId: input.walletId,
     authMethod: input.authMethod,
     signerSelection: input.signerSelection,
@@ -318,6 +321,7 @@ function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
   if (runtimePolicyScope) {
     return {
       version: 'registration_intent_v1',
+    completion: parsePersistedRegistrationCompletion(record.completion),
       walletId,
       authMethod,
       signerSelection: signerSelection.value,
@@ -328,6 +332,7 @@ function parseD1RegistrationIntent(raw: unknown): RegistrationIntentV1 | null {
   }
   return {
     version: 'registration_intent_v1',
+    completion: parsePersistedRegistrationCompletion(record.completion),
     walletId,
     authMethod,
     signerSelection: signerSelection.value,
@@ -3094,4 +3099,10 @@ function safeInteger(raw: unknown): number | null {
 
 function unreachableAddAuthMethodInput(value: never): never {
   throw new Error(`Unhandled add-auth-method input kind: ${String(value)}`);
+}
+
+function parsePersistedRegistrationCompletion(raw: unknown): 'owner_operations' | 'wallet_session' {
+  if (raw === undefined || raw === 'wallet_session') return 'wallet_session';
+  if (raw === 'owner_operations') return 'owner_operations';
+  throw new Error('Stored registration completion is invalid');
 }

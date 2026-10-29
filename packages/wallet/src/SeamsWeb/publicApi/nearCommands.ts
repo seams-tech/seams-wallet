@@ -22,6 +22,8 @@ type ResolvedNearInput<T extends { options?: unknown }> = Omit<
 };
 
 export type NearCommands = {
+  ownerOperation: import('./ownerNearOperation').ExecuteOwnerNearOperation;
+} & {
   [K in NearSigningOperation]: (
     args: ResolvedNearInput<Parameters<NearSignerCapability[K]>[0]>,
   ) => ReturnType<NearSignerCapability[K]>;

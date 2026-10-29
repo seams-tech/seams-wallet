@@ -1,3 +1,4 @@
+import { ApplicationAuthPage } from './ApplicationAuthPage';
 import { voiceIdAuthMethod } from '@seams/voiceid';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -91,18 +92,14 @@ createRoot(root).render(
   <React.StrictMode>
     <SeamsWebProvider config={config}>
       <TransactionReviewHost>
-        {window.location.pathname === '/voiceid' ? (
-          <LiveVoiceId />
-        ) : (
-          <>
-            <IntendedBehaviourE2EPage />
-            <UnlockWallet />
-            <EmailCodeUnlock />
-            <AssetMenu />
-            <AccountMenu />
-          </>
-        )}
+        <IntendedRoutes />
       </TransactionReviewHost>
     </SeamsWebProvider>
   </React.StrictMode>,
 );
+
+function IntendedRoutes(): React.ReactNode {
+  if (window.location.pathname === '/application-auth') return <ApplicationAuthPage walletRpId={new URL(walletOrigin).hostname} />;
+  if (window.location.pathname === '/voiceid') return <LiveVoiceId />;
+  return <><IntendedBehaviourE2EPage /><UnlockWallet /><EmailCodeUnlock /><AssetMenu /><AccountMenu /></>;
+}

@@ -2,7 +2,9 @@
 // Keep additions limited to primitives already required by that composition.
 export {
   parseExternalAuthConfiguration,
+  parseExternalAuthProvider,
   type ExternalAuthConfiguration,
+  type ExternalAuthProvider,
 } from '@shared/auth/externalAuth';
 export * from './core/SessionService';
 export * from './core/ThresholdService/evmCryptoWasm';

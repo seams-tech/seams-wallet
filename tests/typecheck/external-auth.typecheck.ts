@@ -5,6 +5,9 @@ import type {
 import type {
   ExternalAuthenticateInput,
   ExternalWalletSettings,
+  ExternalAuthConfiguration,
+  ExternalAuthProvider,
+  ExternalIdentity,
 } from '../../packages/shared-ts/src/auth/externalAuth';
 
 declare const settings: ExternalWalletSettings;
@@ -47,3 +50,19 @@ const mixed: ExternalAuthenticateInput = {
 };
 
 void [external, owner, assertedOwner, signing, spread, mixed];
+
+declare const applicationPublicKey: Extract<ExternalAuthProvider, { kind: 'application' }>['publicKeyB64u'];
+
+declare const googleProvider: Extract<ExternalAuthProvider, { kind: 'google' }>;
+declare const applicationIdentity: Extract<ExternalIdentity, { provider: 'application' }>;
+
+// @ts-expect-error An application verifier cannot also carry a Google client ID.
+const mixedProvider: ExternalAuthConfiguration = { kind: 'application', revision: 1, issuer: 'https://app.example', publicKeyB64u: applicationPublicKey, clientId: 'google-client' };
+
+// @ts-expect-error A spread cannot add an application verifier to a Google provider.
+const spreadProvider: ExternalAuthProvider = { ...googleProvider, issuer: 'https://app.example', publicKeyB64u: applicationPublicKey };
+
+// @ts-expect-error Application identity cannot be asserted into a Google identity.
+const assertedGoogle = applicationIdentity as Extract<ExternalIdentity, { provider: 'google' }>;
+
+void [mixedProvider, spreadProvider, assertedGoogle];

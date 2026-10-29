@@ -14,6 +14,7 @@ export function createApplicationNearCommands(
 ): NearCommands {
   const commands = new ApplicationNearCommands(walletIframe, beforeSigning, transactionDispatch);
   return {
+    ownerOperation: commands.ownerOperation.bind(commands),
     signAndSendTransaction: commands.signAndSendTransaction.bind(commands),
     signTransaction: commands.signTransaction.bind(commands),
     sendTransaction: commands.sendTransaction.bind(commands),
@@ -27,6 +28,10 @@ class ApplicationNearCommands {
     private readonly beforeSigning: (walletId: WalletId) => Promise<void>,
     private readonly transactionDispatch: TransactionDispatch,
   ) {}
+  async ownerOperation(...args: Parameters<NearCommands['ownerOperation']>): ReturnType<NearCommands['ownerOperation']> {
+    return await (await this.walletIframe.requireRouter()).ownerNearOperation(...args);
+  }
+
   async signAndSendTransaction(
     args: Parameters<NearCommands['signAndSendTransaction']>[0],
   ): ReturnType<NearCommands['signAndSendTransaction']> {

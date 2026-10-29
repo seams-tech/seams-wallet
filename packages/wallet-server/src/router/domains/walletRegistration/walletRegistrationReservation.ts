@@ -1,3 +1,5 @@
+import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
+import { requireRecord } from '@shared/utils/validation';
 import type { Variant } from '@shared/utils/variant';
 import type { WalletSessionLocatorPublication } from '../../../authorization/sessionRouting';
 import type { CommittedWalletRegistration } from '../../../authorization/domain';
@@ -65,6 +67,10 @@ export type RegistrationPairStartup = Variant<RegistrationWalletStartup, 'kind',
 
 export type RegistrationWalletStarter = (registration: RegistrationWalletStartup) => Promise<void>;
 
+export type RegistrationSessionPublication =
+  | { readonly kind: 'none'; readonly walletId?: never; readonly digest?: never; readonly expiresAtMs?: never }
+  | (WalletSessionLocatorPublication & { readonly kind: 'credential' });
+
 type ReservationOutcome =
   | { readonly ok: true }
   | { readonly ok: false; readonly code: string; readonly message: string };
@@ -106,7 +112,7 @@ export interface WalletRegistrationReservationAuthority {
     } & (
       | {
           readonly outcome: 'established';
-          readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+          readonly session: RegistrationSessionPublication;
         }
       | { readonly outcome: 'cancelled'; readonly session?: never }
     ),
@@ -140,7 +146,7 @@ export interface WalletRegistrationHomeAuthority extends Pick<
    */
   prepareEstablished(input: {
     readonly registration: CommittedWalletRegistration;
-    readonly session: WalletSessionLocatorPublication & { readonly kind: 'credential' };
+    readonly session: RegistrationSessionPublication;
   }): RegistrationActivationWrite | null;
   /** Fixes a definitive cancellation, publishes it, and retires the local home. */
   cancel(input: {
@@ -222,6 +228,7 @@ export async function walletRegistrationSetupRequestDigest(
       runtimePolicyScope: input.runtimePolicyScope,
       expectedOrigin: input.expectedOrigin,
       wallet: input.request.wallet ?? { kind: 'server_allocated' },
+      completion: input.request.completion,
       authMethod: input.request.authMethod,
       signerSelection: input.request.signerSelection,
     }),
@@ -252,4 +259,13 @@ export async function admitRegistrationReservationHome(
       message: 'Registration reservation authority is required',
     };
   return authority.admitHome(input);
+}
+
+export function parseRegistrationSessionPublication(raw: unknown, walletId: WalletId): RegistrationSessionPublication {
+  const value = requireRecord(raw, 'registration session publication');
+  if (value.kind === 'none') return { kind: 'none' };
+  if (value.kind !== 'credential' || value.walletId !== String(walletId)) throw new Error('Invalid registration session publication');
+  const expiresAtMs = value.expiresAtMs;
+  if (typeof expiresAtMs !== 'number' || !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= 0) throw new Error('Invalid registration session publication expiry');
+  return { kind: 'credential', walletId, digest: parseDigestB64u(value.digest), expiresAtMs };
 }

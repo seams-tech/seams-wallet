@@ -128,6 +128,11 @@ export interface SeamsWebSigningSurface
     EmailOtpOwnerConfirmationSurface,
     PasskeyLoginAssertionSurface,
     KeyExportSigningSurface {
+  signNearOwnerTransaction(
+    command: Extract<import('@/SeamsWeb/walletIframe/shared/ownerNearOperation').OwnerNearCommand, { action: 'approve' }>,
+    assertCurrent: () => void,
+    onEvent: (event: import('@/core/types/sdkSentEvents').SigningFlowEvent) => void,
+  ): Promise<import('@/core/types/seams').SignTransactionResult>;
   readonly seamsWebConfigs: SeamsConfigsReadonly;
   dispose(): void;
   setAppearance(appearance: AppearanceConfig): void;

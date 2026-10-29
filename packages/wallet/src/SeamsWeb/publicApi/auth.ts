@@ -6,6 +6,7 @@ export type WalletSessionCommands = Pick<
   AuthCapability,
   | 'authenticate'
   | 'prepareExternalAuth'
+  | 'prepareExternalAssociation'
   | 'associateExternalAuth'
   | 'removeExternalAuth'
   | 'unlock'

@@ -1331,7 +1331,7 @@ export interface RouterApiWalletAuthMethodService {
     readonly walletId: string;
     readonly providerUserId: string;
   }): Promise<
-    | { readonly ok: true; readonly authority: EmailOtpWalletAuthAuthority }
+    | { readonly ok: true; readonly authority: EmailOtpWalletAuthAuthority; readonly walletAuthority: ActiveWalletAuthorityV1 }
     | { readonly ok: false; readonly code: string; readonly message: string }
   >;
   /** The exact active Email OTP authority a caller names, for operations that
@@ -1644,6 +1644,16 @@ export interface RouterApiAuthorizedOperationService {
     import('../../authorization/ed25519WalletSessionAdmission').Ed25519WalletSessionResolutionResult
   >;
   readonly tenantId: TenantId;
+  resolveRecordedPasskeyOwnerOperation(input: {
+    readonly authorizedOperationId: import('@shared/authorization/capabilityKinds').AuthorizedOperationId;
+    readonly walletId: WalletId;
+    readonly requestOrigin: import('../../authorization/domain').SessionOrigin;
+    readonly nowMs: number;
+  }): Promise<{
+    readonly operation: AuthorizedOperation;
+    readonly authority: import('@shared/utils/walletAuthAuthority').PasskeyWalletAuthAuthority;
+    readonly expiresAtMs: number;
+  } | null>;
   readPinnedOwnerWalletScope(input: {
     readonly operation: AuthorizedOperation;
     readonly walletId: WalletId;

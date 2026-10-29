@@ -121,6 +121,7 @@ export type RegistrationEstablishedSessionV2 = {
 };
 
 export type RegistrationEstablishedSessionResultV2 =
+  | { readonly kind: 'owner_operations'; readonly walletId: WalletId; readonly session?: never }
   | {
       readonly kind: 'issued';
       readonly session: RegistrationEstablishedSessionV2;
@@ -137,6 +138,11 @@ export function parseRegistrationEstablishedSessionResultV2(
   const result = inspectRawObject(raw);
   if (!result || !('kind' in result) || typeof result.kind !== 'string') return null;
   switch (result.kind) {
+    case 'owner_operations': {
+      if (!hasExactKeys(result, ['kind', 'walletId'])) return null;
+      const walletId = parseWalletIdResult(Reflect.get(result, 'walletId'));
+      return walletId.ok ? { kind: 'owner_operations', walletId: walletId.value } : null;
+    }
     case 'issued': {
       if (!hasExactKeys(result, ['kind', 'session']) || !('session' in result)) return null;
       const session = parseRegistrationEstablishedSessionV2(result.session);

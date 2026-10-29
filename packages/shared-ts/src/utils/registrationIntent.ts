@@ -45,7 +45,10 @@ export type RuntimePolicyScopeLike = {
   signingRootVersion?: string;
 };
 
+export type RegistrationCompletion = 'wallet_session' | 'owner_operations';
+
 export type RegistrationIntentV1 = {
+  completion: RegistrationCompletion;
   version: 'registration_intent_v1';
   walletId: WalletId;
   authMethod: RegistrationAuthMethodInput;

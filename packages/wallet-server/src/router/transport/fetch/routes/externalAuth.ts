@@ -1,18 +1,17 @@
-import type { ExternalAuthTrust } from '../../../../auth/externalAuthStore';
+import type { ExternalOwnerAttemptBinding } from '../../../../auth/externalAuthStore';
+import { externalOwnerChallenge, readExternalOwnerOperation } from '../../../../auth/externalOwnerOperations';
+import { authorizeWalletOwnerOperation, completeWalletOwnerOperation, walletOwnerOperationAuthorizationId } from '../walletOwnerOperationAuthorization';
 import {
   EXTERNAL_AUTH_PATH,
   externalAuthFailure,
   parseExternalAuthConfiguration,
+  type ExternalIdentityProof,
+  type ExternalAuthConfiguration,
 } from '@shared/auth/externalAuth';
 import { parseWalletId, type WalletId } from '@shared/utils/domainIds';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import { requireCanonicalString, requireRecord } from '@shared/utils/validation';
 import { sha256HexUtf8 } from '@shared/utils/digests';
-import {
-  buildFullOwnerPermissionsV1,
-  buildDelegatedWalletAuthorityV1,
-  sameDelegatedWalletAuthorityV1,
-} from '@shared/authorization/delegatedAuthority';
 import type { ExternalAuthService } from '../../../../auth/externalAuthService';
 import {
   extractBearerCredential,
@@ -26,6 +25,9 @@ const ACTIONS = [
   'associate',
   'unlink',
   'prepare',
+  'prepare-association',
+  'prepare-unlink',
+  'owner-challenge',
   'exchange',
   'backend-exchange',
   'redeem',
@@ -35,16 +37,29 @@ const ACTIONS = [
 type Action = (typeof ACTIONS)[number];
 
 type BrowserCommand = { readonly appOrigin: string } & ReadonlyExclusiveUnion<
-  | { action: 'associate'; ownerCredential: string; idToken: string }
-  | { action: 'unlink'; ownerCredential: string; associationId: string }
-  | { action: 'prepare'; binding: string; sessionToken: string }
+  | { action: 'associate' | 'unlink'; attemptId: string; binding: string; sessionToken: string; code: string; factorProof: unknown }
+  | { action: 'owner-challenge'; attemptId: string; binding: string; sessionToken: string; code: string }
+  | { action: 'prepare-unlink'; associationId: string; binding: string; sessionToken: string }
+  | { action: 'prepare' | 'prepare-association'; binding: string; sessionToken: string }
   | { action: 'exchange'; attemptId: string; idToken: string }
   | { action: 'redeem'; attemptId: string; binding: string; sessionToken: string; code: string }
   | { action: 'settings' | 'logout'; sessionToken: string }
 >;
 type Command = { readonly walletId: WalletId } & ReadonlyExclusiveUnion<
-  BrowserCommand | { action: 'backend-exchange'; attemptId: string; idToken: string }
+  BrowserCommand | { action: 'backend-exchange'; attemptId: string; proof: ExternalIdentityProof }
 >;
+
+function parseIdentityProof(value: unknown): ExternalIdentityProof {
+  const proof = requireRecord(value, 'external identity proof');
+  switch (proof.kind) {
+    case 'google':
+      return { kind: 'google', idToken: requireCanonicalString(proof.idToken, 'idToken') };
+    case 'application':
+      return { kind: 'application', assertion: requireCanonicalString(proof.assertion, 'assertion') };
+    default:
+      throw new Error('Unsupported external identity proof');
+  }
+}
 
 function parseCommand(action: Action, body: Record<string, unknown>): Command {
   const wallet = parseWalletId(body.walletId);
@@ -55,28 +70,34 @@ function parseCommand(action: Action, body: Record<string, unknown>): Command {
       action,
       walletId,
       attemptId: requireCanonicalString(body.attemptId, 'attemptId'),
-      idToken: requireCanonicalString(body.idToken, 'idToken'),
+      proof: parseIdentityProof(body.proof),
     };
   const appOrigin = requireCanonicalString(body.appOrigin, 'appOrigin');
   if (new URL(appOrigin).origin !== appOrigin) throw new Error('Application origin is invalid');
   switch (action) {
     case 'associate':
-      return {
-        action,
-        walletId,
-        appOrigin,
-        ownerCredential: requireCanonicalString(body.ownerCredential, 'ownerCredential'),
-        idToken: requireCanonicalString(body.idToken, 'idToken'),
-      };
     case 'unlink':
       return {
-        action,
-        walletId,
-        appOrigin,
-        ownerCredential: requireCanonicalString(body.ownerCredential, 'ownerCredential'),
+        action, walletId, appOrigin,
+        attemptId: requireCanonicalString(body.attemptId, 'attemptId'),
+        binding: secret(body.binding, 'binding'), sessionToken: secret(body.sessionToken, 'sessionToken'),
+        code: secret(body.code, 'code'), factorProof: body.factorProof,
+      };
+    case 'owner-challenge':
+      return {
+        action, walletId, appOrigin,
+        attemptId: requireCanonicalString(body.attemptId, 'attemptId'),
+        binding: secret(body.binding, 'binding'), sessionToken: secret(body.sessionToken, 'sessionToken'),
+        code: secret(body.code, 'code'),
+      };
+    case 'prepare-unlink':
+      return {
+        action, walletId, appOrigin,
         associationId: requireCanonicalString(body.associationId, 'associationId'),
+        binding: secret(body.binding, 'binding'), sessionToken: secret(body.sessionToken, 'sessionToken'),
       };
     case 'prepare':
+    case 'prepare-association':
       return {
         action,
         walletId,
@@ -161,7 +182,7 @@ async function resolveApplicationTrust(
   ctx: FetchRouterApiContext,
   service: ExternalAuthService,
   command: Command,
-): Promise<ExternalAuthTrust | null> {
+): Promise<ExternalAuthConfiguration | null> {
   const credential = extractBearerCredential(ctx.request.headers);
   if (!credential) return null;
   const scope = service.store.scope;
@@ -208,7 +229,7 @@ async function resolveApplicationTrust(
   const configuration = parseExternalAuthConfiguration(
     environment?.externalAuth ?? { kind: 'disabled', revision: 0 },
   );
-  return configuration.kind === 'google' ? configuration : null;
+  return configuration;
 }
 
 function matchesEnvironment(environmentId: string, environment: { id: string }): boolean {
@@ -242,16 +263,12 @@ export async function handleExternalAuth(ctx: FetchRouterApiContext): Promise<Re
 async function dispatch(
   ctx: FetchRouterApiContext,
   service: ExternalAuthService,
-  trust: ExternalAuthTrust,
+  trust: ExternalAuthConfiguration,
   command: Command,
 ): Promise<Response> {
   const walletId = command.walletId;
-  const originBinding = JSON.stringify([
-    ctx.request.headers.get('origin') || '',
-    command.appOrigin,
-  ]);
   if (
-    command.action === 'prepare' ||
+    command.action === 'prepare' || command.action === 'prepare-association' || command.action === 'prepare-unlink' ||
     command.action === 'exchange' ||
     command.action === 'backend-exchange' ||
     command.action === 'associate'
@@ -262,42 +279,77 @@ async function dispatch(
     if (!(await service.store.consumeAuthenticationAllowance(rateKey, Date.now())))
       return failure(429, 'rate_limited');
   }
-  if (command.action === 'associate' || command.action === 'unlink') {
-    const token = command.ownerCredential;
-    const owner =
-      await ctx.service.authorizationSessions.readWalletSessionAuthorizationV2ByOperationCredential(
-        {
-          tenantId: ctx.service.authorizationSessions.tenantId,
-          token,
-          nowMs: Date.now(),
-        },
-      );
-    if (
-      !owner ||
-      owner.authorization.session.walletId !== walletId ||
-      !sameDelegatedWalletAuthorityV1(
-        buildDelegatedWalletAuthorityV1({ permissions: owner.authority.permissions }),
-        buildDelegatedWalletAuthorityV1({ permissions: buildFullOwnerPermissionsV1() }),
-      )
-    )
-      return failure(403, 'access_denied');
-    if (command.action === 'unlink') {
-      await service.store.revokeAssociation(walletId, command.associationId);
-      return json({ ok: true });
-    }
-    const proof = await service.verifyGoogle(trust, command.idToken);
-    if (!proof.ok) return json(proof, { status: 403 });
-    const associated = await service.store.associate({
-      walletId,
-      subject: proof.value.subject,
-      authorityId: owner.authority.authorityId,
-      authorityEpoch: owner.authority.revocationEpoch,
-    });
-    return associated ? json({ ok: true }) : failure(409, 'access_denied');
+  if (command.action === 'backend-exchange') {
+    if (trust.kind === 'disabled') return failure(403, 'access_denied');
+    return json(await service.exchange({
+      walletId, attemptId: command.attemptId, proof: command.proof, trust,
+    }));
   }
-  if (command.action === 'prepare') {
+  const originBinding = JSON.stringify([ctx.request.headers.get('origin') || '', command.appOrigin]);
+  if (command.action === 'prepare-unlink') {
+    return json(await service.prepareUnlink({
+      walletId, associationId: command.associationId, originBinding,
+      binding: command.binding, sessionToken: command.sessionToken, trustRevision: trust.revision,
+    }));
+  }
+  if (command.action === 'owner-challenge' || command.action === 'associate' || command.action === 'unlink') {
+    const binding: ExternalOwnerAttemptBinding = {
+      walletId, attemptId: command.attemptId, originBinding,
+      bindingHash: await sha256HexUtf8(command.binding),
+      sessionTokenHash: await sha256HexUtf8(command.sessionToken),
+      codeHash: await sha256HexUtf8(command.code), trustRevision: trust.revision, nowMs: Date.now(),
+    };
+    const result = await readExternalOwnerOperation({
+      store: service.store, binding, requestOrigin: ctx.request.headers.get('origin') || '',
+      phase: command.action === 'owner-challenge' ? 'prepare' : 'complete',
+    });
+    if (!result.ok) return json(result, { status: 403 });
+    const ownerOperation = result.value;
+    if (command.action === 'owner-challenge') return json({ ok: true, value: externalOwnerChallenge(ownerOperation) });
+    if (command.action !== ownerOperation.attempt.purpose) return failure(403, 'access_denied');
+    if (ownerOperation.attempt.status === 'consumed') {
+      const stored = await ctx.service.authorizedOperations.readAuthorizedOperationById({
+        tenantId: ctx.service.authorizedOperations.tenantId,
+        authorizedOperationId: walletOwnerOperationAuthorizationId(ownerOperation.operation, ownerOperation.challengeB64u),
+      });
+      if (!stored || stored.authorization.kind !== 'verified_step_up' || stored.quota.kind !== 'quota_neutral' || stored.lifecycle !== 'completed') {
+        return failure(503, 'unavailable');
+      }
+      return new Response(stored.response.bodyText, {
+        status: stored.response.status, headers: { 'Content-Type': stored.response.contentType, 'Cache-Control': 'no-store' },
+      });
+    }
+    const authorized = await authorizeWalletOwnerOperation({
+      ctx, walletId, operation: ownerOperation.operation,
+      payload: ownerOperation.payload, factorProof: command.factorProof,
+    });
+    if (!authorized.ok) return authorized.response;
+    const consumed = await service.store.consumeOwnerAttempt({
+      walletId, attemptId: binding.attemptId, originBinding,
+      bindingHash: binding.bindingHash, sessionTokenHash: binding.sessionTokenHash,
+      codeHash: binding.codeHash, trustRevision: binding.trustRevision, nowMs: Date.now(),
+    }, authorized.ownerAuthority);
+    if (!consumed) return completeWalletOwnerOperation(ctx, authorized.operation, 403,
+      externalAuthFailure('access_denied'), 'failed_before_side_effect');
+    const attempt = ownerOperation.attempt;
+    if (attempt.purpose === 'associate') {
+      const associated = await service.store.associate({
+        walletId, identity: attempt.identity,
+        authorityId: authorized.ownerAuthority.authorityId,
+        authorityEpoch: authorized.ownerAuthority.revocationEpoch,
+      });
+      if (!associated) return completeWalletOwnerOperation(ctx, authorized.operation, 403,
+        externalAuthFailure('access_denied'), 'failed_before_side_effect');
+    } else {
+      await service.store.revokeAssociation({ walletId, associationId: attempt.associationId, owner: authorized.ownerAuthority });
+    }
+    return completeWalletOwnerOperation(ctx, authorized.operation, 200, { ok: true, value: null });
+  }
+  if (trust.kind === 'disabled') return failure(403, 'access_denied');
+  if (command.action === 'prepare' || command.action === 'prepare-association') {
     return json(
       await service.prepare({
+        purpose: command.action === 'prepare' ? 'authenticate' : 'associate',
         walletId,
         originBinding,
         binding: command.binding,
@@ -305,13 +357,13 @@ async function dispatch(
       }),
     );
   }
-  if (command.action === 'exchange' || command.action === 'backend-exchange') {
+  if (command.action === 'exchange') {
     return json(
       await service.exchange({
         trust,
         walletId,
         attemptId: command.attemptId,
-        idToken: command.idToken,
+        proof: { kind: 'google', idToken: command.idToken },
       }),
     );
   }

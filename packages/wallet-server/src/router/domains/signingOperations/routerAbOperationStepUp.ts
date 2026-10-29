@@ -224,7 +224,7 @@ export type RouterAbExactOperationStepUpAuthenticationResult =
   | RouterAbOperationStepUpAuthenticationSuccess<RouterAbExactOperationStepUpWalletSession>
   | RouterAbOperationStepUpAuthenticationFailure;
 
-type RouterAbVerifiedOwnerOperationStepUpAuthenticationResult =
+export type RouterAbVerifiedOwnerOperationStepUpAuthenticationResult =
   | (RouterAbOperationStepUpAuthenticationSuccess<RouterAbVerifiedOwnerOperationStepUpWalletSession> & {
       readonly authorityRef: WalletAuthAuthorityRef;
     })

@@ -1,19 +1,19 @@
 # Seams Wallet SDK
 
-`@seams/wallet` **0.28.0** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/wallet` **0.29.0** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets.
 
 ## Install
 
 ```sh
-pnpm add @seams/wallet@0.28.0
+pnpm add @seams/wallet@0.29.0
 ```
 
 React integrations support React 18 and 19. Import the provider and UI from
 `@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
 Keep the application package, wallet-origin assets, and
-`@seams/wallet-server@0.28.0` on the matching release. The wallet iframe protocol
-is `18.0.0`. The application and wallet host must use the same protocol version.
+`@seams/wallet-server@0.29.0` on the matching release. The wallet iframe protocol
+is `19.0.0`. The application and wallet host must use the same protocol version.
 
 ## Current API
 
@@ -46,9 +46,18 @@ The SDK selects signers and completes pending activation internally.
 Request email codes only after a user chooses that method. The wallet host owns
 the challenge and its expiry. The application receives the typed challenge handle.
 
+## Application sessions and fresh owner approval
+
+SDK 0.29.0 accepts a handoff from an explicitly trusted application backend.
+Google and app-passkey login can use the same stable application user ID.
+Use `registration.registerOwnerWallet` for NEAR-only passkey onboarding and `near.prepareOwnerTransaction` for fresh approval of each transaction.
+These operations create no reusable signing authority.
+React read connections expose owner-operation handles separately from reusable signers.
+See the [application-session guide](https://wallet.seams.sh/docs/guides/application-auth).
+
 ## Bring your own Google authentication
 
-SDK 0.28.0 can reuse an application's Google ID token to open associated wallet settings.
+SDK 0.29.0 can reuse an application's Google ID token to open associated wallet settings.
 Configure the environment's Google client ID and let the owner associate their wallet once.
 Then pass the token after the application's existing Google login:
 

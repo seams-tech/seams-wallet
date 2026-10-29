@@ -130,6 +130,7 @@ export function requireIssuedRegistrationEstablishedSession(
   result: RegistrationEstablishedSessionResultV2,
 ): RegistrationEstablishedSessionV2 {
   switch (result.kind) {
+    case 'owner_operations': throw new Error('Owner registration has no reusable session');
     case 'issued':
       return result.session;
     case 'already_committed':

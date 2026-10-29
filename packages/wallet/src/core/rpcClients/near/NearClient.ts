@@ -113,3 +113,10 @@ export class MinimalNearClient extends NearJsonRpcClient<SignedTransaction> {
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 }
+
+/** An owner operation records its hash before one broadcast and then recovers by status. */
+export class OwnerOperationNearClient extends MinimalNearClient {
+  protected override sendWithRetry<T>(send: () => Promise<T>): Promise<T> {
+    return send();
+  }
+}

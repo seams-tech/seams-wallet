@@ -41,6 +41,7 @@ export type WalletRegistrationNearProvisioningFinalizeResponse =
     });
 
 export type RegistrationCommitExecution<T> =
+  | { readonly kind: 'owner_registered'; readonly response: T; readonly expectedOrigin: string; readonly activation: RegistrationActivationWrite | null; readonly custodyWrite: RouterAbEd25519YaoPreparedWriteV1 | null }
   | { readonly kind: 'unissued'; readonly response: T; readonly custodyWrite?: never }
   | { readonly kind: 'replayed'; readonly response: T; readonly custodyWrite?: never }
   | {
@@ -67,6 +68,7 @@ export function registrationCommitActivation<T>(
   execution: RegistrationCommitExecution<T>,
 ): RegistrationActivationWrite | null {
   switch (execution.kind) {
+    case 'owner_registered':
     case 'session_issued':
     case 'session_issued_with_installation_projection':
       return execution.activation;
@@ -104,6 +106,7 @@ function projectRegistrationEstablishedSessionResultV2(
   result: RegistrationEstablishedSessionResultV2,
 ): RegistrationEstablishedSessionProjectionV2 {
   switch (result.kind) {
+    case 'owner_operations': throw new Error('Owner registration has no session projection');
     case 'issued':
       return projectRegistrationEstablishedSessionV2(result.session);
     case 'already_committed':
@@ -126,6 +129,15 @@ export function projectWalletRegistrationSessionCommitReceiptV2(input: {
   >;
 }): WalletRegistrationSessionCommitReceiptV2 {
   const response = input.execution.response;
+  if (input.execution.kind === 'owner_registered') {
+    if (input.operation !== 'near_provisioning' || !response.ok || response.kind !== 'near_ed25519' || !('registrationEstablishedSession' in response) || response.registrationEstablishedSession.kind !== 'owner_operations') throw new Error('Invalid owner registration receipt');
+    const { registrationEstablishedSession, ...finalized } = response;
+    return {
+      kind: 'wallet_registration_session_commit_receipt_v2', operation: 'near_provisioning', operationFingerprint: input.operationFingerprint, registrationCeremonyId: input.registrationCeremonyId,
+      committed: { kind: 'near_owner_ready', expectedOrigin: input.execution.expectedOrigin, response: finalized },
+    };
+  }
+
   if (!response.ok) {
     if (input.execution.kind !== 'unissued') {
       throw new Error('Registration error receipt has an issued-session marker');
@@ -257,7 +269,7 @@ export function projectWalletRegistrationSessionCommitReceiptV2(input: {
 
 type WalletRegistrationIdentityCommitReceiptV2 = Exclude<
   WalletRegistrationSessionCommitReceiptV2,
-  { readonly committed: { readonly kind: 'error' } }
+  { readonly committed: { readonly kind: 'error' | 'near_owner_ready' } }
 >;
 
 type RegistrationReplayAuthMethodFields =
@@ -375,6 +387,12 @@ export function parseWalletRegistrationSessionCommitReceiptV2(
       registrationCeremonyId,
       committed: { kind: 'error', error },
     };
+  }
+  if (committedRecord.kind === 'near_owner_ready') {
+    if (operation !== 'near_provisioning' || !hasExactKeys(record, ['kind', 'operation', 'operationFingerprint', 'registrationCeremonyId', 'committed'])) return null;
+    const committed = parseCommitted(record.committed);
+    if (!committed || committed.kind !== 'near_owner_ready') return null;
+    return { kind: 'wallet_registration_session_commit_receipt_v2', operation, operationFingerprint, registrationCeremonyId, committed };
   }
   const walletId = parseWalletId(record.walletId);
   const walletAuthMethodId = parseWalletAuthMethodId(record.walletAuthMethodId);

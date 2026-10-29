@@ -54,3 +54,17 @@ const materialStateInReusableLifecycle: WalletIframeExactSessionState = {
   expiresAtMs: 1,
 };
 void materialStateInReusableLifecycle;
+
+const externalRead = {
+  kind: 'external_read',
+  walletId: walletId.value,
+  externalSessionId: 'external-read-session',
+  expiresAtMs: 1,
+} satisfies WalletIframeExactSessionState;
+
+// @ts-expect-error A read connection cannot acquire reusable authority through a spread.
+const externalWithSigningSession: WalletIframeExactSessionState = { ...externalRead, walletSessionId: walletSessionId.value, authorizationId: authorizationId.value, authMethod: 'passkey' };
+
+// @ts-expect-error Read-session state requires its exact external session identity.
+const externalWithoutSession: WalletIframeExactSessionState = { kind: 'external_read', walletId: walletId.value, expiresAtMs: 1 };
+void [externalWithSigningSession, externalWithoutSession];

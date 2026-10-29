@@ -218,7 +218,7 @@ try {
   const settingsStore = new api.ExternalAuthStore(source, scope);
   assert.equal(await settingsStore.associate({
     walletId: fixture.authority.walletId,
-    subject: 'external-transfer-subject',
+    identity: { provider: 'google', issuer: 'https://accounts.google.com', subject: 'external-transfer-subject' },
     authorityId: fixture.authority.authorityId,
     authorityEpoch: fixture.authority.revocationEpoch,
   }), true);

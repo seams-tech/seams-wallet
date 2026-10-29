@@ -1194,6 +1194,7 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
     intent,
     [
       'version',
+      'completion',
       'walletId',
       'authMethod',
       'signerSelection',
@@ -1208,6 +1209,8 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
   ) {
     throw new Error(`${responseName}.version is invalid`);
   }
+  const completion = readWalletRegistrationSetupString(intent, 'completion', responseName);
+  if (completion !== 'wallet_session' && completion !== 'owner_operations') throw new Error('Invalid registration completion');
   const walletIdValue = readWalletRegistrationSetupString(intent, 'walletId', responseName);
   const walletId = parseWalletId(walletIdValue);
   if (!walletId.ok) throw new Error(`${responseName}.walletId is invalid`);
@@ -1234,6 +1237,7 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
   return runtimePolicyScope === undefined
     ? {
         version: 'registration_intent_v1',
+        completion,
         walletId: walletId.value,
         authMethod,
         signerSelection,
@@ -1242,6 +1246,7 @@ function parseWalletRegistrationSetupIntent(value: unknown): RegistrationIntentV
       }
     : {
         version: 'registration_intent_v1',
+        completion,
         walletId: walletId.value,
         authMethod,
         signerSelection,
@@ -2504,6 +2509,7 @@ function parseWalletRegistrationSetupEd25519Admission(
 }
 
 type WalletRegistrationSetupRequestForBinding = {
+  readonly completion?: RegistrationIntentV1['completion'];
   readonly wallet?: RegisterWalletInput;
   readonly authMethod: RegistrationAuthMethodInput;
   readonly signerSelection: RegistrationSignerSetSelection;
@@ -2512,10 +2518,13 @@ type WalletRegistrationSetupRequestForBinding = {
 function normalizeWalletRegistrationSetupRequestForBinding(
   request: WalletRegistrationSetupRequestForBinding,
 ): {
+  readonly completion: RegistrationIntentV1['completion'];
   readonly wallet: RegisterWalletInput;
   readonly authMethod: RegistrationAuthMethodInput;
   readonly signerSelection: RegistrationSignerSetSelection;
 } {
+  const completion = request.completion ?? 'wallet_session';
+  if (completion !== 'wallet_session' && completion !== 'owner_operations') throw new Error('Invalid registration completion');
   const authMethod = normalizeRegistrationAuthMethodInput(request.authMethod);
   if (!authMethod) throw new Error('Wallet registration setup request authMethod is invalid');
   const signerPlan = normalizeRegistrationSignerPlan(request.signerSelection);
@@ -2533,6 +2542,7 @@ function normalizeWalletRegistrationSetupRequestForBinding(
     );
   }
   return {
+    completion,
     wallet: request.wallet ?? { kind: 'server_allocated' },
     authMethod,
     signerSelection: signerSelection.value,
@@ -2545,6 +2555,7 @@ function registrationIntentWithExpectedSetupRequest(
 ): RegistrationIntentV1 {
   const base = {
     version: 'registration_intent_v1' as const,
+    completion: request.completion,
     walletId: intent.walletId,
     authMethod: request.authMethod,
     signerSelection: request.signerSelection,
@@ -3121,6 +3132,7 @@ function parseWalletEcdsaKeyFactsInventoryResponse(args: {
 export async function setupWalletRegistration(args: {
   relayerUrl: string;
   request: {
+    completion?: RegistrationIntentV1['completion'];
     wallet?: RegisterWalletInput;
     signerSelection: CreateRegistrationIntentRequest['signerSelection'];
     authMethod: CreateRegistrationIntentRequest['authMethod'];
@@ -3155,6 +3167,7 @@ export async function setupWalletRegistration(args: {
     },
     body: {
       registrationOperationId: attempt.operationId,
+      completion: request.completion,
       wallet: request.wallet,
       signerSelection: request.signerSelection,
       authMethod: request.authMethod,
@@ -3760,7 +3773,7 @@ function parseRegistrationEstablishedSessionResult(
 ): RegistrationEstablishedSessionResultV2 {
   const responseName = 'Wallet registration established session';
   const parsed = parseRegistrationEstablishedSessionResultV2(value);
-  if (parsed === null || parsed.session.walletId !== expectedWalletId) {
+  if (parsed === null || (parsed.kind === 'owner_operations' ? parsed.walletId !== expectedWalletId : parsed.session.walletId !== expectedWalletId)) {
     throw new Error(`${responseName} direct session result is invalid`);
   }
   return parsed;

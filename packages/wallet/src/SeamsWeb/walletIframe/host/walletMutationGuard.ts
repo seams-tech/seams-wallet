@@ -61,6 +61,14 @@ export function walletForHostRequest(
     case 'PM_SCAN_AND_LINK_DEVICE':
       return currentWalletId === null ? null : requiredWallet(currentWalletId);
 
+    case 'PM_OWNER_NEAR_TRANSACTION':
+      return request.payload.action === 'approve' ? requiredWallet(request.payload.authentication.walletId) : null;
+
+    case 'PM_EXTERNAL_OWNER_AUTH': {
+      const command = request.payload;
+      return requiredWallet(command.action === 'associate' ? command.input.walletId : command.walletId);
+    }
+
     // Reads, fresh authentication, cancellation and completion of admitted work remain available.
     case 'PM_SET_TRANSACTION_VIEW':
     case 'PM_TRANSACTION_BROADCAST_STARTED':

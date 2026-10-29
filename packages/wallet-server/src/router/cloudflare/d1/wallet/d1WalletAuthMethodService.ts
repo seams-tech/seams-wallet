@@ -2225,7 +2225,7 @@ export class CloudflareD1WalletAuthMethodService {
     readonly walletId: string;
     readonly providerUserId: string;
   }): Promise<
-    { readonly ok: true; readonly authority: EmailOtpWalletAuthAuthority } | WalletAuthMethodError
+    { readonly ok: true; readonly authority: EmailOtpWalletAuthAuthority; readonly walletAuthority: ActiveWalletAuthorityV1 } | WalletAuthMethodError
   > {
     const walletId = toOptionalTrimmedString(input.walletId);
     const providerUserId = toOptionalTrimmedString(input.providerUserId);
@@ -2296,6 +2296,7 @@ export class CloudflareD1WalletAuthMethodService {
       return {
         ok: true,
         authority: bindEmailOtpAuthorityToMethod(authority, record.walletAuthMethodId),
+        walletAuthority,
       };
     } catch (error: unknown) {
       return {

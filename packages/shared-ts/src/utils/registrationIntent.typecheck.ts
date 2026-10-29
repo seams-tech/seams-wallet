@@ -254,6 +254,7 @@ const foundingAuthMethodIdFixture = allocateWalletAuthMethodId('founding-fixture
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: emailOtpAuthMethod,
@@ -263,6 +264,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: googleSsoRegistrationAuthMethod,
@@ -272,6 +274,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: passkeyAuthMethod,
@@ -281,6 +284,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: passkeyAuthMethod,
@@ -306,6 +310,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('alice.testnet'),
   authMethod: passkeyAuthMethod,
@@ -315,6 +320,7 @@ void ({
 
 void ({
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: passkeyAuthMethod,
@@ -380,6 +386,7 @@ void ({
 // @ts-expect-error registration intents require explicit authMethod.
 const missingAuthMethod: RegistrationIntentV1 = {
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   signerSelection: ed25519SignerSetSelection,

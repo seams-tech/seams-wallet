@@ -547,6 +547,14 @@ export type RegistrationNearProvisioningState =
 export type RegistrationResult =
   | {
       readonly success: true;
+      readonly kind: 'wallet_owner_registered';
+      readonly walletId: WalletId;
+      readonly capabilities: readonly [RegisteredNearEd25519Capability];
+      readonly error?: never;
+      readonly errorCode?: never;
+    }
+  | {
+      readonly success: true;
       readonly kind: 'wallet_registered';
       readonly walletId: WalletId;
       readonly capabilities:

@@ -1,6 +1,5 @@
 import { reviewAdmissionForBinding } from '../../uiConfirm/transactionReviewAdmission';
 import { toAccountId, type AccountId } from '@/core/types/accountIds';
-import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import { parseSignerSlot } from '@shared/utils/signerSlot';
 import {
   parsePasskeyWalletAuthAuthority,
@@ -394,11 +393,6 @@ type NearEd25519TransactionOperationPrepareResult = {
   availableLanesGeneration: number;
   metadata: NearEd25519LifecycleMetadata;
 };
-
-function createNearTransactionSigningOperationId(): SigningOperationId {
-  const randomId = secureRandomBase64Url(32, 'NEAR transaction signing operation IDs');
-  return SigningSessionIds.signingOperation(`near-transaction-sign:${randomId}`);
-}
 
 function summarizeNearEd25519Lane(lane: AvailableEd25519SigningLane): Record<string, unknown> {
   if (lane.state === 'missing') {
@@ -1450,7 +1444,7 @@ async function signTransaction(
     confirmationConfigOverride: args.confirmationConfigOverride,
   });
   try {
-    const operationId = createNearTransactionSigningOperationId();
+    const operationId = SigningSessionIds.signingOperation(deps.createSigningSessionId('near-transaction-sign'));
     emitEd25519SigningTiming(String(operationId), 'preparation_modal', modalStartedAt);
     return await signTransactionWithActionsAttempt(deps, args, {
       signingOperationState: createSigningOperationStateRef({ operationId }),

@@ -1,3 +1,4 @@
+import { parseWalletId } from '@shared/utils/domainIds';
 // Authorization of an Ed25519 normal-signing request by a reusable or exhausted Wallet Session or
 // an operation step-up, and the owner decision a refusal carries.
 import {
@@ -73,6 +74,7 @@ import {
   recordedStepUpOperationClaim,
   resolveRouterAbEd25519OperationStepUpSession,
   type RouterAbExactOperationStepUpAuthenticationResult,
+  type RouterAbVerifiedOwnerOperationStepUpAuthenticationResult,
   type RouterAbExactOperationStepUpWalletSession,
   type RouterAbOperationStepUpAuthenticationFailure,
   routerAbOperationStepUpClaimFailure,
@@ -324,6 +326,7 @@ async function handleRouterAbEd25519OperationStepUpRoute(input: {
   }
   let authenticated:
     | RouterAbExactOperationStepUpAuthenticationResult
+    | RouterAbVerifiedOwnerOperationStepUpAuthenticationResult
     | RouterAbEd25519ExhaustedCandidateOperationStepUpAuthentication =
     await authenticateRouterAbWalletOperationStepUp({
       headers: input.headers,
@@ -565,7 +568,42 @@ export async function authenticateRouterAbWalletOperationStepUp(input: {
   readonly authorizedOperations: RouterApiAuthorizedOperationService | null | undefined;
   readonly authorizationSessions: RouterApiAuthorizationSessionService | null | undefined;
   readonly resolveEd25519MaterialActivation: RouterApiWalletRegistrationService['resolveEd25519MaterialActivation'];
-}): Promise<RouterAbExactOperationStepUpAuthenticationResult> {
+}): Promise<RouterAbExactOperationStepUpAuthenticationResult | RouterAbVerifiedOwnerOperationStepUpAuthenticationResult> {
+  if (!extractBearerCredential(input.headers) && input.authorizedOperations) {
+    const origin = parseStepUpRequestOrigin(input.headers);
+    if (!origin.ok) return origin;
+    const operationId = requireAuthorizationValue(
+      parseAuthorizedOperationId(`normal-signing-operation:${input.scope.request_id}`),
+    );
+    const parsedWalletId = parseWalletId(input.scope.account_id);
+    if (!parsedWalletId.ok) return walletSessionScopeInvalidFailure();
+    const walletId = parsedWalletId.value;
+    const recorded = await input.authorizedOperations.resolveRecordedPasskeyOwnerOperation({
+      authorizedOperationId: operationId,
+      walletId,
+      requestOrigin: origin.requestOrigin,
+      nowMs: Date.now(),
+    });
+    if (!recorded || input.requestExpiresAtMs > recorded.expiresAtMs) {
+      return { ok: false, error: routerAbStepUpError(403, 'unauthorized', 'Recorded owner approval is unavailable') };
+    }
+    const activeMaterial = await input.resolveEd25519MaterialActivation({
+      walletId,
+      materialActivation: input.scope.material_activation,
+    });
+    if (!activeMaterial.ok) return walletSessionScopeInvalidFailure();
+    return authenticateRouterAbWalletOperationStepUpIdentity({
+      kind: 'verified_owner_proof',
+      headers: input.headers,
+      walletId,
+      materialOwner: input.scope.material_activation.material_owner,
+      operationId: recorded.operation.operation.operationId,
+      authority: recorded.authority,
+      runtimePolicyScope: activeMaterial.runtimePolicyScope,
+      expiresAtMs: recorded.expiresAtMs,
+      authorizedOperations: input.authorizedOperations,
+    });
+  }
   return authenticateRouterAbWalletOperationStepUpIdentity({
     kind: 'wallet_session_operation_credential_v1',
     headers: input.headers,

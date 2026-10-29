@@ -11,6 +11,7 @@ export function createApplicationSessionCommands(
   return {
     authenticate: authenticate.bind(null, walletIframe),
     prepareExternalAuth: prepareExternalAuth.bind(null, walletIframe),
+    prepareExternalAssociation: prepareExternalAssociation.bind(null, walletIframe),
     associateExternalAuth: associateExternalAuth.bind(null, walletIframe),
     removeExternalAuth: removeExternalAuth.bind(null, walletIframe),
     unlock: unlock.bind(null, walletIframe),
@@ -41,6 +42,13 @@ async function associateExternalAuth(
   input: Parameters<WalletSessionCommands['associateExternalAuth']>[0],
 ): ReturnType<WalletSessionCommands['associateExternalAuth']> {
   return (await walletIframe.requireRouter()).associateExternalAuth(input);
+}
+
+async function prepareExternalAssociation(
+  walletIframe: SessionIframe,
+  walletId: string,
+): ReturnType<WalletSessionCommands['prepareExternalAssociation']> {
+  return (await walletIframe.requireRouter()).prepareExternalAssociation(walletId);
 }
 
 async function removeExternalAuth(

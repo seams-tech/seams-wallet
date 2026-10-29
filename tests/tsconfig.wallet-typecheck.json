@@ -2,6 +2,7 @@
   "extends": "./tsconfig.wallet-intended.json",
   "include": [
     "typecheck/external-auth.typecheck.ts",
+    "typecheck/owner-near-operation.typecheck.ts",
     "typecheck/account-menu-presentation.typecheck.ts",
     "typecheck/wallet-connector-menu.typecheck.ts",
     "typecheck/voiceid-confirmation-command.typecheck.ts",

@@ -209,6 +209,7 @@ async function completeReservedRegistrationSetup(
 
   const registrationOperation = reservation;
   const intent = buildRegistrationIntent({
+    completion: normalized.completion,
     nonceB64u: registrationCeremonyId.slice(4),
     walletId: wallet.walletId,
     authMethod: normalized.authMethod,

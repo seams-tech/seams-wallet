@@ -1,3 +1,5 @@
+import { executeOwnerNearRequest } from './ownerNearOperation';
+import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 import { createIframePlacementCommands } from './placementCommands';
@@ -299,6 +301,7 @@ type WalletIframeRequestSurfaceKind =
   | 'registration'
   | 'email_otp_enrollment'
   | 'auth_method_activation'
+  | 'owner_approval'
   | 'transaction'
   | 'key_export_near'
   | 'key_export_threshold'
@@ -377,6 +380,9 @@ function requestSurfaceKindForMessage(
       return 'registration';
     case 'PM_ACTIVATE_AUTH_METHOD':
       return 'auth_method_activation';
+    case 'PM_EXTERNAL_OWNER_AUTH':
+    case 'PM_OWNER_NEAR_TRANSACTION':
+      return 'owner_approval';
     case 'PM_ADD_EMAIL_OTP':
       return 'email_otp_enrollment';
     case 'PM_GET_WALLET_RECOVERY_CODE_STATUS':
@@ -489,6 +495,8 @@ function requestSurfacePresentationFor(
         : modalWalletIframeSurfacePresentation('Enter email code');
     case 'auth_method_activation':
       return modalWalletIframeSurfacePresentation('Activate authentication method');
+    case 'owner_approval':
+      return modalWalletIframeSurfacePresentation('Approve wallet operation');
     case 'transaction':
       return effectiveTransactionSurfaceUiMode(payload, fallbackUiMode) === 'drawer'
         ? drawerWalletIframeSurfacePresentation('Confirm transaction')
@@ -666,6 +674,8 @@ function walletIframeSessionStatesEqual(
   switch (left.kind) {
     case 'wallet_locked':
       return right.kind === 'wallet_locked';
+    case 'external_read':
+      return right.kind === 'external_read' && left.walletId === right.walletId && left.externalSessionId === right.externalSessionId && left.expiresAtMs === right.expiresAtMs;
     case 'active_session':
     case 'expired_session':
       return (
@@ -710,6 +720,7 @@ function walletIframeLoginStatusFromExactSession(
   state: WalletIframeExactSessionState,
 ): WalletIframeLoginStatusSnapshot {
   switch (state.kind) {
+    case 'external_read':
     case 'active_session':
     case 'expired_session':
     case 'wallet_authenticated_identity_unresolvable':
@@ -2136,6 +2147,7 @@ export class WalletIframeRouter {
       }
       case 'email_otp_enrollment':
       case 'auth_method_activation':
+      case 'owner_approval':
         result = this.transitionWalletIframeSurface({
           kind: 'transaction_modal_request_started',
           connectionId,
@@ -2744,7 +2756,7 @@ export class WalletIframeRouter {
   private acceptSessionSnapshot(snapshot: WalletIframeExactSessionSnapshot): boolean {
     if (snapshot.revision <= this.sessionObservationRevision) return false;
     const walletId = this.lastPreferencesChangedPayload?.walletId;
-    if (walletId !== undefined && walletId !== snapshot.walletId) return false;
+    if (snapshot.state.kind !== 'external_read' && walletId !== undefined && walletId !== snapshot.walletId) return false;
     const changed = !walletIframeSessionStatesEqual(this.exactSessionState, snapshot.state);
     this.sessionObservationRevision = snapshot.revision;
     this.updateReviewSession(snapshot.state);
@@ -2992,6 +3004,7 @@ export class WalletIframeRouter {
       {
         type: 'PM_REGISTER_WALLET',
         payload: {
+          completion: payload.completion,
           authMethod: transport.authMethod,
           wallet: payload.wallet,
           signerSelection: registrationSignerSetRequestSelection(payload.signerSelection),
@@ -3188,15 +3201,22 @@ export class WalletIframeRouter {
 
   async removeExternalAuth(input: Parameters<AuthCapability['removeExternalAuth']>[0]): ReturnType<AuthCapability['removeExternalAuth']> {
     const response = await this.post<Awaited<ReturnType<AuthCapability['removeExternalAuth']>>>({
-      type: 'PM_EXTERNAL_AUTH', payload: { action: 'unlink', walletId: input.walletId, associationId: input.associationId },
+      type: 'PM_EXTERNAL_OWNER_AUTH', payload: { action: 'unlink', walletId: input.walletId, associationId: input.associationId },
+    }, { timeout: 'interactive' });
+    return response.result;
+  }
+
+  async prepareExternalAssociation(walletId: string): ReturnType<AuthCapability['prepareExternalAssociation']> {
+    const response = await this.post<Awaited<ReturnType<AuthCapability['prepareExternalAssociation']>>>({
+      type: 'PM_EXTERNAL_AUTH', payload: { action: 'prepare_association', walletId },
     });
     return response.result;
   }
 
   async associateExternalAuth(input: Parameters<AuthCapability['associateExternalAuth']>[0]): ReturnType<AuthCapability['associateExternalAuth']> {
     const response = await this.post<Awaited<ReturnType<AuthCapability['associateExternalAuth']>>>({
-      type: 'PM_EXTERNAL_AUTH', payload: { action: 'associate', walletId: input.walletId, idToken: input.idToken },
-    });
+      type: 'PM_EXTERNAL_OWNER_AUTH', payload: { action: 'associate', input },
+    }, { timeout: 'interactive' });
     return response.result;
   }
 
@@ -3465,7 +3485,7 @@ export class WalletIframeRouter {
   async requestWalletCustodyEmailOtpChallenge(payload: {
     walletId: string;
     providerSubjectId: string;
-    operation: import('@shared/authorization/walletCustodyOperation').WalletCustodyAdminOperation;
+    operation: import('@shared/authorization/walletOwnerOperation').WalletOwnerAdminOperation;
     payload: Record<string, unknown>;
     requestOrigin?: string;
   }): Promise<WalletCustodyEmailOtpChallengeResult> {
@@ -3998,6 +4018,10 @@ export class WalletIframeRouter {
         if (isExpectedEvent(progress)) onEvent(progress);
       } catch {}
     };
+  }
+
+  async ownerNearOperation(...args: Parameters<ExecuteOwnerNearOperation>): ReturnType<ExecuteOwnerNearOperation> {
+    return await executeOwnerNearRequest({ post: this.post.bind(this), cancelRequest: this.cancelRequest.bind(this), allocateRequestId: this.allocateRequestId.bind(this) }, ...args);
   }
 
   async signAndSendTransaction(
@@ -4549,7 +4573,7 @@ export class WalletIframeRouter {
       !reservation &&
       (surfaceKind === 'transaction' ||
         surfaceKind === 'email_otp_enrollment' ||
-        surfaceKind === 'auth_method_activation')
+        surfaceKind === 'auth_method_activation' || surfaceKind === 'owner_approval')
     ) {
       const queueDeadline: WalletIframeTransactionSurfaceDeadline =
         timeoutPolicy.kind === 'deadline'

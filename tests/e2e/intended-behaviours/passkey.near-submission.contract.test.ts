@@ -1,6 +1,8 @@
+import { verifyApplicationAuth } from './application-auth';
 import { writeFile } from 'node:fs/promises';
 import {
   expect,
+  test as applicationTest,
   type BrowserContext,
   type Page,
   type Request,
@@ -152,3 +154,5 @@ function sendNear(accountId: string): Promise<ActionResult> {
   if (!send) throw new Error('The public SDK submission helper is unavailable');
   return send(accountId);
 }
+
+applicationTest('application handoff signs fresh NEAR operations after owner-only onboarding and reload', verifyApplicationAuth);

@@ -1,13 +1,72 @@
 import { parseWalletId, type WalletId } from '../utils/domainIds';
 import { requireCanonicalString, requireRecord } from '../utils/validation';
-import { parseUnixMs } from '../passkey-custody/primitives';
+import {
+  parseUnixMs,
+  parseEd25519PublicKeyB64u,
+  type Ed25519PublicKeyB64u,
+} from '../passkey-custody/primitives';
 import type { ReadonlyExclusiveUnion } from '../utils/variant';
+import { parseDigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 
 export const EXTERNAL_AUTH_PATH = '/wallet/external-auth';
 
-export type ExternalAuthConfiguration = ReadonlyExclusiveUnion<
-  { kind: 'disabled'; revision: number } | { kind: 'google'; revision: number; clientId: string }
+export type ExternalAuthProvider = ReadonlyExclusiveUnion<
+  | { kind: 'disabled' }
+  | { kind: 'google'; clientId: string }
+  | { kind: 'application'; issuer: string; publicKeyB64u: Ed25519PublicKeyB64u }
 >;
+
+export type ExternalAuthConfiguration = ExternalAuthProvider & Readonly<{ revision: number }>;
+
+export type ExternalIdentity = ReadonlyExclusiveUnion<
+  | { provider: 'google'; issuer: 'https://accounts.google.com'; subject: string }
+  | { provider: 'application'; issuer: string; subject: string }
+>;
+
+export type ExternalIdentityProof = ReadonlyExclusiveUnion<
+  | { kind: 'google'; idToken: string }
+  | { kind: 'application'; assertion: string }
+>;
+
+export function parseExternalAuthProvider(raw: unknown): ExternalAuthProvider {
+  const value = requireRecord(raw, 'external authentication provider');
+  switch (value.kind) {
+    case 'disabled':
+      return { kind: 'disabled' };
+    case 'google':
+      return { kind: 'google', clientId: requireCanonicalString(value.clientId, 'clientId') };
+    case 'application': {
+      const issuer = requireCanonicalString(value.issuer, 'issuer');
+      const url = new URL(issuer);
+      if (url.protocol !== 'https:' || url.origin !== issuer) {
+        throw new Error('Application issuer must be a canonical HTTPS origin');
+      }
+      const publicKeyB64u = parseEd25519PublicKeyB64u(value.publicKeyB64u, 'publicKeyB64u');
+      return { kind: 'application', issuer, publicKeyB64u };
+    }
+    default:
+      throw new Error('Unsupported external authentication provider');
+  }
+}
+
+function externalAuthConfiguration(
+  provider: ExternalAuthProvider,
+  revision: number,
+): ExternalAuthConfiguration {
+  switch (provider.kind) {
+    case 'disabled':
+      return { kind: 'disabled', revision };
+    case 'google':
+      return { kind: 'google', revision, clientId: provider.clientId };
+    case 'application':
+      return {
+        kind: 'application', revision,
+        issuer: provider.issuer, publicKeyB64u: provider.publicKeyB64u,
+      };
+    default:
+      return assertNever(provider);
+  }
+}
 
 export function parseExternalAuthConfiguration(raw: unknown): ExternalAuthConfiguration {
   const value = requireRecord(raw, 'external authentication configuration');
@@ -18,14 +77,70 @@ export function parseExternalAuthConfiguration(raw: unknown): ExternalAuthConfig
   ) {
     throw new Error('Invalid external authentication revision');
   }
-  if (value.kind === 'disabled') return { kind: 'disabled', revision: value.revision };
-  if (value.kind === 'google')
-    return {
-      kind: 'google',
-      revision: value.revision,
-      clientId: requireCanonicalString(value.clientId, 'clientId'),
-    };
-  throw new Error('Unsupported external authentication configuration');
+  return externalAuthConfiguration(parseExternalAuthProvider(value), value.revision);
+}
+
+export function serializeExternalIdentity(identity: ExternalIdentity): string {
+  return JSON.stringify([identity.provider, identity.issuer, identity.subject]);
+}
+
+export function parseStoredExternalIdentity(serialized: string): ExternalIdentity {
+  const raw: unknown = JSON.parse(serialized);
+  if (!Array.isArray(raw) || raw.length !== 3) throw new Error('Invalid external identity');
+  const [provider, issuer, subject] = raw;
+  return parseExternalIdentity({ provider, issuer, subject });
+}
+
+function parseExternalIdentity(raw: unknown): ExternalIdentity {
+  const value = requireRecord(raw, 'external identity');
+  const provider = value.provider;
+  const issuer = requireCanonicalString(value.issuer, 'issuer');
+  const subject = requireCanonicalString(value.subject, 'subject');
+  switch (provider) {
+    case 'google':
+      if (issuer !== 'https://accounts.google.com') throw new Error('Invalid Google issuer');
+      return { provider, issuer, subject };
+    case 'application':
+      return { provider, issuer, subject };
+    default:
+      throw new Error('Invalid external identity provider');
+  }
+}
+
+export type ExternalOwnerChallenge = Readonly<{
+  walletId: WalletId;
+  attemptId: string;
+  identity: ExternalIdentity;
+  challengeB64u: DigestB64u;
+  expiresAtMs: number;
+}> & ReadonlyExclusiveUnion<
+  { kind: 'associate' } | { kind: 'unlink'; associationId: string }
+>;
+
+export function parseExternalOwnerChallenge(raw: unknown): ExternalOwnerChallenge {
+  const value = requireRecord(raw, 'external owner challenge');
+  const wallet = parseWalletId(value.walletId);
+  if (!wallet.ok) throw new Error('Invalid owner challenge wallet');
+  const walletId = wallet.value;
+  const attemptId = requireCanonicalString(value.attemptId, 'attemptId');
+  const identity = parseExternalIdentity(value.identity);
+  const challengeB64u = parseDigestB64u(value.challengeB64u);
+  const expiresAtMs = parseUnixMs(value.expiresAtMs, 'owner challenge expiry');
+  switch (value.kind) {
+    case 'associate':
+      return { kind: 'associate', walletId, attemptId, identity, challengeB64u, expiresAtMs };
+    case 'unlink':
+      return {
+        kind: 'unlink', walletId, attemptId, identity, challengeB64u, expiresAtMs,
+        associationId: requireCanonicalString(value.associationId, 'associationId'),
+      };
+    default:
+      throw new Error('Invalid owner challenge purpose');
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported external authentication provider: ${String(value)}`);
 }
 
 type ExternalAuthFailureCode =
@@ -35,7 +150,8 @@ type ExternalAuthFailureCode =
   | 'expired'
   | 'superseded'
   | 'unavailable'
-  | 'rate_limited';
+  | 'rate_limited'
+  | 'cancelled';
 
 export type ExternalAuthResult<T> = ReadonlyExclusiveUnion<
   { ok: true; value: T } | { ok: false; code: ExternalAuthFailureCode; message: string }
@@ -46,7 +162,10 @@ export type ExternalAuthenticateInput = ReadonlyExclusiveUnion<
   | { method: 'handoff'; walletId: string; attemptId: string; code: string }
 >;
 
-export type ExternalAuthAttempt = Readonly<{
+export type ExternalAuthPurpose = 'authenticate' | 'associate';
+
+export type ExternalAuthAttempt<Purpose extends ExternalAuthPurpose = 'authenticate'> = Readonly<{
+  purpose: Purpose;
   attemptId: string;
   walletId: WalletId;
   expiresAtMs: number;
@@ -55,32 +174,27 @@ export type ExternalAuthAttempt = Readonly<{
 export type ExternalAuthCommand = ReadonlyExclusiveUnion<
   | { action: 'authenticate'; input: ExternalAuthenticateInput }
   | { action: 'prepare'; walletId: string }
-  | { action: 'associate'; walletId: string; idToken: string }
+  | { action: 'prepare_association'; walletId: string }
+  | { action: 'associate'; input: ExternalAuthenticateInput }
   | { action: 'unlink'; walletId: string; associationId: string }
 >;
 
 export function parseExternalAuthCommand(raw: unknown): ExternalAuthCommand {
   const value = requireRecord(raw, 'external auth command');
-  if (value.action === 'prepare')
-    return { action: 'prepare', walletId: requireCanonicalString(value.walletId, 'walletId') };
-  if (value.action === 'associate')
-    return {
-      action: 'associate',
-      walletId: requireCanonicalString(value.walletId, 'walletId'),
-      idToken: requireCanonicalString(value.idToken, 'idToken'),
-    };
+  if (value.action === 'prepare' || value.action === 'prepare_association')
+    return { action: value.action, walletId: requireCanonicalString(value.walletId, 'walletId') };
   if (value.action === 'unlink')
     return {
       action: 'unlink',
       walletId: requireCanonicalString(value.walletId, 'walletId'),
       associationId: requireCanonicalString(value.associationId, 'associationId'),
     };
-  if (value.action !== 'authenticate') throw new Error('Invalid external authentication command');
+  if (value.action !== 'authenticate' && value.action !== 'associate') throw new Error('Invalid external authentication command');
   const input = requireRecord(value.input, 'authentication input');
   const walletId = requireCanonicalString(input.walletId, 'walletId');
   if (input.method === 'google')
     return {
-      action: 'authenticate',
+      action: value.action,
       input: {
         method: 'google',
         walletId,
@@ -89,7 +203,7 @@ export function parseExternalAuthCommand(raw: unknown): ExternalAuthCommand {
     };
   if (input.method === 'handoff')
     return {
-      action: 'authenticate',
+      action: value.action,
       input: {
         method: 'handoff',
         walletId,
@@ -106,7 +220,7 @@ export type ExternalWalletAuthentication = Readonly<{
   sessionId: string;
   associationId: string;
   environmentId: string;
-  provider: 'google';
+  provider: ExternalIdentity['provider'];
   permission: 'wallet_settings_read';
   expiresAtMs: number;
   authMethod?: never;
@@ -129,7 +243,7 @@ export function parseExternalWalletAuthentication(value: unknown): ExternalWalle
   if (
     !walletId.ok ||
     record.kind !== 'external_authenticated' ||
-    record.provider !== 'google' ||
+    (record.provider !== 'google' && record.provider !== 'application') ||
     record.permission !== 'wallet_settings_read' ||
     'authMethod' in record
   )
@@ -140,7 +254,7 @@ export function parseExternalWalletAuthentication(value: unknown): ExternalWalle
     sessionId: requireCanonicalString(record.sessionId, 'sessionId'),
     associationId: requireCanonicalString(record.associationId, 'associationId'),
     environmentId: requireCanonicalString(record.environmentId, 'environmentId'),
-    provider: 'google',
+    provider: record.provider,
     permission: 'wallet_settings_read',
     expiresAtMs: parseUnixMs(record.expiresAtMs, 'expiresAtMs'),
   };
@@ -160,6 +274,7 @@ export function parseExternalAuthFailure(value: unknown): ExternalAuthResult<nev
     case 'superseded':
     case 'unavailable':
     case 'rate_limited':
+    case 'cancelled':
       return externalAuthFailure(record.code);
     default:
       return externalAuthFailure('unavailable');

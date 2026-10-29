@@ -74,7 +74,7 @@ function walletOriginUnlockOptions(
   };
 }
 
-async function handleExternalAuth(deps: HandlerDeps, req: Req<'PM_EXTERNAL_AUTH'>): Promise<void> {
+async function handleExternalAuth(deps: HandlerDeps, req: Req<'PM_EXTERNAL_AUTH' | 'PM_EXTERNAL_OWNER_AUTH'>): Promise<void> {
   try {
     await dispatchExternalAuth(deps, req);
   } catch {
@@ -84,25 +84,39 @@ async function handleExternalAuth(deps: HandlerDeps, req: Req<'PM_EXTERNAL_AUTH'
 
 async function dispatchExternalAuth(
   deps: HandlerDeps,
-  req: Req<'PM_EXTERNAL_AUTH'>,
+  req: Req<'PM_EXTERNAL_AUTH' | 'PM_EXTERNAL_OWNER_AUTH'>,
 ): Promise<void> {
   if (deps.respondIfCancelled(req.requestId)) return;
-  const command = parseExternalAuthCommand(req.payload);
+  const command = req.type === 'PM_EXTERNAL_OWNER_AUTH' ? req.payload : parseExternalAuthCommand(req.payload);
+  const ownerRequest = command.action === 'associate' || command.action === 'unlink';
+  if (ownerRequest !== (req.type === 'PM_EXTERNAL_OWNER_AUTH')) {
+    respondOkResult(deps, req.requestId, externalAuthFailure('invalid_request'));
+    return;
+  }
   const auth = deps.getWalletRuntime().auth;
   switch (command.action) {
     case 'prepare':
       respondOkResult(deps, req.requestId, await auth.prepareExternalAuth(command.walletId));
       return;
-    case 'associate':
-      respondOkResult(deps, req.requestId, await auth.associateExternalAuth(command));
+    case 'prepare_association':
+      respondOkResult(deps, req.requestId, await auth.prepareExternalAssociation(command.walletId));
       return;
-    case 'unlink':
-      respondOkResult(deps, req.requestId, await auth.removeExternalAuth(command));
+    case 'associate': {
+      const result = await auth.associateExternalAuth(command.input, assertWalletRequestActive.bind(null, deps, req.requestId));
+      await deps.publishCurrentSession();
+      respondOkResult(deps, req.requestId, result);
       return;
+    }
+    case 'unlink': {
+      const result = await auth.removeExternalAuth(command, assertWalletRequestActive.bind(null, deps, req.requestId));
+      await deps.publishCurrentSession();
+      respondOkResult(deps, req.requestId, result);
+      return;
+    }
     case 'authenticate': {
       const result = await auth.authenticate(
         command.input,
-        assertPluginUnlockActive.bind(null, deps, req.requestId),
+        assertWalletRequestActive.bind(null, deps, req.requestId),
       );
       if (result.ok) deps.getWalletRuntime().preferences.setCurrentWallet(result.value.walletId);
       await deps.publishCurrentSession();
@@ -146,6 +160,7 @@ function publishSessionResponse(
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
     PM_EXTERNAL_AUTH: handleExternalAuth.bind(null, deps),
+    PM_EXTERNAL_OWNER_AUTH: handleExternalAuth.bind(null, deps),
     ...createHostedAuthMenuHandlers(deps),
     PM_UNLOCK_AUTH_METHOD: async (req: Req<'PM_UNLOCK_AUTH_METHOD'>) => {
       const pm = deps.getWalletRuntime();
@@ -153,7 +168,7 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
       if (deps.respondIfCancelled(req.requestId)) return;
       const result = await pm.auth.unlockWithAuthMethod(
         req.payload,
-        assertPluginUnlockActive.bind(null, deps, req.requestId),
+        assertWalletRequestActive.bind(null, deps, req.requestId),
       );
       if (deps.respondIfCancelled(req.requestId)) return;
       await deps.publishCurrentSession();
@@ -239,6 +254,6 @@ export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   };
 }
 
-function assertPluginUnlockActive(deps: HandlerDeps, requestId: string | undefined): void {
+function assertWalletRequestActive(deps: HandlerDeps, requestId: string | undefined): void {
   if (deps.isCancelled(requestId)) throw new Error('Wallet unlock was cancelled.');
 }

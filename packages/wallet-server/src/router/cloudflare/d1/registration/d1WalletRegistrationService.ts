@@ -3906,7 +3906,10 @@ export class CloudflareD1WalletRegistrationService {
           ? args.setupClaims.expiresAtMs
           : ownerProofContext.expiresAtMs,
     });
+    const completion = source.kind === 'stored_ceremony' ? source.ceremony.intent.completion : 'wallet_session';
+    if (completion === 'owner_operations' && args.input.onSessionCommitted) return unissuedRegistrationCommit({ ok: false, code: 'invalid_body', message: 'Owner-operation registration cannot seal a Wallet Session' });
     const initialSessionPlan: RegistrationInitialSessionPlan =
+      completion === 'wallet_session' &&
       sessionPredecessor.kind === 'ed25519_only' &&
       !registrationSignerBranchesFromPlan(source.ceremony.signerPlan).evmFamilyEcdsa
         ? {
@@ -3955,6 +3958,17 @@ export class CloudflareD1WalletRegistrationService {
         code: 'internal',
         message: 'NEAR provisioning committed a non-NEAR branch',
       });
+    }
+    if (completion === 'owner_operations') {
+      if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
+      const custody = await execution.custody;
+      return {
+        kind: 'owner_registered',
+        expectedOrigin: ownerProofContext.expectedOrigin,
+        response: { ...finalized, walletCustody: custody.outcome, registrationEstablishedSession: { kind: 'owner_operations', walletId: finalized.walletId } },
+        custodyWrite: custody.kind === 'prepared' ? custody.write : null,
+        activation: this.registrationAuthority.prepareEstablished({ registration: { ceremonyId: args.input.registrationCeremonyId, walletId: finalized.walletId, state: 'registering' }, session: { kind: 'none' } }),
+      };
     }
     if (!this.registrationAuthority) throw new Error('Registration home completion is unavailable');
     // The completion receipt commits the prepared custody after session issuance.
@@ -4092,6 +4106,10 @@ export class CloudflareD1WalletRegistrationService {
     }
     if (receipt.committed.kind === 'error') {
       return replayedRegistrationCommit(receipt.committed.error);
+    }
+    if (receipt.committed.kind === 'near_owner_ready') {
+      const response = receipt.committed.response;
+      return replayedRegistrationCommit({ ...response, registrationEstablishedSession: { kind: 'owner_operations', walletId: response.walletId } });
     }
     if (receipt.committed.kind !== 'near_ready') {
       throw new Error('Registration NEAR provisioning receipt branch is invalid');
@@ -4378,6 +4396,7 @@ export class CloudflareD1WalletRegistrationService {
           }),
           waitUntil ? undefined : cleanup,
         ]);
+        if (committed.registrationEstablishedSession.kind === 'owner_operations') throw new Error('A Wallet Session continuation cannot complete owner-only registration');
         const tokens = committed.registrationEstablishedSession.session.tokens;
         if (!current || tokens.kind !== 'near_ed25519_and_evm_family_ecdsa') {
           throw new Error('NEAR continuation Wallet Session is no longer active');

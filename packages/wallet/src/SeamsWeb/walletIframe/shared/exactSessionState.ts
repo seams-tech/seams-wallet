@@ -84,6 +84,7 @@ type WalletIframeSessionUnavailableReason =
 
 export type WalletIframeExactSessionState =
   | { readonly kind: 'wallet_locked' }
+  | { readonly kind: 'external_read'; readonly walletId: WalletId; readonly externalSessionId: string; readonly expiresAtMs: number; readonly walletSessionId?: never; readonly authorizationId?: never; readonly authMethod?: never }
   | {
       readonly kind: 'wallet_authenticated_identity_unresolvable';
       readonly walletId: WalletId;
@@ -339,6 +340,11 @@ export function parseWalletIframeExactSessionSnapshot(
     record.session,
     state.kind === 'wallet_locked' ? undefined : state.walletId,
   );
+  if (state.kind === 'external_read') {
+    if (session.authentication.kind !== 'external_authenticated' || session.authentication.walletId !== state.walletId || session.authentication.sessionId !== state.externalSessionId || session.authentication.expiresAtMs !== state.expiresAtMs) throw new Error('External read snapshot differs from its authenticated session');
+  } else if (session.authentication.kind === 'external_authenticated') {
+    throw new Error('External authentication requires an external read state');
+  }
   if (
     state.kind === 'wallet_locked' &&
     (session.authentication.kind !== 'signed_out' || session.appIdentity.kind !== 'anonymous')
@@ -355,6 +361,12 @@ export function parseWalletIframeExactSessionState(value: unknown): WalletIframe
   switch (Reflect.get(value, 'kind')) {
     case 'wallet_locked':
       return { kind: 'wallet_locked' };
+    case 'external_read': {
+      const expiresAtMs = Reflect.get(value, 'expiresAtMs');
+      if (!isPositiveSafeInteger(expiresAtMs)) throw new Error('External read expiry is invalid');
+      if ('walletSessionId' in value || 'authorizationId' in value || 'authMethod' in value) throw new Error('External read state cannot contain signing authority');
+      return { kind: 'external_read', walletId: requireWalletId(Reflect.get(value, 'walletId')), externalSessionId: requireNonEmptyString(Reflect.get(value, 'externalSessionId'), 'externalSessionId'), expiresAtMs };
+    }
     case 'wallet_authenticated_identity_unresolvable':
       return {
         kind: 'wallet_authenticated_identity_unresolvable',

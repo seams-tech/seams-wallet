@@ -19,7 +19,7 @@ async function signGreeting(near: BoundNearSigner): Promise<void> {
 
 export function SetGreetingButton() {
   const { wallet } = useSeams();
-  if (!wallet?.near) return null;
+  if (wallet?.access !== 'wallet' || !wallet.near) return null;
 
   // Each request opens wallet confirmation for this transaction.
   return <button onClick={signGreeting.bind(null, wallet.near)}>Sign transaction</button>;

@@ -1,4 +1,4 @@
-import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';
+import { computeWalletOwnerAdminChallengeDigest } from '@shared/authorization/walletOwnerOperation';
 import { IndexedDBManager } from '@/core/indexedDB';
 import {
   acknowledgeWalletRecoveryBackup,
@@ -33,7 +33,7 @@ async function createWalletRecoveryAdminPasskeyProof(args: {
 }): Promise<Extract<WalletCustodyFactorProof, { readonly kind: 'passkey' }>> {
   const walletId = args.request.payload.walletId;
   const requestOrigin = window.location.origin;
-  const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
+  const challengeDigest = await computeWalletOwnerAdminChallengeDigest({
     walletId,
     operation: args.request.operation,
     payload: args.request.payload,
@@ -159,7 +159,7 @@ export async function createWalletRecoveryAdminEmailOtpProof(args: {
   const walletId = args.request.payload.walletId;
   const { providerSubjectId } = await selectedEmailOtpOwnerMethod(walletId);
   const requestOrigin = window.location.origin;
-  const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
+  const challengeDigest = await computeWalletOwnerAdminChallengeDigest({
     walletId,
     operation: args.request.operation,
     payload: args.request.payload,

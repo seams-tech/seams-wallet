@@ -3,21 +3,21 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
-Current SDK release: **0.28.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
+SDK version: **0.29.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
 
 Packages for this release:
 
-- `@seams/wallet@0.28.0` — browser SDK and React components.
-- `@seams/wallet-server@0.28.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.28.0` — optional VoiceID authentication plugin.
-- `@seams/wallet-cli@0.28.0` — with its signed native release;
+- `@seams/wallet@0.29.0` — browser SDK and React components.
+- `@seams/wallet-server@0.29.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.29.0` — optional VoiceID authentication plugin.
+- `@seams/wallet-cli@0.29.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
-The browser and server SDKs use wallet iframe protocol `18.0.0`. Upgrade the browser
+The browser and server SDKs use wallet iframe protocol `19.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-All four public Seams packages use version **0.28.0** in this release.
+All four public Seams packages use version **0.29.0** in this release.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
 for changes and deployment requirements. The development checkout can contain
@@ -26,22 +26,24 @@ changes that npm does not yet publish.
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
 
-## New in 0.28.0
+## New in 0.29.0
 
-- **Bring your own Google authentication.** Reuse the app's Google ID token to open associated wallet settings without a second login.
-  Existing wallets need a one-time owner-approved association. Signing and security changes retain their owner authentication requirements.
-  Follow the [Google SSO guide](./apps/docs/src/guides/google-sso.md).
-- **Wallet settings drawers.** Show localized account, method, and device views in a responsive settings panel.
-- **Configurable VoiceID.** Select Citrinet or Aurora transcription models through the optional VoiceID package.
+- **Application-session handoff.** Reuse a trusted application's stable user ID after Google or app-passkey login.
+- **Fresh NEAR approval.** Connect for reading and approve each transaction with an enrolled wallet-origin owner passkey.
+- **Owner-only onboarding.** Register a NEAR-only wallet and link its identity without creating reusable signing authority.
+- **Explicit operation states.** React and SDK handles distinguish approval, submission, cancellation, expiry, and unknown outcomes.
+  Recovery queries an existing transaction and never broadcasts it again.
+
+See the [application-authentication guide](./apps/docs/src/guides/application-auth.md) and maintained example.
 
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.28.0
+npm install @seams/wallet@0.29.0
 # Server applications:
-npm install @seams/wallet-server@0.28.0
+npm install @seams/wallet-server@0.29.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.28.0
+npm install @seams/voiceid@0.29.0
 ```
 
 Use `WalletConnectorMenu` from `@seams/wallet/react` inside `SeamsWebProvider` for

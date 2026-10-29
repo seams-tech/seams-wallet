@@ -48,6 +48,14 @@ passkey while VoiceID remains selected. The existing custody handle reseals the
 seed in the same custody worker. This requires no extra unlock or factor release.
 Existing workers keep their responsibilities.
 
+Application-session handoffs grant read access in the hosted wallet.
+Fresh NEAR owner operations use the existing passkey confirmation worker and Yao client WASM.
+The operation opens encrypted local material only after fresh owner confirmation.
+The temporary Yao client is disposed after signing, including failure paths.
+Owner-only registration seals local material without installing a reusable session or export capability.
+Submission recovery retains public transaction hashes and queries the existing transaction.
+No worker receives an application issuer key or a new custody secret.
+
 The [worker transport](../packages/wallet/src/core/signingEngine/workerManager/workerTransport.ts)
 creates one worker per kind, on first use. Other managers create the
 confirmation, export, session, and device-linking workers. The Email OTP and

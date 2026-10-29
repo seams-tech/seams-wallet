@@ -9,6 +9,7 @@ export function registrationCommitCompletionWrite<T>(
     case 'unissued':
     case 'replayed':
       return null;
+    case 'owner_registered':
     case 'session_issued':
     case 'session_issued_with_installation_projection':
       if (!execution.custodyWrite) return execution.activation;

@@ -129,6 +129,17 @@ type WalletRegistrationSessionCommitReadyBaseV2 =
 export type WalletRegistrationSessionCommitReceiptV2 =
   | {
       readonly kind: 'wallet_registration_session_commit_receipt_v2';
+      readonly operation: 'near_provisioning';
+      readonly operationFingerprint: string;
+      readonly registrationCeremonyId: string;
+      readonly committed: {
+        readonly kind: 'near_owner_ready';
+        readonly expectedOrigin: string;
+        readonly response: Extract<WalletRegistrationFinalizeSuccess, { kind: 'near_ed25519' }>;
+      };
+    }
+  | {
+      readonly kind: 'wallet_registration_session_commit_receipt_v2';
       readonly operation: 'registration_activate' | 'near_provisioning';
       readonly operationFingerprint: string;
       readonly registrationCeremonyId: string;

@@ -100,6 +100,7 @@ export class RegistrationSetupRepository {
   async begin(
     scopeDigest: string,
     request: {
+      readonly completion: import('@shared/utils/registrationIntent').RegistrationCompletion;
       readonly wallet: RegisterWalletInput;
       readonly authMethod: RegistrationAuthMethodInput;
       readonly signerSelection: RegistrationSignerSetSelection;

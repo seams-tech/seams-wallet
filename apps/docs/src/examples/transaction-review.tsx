@@ -80,7 +80,7 @@ function assertNeverTransferResult(value: never): never {
 export function ReviewedTransferButton() {
   const { wallet } = useSeams();
   const [state, setState] = useState<TransferState>({ kind: 'ready', message: '' });
-  if (!wallet?.near) return <p>Sign in with a NEAR account to try this example.</p>;
+  if (wallet?.access !== 'wallet' || !wallet.near) return <p>Sign in with a NEAR account to try this example.</p>;
 
   return (
     <>

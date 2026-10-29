@@ -26,6 +26,7 @@ export async function scheduleRestoredSessionPresignaturePrefills(args: {
     case 'wallet_unlocked_without_signing_session':
       if (args.state.reason !== 'exhausted') return;
       break;
+    case 'external_read':
     case 'wallet_locked':
     case 'wallet_authenticated_identity_unresolvable':
     case 'expired_session':

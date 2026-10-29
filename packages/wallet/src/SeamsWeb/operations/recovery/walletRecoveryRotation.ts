@@ -23,7 +23,7 @@ import { WALLET_EMAIL_OTP_UNLOCK_OPERATION } from '@shared/utils/emailOtpDomain'
 import { base64UrlDecode } from '@shared/utils/base64';
 import { fetchPasskeyCustodyEnvelope } from '@/core/rpcClients/relayer/passkeyCustodyEnvelope';
 import { joinNormalizedUrl } from '@shared/utils/normalize';
-import { computeWalletCustodyAdminChallengeDigest } from '@shared/authorization/walletCustodyOperation';
+import { computeWalletOwnerAdminChallengeDigest } from '@shared/authorization/walletOwnerOperation';
 import { redactCredentialExtensionOutputs } from '@/core/signingEngine/webauthnAuth/credentials/credentialExtensions';
 import { secureRandomId } from '@shared/utils/secureRandomId';
 
@@ -147,7 +147,7 @@ async function rotateWithPasskey(args: {
   try {
     const worker = args.context.signingEngine.getSignerWorkerContext();
     const factorProof: WalletRecoveryFactorProofFactory = async ({ operation, payload }) => {
-      const challengeDigest = await computeWalletCustodyAdminChallengeDigest({
+      const challengeDigest = await computeWalletOwnerAdminChallengeDigest({
         walletId: args.walletId,
         operation,
         payload,

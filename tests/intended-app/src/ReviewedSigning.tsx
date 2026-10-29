@@ -18,8 +18,8 @@ export function ReviewedSigning({ input }: { input: SigningInput }): React.React
     <section>
       <button
         type="button"
-        disabled={!wallet || state.kind === 'pending'}
-        onClick={wallet ? signReviewed.bind(null, wallet.evm, input, setState) : undefined}
+        disabled={wallet?.access !== 'wallet' || state.kind === 'pending'}
+        onClick={wallet?.access === 'wallet' ? signReviewed.bind(null, wallet.evm, input, setState) : undefined}
       >
         Review Arc testnet signature
       </button>

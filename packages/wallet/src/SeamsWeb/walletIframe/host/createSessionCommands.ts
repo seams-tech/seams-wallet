@@ -43,6 +43,7 @@ import type {
   WalletIframeWarmupSurface,
 } from '@/SeamsWeb/signingSurface/types';
 import type { WalletSessionCommands } from '@/SeamsWeb/publicApi/auth';
+import { approveExternalOwnerOperation } from './externalOwnerApproval';
 import {
   resolveWalletUnlockSubjectSet,
   type WalletUnlockCapabilityFamilyScope,
@@ -59,13 +60,22 @@ type WalletHostAuthContext = WalletAuthWebContext & {
 
 export type WalletHostSessionCommands = Omit<
   WalletSessionCommands,
-  'unlockWithAuthMethod' | 'authenticate'
+  'unlockWithAuthMethod' | 'authenticate' | 'associateExternalAuth' | 'removeExternalAuth'
 > & {
   authenticate(
     input: Parameters<WalletSessionCommands['authenticate']>[0],
     assertActive?: () => void,
   ): ReturnType<WalletSessionCommands['authenticate']>;
+  associateExternalAuth(
+    input: Parameters<WalletSessionCommands['associateExternalAuth']>[0],
+    assertActive?: () => void,
+  ): ReturnType<WalletSessionCommands['associateExternalAuth']>;
+  removeExternalAuth(
+    input: Parameters<WalletSessionCommands['removeExternalAuth']>[0],
+    assertActive?: () => void,
+  ): ReturnType<WalletSessionCommands['removeExternalAuth']>;
   readExternalSession(walletId?: string): Promise<WalletSession | null>;
+  captureExternalOwnerOperation: HostedExternalAuth['captureOwnerOperation'];
   unlockWithAuthMethod(
     args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
     assertActive?: () => void,
@@ -75,19 +85,20 @@ export type WalletHostSessionCommands = Omit<
 
 export function createWalletHostSessionCommands(
   getContext: () => WalletHostAuthContext,
-  readOwnerCredential: import('@/SeamsWeb/operations/devices/walletHostOwnerAuthority').WalletHostOwnerAuthoritiesV1['readOwnerCredential'],
   parentOrigin: string,
 ): WalletHostSessionCommands {
   const external = new HostedExternalAuth(
     getContext().configs,
     lockCore.bind(null, getContext()),
-    readOwnerCredential,
+    approveExternalOwnerOperation.bind(null, getContext),
     parentOrigin,
   );
   return {
     readExternalSession: readExternalSession.bind(null, getContext, external),
+    captureExternalOwnerOperation: external.captureOwnerOperation.bind(external),
     authenticate: external.authenticate.bind(external),
     prepareExternalAuth: external.prepare.bind(external),
+    prepareExternalAssociation: external.prepareAssociation.bind(external),
     associateExternalAuth: external.associate.bind(external),
     removeExternalAuth: external.remove.bind(external),
     unlock: unlock.bind(null, getContext, external),

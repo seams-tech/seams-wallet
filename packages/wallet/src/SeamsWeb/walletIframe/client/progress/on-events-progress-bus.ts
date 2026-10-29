@@ -115,21 +115,7 @@ export class OnEventsProgressBus {
       });
       return true;
     }
-    this.log(
-      'dispatch-miss',
-      isWalletFlowEvent(payload)
-        ? {
-            requestId,
-            flow: payload.flow,
-            phase: payload.phase,
-            status: payload.status,
-          }
-        : isDeviceLinkTargetFactorActivationProgressV1(payload)
-          ? { requestId, event: payload.event, activationKind: payload.activation.kind }
-          : isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(payload)
-            ? { requestId, event: payload.event, choiceCount: payload.choices.length }
-            : { requestId, span: payload.span },
-    );
+    this.log('dispatch-miss', progressDebugFields(requestId, payload));
     return false;
   }
 
@@ -159,4 +145,12 @@ export class OnEventsProgressBus {
       this.logger?.(msg, data);
     } catch {}
   }
+}
+
+function progressDebugFields(requestId: string, payload: ProgressPayload): Record<string, unknown> {
+  if (isWalletFlowEvent(payload)) return { requestId, flow: payload.flow, phase: payload.phase, status: payload.status };
+  if (isDeviceLinkTargetFactorActivationProgressV1(payload)) return { requestId, event: payload.event, activationKind: payload.activation.kind };
+  if (isDeviceLinkEmailOtpBaseFactorSelectionProgressV1(payload)) return { requestId, event: payload.event, choiceCount: payload.choices.length };
+  if (payload.event === 'owner_near_submitting') return { requestId, event: payload.event };
+  return { requestId, span: payload.span };
 }

@@ -178,7 +178,7 @@ function requireWebAuthnAuthenticatorId(raw: unknown): string {
   return requireString(response.authenticatorId, 'WebAuthn virtual authenticator id');
 }
 
-async function addWebAuthnVirtualAuthenticator(client: CDPSession): Promise<string> {
+export async function addWebAuthnVirtualAuthenticator(client: CDPSession): Promise<string> {
   const response = await client.send('WebAuthn.addVirtualAuthenticator', {
     options: WEB_AUTHN_VIRTUAL_AUTHENTICATOR_OPTIONS,
   });
@@ -5662,7 +5662,7 @@ async function fulfillExternalStub(route: Route, config: IntendedHarnessConfig):
   });
 }
 
-async function fulfillNearRpcStub(route: Route): Promise<void> {
+export async function fulfillNearRpcStub(route: Route): Promise<void> {
   const request = parseJsonRpcRequest(route.request().postData() || '{}');
   await route.fulfill({
     status: 200,

@@ -1,7 +1,7 @@
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOkResult, withProgress } from './shared';
 import { secureRandomId } from '@shared/utils/secureRandomId';
-import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
+import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
 import type {
   GoogleEmailOtpWalletAuthFlow,
   GoogleEmailOtpWalletAuthRegistrationCompleted,
@@ -213,7 +213,7 @@ function burnFlow(value: unknown): GoogleEmailOtpWalletAuthFlow {
 function parseWalletCustodyEmailOtpChallengePayload(value: unknown): {
   walletId: string;
   providerSubjectId: string;
-  operation: WalletCustodyAdminOperation;
+  operation: WalletOwnerAdminOperation;
   payload: Record<string, unknown>;
   requestOrigin?: string;
 } {

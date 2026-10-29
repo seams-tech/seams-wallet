@@ -22,7 +22,7 @@ void walletReact.useWallet;
 // @ts-expect-error Authentication can leave the current wallet absent.
 void context.wallet.evm;
 
-if (context.wallet) {
+if (context.wallet?.access === 'wallet') {
   void context.wallet.evm.signTransaction;
   void context.wallet.tempo.signTransaction;
 
@@ -74,3 +74,13 @@ void invalidSpread;
 void invalidCast;
 void contradictoryWallet;
 void contradictoryContext;
+
+if (context.wallet?.access === 'external') {
+  // @ts-expect-error Readable access supplies no reusable EVM signer.
+  void context.wallet.evm.signTransaction;
+  if (context.wallet.near) {
+    void context.wallet.near.prepareOwnerTransaction;
+    // @ts-expect-error A readable wallet requires an owner-operation handle.
+    void context.wallet.near.signAndSendTransaction;
+  }
+}

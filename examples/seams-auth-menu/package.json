@@ -16,6 +16,7 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^6.0.1",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "@seams/wallet-server": "workspace:*"
   }
 }

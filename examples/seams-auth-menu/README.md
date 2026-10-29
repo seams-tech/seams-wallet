@@ -15,7 +15,7 @@ The preview supplies sample data and does not connect to a wallet.
 
 ## Hosted authentication
 
-This React example uses the public `@seams/wallet` 0.28.0 provider and hosted
+This React example uses the public `@seams/wallet` 0.29.0 provider and hosted
 auth-menu entrypoints. The wallet origin owns registration and login prompts.
 
 From the repository root, install dependencies and build the SDK artifacts:
@@ -34,7 +34,7 @@ VITE_PROJECT_ENVIRONMENT_ID=YOUR_ENVIRONMENT
 VITE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY
 ```
 
-Use a wallet origin running the matching 0.28.0 assets and an environment that
+Use a wallet origin running the matching 0.29.0 assets and an environment that
 allows this application's origin. These variables are visible in the browser;
 keep private API keys and role credentials on the server.
 
@@ -46,5 +46,30 @@ pnpm -C examples/seams-auth-menu build
 
 The example configures NEAR testnet. It logs `HostedAuthMenuOutcome`; adapt the
 handler to render success, cancellation, and failure in your application.
-When copying the example into another app, install `@seams/wallet@0.28.0`, React,
+When copying the example into another app, install `@seams/wallet@0.29.0`, React,
 and React DOM and preserve the `@seams/wallet/react/styles` import.
+
+
+## Application-owned authentication
+
+Open `/application-auth.html` after signing in to your application.
+Mount `applicationWalletHandoff` from `src/applicationAuthBackend.ts` at `/api/wallet/handoff` on your backend.
+Supply a verified session reader, the configured Ed25519 issuer key, environment ID, and secret API key.
+The browser receives only the attempt's handoff code.
+
+The example creates a NEAR-only owner wallet, links an application identity with fresh owner proof, and connects for reading.
+Each self-transfer requires another owner approval.
+The operation handle exposes cancellation and unknown outcomes.
+Recovery queries the saved transaction and never broadcasts again.
+Google and app-passkey login must resolve to the same stable application subject.
+Wallet approval uses an enrolled wallet-origin passkey.
+
+Run the composed contract with the existing intended-behaviour runner:
+
+```sh
+node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.near-submission.contract.test.ts --grep 'application handoff'
+```
+
+The contract uses the real Wallet ceremony, WebAuthn owner proof, MPC signing, and D1 stores.
+Its Google login session and NEAR RPC are deterministic fixtures. App passkey login uses a real browser WebAuthn assertion.
+The artifact records signed transactions, verifies their signatures against registered keys, and confirms zero reusable sessions and quotas.

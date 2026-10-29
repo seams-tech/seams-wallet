@@ -1,13 +1,13 @@
 ---
 title: Google認証を持ち込む
-description: SDK 0.28.0で、アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
+description: SDK 0.29.0で、アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
 ---
 
 # Google認証を持ち込む {#bring-your-own-google-authentication}
 
 アプリのGoogle IDトークンを使うと、関連付けたウォレットの設定を、再ログインなしで開けます。
 署名と鍵管理には、引き続き所有者の認証が必要です。
-SDK **0.28.0**では、Googleが最初のBYO認証プロバイダーです。
+SDK **0.29.0**では、Googleが最初のBYO認証プロバイダーです。
 設定したOAuthクライアント向けの**IDトークン**を渡してください。
 このAPIは、Googleアクセストークンや任意のWebAuthnアサーションには対応していません。
 
@@ -36,13 +36,14 @@ SDKの設定には、その環境IDと公開キーが必要です。
 所有者が既存のウォレット認証を完了した状態で、Google IDを関連付けます。
 
 ```ts [部分的な実装例]
-const association = await seams.auth.associateExternalAuth({ walletId, idToken });
+const association = await seams.auth.associateExternalAuth({ method: 'google', walletId, idToken });
 if (!association.ok) {
   showAuthenticationError(association.code);
 }
 ```
 
-新規ウォレットでは、通常の登録が完了し、所有者のセッションを取得した後に呼び出してください。
+`registration.registerOwnerWallet` で、再利用可能な署名セッションを作らずにNEAR専用ウォレットを登録できます。
+関連付けには、ウォレットのオリジンで新しい所有者承認が必要です。
 関連付けによって、ウォレットの鍵管理シード、公開鍵、署名権限は変わりません。
 メールアドレスが一致しても、自動では関連付けません。
 Googleの安定したサブジェクト識別子と、現在のアプリ環境を使います。
@@ -85,7 +86,7 @@ Content-Type: application/json
 {
   "walletId": "SELECTED_WALLET_ID",
   "attemptId": "PREPARED_ATTEMPT_ID",
-  "idToken": "GOOGLE_ID_TOKEN"
+  "proof": { "kind": "google", "idToken": "GOOGLE_ID_TOKEN" }
 }
 ```
 
@@ -140,8 +141,10 @@ await seams.auth.removeExternalAuth({ walletId, associationId });
 
 ## 検証 {#verification}
 
-対象は、SDK **0.28.0**とウォレットiframeプロトコル**18.0.0**です。
+対象は、SDK **0.29.0**とウォレットiframeプロトコル**19.0.0**です。
 リポジトリのルートで、`pnpm -C packages/wallet build:sdk`の後に`node tests/e2e/external-auth.e2e.mjs`を実行します。
 構造化された結果と設定画面の画像を、`.artifacts/external-auth/`に保存します。
 E2Eは生成したテストトークンと、テスト専用のGoogle公開鍵の差し替えを使います。
 実際の利用を有効にする前に、アプリのGoogleログインとログアウトを検証してください。
+
+アプリ自身のログインセッションを使う場合は、[アプリのセッションと操作ごとの所有者承認](/ja/guides/application-auth)を参照してください。

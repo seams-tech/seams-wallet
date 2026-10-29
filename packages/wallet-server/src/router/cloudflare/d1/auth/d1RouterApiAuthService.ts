@@ -890,6 +890,15 @@ function parseWalletRegistrationSessionCommitReceiptCommitted(
 ): WalletRegistrationSessionCommitReceiptV2['committed'] | null {
   const record = toRecordValue(raw);
   if (!record || typeof record.kind !== 'string') return null;
+  if (record.kind === 'near_owner_ready') {
+    if (!hasExactKeys(record, ['kind', 'expectedOrigin', 'response'])) return null;
+    const response = parseD1WalletRegistrationFinalizeReplayResponse(record.response);
+    if (!response?.ok || response.kind !== 'near_ed25519') return null;
+    let expectedOrigin: string;
+    try { expectedOrigin = new URL(String(record.expectedOrigin)).origin; } catch { return null; }
+    if (expectedOrigin !== record.expectedOrigin) return null;
+    return { kind: 'near_owner_ready', expectedOrigin, response };
+  }
   if (record.kind === 'ecdsa_ready') {
     if (
       !hasExactKeys(record, ['kind', 'ecdsa', 'session']) &&

@@ -252,6 +252,7 @@ export function requirePasskeyRegistrationIntent(
   }
   return {
     version: intent.version,
+    completion: intent.completion,
     walletId: intent.walletId,
     authMethod: intent.authMethod,
     signerSelection: intent.signerSelection,

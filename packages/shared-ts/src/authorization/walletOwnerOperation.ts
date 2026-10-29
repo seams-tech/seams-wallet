@@ -1,7 +1,9 @@
 import { sha256Utf8DigestB64u, type DigestB64u } from '../utils/canonicalPrimitives';
 import { alphabetizeStringify } from '../utils/digests';
 
-export type WalletCustodyAdminOperation =
+export type WalletOwnerAdminOperation =
+  | 'external_identity_associate'
+  | 'external_identity_unlink'
   | 'credentials_list'
   | 'credential_label'
   | 'recovery_rotate'
@@ -10,9 +12,9 @@ export type WalletCustodyAdminOperation =
   | 'recovery_backup_acknowledge';
 
 /** Public challenge digest for a single wallet-administration factor proof. */
-export async function computeWalletCustodyAdminChallengeDigest(input: {
+export async function computeWalletOwnerAdminChallengeDigest(input: {
   readonly walletId: string;
-  readonly operation: WalletCustodyAdminOperation;
+  readonly operation: WalletOwnerAdminOperation;
   readonly payload: Record<string, unknown>;
   readonly requestOrigin: string;
 }): Promise<DigestB64u> {

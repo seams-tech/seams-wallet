@@ -4,17 +4,17 @@ This package owns the reusable signer server surface: route adapters,
 WebAuthn verification policy, threshold signing services, signer storage
 adapters, and server wasm bindings.
 
-The current release is `@seams/wallet-server@0.28.0`. Pair it with
-`@seams/wallet@0.28.0` and matching hosted assets. Use `@seams/wallet-cli@0.28.0`.
-The wallet iframe protocol is **18.0.0**.
+The current release is `@seams/wallet-server@0.29.0`. Pair it with
+`@seams/wallet@0.29.0` and matching hosted assets. Use `@seams/wallet-cli@0.29.0`.
+The wallet iframe protocol is **19.0.0**.
 
 ```sh
-pnpm add @seams/wallet-server@0.28.0
+pnpm add @seams/wallet-server@0.29.0
 ```
 
 ## Google BYO authentication
 
-Version 0.28.0 verifies the app's Google ID token or exchanges it for a browser-bound handoff.
+Version 0.29.0 verifies a configured application's signed session assertion or the app's Google ID token or exchanges it for a browser-bound handoff.
 An environment-specific Google client configuration and an owner-approved wallet association are required.
 Apply the packaged signer migrations before enabling the feature.
 External sessions grant settings reads and remain separate from owner and signing credentials.
@@ -64,3 +64,10 @@ and [release notes](https://wallet.seams.sh/docs/releases).
 
 Hosted product services and their operational tooling live in the private
 `seams-monorepo` repository.
+
+
+Use `createApplicationAuthAssertion` from `@seams/wallet-server/application-auth` on the authenticated application backend.
+Configure the issuer and public key through the existing environment trust setting.
+The assertion binds the stable subject, environment, wallet, Seams attempt, purpose, and expiry.
+Fresh wallet-origin owner proof remains required for identity changes and NEAR transactions.
+See the [application-session guide](https://wallet.seams.sh/docs/guides/application-auth).

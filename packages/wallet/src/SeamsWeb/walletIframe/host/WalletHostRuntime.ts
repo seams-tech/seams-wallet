@@ -1,3 +1,5 @@
+import { runOwnerNearOperation } from './ownerNearOperation';
+import type { OwnerNearCommand, OwnerNearOutcome } from '../shared/ownerNearOperation';
 import { confirmDeviceLinkApproval } from './deviceLinkApproval';
 import { clearHostedWalletSessions } from './hostedWalletSeamsSession';
 import { createWalletHostPlacementCommands } from './createPlacementCommands';
@@ -138,6 +140,7 @@ export class WalletHostRuntime {
   private readonly nearClient: NearClient;
   readonly configs: WalletHostConfig;
   readonly readExternalSession: WalletHostSessionCommands['readExternalSession'];
+  private readonly captureExternalOwnerOperation: WalletHostSessionCommands['captureExternalOwnerOperation'];
   private appearance: AppearanceConfig;
   theme: ThemeMode;
   private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
@@ -152,9 +155,10 @@ export class WalletHostRuntime {
       UserPreferencesManager,
       'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
     >;
-  readonly auth: WalletAuthCommands & Pick<WalletHostSessionCommands, 'unlockWithAuthMethod' | 'authenticate'>;
+  readonly auth: WalletAuthCommands & Pick<WalletHostSessionCommands, 'unlockWithAuthMethod' | 'authenticate' | 'associateExternalAuth' | 'removeExternalAuth'>;
   readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
+  readonly registerWalletCommand: import('@/SeamsWeb/publicApi/createPublicApi').WalletRegistrationCommands['registerWallet'];
   readonly near: NearSignerCapability;
   readonly tempo: TempoSignerCapability;
   readonly evm: EvmSignerCapability;
@@ -215,12 +219,14 @@ export class WalletHostRuntime {
     });
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
-    const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this), ownerAuthorities.readOwnerCredential, parentOrigin);
+    const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this), parentOrigin);
     this.readExternalSession = sessionCommands.readExternalSession;
+    this.captureExternalOwnerOperation = sessionCommands.captureExternalOwnerOperation;
     const registrationCommands = createWalletHostRegistrationCommands(
       this.getContext.bind(this),
       sessionCommands,
     );
+    this.registerWalletCommand = registrationCommands.registerWallet;
     this.prefillRestoredSession = prefillWalletHostPresignatures.bind(
       null,
       this.getContext.bind(this),
@@ -247,7 +253,7 @@ export class WalletHostRuntime {
       exportKeypairWithUI: this.exportKeypairWithUIDomain.bind(this),
     };
     const publicApi = createPublicApi({
-      createNearCommands: createWalletHostNearCommands.bind(null, this.getContext.bind(this)),
+      createNearCommands: createWalletHostNearCommands.bind(null, this.getContext.bind(this), this.runOwnerNearOperation.bind(this)),
       createEvmFamilyCommands: createWalletHostEvmFamilyCommands.bind(
         null,
         this.getContext.bind(this),
@@ -305,6 +311,10 @@ export class WalletHostRuntime {
   onSdkLifecycleEvent(listener: SdkLifecycleEventListener): () => void {
     return this.signingEngine.onSdkLifecycleEvent(listener);
   }
+  async runOwnerNearOperation(command: OwnerNearCommand, assertActive: () => void, onEvent: (event: import('@/core/types/sdkSentEvents').SigningFlowEvent) => void, onSubmission: () => void): Promise<OwnerNearOutcome> {
+    return await runOwnerNearOperation({ getContext: this.getContext.bind(this), captureConnection: this.captureExternalOwnerOperation, parentOrigin: this.parentOrigin }, command, assertActive, onEvent, onSubmission);
+  }
+
   getContext(): SeamsWebContextWithDeviceLinkingResumeV1 {
     return {
       signingEngine: this.signingEngine,

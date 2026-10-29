@@ -281,3 +281,7 @@ export type {
   ConfirmationUIMode,
   ConfirmationBehavior,
 } from './core/types/signer-worker';
+
+export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome, PrepareOwnerNearTransaction, ResumeOwnerNearTransaction } from './SeamsWeb/publicApi/ownerNearOperation';
+
+export { parseOwnerNearRecovery } from './SeamsWeb/walletIframe/shared/ownerNearOperation';

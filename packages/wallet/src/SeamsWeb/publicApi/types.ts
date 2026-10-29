@@ -94,7 +94,7 @@ import type {
   WalletCustodyEmailOtpChallengeResult,
 } from '@/core/rpcClients/relayer/walletRecoveryRotate';
 import type { WalletRecoveryRotationAuthorization } from '@/SeamsWeb/operations/recovery/walletRecoveryRotation';
-import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
+import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
 import type { WalletRecoveryRotationOutcome } from '@/core/signingEngine/walletCustody/walletRecoveryRotation';
 import type {
   EvmAddress,
@@ -687,10 +687,8 @@ export type RequestEmailCodeInput = ExclusiveUnion<
 export interface AuthCapability {
   authenticate(input: ExternalAuthenticateInput): Promise<ExternalAuthResult<ExternalWalletAuthentication>>;
   prepareExternalAuth(walletId: string): Promise<ExternalAuthResult<ExternalAuthAttempt>>;
-  associateExternalAuth(input: {
-    walletId: string;
-    idToken: string;
-  }): Promise<ExternalAuthResult<null>>;
+  prepareExternalAssociation(walletId: string): Promise<ExternalAuthResult<ExternalAuthAttempt<'associate'>>>;
+  associateExternalAuth(input: ExternalAuthenticateInput): Promise<ExternalAuthResult<null>>;
   removeExternalAuth(input: {
     walletId: string;
     associationId: string;
@@ -783,6 +781,13 @@ export interface RegistrationCapability {
     walletId: WalletId | string;
     walletAuthMethodId: string;
   }): Promise<RevokeAuthMethodResult>;
+  registerOwnerWallet(args: {
+    authMethod: Extract<RegistrationAuthMethodInput, { kind: 'passkey' }>;
+    wallet?: RegisterWalletInput;
+    signerSelection: RegistrationSignerSetSelection;
+    options?: RegistrationHooksOptions;
+  }): Promise<RegistrationResult>;
+
   registerWallet(args: {
     authMethod: RegistrationAuthMethodInput;
     /** Omit to let the server assign a new wallet ID. */
@@ -808,6 +813,9 @@ type NearSubjectInput = {
 };
 
 export interface NearSignerCapability {
+  prepareOwnerTransaction(input: import('./ownerNearOperation').PrepareOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
+  resumeOwnerTransaction(input: import('./ownerNearOperation').ResumeOwnerNearTransaction): import('./ownerNearOperation').OwnerNearOperation;
+
   /** Returns false only for an absent account; unavailable RPC reads reject. */
   accountExists(accountId: string): Promise<boolean>;
 
@@ -941,7 +949,7 @@ export interface RecoveryCapability {
   requestWalletCustodyEmailOtpChallenge(args: {
     walletId: string;
     providerSubjectId: string;
-    operation: WalletCustodyAdminOperation;
+    operation: WalletOwnerAdminOperation;
     payload: Record<string, unknown>;
     requestOrigin?: string;
   }): Promise<WalletCustodyEmailOtpChallengeResult>;

@@ -218,6 +218,10 @@ function assertEd25519SessionProjectionMatchesPending(
   finalized: FinalizedNearProvisioningResponse,
 ): void {
   const sessionResult = finalized.registrationEstablishedSession;
+  if (sessionResult.kind === 'owner_operations') {
+    if (sessionResult.walletId !== pending.walletId || pending.signerPlanKind !== 'near_ed25519') throw new Error('Owner registration replay identity mismatch');
+    return;
+  }
   const session = sessionResult.session;
   const ed25519 =
     session.tokens.kind === 'near_ed25519' ||
@@ -243,6 +247,7 @@ function assertNearRegistrationSessionMatchesPending(
 ): void {
   assertEd25519SessionProjectionMatchesPending(pending, finalized);
   const sessionResult = finalized.registrationEstablishedSession;
+  if (sessionResult.kind === 'owner_operations') return;
   if (sessionResult.kind === 'issued') {
     if (
       sessionResult.session.walletSession.walletId !== pending.walletId ||
@@ -341,7 +346,7 @@ export async function registrationProjectionFromPending(
   });
 }
 
-function publicationInputFromPending(
+export function publicationInputFromPending(
   pending: PendingEd25519RegistrationCommit,
   finalized: FinalizedNearProvisioningResponse,
   registration: StoreWalletRegistrationPublicationInputV1,
@@ -362,7 +367,9 @@ function publicationInputFromPending(
     },
     ecdsaContinuity: [],
     walletSessionPublication:
-      finalized.registrationEstablishedSession.kind === 'issued'
+      finalized.registrationEstablishedSession.kind === 'owner_operations'
+        ? { kind: 'owner_operations' }
+        : finalized.registrationEstablishedSession.kind === 'issued'
         ? {
             kind: 'issued',
             walletSession: finalized.registrationEstablishedSession.session.walletSession,
@@ -428,6 +435,7 @@ export async function restorePendingNearRegistrationMaterial(args: {
     headers: buildWalletSessionAuthorizationHeaders(args.operationCredential),
   });
   const finalized = requireFinalizedNearProvisioningResponse(args.pending, response);
+  if (finalized.registrationEstablishedSession.kind === 'owner_operations') throw new Error('Owner registration has no reusable session to restore');
   const session = finalized.registrationEstablishedSession.session;
   if (session.tokens.kind !== 'near_ed25519_and_evm_family_ecdsa') {
     throw new Error('Persisted mixed registration has no NEAR session');

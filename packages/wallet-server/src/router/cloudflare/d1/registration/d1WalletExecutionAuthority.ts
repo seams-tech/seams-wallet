@@ -1,7 +1,7 @@
 import { prepareD1TenantStatement, type D1TenantScope } from '../../../../core/d1TenantStore';
 import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { D1DatabaseLike, D1ResultLike } from '../../../../storage/tenantRoute';
-import type { DigestB64u } from '@shared/utils/canonicalPrimitives';
+import { parseRegistrationSessionPublication, type RegistrationSessionPublication } from '../../../domains/walletRegistration/walletRegistrationReservation';
 import type { WalletId } from '@shared/utils/domainIds';
 import type {
   RegistrationActivationWrite,
@@ -22,15 +22,13 @@ type RegistrationHomeRow = {
 type DirectoryPublication = {
   readonly walletId: WalletId;
   readonly ceremonyId: string;
-  readonly digest: DigestB64u;
-  readonly expiresAtMs: number;
+  readonly session: RegistrationSessionPublication;
   readonly attempts: number;
 };
 type DirectoryPublicationRow = {
   readonly wallet_id: WalletId;
   readonly ceremony_id: string;
-  readonly session_digest: DigestB64u;
-  readonly session_expires_at_ms: number;
+  readonly session_json: string;
   readonly attempts: number;
 };
 export type RegistrationDirectoryPublicationDelivery = 'acknowledged' | 'deferred' | 'refused';
@@ -148,8 +146,7 @@ export class D1WalletExecutionAuthority
     const publication: DirectoryPublication = {
       walletId: input.registration.walletId,
       ceremonyId: input.registration.ceremonyId,
-      digest: input.session.digest,
-      expiresAtMs: input.session.expiresAtMs,
+      session: input.session,
       attempts: 0,
     };
     return {
@@ -160,14 +157,13 @@ export class D1WalletExecutionAuthority
           this.scope,
           `INSERT INTO wallet_registration_directory_publications
              (namespace, org_id, project_id, env_id, wallet_id, ceremony_id,
-              session_digest, session_expires_at_ms, next_attempt_at_ms)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+              session_json, next_attempt_at_ms)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
            ON CONFLICT DO NOTHING`,
           [
             publication.walletId,
             publication.ceremonyId,
-            publication.digest,
-            publication.expiresAtMs,
+            JSON.stringify(publication.session),
             Date.now() + DIRECTORY_PUBLICATION_FIRST_RETRY_MS,
           ],
         ),
@@ -190,7 +186,7 @@ export class D1WalletExecutionAuthority
     const due = await prepareD1TenantStatement(
       this.database,
       this.scope,
-      `SELECT wallet_id, ceremony_id, session_digest, session_expires_at_ms, attempts
+      `SELECT wallet_id, ceremony_id, session_json, attempts
        FROM wallet_registration_directory_publications
        WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
          AND state = 'pending' AND next_attempt_at_ms <= ?5
@@ -203,8 +199,7 @@ export class D1WalletExecutionAuthority
       const outcome = await this.deliver({
         walletId: row.wallet_id,
         ceremonyId: row.ceremony_id,
-        digest: row.session_digest,
-        expiresAtMs: row.session_expires_at_ms,
+        session: parseRegistrationSessionPublication(JSON.parse(row.session_json), row.wallet_id),
         attempts: row.attempts,
       });
       delivered[outcome] += 1;
@@ -224,12 +219,7 @@ export class D1WalletExecutionAuthority
         ceremonyId: publication.ceremonyId,
         walletId: publication.walletId,
         outcome: 'established',
-        session: {
-          kind: 'credential',
-          walletId: publication.walletId,
-          digest: publication.digest,
-          expiresAtMs: publication.expiresAtMs,
-        },
+        session: publication.session,
       });
     } catch (error: unknown) {
       console.warn('[wallet-registration] directory publication deferred', error);
@@ -309,7 +299,7 @@ export class D1WalletExecutionAuthority
       prepareD1TenantStatement(
         this.database,
         this.scope,
-        `UPDATE wallet_execution_generations SET state = ?7
+        `UPDATE wallet_execution_generations SET state = ?7, registration_completion = CASE WHEN ?7 = 'active' THEN 'established' ELSE registration_completion END
          WHERE namespace = ?1 AND org_id = ?2 AND project_id = ?3 AND env_id = ?4
            AND wallet_id = ?5 AND origin = 'registration' AND origin_id = ?6
            AND state IN ('registering', ?7)`,

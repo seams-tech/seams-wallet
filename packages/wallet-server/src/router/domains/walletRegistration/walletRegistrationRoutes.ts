@@ -554,12 +554,15 @@ export function parseWalletRegistrationSetupRequest(
   if (!authMethod) {
     return { ok: false, code: 'invalid_body', message: 'authMethod is required' };
   }
+  const completion = body.completion ?? 'wallet_session';
+  if (completion !== 'wallet_session' && completion !== 'owner_operations') return { ok: false, code: 'invalid_body', message: 'Invalid registration completion' };
   const wallet = parseWalletRegistrationSetupWallet(body.wallet);
   if (!wallet.ok) return wallet;
   return {
     ok: true,
     value: {
       registrationOperationId,
+      completion,
       ...(wallet.value ? { wallet: wallet.value } : {}),
       signerSelection: signerSelection.value.selection,
       authMethod,
@@ -2549,6 +2552,7 @@ export async function handleRouterApiWalletRegistrationNearProvisioning(
       );
     }
     const sealStartedAt = Date.now();
+    if (result.registrationEstablishedSession.kind === 'owner_operations') return routeError(400, 'invalid_body', 'Owner registration has no session seal');
     const sealed = await sessionSeal.value.finish(result.registrationEstablishedSession.session);
     serverTiming.push(['near_finalize_session_seal', Math.max(0, Date.now() - sealStartedAt)]);
     if (!sealed.ok) {

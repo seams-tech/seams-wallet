@@ -1,3 +1,4 @@
+import type { RegistrationIntentV1 } from '@shared/utils/registrationIntent';
 /**
  * `/wallets/register/setup` — one request replacing the bootstrap grant, the
  * registration intent, and registration start.
@@ -63,6 +64,7 @@ const WALLET_REGISTRATION_SETUP_TTL_MS = 10 * 60_000;
 export function normalizeWalletRegistrationSetupRequest(request: WalletRegistrationSetupRequest):
   | {
       readonly ok: true;
+      readonly completion: RegistrationIntentV1['completion'];
       readonly signerSelection: RegistrationSignerSetSelection;
       readonly authMethod: RegistrationAuthMethodInput;
     }
@@ -77,7 +79,10 @@ export function normalizeWalletRegistrationSetupRequest(request: WalletRegistrat
   if (!authMethod) {
     return { ok: false, code: 'invalid_body', message: 'authMethod is required' };
   }
-  return { ok: true, signerSelection: signerSelection.value, authMethod };
+  const completion = request.completion;
+  if (completion !== 'wallet_session' && completion !== 'owner_operations') return { ok: false, code: 'invalid_body', message: 'Registration completion is required' };
+  if (completion === 'owner_operations' && ((signerSelection.value.signers.length !== 1 || signerSelection.value.signers[0]?.kind !== 'near_ed25519') || authMethod.kind !== 'passkey')) return { ok: false, code: 'invalid_body', message: 'Owner-operation onboarding requires a NEAR-only wallet and a wallet-origin passkey' };
+  return { ok: true, completion, signerSelection: signerSelection.value, authMethod };
 }
 
 export function walletRegistrationSetupExpiresAtMs(nowMs: number): number {

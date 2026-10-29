@@ -798,6 +798,7 @@ function createGoogleEmailOtpWalletRegistrationFlow(
     googleEmailOtpRegistrationCandidateId: offer.selectedCandidateId,
   } satisfies GoogleEmailOtpWalletRegistrationArgs['authMethod'];
   const registrationArgs: GoogleEmailOtpWalletRegistrationArgs = {
+    completion: 'wallet_session',
     wallet: { kind: 'provided', walletId: selectedWalletId },
     authMethod: registrationAuthMethod,
     /* An explicit selection registers exactly that set; without one the flow

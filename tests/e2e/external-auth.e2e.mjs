@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto';
+import { isoCBOR } from '@simplewebauthn/server/helpers';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,6 +25,12 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+    export { createApplicationAuthAssertion } from './packages/wallet-server/src/auth/applicationAuth';
+    export { CloudflareD1WebAuthnAuthService } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
+    export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
+    export { D1WalletAuthorityStore } from './packages/wallet-server/src/router/cloudflare/d1/wallet/d1WalletAuthorityStore';
+    export { buildPasskeyWalletAuthAuthority } from './packages/shared-ts/src/utils/walletAuthAuthority';
+    export { unknownWebAuthnAuthenticatorDeviceInfo } from './packages/shared-ts/src/utils/webauthnDeviceInfo';
     export { ExternalAuthStore } from './packages/wallet-server/src/auth/externalAuthStore';
     export { ExternalAuthService } from './packages/wallet-server/src/auth/externalAuthService';
     export { handleExternalAuth } from './packages/wallet-server/src/router/transport/fetch/routes/externalAuth';
@@ -108,6 +115,22 @@ globalThis.fetch = googleKeys;
 const serverState = { origin: '', service: null, options: null };
 const server = createServer(serve);
 let browser;
+const ownerKeys = new Map();
+let authenticatorStore;
+
+class RegisteredOwnerFactors {
+  constructor(methods, authorities) { this.methods = methods; this.authorities = authorities; }
+  async resolvePasskey(input) {
+    for (const method of await this.methods.listForWalletV2({ walletId: input.walletId })) {
+      if (method.kind !== 'passkey' || method.status !== 'active' || method.rpId !== input.rpId || method.credentialIdB64u !== input.credentialIdB64u) continue;
+      const walletAuthority = await this.authorities.readById(method.walletAuthorityId);
+      if (walletAuthority?.state !== 'active') continue;
+      return { ok: true, authority: api.buildPasskeyWalletAuthAuthority(input), authMethod: method, walletAuthority };
+    }
+    return { ok: false, code: 'access_denied', message: 'Owner factor is not active' };
+  }
+}
+
 
 class ExchangeGate {
   held = false;
@@ -134,8 +157,11 @@ class ExchangeGate {
 
 try {
   await migrate();
+  const ownerKey = createOwnerPasskey();
   const fixture = await api.buildLinkedDeviceManagementAuthorityFixture({
     label: 'external-owner',
+    identity: { walletId: 'wallet:external-owner', authorityId: 'authority:external-owner', walletAuthMethodId: 'auth-method:external-owner', rpId: '127.0.0.1' },
+    credentialPublicKeyB64u: ownerKey.publicKeyB64u,
     tenantId: scope.orgId,
     permissions: api.buildFullOwnerPermissionsV1(),
     provenance: 'wallet_registration',
@@ -155,14 +181,25 @@ try {
     authorizedOperations: store,
     audit: {},
   });
-  const issued = await issueOwnerSession(fixture, authorization);
-  assert.equal(issued.kind, 'issued');
+  authenticatorStore = new api.CloudflareD1WebAuthnStore({ database, ...scope });
+  await seedOwnerAuthority(fixture, ownerKey);
+  const methodStore = new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false });
+  const authorityStore = new api.D1WalletAuthorityStore({ database, scope });
+  const factors = new RegisteredOwnerFactors(methodStore, authorityStore);
+  const webAuthn = new api.CloudflareD1WebAuthnAuthService({
+    webAuthnStore: authenticatorStore,
+    walletAuthMethodStore: methodStore,
+    walletManifestSource: { getEd25519KeyManifestBySlot: noKeyManifest },
+  });
   serverState.service = {
     externalAuth: new api.ExternalAuthService(
       new api.ExternalAuthStore(database, scope),
       new api.D1WalletStore({ database, ...scope, ensureSchema: false }),
       new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
     ),
+    authorizedOperations: ownerOperationService(authorization, fixture.issuedSession.session.tenantId),
+    walletAuthMethods: { resolveActivePasskeyAuthorityForVerifiedCredential: factors.resolvePasskey.bind(factors) },
+    webAuthn,
     authorizationSessions: {
       tenantId: fixture.issuedSession.session.tenantId,
       readWalletSessionAuthorizationV2ByOperationCredential:
@@ -173,11 +210,7 @@ try {
   serverState.origin = `http://127.0.0.1:${server.address().port}`;
   configure({ kind: 'google', revision: 1, clientId: 'external-client' });
   const token = googleToken();
-  const associated = await request('associate', {
-    walletId,
-    idToken: token,
-    ownerCredential: issued.operationCredential.token,
-  });
+  const associated = await associateGoogleIdentity(walletId, token, fixture);
   assert.equal(
     associated.body.ok,
     true,
@@ -236,7 +269,7 @@ try {
   assert.equal(await page.evaluate(readSession), null);
   const handoff = await request(
     'backend-exchange',
-    { walletId, attemptId: prepared.value.attemptId, idToken: token },
+    { walletId, attemptId: prepared.value.attemptId, proof: { kind: 'google', idToken: token } },
     { credential: 'sk_external_test' },
   );
   assert.equal(handoff.body.ok, true);
@@ -263,7 +296,7 @@ try {
     403,
   );
   const count = await database
-    .prepare("SELECT COUNT(*) AS count FROM external_auth_attempts WHERE status = 'consumed'")
+    .prepare("SELECT COUNT(*) AS count FROM external_auth_attempts WHERE status = 'consumed' AND purpose = 'authenticate'")
     .first();
   assert.equal(count.count, 1);
 
@@ -280,7 +313,7 @@ try {
     {
       walletId,
       attemptId: raceAttempt.body.value.attemptId,
-      idToken: token,
+      proof: { kind: 'google', idToken: token },
     },
     { credential: 'sk_external_test' },
   );
@@ -352,24 +385,14 @@ try {
   assert.equal(missingParty.code, 'invalid_credential');
   const renewed = await page.evaluate(authenticateGoogle, { walletId, token });
   assert.equal(renewed.ok, true);
-  await request('unlink', {
-    walletId,
-    associationId: renewed.value.associationId,
-    ownerCredential: issued.operationCredential.token,
-  });
+  await unlinkIdentity(walletId, renewed.value.associationId, fixture);
   assert.equal(await page.evaluate(readSession), null);
   const after = await database
     .prepare('SELECT authority_digest_b64u FROM wallet_authorities')
     .all();
   assert.deepEqual(after.results, before.results);
   assert.equal(
-    (
-      await request('associate', {
-        walletId,
-        idToken: token,
-        ownerCredential: issued.operationCredential.token,
-      })
-    ).body.ok,
+    (await associateGoogleIdentity(walletId, token, fixture)).body.ok,
     true,
   );
   const settingsPage = await browser.newPage();
@@ -401,7 +424,9 @@ try {
   await settingsPage.evaluate(mountSettings, serverState.origin);
   await settingsPage.waitForFunction(appReady);
   assert.equal((await settingsPage.evaluate(readSdkSession)).authentication.kind, 'signed_out');
+  const additionalKey = createOwnerPasskey();
   const additionalOwner = await api.buildLinkedDeviceManagementAuthorityFixture({
+    credentialPublicKeyB64u: additionalKey.publicKeyB64u,
     label: 'external-additional-owner',
     tenantId: scope.orgId,
     identity: {
@@ -416,15 +441,9 @@ try {
     sourceAuthorityId: fixture.authority.authorityId,
     expiresAtMs: Date.now() + 3_600_000,
   });
-  const additionalSession = await issueOwnerSession(additionalOwner, authorization);
+  await seedOwnerAuthority(additionalOwner, additionalKey);
   assert.equal(
-    (
-      await request('associate', {
-        walletId,
-        idToken: token,
-        ownerCredential: additionalSession.operationCredential.token,
-      })
-    ).body.ok,
+    (await associateGoogleIdentity(walletId, token, additionalOwner)).body.ok,
     true,
   );
   assert.equal(
@@ -440,6 +459,8 @@ try {
   const reassociated = await settingsPage.evaluate(authenticateSdk, { walletId, token });
   assert.equal(reassociated.ok, true);
   assert.notEqual(reassociated.value.associationId, sdkResult.value.associationId);
+
+  await verifyApplicationHandoff(page, walletId, additionalOwner.authority);
 
   const result = {
     kind: 'external-auth-e2e',
@@ -458,6 +479,8 @@ try {
     command: 'node tests/e2e/external-auth.e2e.mjs',
     coverage: [
       'direct Google evidence',
+      'application issuer handoff with independent session expiry',
+      'application assertion key, wallet, issuer, expiry and challenge validation',
       'backend handoff',
       'hosted browser reload',
       'logout',
@@ -465,6 +488,7 @@ try {
       'binding rejection',
       'tenant and wallet rejection',
       'owner admission rejection',
+      'fresh WebAuthn owner proof for association and removal without issuing Wallet Sessions',
       'provider revision revocation',
       'association revocation',
       'audience, expiry, and subject rejection',
@@ -712,24 +736,175 @@ function readStoredSession() {
   throw new Error('External session is missing');
 }
 
-async function issueOwnerSession(fixture, authorization) {
+async function seedOwnerAuthority(fixture, key) {
   const walletId = fixture.authority.walletId;
   await seedExecutionGeneration({ api, database, scope, walletId });
   await database.batch([
     api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
     api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
   ]);
-  const issued = await authorization.issueDirectWalletSessionAuthorizationV2({
-    tenantId: fixture.issuedSession.session.tenantId,
-    principalId: fixture.issuedSession.session.principalId,
-    walletId,
-    authority: fixture.authority,
-    walletAuthMethodId: fixture.authMethod.walletAuthMethodId,
-    mintId: fixture.issuedSession.session.mintId,
-    remainingUses: 7,
-    issuedAtMs: Date.now(),
-    expiresAtMs: Date.now() + 3_600_000,
+  ownerKeys.set(fixture.authMethod.credentialIdB64u, key);
+  await authenticatorStore.writeAuthenticator({
+    userId: walletId,
+    record: {
+      credentialIdB64u: fixture.authMethod.credentialIdB64u,
+      credentialPublicKeyB64u: key.publicKeyB64u,
+      counter: 0, createdAtMs: Date.now(), updatedAtMs: Date.now(),
+      deviceInfo: api.unknownWebAuthnAuthenticatorDeviceInfo(),
+    },
   });
-  assert.equal(issued.kind, 'issued');
-  return issued;
+}
+
+async function verifyApplicationHandoff(page, walletId, authority) {
+  const issuer = 'https://getsignal.example';
+  const keys = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
+  const publicKeyB64u = Buffer.from(await crypto.subtle.exportKey('raw', keys.publicKey)).toString('base64url');
+  configure({ kind: 'application', revision: 10, issuer, publicKeyB64u });
+  const associationBinding = ownerAttemptSecrets(walletId);
+  const associationAttempt = await request('prepare-association', associationBinding);
+  assert.equal(associationAttempt.body.ok, true);
+  const associationAssertion = await api.createApplicationAuthAssertion({
+    privateKey: keys.privateKey, issuer, subject: 'getsignal-user', environmentId: scope.envId,
+    walletId, attemptId: associationAttempt.body.value.attemptId, purpose: 'associate',
+    nowMs: Date.now(), sessionExpiresAtMs: Date.now() + 1_800_000,
+  });
+  const associationCode = await request('backend-exchange', {
+    walletId, attemptId: associationAttempt.body.value.attemptId,
+    proof: { kind: 'application', assertion: associationAssertion },
+  }, { credential: 'sk_external_test' });
+  assert.equal(associationCode.body.ok, true);
+  const ownerFixture = { authority, authMethod: await readOwnerMethod(authority) };
+  assert.equal((await completeIdentityAction('associate', {
+    ...associationBinding, attemptId: associationAttempt.body.value.attemptId, code: associationCode.body.value.code,
+  }, ownerFixture)).body.ok, true);
+  const prepared = await page.evaluate(prepareWallet, walletId);
+  assert.equal(prepared.ok, true);
+  const nowMs = Date.now();
+  const claims = {
+    privateKey: keys.privateKey, issuer, subject: 'getsignal-user', environmentId: scope.envId, purpose: 'authenticate',
+    walletId, attemptId: prepared.value.attemptId, nowMs, sessionExpiresAtMs: nowMs + 1_800_000,
+  };
+  const wrongKey = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']);
+  const invalidClaims = [
+    { ...claims, privateKey: wrongKey.privateKey },
+    { ...claims, issuer: 'https://another-app.example' },
+    { ...claims, walletId: 'wallet:other' },
+    { ...claims, attemptId: 'another-attempt' },
+    { ...claims, environmentId: 'another-environment' },
+    { ...claims, nowMs: nowMs - 180_000 },
+  ];
+  for (const input of invalidClaims) {
+    const assertion = await api.createApplicationAuthAssertion(input);
+    const denied = await request('backend-exchange', {
+      walletId, attemptId: prepared.value.attemptId, proof: { kind: 'application', assertion },
+    }, { credential: 'sk_external_test' });
+    assert.equal(denied.body.ok, false);
+  }
+  const assertion = await api.createApplicationAuthAssertion(claims);
+  const handoff = await request('backend-exchange', {
+    walletId, attemptId: prepared.value.attemptId, proof: { kind: 'application', assertion },
+  }, { credential: 'sk_external_test' });
+  assert.equal(handoff.body.ok, true);
+  assert.equal((await request('backend-exchange', {
+    walletId, attemptId: prepared.value.attemptId, proof: { kind: 'application', assertion },
+  }, { credential: 'sk_external_test' })).body.ok, false);
+  const authenticated = await page.evaluate(authenticateHandoff, {
+    walletId, attemptId: prepared.value.attemptId, code: handoff.body.value.code,
+  });
+  assert.equal(authenticated.ok, true);
+  assert.equal(authenticated.value.provider, 'application');
+  assert.ok(authenticated.value.expiresAtMs > nowMs + 120_000);
+  assert.equal((await page.evaluate(readSession)).capabilityProjection.kind, 'not_requested');
+  await page.reload();
+  await page.evaluate(createBrowserWallet, serverState.origin);
+  assert.equal((await page.evaluate(readSession)).authentication.provider, 'application');
+  configure({ kind: 'application', revision: 11, issuer, publicKeyB64u });
+  assert.equal(await page.evaluate(readSession), null);
+}
+
+function noKeyManifest() { return Promise.resolve(null); }
+
+function createOwnerPasskey() {
+  const keys = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const jwk = keys.publicKey.export({ format: 'jwk' });
+  const cose = isoCBOR.encode(new Map([
+    [1, 2], [3, -7], [-1, 1],
+    [-2, Buffer.from(jwk.x, 'base64url')], [-3, Buffer.from(jwk.y, 'base64url')],
+  ]));
+  return { privateKey: keys.privateKey, publicKeyB64u: Buffer.from(cose).toString('base64url'), counter: 0 };
+}
+
+
+async function readOwnerMethod(authority) {
+  const methods = new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false });
+  for (const method of await methods.listForWalletV2({ walletId: authority.walletId })) {
+    if (method.walletAuthorityId === authority.authorityId && method.kind === 'passkey') return method;
+  }
+  throw new Error('Owner fixture method is missing');
+}
+
+function ownerAttemptSecrets(walletId) {
+  return { walletId, binding: randomSecret(), sessionToken: randomSecret() };
+}
+
+async function associateGoogleIdentity(walletId, idToken, owner) {
+  const binding = ownerAttemptSecrets(walletId);
+  const prepared = await request('prepare-association', binding);
+  assert.equal(prepared.body.ok, true);
+  const exchange = await request('exchange', { walletId, attemptId: prepared.body.value.attemptId, idToken });
+  assert.equal(exchange.body.ok, true, JSON.stringify(exchange));
+  return completeIdentityAction('associate', {
+    ...binding, attemptId: prepared.body.value.attemptId, code: exchange.body.value.code,
+  }, owner);
+}
+
+async function unlinkIdentity(walletId, associationId, owner) {
+  const binding = ownerAttemptSecrets(walletId);
+  const prepared = await request('prepare-unlink', { ...binding, associationId });
+  assert.equal(prepared.body.ok, true);
+  return completeIdentityAction('unlink', {
+    ...binding, attemptId: prepared.body.value.attemptId, code: prepared.body.value.code,
+  }, owner);
+}
+
+async function completeIdentityAction(action, binding, owner) {
+  const response = await request('owner-challenge', binding);
+  assert.equal(response.body.ok, true);
+  const challenge = response.body.value;
+  const rpId = owner.authMethod.rpId;
+  const credentialId = owner.authMethod.credentialIdB64u;
+  const key = ownerKeys.get(credentialId);
+  const clientData = Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge: challenge.challengeB64u, origin: serverState.origin }));
+  const counter = Buffer.alloc(4);
+  counter.writeUInt32BE(++key.counter);
+  const authenticatorData = Buffer.concat([createHash('sha256').update(rpId).digest(), Buffer.from([5]), counter]);
+  const signed = Buffer.concat([authenticatorData, createHash('sha256').update(clientData).digest()]);
+  const factorProof = {
+    kind: 'passkey', walletId: binding.walletId, rpId, credentialIdB64u: credentialId,
+    challenge_digest: challenge.challengeB64u,
+    webauthn_authentication: {
+      id: credentialId, rawId: credentialId, type: 'public-key', authenticatorAttachment: 'platform',
+      response: { clientDataJSON: clientData.toString('base64url'), authenticatorData: authenticatorData.toString('base64url'), signature: sign('sha256', signed, key.privateKey).toString('base64url') },
+      clientExtensionResults: {},
+    },
+  };
+  const result = await request(action, { ...binding, factorProof });
+  assert.equal(result.body.ok, true, JSON.stringify(result));
+  const replay = await request(action, { ...binding, factorProof });
+  assert.deepEqual(replay.body, result.body);
+  const sessions = await database.prepare('SELECT COUNT(*) AS count FROM wallet_session_authorizations_v2').first();
+  assert.equal(sessions.count, 0);
+  return result;
+}
+
+function ownerOperationService(authorization, tenantId) {
+  return {
+    tenantId,
+    buildVerifiedOwnerProof: authorization.buildVerifiedOwnerProof.bind(authorization),
+    readAuthorizedOperation: authorization.readAuthorizedOperation.bind(authorization),
+    readAuthorizedOperationById: authorization.readAuthorizedOperationById.bind(authorization),
+    recordVerifiedWalletOperationFactorEvidenceSet: authorization.recordVerifiedWalletOperationFactorEvidenceSet.bind(authorization),
+    admitAuthorizedOperation: authorization.admitAuthorizedOperation.bind(authorization),
+    completeAuthorizedOperation: authorization.completeAuthorizedOperation.bind(authorization),
+  };
 }

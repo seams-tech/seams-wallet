@@ -1,3 +1,4 @@
+import { prepareOwnerNearTransaction, resumeOwnerNearTransaction } from './ownerNearOperation';
 import { accountExists } from '@/core/rpcClients/near/accountExists';
 import type { NearClient } from '@/core/rpcClients/near/NearClient';
 import type { NearSignerCapability } from '@/SeamsWeb/signingSurface/types';
@@ -26,6 +27,8 @@ type NearDependencies = {
 export function createNearSignerCapability(deps: NearDependencies): NearSignerCapability {
   const signer = new NearSigner(deps);
   return {
+    prepareOwnerTransaction: prepareOwnerNearTransaction.bind(null, deps.commands.ownerOperation),
+    resumeOwnerTransaction: resumeOwnerNearTransaction.bind(null, deps.commands.ownerOperation),
     accountExists: accountExists.bind(null, deps.nearClient),
     signAndSendTransaction: signer.signAndSendTransaction.bind(signer),
     signTransaction: signer.signTransaction.bind(signer),

@@ -48,6 +48,7 @@ const foundingAuthMethodIdFixture = allocateWalletAuthMethodId('founding-fixture
 
 const registrationIntent = {
   version: 'registration_intent_v1',
+  completion: 'wallet_session',
   foundingWalletAuthMethodId: foundingAuthMethodIdFixture,
   walletId: walletIdFromString('wallet_alice'),
   authMethod: {

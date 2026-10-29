@@ -1,6 +1,6 @@
 import { buildRelayerJsonPostRequestInit, normalizeRelayerBaseUrl } from './relayerHttp';
 import { type WalletRecoverySetRotationWireV1 } from '@shared/wallet-recovery/walletRecoveryEnvelopeSet';
-import type { WalletCustodyAdminOperation } from '@shared/authorization/walletCustodyOperation';
+import type { WalletOwnerAdminOperation } from '@shared/authorization/walletOwnerOperation';
 import type { WebAuthnAuthenticationCredential } from '@/core/types/webauthn';
 
 const WALLET_RECOVERY_ROTATE_PATH = '/wallets/recovery/rotate';
@@ -96,7 +96,7 @@ export async function requestWalletCustodyEmailOtpChallenge(args: {
   readonly relayUrl: string;
   readonly walletId: string;
   readonly providerSubjectId: string;
-  readonly operation: WalletCustodyAdminOperation;
+  readonly operation: WalletOwnerAdminOperation;
   readonly payload: Record<string, unknown>;
   readonly requestOrigin?: string;
   readonly fetchImpl?: typeof fetch;

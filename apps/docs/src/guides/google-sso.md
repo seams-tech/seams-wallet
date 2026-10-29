@@ -1,13 +1,13 @@
 ---
 title: Bring your own Google authentication
-description: Reuse an application's Google SSO login for associated wallet settings in SDK 0.28.0.
+description: Reuse an application's Google SSO login for associated wallet settings in SDK 0.29.0.
 ---
 
 # Bring your own Google authentication
 
 Use the application's existing Google ID token to open an associated wallet without another login prompt.
 This flow grants settings access. Signing and custody operations retain their existing authentication requirements.
-SDK **0.28.0** supports Google as its first BYO auth provider.
+SDK **0.29.0** supports direct Google trust and [application-session handoff](/guides/application-auth).
 Pass the Google **ID token** issued for the configured OAuth client. Google access tokens and arbitrary WebAuthn assertions are not supported by this API.
 
 ## Configure trust
@@ -33,16 +33,16 @@ Increase the static configuration revision whenever trust changes.
 
 ## Associate a wallet once
 
-While the owner has an authenticated wallet session, verify their Google identity and associate it:
+Verify the Google identity and request a fresh wallet-origin owner approval:
 
 ```ts [Partial example]
-const association = await seams.auth.associateExternalAuth({ walletId, idToken });
+const association = await seams.auth.associateExternalAuth({ method: 'google', walletId, idToken });
 if (!association.ok) {
   showAuthenticationError(association.code);
 }
 ```
 
-For new wallets, call this after normal registration completes and the owner session is available.
+For new NEAR-only passkey wallets, `registration.registerOwnerWallet` supports onboarding without a reusable signing session.
 Association preserves the wallet's custody seed, keys, and signing permissions.
 Matching email addresses never create an association automatically.
 The API uses Google's stable subject identifier and the current application environment.
@@ -85,7 +85,7 @@ Content-Type: application/json
 {
   "walletId": "SELECTED_WALLET_ID",
   "attemptId": "PREPARED_ATTEMPT_ID",
-  "idToken": "GOOGLE_ID_TOKEN"
+  "proof": { "kind": "google", "idToken": "GOOGLE_ID_TOKEN" }
 }
 ```
 
@@ -136,7 +136,7 @@ Wallet relocation preserves associations. External sessions and pending handoffs
 
 ## Verification
 
-The published SDK supports this flow in **0.28.0**, with wallet iframe protocol **18.0.0**.
+SDK **0.29.0** uses wallet iframe protocol **19.0.0**.
 
 Run `pnpm -C packages/wallet build:sdk`, then `node tests/e2e/external-auth.e2e.mjs` from the repository root.
 The scenario writes `.artifacts/external-auth/result.json` and a settings screenshot.

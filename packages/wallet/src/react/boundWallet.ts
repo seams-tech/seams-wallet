@@ -1,3 +1,7 @@
+import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
+import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
+import type { OwnerNearOperation, OwnerNearRecovery } from '../SeamsWeb/publicApi/ownerNearOperation';
+import type { TransactionInput } from '@/core/types/actions';
 import type { ReviewedTransactionInput } from './transactionReview/contract';
 import { createReviewedBoundCalls } from './transactionReview/boundCalls';
 import type { ReviewOwner, ReviewHostController } from './transactionReview/controller';
@@ -62,7 +66,8 @@ export interface BoundTempoSigner {
   ): ReturnType<TempoSignerCapability['signAndSendTransaction']>;
 }
 
-export interface BoundWallet {
+export interface SigningBoundWallet {
+  readonly access: 'wallet';
   readonly walletId: string;
   /** The exact reference every bound call authorizes. */
   readonly walletSession: WalletSessionRef;
@@ -73,12 +78,37 @@ export interface BoundWallet {
   exportKey(input: WithoutNearSubject<ExportKeyInput>): Promise<KeyExportOutcome>;
 }
 
+export interface ReadableBoundWallet {
+  readonly access: 'external';
+  readonly walletId: string;
+  readonly authentication: ExternalWalletAuthentication;
+  readonly near: {
+    readonly accountId: string;
+    prepareOwnerTransaction(input: { readonly transaction: TransactionInput }): OwnerNearOperation;
+    resumeOwnerTransaction(input: { readonly recovery: OwnerNearRecovery }): OwnerNearOperation;
+  } | null;
+}
+
+export type BoundWallet = ReadonlyExclusiveUnion<SigningBoundWallet | ReadableBoundWallet>;
+
 export function createBoundWallet(
   seams: SeamsWeb,
   loginState: AuthenticatedLoginState,
   host: ReviewHostController | null,
   owner: ReviewOwner,
 ): BoundWallet {
+  if (loginState.access === 'external') {
+    return {
+      access: 'external',
+      walletId: loginState.walletId,
+      authentication: loginState.externalSettings.authentication,
+      near: loginState.nearAccountId ? {
+        accountId: loginState.nearAccountId,
+        prepareOwnerTransaction: prepareReadableOwnerTransaction.bind(null, seams, loginState.externalSettings.authentication, loginState.nearAccountId),
+        resumeOwnerTransaction: resumeReadableOwnerTransaction.bind(null, seams, loginState.externalSettings.authentication),
+      } : null,
+    };
+  }
   const { walletId, nearAccountId } = loginState;
   const walletSession = walletSessionRefFromSession({ walletId });
   const nearAccount: NearAccountRef | null = nearAccountId
@@ -106,6 +136,7 @@ export function createBoundWallet(
       : null;
 
   return {
+    access: 'wallet',
     walletId,
     walletSession,
     near,
@@ -134,7 +165,7 @@ function exportKey(
   seams: SeamsWeb,
   walletSession: WalletSessionRef,
   nearAccount: NearAccountRef | null,
-  input: Parameters<BoundWallet['exportKey']>[0],
+  input: Parameters<SigningBoundWallet['exportKey']>[0],
 ): Promise<KeyExportOutcome> {
   if (input.kind === 'ed25519') {
     return seams.keys.exportKey({
@@ -144,4 +175,12 @@ function exportKey(
     });
   }
   return seams.keys.exportKey({ ...input, walletSession });
+}
+
+function prepareReadableOwnerTransaction(seams: SeamsWeb, authentication: ExternalWalletAuthentication, nearAccountId: string, input: { readonly transaction: TransactionInput }): OwnerNearOperation {
+  return seams.near.prepareOwnerTransaction({ authentication, nearAccountId, transaction: input.transaction });
+}
+
+function resumeReadableOwnerTransaction(seams: SeamsWeb, authentication: ExternalWalletAuthentication, input: { readonly recovery: OwnerNearRecovery }): OwnerNearOperation {
+  return seams.near.resumeOwnerTransaction({ authentication, recovery: input.recovery });
 }

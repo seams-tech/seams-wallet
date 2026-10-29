@@ -629,7 +629,7 @@ function randomNonce(): Uint8Array {
   return nonce;
 }
 
-function buildPasskeyEd25519YaoLocalMaterialRecordV1(input: {
+export function buildPasskeyEd25519YaoLocalMaterialRecordV1(input: {
   target: PasskeyEd25519YaoLocalMaterialTargetV1;
   activeClient: RouterAbEd25519YaoSealableActiveClientV1;
   identity: Ed25519YaoLocalMaterialIdentity;

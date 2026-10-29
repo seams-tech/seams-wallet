@@ -51,6 +51,7 @@ async function registerWallet(
   const context = getContext();
   return await registerWalletWithUnifiedCeremony({
     context,
+    completion: args.completion,
     authMethod: args.authMethod,
     wallet: args.wallet,
     signerSelection: args.signerSelection,

@@ -220,7 +220,7 @@ export class WalletHostSessionObserver {
       try {
         const { revision, state, session } = await this.readObservation(payload, authorityRevision);
         this.assertActive();
-        if (selection.changed && this.runtime.preferences.getCurrentWalletId() === null) {
+        if (selection.changed && session.authentication.kind !== 'external_authenticated' && this.runtime.preferences.getCurrentWalletId() === null) {
           publish({
             revision: nextSessionObservationRevision(),
             walletId: null,
@@ -284,9 +284,10 @@ export class WalletHostSessionObserver {
       return {
         revision,
         state: {
-          kind: 'wallet_unlocked_without_signing_session',
+          kind: 'external_read',
           walletId: externalSession.authentication.walletId,
-          reason: 'absent',
+          externalSessionId: externalSession.authentication.sessionId,
+          expiresAtMs: externalSession.authentication.expiresAtMs,
         },
         session: externalSession,
       };

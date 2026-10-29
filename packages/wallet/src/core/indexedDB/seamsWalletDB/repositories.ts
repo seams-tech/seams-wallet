@@ -538,6 +538,7 @@ export type StoreWalletRegistrationPublicationInputV1 = Omit<
 };
 
 type WalletRegistrationSessionPublicationV1 =
+  | { readonly kind: 'owner_operations'; readonly walletSession?: never; readonly operationCredential?: never }
   | {
       readonly kind: 'issued';
       readonly walletSession: ActiveWalletSessionV1;
@@ -7303,11 +7304,12 @@ export class SeamsWalletRepositories {
     });
     const walletSession = input.walletSessionPublication.walletSession;
     if (
+      walletSession !== undefined && (
       walletSession.walletId !== pending.walletId ||
       walletSession.authorityId !== foundingAuthority.authority.authorityId ||
       walletSession.authMethodId !== pending.walletAuthMethodId ||
       walletSession.authorityDigestB64u !== foundingAuthority.authority.authorityDigestB64u ||
-      walletSession.authorityRevocationEpoch !== foundingAuthority.authority.revocationEpoch
+      walletSession.authorityRevocationEpoch !== foundingAuthority.authority.revocationEpoch)
     ) {
       throw new Error('registration Wallet Session identity does not match the pending wallet');
     }
@@ -7411,6 +7413,8 @@ export class SeamsWalletRepositories {
         active: input.walletSessionPublication.walletSession,
         operationCredential: input.walletSessionPublication.operationCredential,
       });
+    } else if (input.walletSessionPublication.kind === 'owner_operations') {
+      sessionPublication = 'locked_identity';
     } else {
       const existingSession = await readExactActiveWalletSessionForScopeInTransaction({
         ctx,

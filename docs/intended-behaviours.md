@@ -18,6 +18,10 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 
 - An application can exchange an existing Google ID token for settings access after explicit owner-authorized identity association.
 - Provider trust belongs to the application environment. The server verifies Google signature, issuer, audience, authorized party, and expiry.
+- An explicitly configured application issuer can attest its authenticated user with an Ed25519-signed assertion bound to the Seams attempt, wallet, and environment.
+- Application assertions expire within two minutes. Settings sessions expire within one hour and no later than the authenticated application session.
+- Google and application identity domains remain distinct. A user identity is scoped by its provider, issuer, and stable subject.
+- Login-method changes in the application retain the same application subject and wallet association. Backend credentials alone cannot bypass the configured issuer signature.
 - The wallet ID selects an associated wallet. Email matching and an application API key alone never establish wallet ownership.
 - Direct browser credentials and backend-held credentials converge on the same association and scoped session admission.
 - Backend handoffs bind an expiring attempt to its original hosted browser secrets and application origin.
@@ -27,9 +31,24 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - Owner operations retain their authorization requirements. A settings credential fails owner-session admission.
 - Reload restores only a server-valid session for the same application environment and embedding origin.
 - Logout, explicit lock, and account switching supersede pending exchanges. A late response cannot reinstall an earlier session.
-- Sessions expire within one hour and no later than their Google credential. Trust revision changes, association removal, and authority revocation deny subsequent reads.
+- Sessions expire within one hour and no later than their Google credential or attested application session. Trust revision changes, association removal, and authority revocation deny subsequent reads.
 - Relocation preserves durable identity associations through the authorization snapshot. External sessions and handoffs are re-established at the new home.
 - `tests/e2e/external-auth.e2e.mjs` exercises the production verifier, D1 stores, HTTP handlers, SDK iframe, and React settings with redacted evidence.
+
+## Application-connected owner operations
+
+- Association and unlink require a fresh, expiring wallet-owner proof bound to the exact identity change. A reusable Wallet Session is unnecessary.
+- A NEAR-only passkey wallet can complete `registerOwnerWallet` without issuing a Wallet Session, quota, credential, or export capability.
+- The registration intent binds its completion policy. The local profile, locked owner selection, and sealed signing material publish together.
+- An external read connection can prepare a NEAR transaction after cold start or reload when its enrolled passkey and encrypted material remain available.
+- `near.prepareOwnerTransaction` always requests fresh owner proof, including when reusable authority exists elsewhere in the runtime.
+- Proof binds the wallet, signer, network, exact transaction, and expiry. One approval authorizes one operation.
+- Temporary signing material is disposed after signing. The operation creates no reusable authority.
+- Cancellation, expiry, account switching, and configuration revocation cannot install authority or replace the read connection.
+- SDK and React states distinguish readable access, approval, submission, cancellation, expiry, and unknown outcomes.
+- The wallet persists a public transaction hash before broadcasting. Recovery queries that transaction and never rebroadcasts it.
+- An unresolved broadcast blocks a subsequent operation on the same wallet connection until recovery settles it.
+- Application passkeys authenticate their application relying party. The initial owner-approval API requires an enrolled wallet-origin owner passkey.
 
 ## Wallet display language
 
@@ -1027,7 +1046,7 @@ throughout the resize. Reduced-motion behavior remains immediate.
 
 ### Wallet-management protocol
 
-- Wallet-management requests send `X-Seams-Wallet-Protocol: 4`. This wire
+- Wallet-management requests send `X-Seams-Wallet-Protocol: 5`. This wire
   contract covers registration, signer setup and inventory, auth-method
   management, and implicit NEAR funding through the wallet-management routes.
 - Missing or unsupported values return HTTP 409 with code
@@ -2439,16 +2458,16 @@ One host observation supplies the exact session state and the complete public
 server-status reads. A lock, wallet-selection change, or authority change during
 that observation makes the host discard it and observe again. Each later explicit
 `getSession` or `refreshSession` request obtains fresh server status.
-Registration publishes that observation before returning. An informational
+Session-backed registration publishes that observation before returning. An informational
 startup parity check cannot delay session observation or registration completion.
-Operations that require sealed-refresh parity still await and enforce it. A NEAR-only
+Operations that require sealed-refresh parity still await and enforce it. A session-backed NEAR-only
 registration's response states the session the server issued as its last step,
 so this one observation takes the session's status from the response and sends
 no status request. A registration that includes ECDSA observes the server,
 because its session changes after the response. React uses its session
 subscription to display the registered wallet without another status request.
 Signing prepare continues to enforce current revocation, expiry, and quota state.
-The iframe protocol requires matching client and wallet-host assets at version 16.0.0.
+The iframe protocol requires matching client and wallet-host assets at version 19.0.0.
 
 ### Connection and operation preparation
 
