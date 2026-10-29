@@ -2,6 +2,26 @@
 
 Status: in progress. Date: October 29, 2026.
 
+The [matched hosted capacity comparison](router-ab/ml-dsa-65-capacity-guard-hosted-report.md) completes with 64 verified signatures in each twelve-minute capacity screen.
+Complete-cycle rates are 5.035 and 5.072 signatures/minute, including full reserve restoration.
+Both use a separate forty-five-second benchmark cooldown and two experimental producer slots.
+No empty-pool response occurs. All starting material is consumed, both ledgers balance, and 174 retained signatures verify independently.
+The candidate consumes fewer candidates, so its lower total CPU does not establish a runtime speedup.
+The unchanged sixty-second operational control reaches 3.991 signatures/minute.
+The intended baseline Wasm matches the old 3.78 campaign. Execution variation remains unresolved.
+The controlled stale-stock guard skips four unnecessary jobs before cryptographic work.
+A baseline closing tail spends most of its time generating correlations serially for one depleted key.
+A separate candidate trace preserves an acknowledged wake with an overdue alarm. Keep that scheduling condition separate from parallelism.
+
+The next implementation tasks are:
+
+- Prototype fair parallel refill for one depleted wallet when the second producer is idle. Account for pending output before granting work.
+- Preserve priority for other waiting wallets, exact job fencing, and the same thirty-two-candidate capacity.
+- Check the preserved overdue-alarm condition separately, then compare serial and parallel refill with identical real deficits and complete CPU/material accounting.
+
+Preparation remains on Workers. Wallet-seed recovery, FIPS export, and two-at-once consumption remain unchanged.
+Production cooldown and preparation-slot defaults remain unchanged. The eight temporary Workers are retained for the explicitly requested follow-up prototype.
+
 The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
 The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
 The AES output-bit experiment regressed and was removed.
