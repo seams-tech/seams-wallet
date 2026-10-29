@@ -13,7 +13,7 @@ The wallet connection grants settings access. Each transaction requires fresh wa
 
 Set `PUT /console/environments/:environmentId/external-auth` through an authenticated Console administration session:
 
-```json
+```json [Partial example]
 {
   "kind": "application",
   "issuer": "https://app.example.com",
@@ -36,7 +36,7 @@ Wallet keys remain unchanged.
 Existing wallets need one association approved by an enrolled wallet-origin owner passkey.
 The owner does not need to open a reusable signing session.
 
-```ts
+```ts [Partial example]
 const attempt = await seams.auth.prepareExternalAssociation(walletId);
 if (!attempt.ok) throw new Error(attempt.code);
 const { code } = await applicationBackend.handoff(attempt.value);
@@ -55,7 +55,7 @@ This onboarding API initially supports NEAR-only passkey wallets.
 
 ## Connect an existing application session
 
-```ts
+```ts [Partial example]
 const attempt = await seams.auth.prepareExternalAuth(walletId);
 if (!attempt.ok) throw new Error(attempt.code);
 const { code } = await applicationBackend.handoff(attempt.value);
@@ -76,7 +76,7 @@ Read access lasts at most one hour and expires with the authenticated applicatio
 
 ## Approve one NEAR transaction
 
-```ts
+```ts [Partial example]
 const operation = seams.near.prepareOwnerTransaction({
   authentication: connected.value,
   nearAccountId,

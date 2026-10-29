@@ -14,7 +14,7 @@ Googleログインとアプリのパスキー認証には、同じ安定した�
 
 Consoleの管理者セッションで、環境の `PUT /console/environments/:environmentId/external-auth` を設定します。
 
-```json
+```json [部分的な実装例]
 {
   "kind": "application",
   "issuer": "https://app.example.com",
@@ -43,7 +43,7 @@ Googleを直接信頼する設定からアプリ発行者の設定へ移行す�
 既存のウォレットは、次の操作でアプリのユーザーに関連付けます。
 所有者がウォレットのパスキーで承認します。
 
-```ts
+```ts [部分的な実装例]
 const attempt = await seams.auth.prepareExternalAssociation(walletId);
 if (!attempt.ok) throw new Error(attempt.code);
 const { code } = await applicationBackend.handoff(attempt.value);
