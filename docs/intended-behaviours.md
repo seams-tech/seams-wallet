@@ -3527,6 +3527,7 @@ The experimental public SDK can add an ML-DSA signer to an existing passkey wall
 - Bound installation by its registration claim deadline, including gate waiting. Drain both preparation futures on ordinary errors; late remote replies must not complete an expired registration.
 - Prepare the minimum admission-ready signing reserve during registration, with at least two batches required by the current generic format. Refill the remaining target after activation.
 - Dispatch refill through a durable producer queue. Pool inventory and admission must not await complete preparation.
+- Deliver each consumed prepared pair through the bounded role-private binary response only after its storage transaction commits. Malformed or interrupted delivery must fail the operation without reviving consumed material; preserve only the unopened intersection proved by both participants.
 - When two producers are configured, a depleted key can borrow an idle producer only while no other live key holds a waiting queue turn. Preserve foreground signing and registration priority.
 - Derive each refill width from occupied batch identities and live pending jobs. Count visible pending output once. Recheck capacity before cryptographic work and preserve immutable job identities.
 - Separate live pool occupancy from signing eligibility. Every unexpired Ready or Reserved pair counts toward publication capacity, including pairs outside the next operation's validity horizon. Enforce the configured bound in the role's publication transaction.

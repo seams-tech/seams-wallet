@@ -166,6 +166,7 @@ export class TakeBarrier {
   async fetch(request) {
     const path = new URL(request.url).pathname;
     if (path === '/arm') { await this.state.storage.put('armed', true); return new Response('Armed'); }
+    if (path === '/arm-truncated') { await this.state.storage.put('truncate_once', true); return new Response('Armed'); }
     if (path === '/lost') return Response.json(await this.state.storage.get('lost') ?? null);
     if (path === '/takes') return Response.json(await this.state.storage.get('takes') ?? []);
     const command = await request.clone().json();
@@ -177,6 +178,15 @@ export class TakeBarrier {
       takes.push({ operation: command.permit.request.operation,
         material: command.command === 'take' ? command.batch : command.permit.batches[0] });
       await this.state.storage.put('takes', takes);
+    }
+    if ((command.command === 'load_signing_inputs' || command.command === 'take')
+        && response.status === 200 && await this.state.storage.get('truncate_once')) {
+      await this.state.storage.delete('truncate_once');
+      await this.state.storage.put('lost', command.permit);
+      const bytes = await response.arrayBuffer();
+      return new Response(bytes.slice(0, 20), {
+        status: 200, headers: { 'content-type': 'application/octet-stream' },
+      });
     }
     if ((command.command === 'load_signing_inputs' || command.command === 'take')
         && response.status === 200 && await this.state.storage.get('armed')) {
@@ -486,7 +496,8 @@ async function runDurableCases(emptyInput) {
   assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth), emptyReplay);
   observations.emptyPoolRetryPreservesOperationAndSignature = true;
   observations.expiredUnadmittedRecovery = await checkExpiredUnadmittedRecovery(emptyInput.request);
-  observations.unopenedAfterFailure = await checkUnopenedAfterFailure();
+  observations.unopenedAfterFailure = await checkUnopenedAfterFailure('lost_reply');
+  observations.truncatedMaterialDelivery = await checkUnopenedAfterFailure('truncated');
   await waitReady(policy.refill_target_batches);
   for (let index = 0; index < 8 && observations.signatures.length < 3; index += 1) {
     await waitReady(policy.refill_target_batches);
@@ -551,6 +562,13 @@ async function runDurableCases(emptyInput) {
       observations.publicationCompletionRecovery = {
         job, terminalState: await producerState(job),
         pairedReady: true, leaseReleased: true,
+        publicationEvidence: {
+          state: 'paired_ready_after_lost_reply',
+          batches: preparationBatches(job),
+          readyA: a.ready.map(batchId),
+          readyB: b.ready.map(batchId),
+          preparationEventCount: preparationEvents.length,
+        },
       };
     }
     if (index === 0) {
@@ -1311,14 +1329,13 @@ function committedExecutionEvidence() {
         }
         assert.ok(commitment >= 0, 'Consumed refill lacks completed private commitments');
         if (publication < 0) {
-          const evidence = observations.interruptedProducer.publicationEvidence;
-          assert.equal(evidence.state, 'paired_ready_before_interruption');
-          assert.ok(evidence.batches.includes(material), 'Missing publication is outside the interrupted job');
+          const evidence = durablePublicationEvidence(material);
+          assert.ok(evidence, 'Missing publication lacks an exact paired-ready proof');
           assert.ok(evidence.readyA.includes(material) && evidence.readyB.includes(material),
             'Interrupted publication lacks paired durable ready state');
           assert.ok(commitment < evidence.preparationEventCount,
             'Private commitments were not observed before durable ready state');
-          publicationSources.push({ material, source: 'durable_ready_before_interruption' });
+          publicationSources.push({ material, source: evidence.state });
         } else {
           assert.ok(publication > commitment, 'Refill publication preceded private commitment completion');
           publicationSources.push({ material, source: 'producer_completion' });
@@ -1826,7 +1843,7 @@ async function dispatchFixtureMessage(label) {
   assert.equal(response.status, 200, await response.clone().text());
   return { message, operation: JSON.parse(owner.admitted.operation.encode()).request.operation, result: await response.json() };
 }
-async function checkUnopenedAfterFailure() {
+async function checkUnopenedAfterFailure(fault) {
   await waitReady(policy.refill_target_batches);
   await new Promise(waitForQuietPool);
   await runtime.dispose();
@@ -1834,9 +1851,9 @@ async function checkUnopenedAfterFailure() {
   runtime = await createRuntime();
   await runtime.ready;
   const barrier = clients.takeB;
-  assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
+  assert.equal((await barrier.fetch('https://fault.internal' + materialFaultPath(fault))).status, 200);
   const failureStarted = performance.now();
-  const failed = await dispatchFixtureMessage('retained-after-failure');
+  const failed = await dispatchFixtureMessage('retained-after-' + fault);
   const failureSettledMs = performance.now() - failureStarted;
   assert.ok(failureSettledMs < 5000, 'Input-load failure waited for signing expiry');
   assert.equal(failed.result.status, 'existing');
@@ -1858,7 +1875,7 @@ async function checkUnopenedAfterFailure() {
     assert.notEqual((await raw(role, '/router-ab/ml-dsa/role', {command:'take',permit:lost,batch:retained[0]}, serviceAuth)).status, 200);
   }
   await new Promise(waitForQuietPool);
-  const fresh = await dispatchFixtureMessage('fresh-after-retained-failure');
+  const fresh = await dispatchFixtureMessage('fresh-after-' + fault);
   assert.equal(fresh.result.operation.state, 'succeeded');
   verifyStandardSignature(records[0].public_key, fresh.message, [], fresh.result.operation.signature);
   const aBarrier = clients.takeA;
@@ -1894,3 +1911,20 @@ function retainedTake(operation, retained, event) {
   return batchId(event.operation) === operation && retained.has(batchId(event.material));
 }
 function takenId(event) { return batchId(event.material); }
+
+function materialFaultPath(fault) {
+  switch (fault) {
+    case 'lost_reply': return '/arm';
+    case 'truncated': return '/arm-truncated';
+    default: throw new Error('Unknown material delivery fault');
+  }
+}
+
+function durablePublicationEvidence(material) {
+  const interrupted = observations.interruptedProducer.publicationEvidence;
+  const lostReply = observations.publicationCompletionRecovery.publicationEvidence;
+  for (const evidence of [interrupted, lostReply]) {
+    if (evidence.batches.includes(material)) return evidence;
+  }
+  return null;
+}
