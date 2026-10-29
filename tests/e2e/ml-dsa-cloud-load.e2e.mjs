@@ -220,7 +220,7 @@ async function collect() {
     nominalDemandsPerMinute: input.nominalDemandsPerMinute,
     policy: input.policy,
     deploymentVersions: input.versions,
-    retryPolling: { minimumMs: 1000, maximumMs: 5000 },
+    retryPolling: { minimumMs: 100, serviceCapacityMaximumMs: 500, otherReasons: 'server_retry_at' },
     scriptSha256: createHash('sha256')
       .update(await readFile(new URL('./ml-dsa-cloud-load-worker.mjs', import.meta.url)))
       .digest('hex'),
