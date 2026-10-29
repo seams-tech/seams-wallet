@@ -21,7 +21,7 @@ description: Seamsの登録、iframe、セッション、署名、プロビジ�
 バックエンドは、非対応のウォレット管理プロトコルをHTTP 409と更新案内で拒否します。
 案内を表示し、対応するアプリとウォレットアセットを再読み込みしてください。
 同じ非互換リクエストの自動再試行を停止します。[デプロイ要件](/ja/deploy-and-operate/hosted-integration)に従ってください。
-アプリとウォレットホストは、iframeプロトコル17.0.0でも一致する必要があります。
+アプリとウォレットホストは、iframeプロトコル18.0.0でも一致する必要があります。
 
 ## 登録後に署名できるがConsoleに表示されない {#registration-signs-but-is-absent-from-console}
 

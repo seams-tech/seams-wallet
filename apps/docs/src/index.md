@@ -18,7 +18,7 @@ That path needs no Seams provider or login. It is a development preview.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.26.0
+pnpm add @seams/wallet@0.28.0
 ```
 
 ## 2. Mount the provider
@@ -30,7 +30,7 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.26.0**. Keep the wallet-origin assets and
+These docs target `@seams/wallet` **0.28.0**. Keep the wallet-origin assets and
 `@seams/wallet-server` on the matching release. See
 [the deployment requirements](/deploy-and-operate/hosted-integration)
 before updating an existing integration.
@@ -38,8 +38,8 @@ before updating an existing integration.
 [VoiceID](/concepts/auth-methods/voiceid) is an optional package for voice enrollment,
 unlock, and reviewed transfer approval. Its engine and models load only when VoiceID is used.
 
-The wallet iframe protocol is **17.0.0**. The recovery CLI uses **0.25.0**.
-See [Release 0.26.0](/releases) for integration and deployment requirements.
+The wallet iframe protocol is **18.0.0**. The recovery CLI uses **0.28.0**.
+See [Release 0.28.0](/releases) for integration and deployment requirements.
 
 <<< ./examples/setup.tsx
 

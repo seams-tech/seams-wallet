@@ -22,7 +22,7 @@ rejects unsupported wallet-management protocols with HTTP 409 and an
 upgrade message. Display it and reload the matching application and wallet
 assets. Stop automatic retries of the same incompatible request. Follow the
 [deployment requirements](/deploy-and-operate/hosted-integration).
-The application and wallet host must also agree on iframe protocol 17.0.0.
+The application and wallet host must also agree on iframe protocol 18.0.0.
 
 ## Registration signs but is absent from Console
 

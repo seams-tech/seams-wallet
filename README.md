@@ -5,9 +5,9 @@ implementation crates, documentation, examples, and recovery CLI.
 
 Packages for this release:
 
-- `@seams/wallet@0.27.0` — browser SDK and React components.
-- `@seams/wallet-server@0.27.0` — server SDK and packaged Worker runtimes.
-- `@seams/voiceid@0.27.0` — optional VoiceID authentication plugin.
+- `@seams/wallet@0.28.0` — browser SDK and React components.
+- `@seams/wallet-server@0.28.0` — server SDK and packaged Worker runtimes.
+- `@seams/voiceid@0.28.0` — optional VoiceID authentication plugin.
 - `@seams/wallet-cli@0.25.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
@@ -27,11 +27,11 @@ in the private `seams-tech/seams-monorepo` repository.
 ## Integrate the SDK
 
 ```sh
-npm install @seams/wallet@0.27.0
+npm install @seams/wallet@0.28.0
 # Server applications:
-npm install @seams/wallet-server@0.27.0
+npm install @seams/wallet-server@0.28.0
 # Applications that enable VoiceID:
-npm install @seams/voiceid@0.27.0
+npm install @seams/voiceid@0.28.0
 ```
 
 Use `WalletConnectorMenu` from `@seams/wallet/react` inside `SeamsWebProvider` for

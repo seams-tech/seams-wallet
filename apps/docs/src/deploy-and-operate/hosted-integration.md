@@ -103,7 +103,7 @@ Deploy the matching wallet host, Gateway, Wallet Runtime, Router, control plane,
 both Derivers, and Signing Worker.
 The private address-allocation response carries a batch, so the custody
 Workers must move together. The application and wallet host both use public
-wallet iframe protocol **17.0.0**.
+wallet iframe protocol **18.0.0**.
 
 Registration reuses committed admission, commits custody with its completion
 receipt, and can finish after A's validated completion without waiting for B's

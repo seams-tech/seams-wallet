@@ -11,8 +11,8 @@ approvals required for hosted operations. The CLI never accepts recovery or
 destination credentials through command-line arguments or environment
 variables.
 
-The launcher uses **0.25.0**. Its signed native assets are published at
-tag [`seams-cli-v0.25.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.25.0).
+The launcher uses **0.28.0**. Its signed native assets are published at
+tag [`seams-cli-v0.28.0`](https://github.com/seams-tech/seams-wallet/releases/tag/seams-cli-v0.28.0).
 
 Version 0.21.0 pins the replacement prelaunch recovery root. Old recovery kits and
 saved trust state cannot establish this new authority. Obtain new recovery packages
@@ -23,7 +23,7 @@ and connect from a clean trust file. The old root has no continuity bridge.
 Use Node.js 22 or later to install the launcher, and verify that it executes:
 
 ```bash
-npm install --global @seams/wallet-cli@0.25.0
+npm install --global @seams/wallet-cli@0.28.0
 seams-wallet --help
 ```
 

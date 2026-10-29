@@ -1,9 +1,29 @@
 ---
-title: Release 0.27.0
-description: Customizable wallet connection UI, consistent theming, explicit NEAR outcomes, and VoiceID recovery.
+title: Release 0.28.0
+description: Google BYO authentication for wallet settings, settings drawers, and configurable VoiceID models.
 ---
 
-# Release 0.27.0
+# Release 0.28.0
+
+Version **0.28.0** lets applications reuse a Google ID token to open associated wallet settings. Signing and custody operations keep their owner authentication requirements.
+
+| Component | Version |
+| --- | --- |
+| Browser SDK `@seams/wallet` | **0.28.0** |
+| Server SDK `@seams/wallet-server` | **0.28.0** |
+| Optional plugin `@seams/voiceid` | **0.28.0** |
+| Native CLI launcher `@seams/wallet-cli` | **0.28.0** |
+| Wallet iframe protocol | **18.0.0** |
+
+- `auth.authenticate` accepts Google credentials or a browser-bound backend handoff. An owner-authorized association is required.
+- Settings sessions have explicit read permission, origin binding, expiry, and revocation. They issue no signing quotas and open no custody envelopes.
+- Wallet settings support a responsive drawer and localized views of accounts, methods, and devices.
+- VoiceID supports configurable Citrinet and Aurora transcription models and includes updated phrase calibration tools.
+
+Upgrade the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together. Apply the server migrations before enabling external authentication.
+See the [authentication guide](/guides/authentication) for the supported flows.
+
+## Release 0.27.0
 
 Version **0.27.0** adds the default customizable wallet connector and improves authentication, receipt, and VoiceID flows.
 
