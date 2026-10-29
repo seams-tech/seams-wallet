@@ -73,14 +73,16 @@ type AccountMenuDropdownControl =
   | { isMenuOpen: boolean; onMenuOpenChange: AccountMenuOpenChange };
 
 type AccountMenuDropdownPresentation = { presentation?: 'dropdown' } & AccountMenuDropdownControl;
-type AccountMenuModalPresentation = {
-  presentation: 'modal';
+type AccountMenuDialogPresentation = {
+  presentation: 'modal' | 'drawer';
   isMenuOpen: boolean;
   onMenuOpenChange: AccountMenuOpenChange;
 };
 export type AccountMenuPresentation =
   | AccountMenuDropdownPresentation
-  | AccountMenuModalPresentation;
+  | AccountMenuDialogPresentation;
+
+export type AccountMenuPresentationMode = NonNullable<AccountMenuPresentation['presentation']>;
 
 export interface AccountMenuButtonOptions {
   /**

@@ -3,14 +3,15 @@ import { walletText } from '@/core/ui/messages';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { UserAccountButton } from './UserAccountButton';
 import { ProfileDropdown } from './ProfileDropdown';
-import { AccountMenuModal } from './AccountMenuModal';
+import { AccountSettingsDialog } from './AccountSettingsDialog';
+import type { AccountMenuPresentationMode } from './types';
 import { LockKeyholeIcon } from './icons/LockKeyholeIcon';
 import TouchIcon from './icons/TouchIcon';
 import { SEAMS_STANDARD_WORDMARK_PATH } from '../../../core/signingEngine/uiConfirm/ui/seamsWordmarkPaths';
 import './Web3AuthProfileButton.css';
 
 type AccountMenuButtonViewProps = {
-  presentation: 'dropdown' | 'modal';
+  presentation: AccountMenuPresentationMode;
   buttonRef: React.RefObject<HTMLDivElement | null>;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   trigger: React.ComponentProps<typeof UserAccountButton>;
@@ -32,10 +33,11 @@ function measurePanel(
 function observePanel(
   contentRef: React.RefObject<HTMLDivElement | null>,
   isOpen: boolean,
+  presentation: AccountMenuPresentationMode,
   setHeight: React.Dispatch<React.SetStateAction<number | null>>,
 ): (() => void) | undefined {
   const content = contentRef.current;
-  if (!content || !isOpen) {
+  if (!content || !isOpen || presentation === 'drawer') {
     setHeight(null);
     return;
   }
@@ -46,24 +48,27 @@ function observePanel(
   return observer.disconnect.bind(observer);
 }
 function closeWithEscape(
-  presentation: 'dropdown' | 'modal',
+  presentation: AccountMenuPresentationMode,
   onClose: () => void,
   event: React.KeyboardEvent,
 ): void {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
   event.preventDefault();
-  if (presentation === 'modal') event.stopPropagation();
+  if (presentation !== 'dropdown') event.stopPropagation();
   onClose();
 }
 
-function revealModalScreen(
-  presentation: 'dropdown' | 'modal',
+function revealDialogScreen(
+  presentation: AccountMenuPresentationMode,
   event: React.FocusEvent<HTMLDivElement>,
 ): void {
-  if (presentation !== 'modal' || !(event.target instanceof HTMLElement)) return;
+  if (presentation === 'dropdown' || !(event.target instanceof HTMLElement)) return;
   if (!event.target.matches('.seams-account-heading h2, .seams-account-identity')) return;
-  const dialog = event.currentTarget.closest('dialog.seams-account-modal');
-  if (dialog instanceof HTMLDialogElement) dialog.scrollTop = 0;
+  const scrollArea =
+    presentation === 'drawer'
+      ? event.target.closest<HTMLElement>('.seams-account-main')
+      : event.currentTarget.closest<HTMLElement>('dialog.seams-account-dialog');
+  if (scrollArea) scrollArea.scrollTop = 0;
 }
 
 function restoreTriggerFocus(
@@ -117,23 +122,24 @@ export function AccountMenuButtonView({
     trigger.isOpen,
   ]);
   const [height, setHeight] = useState<number | null>(null);
-  useLayoutEffect(observePanel.bind(null, contentRef, trigger.isOpen, setHeight), [
+  useLayoutEffect(observePanel.bind(null, contentRef, trigger.isOpen, presentation, setHeight), [
     trigger.isOpen,
     presentation,
   ]);
+  const panelOpen = presentation !== 'dropdown' || trigger.isOpen;
   const panel = (
     <div
       ref={buttonRef}
-      className={`seams-profile-button-morphable ${trigger.isOpen ? 'open' : 'closed'} ${className ?? ''}`}
-      style={trigger.isOpen ? style : { ...style, width: 'fit-content' }}
-      data-state={trigger.isOpen ? 'open' : 'closed'}
-      onFocusCapture={revealModalScreen.bind(null, presentation)}
+      className={`seams-profile-button-morphable ${panelOpen ? 'open' : 'closed'} ${className ?? ''}`}
+      style={panelOpen ? style : { ...style, width: 'fit-content' }}
+      data-state={panelOpen ? 'open' : 'closed'}
+      onFocusCapture={revealDialogScreen.bind(null, presentation)}
     >
-      {trigger.isOpen ? (
+      {panelOpen ? (
         <div
           className="seams-account-resize"
           onKeyDown={closeWithEscape.bind(null, presentation, dropdown.onClose)}
-          style={{ height: height ?? undefined }}
+          style={{ height: presentation === 'drawer' ? undefined : (height ?? undefined) }}
         >
           <div ref={contentRef} className="seams-account-panel-content">
             <header className="seams-account-origin">
@@ -156,6 +162,11 @@ export function AccountMenuButtonView({
                   <path d="m6 6 12 12M18 6 6 18" />
                 </svg>
               </button>
+              {presentation === 'drawer' ? (
+                <h2 className="seams-account-drawer-title">
+                  <WalletText message="Wallet settings" />
+                </h2>
+              ) : null}
             </header>
             <div className="seams-account-main" ref={dropdownRef}>
               {children ?? (
@@ -198,12 +209,25 @@ export function AccountMenuButtonView({
       )}
     </div>
   );
-  if (presentation === 'modal') {
-    return (
-      <AccountMenuModal isOpen={trigger.isOpen} onClose={dropdown.onClose}>
-        {panel}
-      </AccountMenuModal>
-    );
+  switch (presentation) {
+    case 'dropdown':
+      return panel;
+    case 'modal':
+    case 'drawer':
+      return (
+        <AccountSettingsDialog
+          presentation={presentation}
+          isOpen={trigger.isOpen}
+          onClose={dropdown.onClose}
+        >
+          {panel}
+        </AccountSettingsDialog>
+      );
+    default:
+      return assertNever(presentation);
   }
-  return panel;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported account menu presentation: ${String(value)}`);
 }

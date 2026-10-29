@@ -124,8 +124,8 @@ MeteorとHOTの公式アイコンを同梱しています。`options`の`icon`�
 その接続要求をキャンセルします。動きを減らすブラウザー設定にも対応します。
 
 `AccountMenuButton`の既定値は`presentation="dropdown"`です。SDKのトリガーボタンを表示します。
-アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`を指定します。
-モーダルでは`isMenuOpen`と`onMenuOpenChange`が必須です。SDKのトリガーボタンは表示しません。
+アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`または`presentation="drawer"`を指定します。
+どちらも`isMenuOpen`と`onMenuOpenChange`が必須です。SDKのトリガーボタンは表示しません。
 
 ```tsx [部分的な実装例]
 import { useState } from 'react';
@@ -142,7 +142,7 @@ function WalletSettingsControl() {
       </button>
       <AccountMenuButton
         nearAccountId={loginState.nearAccountId}
-        presentation="modal"
+        presentation="drawer"
         isMenuOpen={open}
         onMenuOpenChange={setOpen}
       />
@@ -151,7 +151,11 @@ function WalletSettingsControl() {
 }
 ```
 
-`SeamsWebProvider`内に配置してください。モーダルは`document.body`配下のポータルにテーマを維持して表示します。
+`SeamsWebProvider`内に配置してください。設定画面は`document.body`配下のポータルにテーマを維持して表示します。
+ドロワーはデスクトップでは行末側から、幅600px以下では画面下部から開きます。
+ヘッダーとフッターを固定し、内容をスクロールできます。色、余白、角丸、影はSDKのテーマ設定に従います。
+開閉は240msで動き、視差効果を減らす設定では即座に切り替わります。閉じる途中でも同じダイアログを開き直せます。
+中央に表示する場合は`presentation="modal"`を指定してください。
 フォーカスを内部に保ち、背景の操作とスクロールを止めます。閉じると、開く前にフォーカスされていた要素に戻します。
 Escape、閉じるボタン、背景のクリックは`onMenuOpenChange(false)`を呼びます。
 アプリから`open`を`false`に変更して閉じることもできます。閉じると画面遷移を初期状態に戻します。

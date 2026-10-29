@@ -11,6 +11,17 @@ const modal: AccountMenuButtonProps = {
   isMenuOpen: false,
   onMenuOpenChange: onOpenChange,
 };
+const drawer: AccountMenuButtonProps = {
+  nearAccountId: null,
+  presentation: 'drawer',
+  isMenuOpen: false,
+  onMenuOpenChange: onOpenChange,
+};
+const drawerPreview: AccountMenuButtonMockProps = {
+  presentation: 'drawer',
+  isMenuOpen: true,
+  onMenuOpenChange: onOpenChange,
+};
 const controlledDropdown: AccountMenuButtonProps = {
   nearAccountId: null,
   presentation: 'dropdown',
@@ -18,7 +29,20 @@ const controlledDropdown: AccountMenuButtonProps = {
   onMenuOpenChange: onOpenChange,
 };
 const preview: AccountMenuButtonMockProps = { presentation: 'dropdown', defaultOpen: false };
-void [dropdown, modal, controlledDropdown, preview];
+void [dropdown, modal, drawer, drawerPreview, controlledDropdown, preview];
+
+// @ts-expect-error Drawer settings require a controlled open state.
+const drawerWithoutOpen: AccountMenuButtonProps = {
+  nearAccountId: null,
+  presentation: 'drawer',
+  onMenuOpenChange: onOpenChange,
+};
+// @ts-expect-error Drawer settings require a close handler.
+const drawerWithoutChange: AccountMenuButtonProps = {
+  nearAccountId: null,
+  presentation: 'drawer',
+  isMenuOpen: true,
+};
 
 // @ts-expect-error Modal settings require an explicit controlled open state.
 const missingOpen: AccountMenuButtonProps = {
@@ -38,6 +62,13 @@ const missingDropdownChange: AccountMenuButtonProps = { nearAccountId: null, isM
 const invalidPresentation: AccountMenuButtonProps = { nearAccountId: null, presentation: 'page' };
 
 const defaultPreview = { defaultOpen: true };
+// @ts-expect-error Broad spreads cannot combine drawer control with a default open value.
+const mixedDrawerPreview: AccountMenuButtonMockProps = {
+  ...defaultPreview,
+  presentation: 'drawer',
+  isMenuOpen: true,
+  onMenuOpenChange: onOpenChange,
+};
 // @ts-expect-error Broad spreads cannot combine a default open value with modal control.
 const mixedPreview: AccountMenuButtonMockProps = {
   ...defaultPreview,
@@ -59,4 +90,7 @@ void [
   mixedPreview,
   mixedControl,
   invalidUncontrolled,
+  drawerWithoutOpen,
+  drawerWithoutChange,
+  mixedDrawerPreview,
 ];

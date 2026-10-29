@@ -611,20 +611,24 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 ## Wallet settings presentation
 
 - `AccountMenuButton` defaults to `presentation="dropdown"`, with its existing SDK trigger.
-  `presentation="modal"` renders no SDK trigger. The application controls it with
+  `presentation="modal"` and `presentation="drawer"` render no SDK trigger. The application controls either with
   required `isMenuOpen` and `onMenuOpenChange` props and can open it from any application button.
-  Modal settings use the same panel and routes in a themed portal under `document.body`.
+  Both settings presentations use the same panel and routes in a themed portal under `document.body`.
   A native dialog keeps page focus inside, makes the background inert, and restores the previously focused element on close.
   Escape, the close button, and a backdrop click request closure once. Programmatic closure follows application state.
   Backdrop dismissal requires both pointer press and release outside the dialog. Dragging from inside does not dismiss it.
-  Background scrolling stays locked while open. Short viewports scroll the dialog content.
-  Wallet-origin overlays can open above settings without closing the settings modal.
+  Background scrolling stays locked while open or closing. Short modal viewports scroll the dialog content.
+  The drawer uses the viewport's inline-end edge on desktop and a bottom sheet at widths up to 600px.
+  Its header and footer stay visible while its body scrolls. Navigation reveals the new screen at the top of that body.
+  Drawer dismissal retains the departing screen during its 240ms slide. Reopening interrupts dismissal without replacing the native dialog.
+  Closing removes the portal and releases its retained content. Reduced-motion users get immediate opening and closing.
+  Wallet-origin overlays can open above settings without closing settings.
   Closing resets navigation. `AccountMenuButtonMock` supports the same presentation and control props.
-- `AccountMenuButton` uses one fixed-width panel for overview, account addresses,
+- Dropdown and modal settings use one fixed-width panel for overview, account addresses,
   export selection, recovery entry, authentication methods, linked devices, and
   QR scanning. Back returns to the previous screen. Transaction preferences
   have their own resizing screen. Closing the panel resets navigation to the overview.
-- Screen changes animate the panel's measured height. Interruptions retarget from
+- In dropdown and modal settings, screen changes animate the panel's measured height. Interruptions retarget from
   the current height. Reduced motion disables resizing motion and keeps a content
   fade. The panel does not introduce an overlay backdrop for its nested screens.
 - Sensitive recovery backup and key export retain wallet-origin authentication and

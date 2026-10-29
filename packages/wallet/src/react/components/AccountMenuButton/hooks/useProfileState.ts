@@ -1,6 +1,10 @@
 import type React from 'react';
 import { useState, useRef, useEffect } from 'react';
-import type { AccountMenuPresentation, ProfileStateRefs } from '../types';
+import type {
+  AccountMenuPresentation,
+  AccountMenuPresentationMode,
+  ProfileStateRefs,
+} from '../types';
 
 type ProfileOpenControl =
   | {
@@ -78,7 +82,7 @@ function closeOutside(
 }
 
 function observeOutside(
-  presentation: 'dropdown' | 'modal' | 'page',
+  presentation: AccountMenuPresentationMode | 'page',
   isOpen: boolean,
   buttonRef: React.RefObject<HTMLDivElement | null>,
   close: () => void,
@@ -92,7 +96,7 @@ function observeOutside(
 }
 
 export function useProfileState(
-  presentation: 'dropdown' | 'modal' | 'page',
+  presentation: AccountMenuPresentationMode | 'page',
   control: ProfileOpenControl,
 ) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(

@@ -4,14 +4,14 @@
 
 Build the SDK artifacts as described below, then run
 `pnpm -C examples/seams-auth-menu dev` and open `/settings-drawer.html`.
-This interactive mock uses the SDK's existing settings preview and native dialog.
+This interactive example uses `AccountMenuButtonMock` with `presentation="drawer"`.
 It opens as a right-side drawer on desktop and a bottom sheet below 600px.
 The content scrolls within the drawer while its header and footer stay visible.
 Close the drawer to switch between Light and Dark, or open `?theme=dark` directly.
 `?open=0` starts with the drawer closed.
 
-Drawer styling is scoped to this preview. The mock does not add a public SDK
-presentation mode or connect to a wallet.
+The SDK owns the drawer styling, animation, scrolling, and focus behavior.
+The preview supplies sample data and does not connect to a wallet.
 
 ## Hosted authentication
 

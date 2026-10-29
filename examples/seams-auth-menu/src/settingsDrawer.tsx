@@ -6,73 +6,38 @@ import './settingsDrawer.css';
 
 type PreviewState = {
   theme: 'light' | 'dark';
-  drawer: 'open' | 'closing' | 'closed';
+  open: boolean;
 };
 
 function initialState(): PreviewState {
   const query = new URLSearchParams(location.search);
   return {
     theme: query.get('theme') === 'dark' ? 'dark' : 'light',
-    drawer: query.get('open') === '0' ? 'closed' : 'open',
+    open: query.get('open') !== '0',
   };
 }
 
 class SettingsDrawerPreview extends Component<Record<string, never>, PreviewState> {
   state = initialState();
-  private closeTimer: number | null = null;
 
   componentDidMount(): void {
     this.syncDocument();
-    document.addEventListener('focusin', this.revealScreen);
   }
 
   componentDidUpdate(): void {
     this.syncDocument();
   }
 
-  componentWillUnmount(): void {
-    this.clearCloseTimer();
-    document.removeEventListener('focusin', this.revealScreen);
-  }
-
-  private revealScreen = (event: FocusEvent): void => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    if (!target.matches('.seams-account-heading h2, .seams-account-identity')) return;
-    const content = target.closest<HTMLElement>('.seams-account-main');
-    if (content) content.scrollTop = 0;
-  };
-
   private syncDocument(): void {
     document.body.dataset.previewTheme = this.state.theme;
-    document.body.dataset.drawerPhase = this.state.drawer;
-  }
-
-  private clearCloseTimer(): void {
-    if (this.closeTimer !== null) window.clearTimeout(this.closeTimer);
-    this.closeTimer = null;
   }
 
   private open = (): void => {
-    this.clearCloseTimer();
-    this.setState({ drawer: 'open' });
-  };
-
-  private close = (): void => {
-    if (this.state.drawer !== 'open') return;
-    this.setState({ drawer: 'closing' });
-    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.closeTimer = window.setTimeout(this.finishClose, reducedMotion ? 0 : 240);
-  };
-
-  private finishClose = (): void => {
-    this.closeTimer = null;
-    this.setState({ drawer: 'closed' });
+    this.setState({ open: true });
   };
 
   private onOpenChange = (open: boolean): void => {
-    if (open) this.open();
-    else this.close();
+    this.setState({ open });
   };
 
   private setTheme(theme: PreviewState['theme']): void {
@@ -187,8 +152,8 @@ class SettingsDrawerPreview extends Component<Record<string, never>, PreviewStat
         </main>
 
         <AccountMenuButtonMock
-          presentation="modal"
-          isMenuOpen={this.state.drawer !== 'closed'}
+          presentation="drawer"
+          isMenuOpen={this.state.open}
           onMenuOpenChange={this.onOpenChange}
           theme={this.state.theme}
           walletId="alex.near"

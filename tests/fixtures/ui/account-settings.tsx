@@ -10,7 +10,7 @@ stylesheet.rel = 'stylesheet';
 stylesheet.href = '/_test-sdk/esm/react/styles/styles.css';
 document.head.append(stylesheet);
 
-type ExampleProps = { presentation: 'dropdown' | 'modal'; theme: 'light' | 'dark' };
+type ExampleProps = { presentation: 'dropdown' | 'modal' | 'drawer'; theme: 'light' | 'dark' };
 type ExampleState = { open: boolean; changes: boolean[] };
 
 class SettingsExample extends Component<ExampleProps, ExampleState> {
@@ -23,7 +23,9 @@ class SettingsExample extends Component<ExampleProps, ExampleState> {
     Reflect.deleteProperty(window, 'setSettingsOpen');
   }
   private setOpen = (open: boolean): void => {
-    if (open) Reflect.set(window, 'settingsPreviousFocus', document.activeElement);
+    if (open && !document.querySelector('dialog.seams-account-dialog[open]')) {
+      Reflect.set(window, 'settingsPreviousFocus', document.activeElement);
+    }
     this.setState({ open });
   };
   private open = (): void => {
@@ -40,9 +42,9 @@ class SettingsExample extends Component<ExampleProps, ExampleState> {
           App wallet settings
         </button>
         <output data-testid="open-changes">{JSON.stringify(this.state.changes)}</output>
-        {this.props.presentation === 'modal' ? (
+        {this.props.presentation !== 'dropdown' ? (
           <AccountMenuButtonMock
-            presentation="modal"
+            presentation={this.props.presentation}
             isMenuOpen={this.state.open}
             onMenuOpenChange={this.onOpenChange}
             theme={this.props.theme}
@@ -57,12 +59,22 @@ class SettingsExample extends Component<ExampleProps, ExampleState> {
 }
 
 const params = new URLSearchParams(location.search);
+function presentationFromSearch(): ExampleProps['presentation'] {
+  switch (params.get('presentation')) {
+    case 'dropdown':
+      return 'dropdown';
+    case 'drawer':
+      return 'drawer';
+    default:
+      return 'modal';
+  }
+}
 const root = document.createElement('div');
 document.body.append(root);
 createRoot(root).render(
   <StrictMode>
     <SettingsExample
-      presentation={params.get('presentation') === 'dropdown' ? 'dropdown' : 'modal'}
+      presentation={presentationFromSearch()}
       theme={params.get('theme') === 'dark' ? 'dark' : 'light'}
     />
   </StrictMode>,

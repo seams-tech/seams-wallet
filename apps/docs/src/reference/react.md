@@ -143,8 +143,8 @@ controller: closing the connector preserves a completed connection. Unmounting
 while an external connection is pending cancels that pending request.
 
 `AccountMenuButton` defaults to `presentation="dropdown"` and includes the SDK trigger.
-Use `presentation="modal"` to open the same settings from an application button.
-Modal mode requires both `isMenuOpen` and `onMenuOpenChange` and renders no SDK trigger.
+Use `presentation="modal"` or `presentation="drawer"` to open the same settings from an application button.
+Both modes require `isMenuOpen` and `onMenuOpenChange` and render no SDK trigger.
 
 ```tsx [Partial example]
 import { useState } from 'react';
@@ -161,7 +161,7 @@ function WalletSettingsControl() {
       </button>
       <AccountMenuButton
         nearAccountId={loginState.nearAccountId}
-        presentation="modal"
+        presentation="drawer"
         isMenuOpen={open}
         onMenuOpenChange={setOpen}
       />
@@ -170,7 +170,11 @@ function WalletSettingsControl() {
 }
 ```
 
-Mount this control inside `SeamsWebProvider`. The modal renders in a themed portal under `document.body`.
+Mount this control inside `SeamsWebProvider`. Settings render in a themed portal under `document.body`.
+The drawer opens from the inline-end edge on desktop and from the bottom at widths up to 600px.
+Its header and footer stay visible while the content scrolls. Colors, spacing, corners, and shadow follow SDK theme tokens.
+It slides for 240ms and respects reduced motion. An interrupted close can reopen the same dialog.
+Use `presentation="modal"` for the centered dialog.
 It traps focus, blocks background interaction and scrolling, and restores focus when closed.
 Escape, the close button, and a backdrop click call `onMenuOpenChange(false)`.
 You can also close it by setting `open` to `false`. Closing resets its navigation.
