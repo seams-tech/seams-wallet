@@ -62,7 +62,7 @@ Pair counts and sample counts remain explicit.
 | 5 | 5 / 7 | 1,241 / 1,147 ms |
 | 6 | 5 / 5 | 1,702 / 1,628 ms |
 
-Several three-to-five-pair latency observations improve. One-to-two-pair observations and role execution CPU are mixed.
+Several three-to-five-pair latency observations improve. One- and two-pair call medians increase. Role execution CPU results are mixed.
 Small sample counts, random rejection outcomes, module identities, and sequential deployment conditions prevent a stable gain claim.
 The archive retains every operation, both roles, cache misses, module identities, take spans, and whole-invocation CPU.
 Stage clocks can omit CPU. Their spans include scheduling, transfer, and processing and do not isolate database or serialization cost.
@@ -77,7 +77,7 @@ Seven binary stock responses affect one operation after its preceding signature 
 Six paired Ready records remain against an eight-pair admission minimum.
 A live refill restores eight pairs and admission proceeds.
 The operation completes 7.428 seconds after its first stock response, including one service-capacity response and a 500 ms retry.
-The complete-demand maximum also includes the configured wallet cooldown. It is not preparation or execution time alone.
+The 41.857-second complete-demand maximum belongs to a different operation. It comprises a 26 ms cooldown reply, a 3.086-second scheduled wait, 37.448 seconds of recorded driver alarm lateness, and a 1.297-second signing call.
 This is a below-minimum reserve, rather than an observed zero-stock pool.
 
 The data therefore does not establish removal of material waits.
@@ -87,6 +87,13 @@ Preparation CPU and burst replenishment remain the main performance priorities a
 
 Both deployed arms use the same updated driver hash.
 That driver follows the existing public Gateway's 500 ms service-capacity cap, a 100 ms minimum, and exact server times for other retry reasons.
+The binary driver also records alarm lateness of 43.159 and 30.397 seconds before new demands begin.
+Those delays reduce offered load but fall outside those demands' recorded latency.
+Five binary requests exceed one second of recorded lateness, versus one JSON request at 3.507 seconds.
+The exact delay cause remains unknown. Preserve measured throughput without subtracting these intervals.
+These scheduling observations further prevent assigning the 93-versus-96 result to the codec or preparation capacity.
+They do not establish public SDK timer behavior.
+
 The JSON control's raw client artifact still describes the old generic one-to-five-second cadence.
 Its script hash and deployed source establish the actual behavior. The raw artifact stays unchanged.
 The collector descriptor is corrected for later collection. Public Gateway and SDK code remain unchanged.
