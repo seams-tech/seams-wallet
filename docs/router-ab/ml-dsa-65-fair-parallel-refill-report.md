@@ -2,7 +2,8 @@
 
 The native integration and complete local Worker campaigns pass.
 A depleted wallet can borrow the second idle producer while another waiting wallet retains queue priority.
-The hosted comparison is pending. No Cloudflare throughput gain is established by this checkpoint.
+The [hosted comparison](ml-dsa-65-fair-refill-hosted-report.md) records 7.313 and 7.621 complete-cycle signatures/minute.
+This local report describes the implementation checks; the hosted report retains attribution and latency limits.
 
 ## Implementation
 
@@ -80,4 +81,4 @@ Use the strict router, deriver-a, and deriver-b Worker builds from this source.
 [Local evidence](../evidence/ml-dsa-65-parallel-refill-local-20261030.json) contains source and Wasm hashes,
 exact assertions, raw logs, stack samples, and a hashed archive manifest.
 The credential scan finds zero matches against the synthetic campaign credentials.
-The eight existing temporary Workers remain active for the authorized hosted comparison.
+The hosted comparison deletes all eight temporary Workers and independently verifies their absence.
