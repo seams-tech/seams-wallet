@@ -6,14 +6,33 @@ import {
   PHRASE_TOKEN_PIECES,
 } from './phraseVocabulary';
 import type { VoiceConfirmation } from './confirmationCommand';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
+import { PHRASE_TOKEN_PIECES as CITRINET_TOKEN_PIECES } from './phraseTokens';
 
 export type SpokenPhrase = (typeof SPOKEN_PHRASES)[number];
-export const phraseModel = new BrowserInferenceModel({
+const auroraModel = new BrowserInferenceModel({
   path: '/sdk/voiceid/aurora-int8.onnx',
   sha256: '83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6',
   bytes: 1_342_384,
   label: 'Phrase recognition',
 });
+const citrinetModel = new BrowserInferenceModel({
+  path: '/sdk/voiceid/citrinet-int8.onnx',
+  sha256: '875f58df0e2a593017ac9550c8fab68c4343cd1fbb2a042290450aa125441ed5',
+  bytes: 10_483_704,
+  label: 'Phrase recognition',
+});
+
+export function getPhraseModel(model: VoiceIdTranscriptionModel): BrowserInferenceModel {
+  switch (model) {
+    case 'aurora':
+      return auroraModel;
+    case 'citrinet':
+      return citrinetModel;
+    default:
+      return assertNever(model);
+  }
+}
 // A development bound for an approximate spoken challenge, not transcription confidence.
 const MAX_TEXT_DIFFERENCE = 0.3;
 const MIN_CANDIDATE_MARGIN = 0.1;
@@ -39,7 +58,7 @@ export function newConfirmationPhrase(
 }
 
 function assertNever(value: never): never {
-  throw new Error(`Unexpected voice confirmation: ${String(value)}`);
+  throw new Error(`Unexpected VoiceID state: ${String(value)}`);
 }
 
 function choosePhrase(
@@ -221,13 +240,14 @@ export type PhraseCheck =
   | { kind: 'matched'; recognition: PhraseRecognition }
   | { kind: 'mismatch'; recognition: PhraseRecognition };
 
-function recognize(logits: Float32Array, frames: number): string {
+function recognize(logits: Float32Array, frames: number, model: VoiceIdTranscriptionModel): string {
+  const blank = model === 'aurora' ? 0 : TOKEN_COUNT - 1;
   const greedy: number[] = [];
   let previousToken = -1;
   for (let frame = 0; frame < frames; frame += 1) {
     const offset = frame * TOKEN_COUNT;
     let maximum = -Infinity;
-    let bestToken = 0;
+    let bestToken = blank;
     for (let token = 0; token < TOKEN_COUNT; token += 1) {
       const value = logits[offset + token];
       if (!Number.isFinite(value)) {
@@ -238,7 +258,7 @@ function recognize(logits: Float32Array, frames: number): string {
         bestToken = token;
       }
     }
-    if (bestToken !== 0 && bestToken !== previousToken) {
+    if (bestToken !== blank && bestToken !== previousToken) {
       greedy.push(bestToken);
     }
     previousToken = bestToken;
@@ -246,13 +266,31 @@ function recognize(logits: Float32Array, frames: number): string {
   if (greedy.length === 0) {
     return '';
   }
-  const decodedText = greedy
-    .map(tokenPiece)
-    .join('')
-    .replace(/▁/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-  return decodedText;
+  switch (model) {
+    case 'aurora':
+      return greedy.map(tokenPiece).join('').replace(/▁/g, ' ').trim().replace(/\s+/g, ' ');
+    case 'citrinet':
+      return decodeWordPieces(greedy);
+    default:
+      return assertNever(model);
+  }
+}
+
+function decodeWordPieces(tokens: readonly number[]): string {
+  let text = '';
+  let joinNext = false;
+  for (const token of tokens) {
+    const piece = CITRINET_TOKEN_PIECES[token];
+    if (piece.startsWith('[')) continue;
+    if (piece.startsWith('##')) text += piece.slice(2);
+    else if (piece === "'") {
+      text += piece;
+      joinNext = true;
+      continue;
+    } else text += (joinNext || text.length === 0 ? '' : ' ') + piece;
+    joinNext = false;
+  }
+  return text.trim();
 }
 
 /** Apply the same phrase checks to an independently decoded transcript. */
@@ -270,8 +308,9 @@ function tokenPiece(token: number): string {
 export async function checkSpokenPhrase(
   samples: Float32Array,
   expected: SpokenPhrase,
+  model: VoiceIdTranscriptionModel,
 ): Promise<PhraseCheck> {
-  const session = await phraseModel.prepare();
+  const session = await getPhraseModel(model).prepare();
   const ort = await import('onnxruntime-web/wasm');
   const input = new ort.Tensor('float32', samples, [1, samples.length]);
   try {
@@ -288,7 +327,7 @@ export async function checkSpokenPhrase(
       ) {
         throw new Error('Phrase model returned an invalid result.');
       }
-      return checkTranscribedPhrase(recognize(logits.data, logits.dims[1]), expected);
+      return checkTranscribedPhrase(recognize(logits.data, logits.dims[1], model), expected);
     } finally {
       for (const output of Object.values(outputs)) {
         output.dispose();

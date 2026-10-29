@@ -1,9 +1,11 @@
 # VoiceID model candidates
 
-Research date: 2026-10-24. Status: browser prototype uses ReDimNet B1 and AuroraASR-1M. Broader production accuracy
+Research date: 2026-10-24, updated 2026-10-29. Status: VoiceID uses ReDimNet B1 with configurable Aurora or Citrinet transcription. Broader production accuracy
 qualification remains open.
 
-Use B1 for speaker verification and AuroraASR for the prototype phrase bank.
+Use B1 for speaker verification. Citrinet is the default phrase recognizer.
+Developers can choose Aurora for its smaller download. Citrinet's ONNX export
+is 10.48 MB raw and 8.84 MB gzipped. Aurora is 1.34 MB raw and 1.02 MB gzipped.
 Broader human phrase recognition and microphone qualification remain necessary.
 See the [Aurora implementation and evidence](evidence/voiceid-aurora-20261024/README.md).
 

@@ -1,19 +1,18 @@
 import { voiceActivityModel } from './voiceActivity';
 import { voiceModel } from './model';
-import { phraseModel } from './phrase';
+import { getPhraseModel } from './phrase';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { VoiceIdLoadError, voiceInferenceEngine, type VoiceAssetProgress } from './inference';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 
 // Avoid flashing an indicator when the prepared sessions are already in memory.
 const REVEAL_DELAY_MS = 300;
-const MODELS = [voiceModel, phraseModel, voiceActivityModel];
-const ASSETS = [voiceInferenceEngine, ...MODELS.map(modelAsset)];
-
 function modelAsset(model: typeof voiceModel) {
   return model.asset;
 }
 
-function assetSize(total: number, asset: (typeof ASSETS)[number]): number {
+type DownloadAsset = typeof voiceInferenceEngine;
+function assetSize(total: number, asset: DownloadAsset): number {
   return total + asset.size;
 }
 
@@ -25,13 +24,19 @@ class VoiceModelDownload {
   private retry: WorkerDeferred<void> | null = null;
   private readonly cancelled = new WorkerDeferred<never>();
   private readonly reveal: ReturnType<typeof setTimeout>;
-  private readonly received = new Map<(typeof ASSETS)[number], number>();
-  private readonly total = ASSETS.reduce(assetSize, 0);
+  private readonly received = new Map<DownloadAsset, number>();
+  private readonly models: readonly (typeof voiceModel)[];
+  private readonly assets: readonly DownloadAsset[];
+  private readonly total: number;
 
   constructor(
     private readonly parent: HTMLElement,
     private readonly signal: AbortSignal,
+    model: VoiceIdTranscriptionModel,
   ) {
+    this.models = [voiceModel, getPhraseModel(model), voiceActivityModel];
+    this.assets = [voiceInferenceEngine, ...this.models.map(modelAsset)];
+    this.total = this.assets.reduce(assetSize, 0);
     this.element.className = 'seams-voiceid-model-download';
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
@@ -77,12 +82,12 @@ class VoiceModelDownload {
       this.retryButton.hidden = true;
       this.meter.hidden = false;
       try {
-        for (const asset of ASSETS) {
+        for (const asset of this.assets) {
           await asset.download(this.update.bind(this, asset));
           this.signal.throwIfAborted();
         }
         this.preparing();
-        for (const model of MODELS) {
+        for (const model of this.models) {
           await model.prepare();
           this.signal.throwIfAborted();
         }
@@ -104,7 +109,7 @@ class VoiceModelDownload {
     }
   }
 
-  readonly update = (asset: (typeof ASSETS)[number], state: VoiceAssetProgress): void => {
+  readonly update = (asset: DownloadAsset, state: VoiceAssetProgress): void => {
     switch (state.kind) {
       case 'checking_cache':
         return;
@@ -142,8 +147,9 @@ class VoiceModelDownload {
 export async function prepareVoiceModelWithProgress(
   parent: HTMLElement,
   signal: AbortSignal,
+  model: VoiceIdTranscriptionModel,
 ): Promise<void> {
-  const component = new VoiceModelDownload(parent, signal);
+  const component = new VoiceModelDownload(parent, signal, model);
   try {
     await component.prepare();
   } finally {

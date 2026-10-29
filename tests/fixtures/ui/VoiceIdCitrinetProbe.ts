@@ -5,11 +5,12 @@ import {
 } from '../../../tests/scripts/voiceid-citrinet/recognition';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 
-let vocabulary: readonly string[] | null = null;
+let prepared = false;
 
 async function prepare(): Promise<number> {
   const started = performance.now();
-  vocabulary = await prepareComparison();
+  await prepareComparison();
+  prepared = true;
   return performance.now() - started;
 }
 
@@ -19,13 +20,13 @@ async function compare(
   first: Comparison['first'],
 ): Promise<Comparison> {
   const phrase = SPOKEN_PHRASES[expectedIndex];
-  if (!phrase || !vocabulary) throw new Error('Prepare comparison and choose a known phrase');
+  if (!phrase || !prepared) throw new Error('Prepare comparison and choose a known phrase');
   const bytes = Uint8Array.from(atob(base64), characterCode);
   const context = new OfflineAudioContext(1, 1, 16000);
   const audio = await context.decodeAudioData(bytes.buffer);
   const samples = audio.getChannelData(0);
   try {
-    return await compareRecording(samples, phrase, vocabulary, first);
+    return await compareRecording(samples, phrase, first);
   } finally {
     samples.fill(0);
   }

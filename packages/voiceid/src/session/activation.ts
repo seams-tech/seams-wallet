@@ -30,7 +30,7 @@ import { rejectUnknownFields } from '@seams/wallet/voiceid-host';
 import { requireRecord } from '@seams/wallet/voiceid-host';
 import { parseResealedEnvelopeResult } from '@seams/wallet/voiceid-host';
 import type { UnlockedWalletEd25519ExportRootCapabilityV1 } from '@seams/wallet/voiceid-host';
-import { captureVoiceIdActivation } from '../capture/deviceBridge';
+import { captureVoiceIdActivation, type VoiceIdActivationCapture } from '../capture/deviceBridge';
 import type { VoiceIdHttpClient } from './httpClient';
 
 export type PendingVoiceIdActivation = Readonly<{
@@ -198,7 +198,7 @@ export async function activateVoiceIdForUnlockedWallet(input: {
   readonly signal: AbortSignal;
   readonly onCapture: VoiceCaptureObserver;
   readonly phrase: SpokenPhrase;
-  readonly capture: typeof captureVoiceIdActivation;
+  readonly capture: VoiceIdActivationCapture;
   readonly persistPending: (pending: PendingVoiceIdActivation) => Promise<void>;
   readonly persistActive: (
     authMethod: ActiveVoiceIdWalletAuthMethodRecordV2,

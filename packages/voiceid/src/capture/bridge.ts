@@ -1,4 +1,5 @@
 import { VoiceSpeakerMismatchError } from '../browser/verificationError';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { voiceQualityMessage, type VoiceCaptureObserver } from '../browser/microphone';
 import { VoicePhraseMismatchError, type SpokenPhrase } from '../browser/phrase';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
@@ -27,13 +28,14 @@ export async function listenForVoiceApproval(
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
+  model: VoiceIdTranscriptionModel,
 ): Promise<AuthMethodApprovalResult> {
   const deadline = Math.min(binding.expiresAtMs, Date.now() + timeoutMs);
   if (signal.aborted || deadline <= Date.now())
     throw new Error('VoiceID review expired or was cancelled.');
   let result: Awaited<ReturnType<typeof verifyBrowserVoice>>;
   try {
-    result = await verifyBrowserVoice({ kind: 'active', scope }, signal, onCapture, phrase);
+    result = await verifyBrowserVoice({ kind: 'active', scope }, signal, onCapture, phrase, model);
   } catch (error) {
     if (!(error instanceof VoiceMicrophoneInterruptedError)) throw error;
     if (signal.aborted || deadline <= Date.now())

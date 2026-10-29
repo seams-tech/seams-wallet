@@ -121,7 +121,7 @@ class HumanCalibration {
     this.render();
     this.prepare.disabled = true;
     try {
-      await prepareVoiceModelWithProgress(this.prompt.progress, controller.signal);
+      await prepareVoiceModelWithProgress(this.prompt.progress, controller.signal, 'citrinet');
       if (this.phase !== preparing) return;
       this.prompt.progress.replaceChildren();
       this.phase = { kind: 'selecting' };
@@ -223,7 +223,7 @@ class HumanCalibration {
         observation = { kind: 'insufficient_audio', voicedMs: clip.quality.voicedMs };
       } else {
         try {
-          const phrase = await checkSpokenPhrase(clip.samples, assignment.phrase);
+          const phrase = await checkSpokenPhrase(clip.samples, assignment.phrase, 'citrinet');
           const embedding = await voiceEmbedding(clip.samples);
           observation = { kind: 'captured', embedding, phrase: phraseObservation(phrase), voicedMs: clip.quality.voicedMs, modelInputMs: clip.samples.length / 16 };
         } finally {

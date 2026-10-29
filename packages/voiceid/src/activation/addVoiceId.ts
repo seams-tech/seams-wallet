@@ -20,10 +20,7 @@ import {
   walletCustodyCeremonyTransportFromWorkerContextV1,
 } from '@seams/wallet/voiceid-host';
 import type { WalletCustodyCeremonyTransportPort } from '@seams/wallet/voiceid-host';
-import type {
-  RegistrationCapability,
-  RegistrationWebContext,
-} from '@seams/wallet/voiceid-host';
+import type { RegistrationCapability, RegistrationWebContext } from '@seams/wallet/voiceid-host';
 import type { WalletSessionOperationCredentialV1 } from '@seams/wallet/voiceid-host';
 import {
   allocateWalletAuthMethodId,
@@ -33,6 +30,7 @@ import {
 } from '@seams/wallet/voiceid-host';
 import { secureRandomId } from '@seams/wallet/voiceid-host';
 import type { Variant } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
 type AddVoiceIdResult = Variant<
   Awaited<ReturnType<RegistrationCapability['activateAuthMethod']>>,
@@ -170,27 +168,29 @@ async function prepareActivation(
 export async function prepareActivationSurface(
   input: { readonly context: RegistrationWebContext; readonly walletId: WalletId },
   signal: AbortSignal,
+  model: VoiceIdTranscriptionModel,
 ): Promise<PreparedVoiceCapture<AddVoiceIdResult>> {
   signal.throwIfAborted();
   const { context, walletId } = input;
   const prepared = await prepareActivation(context, walletId);
   signal.throwIfAborted();
   if (prepared.kind === 'enroll_existing') {
-    return { kind: 'management', action: managePreparedVoiceId.bind(null, prepared) };
+    return { kind: 'management', action: managePreparedVoiceId.bind(null, model, prepared) };
   }
   return {
     kind: 'recording',
-    action: activatePreparedVoiceId.bind(null, prepared),
+    action: activatePreparedVoiceId.bind(null, model, prepared),
     expiresAtMs: null,
   };
 }
 
 async function managePreparedVoiceId(
+  model: VoiceIdTranscriptionModel,
   prepared: Variant<PreparedVoiceIdActivation, 'kind', 'enroll_existing'>,
   signal: AbortSignal,
 ): Promise<AddVoiceIdResult> {
   const scope = await resolveVoiceEnrollmentScope(prepared.walletId, prepared.walletAuthMethodId);
-  await manageVoiceEnrollment(prepared.context, scope, signal);
+  await manageVoiceEnrollment(prepared.context, scope, signal, model);
   signal.throwIfAborted();
   return {
     kind: 'activated',
@@ -200,6 +200,7 @@ async function managePreparedVoiceId(
 }
 
 async function activatePreparedVoiceId(
+  model: VoiceIdTranscriptionModel,
   prepared: Variant<PreparedVoiceIdActivation, 'kind', 'activate'>,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
@@ -212,7 +213,7 @@ async function activatePreparedVoiceId(
     signal,
     onCapture,
     phrase,
-    capture: captureVoiceIdActivation,
+    capture: captureVoiceIdActivation.bind(null, model),
     persistPending: prepared.store.persistPending.bind(prepared.store),
     persistActive: prepared.store.persistActive.bind(prepared.store),
   });

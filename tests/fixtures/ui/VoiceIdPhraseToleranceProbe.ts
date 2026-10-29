@@ -11,7 +11,7 @@ async function checkAudio(base64: string, expectedIndex: number) {
   if (audio.sampleRate !== 16000) throw new Error('Expected 16 kHz test audio');
   const samples = audio.getChannelData(0);
   try {
-    return await checkSpokenPhrase(samples, phrase);
+    return await checkSpokenPhrase(samples, phrase, 'aurora');
   } finally {
     samples.fill(0);
   }

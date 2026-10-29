@@ -20,9 +20,9 @@ type Observation =
 type Phase =
   | { kind: 'unprepared' }
   | { kind: 'preparing' }
-  | { kind: 'ready'; vocabulary: readonly string[] }
-  | { kind: 'recording'; vocabulary: readonly string[]; controller: AbortController }
-  | { kind: 'labeling'; vocabulary: readonly string[]; observation: Observation }
+  | { kind: 'ready' }
+  | { kind: 'recording'; controller: AbortController }
+  | { kind: 'labeling'; observation: Observation }
   | { kind: 'complete' }
   | { kind: 'closed' };
 type Reading = 'as_shown' | 'stumbled';
@@ -39,9 +39,13 @@ const assignments: readonly Assignment[] = [
   { kind: 'correct', expected: 'if you panic panic early' },
   { kind: 'correct', expected: 'check my order today' },
   { kind: 'correct', expected: 'please confirm my purchase' },
-  { kind: 'correct', expected: 'the sale is ready' },
+  { kind: 'correct', expected: 'no crying in the casino' },
   { kind: 'control', expected: 'please review my order', say: 'Please never review my order.' },
-  { kind: 'control', expected: 'no crying in the casino', say: 'Crying in the casino.' },
+  {
+    kind: 'control',
+    expected: 'approve this transfer at once',
+    say: 'No approve this transfer at once.',
+  },
   {
     kind: 'control',
     expected: 'i check the latest quote',
@@ -98,10 +102,10 @@ class ComparisonSession {
     this.render();
     this.status.textContent = 'Downloading and preparing Aurora, Citrinet, and speech detection…';
     try {
-      const vocabulary = await prepareComparison();
+      await prepareComparison();
       await voiceActivityModel.prepare();
       if (this.phase !== preparing) return;
-      this.phase = { kind: 'ready', vocabulary };
+      this.phase = { kind: 'ready' };
       this.assign();
     } catch (error) {
       if (this.phase !== preparing) return;
@@ -130,12 +134,12 @@ class ComparisonSession {
 
   private readonly startCapture = (): void => {
     if (this.phase.kind !== 'ready' || !this.consent.checked) return;
-    void this.capture(this.phase.vocabulary, this.assignment());
+    void this.capture(this.assignment());
   };
 
-  private async capture(vocabulary: readonly string[], assignment: Assignment): Promise<void> {
+  private async capture(assignment: Assignment): Promise<void> {
     const controller = new AbortController();
-    const recording: Phase = { kind: 'recording', vocabulary, controller };
+    const recording: Phase = { kind: 'recording', controller };
     this.phase = recording;
     this.render();
     let observation: Observation;
@@ -147,12 +151,7 @@ class ComparisonSession {
       } else {
         try {
           const first = this.attempts.length % 2 === 0 ? 'aurora' : 'citrinet';
-          const comparison = await compareRecording(
-            clip.samples,
-            assignment.expected,
-            vocabulary,
-            first,
-          );
+          const comparison = await compareRecording(clip.samples, assignment.expected, first);
           observation = { kind: 'compared', comparison };
           this.prompt.status.textContent = 'Comparison complete. Label your reading.';
         } finally {
@@ -165,11 +164,11 @@ class ComparisonSession {
     }
     if (this.phase !== recording) return;
     if (controller.signal.aborted) {
-      this.phase = { kind: 'ready', vocabulary };
+      this.phase = { kind: 'ready' };
       this.assign();
       return;
     }
-    this.phase = { kind: 'labeling', vocabulary, observation };
+    this.phase = { kind: 'labeling', observation };
     this.prompt.record.hidden = true;
     this.status.textContent = 'Did you read the displayed words correctly? Label failures too.';
     this.render();
@@ -177,7 +176,7 @@ class ComparisonSession {
 
   private label(reading: Reading): void {
     if (this.phase.kind !== 'labeling') return;
-    const { vocabulary, observation } = this.phase;
+    const { observation } = this.phase;
     this.attempts.push({ assignment: this.assignment(), reading, observation });
     if (this.attempts.length === assignments.length) {
       this.phase = { kind: 'complete' };
@@ -188,7 +187,7 @@ class ComparisonSession {
       this.render();
       return;
     }
-    this.phase = { kind: 'ready', vocabulary };
+    this.phase = { kind: 'ready' };
     this.assign();
   }
 

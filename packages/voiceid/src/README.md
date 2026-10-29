@@ -39,12 +39,11 @@ device-key possession, and the Wallet code enforces speaker and phrase matching.
 
 ## Hosted model asset
 
-Place the approved exports at `packages/wallet/assets/voiceid/redimnet-b1.onnx`
-and `packages/wallet/assets/voiceid/aurora-int8.onnx` before building the SDK. The existing
-static-asset build includes it and the matching ONNX Runtime Web WASM files.
-If the optional model is absent, ordinary Wallet builds still work, and enabling
-VoiceID reports that its model is unavailable. Release builds offering VoiceID
-must provision both assets. It is not fetched from a third party during capture.
+The approved exports live in `packages/voiceid/assets/`. The VoiceID build
+includes ReDimNet B1, Aurora INT8, Citrinet INT8, Silero VAD, and ONNX Runtime
+Web WASM. A VoiceID action loads the shared speaker model and speech detector,
+then only the configured speech model. Assets come from the trusted Wallet
+origin. Plain Wallet deployments remain independent of this package.
 
 Current model: ReDimNet B1, VoxCeleb2 large-margin fine-tuned, MIT license.
 Source revision: `ce039a624cb99fe127702ceb94c6080090e5032f`.
@@ -66,7 +65,17 @@ AuroraASR-1M checks the spoken phrase. Its INT8 full-waveform ONNX export is
 Source revision: `cd307b54b4d666d6ad7dc982a7a58a96d6e7f942`.
 SHA-256: `83ed6f3856458cd96d49a70d8c5175aeec18ba8c184e5367e089cd424eebefd6`.
 The deployment includes its Apache-2.0 license and export details.
-See [export and screening instructions](../../../../../tests/scripts/voiceid-aurora/README.md).
+See [export and screening instructions](../../../tests/scripts/voiceid-aurora/README.md).
+
+Citrinet-256 LS is the default speech model. Its INT8-weight full-waveform ONNX
+export is 10,483,704 bytes, approximately 8.84 MB with gzip compression.
+Source revision: `c7cdacff0262bbb2a17771d20ec9f9f3b5cff6ed`.
+SHA-256: `875f58df0e2a593017ac9550c8fab68c4343cd1fbb2a042290450aa125441ed5`.
+The deployment includes its CC-BY-4.0 license and attribution. Developers choose
+`transcriptionModel: 'aurora'` or `transcriptionModel: 'citrinet'` in the
+`voiceIdAuthMethod()` options. Each host plugin binds the choice before its action starts.
+Speaker templates and thresholds remain independent of that choice.
+See [export and parity instructions](../../../tests/scripts/voiceid-citrinet/README.md).
 
 ## Download progress and browser cache
 

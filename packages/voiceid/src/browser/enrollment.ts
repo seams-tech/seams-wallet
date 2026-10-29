@@ -33,6 +33,7 @@ import {
 import type { ConfirmedVoiceChange } from '../activation/ownerConfirmation';
 import { toError } from '@seams/wallet/voiceid-host';
 import type { Variant } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
 type EnrollmentCapturePlan = {
   readonly scope: VoiceEnrollmentScope;
@@ -58,12 +59,13 @@ type EnrollmentCapturePlan = {
 export async function enrollBrowserVoice(
   plan: EnrollmentCapturePlan,
   signal: AbortSignal,
+  model: VoiceIdTranscriptionModel,
 ): Promise<void> {
   const parent = document.querySelector('.seams-voiceid-activation-surface');
   if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID activation in the Wallet.');
-  await prepareVoiceModelWithProgress(parent, signal);
+  await prepareVoiceModelWithProgress(parent, signal, model);
   signal.throwIfAborted();
-  const surface = new VoiceEnrollmentSurface(parent, plan, signal);
+  const surface = new VoiceEnrollmentSurface(parent, plan, signal, model);
   try {
     await surface.result;
   } finally {
@@ -92,6 +94,7 @@ class VoiceEnrollmentSurface {
     parent: HTMLElement,
     private readonly plan: EnrollmentCapturePlan,
     private readonly signal: AbortSignal,
+    private readonly model: VoiceIdTranscriptionModel,
   ) {
     this.prompt = new VoicePrompt(document, 'Enroll your voice in this browser', this.phrase);
     this.prompt.title.textContent = 'Read aloud · 0 of 3 accepted';
@@ -143,7 +146,7 @@ class VoiceEnrollmentSurface {
       try {
         await assertVoiceOwner(this.plan.scope, this.plan.guard);
         this.status.textContent = 'Checking your voice…';
-        const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase);
+        const phraseCheck = await checkSpokenPhrase(pcm.samples, this.phrase, this.model);
         if (phraseCheck.kind === 'mismatch') throw new VoicePhraseMismatchError();
         embedding = await voiceEmbedding(pcm.samples);
       } finally {
@@ -309,6 +312,7 @@ export async function verifyBrowserVoice(
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
+  model: VoiceIdTranscriptionModel,
 ): Promise<
   | { kind: 'matched' }
   | { kind: 'mismatch'; quality: VoiceCaptureQuality }
@@ -323,7 +327,7 @@ export async function verifyBrowserVoice(
   }
   try {
     signal.throwIfAborted();
-    const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase);
+    const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase, model);
     const phraseMatched = phraseCheck.kind === 'matched';
     const modelInputMs = pcm.samples.length / 16;
     const embedding = await voiceEmbedding(pcm.samples);

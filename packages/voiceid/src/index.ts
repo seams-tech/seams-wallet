@@ -1,1 +1,1 @@
-export { voiceIdAuthMethod } from './descriptor';
+export { voiceIdAuthMethod, type VoiceIdOptions } from './descriptor';

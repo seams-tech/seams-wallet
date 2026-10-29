@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 
-export async function startComparisonServer({ port, source, directory }) {
+export async function startComparisonServer({ port, source }) {
   if (source !== 'human_microphone' && source !== 'synthetic_fixture')
     throw new Error('Invalid comparison source');
   const chunks = JSON.parse(
@@ -28,14 +28,9 @@ export async function startComparisonServer({ port, source, directory }) {
       bytes: Buffer.from(chunk.code),
       type: 'text/javascript',
     });
-  for (const name of ['citrinet-int8.onnx', 'vocabulary.json']) {
-    files.set(`/citrinet/${name}`, {
-      bytes: await readFile(path.join(directory, name)),
-      type: name.endsWith('.json') ? 'application/json' : 'application/octet-stream',
-    });
-  }
   for (const name of [
     'aurora-int8.onnx',
+    'citrinet-int8.onnx',
     'silero-vad.onnx',
     'ort-wasm-simd-threaded.mjs',
     'ort-wasm-simd-threaded.wasm',
@@ -92,13 +87,10 @@ function respond(files, request, response) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  const directory = process.env.CITRINET_EVAL_ROOT;
-  if (!directory)
-    throw new Error('Set CITRINET_EVAL_ROOT to the completed Citrinet export directory');
   const port = Number(process.argv[2] ?? 4392);
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error('Choose a port from 1024 to 65535');
-  const running = await startComparisonServer({ port, source: 'human_microphone', directory });
+  const running = await startComparisonServer({ port, source: 'human_microphone' });
   process.stdout.write(
     `Local speech comparison: ${running.url}\nNo uploads. Export scores before closing.\n`,
   );

@@ -186,7 +186,7 @@ it; an accepted enrollment sample returns to full strength, and a retry stays di
 until the next capture. Recording stays disabled until preparation finishes. A delayed server response
 cannot reopen a modal that the user cancelled.
 Audio stays in the Wallet origin, is converted to 16 kHz mono, and is discarded
-after local ReDimNet B1 speaker inference and AuroraASR phrase recognition. An enrollment from a different model requires
+after local ReDimNet B1 speaker inference and configured Aurora or Citrinet phrase recognition. Changing the speaker model requires
 an owner unlock and three new samples. Re-enrollment preserves the existing local device method and custody
 envelope. Three consistent samples form one normalized speaker template. The template stays in Wallet-origin IndexedDB,
 scoped to its wallet, authority, method, and device key.
@@ -290,7 +290,7 @@ The model deployment instructions live in
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
 Confirm click. Generated prompts contain four or five trading-oriented words for short, natural-paced
-approval. The bank also contains user-selected quotes. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
+approval. The bank also contains user-selected quotes. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. The configured recognizer must select
 the displayed phrase from the same recording using its independently decoded text.
 The matcher ignores case, punctuation, and articles, and canonicalizes the listed
 homophones and joins the decoded word break “to day” as “today.” It compares all
@@ -303,6 +303,11 @@ This permits approximate wording, including some content-word errors. It is a
 freshness challenge, not exact transcription or transaction-intent interpretation.
 A different selected phrase, an ambiguous result, or text outside these bounds fails. Speaker
 verification uses its independent similarity threshold of 0.45.
+The SDK selects its recognizer through `voiceIdAuthMethod({ transcriptionModel })`.
+Supported choices are `aurora` and `citrinet`, with Citrinet as the default.
+Each action binds its choice before preparation. Only that speech model downloads
+alongside the shared engine, speaker model, and voice activity detector.
+Switching the speech model preserves enrollment and verification thresholds.
 A local phrase rejection during unlock keeps the prompt open with a fresh phrase
 and an explicit Try again action. The original challenge deadline still applies.
 A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.

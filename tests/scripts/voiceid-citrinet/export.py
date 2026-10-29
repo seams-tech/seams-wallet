@@ -161,6 +161,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--fixtures', type=Path, required=True)
+    parser.add_argument('--vocabulary', type=Path, required=True)
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True)
     torch.set_num_threads(1)
@@ -182,6 +183,10 @@ def main():
     fp32 = ort.InferenceSession(str(floating), options, providers=['CPUExecutionProvider'])
     int8 = ort.InferenceSession(str(integer), options, providers=['CPUExecutionProvider'])
     vocabulary = config['decoder']['vocabulary']
+    args.vocabulary.write_text(
+        '// Generated from the pinned Citrinet checkpoint by tests/scripts/voiceid-citrinet/export.py.\n'
+        + 'export const PHRASE_TOKEN_PIECES: readonly string[] = '
+        + json.dumps(vocabulary, indent=2) + ';\n')
     checks = []
     for file in sorted(args.fixtures.glob('natural/*.wav')):
         audio, rate = soundfile.read(file, dtype='float32')

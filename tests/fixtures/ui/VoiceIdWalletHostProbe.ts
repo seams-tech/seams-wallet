@@ -55,7 +55,7 @@ class WalletJourney {
     this.error = '';
     this.generation += 1;
     const request = transferRequest(this.generation, timeoutMs, amount);
-    const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'));
+    const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
     const metadata = parseTransactionReviewWire(request.transactionReview);
     const admission = new TransactionReviewAdmission(
       metadata,
@@ -167,7 +167,7 @@ class WalletJourney {
   async checkArcPolicy(mode: ArcPolicyCase): Promise<{ accepted: boolean; frozen: boolean; error: string }> {
     const request = arcRequest(mode);
     try {
-      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'));
+      const policy = await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
       if (policy.kind !== 'required') throw new Error('Arc did not require voice approval');
       let error = '';
       try { policy.approval.consume(); } catch (failure) { error = errorText(failure); }
@@ -179,7 +179,7 @@ class WalletJourney {
 
   async requestMainnetApproval(): Promise<void> {
     const request = transferRequest(++this.generation, 10_000, '1000');
-    await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'));
+    await voiceIdPolicyForRequest(request, journeyConfiguration('near-mainnet'), 'citrinet');
   }
 
   async requestWithoutReview(): Promise<void> {
@@ -189,7 +189,7 @@ class WalletJourney {
       requestId: reviewed.requestId,
       payload: reviewed.payload,
     };
-    await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'));
+    await voiceIdPolicyForRequest(request, journeyConfiguration('near-testnet'), 'citrinet');
   }
 
   trySecondConsumption(): string {

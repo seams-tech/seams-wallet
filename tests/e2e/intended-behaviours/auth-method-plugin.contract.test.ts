@@ -207,6 +207,6 @@ async function serveMissingDependency(route: Route): Promise<void> {
 async function serveIncompatiblePlugin(route: Route): Promise<void> {
   await route.fulfill({
     contentType: 'text/javascript',
-    body: 'export const hostApiVersion = 0; export const voiceIdHostPlugin = {};',
+    body: 'export const hostApiVersion = 0; export function createVoiceIdHostPlugin() { return {}; }',
   });
 }

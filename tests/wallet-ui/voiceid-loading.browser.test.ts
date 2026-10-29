@@ -90,7 +90,12 @@ class LoadingServer {
       response.flushHeaders();
       return;
     }
-    const permitted = [...assetPaths, '/sdk/voiceid/ort-wasm-simd-threaded.mjs', '/sdk/wallet-ui.css'];
+    const permitted = [
+      ...assetPaths,
+      '/sdk/voiceid/citrinet-int8.onnx',
+      '/sdk/voiceid/ort-wasm-simd-threaded.mjs',
+      '/sdk/wallet-ui.css',
+    ];
     if (!permitted.includes(pathname) && pathname !== '/speech.wav') {
       response.writeHead(404).end();
       return;
@@ -126,6 +131,59 @@ function assetContentType(pathname: string): string {
 
 function matchesChunk(name: string, chunk: { fileName: string }): boolean {
   return chunk.fileName === name;
+}
+
+test(
+  'SDK model selection downloads only the chosen recognizer and checks a phrase',
+  runModelSelection,
+);
+
+async function runModelSelection({ page }: { page: Page }, testInfo: TestInfo): Promise<void> {
+  testInfo.setTimeout(60_000);
+  const server = new LoadingServer();
+  server.failures.clear();
+  const results = [];
+  try {
+    const origin = await server.start();
+    for (const choice of [
+      { query: '', model: 'citrinet', asset: '/sdk/voiceid/citrinet-int8.onnx' },
+      {
+        query: '?transcriptionModel=aurora',
+        model: 'aurora',
+        asset: '/sdk/voiceid/aurora-int8.onnx',
+      },
+    ]) {
+      server.requests.length = 0;
+      await page.goto(`${origin}${choice.query}`);
+      await expect(page.locator('body')).toHaveAttribute('data-transcription-model', choice.model);
+      expect(server.requests.filter(isTranscriptionAsset)).toEqual([]);
+      await page.getByRole('button', { name: 'Load VoiceID' }).click();
+      await expect(page.locator('body')).toHaveAttribute('data-result', 'ready', {
+        timeout: 30_000,
+      });
+      expect(server.requests.filter(isTranscriptionAsset)).toEqual([choice.asset]);
+      results.push({ model: choice.model, requests: [...server.requests], phraseMatched: true });
+    }
+    const file = testInfo.outputPath('voiceid-model-selection.json');
+    writeFileSync(
+      file,
+      JSON.stringify(
+        { status: 'passed', source: 'synthetic_fixture', defaultModel: 'citrinet', results },
+        null,
+        2,
+      ),
+    );
+    await testInfo.attach('voiceid-model-selection.json', {
+      path: file,
+      contentType: 'application/json',
+    });
+  } finally {
+    server.close();
+  }
+}
+
+function isTranscriptionAsset(request: string): boolean {
+  return request.endsWith('/aurora-int8.onnx') || request.endsWith('/citrinet-int8.onnx');
 }
 
 function observedProgress() {
@@ -194,7 +252,7 @@ test('one VoiceID download survives failure, prepares real models, and reuses a 
   const server = new LoadingServer();
   try {
     const origin = await server.start();
-    await page.goto(origin);
+    await page.goto(`${origin}?transcriptionModel=aurora`);
     expect(server.requests.filter(isAsset)).toEqual([]);
     await page.getByRole('button', { name: 'Load VoiceID' }).click();
     const retry = page.getByRole('button', { name: 'Retry loading' });
@@ -327,7 +385,7 @@ async function runStalledDownload({ page }: { page: Page }, testInfo: TestInfo):
   try {
     const origin = await server.start();
     await page.clock.install();
-    await page.goto(origin);
+    await page.goto(`${origin}?transcriptionModel=aurora`);
     await page.getByRole('button', { name: 'Load VoiceID' }).click();
     await expect.poll(engineRequestCount.bind(null, server)).toBe(1);
     await page.clock.fastForward(30_001);

@@ -10,7 +10,7 @@ const root = path.resolve(import.meta.dirname, '../../..');
 const assets = path.join(root, 'packages/voiceid/dist/public/sdk/voiceid');
 const permitted = [
   'ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.mjs',
-  'redimnet-b1.onnx', 'aurora-int8.onnx', 'silero-vad.onnx', 'voice-activity-worklet.js',
+  'redimnet-b1.onnx', 'citrinet-int8.onnx', 'silero-vad.onnx', 'voice-activity-worklet.js',
 ];
 const html = `<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>VoiceID human calibration</title>

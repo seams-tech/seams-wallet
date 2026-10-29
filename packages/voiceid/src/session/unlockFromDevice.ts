@@ -2,7 +2,7 @@ import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type { VoiceIdWalletSessionChallenge } from '@seams/wallet/voiceid-host';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@seams/wallet/voiceid-host';
-import { captureVoiceIdUnlock } from '../capture/deviceBridge';
+import type { VoiceIdUnlockCapture } from '../capture/deviceBridge';
 import type { VoiceIdHttpClient, VoiceIdVerifiedSession } from './httpClient';
 
 /** The installer must finish custody activation before the caller reports unlock. */
@@ -10,7 +10,7 @@ export async function verifyVoiceIdChallengeWithDevice<T>(input: {
   readonly authMethod: ActiveVoiceIdWalletAuthMethodRecordV2;
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly http: Pick<VoiceIdHttpClient, 'verify'>;
-  readonly capture: typeof captureVoiceIdUnlock;
+  readonly capture: VoiceIdUnlockCapture;
   readonly install: (verified: VoiceIdVerifiedSession, factorSecret32: Uint8Array) => Promise<T>;
   readonly signal: AbortSignal;
   readonly onCapture: VoiceCaptureObserver;

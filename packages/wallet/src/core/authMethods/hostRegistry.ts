@@ -1,4 +1,4 @@
-import { walletAuthMethodPluginEnabled, type WalletAuthMethodPlugin } from './plugins';
+import { type WalletAuthMethodPlugin, type VoiceIdTranscriptionModel } from './plugins';
 import type { WalletAuthMethodHostPlugin } from './hostPlugin';
 import { isPlainObject } from '@shared/utils/validation';
 
@@ -7,18 +7,25 @@ export async function loadWalletAuthMethodHostPlugin(
   enabled: readonly WalletAuthMethodPlugin[],
   kind: WalletAuthMethodPlugin['kind'],
 ): Promise<WalletAuthMethodHostPlugin> {
-  if (!walletAuthMethodPluginEnabled(enabled, kind)) {
+  const selected = enabled.find(sameKind.bind(null, kind));
+  if (!selected) {
     throw new Error('Enable the authentication method plugin before using it.');
   }
   switch (kind) {
     case 'voiceid':
-      return await loadVoiceIdHost();
+      return await loadVoiceIdHost(selected.transcriptionModel ?? 'citrinet');
   }
   kind satisfies never;
   throw new Error('Authentication method plugin is unavailable in this Wallet host.');
 }
 
-async function loadVoiceIdHost(): Promise<WalletAuthMethodHostPlugin> {
+function sameKind(kind: WalletAuthMethodPlugin['kind'], plugin: WalletAuthMethodPlugin): boolean {
+  return plugin.kind === kind;
+}
+
+async function loadVoiceIdHost(
+  transcriptionModel: VoiceIdTranscriptionModel,
+): Promise<WalletAuthMethodHostPlugin> {
   let module: unknown;
   try {
     // This runtime URL is supplied by the host deployment, outside this npm package.
@@ -28,14 +35,16 @@ async function loadVoiceIdHost(): Promise<WalletAuthMethodHostPlugin> {
   }
   if (
     !isPlainObject(module) ||
-    module.hostApiVersion !== 2 ||
-    !isHostPlugin(module.voiceIdHostPlugin)
+    module.hostApiVersion !== 3 ||
+    typeof module.createVoiceIdHostPlugin !== 'function'
   ) {
     throw new Error(
       'VoiceID is incompatible with this Wallet host. Install matching package versions.',
     );
   }
-  return module.voiceIdHostPlugin;
+  const plugin: unknown = module.createVoiceIdHostPlugin(transcriptionModel);
+  if (!isHostPlugin(plugin)) throw new Error('VoiceID host implementation is invalid.');
+  return plugin;
 }
 
 async function voiceIdLoadFailure(cause: unknown): Promise<Error> {

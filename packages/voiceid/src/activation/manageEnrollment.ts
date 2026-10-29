@@ -1,4 +1,5 @@
 import type { RegistrationWebContext } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import { WorkerDeferred } from '@seams/wallet/voiceid-host';
 import { enrollBrowserVoice } from '../browser/enrollment';
 import {
@@ -28,10 +29,11 @@ export async function manageVoiceEnrollment(
   context: RegistrationWebContext,
   scope: VoiceEnrollmentScope,
   signal: AbortSignal,
+  model: VoiceIdTranscriptionModel,
 ): Promise<void> {
   const parent = document.querySelector('.seams-voiceid-activation-surface');
   if (!(parent instanceof HTMLElement)) throw new Error('Open VoiceID management in the Wallet.');
-  const surface = new VoiceEnrollmentManagement(parent, context, scope, signal);
+  const surface = new VoiceEnrollmentManagement(parent, context, scope, signal, model);
   try {
     await surface.result;
   } finally {
@@ -56,6 +58,7 @@ class VoiceEnrollmentManagement {
     private readonly context: RegistrationWebContext,
     private readonly scope: VoiceEnrollmentScope,
     private readonly signal: AbortSignal,
+    private readonly model: VoiceIdTranscriptionModel,
   ) {
     this.element.className = 'seams-voiceid-prompt seams-voiceid-management';
     const header = document.createElement('div');
@@ -253,12 +256,14 @@ class VoiceEnrollmentManagement {
           await enrollBrowserVoice(
             { kind: 'improve', scope: this.scope, guard, snapshot, confirmation },
             this.signal,
+            this.model,
           );
           break;
         case 'replace':
           await enrollBrowserVoice(
             { kind: 'replace', scope: this.scope, guard, snapshot, confirmation },
             this.signal,
+            this.model,
           );
           break;
         case 'reset':

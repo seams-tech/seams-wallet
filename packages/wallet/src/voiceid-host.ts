@@ -1,6 +1,6 @@
 // Trusted Wallet-host API used by the separately installed VoiceID implementation.
 // Keep these exports in the host bundle so the plugin shares Wallet state and workers.
-export const VOICE_ID_HOST_API_VERSION = 2;
+export const VOICE_ID_HOST_API_VERSION = 3;
 export type { MpcMaterialActivationRef } from '@shared/utils/domainIds';
 export type { WalletCapabilitySubjectV1 } from '@shared/device-linking/contracts';
 export {
@@ -38,7 +38,10 @@ export {
   type AuthMethodUnlockSuccess,
   type WalletAuthMethodHostPlugin,
 } from './core/authMethods/hostPlugin';
-export { type VoiceIdAuthMethodPlugin } from './core/authMethods/plugins';
+export {
+  type VoiceIdAuthMethodPlugin,
+  type VoiceIdTranscriptionModel,
+} from './core/authMethods/plugins';
 export {
   createCspStylesheetManager,
   getDefaultCspNonce,

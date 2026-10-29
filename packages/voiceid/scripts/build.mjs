@@ -43,10 +43,12 @@ await build(
 for (const filename of [
   'redimnet-b1.onnx',
   'aurora-int8.onnx',
+  'citrinet-int8.onnx',
   'silero-vad.onnx',
   'voice-activity-worklet.js',
   'NOTICE.txt',
   'AURORA_LICENSE.txt',
+  'CITRINET_LICENSE.txt',
   'SILERO_LICENSE.txt',
 ]) {
   await cp(path.join(root, 'assets', filename), path.join(assets, filename));

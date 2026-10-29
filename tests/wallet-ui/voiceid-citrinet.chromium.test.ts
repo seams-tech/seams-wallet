@@ -51,19 +51,13 @@ async function serve(route: Route): Promise<void> {
   }
   const name = path.basename(pathname);
   if (
-    pathname.startsWith('/citrinet/') &&
-    ['citrinet-int8.onnx', 'vocabulary.json'].includes(name) &&
-    modelRoot
-  ) {
-    await route.fulfill({
-      path: path.join(modelRoot, name),
-      contentType: name.endsWith('.json') ? 'application/json' : 'application/octet-stream',
-    });
-    return;
-  }
-  if (
     pathname.startsWith('/sdk/voiceid/') &&
-    ['aurora-int8.onnx', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm'].includes(name)
+    [
+      'aurora-int8.onnx',
+      'citrinet-int8.onnx',
+      'ort-wasm-simd-threaded.mjs',
+      'ort-wasm-simd-threaded.wasm',
+    ].includes(name)
   ) {
     await route.fulfill({
       path: path.join(root, 'packages/voiceid/dist/public/sdk/voiceid', name),
@@ -250,7 +244,6 @@ async function captureJourney({ page }: { page: Page }, info: TestInfo): Promise
   const running = await startComparisonServer({
     port: 0,
     source: 'synthetic_fixture',
-    directory: modelRoot,
   });
   const requests: { url: string; method: string }[] = [];
   page.on('request', recordRequest.bind(null, requests));
@@ -280,7 +273,7 @@ async function captureJourney({ page }: { page: Page }, info: TestInfo): Promise
     for (let index = 0; index < 3; index += 1) {
       await recordAndLabel(page, 'I read it correctly');
     }
-    for (const name of ['negated', 'missing-negation', 'unrelated']) {
+    for (const name of ['negated', 'extra-negation', 'unrelated']) {
       const audio = fs.readFileSync(path.join(fixtures, 'tolerance', `${name}.wav`));
       await page.evaluate(useAudio, audio.toString('base64'));
       await recordAndLabel(page, 'I read it correctly');

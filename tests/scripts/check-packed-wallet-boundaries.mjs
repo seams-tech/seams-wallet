@@ -157,7 +157,8 @@ function installPackedPackages(tarballs) {
 
 async function smokePackedEntries() {
   const voiceId = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/index.js'));
-  assert.deepEqual(voiceId.voiceIdAuthMethod(), { kind: 'voiceid' });
+  assert.deepEqual(voiceId.voiceIdAuthMethod(), { kind: 'voiceid', transcriptionModel: 'citrinet' });
+  assert.deepEqual(voiceId.voiceIdAuthMethod({ transcriptionModel: 'aurora' }), { kind: 'voiceid', transcriptionModel: 'aurora' });
   const voiceUi = await import(path.join(nodeModulesDirectory, '@seams/voiceid/dist/esm/react.js'));
   assert.equal(typeof voiceUi.VoiceAssistantCard, 'function');
   assert.ok('VoiceBeam' in voiceUi);
@@ -178,6 +179,7 @@ async function smokePackedEntries() {
   });
   assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/host.js')));
   assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/aurora-int8.onnx')));
+  assert.ok(fs.existsSync(path.join(combined, 'sdk/voiceid/citrinet-int8.onnx')));
   assert.ok(!fs.existsSync(path.join(walletPublicDirectory, 'sdk/voiceid')));
   const cliOutput = path.join(workDirectory, 'cli-wallet');
   const cliResult = execFileSync('npx', ['--no-install', 'seams-voiceid-host', './cli-wallet'], {
@@ -195,6 +197,7 @@ async function smokePackedEntries() {
     '/sdk/voiceid/host.js',
     '/sdk/voiceid/redimnet-b1.onnx',
     '/sdk/voiceid/aurora-int8.onnx',
+    '/sdk/voiceid/citrinet-int8.onnx',
     '/sdk/voiceid/silero-vad.onnx',
     '/sdk/voiceid/ort-wasm-simd-threaded.wasm',
   ]) {

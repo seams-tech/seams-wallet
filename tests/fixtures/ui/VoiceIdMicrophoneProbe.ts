@@ -42,7 +42,7 @@ navigator.mediaDevices.enumerateDevices = enumerateMicrophones;
 void prepare();
 
 async function prepare(): Promise<void> {
-  await prepareVoiceModelWithProgress(prompt.progress, controller.signal);
+  await prepareVoiceModelWithProgress(prompt.progress, controller.signal, 'citrinet');
   prompt.progress.replaceChildren();
   prompt.record.disabled = false;
   document.body.dataset.ready = 'true';

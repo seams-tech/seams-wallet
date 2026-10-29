@@ -1,7 +1,9 @@
 # Citrinet browser evaluation
 
-Aurora remains the production recognizer. These tools compare Citrinet and
-Aurora locally. The SDK does not import the experiment or download its model.
+Citrinet and Aurora are supported SDK recognizers. Citrinet is the default.
+Developers select `transcriptionModel: 'aurora'` or `'citrinet'` in `voiceIdAuthMethod()`.
+VoiceID downloads only the selected recognizer during an action. These research
+tools can explicitly prepare both models for a local comparison.
 Moonshine is excluded. INT4 remains deferred until human results justify a
 download-size tradeoff.
 
@@ -22,7 +24,8 @@ uv pip install --python /tmp/seams-citrinet-python/bin/python \
 uv pip install --python /tmp/seams-citrinet-python/bin/python --no-deps nemo_toolkit==1.23.0
 
 /tmp/seams-citrinet-python/bin/python tests/scripts/voiceid-citrinet/export.py \
-  --root /tmp/seams-citrinet-eval --fixtures tests/fixtures/audio/aurora
+  --root /tmp/seams-citrinet-eval --fixtures tests/fixtures/audio/aurora \
+  --vocabulary packages/voiceid/src/browser/phraseTokens.ts
 /tmp/seams-citrinet-python/bin/python tests/scripts/voiceid-citrinet/native_parity.py \
   --root /tmp/seams-citrinet-eval --fixtures tests/fixtures/audio/aurora
 ```
@@ -83,7 +86,6 @@ synthetic comparison. Human improvement and mobile latency remain unmeasured.
 ## Compare fresh human recordings
 
 ```sh
-CITRINET_EVAL_ROOT=/tmp/seams-citrinet-eval \
 node tests/scripts/voiceid-citrinet/serve.mjs 4392
 ```
 
@@ -91,6 +93,7 @@ Open `http://localhost:4392/` in Chrome. Confirm participation. Prepare the
 models. Record each displayed phrase, then label the reading before seeing
 results. Enrollment is unnecessary because this trial isolates phrase matching.
 The batch contains five phrases followed by three explicit wrong-phrase controls.
+“No crying in the casino” remains a correctly read phrase. Controls use other prompts.
 Read exactly the words displayed for each control. Model order alternates.
 The page stops after eight labeled recordings and enables the final export.
 
@@ -106,6 +109,6 @@ replay comparison. Do not infer human acceptance from the synthetic trial.
 
 ## Validation limits
 
-VoiceID and Wallet-state type checks pass. The broader browser TypeScript
-project has existing errors in unrelated fixtures. No Citrinet source errors
-remain in that project. The bloat check and existing Aurora browser checks pass.
+The recorded evaluation's browser checks and native parity check passed.
+They remain available for reproduction. Model-choice changes use a focused
+browser check for selected-only downloads and real phrase inference.

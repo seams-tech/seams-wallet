@@ -1,4 +1,5 @@
 import { readAuthMethodEnabled } from '@seams/wallet/voiceid-host';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
 import type {
@@ -28,6 +29,7 @@ export async function prepareUnlockSurface(
   input: Parameters<WalletAuthMethodHostPlugin['unlock']>[0],
   signal: AbortSignal,
   parent: HTMLElement,
+  model: VoiceIdTranscriptionModel,
 ): Promise<PreparedVoiceCapture<AuthMethodUnlockSuccess>> {
   if (!(await readAuthMethodEnabled(input.walletId, input.walletAuthMethodId)))
     throw new Error('VoiceID is turned off in this browser. Enable it in Authentication methods.');
@@ -53,7 +55,7 @@ export async function prepareUnlockSurface(
       'Unlock with a passkey, then open Manage voice to import or record your enrollment.',
     );
   }
-  await prepareVoiceModelWithProgress(parent, signal);
+  await prepareVoiceModelWithProgress(parent, signal, model);
   signal.throwIfAborted();
   input.assertActive();
   const challenge = await http.challenge({
@@ -67,7 +69,7 @@ export async function prepareUnlockSurface(
   return {
     kind: 'recording',
     expiresAtMs: challenge.expiresAtMs,
-    action: captureAndInstall.bind(null, prepared),
+    action: captureAndInstall.bind(null, model, prepared),
   };
 }
 
@@ -88,6 +90,7 @@ function installVerifiedSession(
 }
 
 async function captureAndInstall(
+  model: VoiceIdTranscriptionModel,
   prepared: PreparedVoiceIdUnlock,
   signal: AbortSignal,
   onCapture: VoiceCaptureObserver,
@@ -97,7 +100,7 @@ async function captureAndInstall(
     authMethod: prepared.authMethod,
     challenge: prepared.challenge,
     http: prepared.http,
-    capture: captureVoiceIdUnlock,
+    capture: captureVoiceIdUnlock.bind(null, model),
     install: installVerifiedSession.bind(null, prepared.install, signal),
     signal,
     onCapture,

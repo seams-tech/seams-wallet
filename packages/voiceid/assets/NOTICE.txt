@@ -46,8 +46,25 @@ Changes: exported the publisher's INT8-weight checkpoint to ONNX, with
 full-waveform log-mel preprocessing. The complex STFT is represented by ONNX
 STFT and power reduction. Constant folding is disabled to retain INT8 weights
 in the downloaded file. Execution dequantizes weights to floating point.
-A 16-phrase token vocabulary is generated from the publisher's SentencePiece
-tokenizer. No retraining or user recordings are included.
+Decoder pieces come from the publisher's SentencePiece tokenizer.
+No retraining or user recordings are included.
+
+NVIDIA Citrinet-256 LS spoken phrase model
+
+Source: https://huggingface.co/nvidia/stt_en_citrinet_256_ls
+Revision: c7cdacff0262bbb2a17771d20ec9f9f3b5cff6ed
+Publisher: NVIDIA
+License: Creative Commons Attribution 4.0 International; see CITRINET_LICENSE.txt.
+License URL: https://creativecommons.org/licenses/by/4.0/
+Checkpoint SHA-256: a00c8fb75a2bcc37271275293bce950863e4e069d43f6cf193d42fcf605aa21c
+ONNX SHA-256: 875f58df0e2a593017ac9550c8fab68c4343cd1fbb2a042290450aa125441ed5
+
+Changes: exported to ONNX with full 16 kHz mono waveform preprocessing,
+folded batch normalization, and per-channel INT8 weight storage.
+Execution dequantizes weights to FP32. The publisher's WordPiece decoder
+vocabulary is embedded in code. No retraining or user recordings are included.
+The exporter adapts Thomas Lackner's MIT-licensed BabyTalk architecture.
+See tests/scripts/voiceid-citrinet/NOTICE.md in the source repository.
 
 Silero VAD v5.1.2 (MIT), snakers4/silero-vad, revision 6478567951ae5c9979ad7b234185b5515f4be7a1.
 Model SHA-256: 2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f

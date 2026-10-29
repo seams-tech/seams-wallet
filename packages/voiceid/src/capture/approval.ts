@@ -2,6 +2,7 @@ import { VoicePrompt } from './prompt';
 import { newConfirmationPhrase, type SpokenPhrase } from '../browser/phrase';
 import { parseVoiceConfirmation, type VoiceConfirmation } from '../browser/confirmationCommand';
 import { prepareVoiceModelWithProgress } from '../browser/progress';
+import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import type { AuthMethodApprovalResult } from '@seams/wallet/voiceid-host';
 import type { ParentToChildEnvelope } from '@seams/wallet/voiceid-host';
 import {
@@ -61,6 +62,7 @@ function freezeRequestValue(value: unknown): void {
 export async function voiceIdPolicyForRequest(
   request: ParentToChildEnvelope,
   configuration: ConfiguredWalletHost,
+  model: VoiceIdTranscriptionModel,
 ): Promise<VoiceIdPolicy> {
   switch (request.type) {
     case 'PM_SIGN_TX_WITH_ACTIONS':
@@ -96,6 +98,7 @@ export async function voiceIdPolicyForRequest(
         request,
         configuration,
         parseVoiceConfirmation(payload.options?.voiceId),
+        model,
       );
     }
     case 'PM_SIGN_AND_SEND_TX': {
@@ -118,6 +121,7 @@ export async function voiceIdPolicyForRequest(
         request,
         configuration,
         parseVoiceConfirmation(payload.options.voiceId),
+        model,
       );
     }
     default:
@@ -139,6 +143,7 @@ async function reviewedVoiceIdPolicy(
   request: Extract<ParentToChildEnvelope, { type: 'PM_SIGN_AND_SEND_TX' | 'PM_SIGN_TEMPO' }>,
   configuration: ConfiguredWalletHost,
   confirmation: VoiceConfirmation,
+  model: VoiceIdTranscriptionModel,
 ): Promise<VoiceIdPolicy> {
   const review = parseTransactionReviewWire(request.transactionReview);
   if (review.validity.kind !== 'expires_at') {
@@ -163,7 +168,7 @@ async function reviewedVoiceIdPolicy(
   if (!walletId) throw new Error('VoiceID review requires a wallet identity.');
   return {
     kind: 'required',
-    approval: VoiceIdApproval.forReview(review, operationHash, walletId, confirmation),
+    approval: VoiceIdApproval.forReview(review, operationHash, walletId, confirmation, model),
   };
 }
 
@@ -191,6 +196,7 @@ export class VoiceIdApproval {
     private readonly operationHash: string,
     private readonly walletId: WalletId,
     private readonly confirmation: VoiceConfirmation,
+    private readonly model: VoiceIdTranscriptionModel,
   ) {
     this.phrase = newConfirmationPhrase(confirmation, null);
     // The receipt that follows a signature takes the checking segments over as its tracks.
@@ -211,6 +217,7 @@ export class VoiceIdApproval {
     operationHash: string,
     walletId: WalletId,
     confirmation: VoiceConfirmation,
+    model: VoiceIdTranscriptionModel,
   ): VoiceIdApproval {
     if (review.validity.kind !== 'expires_at' || !/^[0-9a-f]{64}$/.test(operationHash)) {
       throw new TransactionReviewError(
@@ -218,7 +225,7 @@ export class VoiceIdApproval {
         'VoiceID requires a bounded operation.',
       );
     }
-    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId, confirmation);
+    return new VoiceIdApproval(review.validity.atMs, operationHash, walletId, confirmation, model);
   }
 
   async prepare(signal: AbortSignal): Promise<void> {
@@ -227,7 +234,7 @@ export class VoiceIdApproval {
     this.prompt.title.textContent = 'VoiceID';
     this.prompt.status.textContent = 'Loading VoiceID…';
     try {
-      await prepareVoiceModelWithProgress(this.prompt.progress, signal);
+      await prepareVoiceModelWithProgress(this.prompt.progress, signal, this.model);
       signal.throwIfAborted();
       if (this.state.kind !== 'preparing') throw new Error('VoiceID preparation was interrupted.');
       if (Date.now() >= this.reviewExpiresAtMs) {
@@ -285,6 +292,7 @@ export class VoiceIdApproval {
           signal,
           this.prompt.capture,
           this.phrase,
+          this.model,
         );
         this.assertListening(binding);
         if (signal.aborted || performance.now() >= deadline || Date.now() >= binding.expiresAtMs) {

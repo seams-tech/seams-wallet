@@ -17,9 +17,24 @@ const config = defineSeamsConfig({
   walletOrigin,
   relayerUrl,
   publishableKey,
-  authMethods: [voiceIdAuthMethod()],
+  authMethods: [voiceIdAuthMethod({ transcriptionModel: 'citrinet' })],
 });
 ```
+
+Choose `transcriptionModel: 'aurora'` for the smaller speech model. Citrinet is
+the default when this option is omitted. The choice applies to enrollment,
+unlock, and transaction approval. Each action keeps its chosen model throughout
+preparation and recording.
+
+| Speech model | Uncompressed | Gzip |
+| --- | ---: | ---: |
+| Citrinet INT8 | 10.48 MB | 8.84 MB |
+| Aurora INT8 | 1.34 MB | 1.02 MB |
+
+Both models ship with this package. The browser downloads only the selected
+speech model, plus the shared speaker model, speech detector, and inference
+engine. Each model has its own integrity-checked cache. Changing the speech
+model preserves saved speaker samples and verification thresholds.
 
 The root entry contains only the descriptor. Importing it or enabling it does not
 load capture code, ONNX Runtime, or models. The selected VoiceID action starts
@@ -115,7 +130,8 @@ enrollment and verification thresholds stay unchanged.
 Choose **Use system microphone** on the retry prompt to switch inputs. The next
 Record click uses the system default and remembers it after usable audio.
 
-The package remains a roughly 27 MB cold payload before transfer compression.
+The cold payload before transfer compression is roughly 27 MB with Aurora or
+36 MB with Citrinet.
 Splitting it removes that payload from Wallet-only installations. It does not
 reduce the bytes needed for the first VoiceID operation.
 

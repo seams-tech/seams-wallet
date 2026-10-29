@@ -56,6 +56,15 @@ import type { ExactEcdsaSigningLaneIdentity } from '@/core/signingEngine/session
 
 const enabled: SeamsConfigsInput = { authMethods: [voiceIdAuthMethod()] };
 void enabled;
+const aurora: SeamsConfigsInput = { authMethods: [voiceIdAuthMethod({ transcriptionModel: 'aurora' })] };
+const citrinet: SeamsConfigsInput = { authMethods: [voiceIdAuthMethod({ transcriptionModel: 'citrinet' })] };
+void aurora;
+void citrinet;
+// @ts-expect-error Only the two shipped models are supported.
+voiceIdAuthMethod({ transcriptionModel: 'moonshine' });
+const unknownModel = { transcriptionModel: 'remote-model' };
+// @ts-expect-error A broad spread cannot choose an unknown recognizer.
+voiceIdAuthMethod({ ...unknownModel });
 
 // @ts-expect-error A wallet auth method plugin needs an exact known kind.
 const unknownMethod: WalletAuthMethodPlugin = { kind: 'unknown' };
