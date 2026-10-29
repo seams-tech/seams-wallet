@@ -2,7 +2,8 @@
 
 The bounded binary-delivery prototype passes the native lifecycle campaign and the complete real local Worker campaign.
 Six retained standard signatures verify independently, and six altered messages fail verification.
-Hosted latency improvement remains unmeasured at this checkpoint.
+The [hosted comparison](ml-dsa-65-binary-material-hosted-report.md) completes with all signing calls below 3.1 seconds in both arms.
+It establishes no overall latency or throughput gain from the binary format.
 
 ## Measured reason for the prototype
 
@@ -71,7 +72,7 @@ Public Gateway and SDK code remain unchanged. Private Router timings still exclu
 The eight temporary destinations and synthetic credential payloads have explicit user approval.
 Setup and canonical recovery precede the timed comparison.
 Compare equal candidate counts, preparation CPU, complete reserve restoration, request waits, and final signing calls.
-The implementation remains a prototype until that comparison establishes a useful benefit.
+The measured benefit remains the smaller bulk representation. Mixed latency and CPU observations do not establish an overall speedup.
 
 [Local replay evidence](../evidence/ml-dsa-65-binary-material-local-20261030.json) records source and Wasm hashes, the complete campaign, retained failed case, and archive member hashes.
 The scan finds zero matches for the generated synthetic credential values.

@@ -23,7 +23,10 @@ The benchmark's five-second admission retry cap differs from the public Gateway'
 
 The [binary prepared-material prototype](router-ab/ml-dsa-65-binary-material-report.md) passes local lifecycle and malformed-delivery recovery checks.
 It targets the repeated take/response boundary in the 7.699-second warm-cache outlier, without changing pool capacity or cryptographic work.
-Its matched hosted comparison remains pending. Both arms use the actual public Gateway retry cadence rather than the earlier generic benchmark cap.
+Its [matched hosted comparison](router-ab/ml-dsa-65-binary-material-hosted-report.md) completes at 7.738/minute for JSON and 7.435/minute for binary delivery.
+All 189 successful calls remain below five seconds. Both arms use the actual public Gateway retry cadence.
+Binary removes bulk base64 expansion; equal-pair latency and CPU remain mixed. Preparation still accounts for approximately 91% of captured CPU.
+One binary operation waits for the reserve to recover from six to eight pairs. Material waits are not eliminated.
 
 The next high-impact tasks are:
 

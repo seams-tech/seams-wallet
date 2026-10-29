@@ -1,0 +1,974 @@
+{
+  "schema": "ml-dsa-binary-material-hosted-v1",
+  "date": "2026-10-30",
+  "implementation_commit": "4c79c144c",
+  "baseline_commit": "b95699c78",
+  "scope": "Four synthetic canonical wallets on Cloudflare; private Router path; twelve-minute matched windows plus exact reserve restoration. Both arms use the same driver matching public Gateway retry cadence. Public Gateway/SDK execution, login, browser network and NEAR finality remain outside these timings.",
+  "fixed_requirements": {
+    "workers_preparation": true,
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "capacity_candidates": 32,
+    "admission_candidates": 16,
+    "production_defaults_changed": false,
+    "cryptographic_kernels_changed": false,
+    "stored_formats_changed": false
+  },
+  "cases": {
+    "json30": {
+      "analysis": {
+        "functional_passed": true,
+        "start_at_ms": 1793296527567,
+        "window_end_at_ms": 1793297247567,
+        "cycle_end_at_ms": 1793297271914,
+        "reserve_detection_after_window_ms": 24347,
+        "restoration_boundary": "External observer starts before the load ends, waits for complete drivers and no live Preparing/Running authority for unresolved operations, then reads exact matching sixteen-pair A/B reserves with no reservations. Non-admitted AwaitingStock requests remain censored. Observed completion is an upper bound through the final HTTP replies.",
+        "late_external_confirmation_at_ms": 1793297271914,
+        "external_observer_started_before_cutoff": true,
+        "driver_completed_at_ms": 1793297247568,
+        "successes": 96,
+        "successes_in_window": 96,
+        "window_signatures_per_minute": 8.0,
+        "whole_cycle_signatures_per_minute": 7.738326345105173,
+        "successes_per_wallet": [
+          {
+            "wallet": 0,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 1,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 2,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 3,
+            "successfulSignatures": 24
+          }
+        ],
+        "successful_call_ms": {
+          "count": 96,
+          "minimum": 400,
+          "median": 836.5,
+          "p95_nearest_rank": 2087,
+          "maximum": 3029
+        },
+        "successful_operation_ms": {
+          "count": 96,
+          "minimum": 1770,
+          "median": 8483.0,
+          "p95_nearest_rank": 12666,
+          "maximum": 14039
+        },
+        "operation_timing_boundary": "First request for the same operation ID through receipt of its verified signature, including unavailable responses.",
+        "successful_demand_ms": {
+          "count": 96,
+          "minimum": 1770,
+          "median": 8483.0,
+          "p95_nearest_rank": 12666,
+          "maximum": 14039
+        },
+        "unfinished_demands": [],
+        "successful_calls_under_five_seconds": 96,
+        "unavailable_responses": {
+          "service_capacity": 32,
+          "wallet_cooldown": 110,
+          "empty_pool": 2
+        },
+        "failed_or_declined_operations": 0,
+        "errors": [],
+        "asymmetric_take_operations": [],
+        "candidates_consumed": 578,
+        "candidates_consumed_per_success": 6.020833333333333,
+        "pairs_per_success": {
+          "count": 96,
+          "minimum": 1,
+          "median": 2.0,
+          "p95_nearest_rank": 8,
+          "maximum": 11
+        },
+        "cpu_by_role_ms": {
+          "a": 45951,
+          "b": 49842,
+          "router": 6169,
+          "preparer-a": 268412,
+          "preparer-b": 276536,
+          "preparer-a-secondary": 223587,
+          "preparer-b-secondary": 230293
+        },
+        "all_captured_cpu_ms": 1100790,
+        "captured_cpu_ms_per_success": 11466.5625,
+        "invocation_outcomes": {
+          "ok": 15242,
+          "canceled": 134
+        },
+        "complete_preparation_job_wall_ms": {
+          "count": 161,
+          "minimum": 2685,
+          "median": 6695,
+          "p95_nearest_rank": 7795,
+          "maximum": 8438
+        },
+        "job_counts_by_candidate_count": {
+          "4": 128,
+          "2": 33
+        },
+        "four_candidate_preparation_job_wall_ms": {
+          "count": 128,
+          "minimum": 5863,
+          "median": 6921.5,
+          "p95_nearest_rank": 8030,
+          "maximum": 8438
+        },
+        "preparation_crypto_cpu_ms_by_role": {
+          "preparer-a": {
+            "count": 89,
+            "minimum": 1641,
+            "median": 3323,
+            "p95_nearest_rank": 3600,
+            "maximum": 3855
+          },
+          "preparer-b": {
+            "count": 89,
+            "minimum": 1685,
+            "median": 3414,
+            "p95_nearest_rank": 3796,
+            "maximum": 3989
+          },
+          "preparer-a-secondary": {
+            "count": 72,
+            "minimum": 1603,
+            "median": 3296.5,
+            "p95_nearest_rank": 3956,
+            "maximum": 4037
+          },
+          "preparer-b-secondary": {
+            "count": 72,
+            "minimum": 1648,
+            "median": 3390.0,
+            "p95_nearest_rank": 4089,
+            "maximum": 4242
+          }
+        },
+        "initial_pairs": 64,
+        "final_pairs": 64,
+        "fresh_published_pairs": 289,
+        "consumed_pairs": 289,
+        "missing_consumed_ids": [],
+        "unaccounted_lost_ids": [],
+        "unexpected_final_ids": [],
+        "ledger_balanced": true,
+        "a_only_publications": [],
+        "b_only_publications": [],
+        "fresh_candidates_per_cycle_minute": 46.59117320282073,
+        "preparation_cpu_ms": 998828,
+        "refill_outcomes": {
+          "published": 161
+        },
+        "outside_start_overlapping_invocations": 0,
+        "initial_stock_alone_cannot_explain_consumption": true,
+        "verified_operations_using_fresh_material": 76,
+        "fresh_pairs_consumed_by_verified_operations": 225
+      },
+      "qualification": {
+        "label": "json30",
+        "passed": true,
+        "all_initial_pairs_consumed": true,
+        "claims": 161,
+        "queued": 161,
+        "running": 161,
+        "published": 161,
+        "settled": 161,
+        "one_crypto_execution_per_job_per_role": true,
+        "provider_canceled_events": 134,
+        "provider_canceled_cpu_ms": 3,
+        "provider_canceled_with_crypto_start": 0,
+        "acknowledged_overdue_wakes": [],
+        "preparation_cpu_ms_per_consumed_candidate": 1728.0761245674742,
+        "depletion": {
+          "scope": "Observed restoration from deliberate depletion through exact paired stock. Crypto lifetimes can overlap without proving simultaneous CPU execution.",
+          "observed_restoration_ms": 31030,
+          "whole_script_ms": 31238,
+          "fresh_pairs": 16,
+          "four_candidate_jobs": 8,
+          "distinct_producers": 2,
+          "maximum_overlapping_crypto_lifetimes": 2,
+          "paired_crypto_invocation_cpu_ms": 53571,
+          "median_paired_crypto_invocation_cpu_ms_per_job": 6755.0
+        }
+      },
+      "equal_pair_warm_groups": [
+        {
+          "pairs": 1,
+          "samples": 25,
+          "final_call_median_ms": 469,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 57,
+              "reported_take_sum_median_ms": 0
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 56,
+              "reported_take_sum_median_ms": 0
+            }
+          }
+        },
+        {
+          "pairs": 2,
+          "samples": 24,
+          "final_call_median_ms": 746.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 126.0,
+              "reported_take_sum_median_ms": 99.0
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 120.0,
+              "reported_take_sum_median_ms": 101.5
+            }
+          }
+        },
+        {
+          "pairs": 3,
+          "samples": 14,
+          "final_call_median_ms": 992.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 200.5,
+              "reported_take_sum_median_ms": 329.5
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 190.5,
+              "reported_take_sum_median_ms": 191.0
+            }
+          }
+        },
+        {
+          "pairs": 4,
+          "samples": 12,
+          "final_call_median_ms": 1243.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 253.5,
+              "reported_take_sum_median_ms": 549.0
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 244.5,
+              "reported_take_sum_median_ms": 488.0
+            }
+          }
+        },
+        {
+          "pairs": 5,
+          "samples": 5,
+          "final_call_median_ms": 1241,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 356,
+              "reported_take_sum_median_ms": 767
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 334,
+              "reported_take_sum_median_ms": 498
+            }
+          }
+        },
+        {
+          "pairs": 6,
+          "samples": 5,
+          "final_call_median_ms": 1702,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 320,
+              "reported_take_sum_median_ms": 911
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 320,
+              "reported_take_sum_median_ms": 677
+            }
+          }
+        },
+        {
+          "pairs": 7,
+          "samples": 2,
+          "final_call_median_ms": 1561.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 344.0,
+              "reported_take_sum_median_ms": 709.0
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 338.5,
+              "reported_take_sum_median_ms": 882.5
+            }
+          }
+        },
+        {
+          "pairs": 8,
+          "samples": 3,
+          "final_call_median_ms": 2066,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 637,
+              "reported_take_sum_median_ms": 979
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 575,
+              "reported_take_sum_median_ms": 921
+            }
+          }
+        },
+        {
+          "pairs": 9,
+          "samples": 1,
+          "final_call_median_ms": 1807,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 489,
+              "reported_take_sum_median_ms": 964
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 494,
+              "reported_take_sum_median_ms": 1275
+            }
+          }
+        },
+        {
+          "pairs": 11,
+          "samples": 1,
+          "final_call_median_ms": 2634,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 949,
+              "reported_take_sum_median_ms": 2078
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 928,
+              "reported_take_sum_median_ms": 1196
+            }
+          }
+        }
+      ],
+      "cold_operations": [
+        "e4df817de6bd02ac393fcf997ed1babe21295d4c31cd161f2d0e3f4cc88bf7de",
+        "401f540f85abefd1fe980d003dc3c003d8aa790bca5af672801d272d3f6f0a44",
+        "2280f7640565bfc48787e54e72263456376194d4e48335602c3aed6fa184bb29",
+        "c41bdf6bcde8901bb4670c61f982c2ebaaf15e0b25c90ea3f60acc293c5a7370"
+      ]
+    },
+    "binary30": {
+      "analysis": {
+        "functional_passed": true,
+        "start_at_ms": 1793297554865,
+        "window_end_at_ms": 1793298274865,
+        "cycle_end_at_ms": 1793298305371,
+        "reserve_detection_after_window_ms": 30506,
+        "restoration_boundary": "External observer starts before the load ends, waits for complete drivers and no live Preparing/Running authority for unresolved operations, then reads exact matching sixteen-pair A/B reserves with no reservations. Non-admitted AwaitingStock requests remain censored. Observed completion is an upper bound through the final HTTP replies.",
+        "late_external_confirmation_at_ms": 1793298305371,
+        "external_observer_started_before_cutoff": true,
+        "driver_completed_at_ms": 1793298274866,
+        "successes": 93,
+        "successes_in_window": 93,
+        "window_signatures_per_minute": 7.75,
+        "whole_cycle_signatures_per_minute": 7.434983864219607,
+        "successes_per_wallet": [
+          {
+            "wallet": 0,
+            "successfulSignatures": 23
+          },
+          {
+            "wallet": 1,
+            "successfulSignatures": 22
+          },
+          {
+            "wallet": 2,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 3,
+            "successfulSignatures": 24
+          }
+        ],
+        "successful_call_ms": {
+          "count": 93,
+          "minimum": 329,
+          "median": 907,
+          "p95_nearest_rank": 1992,
+          "maximum": 2728
+        },
+        "successful_operation_ms": {
+          "count": 93,
+          "minimum": 671,
+          "median": 7977,
+          "p95_nearest_rank": 30113,
+          "maximum": 41857
+        },
+        "operation_timing_boundary": "First request for the same operation ID through receipt of its verified signature, including unavailable responses.",
+        "successful_demand_ms": {
+          "count": 93,
+          "minimum": 671,
+          "median": 7977,
+          "p95_nearest_rank": 30113,
+          "maximum": 41857
+        },
+        "unfinished_demands": [
+          {
+            "wallet": 0,
+            "number": 24,
+            "startAtMs": 1793298259934,
+            "startMs": 705069,
+            "state": "censored_at_end_of_window",
+            "elapsedMs": 14931,
+            "observedClosureElapsedMs": 14932
+          }
+        ],
+        "successful_calls_under_five_seconds": 93,
+        "unavailable_responses": {
+          "wallet_cooldown": 96,
+          "service_capacity": 36,
+          "empty_pool": 7
+        },
+        "failed_or_declined_operations": 0,
+        "errors": [],
+        "asymmetric_take_operations": [],
+        "candidates_consumed": 584,
+        "candidates_consumed_per_success": 6.279569892473118,
+        "pairs_per_success": {
+          "count": 93,
+          "minimum": 1,
+          "median": 3,
+          "p95_nearest_rank": 8,
+          "maximum": 9
+        },
+        "cpu_by_role_ms": {
+          "a": 46313,
+          "b": 51020,
+          "router": 6294,
+          "preparer-a": 272769,
+          "preparer-b": 278870,
+          "preparer-a-secondary": 225134,
+          "preparer-b-secondary": 230638
+        },
+        "all_captured_cpu_ms": 1111038,
+        "captured_cpu_ms_per_success": 11946.645161290322,
+        "invocation_outcomes": {
+          "ok": 14816,
+          "canceled": 134
+        },
+        "complete_preparation_job_wall_ms": {
+          "count": 165,
+          "minimum": 2375,
+          "median": 6795,
+          "p95_nearest_rank": 7873,
+          "maximum": 10591
+        },
+        "job_counts_by_candidate_count": {
+          "4": 127,
+          "2": 38
+        },
+        "four_candidate_preparation_job_wall_ms": {
+          "count": 127,
+          "minimum": 5877,
+          "median": 6983,
+          "p95_nearest_rank": 8163,
+          "maximum": 10591
+        },
+        "preparation_crypto_cpu_ms_by_role": {
+          "preparer-a": {
+            "count": 90,
+            "minimum": 1631,
+            "median": 3381.5,
+            "p95_nearest_rank": 3785,
+            "maximum": 3904
+          },
+          "preparer-b": {
+            "count": 90,
+            "minimum": 1649,
+            "median": 3435.0,
+            "p95_nearest_rank": 3977,
+            "maximum": 4058
+          },
+          "preparer-a-secondary": {
+            "count": 75,
+            "minimum": 1603,
+            "median": 3295,
+            "p95_nearest_rank": 3705,
+            "maximum": 3916
+          },
+          "preparer-b-secondary": {
+            "count": 75,
+            "minimum": 1631,
+            "median": 3358,
+            "p95_nearest_rank": 3839,
+            "maximum": 4012
+          }
+        },
+        "initial_pairs": 64,
+        "final_pairs": 64,
+        "fresh_published_pairs": 292,
+        "consumed_pairs": 292,
+        "missing_consumed_ids": [],
+        "unaccounted_lost_ids": [],
+        "unexpected_final_ids": [],
+        "ledger_balanced": true,
+        "a_only_publications": [],
+        "b_only_publications": [],
+        "fresh_candidates_per_cycle_minute": 46.68850082477689,
+        "preparation_cpu_ms": 1007411,
+        "refill_outcomes": {
+          "published": 165
+        },
+        "outside_start_overlapping_invocations": 0,
+        "initial_stock_alone_cannot_explain_consumption": true,
+        "verified_operations_using_fresh_material": 76,
+        "fresh_pairs_consumed_by_verified_operations": 228
+      },
+      "qualification": {
+        "label": "binary30",
+        "passed": true,
+        "all_initial_pairs_consumed": true,
+        "claims": 165,
+        "queued": 165,
+        "running": 165,
+        "published": 165,
+        "settled": 165,
+        "one_crypto_execution_per_job_per_role": true,
+        "provider_canceled_events": 134,
+        "provider_canceled_cpu_ms": 1823,
+        "provider_canceled_with_crypto_start": 1,
+        "acknowledged_overdue_wakes": [],
+        "preparation_cpu_ms_per_consumed_candidate": 1725.0188356164383,
+        "depletion": {
+          "scope": "Observed restoration from deliberate depletion through exact paired stock. Crypto lifetimes can overlap without proving simultaneous CPU execution.",
+          "observed_restoration_ms": 35442,
+          "whole_script_ms": 36079,
+          "fresh_pairs": 16,
+          "four_candidate_jobs": 8,
+          "distinct_producers": 2,
+          "maximum_overlapping_crypto_lifetimes": 2,
+          "paired_crypto_invocation_cpu_ms": 56986,
+          "median_paired_crypto_invocation_cpu_ms_per_job": 7010.0
+        }
+      },
+      "equal_pair_warm_groups": [
+        {
+          "pairs": 1,
+          "samples": 24,
+          "final_call_median_ms": 523.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 74.5,
+              "reported_take_sum_median_ms": 0.0
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 71.0,
+              "reported_take_sum_median_ms": 0.0
+            }
+          }
+        },
+        {
+          "pairs": 2,
+          "samples": 19,
+          "final_call_median_ms": 761,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 137,
+              "reported_take_sum_median_ms": 87
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 141,
+              "reported_take_sum_median_ms": 93
+            }
+          }
+        },
+        {
+          "pairs": 3,
+          "samples": 18,
+          "final_call_median_ms": 901.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 242.5,
+              "reported_take_sum_median_ms": 198.5
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 228.0,
+              "reported_take_sum_median_ms": 195.0
+            }
+          }
+        },
+        {
+          "pairs": 4,
+          "samples": 11,
+          "final_call_median_ms": 1068,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 240,
+              "reported_take_sum_median_ms": 397
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 236,
+              "reported_take_sum_median_ms": 489
+            }
+          }
+        },
+        {
+          "pairs": 5,
+          "samples": 7,
+          "final_call_median_ms": 1147,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 289,
+              "reported_take_sum_median_ms": 588
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 284,
+              "reported_take_sum_median_ms": 405
+            }
+          }
+        },
+        {
+          "pairs": 6,
+          "samples": 5,
+          "final_call_median_ms": 1628,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 464,
+              "reported_take_sum_median_ms": 948
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 452,
+              "reported_take_sum_median_ms": 538
+            }
+          }
+        },
+        {
+          "pairs": 7,
+          "samples": 2,
+          "final_call_median_ms": 1715.0,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 606.5,
+              "reported_take_sum_median_ms": 1145.5
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 591.0,
+              "reported_take_sum_median_ms": 716.5
+            }
+          }
+        },
+        {
+          "pairs": 8,
+          "samples": 1,
+          "final_call_median_ms": 1251,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 679,
+              "reported_take_sum_median_ms": 750
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 674,
+              "reported_take_sum_median_ms": 783
+            }
+          }
+        },
+        {
+          "pairs": 9,
+          "samples": 2,
+          "final_call_median_ms": 1978.5,
+          "roles": {
+            "a": {
+              "execute_invocation_cpu_median_ms": 741.5,
+              "reported_take_sum_median_ms": 1182.5
+            },
+            "b": {
+              "execute_invocation_cpu_median_ms": 723.0,
+              "reported_take_sum_median_ms": 854.0
+            }
+          }
+        }
+      ],
+      "cold_operations": [
+        "21c56f2eacd9308a14aa85dbd1a07a6c26cc7598802764fc87eaef1655e6aa4f",
+        "0b34f36d52e29dd9c493da9b88a82043aced318824c59d5a8d86b610c1f0b33f",
+        "ba6b9995f776faeb76c34fc05bbe0f3b223b150a864a9c3be72c8238cb18bf99",
+        "ca86304769de3820baf3647e78063d1a88cfb1750638e51c93a491df182ce827"
+      ]
+    }
+  },
+  "verdict": {
+    "structural_benefit": "Raw bulk ciphertext avoids base64 expansion, approximately one quarter less ciphertext transfer representation.",
+    "overall_latency_gain_established": false,
+    "throughput_gain_established": false,
+    "preparation_is_dominant": true,
+    "consistent_under_five_seconds_guaranteed": false
+  },
+  "measurement_limits": [
+    "Sequential windows use fresh randomness and different rejection counts.",
+    "Stage-clock spans include scheduling, transfer and processing and can omit CPU.",
+    "Equal-pair comparisons exclude four schedule-cache-miss operations per window.",
+    "Whole invocation CPU is a record total, not isolated storage or serialization cost.",
+    "The JSON control already completes an eleven-pair operation in 2.634 seconds."
+  ],
+  "retry_descriptor": {
+    "json_control_raw_descriptor_stale": true,
+    "runtime_driver_identical": true,
+    "actual_minimum_ms": 100,
+    "actual_service_capacity_cap_ms": 500,
+    "other_reasons": "server_retry_at",
+    "raw_control_artifact_preserved": true
+  },
+  "empty_pool_operations": [
+    {
+      "operation": "b08d78cab528b107453d295fe0069033d0e6f69da128c021b492e3b9ad02f34d",
+      "wallet": 2,
+      "empty_responses": 7,
+      "preceding_operation": "e2f1357af2b1cf129daa7f3523e112adfe94c22d7936d673ebba94eaa8a1666c",
+      "preceding_pairs_consumed": 9,
+      "first_empty_start_ms": 339433,
+      "first_empty_to_success_ms": 7428,
+      "scarce_pair_counts": [
+        6
+      ],
+      "minimum_pairs": 8,
+      "admitted_pairs": 8,
+      "service_capacity_responses_after_first_empty": 1,
+      "request_timeline": [
+        {
+          "startAtMs": 1793297884881,
+          "completedAtMs": 1793297884899,
+          "elapsedMs": 18,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793297894297
+        },
+        {
+          "startAtMs": 1793297894298,
+          "completedAtMs": 1793297894343,
+          "elapsedMs": 45,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297895326
+        },
+        {
+          "startAtMs": 1793297895326,
+          "completedAtMs": 1793297895550,
+          "elapsedMs": 224,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297896540
+        },
+        {
+          "startAtMs": 1793297896540,
+          "completedAtMs": 1793297896596,
+          "elapsedMs": 56,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297897594
+        },
+        {
+          "startAtMs": 1793297897594,
+          "completedAtMs": 1793297897672,
+          "elapsedMs": 78,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297898667
+        },
+        {
+          "startAtMs": 1793297898667,
+          "completedAtMs": 1793297898686,
+          "elapsedMs": 19,
+          "status": "unavailable",
+          "reason": "service_capacity",
+          "retryAtMs": 1793297928085
+        },
+        {
+          "startAtMs": 1793297899186,
+          "completedAtMs": 1793297899246,
+          "elapsedMs": 60,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297900227
+        },
+        {
+          "startAtMs": 1793297900227,
+          "completedAtMs": 1793297900289,
+          "elapsedMs": 62,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297901280
+        },
+        {
+          "startAtMs": 1793297901280,
+          "completedAtMs": 1793297901297,
+          "elapsedMs": 17,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793297901280
+        },
+        {
+          "startAtMs": 1793297901397,
+          "completedAtMs": 1793297901726,
+          "elapsedMs": 329,
+          "status": "existing",
+          "state": "succeeded"
+        }
+      ]
+    }
+  ],
+  "independent_signature_checks": {
+    "accepted": 189,
+    "changed_messages_rejected": 189
+  },
+  "provider_selection": {
+    "earliest_included_ms": 1793296450783,
+    "latest_included_ms": 1793298335371,
+    "rule": "Keep the complete provider invocation if any log timestamp or its metadata/wall envelope intersects the continuous experiment interval. Keep invocations with unknown times. Never select by status, version, or success.",
+    "roles": {
+      "preparer-a-secondary-raw": {
+        "input_invocations": 539,
+        "included_invocations": 449
+      },
+      "router-raw": {
+        "input_invocations": 19530,
+        "included_invocations": 16704
+      },
+      "b-raw": {
+        "input_invocations": 9845,
+        "included_invocations": 7652
+      },
+      "preparer-b-secondary-raw": {
+        "input_invocations": 378,
+        "included_invocations": 317
+      },
+      "preparer-b-raw": {
+        "input_invocations": 456,
+        "included_invocations": 381
+      },
+      "preparer-a-raw": {
+        "input_invocations": 636,
+        "included_invocations": 530
+      },
+      "a-raw": {
+        "input_invocations": 7807,
+        "included_invocations": 6500
+      }
+    }
+  },
+  "cleanup": {
+    "deletions": [
+      {
+        "role": "router",
+        "name": "ml-dsa-wire-1030-89e4d4-router",
+        "exit_code": 0,
+        "at_ms": 1793298589935
+      },
+      {
+        "role": "a",
+        "name": "ml-dsa-wire-1030-89e4d4-a",
+        "exit_code": 0,
+        "at_ms": 1793298591320
+      },
+      {
+        "role": "b",
+        "name": "ml-dsa-wire-1030-89e4d4-b",
+        "exit_code": 0,
+        "at_ms": 1793298592863
+      },
+      {
+        "role": "preparer-a",
+        "name": "ml-dsa-wire-1030-89e4d4-preparer-a",
+        "exit_code": 0,
+        "at_ms": 1793298594222
+      },
+      {
+        "role": "preparer-b",
+        "name": "ml-dsa-wire-1030-89e4d4-preparer-b",
+        "exit_code": 0,
+        "at_ms": 1793298595554
+      },
+      {
+        "role": "preparer-a-secondary",
+        "name": "ml-dsa-wire-1030-89e4d4-preparer-a-secondary",
+        "exit_code": 0,
+        "at_ms": 1793298596828
+      },
+      {
+        "role": "preparer-b-secondary",
+        "name": "ml-dsa-wire-1030-89e4d4-preparer-b-secondary",
+        "exit_code": 0,
+        "at_ms": 1793298598138
+      },
+      {
+        "role": "front",
+        "name": "ml-dsa-wire-1030-89e4d4-front",
+        "exit_code": 0,
+        "at_ms": 1793298599424
+      }
+    ],
+    "absence": [
+      {
+        "role": "router",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "front",
+        "exit_code": 1,
+        "confirmed_absent": true
+      }
+    ]
+  },
+  "setup_failures": [
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "fault": "The temporary bootstrap config referenced an incorrect bundle path, so a dependent class binding was unavailable (10061).",
+      "repair": "Corrected bootstrap paths, then verified all eight roles before wallet setup. No timed demand ran during failure."
+    },
+    {
+      "classification": "environment_or_infrastructure_failure",
+      "fault": "The initial test-client directory generated holder keys different from the approved server keys.",
+      "repair": "Preserved the failed evidence and copied the approved holder key set into each disposable client directory. Recipient equality checks stayed unchanged."
+    }
+  ],
+  "archive": {
+    "path": "ml-dsa-65-binary-material-hosted-20261030.tar.gz",
+    "bytes": 7931698,
+    "sha256": "74493ddcd2261fb9ddef89ddb290da86fa48adc6d44717db2343d49a298e1dbf",
+    "members": 95,
+    "credential_scan_matches": 0
+  }
+}
