@@ -125,7 +125,11 @@ function canonicalWord(word: string): string {
   return HOMOPHONES.get(word) ?? word;
 }
 function canonicalText(tokens: readonly string[]): string {
-  return tokens.filter(keepWord).map(canonicalWord).join(' ').replace(/\bto day\b/g, 'today');
+  return tokens
+    .filter(keepWord)
+    .map(canonicalWord)
+    .join(' ')
+    .replace(/\bto day\b/g, 'today');
 }
 function isNegation(word: string): boolean {
   return NEGATIONS.has(word);
@@ -217,7 +221,7 @@ export type PhraseCheck =
   | { kind: 'matched'; recognition: PhraseRecognition }
   | { kind: 'mismatch'; recognition: PhraseRecognition };
 
-function recognize(logits: Float32Array, frames: number): PhraseRecognition {
+function recognize(logits: Float32Array, frames: number): string {
   const greedy: number[] = [];
   let previousToken = -1;
   for (let frame = 0; frame < frames; frame += 1) {
@@ -240,7 +244,7 @@ function recognize(logits: Float32Array, frames: number): PhraseRecognition {
     previousToken = bestToken;
   }
   if (greedy.length === 0) {
-    return { kind: 'empty' };
+    return '';
   }
   const decodedText = greedy
     .map(tokenPiece)
@@ -248,7 +252,15 @@ function recognize(logits: Float32Array, frames: number): PhraseRecognition {
     .replace(/▁/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
-  return matchDecodedPhrase(decodedText);
+  return decodedText;
+}
+
+/** Apply the same phrase checks to an independently decoded transcript. */
+export function checkTranscribedPhrase(decodedText: string, expected: SpokenPhrase): PhraseCheck {
+  const recognition = matchDecodedPhrase(decodedText);
+  if (recognition.kind === 'recognized' && recognition.phrase === expected)
+    return { kind: 'matched', recognition };
+  return { kind: 'mismatch', recognition };
 }
 
 function tokenPiece(token: number): string {
@@ -276,10 +288,7 @@ export async function checkSpokenPhrase(
       ) {
         throw new Error('Phrase model returned an invalid result.');
       }
-      const recognition = recognize(logits.data, logits.dims[1]);
-      if (recognition.kind === 'recognized' && recognition.phrase === expected)
-        return { kind: 'matched', recognition };
-      return { kind: 'mismatch', recognition };
+      return checkTranscribedPhrase(recognize(logits.data, logits.dims[1]), expected);
     } finally {
       for (const output of Object.values(outputs)) {
         output.dispose();

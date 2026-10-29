@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aurora and Citrinet · Local comparison</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 32px;
+      background: #101619;
+      color: #eff2f3;
+      font: 16px/1.5 system-ui;
+    }
+    main {
+      max-width: 1040px;
+      margin: auto;
+    }
+    h1 {
+      font-size: 28px;
+      line-height: 1.2;
+    }
+    h2 {
+      font-size: 20px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) minmax(300px, 420px);
+      gap: 32px;
+      margin: 32px 0;
+    }
+    p {
+      max-width: 720px;
+    }
+    button {
+      padding: 10px 16px;
+      margin: 8px 8px 8px 0;
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid #3b4a52;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    button[hidden] {
+      display: none;
+    }
+    .notes,
+    #status {
+      color: #b9c6cc;
+    }
+    #status {
+      min-height: 72px;
+    }
+    label {
+      display: block;
+      margin: 20px 0;
+    }
+    @media (max-width: 760px) {
+      body {
+        padding: 20px;
+      }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <main>
+    <h1>Aurora and Citrinet comparison</h1>
+    <p class="notes">
+      Both models process each recording locally. This measures phrase recognition. No enrollment or
+      wallet action is required.
+    </p>
+    <p class="notes">
+      Audio is discarded after each comparison. Exports contain scores and prompt labels. Exports
+      contain no audio, voice vectors, or transcribed speech.
+    </p>
+    <div class="layout">
+      <section>
+        <label
+          ><input id="consent" type="checkbox" /> I agree to this local recording session.</label
+        >
+        <button id="prepare">Prepare speech models</button>
+        <p id="status" role="status">
+          Prepare the models, then record the displayed phrases at your normal pace.
+        </p>
+        <button id="correct" hidden>I read it correctly</button>
+        <button id="stumbled" hidden>I stumbled</button>
+        <button id="export" disabled>Export comparison scores</button>
+        <p class="notes">
+          The batch contains five phrases and three wrong-phrase controls. Controls display the
+          words to read. Label every completed recording, including failures.
+        </p>
+      </section>
+      <div id="capture" class="seams-wallet-ui seams-voiceid-activation-surface"></div>
+    </div>
+    <h2>Results</h2>
+    <p id="summary"></p>
+    <p class="notes">
+      These results measure your phrase acceptance. They do not measure speaker verification or
+      resistance to voice replay.
+    </p>
+  </main>
+  <script type="module" src="/lab/probe.js"></script>
+</html>
