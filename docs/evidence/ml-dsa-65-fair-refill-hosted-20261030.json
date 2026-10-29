@@ -1,0 +1,871 @@
+{
+  "schema": "ml-dsa-fair-refill-hosted-v1",
+  "date": "2026-10-30",
+  "source_revision": "f88c5eccd",
+  "implementation_commit": "18e3a29a8",
+  "scope": "Four synthetic wallets on Cloudflare. Private Router signing, complete reserve-restoration cycles, benchmark thirty-second cooldown, two unchanged producer slots. Excludes public Gateway/SDK/browser, login, human approval and NEAR finality.",
+  "fixed_requirements": {
+    "workers_preparation": true,
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true,
+    "prepare_candidates": 4,
+    "consume_candidates": 2,
+    "capacity_candidates_per_wallet": 32,
+    "admission_minimum_candidates": 16,
+    "production_defaults_changed": false,
+    "cryptographic_kernels_changed": false
+  },
+  "cases": {
+    "serial30-oct30": {
+      "analysis": {
+        "functional_passed": true,
+        "start_at_ms": 1793288128443,
+        "window_end_at_ms": 1793288848443,
+        "cycle_end_at_ms": 1793288891506,
+        "reserve_detection_after_window_ms": 43063,
+        "restoration_boundary": "External observer starts before the load ends, waits for complete drivers and no live Preparing/Running authority for unresolved operations, then reads exact matching sixteen-pair A/B reserves with no reservations. Non-admitted AwaitingStock requests remain censored. Observed completion is an upper bound through the final HTTP replies.",
+        "late_external_confirmation_at_ms": 1793288891506,
+        "external_observer_started_before_cutoff": true,
+        "driver_completed_at_ms": 1793288848444,
+        "successes": 93,
+        "successes_in_window": 93,
+        "window_signatures_per_minute": 7.75,
+        "whole_cycle_signatures_per_minute": 7.312633426073601,
+        "successes_per_wallet": [
+          {
+            "wallet": 0,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 1,
+            "successfulSignatures": 23
+          },
+          {
+            "wallet": 2,
+            "successfulSignatures": 22
+          },
+          {
+            "wallet": 3,
+            "successfulSignatures": 24
+          }
+        ],
+        "successful_call_ms": {
+          "count": 93,
+          "minimum": 405,
+          "median": 1100,
+          "p95_nearest_rank": 2493,
+          "maximum": 4298
+        },
+        "successful_operation_ms": {
+          "count": 93,
+          "minimum": 658,
+          "median": 9049,
+          "p95_nearest_rank": 24637,
+          "maximum": 28291
+        },
+        "operation_timing_boundary": "First request for the same operation ID through receipt of its verified signature, including unavailable responses.",
+        "successful_demand_ms": {
+          "count": 93,
+          "minimum": 658,
+          "median": 9049,
+          "p95_nearest_rank": 24637,
+          "maximum": 28291
+        },
+        "unfinished_demands": [
+          {
+            "wallet": 1,
+            "number": 24,
+            "startAtMs": 1793288844158,
+            "startMs": 715715,
+            "state": "censored_at_end_of_window",
+            "elapsedMs": 4285,
+            "observedClosureElapsedMs": 4286
+          }
+        ],
+        "successful_calls_under_five_seconds": 93,
+        "unavailable_responses": {
+          "service_capacity": 6,
+          "wallet_cooldown": 213
+        },
+        "failed_or_declined_operations": 0,
+        "errors": [],
+        "asymmetric_take_operations": [],
+        "candidates_consumed": 466,
+        "candidates_consumed_per_success": 5.010752688172043,
+        "pairs_per_success": {
+          "count": 93,
+          "minimum": 1,
+          "median": 2,
+          "p95_nearest_rank": 6,
+          "maximum": 9
+        },
+        "cpu_by_role_ms": {
+          "a": 54345,
+          "b": 47972,
+          "router": 7960,
+          "preparer-a": 277811,
+          "preparer-b": 286152,
+          "preparer-a-secondary": 239477,
+          "preparer-b-secondary": 248906
+        },
+        "all_captured_cpu_ms": 1162623,
+        "captured_cpu_ms_per_success": 12501.322580645161,
+        "invocation_outcomes": {
+          "ok": 11980,
+          "canceled": 133
+        },
+        "complete_preparation_job_wall_ms": {
+          "count": 143,
+          "minimum": 3269,
+          "median": 8252,
+          "p95_nearest_rank": 11332,
+          "maximum": 15586
+        },
+        "job_counts_by_candidate_count": {
+          "2": 53,
+          "4": 90
+        },
+        "four_candidate_preparation_job_wall_ms": {
+          "count": 90,
+          "minimum": 7170,
+          "median": 9019.0,
+          "p95_nearest_rank": 12616,
+          "maximum": 15586
+        },
+        "preparation_crypto_cpu_ms_by_role": {
+          "preparer-a": {
+            "count": 73,
+            "minimum": 1899,
+            "median": 4163,
+            "p95_nearest_rank": 5613,
+            "maximum": 6219
+          },
+          "preparer-b": {
+            "count": 73,
+            "minimum": 2006,
+            "median": 4276,
+            "p95_nearest_rank": 5770,
+            "maximum": 6326
+          },
+          "preparer-a-secondary": {
+            "count": 70,
+            "minimum": 1677,
+            "median": 3699.0,
+            "p95_nearest_rank": 4987,
+            "maximum": 6691
+          },
+          "preparer-b-secondary": {
+            "count": 70,
+            "minimum": 1723,
+            "median": 3870.5,
+            "p95_nearest_rank": 5169,
+            "maximum": 6903
+          }
+        },
+        "initial_pairs": 64,
+        "final_pairs": 64,
+        "fresh_published_pairs": 233,
+        "consumed_pairs": 233,
+        "missing_consumed_ids": [],
+        "unaccounted_lost_ids": [],
+        "unexpected_final_ids": [],
+        "ledger_balanced": true,
+        "a_only_publications": [],
+        "b_only_publications": [],
+        "fresh_candidates_per_cycle_minute": 36.64179759731503,
+        "preparation_cpu_ms": 1052346,
+        "refill_outcomes": {
+          "published": 143
+        },
+        "outside_start_overlapping_invocations": 0,
+        "initial_stock_alone_cannot_explain_consumption": true,
+        "verified_operations_using_fresh_material": 66,
+        "fresh_pairs_consumed_by_verified_operations": 169
+      },
+      "qualification": {
+        "label": "serial30-oct30",
+        "passed": true,
+        "all_initial_pairs_consumed": true,
+        "claims": 143,
+        "queued": 143,
+        "running": 143,
+        "published": 143,
+        "settled": 143,
+        "one_crypto_execution_per_job_per_role": true,
+        "provider_canceled_events": 133,
+        "provider_canceled_cpu_ms": 6,
+        "provider_canceled_with_crypto_start": 0,
+        "acknowledged_overdue_wakes": [
+          {
+            "event": "ml_dsa_refill_alarm_v1",
+            "actor": "d94b66b1a9721460189416f202a4f35af44ea8be4b36595359438d2ab21904b0",
+            "key": "75d70619fab35b2884749af25e3aeaeb2bc6885a1e01d0ce637113905f3f9cd1",
+            "epoch": 2,
+            "requested_ms": 1793288687086,
+            "at_ms": 1793288687036,
+            "log_timestamp_ms": 1793288687036,
+            "before_ms": 1793288679063,
+            "after_ms": 1793288679063,
+            "call_id": "c46dc6364611204c63c659e200000219",
+            "module_instance": "5287cef59a36e9432e6997f7a641d177"
+          }
+        ],
+        "preparation_cpu_ms_per_consumed_candidate": 2258.25321888412,
+        "depletion": {
+          "scope": "Observed restoration from deliberate depletion through exact paired stock. Crypto lifetimes can overlap without proving simultaneous CPU execution.",
+          "observed_restoration_ms": 87590,
+          "whole_script_ms": 88595,
+          "fresh_pairs": 16,
+          "four_candidate_jobs": 8,
+          "distinct_producers": 1,
+          "maximum_overlapping_crypto_lifetimes": 1,
+          "paired_crypto_invocation_cpu_ms": 76244,
+          "median_paired_crypto_invocation_cpu_ms_per_job": 9297.5
+        }
+      }
+    },
+    "parallel30-oct30": {
+      "analysis": {
+        "functional_passed": true,
+        "start_at_ms": 1793289178498,
+        "window_end_at_ms": 1793289898498,
+        "cycle_end_at_ms": 1793289918576,
+        "reserve_detection_after_window_ms": 20078,
+        "restoration_boundary": "External observer starts before the load ends, waits for complete drivers and no live Preparing/Running authority for unresolved operations, then reads exact matching sixteen-pair A/B reserves with no reservations. Non-admitted AwaitingStock requests remain censored. Observed completion is an upper bound through the final HTTP replies.",
+        "late_external_confirmation_at_ms": 1793289918576,
+        "external_observer_started_before_cutoff": true,
+        "driver_completed_at_ms": 1793289898498,
+        "successes": 94,
+        "successes_in_window": 94,
+        "window_signatures_per_minute": 7.833333333333333,
+        "whole_cycle_signatures_per_minute": 7.620818346174323,
+        "successes_per_wallet": [
+          {
+            "wallet": 0,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 1,
+            "successfulSignatures": 24
+          },
+          {
+            "wallet": 2,
+            "successfulSignatures": 23
+          },
+          {
+            "wallet": 3,
+            "successfulSignatures": 23
+          }
+        ],
+        "successful_call_ms": {
+          "count": 94,
+          "minimum": 485,
+          "median": 1161.5,
+          "p95_nearest_rank": 3318,
+          "maximum": 7699
+        },
+        "successful_operation_ms": {
+          "count": 94,
+          "minimum": 2364,
+          "median": 20677.5,
+          "p95_nearest_rank": 32113,
+          "maximum": 40150
+        },
+        "operation_timing_boundary": "First request for the same operation ID through receipt of its verified signature, including unavailable responses.",
+        "successful_demand_ms": {
+          "count": 94,
+          "minimum": 2364,
+          "median": 20677.5,
+          "p95_nearest_rank": 32113,
+          "maximum": 40150
+        },
+        "unfinished_demands": [
+          {
+            "wallet": 2,
+            "number": 24,
+            "startAtMs": 1793289878239,
+            "startMs": 699741,
+            "state": "censored_at_end_of_window",
+            "elapsedMs": 20259,
+            "observedClosureElapsedMs": 20259
+          },
+          {
+            "wallet": 3,
+            "number": 24,
+            "startAtMs": 1793289881360,
+            "startMs": 702862,
+            "state": "censored_at_end_of_window",
+            "elapsedMs": 17138,
+            "observedClosureElapsedMs": 17138
+          }
+        ],
+        "successful_calls_under_five_seconds": 93,
+        "unavailable_responses": {
+          "service_capacity": 11,
+          "wallet_cooldown": 371,
+          "empty_pool": 15
+        },
+        "failed_or_declined_operations": 0,
+        "errors": [],
+        "asymmetric_take_operations": [],
+        "candidates_consumed": 502,
+        "candidates_consumed_per_success": 5.340425531914893,
+        "pairs_per_success": {
+          "count": 94,
+          "minimum": 1,
+          "median": 2.0,
+          "p95_nearest_rank": 7,
+          "maximum": 10
+        },
+        "cpu_by_role_ms": {
+          "a": 78962,
+          "b": 61747,
+          "router": 12146,
+          "preparer-a": 263618,
+          "preparer-b": 270565,
+          "preparer-a-secondary": 243800,
+          "preparer-b-secondary": 251560
+        },
+        "all_captured_cpu_ms": 1182398,
+        "captured_cpu_ms_per_success": 12578.702127659575,
+        "invocation_outcomes": {
+          "ok": 14632,
+          "canceled": 129
+        },
+        "complete_preparation_job_wall_ms": {
+          "count": 141,
+          "minimum": 3236,
+          "median": 7881,
+          "p95_nearest_rank": 11004,
+          "maximum": 12514
+        },
+        "job_counts_by_candidate_count": {
+          "2": 31,
+          "4": 110
+        },
+        "four_candidate_preparation_job_wall_ms": {
+          "count": 110,
+          "minimum": 6932,
+          "median": 8071.0,
+          "p95_nearest_rank": 11123,
+          "maximum": 12514
+        },
+        "preparation_crypto_cpu_ms_by_role": {
+          "preparer-a": {
+            "count": 74,
+            "minimum": 1746,
+            "median": 3770.0,
+            "p95_nearest_rank": 5368,
+            "maximum": 5816
+          },
+          "preparer-b": {
+            "count": 74,
+            "minimum": 1765,
+            "median": 3862.0,
+            "p95_nearest_rank": 5549,
+            "maximum": 5934
+          },
+          "preparer-a-secondary": {
+            "count": 67,
+            "minimum": 1739,
+            "median": 3720,
+            "p95_nearest_rank": 4951,
+            "maximum": 5150
+          },
+          "preparer-b-secondary": {
+            "count": 67,
+            "minimum": 1781,
+            "median": 3843,
+            "p95_nearest_rank": 5107,
+            "maximum": 5359
+          }
+        },
+        "initial_pairs": 64,
+        "final_pairs": 64,
+        "fresh_published_pairs": 251,
+        "consumed_pairs": 251,
+        "missing_consumed_ids": [],
+        "unaccounted_lost_ids": [],
+        "unexpected_final_ids": [],
+        "ledger_balanced": true,
+        "a_only_publications": [],
+        "b_only_publications": [],
+        "fresh_candidates_per_cycle_minute": 40.69841286999478,
+        "preparation_cpu_ms": 1029543,
+        "refill_outcomes": {
+          "published": 141
+        },
+        "outside_start_overlapping_invocations": 0,
+        "initial_stock_alone_cannot_explain_consumption": true,
+        "verified_operations_using_fresh_material": 68,
+        "fresh_pairs_consumed_by_verified_operations": 187
+      },
+      "qualification": {
+        "label": "parallel30-oct30",
+        "passed": true,
+        "all_initial_pairs_consumed": true,
+        "claims": 141,
+        "queued": 141,
+        "running": 141,
+        "published": 141,
+        "settled": 141,
+        "one_crypto_execution_per_job_per_role": true,
+        "provider_canceled_events": 129,
+        "provider_canceled_cpu_ms": 3,
+        "provider_canceled_with_crypto_start": 0,
+        "acknowledged_overdue_wakes": [],
+        "preparation_cpu_ms_per_consumed_candidate": 2050.8824701195217,
+        "depletion": {
+          "scope": "Observed restoration from deliberate depletion through exact paired stock. Crypto lifetimes can overlap without proving simultaneous CPU execution.",
+          "observed_restoration_ms": 38863,
+          "whole_script_ms": 40080,
+          "fresh_pairs": 16,
+          "four_candidate_jobs": 8,
+          "distinct_producers": 2,
+          "maximum_overlapping_crypto_lifetimes": 2,
+          "paired_crypto_invocation_cpu_ms": 62784,
+          "median_paired_crypto_invocation_cpu_ms_per_job": 7742.5
+        }
+      }
+    }
+  },
+  "qualifications": [
+    "Both analyses and job/material qualifications reproduce exactly from the final continuous provider capture.",
+    "Closed-window provider fingerprints match the original complete captures.",
+    "The two windows use independent fresh material and different rejection outcomes.",
+    "Per-candidate CPU and execution conditions vary; a pure scheduling or cryptographic speedup is not isolated.",
+    "Reported crypto-lifetime overlap does not prove simultaneous physical CPU execution.",
+    "Benchmark admission retries cap at five seconds; public Gateway service-capacity retries already cap at 500 ms.",
+    "Production defaults remain one producer slot and a sixty-second wallet cooldown."
+  ],
+  "empty_pool_operations": [
+    {
+      "operation": "1774ea29727c772625f05285a3942fbcce3ed8e407186aca21688aff7cba585e",
+      "wallet": 0,
+      "empty_responses": 4,
+      "preceding_operation": "4c6127abc2ca55f0aa040aabd96e2f5cb81271359f223873994a131fd52a90ca",
+      "preceding_pairs_consumed": 10,
+      "first_empty_start_ms": 248652,
+      "first_empty_to_success_ms": 6623,
+      "scarce_pair_counts": [
+        6
+      ],
+      "minimum_pairs": 8,
+      "admitted_pairs": 8,
+      "service_capacity_responses_after_first_empty": 0,
+      "request_timeline": [
+        {
+          "startAtMs": 1793289418671,
+          "completedAtMs": 1793289418699,
+          "elapsedMs": 28,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289427149
+        },
+        {
+          "startAtMs": 1793289423701,
+          "completedAtMs": 1793289423728,
+          "elapsedMs": 27,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289427149
+        },
+        {
+          "startAtMs": 1793289427150,
+          "completedAtMs": 1793289427225,
+          "elapsedMs": 75,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289428225
+        },
+        {
+          "startAtMs": 1793289428225,
+          "completedAtMs": 1793289428321,
+          "elapsedMs": 96,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289429326
+        },
+        {
+          "startAtMs": 1793289429326,
+          "completedAtMs": 1793289429421,
+          "elapsedMs": 95,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289430424
+        },
+        {
+          "startAtMs": 1793289430424,
+          "completedAtMs": 1793289430537,
+          "elapsedMs": 113,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289431529
+        },
+        {
+          "startAtMs": 1793289431537,
+          "completedAtMs": 1793289433773,
+          "elapsedMs": 2236,
+          "status": "existing",
+          "state": "succeeded"
+        }
+      ]
+    },
+    {
+      "operation": "b2f07c0c7b3d5a9f63ce9f6a1f1ec5b11e9b5a7718ed9206ad3bcab6943e1f11",
+      "wallet": 0,
+      "empty_responses": 5,
+      "preceding_operation": "ef790137231194e61566ba79487c550a5a0d028f47db22167570ba365022b974",
+      "preceding_pairs_consumed": 5,
+      "first_empty_start_ms": 313654,
+      "first_empty_to_success_ms": 8425,
+      "scarce_pair_counts": [
+        7
+      ],
+      "minimum_pairs": 8,
+      "admitted_pairs": 9,
+      "service_capacity_responses_after_first_empty": 0,
+      "request_timeline": [
+        {
+          "startAtMs": 1793289478677,
+          "completedAtMs": 1793289478701,
+          "elapsedMs": 24,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289492151
+        },
+        {
+          "startAtMs": 1793289483702,
+          "completedAtMs": 1793289483732,
+          "elapsedMs": 30,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289492151
+        },
+        {
+          "startAtMs": 1793289488733,
+          "completedAtMs": 1793289488767,
+          "elapsedMs": 34,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289492151
+        },
+        {
+          "startAtMs": 1793289492152,
+          "completedAtMs": 1793289492256,
+          "elapsedMs": 104,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289493257
+        },
+        {
+          "startAtMs": 1793289493257,
+          "completedAtMs": 1793289493398,
+          "elapsedMs": 141,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289494394
+        },
+        {
+          "startAtMs": 1793289494398,
+          "completedAtMs": 1793289494518,
+          "elapsedMs": 120,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289495523
+        },
+        {
+          "startAtMs": 1793289495523,
+          "completedAtMs": 1793289495908,
+          "elapsedMs": 385,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289496643
+        },
+        {
+          "startAtMs": 1793289496908,
+          "completedAtMs": 1793289497048,
+          "elapsedMs": 140,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289498048
+        },
+        {
+          "startAtMs": 1793289498048,
+          "completedAtMs": 1793289500577,
+          "elapsedMs": 2529,
+          "status": "existing",
+          "state": "succeeded"
+        }
+      ]
+    },
+    {
+      "operation": "01c1b4c338d7b64aec8be39325fcb58a96d248895877d257fdd160930144991e",
+      "wallet": 3,
+      "empty_responses": 6,
+      "preceding_operation": "4403665bbbfa1bc5e0d33b9b065798a1825ad07680a85699c29d0e34b1a0ca7e",
+      "preceding_pairs_consumed": 6,
+      "first_empty_start_ms": 690407,
+      "first_empty_to_success_ms": 12411,
+      "scarce_pair_counts": [
+        7
+      ],
+      "minimum_pairs": 8,
+      "admitted_pairs": 9,
+      "service_capacity_responses_after_first_empty": 1,
+      "request_timeline": [
+        {
+          "startAtMs": 1793289841166,
+          "completedAtMs": 1793289841199,
+          "elapsedMs": 33,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289846199,
+          "completedAtMs": 1793289846218,
+          "elapsedMs": 19,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289851219,
+          "completedAtMs": 1793289851239,
+          "elapsedMs": 20,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289856240,
+          "completedAtMs": 1793289856260,
+          "elapsedMs": 20,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289861261,
+          "completedAtMs": 1793289861283,
+          "elapsedMs": 22,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289866284,
+          "completedAtMs": 1793289866303,
+          "elapsedMs": 19,
+          "status": "unavailable",
+          "reason": "wallet_cooldown",
+          "retryAtMs": 1793289868904
+        },
+        {
+          "startAtMs": 1793289868905,
+          "completedAtMs": 1793289868984,
+          "elapsedMs": 79,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289869968
+        },
+        {
+          "startAtMs": 1793289870030,
+          "completedAtMs": 1793289870108,
+          "elapsedMs": 78,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289871099
+        },
+        {
+          "startAtMs": 1793289871108,
+          "completedAtMs": 1793289871201,
+          "elapsedMs": 93,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289872195
+        },
+        {
+          "startAtMs": 1793289872201,
+          "completedAtMs": 1793289872288,
+          "elapsedMs": 87,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289873277
+        },
+        {
+          "startAtMs": 1793289873288,
+          "completedAtMs": 1793289873363,
+          "elapsedMs": 75,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289874351
+        },
+        {
+          "startAtMs": 1793289874363,
+          "completedAtMs": 1793289874450,
+          "elapsedMs": 87,
+          "status": "unavailable",
+          "reason": "empty_pool",
+          "retryAtMs": 1793289875442
+        },
+        {
+          "startAtMs": 1793289875450,
+          "completedAtMs": 1793289875471,
+          "elapsedMs": 21,
+          "status": "unavailable",
+          "reason": "service_capacity",
+          "retryAtMs": 1793289905374
+        },
+        {
+          "startAtMs": 1793289880473,
+          "completedAtMs": 1793289881316,
+          "elapsedMs": 843,
+          "status": "existing",
+          "state": "succeeded"
+        }
+      ]
+    }
+  ],
+  "independent_signature_checks": {
+    "accepted": 187,
+    "changed_messages_rejected": 187
+  },
+  "provider_selection": {
+    "earliest_included_ms": 1793287994745,
+    "latest_included_ms": 1793289948576,
+    "rule": "Keep the complete provider invocation if any log timestamp or its metadata/wall envelope intersects the continuous experiment interval. Keep invocations with unknown times. Never select by status, version, or success.",
+    "roles": {
+      "preparer-a-secondary-raw": {
+        "input_invocations": 1175,
+        "included_invocations": 405
+      },
+      "router-raw": {
+        "input_invocations": 43308,
+        "included_invocations": 14155
+      },
+      "b-raw": {
+        "input_invocations": 28818,
+        "included_invocations": 7155
+      },
+      "preparer-b-secondary-raw": {
+        "input_invocations": 737,
+        "included_invocations": 282
+      },
+      "preparer-b-raw": {
+        "input_invocations": 1036,
+        "included_invocations": 318
+      },
+      "preparer-a-raw": {
+        "input_invocations": 1724,
+        "included_invocations": 461
+      },
+      "a-raw": {
+        "input_invocations": 20472,
+        "included_invocations": 6022
+      }
+    }
+  },
+  "cleanup": {
+    "deletions": [
+      {
+        "role": "router",
+        "name": "ml-dsa-guard-1029-28c437-router",
+        "exit_code": 0,
+        "at_ms": 1793290524214
+      },
+      {
+        "role": "a",
+        "name": "ml-dsa-guard-1029-28c437-a",
+        "exit_code": 0,
+        "at_ms": 1793290525689
+      },
+      {
+        "role": "b",
+        "name": "ml-dsa-guard-1029-28c437-b",
+        "exit_code": 0,
+        "at_ms": 1793290527555
+      },
+      {
+        "role": "preparer-a",
+        "name": "ml-dsa-guard-1029-28c437-preparer-a",
+        "exit_code": 0,
+        "at_ms": 1793290529010
+      },
+      {
+        "role": "preparer-b",
+        "name": "ml-dsa-guard-1029-28c437-preparer-b",
+        "exit_code": 0,
+        "at_ms": 1793290530737
+      },
+      {
+        "role": "preparer-a-secondary",
+        "name": "ml-dsa-guard-1029-28c437-preparer-a-secondary",
+        "exit_code": 0,
+        "at_ms": 1793290532302
+      },
+      {
+        "role": "preparer-b-secondary",
+        "name": "ml-dsa-guard-1029-28c437-preparer-b-secondary",
+        "exit_code": 0,
+        "at_ms": 1793290533790
+      },
+      {
+        "role": "front",
+        "name": "ml-dsa-guard-1029-28c437-front",
+        "exit_code": 0,
+        "at_ms": 1793290535270
+      }
+    ],
+    "absence": [
+      {
+        "role": "router",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-a-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "preparer-b-secondary",
+        "exit_code": 1,
+        "confirmed_absent": true
+      },
+      {
+        "role": "front",
+        "exit_code": 1,
+        "confirmed_absent": true
+      }
+    ]
+  },
+  "archive": {
+    "path": "ml-dsa-65-fair-refill-hosted-20261030.tar.gz",
+    "bytes": 7228436,
+    "sha256": "2dcdd0c3d3328dd639b6076d7a48d3d11da670707a534c0a2c66e704893c86aa",
+    "members": 94,
+    "credential_scan_matches": 0
+  }
+}

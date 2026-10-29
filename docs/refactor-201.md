@@ -13,20 +13,23 @@ The controlled stale-stock guard skips four unnecessary jobs before cryptographi
 A baseline closing tail spends most of its time generating correlations serially for one depleted key.
 A separate candidate trace preserves an acknowledged wake with an overdue alarm. Keep that scheduling condition separate from parallelism.
 
-The sustained target is now six–seven verified signatures per minute across four wallets.
-The fair parallel-refill prototype borrows an idle second slot while preserving waiting-wallet priority and the thirty-two-candidate capacity.
-Native durable integration and the focused real-Worker scenario pass. The latter preserves a publication claimed during an inventory read, restores exact paired stock, and verifies a standard signature and replay.
-The prototype also reschedules an acknowledged overdue alarm promptly. Hosted gains remain unmeasured.
+The [fair-refill hosted comparison](router-ab/ml-dsa-65-fair-refill-hosted-report.md) completes the first two scheduling changes.
+The thirty-second benchmark control reaches 7.313 signatures/minute; the fair-refill prototype reaches 7.621, including full reserve restoration.
+Both use two producer slots and unchanged per-wallet capacity. All starting material is consumed and both ledgers balance.
+The prototype restores a deliberately depleted wallet in 38.863 seconds, versus 87.590 seconds for serial refill.
+It records fifteen below-minimum stock responses across three operations. One final Router call takes 7.699 seconds.
+Different measured CPU costs and rejection outcomes prevent a pure code-speedup claim.
+The benchmark's five-second admission retry cap differs from the public Gateway's existing 500 ms service-capacity cap.
 
-The next tasks are:
+The next high-impact tasks are:
 
-- Complete the full real-Worker interruption campaign and independent review.
-- Compare serial and parallel refill with a separate thirty-second benchmark cooldown, offering at most eight demands per minute.
-- Count complete reserve restoration, preparation CPU, consumed candidates, failed work, and every waiting reason.
-- Keep the observed overdue-alarm condition separate from claims about parallel execution.
+- Qualify sustained public Gateway/SDK traffic with its actual retry cadence and complete user waits.
+- Test independent participant CPU execution using fixed public workloads before changing private routing.
+- Optimize a newly measured dominant preparation cost; avoid repeating rejected AES and encoder prototypes without a new profile.
+- Shorten registration and signing overhead only where current traces show a material remaining cost.
 
 Preparation remains on Workers. Wallet-seed recovery, FIPS export, and two-at-once consumption remain unchanged.
-Production cooldown and preparation-slot defaults remain unchanged. The eight temporary Workers are retained for the explicitly requested follow-up prototype.
+Production defaults remain unchanged. All eight temporary Workers are deleted, with independent absence checks.
 
 The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
 The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
