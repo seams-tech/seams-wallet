@@ -1,0 +1,205 @@
+{
+  "schema": "seams.ml-dsa-capacity-guard-hosted.v1",
+  "date": "2026-10-29",
+  "baseline_revision": "9b5263e481f2ab48c8d2349fd6d02f98269fd9a7",
+  "candidate_core_revision": "0c639085275409cee53cf88aebcae7e966c20961",
+  "benchmark_revision": "a311d7737",
+  "phases": {
+    "baseline60": {
+      "successes": 40,
+      "whole_cycle_signatures_per_minute": 3.9909206555087176,
+      "reserve_detection_after_window_ms": 1365,
+      "candidates_consumed": 218,
+      "preparation_cpu_ms": 426463,
+      "four_candidate_preparation_job_wall_ms": {
+        "count": 43,
+        "minimum": 6831,
+        "median": 7836,
+        "p95_nearest_rank": 10250,
+        "maximum": 11083
+      },
+      "successful_call_ms": {
+        "count": 40,
+        "minimum": 524,
+        "median": 1074.0,
+        "p95_nearest_rank": 3414,
+        "maximum": 5093
+      },
+      "successful_demand_ms": {
+        "count": 40,
+        "minimum": 2554,
+        "median": 11710.0,
+        "p95_nearest_rank": 22624,
+        "maximum": 22667
+      },
+      "unavailable_responses": {
+        "service_capacity": 6,
+        "wallet_cooldown": 94
+      },
+      "ledger_balanced": true,
+      "refill_outcomes": {
+        "published": 66
+      }
+    },
+    "baseline45": {
+      "successes": 64,
+      "whole_cycle_signatures_per_minute": 5.035471223068752,
+      "reserve_detection_after_window_ms": 42590,
+      "candidates_consumed": 398,
+      "preparation_cpu_ms": 803418,
+      "four_candidate_preparation_job_wall_ms": {
+        "count": 83,
+        "minimum": 6897,
+        "median": 7888,
+        "p95_nearest_rank": 10490,
+        "maximum": 12827
+      },
+      "successful_call_ms": {
+        "count": 64,
+        "minimum": 527,
+        "median": 1091.5,
+        "p95_nearest_rank": 2852,
+        "maximum": 4368
+      },
+      "successful_demand_ms": {
+        "count": 64,
+        "minimum": 1829,
+        "median": 11683.0,
+        "p95_nearest_rank": 21892,
+        "maximum": 24538
+      },
+      "unavailable_responses": {
+        "service_capacity": 6,
+        "wallet_cooldown": 155
+      },
+      "ledger_balanced": true,
+      "refill_outcomes": {
+        "published": 116
+      }
+    },
+    "candidate45": {
+      "successes": 64,
+      "whole_cycle_signatures_per_minute": 5.071891419257867,
+      "reserve_detection_after_window_ms": 37114,
+      "candidates_consumed": 354,
+      "preparation_cpu_ms": 720333,
+      "four_candidate_preparation_job_wall_ms": {
+        "count": 70,
+        "minimum": 7174,
+        "median": 8029.0,
+        "p95_nearest_rank": 10754,
+        "maximum": 12553
+      },
+      "successful_call_ms": {
+        "count": 64,
+        "minimum": 458,
+        "median": 989.5,
+        "p95_nearest_rank": 2790,
+        "maximum": 5160
+      },
+      "successful_demand_ms": {
+        "count": 64,
+        "minimum": 1817,
+        "median": 8339.5,
+        "p95_nearest_rank": 20553,
+        "maximum": 22864
+      },
+      "unavailable_responses": {
+        "wallet_cooldown": 136,
+        "service_capacity": 6
+      },
+      "ledger_balanced": true,
+      "refill_outcomes": {
+        "published": 107
+      }
+    }
+  },
+  "sustained_code_gain_established": false,
+  "capacity_above_old_achieved_rate_demonstrated": true,
+  "ordinary_signature_checks": {
+    "qualification": "Independent ordinary Node/OpenSSL ML-DSA-65 verification of retained setup and load signatures, with empty context.",
+    "setup": [
+      {
+        "wallet": 1,
+        "verified": 1,
+        "preservedFailedSamples": 1
+      },
+      {
+        "wallet": 2,
+        "verified": 2,
+        "preservedFailedSamples": 0
+      },
+      {
+        "wallet": 3,
+        "verified": 2,
+        "preservedFailedSamples": 0
+      },
+      {
+        "wallet": 4,
+        "verified": 1,
+        "preservedFailedSamples": 1
+      }
+    ],
+    "phases": [
+      {
+        "phase": "baseline60",
+        "verified": 40,
+        "idempotentReplays": 4
+      },
+      {
+        "phase": "baseline45",
+        "verified": 64,
+        "idempotentReplays": 4
+      },
+      {
+        "phase": "candidate45",
+        "verified": 64,
+        "idempotentReplays": 4
+      }
+    ],
+    "passed": true,
+    "verifiedSignatures": 174,
+    "alteredMessagesRejected": 174
+  },
+  "offline_replay": {
+    "passed": true,
+    "normalized_records": 30909,
+    "phases": [
+      {
+        "phase": "baseline60",
+        "verified_signatures": 40,
+        "cycle_signatures_per_minute": 3.9909206555087176,
+        "ledger_balanced": true
+      },
+      {
+        "phase": "baseline45",
+        "verified_signatures": 64,
+        "cycle_signatures_per_minute": 5.035471223068752,
+        "ledger_balanced": true
+      },
+      {
+        "phase": "candidate45",
+        "verified_signatures": 64,
+        "cycle_signatures_per_minute": 5.071891419257867,
+        "ledger_balanced": true
+      }
+    ],
+    "signature_verification": {
+      "passed": true,
+      "signatures": 174,
+      "alteredMessagesRejected": 174
+    },
+    "scope": "Offline replay of public provider records, exact cycle metrics, material ledgers, actual versions, guard cases, and ordinary signatures. No network or private credentials."
+  },
+  "private_credential_scan_passed": true,
+  "workers_retained_for_explicitly_requested_parallel_refill_prototype": 8,
+  "cleanup_required_after_followup": true,
+  "production_configuration_changed": false,
+  "crypto_kernels_changed": false,
+  "archive": {
+    "file": "ml-dsa-65-capacity-guard-hosted-20261029.tar.gz",
+    "bytes": 10934737,
+    "members": 114,
+    "sha256": "8cc6366e2d89a9e5a2fe686742277c11b42afb92e514081076625ea7c8051c16"
+  }
+}
