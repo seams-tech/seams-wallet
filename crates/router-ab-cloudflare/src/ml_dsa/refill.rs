@@ -1,6 +1,6 @@
-//! Bounded service-wide preprocessing leases with one active producer per key.
+//! Bounded preprocessing leases. Waiting keys have priority over spare-slot borrowing.
 use super::*;
-use std::num::NonZeroU8;
+use std::{collections::BTreeSet, num::NonZeroU8};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Groups {
@@ -13,6 +13,30 @@ impl Groups {
             Self::One => 1,
             Self::Two => 2,
         }
+    }
+}
+/// Public identities already visible or promised by live preparation jobs.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct OccupiedBatches(BTreeSet<[u8; 32]>);
+impl OccupiedBatches {
+    pub fn new(batches: impl IntoIterator<Item = [u8; 32]>) -> Self {
+        Self(batches.into_iter().collect())
+    }
+    pub fn from_inventories(a: &pool::Inventory, b: &pool::Inventory) -> Self {
+        Self::new(a.stock_batches().into_iter().chain(b.stock_batches()))
+    }
+    pub fn include_pending(mut self, jobs: &[Job]) -> Self {
+        for job in jobs {
+            self.0.extend(job.batch_ids());
+        }
+        self
+    }
+    pub fn contains(&self, batch: &[u8; 32]) -> bool {
+        self.0.contains(batch)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,7 +133,7 @@ pub async fn claim(
     store: &impl Store,
     policy: &policy::Policy,
     key: KeyScope,
-    groups: Groups,
+    occupied: OccupiedBatches,
     now: u64,
 ) -> Result<Claim> {
     if admission::active_key(store, &key)
@@ -121,11 +145,22 @@ pub async fn claim(
         return Err(invalid("ML-DSA preprocessing key is inactive"));
     }
     let active = active_jobs(store, now).await?;
-    if let Some(job) = active.iter().find(|job| job.key == key) {
+    let owns_producer = active.iter().any(|job| job.key == key);
+    let own_jobs: Vec<Job> = active
+        .iter()
+        .filter(|job| job.key == key)
+        .cloned()
+        .collect();
+    let remaining = policy
+        .refill_target_batches()
+        .saturating_sub(occupied.include_pending(&own_jobs).len());
+    if remaining == 0 {
+        withdraw(store, &key).await?;
         return Ok(Claim::Busy {
-            retry_at_ms: job.expires_at_ms.min(now.saturating_add(5_000)),
+            retry_at_ms: now.saturating_add(5_000),
         });
     }
+    let groups = policy.preparation_groups(remaining);
     let original: Vec<Waiting> = store.get(WAITING).await?.unwrap_or_default();
     let mut waiting = Vec::new();
     let mut queued = false;
@@ -134,6 +169,9 @@ pub async fn claim(
             continue;
         }
         if entry.key == key {
+            if owns_producer {
+                continue;
+            }
             entry.expires_at_ms = now.saturating_add(DEMAND_LIFETIME_MS);
             queued = true;
         } else if admission::active_key(store, &entry.key)
@@ -146,7 +184,7 @@ pub async fn claim(
         }
         waiting.push(entry);
     }
-    if !queued && waiting.len() < MAX_WAITING_KEYS {
+    if !owns_producer && !queued && waiting.len() < MAX_WAITING_KEYS {
         waiting.push(Waiting {
             key: key.clone(),
             expires_at_ms: now.saturating_add(DEMAND_LIFETIME_MS),
@@ -155,7 +193,12 @@ pub async fn claim(
     let busy = Claim::Busy {
         retry_at_ms: now.saturating_add(5_000),
     };
-    if waiting.first().map(|entry| &entry.key) != Some(&key) {
+    let has_priority = if owns_producer {
+        waiting.is_empty()
+    } else {
+        waiting.first().map(|entry| &entry.key) == Some(&key)
+    };
+    if !has_priority {
         persist_waiting(store, &original, &waiting).await?;
         return Ok(busy);
     }
@@ -214,7 +257,9 @@ pub async fn claim(
         expires_at_ms: now.saturating_add(90_000),
         material_expires_at_ms: now.saturating_add(MATERIAL_LIFETIME_MS),
     };
-    waiting.remove(0);
+    if !owns_producer {
+        waiting.remove(0);
+    }
     persist_waiting(store, &original, &waiting).await?;
     store.put(producer_slot.storage_key(), &job).await?;
     Ok(Claim::Acquired { job })
@@ -240,6 +285,18 @@ async fn active_jobs(store: &impl Store, now: u64) -> Result<Vec<Job>> {
         }
     }
     Ok(active)
+}
+
+/// Snapshot before role reads so a settling producer's output stays accounted.
+pub async fn pending(store: &impl Store, key: &KeyScope, now: u64) -> Result<Vec<Job>> {
+    if !key_is_active(store, key).await? {
+        return Err(invalid("ML-DSA preprocessing key is inactive"));
+    }
+    Ok(active_jobs(store, now)
+        .await?
+        .into_iter()
+        .filter(|job| job.key == *key)
+        .collect())
 }
 
 async fn persist_waiting(
@@ -359,6 +416,7 @@ pub async fn start_role(store: &impl Store, job: &Job, now: u64) -> Result<()> {
 /// The caller must also authenticate the job against Router admission.
 pub async fn publish_role(
     store: &impl Store,
+    policy: &policy::Policy,
     job: &Job,
     binding: sealing::Binding,
     sealed: sealing::Sealed,
@@ -372,6 +430,11 @@ pub async fn publish_role(
         || store.get::<Job>(&name).await?.as_ref() != Some(job)
     {
         return Err(invalid("ML-DSA publication lacks a live producer claim"));
+    }
+    let inventory =
+        pool::inventory(store, &job.key, policy.refill_target_batches(), now, now).await?;
+    if inventory.stock_batches().len() >= policy.refill_target_batches() {
+        return Err(invalid("ML-DSA publication exceeds ready capacity"));
     }
     pool::put(store, binding, sealed, now).await
 }

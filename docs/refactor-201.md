@@ -1,6 +1,6 @@
 # ML-DSA latency and sustainable preparation
 
-Status: in progress. Date: October 29, 2026.
+Status: in progress. Date: October 30, 2026.
 
 The [matched hosted capacity comparison](router-ab/ml-dsa-65-capacity-guard-hosted-report.md) completes with 64 verified signatures in each twelve-minute capacity screen.
 Complete-cycle rates are 5.035 and 5.072 signatures/minute, including full reserve restoration.
@@ -13,11 +13,17 @@ The controlled stale-stock guard skips four unnecessary jobs before cryptographi
 A baseline closing tail spends most of its time generating correlations serially for one depleted key.
 A separate candidate trace preserves an acknowledged wake with an overdue alarm. Keep that scheduling condition separate from parallelism.
 
-The next implementation tasks are:
+The sustained target is now six–seven verified signatures per minute across four wallets.
+The fair parallel-refill prototype borrows an idle second slot while preserving waiting-wallet priority and the thirty-two-candidate capacity.
+Native durable integration and the focused real-Worker scenario pass. The latter preserves a publication claimed during an inventory read, restores exact paired stock, and verifies a standard signature and replay.
+The prototype also reschedules an acknowledged overdue alarm promptly. Hosted gains remain unmeasured.
 
-- Prototype fair parallel refill for one depleted wallet when the second producer is idle. Account for pending output before granting work.
-- Preserve priority for other waiting wallets, exact job fencing, and the same thirty-two-candidate capacity.
-- Check the preserved overdue-alarm condition separately, then compare serial and parallel refill with identical real deficits and complete CPU/material accounting.
+The next tasks are:
+
+- Complete the full real-Worker interruption campaign and independent review.
+- Compare serial and parallel refill with a separate thirty-second benchmark cooldown, offering at most eight demands per minute.
+- Count complete reserve restoration, preparation CPU, consumed candidates, failed work, and every waiting reason.
+- Keep the observed overdue-alarm condition separate from claims about parallel execution.
 
 Preparation remains on Workers. Wallet-seed recovery, FIPS export, and two-at-once consumption remain unchanged.
 Production cooldown and preparation-slot defaults remain unchanged. The eight temporary Workers are retained for the explicitly requested follow-up prototype.
@@ -88,7 +94,7 @@ Improve useful preparation throughput first. Then shorten registration and signi
 | Registration | 5–7 seconds | Automated creation through durable publication and required activation, with generic material ready |
 | Signing | 3–5 seconds | Public SDK signing with ready material, excluding human approval and NEAR finality |
 | Preparation | 6 seconds on the faster producer, 10 seconds on the slower producer | Four fresh candidates through confirmed publication at both participants |
-| Four-wallet throughput | 4–5 verified signatures/minute | Complete load and reserve-restoration cycles, after initial stock cannot explain completions |
+| Four-wallet throughput | 6–7 verified signatures/minute | Complete load and reserve-restoration cycles, after initial stock cannot explain completions |
 
 Use these ranges as typical-latency objectives. Report median, p95, maximum, and the fraction inside the target for each campaign.
 Do not claim a hard signing ceiling: rejection sampling requires a variable number of candidate pairs.
@@ -223,10 +229,11 @@ A faster successful call is insufficient if complete user waits or candidates co
 Use two preparation slots as the explicit experimental configuration. Keep the one-slot production default unchanged until evidence supports changing it.
 Test controlled dispatch overlap before adding more slots. More concurrent CPU work can increase load shedding and reduce useful output.
 
-Run two admission profiles:
+Keep the existing controls and add a capacity profile:
 
 - Sixty-second cooldown: operational parity with current policy. Four wallets have a theoretical ceiling of four admitted operations/minute.
-- Forty-five-second cooldown: benchmark-only headroom to test five verified signatures/minute. Failed admissions that start signing still consume the cooldown.
+- Forty-five-second cooldown: retained benchmark control that demonstrated approximately five verified signatures/minute.
+- Thirty-second cooldown: benchmark-only demand headroom for the six–seven-signature target, offering at most eight demands/minute. Failed admissions that start signing still consume the cooldown.
 
 Keep the same four wallets, per-wallet pool capacity, admission minimum, and service-wide signing limit across each comparison.
 Alternate equivalent baseline and candidate windows. Run multiple full consumption/refill cycles and restore the initial reserve before closing each window.

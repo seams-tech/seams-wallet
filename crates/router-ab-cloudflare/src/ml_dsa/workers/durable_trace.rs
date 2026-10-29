@@ -74,6 +74,7 @@ impl DurableTrace {
             ),
             RoleCommand::Install { .. } => ("install_pool", None, None),
             RoleCommand::Inventory { .. } => ("inventory", None, None),
+            RoleCommand::LiveInventory { .. } => ("live_inventory", None, None),
             RoleCommand::WakeRefill { .. } => ("wake_refill", None, None),
             RoleCommand::Put { job, .. } => ("publish_refill", Some(job.batch), None),
             RoleCommand::Reserve { claim, .. } => ("reserve", None, Some(claim.request.operation)),

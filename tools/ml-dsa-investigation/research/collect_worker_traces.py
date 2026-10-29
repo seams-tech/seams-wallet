@@ -271,7 +271,7 @@ def public_durable_boundary(value, timestamp):
         "finish_registration", "authorize_key", "commit_key", "key_state",
         "initialize_registration_storage", "install_registration_stock",
         "install_material", "install_pool", "check_material", "publish_refill", "reserve",
-        "inventory", "wake_refill",
+        "inventory", "live_inventory", "wake_refill",
     }
     stages = {
         "authorized", "entered", "authorize", "transaction", "callback_started",

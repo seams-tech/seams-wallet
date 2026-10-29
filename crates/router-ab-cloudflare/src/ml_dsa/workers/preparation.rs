@@ -44,6 +44,7 @@ pub(super) fn refill_key(command: &RoleCommand) -> Option<&KeyScope> {
     match command {
         RoleCommand::Install { key }
         | RoleCommand::Inventory { key, .. }
+        | RoleCommand::LiveInventory { key, .. }
         | RoleCommand::WakeRefill { key } => Some(key),
         RoleCommand::Take { permit, .. } | RoleCommand::LoadSigningInputs { permit } => {
             Some(&permit.request.key)
@@ -109,35 +110,65 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         schedule_refill_alarm(state, 1_000).await?;
         return Response::from_json(&false);
     }
-    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+    let pending: Vec<refill::Job> = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::PendingRefills { key: key.clone() },
+    )
+    .await
+    .map_err(protocol_error)?;
+    let mut protected = refill::OccupiedBatches::default().include_pending(&pending);
     let policy = policy(env).map_err(protocol_error)?;
-    let command = RoleCommand::Inventory {
+    let command = RoleCommand::LiveInventory {
         key: key.clone(),
         target: policy.refill_target_batches(),
-        ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
     };
     recover_expired_reservations(env, state, &key)
         .await
         .map_err(protocol_error)?;
-    let a: pool::Inventory = serde_json::from_value(
-        role_transaction(
-            state,
-            Participant::A,
-            RoleCommand::Inventory {
-                key: key.clone(),
-                target: policy.refill_target_batches(),
-                ready_until_ms: policy.deadline(now).map_err(protocol_error)?,
-            },
-            None,
-        )
-        .await?,
-    )
-    .map_err(|_| protocol_error(invalid("Invalid ML-DSA local inventory")))?;
-    let local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
-    let b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
+    let mut a = controller_inventory(state, &key, &policy)
         .await
         .map_err(protocol_error)?;
-    let peer_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
+    let mut local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
+    let mut b: pool::Inventory = coordinator::role_call(env, "DERIVER_B", &command)
+        .await
+        .map_err(protocol_error)?;
+    let mut peer_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
+    // A delayed claimant can acquire a job while the inventory calls wait.
+    // Refresh before inspecting halves observed in those reads.
+    let latest: Vec<refill::Job> = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::PendingRefills { key: key.clone() },
+    )
+    .await
+    .map_err(protocol_error)?;
+    protected = protected.include_pending(&latest);
+    let only_a = a
+        .ready
+        .iter()
+        .filter(|batch| !b.ready.contains(batch) && !protected.contains(batch))
+        .copied()
+        .collect();
+    let only_b = b
+        .ready
+        .iter()
+        .filter(|batch| !a.ready.contains(batch) && !protected.contains(batch))
+        .copied()
+        .collect();
+    if reconcile_unpaired(env, state, &key, only_a, only_b)
+        .await
+        .map_err(protocol_error)?
+    {
+        a = controller_inventory(state, &key, &policy)
+            .await
+            .map_err(protocol_error)?;
+        local_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
+        b = coordinator::role_call(env, "DERIVER_B", &command)
+            .await
+            .map_err(protocol_error)?;
+        peer_inventory_at = crate::cloudflare_now_unix_ms_v1().ok();
+    }
     log_inventory(&key, &a, &b);
     let stock_a = a.stock_batches();
     let stock_b = b.stock_batches();
@@ -157,7 +188,9 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         CallAuthority::Internal,
         &AdmissionCommand::ClaimRefill {
             key: key.clone(),
-            groups: policy.preparation_groups(policy.refill_target_batches() - paired),
+            occupied: refill::OccupiedBatches::from_inventories(&a, &b)
+                .include_pending(&pending)
+                .include_pending(&latest),
         },
     )
     .await
@@ -187,29 +220,33 @@ pub(super) async fn alarm(env: &Env, state: &State) -> worker::Result<Response> 
         log_stage_at(&job, Participant::A, job.batch, stage, at);
     }
     log_stage(&job, Participant::A, job.batch, "claim_acquired");
-    // This alarm owns A's producer. Retire halves left by its earlier interrupted runs.
-    let only_a = a
-        .ready
-        .iter()
-        .filter(|batch| !b.ready.contains(batch))
-        .copied()
-        .collect();
-    let only_b = b
-        .ready
-        .into_iter()
-        .filter(|batch| !a.ready.contains(batch))
-        .collect();
-    let result = before_deadline(
-        job.expires_at_ms,
-        reconcile_and_produce(env, state, &job, only_a, only_b),
-    )
-    .await;
+    let result = before_deadline(job.expires_at_ms, dispatch(env, &job)).await;
     // A lost queue reply can still mean the job started. Keep its lease until
     // the independent producer finishes or the existing deadline expires.
     schedule_refill_alarm(state, if result.is_ok() { 1_000 } else { 5_000 }).await?;
     result.map_err(protocol_error)?;
     Response::from_json(&true)
 }
+async fn controller_inventory(
+    state: &State,
+    key: &KeyScope,
+    policy: &Policy,
+) -> Result<pool::Inventory> {
+    let value = role_transaction(
+        state,
+        policy.clone(),
+        Participant::A,
+        RoleCommand::LiveInventory {
+            key: key.clone(),
+            target: policy.refill_target_batches(),
+        },
+        None,
+    )
+    .await
+    .map_err(storage_error)?;
+    serde_json::from_value(value).map_err(|_| invalid("Invalid ML-DSA local inventory"))
+}
+
 async fn withdraw(env: &Env, key: &KeyScope) -> Result<()> {
     let _: bool = service_call(
         env,
@@ -422,12 +459,23 @@ async fn local_inventory(env: &Env, command: &RoleCommand) -> Result<pool::Inven
 }
 
 async fn preparation_needed(env: &Env, job: &refill::Job) -> Result<bool> {
+    // Snapshot before role reads. A settling peer's output must remain charged
+    // even if its lease ends while those reads are in flight.
+    let pending: Vec<refill::Job> = service_call(
+        env,
+        CallAuthority::Internal,
+        &AdmissionCommand::PendingRefills {
+            key: job.key.clone(),
+        },
+    )
+    .await?;
+    if !pending.contains(job) {
+        return Err(invalid("ML-DSA preprocessing lease is inactive"));
+    }
     let policy = policy(env)?;
-    let now = crate::cloudflare_now_unix_ms_v1()?;
-    let command = RoleCommand::Inventory {
+    let command = RoleCommand::LiveInventory {
         key: job.key.clone(),
         target: policy.refill_target_batches(),
-        ready_until_ms: policy.deadline(now)?,
     };
     let (a, b) = futures::join!(
         local_inventory(env, &command),
@@ -436,11 +484,8 @@ async fn preparation_needed(env: &Env, job: &refill::Job) -> Result<bool> {
     let (a, b) = (a?, b?);
     log_inventory(&job.key, &a, &b);
     log_stage(job, Participant::A, job.batch, "stock_rechecked");
-    let a = a.stock_batches();
-    let b = b.stock_batches();
-    let paired = a.iter().filter(|batch| b.contains(batch)).count();
-    let missing = policy.refill_target_batches().saturating_sub(paired);
-    Ok(missing != 0 && policy.preparation_groups(missing).count() >= job.groups.count())
+    let occupied = refill::OccupiedBatches::from_inventories(&a, &b).include_pending(&pending);
+    Ok(occupied.len() <= policy.refill_target_batches())
 }
 
 async fn produce_a(env: &Env, job: &refill::Job) -> Result<PreparationOutcome> {
@@ -577,13 +622,14 @@ async fn produce_b(
     Ok(())
 }
 
-async fn reconcile_and_produce(
+async fn reconcile_unpaired(
     env: &Env,
     state: &State,
-    job: &refill::Job,
+    key: &KeyScope,
     only_a: Vec<[u8; 32]>,
     only_b: Vec<[u8; 32]>,
-) -> Result<()> {
+) -> Result<bool> {
+    let mut changed = false;
     // Inspect B directly, then retire A locally. Calling this actor through its own
     // service binding would add a recursive Durable Object request.
     if !only_a.is_empty() {
@@ -591,7 +637,7 @@ async fn reconcile_and_produce(
             env,
             "DERIVER_B",
             &RoleCommand::Inspect {
-                key: job.key.clone(),
+                key: key.clone(),
                 batches: only_a.clone(),
             },
         )
@@ -608,11 +654,13 @@ async fn reconcile_and_produce(
                 retired.push(id);
             }
         }
+        changed |= !retired.is_empty();
         role_transaction(
             state,
+            policy(env)?,
             Participant::A,
             RoleCommand::RetireUnpaired {
-                key: job.key.clone(),
+                key: key.clone(),
                 batches: retired,
             },
             None,
@@ -621,13 +669,14 @@ async fn reconcile_and_produce(
         .map_err(storage_error)?;
     }
     if !only_b.is_empty() {
-        // A has no active producer. Missing local records cannot become publishable.
+        // Live producer IDs were excluded before inspection.
         let states: Vec<pool::BatchAvailability> = serde_json::from_value(
             role_transaction(
                 state,
+                policy(env)?,
                 Participant::A,
                 RoleCommand::Inspect {
-                    key: job.key.clone(),
+                    key: key.clone(),
                     batches: only_b.clone(),
                 },
                 None,
@@ -636,6 +685,9 @@ async fn reconcile_and_produce(
             .map_err(storage_error)?,
         )
         .map_err(|_| invalid("Invalid local inventory"))?;
+        if states.len() != only_b.len() {
+            return Err(invalid("Invalid local inventory"));
+        }
         let mut retired = Vec::new();
         for (id, availability) in only_b.into_iter().zip(states) {
             if matches!(
@@ -645,16 +697,21 @@ async fn reconcile_and_produce(
                 retired.push(id);
             }
         }
+        changed |= !retired.is_empty();
         let _: bool = coordinator::role_call(
             env,
             "DERIVER_B",
             &RoleCommand::RetireUnpaired {
-                key: job.key.clone(),
+                key: key.clone(),
                 batches: retired,
             },
         )
         .await?;
     }
+    Ok(changed)
+}
+
+async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     log_stage(job, Participant::A, job.batch, "dispatch_started");
     producer::dispatch(env, job).await?;
     log_stage(job, Participant::A, job.batch, "dispatch_acknowledged");
