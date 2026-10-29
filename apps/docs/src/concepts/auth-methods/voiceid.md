@@ -74,7 +74,7 @@ the wallet ID and the enrolled `walletAuthMethodId`:
 After VoiceID unlock, use the existing [transaction APIs](/examples/signing).
 Reviewed NEAR and Arc testnet transfers show **Confirm with VoiceID**.
 The owner reads the displayed short English phrase at a normal pace.
-Each review requires a fresh voice check. The speaker similarity threshold remains **0.5**.
+Each review requires a fresh voice check. The experimental speaker similarity threshold is **0.45**.
 Phrase recognition allows bounded differences to handle natural speech.
 The displayed phrase checks freshness. The transaction review defines the operation being approved.
 

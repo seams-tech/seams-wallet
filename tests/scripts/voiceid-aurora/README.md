@@ -125,7 +125,9 @@ Use `--rate 95` when reproducing the historical slow-speech screen. Cases can
 override the rate and supply a different spoken sentence for negative checks.
 Regenerate both fixture sets and the derived noise fixtures after changing the bank.
 The browser phrase matcher uses a 30% text-difference bound and a 10-point candidate margin.
-Speaker verification remains at 0.5. Existing speaker
+Generated prompts combine four trading actions with three brief endings. Each
+generated prompt has four or five words. The selected quotes remain in the bank.
+Speaker verification uses the experimental 0.45 cutoff. Existing speaker
 enrollment remains valid because its model and template format did not change.
 
 
@@ -138,8 +140,8 @@ python tests/scripts/voiceid-aurora/fixtures.py --tolerance --output /tmp/voicei
 ```
 
 The tracked copies are under `tests/fixtures/audio/aurora/tolerance/`. The browser
-contract `tests/wallet-ui/voiceid-phrase-tolerance.browser.test.ts` checks all 16
-natural fixtures against all 16 challenges, plus omitted articles, approximate
+contract `tests/wallet-ui/voiceid-phrase-tolerance.browser.test.ts` checks all 40
+natural fixtures against all 40 challenges, plus omitted articles, approximate
 wording, unrelated speech, reordering, a negation, and a short fragment. Run it with
 `playwright.wallet-browser.config.ts`, project `chromium`. It emits
 `phrase-tolerance.json` with the decoded text and decision for every case.

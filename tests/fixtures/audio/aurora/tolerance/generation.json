@@ -1,10 +1,10 @@
 [
   {
     "file": "omitted-articles.wav",
-    "spoken": "order book looks busy",
+    "spoken": "market is open",
     "voice": "Samantha",
     "rate": 160,
-    "sha256": "b32dd5e0dee10d8c071631c11bdbc92a871832a2d043b9ebf8cc7aabc780d4a9"
+    "sha256": "64ef483b87c4a4635175eaabb2f2d0123612bbc72933caafa3652c45ccfa6177"
   },
   {
     "file": "rough-quote.wav",
@@ -43,10 +43,10 @@
   },
   {
     "file": "negated.wav",
-    "spoken": "i never review every order",
+    "spoken": "i never read every order",
     "voice": "Samantha",
     "rate": 160,
-    "sha256": "5a0581c48fe4f0cab6aa841a4d3b004dfc038f15779131d198e88bcf16cee51a"
+    "sha256": "682218b595f95798c39f2959181c493522c0ea2d2e710387ab3a0d3400b5b78c"
   },
   {
     "file": "fragment.wav",

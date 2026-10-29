@@ -143,7 +143,7 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       network: 'deterministic_arc_rpc',
       signing: 'real_ecdsa_mpc',
       inference: 'real_redimnet_b1_and_aurora',
-      speakerThreshold: 0.5,
+      speakerThreshold: 0.45,
       enrollmentCaptures,
       confirmationCommand: 'Transfer one smallest USDC unit on Arc testnet',
       confirmationPhrase,

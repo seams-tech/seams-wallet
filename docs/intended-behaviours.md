@@ -236,7 +236,7 @@ or an error appears in the row of its action. Back closes the dialog.
 **Improve recognition** collects three accepted, phrase-matched recordings with a normal
 background estimate. Progress counts accepted samples, not recording attempts. A rejected
 attempt keeps earlier accepted samples and offers **Retry sample N** with its reason.
-Only the third accepted sample triggers saving. Each must match the immutable baseline at 0.5 and remain
+Only the third accepted sample triggers saving. Each must match the immutable baseline at 0.45 and remain
 consistent with the other new samples. The effective template combines 80% baseline
 with 20% normalized supplemental mean, then normalizes that combination. Its cosine
 against the baseline must remain at least 0.98. The original template stays unchanged.
@@ -264,8 +264,9 @@ solely at this migration boundary for the other methods.
 
 Automatic learning remains disabled. The public-corpus evaluation did not establish
 a reduction in evaluation-group rejection. These manual controls remain experimental
-and require separate live accuracy validation. Speaker threshold 0.5,
-4–6-word trading prompts are used. Server authorization, session budgets, and signing admission remain unchanged.
+and require separate live accuracy validation. The experimental speaker threshold is 0.45.
+Generated trading prompts use four or five words. User-selected quotes remain available.
+Server authorization, session budgets, and signing admission remain unchanged.
 
 VoiceID enrollment, unlock, and signing share a thin flowing ribbon and the SDK
 VoiceBeam glow. They consume the recorder's activity events without opening a
@@ -288,11 +289,11 @@ The model deployment instructions live in
 [`plugins/voiceid/README.md`](../packages/voiceid/src/README.md).
 
 The MVP verifies speaker identity and requires an explicit Activate, Unlock, or
-Confirm click. Randomized prompts contain 4–6 trading-oriented words for short, natural-paced
-approval. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
+Confirm click. Generated prompts contain four or five trading-oriented words for short, natural-paced
+approval. The bank also contains user-selected quotes. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
 the displayed phrase from the same recording using its independently decoded text.
 The matcher ignores case, punctuation, and articles, and canonicalizes the listed
-homophones. It compares all 16 phrases using character edit distance divided by
+homophones. It compares all 40 phrases using character edit distance divided by
 the longer normalized text length. The best candidate must have at most 30%
 difference and beat the runner-up by at least 10 percentage points. The decoded
 word count must be within two words of the candidate. Negation words must match
@@ -300,7 +301,7 @@ those in the candidate phrase; added, omitted, or changed negation rejects.
 This permits approximate wording, including some content-word errors. It is a
 freshness challenge, not exact transcription or transaction-intent interpretation.
 A different selected phrase, an ambiguous result, or text outside these bounds fails. Speaker
-verification retains its independent similarity threshold of 0.5.
+verification uses its independent similarity threshold of 0.45.
 A local phrase rejection during unlock keeps the prompt open with a fresh phrase
 and an explicit Try again action. The original challenge deadline still applies.
 A failed phrase or speaker check cannot unlock the wallet or authorize a transfer.
@@ -371,7 +372,7 @@ before capture. The application cannot set the final challenge or thresholds.
 Each retry chooses a different phrase within the selected family. Enrollment and
 unlock retain the existing 32 default challenges. All 40 phrases are recognized
 against the same bank, including eight action-specific phrases. The same audio
-checks phrase and speaker, and the speaker threshold remains 0.5.
+checks phrase and speaker, and the speaker threshold is 0.45.
 This option changes copy only. Unsupported operations remain unsupported. The
 Wallet freezes and hashes the supplied command as part of the complete request,
 so it cannot carry approval to a different request. No provider or model is added.

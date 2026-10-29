@@ -2,8 +2,8 @@ import { BrowserInferenceModel } from './inference';
 
 const MODEL_HASH = 'e04dd7a6a1e23fc7b89e47682ea9d0a3946cf7bc59d07922c3db3efc52ae4269';
 export const VOICE_MODEL_ID = `redimnet-b1:${MODEL_HASH}`;
-// Prototype threshold: next tenth above the 4s calibration maximum impostor score (0.4417).
-export const VOICE_MATCH_THRESHOLD = 0.5;
+// Experimental usability cutoff; human acceptance and wrong-speaker rates remain unqualified.
+export const VOICE_MATCH_THRESHOLD = 0.45;
 export const voiceModel = new BrowserInferenceModel({
   path: '/sdk/voiceid/redimnet-b1.onnx', sha256: MODEL_HASH,
   bytes: 8_859_593, label: 'Speaker verification',

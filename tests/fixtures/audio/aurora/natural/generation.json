@@ -16,12 +16,12 @@
     "sha256": "75369d66c022506ae61f5a865c1385ead2c83c4891faebae52c0e6af8b893ff2"
   },
   {
-    "phrase": "i review every order carefully",
+    "phrase": "i read every order",
     "file": "2.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "868c88d923235726525303b4491012ffab5c451a63d3e778bef7b08734c8e84f"
+    "sha256": "a4dfe774d1f9cc694e88097a4a2de1a560c9663df46d56207801ff481ac093b1"
   },
   {
     "phrase": "dump on them slowly",
@@ -56,12 +56,12 @@
     "sha256": "c126bc1c8ac538e76dc60f8d0a4b9888fa38368be8fb97f5c950ddc1b1a4cb93"
   },
   {
-    "phrase": "the order book looks busy",
+    "phrase": "the market is open",
     "file": "7.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "24244aafef0e926333037d58676957d831e965a9ed9d75d9238161eb2901dbfa"
+    "sha256": "474e9c7eccb04faec58b77f8b108bb47880530c1aa6c454274543c2957cb7afb"
   },
   {
     "phrase": "if you panic panic early",
@@ -160,100 +160,100 @@
     "sha256": "195653e79b0f8567877db052a9188a596d5069c7de687578a9bd6d5c30c0b504"
   },
   {
-    "phrase": "approve the swap before market close",
+    "phrase": "approve the swap right now",
     "file": "20.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "d7c625057e8b9fdd27d2b79f8c083309d710562ce3364634fc9e184a96d78cbe"
+    "sha256": "96cc499456d040baa7f9b4debac93fd76aaa4af365e81e30d476467e9bc58270"
   },
   {
-    "phrase": "approve the swap when prices settle",
+    "phrase": "approve the swap with care",
     "file": "21.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "59e46acabb7878242e640861e73cf5c4bc0184d3520044bbfc4947a0325bedff"
+    "sha256": "d7aead2f39c052c142a57dd66aca4e65cc407ff0c0f0ba37fe6df74d142e8e44"
   },
   {
-    "phrase": "approve the swap after market opens",
+    "phrase": "approve the swap for me",
     "file": "22.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "be8340ae4ee9a7cc910c87cfb10f54f6e4496bcc2c5bf50c96d23d3eac5a9579"
+    "sha256": "e569b846071832dadc0b6d648888b71c44ee043750b8fea3f62b00639c497e06"
   },
   {
-    "phrase": "check my order before market close",
+    "phrase": "check my order right now",
     "file": "23.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "c43f55350c93cc211e5e9ab07f90859d553283c633366faa0951338b9a069464"
+    "sha256": "1b24f0a784ddc376c96a7d338b58e5829339810e8736b0bb72a6f58f567a954d"
   },
   {
-    "phrase": "check my order when prices settle",
+    "phrase": "check my order with care",
     "file": "24.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "3c66f5782216ff7e246e3ab4b497f375661878f079a575fbf5f8c4801f99d051"
+    "sha256": "78be715bff49e55547d7bd85ed379219a2e2ed5ae2457992981a9c3d9f48b4ce"
   },
   {
-    "phrase": "check my order after market opens",
+    "phrase": "check my order for me",
     "file": "25.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "002c171f5d1c3e9178b19a9636065feb6fc31e3b81ff73bcb86c33b616ca602f"
+    "sha256": "24d54d223b2b06e588e3fc3e66112d554c857113d238dadb498d3ea691e0d7be"
   },
   {
-    "phrase": "confirm the trade before market close",
+    "phrase": "confirm the trade right now",
     "file": "26.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "115c88fe35bf1353d91dbc3cc2671f2717b0e80e4a56144869b8ac10c6f14d2e"
+    "sha256": "bbcfcb8c443d1191b94fa67a6d57e0ef5e757c211ec53dfb776f046dbe885f0b"
   },
   {
-    "phrase": "confirm the trade when prices settle",
+    "phrase": "confirm the trade with care",
     "file": "27.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "892fe95f0667f068117680471858d179041098f043135c15a15e64da37e0953f"
+    "sha256": "17d7f1f23969a174692975a620fa1d9a4805afd3565bb658924dc95bfc828d05"
   },
   {
-    "phrase": "confirm the trade after market opens",
+    "phrase": "confirm the trade for me",
     "file": "28.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "2932ea98401628e9791ce24088e4a3b9982b5f4e0073016b7cabae44f412565a"
+    "sha256": "c2ebe560bc6610793a0df847d3c595f2890d0459e42e959840618bb75daf8818"
   },
   {
-    "phrase": "review this transfer before market close",
+    "phrase": "review this transfer right now",
     "file": "29.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "f3f4f8cdbc8dca0a58bd66b4fefe59b9e14518de1d0ff494c3333cc6d4c8d3cb"
+    "sha256": "32f4a9fdd1a87dfbd3511ca48e4ee6893022f512b3d6711b9b0bd8852050aee9"
   },
   {
-    "phrase": "review this transfer when prices settle",
+    "phrase": "review this transfer with care",
     "file": "30.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "3ae1d58c949dd64065e12a70249e50085704150600af6dfe8227a82ad7451dbc"
+    "sha256": "ac139acd327003dace1fc244eb4c2abf6444165c640603297ee5d6e3d8fd97b0"
   },
   {
-    "phrase": "review this transfer after market opens",
+    "phrase": "review this transfer for me",
     "file": "31.wav",
     "voice": "Samantha",
     "rate": 160,
     "tempo": 1,
-    "sha256": "827d7bb7b8a47a0268e9e70c4926552e0eb6993fe17ccb2a7059a496792be4ac"
+    "sha256": "6336764f3cf699564cf854be58882485fe36f449fb60dfd3e2dc8c985e3bb668"
   },
   {
     "phrase": "approve this sale at once",

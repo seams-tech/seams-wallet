@@ -96,7 +96,7 @@ async function verifyNoise(
   const speech = JSON.parse(measurement);
   expect(speech.endedBy).toBe('pause');
   expect(speech.recordingMs).toBeLessThan(6500);
-  expect(speech.threshold).toBe(0.5);
+  expect(speech.threshold).toBe(0.45);
   await context.route(/\/voiceid-test-audio\/\d+\.wav$/, serveNoisyPhrase);
   await startReviewedTransfer(page);
   await wallet.locator('button.confirm').click();

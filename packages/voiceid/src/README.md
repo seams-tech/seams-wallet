@@ -56,10 +56,10 @@ The deployment includes the model's MIT attribution and export details in NOTICE
 Use the pinned exporter in `tests/scripts/voiceid-model-evaluation/prepare.py`
 to reproduce the model. The browser evaluation evidence records parity checks.
 
-The prototype uses a B1 threshold of 0.5: the next tenth above the four-second
-calibration cohort's maximum impostor score (0.4417). The separate evaluation
-cohort had 0/728 false accepts and 2/56 false rejects at this threshold. This small
-clean-speech experiment does not qualify production authentication accuracy.
+The experimental B1 threshold is 0.45 for a human usability trial. In the separate
+historical evaluation, it accepted 1/728 different-speaker comparisons at four
+seconds and 2/728 at two seconds. The historical capture pipeline differs from
+the current microphone path. These results do not qualify authentication accuracy.
 
 AuroraASR-1M checks the spoken phrase. Its INT8 full-waveform ONNX export is
 1,342,384 bytes and shares the existing WASM runtime. It accepts 16 kHz mono PCM.
@@ -112,7 +112,7 @@ generation/revision. A competing update cannot be overwritten. Capture watches
 owner lifecycle changes and releases the microphone if the action becomes invalid.
 
 Three accepted supplements contribute 20% of the effective template; the immutable
-baseline contributes 80%. Each supplement must match the baseline at 0.5. The final
+baseline contributes 80%. Each supplement must match the baseline at 0.45. The final
 template must stay within cosine 0.98 of the baseline. Supplements remain saved
 without a time or usage limit. Reset removes them and preserves the baseline. Re-recording creates a
 new baseline generation. These are bounded experimental settings, not calibrated
@@ -161,7 +161,7 @@ limits decoded word count to within two words of the candidate. Negation must
 match the candidate phrase; added, omitted, or changed negation rejects. These are development bounds for an approximate challenge. Some changed
 content words can pass; this check does not interpret transaction intent.
 A different recognized phrase, ambiguity, or an out-of-bounds result prevents
-enrollment, device-key use, or signing. The speaker threshold remains 0.5. A signing retry
+enrollment, device-key use, or signing. The speaker threshold is 0.45. A signing retry
 keeps the original transaction review and deadline and requires another Confirm.
 No audio or transcript leaves the browser or enters persistent storage.
 
@@ -271,7 +271,7 @@ control remain requested. High-noise recordings receive brief retry guidance.
 Speech detection replaces volume alone for pause detection and clip qualification.
 It retains the 1.5-second pause and eight-second recording cap. Speech probability
 must reach 0.5 and the original minimum volume must also pass. The speaker
-threshold remains 0.5. Phrase matching retains the bounded text-difference and
+threshold is 0.45. Phrase matching retains the bounded text-difference and
 candidate-margin checks described above.
 
 Noise estimates compare frames classified as speech with other frames. They are

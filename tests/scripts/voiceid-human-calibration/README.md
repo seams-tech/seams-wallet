@@ -33,6 +33,11 @@ It can remember microphone preferences in this isolated localhost origin.
    denominators and can supply usable natural speech for speaker comparisons.
 8. Export scores before closing or reloading. Closing clears all voice vectors.
 
+For a single-person usability trial, keep the participant code `p01`. Use a new
+session label for probes and skip freezing and evaluation. The current source uses
+the experimental 0.45 cutoff. Compare correctly read probe approvals on a fresh
+batch with the previous batch. This measures personal acceptance only.
+
 Prompts are chosen at random from the least-tested phrases for that participant
 and role. Rejected clips still count when the participant reports reading them
 correctly. Cancellations are abandoned captures and are not labeled attempts.
@@ -60,7 +65,7 @@ Speaker comparisons use usable natural probes from later sessions, including
 stumbles. Deliberate different-word controls remain separate. Each
 probe is compared with every enrolled person in its cohort. The genuine and
 different-speaker decisions use the same `score >= cutoff` rule as the Wallet.
-The current cutoff is reported separately and remains unchanged in production.
+The source cutoff is reported separately. This page never changes the cutoff.
 
 Candidate selection uses calibration speakers only. It minimizes genuine rejects
 without increasing the current cutoff's observed different-speaker accept count.
@@ -79,8 +84,9 @@ a human cutoff recommendation. Existing synthetic phrases and audiobook trials
 must stay separate from this human microphone dataset.
 
 After collection, inspect the JSON report before changing the phrase bank or
-`VOICE_MATCH_THRESHOLD`. A cutoff change still needs an agreed wrong-person risk
-target and a separate qualification dataset. This tool never applies one.
+`VOICE_MATCH_THRESHOLD`. The requested 0.45 cutoff is an explicit usability
+experiment. A wider release still needs a wrong-person risk target and a separate
+qualification dataset. This tool never changes the source cutoff automatically.
 
 ## Repeat the tool check
 

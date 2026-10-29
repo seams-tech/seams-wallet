@@ -41,13 +41,13 @@ def main():
 
 def generate_tolerance(output):
     cases = [
-        ('omitted-articles', 'order book looks busy'),
+        ('omitted-articles', 'market is open'),
         ('rough-quote', 'i check the latest quotes'),
         ('outside-bound-quote', 'i checked a different number'),
         ('ambiguous', 'the market order looks ready'),
         ('unrelated', 'cancel my wallet and tell me the time'),
         ('reordered', 'quote latest check i'),
-        ('negated', 'i never review every order'),
+        ('negated', 'i never read every order'),
         ('fragment', 'latest quote'),
         ('missing-negation', 'crying in the casino'),
         ('changed-negation', 'never cry in the casino'),

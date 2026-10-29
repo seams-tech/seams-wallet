@@ -39,7 +39,7 @@ button:disabled{opacity:.45;cursor:default}button[hidden]{display:none}#status{m
 <div id="labels"><button id="correct" hidden>I read it correctly</button><button id="stumbled" hidden>I stumbled</button><button id="different" hidden>I intentionally read different words</button></div>
 <button id="export" disabled>Export scores</button>
 </section><div id="capture" class="seams-wallet-ui seams-voiceid-activation-surface"></div></div>
-<h2>Results</h2><p class="notes">Use at least two distinct people per cohort. Each person needs three enrollment clips, then later-session probes. Spread recordings across microphones, rooms, and days. Phrase assignments are balanced across the current phrase bank.</p>
+<h2>Results</h2><p class="notes">For personal acceptance, record three enrollment clips, then select a new session label for probes. Keep the page open between sessions. Different-speaker calibration needs at least two distinct people per cohort. Phrase assignments are balanced across the current phrase bank.</p>
 <p class="notes">Phrase rankings use probe recordings. Enrollment attempts stay in the export and do not count toward these rates.</p>
 <p class="notes">Enrollment for measurement accepts three correctly read clips with usable audio. Model rejections are recorded, rather than filtering out difficult examples. Participant and session labels are self-reported.</p>
 <div id="results"></div></main><script type="module" src="/lab/probe.js"></script></html>`;

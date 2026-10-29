@@ -14,7 +14,7 @@ CONFIRMATION_PHRASES = {
 def challenge_phrases():
     phrases = json.loads(Path(__file__).with_name('phrases.json').read_text())
     actions = ('approve the swap', 'check my order', 'confirm the trade', 'review this transfer')
-    moments = ('before market close', 'when prices settle', 'after market opens')
+    moments = ('right now', 'with care', 'for me')
     return phrases + [f'{action} {moment}' for action in actions for moment in moments]
 
 
