@@ -426,7 +426,9 @@ function validateStart(value) {
     value.startAtMs < Date.now() ||
     value.endAtMs - value.startAtMs < 60000 ||
     value.endAtMs - value.startAtMs > 1800000 ||
-    value.intervalMs !== 60000
+    !Number.isSafeInteger(value.intervalMs) ||
+    value.intervalMs < 1000 ||
+    value.intervalMs > 300000
   )
     throw new Error('Invalid test window');
   const key = value.key;

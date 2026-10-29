@@ -1,0 +1,46 @@
+{
+  "schema": "seams.ml-dsa-capacity-driver.v1",
+  "date": "2026-10-29",
+  "source_base_revision": "0c639085275409cee53cf88aebcae7e966c20961",
+  "hosted_throughput_improvement": false,
+  "hosted_baseline_signatures_per_cycle_minute": 3.7779681490772976,
+  "baseline_raw_replay_exact": true,
+  "local_driver_validation": {
+    "passed": true,
+    "qualification": "Local load-driver validation with real durable alarms, simulated Router backpressure, and ordinary Node ML-DSA signatures. No threshold performance claim.",
+    "cases": [
+      {
+        "interval_ms": 45000,
+        "observed_demand_spacing_ms": 45000,
+        "verified_signatures": 2
+      },
+      {
+        "interval_ms": 60000,
+        "observed_demand_spacing_ms": 60000,
+        "verified_signatures": 2
+      }
+    ]
+  },
+  "changes": [
+    "Derive demand cadence from the explicit benchmark cooldown",
+    "Record original registration policy separately from the run policy",
+    "Record nominal demand ceiling without claiming offered operation count",
+    "Require identical exact 16-ID ready sets at A/B for reserve restoration"
+  ],
+  "unchanged": [
+    "Production cooldown",
+    "Cryptographic kernels and circuit IDs",
+    "Wallet-seed recovery",
+    "FIPS export",
+    "Two-at-once consumption",
+    "32-candidate per-wallet pool capacity"
+  ],
+  "next_hosted_comparison": "Matched twelve-minute four-wallet baseline/candidate screens at a separate 45-second benchmark cooldown, with full reserve restoration",
+  "bloat_check": "Inherited Rust duplication remains 13992 versus 13754; unchanged by this checkpoint",
+  "archive": {
+    "file": "ml-dsa-65-capacity-driver-20261029.tar.gz",
+    "bytes": 43700,
+    "sha256": "fe1ccad44d22c665f425995b392f50aa4c53a5a91625f49f06c9d1bec175649b"
+  },
+  "private_credential_scan_passed": true
+}

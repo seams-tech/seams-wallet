@@ -63,10 +63,15 @@ async function registrations(count) {
     const registration = JSON.parse(await readFile(join(base, `registration-${i}.json`), 'utf8'));
     assert.equal(registration.registrationChecksPassed, true);
     assert.equal(registration.recoveryPreservesCanonicalKey, true);
-    assertWalletPolicy(registration.policy, scope.policy);
+    assertRegistrationLayout(registration.policy, scope.policy);
     const latest = registration.cases.at(-1);
     assert.equal(latest.canonicalKeyVerified, true);
-    results.push({ index: i - 1, key: latest.key, publicKeyHex: latest.publicKeyHex });
+    results.push({
+      index: i - 1,
+      key: latest.key,
+      publicKeyHex: latest.publicKeyHex,
+      registrationPolicy: registration.policy,
+    });
   }
   return results;
 }
@@ -77,13 +82,17 @@ async function start(name, count, durationMs) {
   assert.ok(durationMs >= 60000 && durationMs <= 1800000);
   await mkdir(folder);
   const wallets = await registrations(count);
+  assert.equal(scope.policy.wallet_cooldown.mode, 'enabled', 'Require an explicit benchmark cooldown');
+  const intervalMs = scope.policy.wallet_cooldown.interval_ms;
+  assert.ok(Number.isSafeInteger(intervalMs) && intervalMs >= 1000 && intervalMs <= 300000);
   const startAtMs = Date.now() + 15000;
   const input = {
     name,
     wallets,
     startAtMs,
     endAtMs: startAtMs + durationMs,
-    intervalMs: 60000,
+    intervalMs,
+    nominalDemandsPerMinute: count * 60000 / intervalMs,
     minimumSuccessesPerWallet: durationMs === 60000 ? 1 : 4,
     policy: scope.policy,
     versions: JSON.parse(await readFile(join(base, 'cloud-driver/versions.json'), 'utf8')),
@@ -202,12 +211,13 @@ async function collect() {
     observedAt: new Date(input.startAtMs).toISOString(),
     completedAt: new Date(completedAtMs).toISOString(),
     scope:
-      'Cloudflare durable test drivers call the ordinary forwarding Router through a service binding. One outstanding demand per wallet and fixed 60-second demand interval. Signatures independently verified by Node/OpenSSL after collection. Client network, SDK, login, UI and NEAR finality are excluded. Initial stock must be excluded from refill throughput.',
+      'Cloudflare durable test drivers call the ordinary forwarding Router through a service binding. One outstanding demand per wallet and the recorded benchmark cooldown as the demand interval. Backpressure reduces the actual demand rate. Failed-operation retries can create additional operation IDs within one demand. Signatures independently verified by Node/OpenSSL after collection. Client network, SDK, login, UI and NEAR finality are excluded. Initial stock must be excluded from refill throughput.',
     timingBoundary:
       'Durable test driver through ordinary front Router service binding and full Router A/B path',
     requestedDurationMs: input.endAtMs - input.startAtMs,
     elapsedMs: input.endAtMs - input.startAtMs,
     intervalMs: input.intervalMs,
+    nominalDemandsPerMinute: input.nominalDemandsPerMinute,
     policy: input.policy,
     deploymentVersions: input.versions,
     retryPolling: { minimumMs: 1000, maximumMs: 5000 },
@@ -375,7 +385,15 @@ function stockCount(value) {
   return { key: value.key.slice(0, 8), ready };
 }
 function fullStock(value) {
-  return stockCount(value).ready === 16 && !value.reserved_a.length && !value.reserved_b.length;
+  return (
+    value.ready_a.length === 16 &&
+    value.ready_b.length === 16 &&
+    new Set(value.ready_a).size === 16 &&
+    new Set(value.ready_b).size === 16 &&
+    stockCount(value).ready === 16 &&
+    value.reserved_a.length === 0 &&
+    value.reserved_b.length === 0
+  );
 }
 
 async function verifyDuplicate(wallet, row) {
@@ -440,9 +458,9 @@ function capturedRole(role) {
   return role !== 'front';
 }
 
-function assertWalletPolicy(registered, current) {
+function assertRegistrationLayout(registered, current) {
   for (const key of [
-    'wallet_cooldown', 'max_active_operations', 'operation_timeout_ms',
+    'max_active_operations', 'operation_timeout_ms',
     'candidate_group_size', 'preparation_group_size', 'minimum_ready_batches', 'refill_target_batches',
   ]) {
     assert.deepEqual(registered[key], current[key], `Wallet policy changed: ${key}`);
