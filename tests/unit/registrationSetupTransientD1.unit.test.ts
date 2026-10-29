@@ -54,6 +54,7 @@ function rpId() {
 function setupInput(operation: string): WalletRegistrationSetupInput {
   return {
     request: {
+      completion: 'wallet_session',
       registrationOperationId: `operation-${operation}`,
       signerSelection: {
         kind: 'signer_set',
