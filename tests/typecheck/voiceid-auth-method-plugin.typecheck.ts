@@ -232,6 +232,7 @@ import type {
   Attempt as VoiceCalibrationAttempt,
   SpeakerScore as VoiceCalibrationScore,
   CutoffFit as VoiceCutoffFit,
+  PhraseObservation as VoicePhraseObservation,
 } from '../scripts/voiceid-human-calibration/report';
 declare const calibrationAttempt: VoiceCalibrationAttempt;
 declare const calibrationScore: VoiceCalibrationScore;
@@ -252,6 +253,31 @@ const prematureVoiceCutoff: VoiceCutoffFit = { kind: 'collecting', ...fittedThre
 const unboundVoiceCutoff: VoiceCutoffFit = { kind: 'frozen', threshold: 0.45 };
 void prematureVoiceCutoff;
 void unboundVoiceCutoff;
+
+declare const phraseObservation: VoicePhraseObservation;
+const privatePhraseText = { decodedText: 'untrusted decoded speech' };
+// @ts-expect-error Recognition exports cannot acquire decoded text through a spread.
+const leakedPhraseObservation: VoicePhraseObservation = { ...phraseObservation, ...privatePhraseText };
+// @ts-expect-error A matched phrase cannot carry a rejection reason.
+const matchedRejection: VoicePhraseObservation = { kind: 'matched', candidate: 'please sign this trade now', difference: 0, margin: 1, reason: 'different' };
+// @ts-expect-error A rejected phrase needs its rejection reason.
+const missingPhraseReason: VoicePhraseObservation = { kind: 'rejected', candidate: 'please sign this trade now', difference: 0, margin: 1 };
+// @ts-expect-error Empty speech cannot carry candidate measurements through a spread.
+const emptyWithCandidate: VoicePhraseObservation = { kind: 'empty', ...{ candidate: 'please sign this trade now' as const, difference: 0, margin: 1 } };
+// @ts-expect-error Candidate labels must come from the fixed phrase bank.
+const transcriptAsCandidate: VoicePhraseObservation = { kind: 'matched', candidate: 'private decoded speech', difference: 0, margin: 1 };
+// @ts-expect-error Recognition exports cannot acquire embeddings through a spread.
+const leakedPhraseVector: VoicePhraseObservation = { ...phraseObservation, ...calibrationVector };
+const phraseTemplate = { template: [0.1, 0.2] };
+// @ts-expect-error Recognition exports cannot acquire templates through a spread.
+const leakedPhraseTemplate: VoicePhraseObservation = { ...phraseObservation, ...phraseTemplate };
+void leakedPhraseObservation;
+void matchedRejection;
+void missingPhraseReason;
+void emptyWithCandidate;
+void transcriptAsCandidate;
+void leakedPhraseVector;
+void leakedPhraseTemplate;
 
 import type { AuthMethodAvailability } from '../../packages/wallet/src/core/authMethods/availabilityTypes';
 import type {

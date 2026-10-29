@@ -1,11 +1,11 @@
 import { recordVoice } from '@voiceid/browser/microphone';
 import { prepareVoiceModelWithProgress } from '@voiceid/browser/progress';
-import { checkSpokenPhrase, type SpokenPhrase } from '@voiceid/browser/phrase';
+import { checkSpokenPhrase, type PhraseCheck, type SpokenPhrase } from '@voiceid/browser/phrase';
 import { SPOKEN_PHRASES } from '@voiceid/browser/phraseVocabulary';
 import { normalizeVoiceVector, voiceEmbedding, voiceSimilarity, VOICE_MODEL_ID, VOICE_MATCH_THRESHOLD } from '@voiceid/browser/model';
 import { VoicePrompt } from '@voiceid/capture/prompt';
 import { isPlainObject } from '@seams/wallet/voiceid-host';
-import { calibrationReport, freezeCalibration, type CutoffFit, type Attempt, type Cohort, type Reading, type Source, type SpeakerScore } from '../../../tests/scripts/voiceid-human-calibration/report';
+import { calibrationReport, freezeCalibration, type CutoffFit, type Attempt, type Cohort, type Reading, type Source, type SpeakerScore, type PhraseObservation } from '../../../tests/scripts/voiceid-human-calibration/report';
 
 type Participant = Readonly<{ id: string; cohort: Cohort; enrollmentSession: string }> & (
   | { kind: 'enrolling'; samples: number[][]; template?: never }
@@ -18,7 +18,7 @@ type Assignment = Readonly<{
   role: 'enrollment' | 'probe';
 }>;
 type Observation =
-  | { kind: 'captured'; embedding: number[]; phraseMatched: boolean; voicedMs: number; modelInputMs: number }
+  | { kind: 'captured'; embedding: number[]; phrase: PhraseObservation; voicedMs: number; modelInputMs: number }
   | { kind: 'insufficient_audio'; voicedMs: number; embedding?: never }
   | { kind: 'failed'; embedding?: never };
 type Phase =
@@ -222,7 +222,7 @@ class HumanCalibration {
         try {
           const phrase = await checkSpokenPhrase(clip.samples, assignment.phrase);
           const embedding = await voiceEmbedding(clip.samples);
-          observation = { kind: 'captured', embedding, phraseMatched: phrase.kind === 'matched', voicedMs: clip.quality.voicedMs, modelInputMs: clip.samples.length / 16 };
+          observation = { kind: 'captured', embedding, phrase: phraseObservation(phrase), voicedMs: clip.quality.voicedMs, modelInputMs: clip.samples.length / 16 };
         } finally {
           clip.samples.fill(0);
         }
@@ -297,7 +297,7 @@ class HumanCalibration {
   private report() {
     const scores = this.scores();
     return {
-      schema: 'voiceid-human-calibration-v1', collectionId: this.collectionId,
+      schema: 'voiceid-human-calibration-v2', collectionId: this.collectionId,
       source: this.metadata.source, revision: this.metadata.revision,
       sourceHash: this.metadata.sourceHash,
       model: VOICE_MODEL_ID, modelHashes: this.metadata.modelHashes,
@@ -397,7 +397,7 @@ class HumanCalibration {
 
 function publicObservation(observation: Observation): Attempt['result'] {
   switch (observation.kind) {
-    case 'captured': return { kind: 'captured', phraseMatched: observation.phraseMatched, voicedMs: observation.voicedMs, modelInputMs: observation.modelInputMs };
+    case 'captured': return { kind: 'captured', phrase: observation.phrase, voicedMs: observation.voicedMs, modelInputMs: observation.modelInputMs };
     case 'insufficient_audio': return { kind: 'insufficient_audio', voicedMs: observation.voicedMs };
     case 'failed': return { kind: 'failed' };
     default: return assertNever(observation);
@@ -405,6 +405,40 @@ function publicObservation(observation: Observation): Attempt['result'] {
 }
 
 function assertNever(value: never): never { throw new Error(`Unexpected calibration state: ${String(value)}`); }
+
+function phraseObservation(check: PhraseCheck): PhraseObservation {
+  const recognition = check.recognition;
+  switch (recognition.kind) {
+    case 'recognized':
+      if (check.kind === 'matched') {
+        return {
+          kind: 'matched',
+          candidate: recognition.phrase,
+          difference: recognition.difference,
+          margin: recognition.margin,
+        };
+      }
+      return {
+        kind: 'rejected',
+        candidate: recognition.phrase,
+        difference: recognition.difference,
+        margin: recognition.margin,
+        reason: 'different_phrase',
+      };
+    case 'uncertain':
+      return {
+        kind: 'rejected',
+        candidate: recognition.candidate,
+        difference: recognition.difference,
+        margin: recognition.margin,
+        reason: recognition.reason,
+      };
+    case 'empty':
+      return { kind: 'empty' };
+    default:
+      return assertNever(recognition);
+  }
+}
 
 function enrollmentTemplate(samples: readonly (readonly number[])[]): number[] {
   const mean = new Array<number>(192).fill(0);

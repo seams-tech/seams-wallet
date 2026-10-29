@@ -1,6 +1,38 @@
+import type { SpokenPhrase } from '../../../packages/voiceid/src/browser/phrase';
+
 export type Cohort = 'calibration' | 'evaluation';
 export type Source = 'human_microphone' | 'synthetic_fixture';
 export type Reading = 'as_shown' | 'stumbled' | 'different_words';
+
+export type PhraseObservation = Readonly<{
+  decodedText?: never;
+  logits?: never;
+  samples?: never;
+  embedding?: never;
+  template?: never;
+}> & (
+  | {
+      readonly kind: 'matched';
+      readonly candidate: SpokenPhrase;
+      readonly difference: number;
+      readonly margin: number;
+      readonly reason?: never;
+    }
+  | {
+      readonly kind: 'rejected';
+      readonly candidate: SpokenPhrase;
+      readonly difference: number;
+      readonly margin: number;
+      readonly reason: 'different_phrase' | 'different' | 'ambiguous' | 'negated';
+    }
+  | {
+      readonly kind: 'empty';
+      readonly candidate?: never;
+      readonly difference?: never;
+      readonly margin?: never;
+      readonly reason?: never;
+    }
+);
 
 export type Attempt = Readonly<{
   id: string;
@@ -13,9 +45,9 @@ export type Attempt = Readonly<{
   embedding?: never;
   samples?: never;
   result: Readonly<{ embedding?: never; samples?: never; template?: never }> & (
-    | { readonly kind: 'captured'; readonly phraseMatched: boolean; readonly voicedMs: number; readonly modelInputMs: number }
-    | { readonly kind: 'insufficient_audio'; readonly phraseMatched?: never; readonly voicedMs: number; readonly modelInputMs?: never }
-    | { readonly kind: 'failed'; readonly phraseMatched?: never; readonly voicedMs?: never; readonly modelInputMs?: never }
+    | { readonly kind: 'captured'; readonly phrase: PhraseObservation; readonly voicedMs: number; readonly modelInputMs: number }
+    | { readonly kind: 'insufficient_audio'; readonly phrase?: never; readonly voicedMs: number; readonly modelInputMs?: never }
+    | { readonly kind: 'failed'; readonly phrase?: never; readonly voicedMs?: never; readonly modelInputMs?: never }
   );
 }>;
 
@@ -159,7 +191,7 @@ function asShown(attempt: Attempt): boolean {
 }
 
 function phraseMatched(attempt: Attempt): boolean {
-  return attempt.result.kind === 'captured' && attempt.result.phraseMatched;
+  return attempt.result.kind === 'captured' && attempt.result.phrase.kind === 'matched';
 }
 
 function phraseResult(scores: readonly SpeakerScore[], threshold: number, attempts: readonly Attempt[], phrase: string) {

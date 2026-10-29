@@ -47,20 +47,32 @@ def generate_tolerance(output):
         ('ambiguous', 'the market order looks ready'),
         ('unrelated', 'cancel my wallet and tell me the time'),
         ('reordered', 'quote latest check i'),
-        ('negated', 'i never read every order'),
+        ('negated', 'please never review my order'),
         ('fragment', 'latest quote'),
         ('missing-negation', 'crying in the casino'),
         ('changed-negation', 'never cry in the casino'),
         ('extra-negation', 'no approve this transfer at once'),
+        ('ambiguous-ending', 'check my order care'),
+        ('sale-homophone', 'please confirm this sail'),
     ]
+    recordings = [(name, spoken, 'Samantha') for name, spoken in cases]
+    for voice in ('Daniel', 'Karen'):
+        for name, spoken in (
+            ('swap', 'sign this swap today'),
+            ('sale', 'please confirm this sale'),
+            ('fearful', 'be fearful when others are retarded'),
+            ('review', 'please review my order'),
+            ('proceed', 'the sale is ready'),
+        ):
+            recordings.append((f'{name}-{voice.lower()}', spoken, voice))
     rows = []
-    for name, spoken in cases:
+    for name, spoken, voice in recordings:
         aiff = output / f'{name}.aiff'
         wav = output / f'{name}.wav'
-        subprocess.run(['say', '-v', 'Samantha', '-r', '160', '-o', str(aiff), spoken], check=True)
+        subprocess.run(['say', '-v', voice, '-r', '160', '-o', str(aiff), spoken], check=True)
         subprocess.run(['afconvert', '-f', 'WAVE', '-d', 'LEI16@16000', '-c', '1', str(aiff), str(wav)], check=True)
         aiff.unlink()
-        rows.append({'file': wav.name, 'spoken': spoken, 'voice': 'Samantha', 'rate': 160,
+        rows.append({'file': wav.name, 'spoken': spoken, 'voice': voice, 'rate': 160,
                      'sha256': hashlib.sha256(wav.read_bytes()).hexdigest()})
     (output / 'generation.json').write_text(json.dumps(rows, indent=2) + '\n')
 

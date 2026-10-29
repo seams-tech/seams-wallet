@@ -74,13 +74,13 @@ async function calibrationJourney({ page }: { page: Page }, testInfo: TestInfo):
     const report = JSON.parse(await readFile(file, 'utf8'));
     expect(report.source).toBe('synthetic_fixture');
     expect(report.attempts).toHaveLength(attempts);
-    expect(report.attempts[0]).toMatchObject({ role: 'enrollment', reading: 'as_shown', result: { kind: 'captured', phraseMatched: false } });
+    expect(report.attempts[0]).toMatchObject({ role: 'enrollment', reading: 'as_shown', result: { kind: 'captured', phrase: { kind: 'rejected', reason: 'different_phrase' } } });
     expect(report.scores.filter(isGenuine)).toHaveLength(5);
     expect(report.scores.filter(isOtherSpeaker)).toHaveLength(5);
     expect(report.summary.speakerCutoff.kind).toBe('synthetic_only');
     expect(report.fit.kind).toBe('frozen');
     expect(report.fit.attemptIds).toHaveLength(2);
-    expect(report.summary.phrases).toHaveLength(40);
+    expect(report.summary.phrases).toHaveLength(39);
     expect(report.summary.phrases.some(isUnrated)).toBe(true);
     expect(report.summary.phrases.reduce(attemptTotal, 0)).toBe(5);
     expect(report.summary.phrases.reduce(wrongTotal, 0)).toBe(1);
@@ -180,7 +180,7 @@ function forbiddenKeys(value: unknown): string[] {
   const found: string[] = [];
   if (typeof value !== 'object' || value === null) return found;
   for (const [key, child] of Object.entries(value)) {
-    if (['embedding', 'template', 'samples', 'deviceId', 'decodedText', 'privateKey', 'walletId'].includes(key)) found.push(key);
+    if (['embedding', 'template', 'samples', 'logits', 'deviceId', 'decodedText', 'privateKey', 'walletId'].includes(key)) found.push(key);
     found.push(...forbiddenKeys(child));
   }
   return found;

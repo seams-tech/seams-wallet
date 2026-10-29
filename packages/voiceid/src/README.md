@@ -153,9 +153,10 @@ recordings where live analysis is unavailable. Both speaker and phrase checks us
 Existing B1 enrollment remains valid. Aurora adds a separate phrase check.
 
 Aurora decodes the audio independently of the displayed phrase. The matcher compares
-that text with all 40 phrases. Eight additional phrases form four action-only
+that text with all 39 phrases. Eight additional phrases form four action-only
 confirmation families. It ignores case, punctuation, and articles, and maps
-selected homophones to a common spelling. It permits at most 30% normalized character
+selected homophones, including “sail” and “sale,” to a common spelling. It joins
+the decoded word break “to day” as “today.” It permits at most 30% normalized character
 edit distance, requires a 10-point distance margin over the next candidate, and
 limits decoded word count to within two words of the candidate. Negation must
 match the candidate phrase; added, omitted, or changed negation rejects. These are development bounds for an approximate challenge. Some changed

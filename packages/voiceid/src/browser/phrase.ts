@@ -89,6 +89,7 @@ const HOMOPHONES = new Map([
   ['two', 'to'],
   ['too', 'to'],
   ['eye', 'i'],
+  ['sail', 'sale'],
 ]);
 
 const NEGATIONS = new Set([
@@ -124,7 +125,7 @@ function canonicalWord(word: string): string {
   return HOMOPHONES.get(word) ?? word;
 }
 function canonicalText(tokens: readonly string[]): string {
-  return tokens.filter(keepWord).map(canonicalWord).join(' ');
+  return tokens.filter(keepWord).map(canonicalWord).join(' ').replace(/\bto day\b/g, 'today');
 }
 function isNegation(word: string): boolean {
   return NEGATIONS.has(word);

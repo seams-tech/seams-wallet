@@ -293,7 +293,8 @@ Confirm click. Generated prompts contain four or five trading-oriented words for
 approval. The bank also contains user-selected quotes. Prompt wording describes trading activity without replacing transaction review. Existing enrollment remains valid. Aurora must select
 the displayed phrase from the same recording using its independently decoded text.
 The matcher ignores case, punctuation, and articles, and canonicalizes the listed
-homophones. It compares all 40 phrases using character edit distance divided by
+homophones and joins the decoded word break “to day” as “today.” It compares all
+39 phrases using character edit distance divided by
 the longer normalized text length. The best candidate must have at most 30%
 difference and beat the runner-up by at least 10 percentage points. The decoded
 word count must be within two words of the candidate. Negation words must match
@@ -364,13 +365,13 @@ without an expiry fail when the selected method is VoiceID.
 Per-call `options.voiceId.confirmationCommand` selects a short action-only challenge.
 The leading English verb selects sale (`sell`), purchase (`buy`), swap (`swap`),
 or transfer (`send`/`transfer`). For example, “Sell 100 NEAR for USDC at $5.5”
-selects a sale phrase such as “Approve this sale at once.” Amounts, asset names,
+selects a sale phrase such as “Please confirm this sale.” Amounts, asset names,
 and prices remain in the full review. Other wording uses the default challenges.
 The configuration accepts only `confirmationCommand`, a nonempty string of at
 most 256 characters without control characters. Invalid configuration rejects
 before capture. The application cannot set the final challenge or thresholds.
 Each retry chooses a different phrase within the selected family. Enrollment and
-unlock retain the existing 32 default challenges. All 40 phrases are recognized
+unlock use 31 default challenges. All 39 phrases are recognized
 against the same bank, including eight action-specific phrases. The same audio
 checks phrase and speaker, and the speaker threshold is 0.45.
 This option changes copy only. Unsupported operations remain unsupported. The

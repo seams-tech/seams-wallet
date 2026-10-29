@@ -43,10 +43,10 @@
   },
   {
     "file": "negated.wav",
-    "spoken": "i never read every order",
+    "spoken": "please never review my order",
     "voice": "Samantha",
     "rate": 160,
-    "sha256": "682218b595f95798c39f2959181c493522c0ea2d2e710387ab3a0d3400b5b78c"
+    "sha256": "557b26ce66bc130aff947c00b6f96f33111da6c82d2ab9f44f8353436abebdb5"
   },
   {
     "file": "fragment.wav",
@@ -75,5 +75,89 @@
     "voice": "Samantha",
     "rate": 160,
     "sha256": "a5d1b6fdc1df204f6b22c6179a1a1a975cbe6f0b33e50aaa06e57fa5e48cbe1b"
+  },
+  {
+    "file": "ambiguous-ending.wav",
+    "spoken": "check my order care",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "43264ea5d3ed0f394c4a01fde20b71f8e2ae6d54164769ff9e2eae05fbd0c206"
+  },
+  {
+    "file": "sale-homophone.wav",
+    "spoken": "please confirm this sail",
+    "voice": "Samantha",
+    "rate": 160,
+    "sha256": "66f6c5df8c7e987a403983ffd1c4d8cec85f75d96990deef430dcbd5acb271ec"
+  },
+  {
+    "file": "swap-daniel.wav",
+    "spoken": "sign this swap today",
+    "voice": "Daniel",
+    "rate": 160,
+    "sha256": "cab97fae8350b742dc94b778785118887f4f0afc190d6e3ac5c755dd97825ae6"
+  },
+  {
+    "file": "sale-daniel.wav",
+    "spoken": "please confirm this sale",
+    "voice": "Daniel",
+    "rate": 160,
+    "sha256": "72f395ea013d4f2bc2e1384b851f1adf0a8f4af5b22b939bdc4c78f1df503d71"
+  },
+  {
+    "file": "fearful-daniel.wav",
+    "spoken": "be fearful when others are retarded",
+    "voice": "Daniel",
+    "rate": 160,
+    "sha256": "6478bde056dd758456dc1b66f062271ffaae2ff3956b17bc4f54fd4dba124261"
+  },
+  {
+    "file": "review-daniel.wav",
+    "spoken": "please review my order",
+    "voice": "Daniel",
+    "rate": 160,
+    "sha256": "590f64bb79a2ca766f39470ba932fba80c83712e0bfd4caf93593b92acea5414"
+  },
+  {
+    "file": "proceed-daniel.wav",
+    "spoken": "the sale is ready",
+    "voice": "Daniel",
+    "rate": 160,
+    "sha256": "a1625dde6dbac120bc274b3c320d5c0fc5fc1201481dd93cc47bc768bb792972"
+  },
+  {
+    "file": "swap-karen.wav",
+    "spoken": "sign this swap today",
+    "voice": "Karen",
+    "rate": 160,
+    "sha256": "900de914ea795dd775b4ee6cb8fd579faf83d87a13994f2c7b062c8d531c6d90"
+  },
+  {
+    "file": "sale-karen.wav",
+    "spoken": "please confirm this sale",
+    "voice": "Karen",
+    "rate": 160,
+    "sha256": "dad3734d9ffda4fc9b8a0f7f5ca5ffe4c1ab48eeb2662894e56b057efd3bd4ff"
+  },
+  {
+    "file": "fearful-karen.wav",
+    "spoken": "be fearful when others are retarded",
+    "voice": "Karen",
+    "rate": 160,
+    "sha256": "dcbd890cb2b92f71c444b07240f348a784c0ebe8f6378d9e972d6ff1beca04bc"
+  },
+  {
+    "file": "review-karen.wav",
+    "spoken": "please review my order",
+    "voice": "Karen",
+    "rate": 160,
+    "sha256": "13e247ef125c018b3ff573f8f6ae483cadd2ecd4b9d9db1e321b21686e1ddfdf"
+  },
+  {
+    "file": "proceed-karen.wav",
+    "spoken": "the sale is ready",
+    "voice": "Karen",
+    "rate": 160,
+    "sha256": "3e00c004610f6c860e56b731c56f72ea05bd19939303f31c0663a5018c5de588"
   }
 ]

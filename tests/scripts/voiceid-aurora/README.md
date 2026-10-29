@@ -140,11 +140,16 @@ python tests/scripts/voiceid-aurora/fixtures.py --tolerance --output /tmp/voicei
 ```
 
 The tracked copies are under `tests/fixtures/audio/aurora/tolerance/`. The browser
-contract `tests/wallet-ui/voiceid-phrase-tolerance.browser.test.ts` checks all 40
-natural fixtures against all 40 challenges, plus omitted articles, approximate
+contract `tests/wallet-ui/voiceid-phrase-tolerance.browser.test.ts` checks all 39
+natural fixtures against all 39 challenges, plus omitted articles, approximate
 wording, unrelated speech, reordering, a negation, and a short fragment. Run it with
 `playwright.wallet-browser.config.ts`, project `chromium`. It emits
 `phrase-tolerance.json` with the decoded text and decision for every case.
+
+The same check includes five fixed phrases spoken by Daniel and Karen. Each
+recording is compared with every challenge. These are synthetic development
+controls, not human acceptance measurements. The partial ending “check my order
+care” must reach the ambiguity rejection, so the candidate-margin gate is exercised.
 
 
 The current bank includes approval-style prompts and user-selected Easter eggs.

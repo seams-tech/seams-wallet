@@ -2,7 +2,7 @@
 export const CHALLENGE_PHRASES = [
   "please sign this trade now",
   "confirm my order for today",
-  "i read every order",
+  "please review my order",
   "dump on them slowly",
   "send this order to market",
   "i'm here for the tech",
@@ -19,24 +19,23 @@ export const CHALLENGE_PHRASES = [
   "be retarded when others are fearful",
   "be fearful when others are retarded",
   "life is short go long to hedge",
-  "but they won't trap me",
-  "approve the swap right now",
-  "approve the swap with care",
-  "approve the swap for me",
+  "sign this swap right now",
+  "sign this swap with care",
+  "sign this swap today",
   "check my order right now",
   "check my order with care",
-  "check my order for me",
+  "check my order today",
   "confirm the trade right now",
   "confirm the trade with care",
-  "confirm the trade for me",
+  "confirm the trade today",
   "review this transfer right now",
   "review this transfer with care",
-  "review this transfer for me"
+  "review this transfer today"
 ] as const;
 export const CONFIRMATION_PHRASES = {
   "sale": [
-    "approve this sale at once",
-    "let the sale go through"
+    "please confirm this sale",
+    "the sale is ready"
   ],
   "purchase": [
     "this purchase has my approval",

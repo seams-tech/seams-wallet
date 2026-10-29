@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 CONFIRMATION_PHRASES = {
-    'sale': ['approve this sale at once', 'let the sale go through'],
+    'sale': ['please confirm this sale', 'the sale is ready'],
     'purchase': ['this purchase has my approval', 'please confirm my purchase'],
     'swap': ['confirm my swap today', 'the swap is ready to proceed'],
     'transfer': ['confirm this transfer today', 'please send this transfer now'],
@@ -13,8 +13,8 @@ CONFIRMATION_PHRASES = {
 
 def challenge_phrases():
     phrases = json.loads(Path(__file__).with_name('phrases.json').read_text())
-    actions = ('approve the swap', 'check my order', 'confirm the trade', 'review this transfer')
-    moments = ('right now', 'with care', 'for me')
+    actions = ('sign this swap', 'check my order', 'confirm the trade', 'review this transfer')
+    moments = ('right now', 'with care', 'today')
     return phrases + [f'{action} {moment}' for action in actions for moment in moments]
 
 

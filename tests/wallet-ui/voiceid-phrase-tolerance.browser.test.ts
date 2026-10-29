@@ -105,6 +105,8 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
     { file: 'missing-negation', expected: 11, outcome: 'mismatch' },
     { file: 'changed-negation', expected: 11, outcome: 'mismatch' },
     { file: 'extra-negation', expected: 13, outcome: 'mismatch' },
+    { file: 'ambiguous-ending', expected: 24, outcome: 'mismatch' },
+    { file: 'sale-homophone', expected: 31, outcome: 'matched' },
   ];
   const extraResults = [];
   for (const item of extras) {
@@ -115,7 +117,34 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
     );
     extraResults.push({ ...item, result });
     expect.soft(result.kind, `${item.file}: ${JSON.stringify(result)}`).toBe(item.outcome);
+    if (item.file === 'ambiguous-ending') {
+      expect.soft(result.recognition).toMatchObject({ kind: 'uncertain', reason: 'ambiguous' });
+    }
   }
+  const recordings: { file: string; spoken: string; voice: string; rate: number }[] = JSON.parse(
+    fs.readFileSync(path.join(fixtures, 'tolerance', 'generation.json'), 'utf8'),
+  );
+  const speakerResults = [];
+  let speakerMatches = 0;
+  let speakerTrials = 0;
+  for (const recording of recordings) {
+    if (recording.voice === 'Samantha') continue;
+    const spoken = SPOKEN_PHRASES.findIndex(sameSpokenPhrase.bind(null, recording.spoken));
+    if (spoken < 0) throw new Error(`Unknown phrase recording: ${recording.file}`);
+    for (let expected = 0; expected < SPOKEN_PHRASES.length; expected += 1) {
+      const result = await check(page, path.join(fixtures, 'tolerance', recording.file), expected);
+      speakerResults.push({ ...recording, spoken, expected, result });
+      if (spoken === expected) {
+        speakerTrials += 1;
+        if (result.kind === 'matched') speakerMatches += 1;
+      } else {
+        expect.soft(result.kind, `${recording.file}, challenge ${expected}: ${JSON.stringify(result)}`)
+          .toBe('mismatch');
+      }
+    }
+  }
+  expect.soft(speakerMatches / speakerTrials, 'Additional synthetic voices must exceed 90% own-phrase acceptance')
+    .toBeGreaterThan(0.9);
   const report = testInfo.outputPath('phrase-tolerance.json');
   fs.writeFileSync(
     report,
@@ -123,9 +152,12 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
       {
         status: testInfo.errors.length === 0 ? 'passed' : 'failed',
         realAurora: true,
+        humanAccuracyMeasured: false,
         naturalRate: 160,
         results,
         extraResults,
+        speakerResults,
+        speakerAcceptance: { matched: speakerMatches, trials: speakerTrials },
       },
       null,
       2,
@@ -135,6 +167,10 @@ async function run({ page }: { page: Page }, testInfo: TestInfo): Promise<void> 
 }
 function ready(): boolean {
   return typeof window.voicePhraseCheck === 'function';
+}
+
+function sameSpokenPhrase(spoken: string, phrase: string): boolean {
+  return spoken === phrase;
 }
 
 function commandInBrowser(input: { value: unknown; previous: number | null }) {

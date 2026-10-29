@@ -46,7 +46,11 @@ Do not cancel because a result looks unfavorable. Record and label it instead.
 The recorder discards audio after processing. Templates and probe embeddings stay
 in memory to calculate cross-speaker scores. They are never exported. The export
 contains phrase labels, reading judgments, score comparisons, cohort/session
-codes, model hashes, browser version, and source revision. It contains no wallet
+codes, model hashes, browser version, and source revision. Version 2 also records
+the recognized bank phrase, rejection reason, text distance, and candidate margin.
+An empty recognition has no candidate measurements. These fields distinguish
+decoding distance, ambiguous candidates, negation, and a different selected phrase.
+They never contain independently decoded speech. It contains no wallet
 identities, transcripts, raw audio, voice vectors, or microphone device identifiers.
 
 ## Interpret the report
