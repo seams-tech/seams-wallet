@@ -4,7 +4,7 @@ The current Workers serve **38 verified signatures in ten minutes**, or **3.8 si
 Including observed reserve restoration gives approximately **3.78 signatures/minute**.
 The four-wallet target of four to five signatures/minute remains open.
 
-Preparation is the limiting resource in this campaign. Four-candidate jobs have a 17.1-second median checkpoint span under load.
+Preparation dominates captured protocol CPU and causes the observed empty-pool waits. Four-candidate jobs have a 17.1-second median checkpoint span under load.
 A short idle comparison still takes 18–24 seconds per four-candidate job.
 Signing load alone does not explain the slower preparation. No runtime optimization is retained from this campaign.
 
@@ -27,6 +27,14 @@ The durable load driver maintains one outstanding demand per wallet.
 It schedules the next demand sixty seconds after the preceding demand starts, or after that demand finishes if it takes longer.
 Four wallets therefore have a theoretical ceiling of four admitted operations/minute under this policy.
 A five-signature/minute test requires a separately identified shorter benchmark cooldown.
+The measured 3.78-signature/minute cycle is an achieved rate under this capped workload.
+It does not establish maximum preparation capacity. Three wallets complete all ten scheduled demands.
+The fourth wallet encounters rejection tails and empty-pool waits.
+The next capacity comparison retains the sixty-second operational control and adds a separate forty-five-second benchmark profile.
+Production cooldown and per-wallet capacity remain unchanged.
+The [capacity-driver checkpoint](../evidence/ml-dsa-65-capacity-driver-20261029.json) records the corrected load boundary and repeatable local validation.
+Its real durable alarms follow forty-five- and sixty-second intervals through simulated Router backpressure.
+Four ordinary ML-DSA signatures verify independently. These local results qualify the driver, with no hosted throughput improvement claim.
 
 The load path runs inside Cloudflare through the forwarding front Worker, ML-DSA Router, and participants.
 It excludes the public SDK, login, human approval, client network, and NEAR finality.

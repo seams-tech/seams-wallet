@@ -46,7 +46,16 @@ The local counterfactual grows to eighteen pairs on the baseline and remains at 
 The same investigation repairs early socket-error propagation. Injected input failure now settles in roughly 248–250 milliseconds and retains fifteen unopened pairs.
 Ordinary and profiling-mode release Worker E2Es pass, with eight independently checked final signatures.
 A controlled local pending-wake/maintenance test passes. Its approximately sixty-millisecond observation is an upper bound, and the earlier hosted dispatch gap remains unresolved.
-Next, measure guard overhead and wake/dispatch behavior on Cloudflare, then repeat sustained capacity and balanced early-touch controls.
+Next, measure sustained useful throughput before another cryptographic kernel rewrite.
+The existing sixty-second workload offers at most four new demands per minute across four wallets.
+Its achieved 3.78-signature/minute rate does not establish maximum preparation capacity.
+Compare matched twelve-minute baseline and candidate windows with a separate forty-five-second benchmark cooldown.
+Keep the sixty-second operational control separate. Production defaults and per-wallet capacity stay unchanged.
+Record each wallet's original registration policy, the current benchmark policy, nominal demand ceiling, and actual demand history.
+Require exact matching sixteen-pair reserves at both participants before and after each window.
+Include drain, failed work, unused jobs, surplus retirement, and reserve restoration in the comparison.
+Use paired preparation CPU and useful fresh candidates per minute to select the next optimization.
+Guard overhead, the hosted wake/dispatch cause, and balanced early-touch controls remain open.
 All six setup/final signatures verify, recovery preserves the canonical key, and all eight temporary Workers are deleted.
 Production cryptographic source and defaults remain unchanged.
 
