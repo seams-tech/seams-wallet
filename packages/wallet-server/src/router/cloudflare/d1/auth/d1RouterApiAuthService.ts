@@ -2,6 +2,8 @@ import { D1WalletOperationStore } from '../registration/d1WalletOperationStore';
 import { createD1EmailOtpRouteService } from './d1EmailOtpRouteService';
 import type { WalletRelocationEmailOtpServices } from '../wallet/d1WalletRelocationEmailOtp';
 import { createSponsoredNamedNearAccountForOptions } from '../near/d1SponsoredNearAccount';
+import { ExternalAuthStore } from '../../../../auth/externalAuthStore';
+import { ExternalAuthService } from '../../../../auth/externalAuthService';
 import {
   parseD1WalletAddSignerFinalizeSideEffectRecord,
   type D1WalletAddSignerFinalizeSideEffectRecord,
@@ -2195,6 +2197,11 @@ export function createCloudflareD1RouterApiAuthService(
 ): CloudflareD1RouterApiAuthService {
   const assembly = createCloudflareD1RouterApiAuthAssembly(input);
   return {
+    externalAuth: new ExternalAuthService(
+      new ExternalAuthStore(assembly.options.database, assembly.options),
+      assembly.walletStore,
+      assembly.walletAuthMethodStore,
+    ),
     walletExecution: assembly.options.walletExecution,
     relocationEmailOtp: assembly.relocationEmailOtp,
     walletRegistration: createD1WalletRegistrationRouteService(assembly),

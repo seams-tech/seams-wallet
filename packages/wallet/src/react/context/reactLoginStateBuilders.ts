@@ -9,6 +9,7 @@ import { isWalletSessionReadyForUi } from './walletSessionReadiness';
 type LinkedDeviceManagementPermission =
   | { readonly kind: 'unauthenticated' }
   | { readonly kind: 'owner' }
+  | { readonly kind: 'settings_only' }
   | { readonly kind: 'signing_only' };
 
 type AccountMenuCapabilities =
@@ -23,7 +24,7 @@ type AccountMenuCapabilities =
       readonly canManageLinkedDevices: true;
     }
   | {
-      readonly kind: 'signing_only';
+      readonly kind: 'signing_only' | 'settings_only';
       readonly canExportKeys: false;
       readonly canManageLinkedDevices: false;
     };
@@ -32,6 +33,7 @@ function linkedDeviceManagementPermissionForLoginState(
   state: LoginState,
 ): LinkedDeviceManagementPermission {
   if (!state.isLoggedIn) return { kind: 'unauthenticated' };
+  if (state.access === 'external') return { kind: 'settings_only' };
   if (state.currentAuthMethod.kind !== 'selected') return { kind: 'signing_only' };
   return { kind: 'owner' };
 }
@@ -45,6 +47,8 @@ export function accountMenuCapabilitiesForLoginState(state: LoginState): Account
       return { kind: 'owner', canExportKeys: true, canManageLinkedDevices: true };
     case 'signing_only':
       return { kind: 'signing_only', canExportKeys: false, canManageLinkedDevices: false };
+    case 'settings_only':
+      return { kind: 'settings_only', canExportKeys: false, canManageLinkedDevices: false };
   }
   return assertNeverAccountMenuPermission(management);
 }
@@ -71,9 +75,24 @@ export function buildReactLoggedInLoginStateFromSession(session: WalletSession):
   if (session.appIdentity.kind !== 'resolved') return null;
   const appIdentity = session.appIdentity;
   const authentication = session.authentication;
+  if (session.externalSettings) {
+    return {
+      isLoggedIn: true,
+      access: 'external',
+      externalSettings: session.externalSettings,
+      walletId: String(appIdentity.walletId),
+      nearAccountId: appIdentity.nearAccountId ? String(appIdentity.nearAccountId) : null,
+      nearPublicKey: appIdentity.nearOperationalPublicKey,
+      currentAuthMethod: buildNoCurrentWalletAuthMethod(),
+      authMethods: [],
+      thresholdEcdsaEthereumAddress: appIdentity.thresholdEcdsaEthereumAddress,
+      thresholdEcdsaPublicKeyB64u: appIdentity.thresholdEcdsaPublicKeyB64u,
+    };
+  }
   if (authentication.kind === 'authenticated' && session.appIdentity.authMethods.length === 0) {
     return {
       isLoggedIn: true,
+      access: 'wallet',
       walletId: String(appIdentity.walletId),
       nearAccountId: appIdentity.nearAccountId ? String(appIdentity.nearAccountId) : null,
       nearPublicKey: appIdentity.nearOperationalPublicKey,
@@ -93,6 +112,7 @@ export function buildReactLoggedInLoginStateFromSession(session: WalletSession):
   });
   return {
     isLoggedIn: true,
+    access: 'wallet',
     walletId: String(appIdentity.walletId),
     nearAccountId: appIdentity.nearAccountId ? String(appIdentity.nearAccountId) : null,
     nearPublicKey: appIdentity.nearOperationalPublicKey,

@@ -31,6 +31,11 @@ export type ParsedRs256JwtResult =
 export type GoogleIdTokenClaims = {
   readonly ok: true;
   readonly sub: string;
+  readonly issuer: 'https://accounts.google.com';
+  readonly audience: string;
+  readonly expiresAtMs: number;
+  readonly authorizedParty: string | null;
+  readonly audienceCount: number;
   readonly email?: string;
   readonly name?: string;
   readonly givenName?: string;
@@ -119,7 +124,6 @@ export class CloudflareD1OidcJwksCache {
     this.googleJwksCache = value;
     return value;
   }
-
 }
 
 export function parseRs256JwtForVerification(input: {
@@ -204,7 +208,6 @@ export function parseBooleanJwtClaim(input: unknown): boolean | undefined {
   return undefined;
 }
 
-
 export function validateGoogleIdTokenClaims(input: {
   readonly payload: Record<string, unknown>;
   readonly clientId: string;
@@ -239,6 +242,7 @@ export function validateGoogleIdTokenClaims(input: {
   if (!aud.includes(input.clientId)) {
     return failedVerification('invalid_audience', 'Google id_token audience mismatch');
   }
+  const authorizedParty = toOptionalTrimmedString(payload.azp);
 
   const sub = toOptionalTrimmedString(payload.sub);
   if (!sub) {
@@ -256,6 +260,11 @@ export function validateGoogleIdTokenClaims(input: {
   return {
     ok: true,
     sub,
+    issuer: 'https://accounts.google.com',
+    audience: input.clientId,
+    expiresAtMs: exp * 1000,
+    authorizedParty: authorizedParty || null,
+    audienceCount: aud.length,
     ...(email ? { email } : {}),
     ...(name ? { name } : {}),
     ...(givenName ? { givenName } : {}),

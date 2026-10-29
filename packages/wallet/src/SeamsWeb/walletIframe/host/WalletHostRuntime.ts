@@ -137,6 +137,7 @@ export class WalletHostRuntime {
   private readonly signingEngine: SeamsWebSigningSurface;
   private readonly nearClient: NearClient;
   readonly configs: WalletHostConfig;
+  readonly readExternalSession: WalletHostSessionCommands['readExternalSession'];
   private appearance: AppearanceConfig;
   theme: ThemeMode;
   private readonly prefillRestoredSession: RestoredSessionPresignaturePrefill;
@@ -151,7 +152,7 @@ export class WalletHostRuntime {
       UserPreferencesManager,
       'setConfirmationConfig' | 'setConfirmationBehavior' | 'onCurrentWalletChange'
     >;
-  readonly auth: WalletAuthCommands & Pick<WalletHostSessionCommands, 'unlockWithAuthMethod'>;
+  readonly auth: WalletAuthCommands & Pick<WalletHostSessionCommands, 'unlockWithAuthMethod' | 'authenticate'>;
   readonly placement: WalletPlacementCapability;
   readonly registration: RegistrationCapability;
   readonly near: NearSignerCapability;
@@ -159,7 +160,7 @@ export class WalletHostRuntime {
   readonly evm: EvmSignerCapability;
   private readonly deviceLinkingDispose: () => void;
   private readonly resumePendingAcknowledgementsV1: () => Promise<void>;
-  constructor(configs: WalletHostConfig, nearClient?: NearClient) {
+  constructor(configs: WalletHostConfig, readonly parentOrigin: string, nearClient?: NearClient) {
     this.configs = configs;
     configureIndexedDB({ mode: 'wallet' });
     // Use provided client or create default one
@@ -214,7 +215,8 @@ export class WalletHostRuntime {
     });
     this.deviceLinkingDispose = deviceDomain.dispose;
     this.resumePendingAcknowledgementsV1 = deviceDomain.resumePendingAcknowledgementsV1;
-    const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this));
+    const sessionCommands = createWalletHostSessionCommands(this.getContext.bind(this), ownerAuthorities.readOwnerCredential, parentOrigin);
+    this.readExternalSession = sessionCommands.readExternalSession;
     const registrationCommands = createWalletHostRegistrationCommands(
       this.getContext.bind(this),
       sessionCommands,

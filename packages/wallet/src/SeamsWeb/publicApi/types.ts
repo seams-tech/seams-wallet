@@ -2,6 +2,12 @@ import type { AuthMethodAvailability } from '@/core/authMethods/availabilityType
 import type { VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
 import type {
+  ExternalAuthenticateInput,
+  ExternalAuthAttempt,
+  ExternalAuthResult,
+  ExternalWalletAuthentication,
+} from '@shared/auth/externalAuth';
+import type {
   HostedAuthMenuOpenRequest,
   HostedAuthMenuOutcome,
   HostedAuthMenuSessionId,
@@ -679,6 +685,16 @@ export type RequestEmailCodeInput = ExclusiveUnion<
 };
 
 export interface AuthCapability {
+  authenticate(input: ExternalAuthenticateInput): Promise<ExternalAuthResult<ExternalWalletAuthentication>>;
+  prepareExternalAuth(walletId: string): Promise<ExternalAuthResult<ExternalAuthAttempt>>;
+  associateExternalAuth(input: {
+    walletId: string;
+    idToken: string;
+  }): Promise<ExternalAuthResult<null>>;
+  removeExternalAuth(input: {
+    walletId: string;
+    associationId: string;
+  }): Promise<ExternalAuthResult<null>>;
   unlockWithAuthMethod(args: {
     walletId: WalletId | string;
     walletAuthMethodId: string;

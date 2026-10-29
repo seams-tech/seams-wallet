@@ -1,3 +1,4 @@
+import { externalAuthRoutes } from '../transport/fetch/routes/externalAuth';
 import {
   buildSigningSessionSealApplyPath,
   buildSigningSessionSealRemovePath,
@@ -414,7 +415,7 @@ export function createRouterApiRouteDefinitions(
   const signingSessionSealBasePath = resolveSigningSessionSealBasePath(
     options.signingSessionSealBasePath,
   );
-  const definitions: RouteDefinition[] = [];
+  const definitions: RouteDefinition[] = externalAuthRoutes();
 
   if (options.enableHealthz) {
     definitions.push(

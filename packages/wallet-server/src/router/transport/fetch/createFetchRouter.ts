@@ -42,6 +42,7 @@ import { handleThresholdEcdsa } from './routes/thresholdEcdsa';
 import { handleOwnerWalletExecutionLanePreflight } from './routes/walletExecutionLanePreflight';
 import { handleWebAuthnAuthenticators } from './routes/webauthnAuthenticators';
 import { handleAuth } from './routes/auth';
+import { handleExternalAuth } from './routes/externalAuth';
 import { handleWellKnown } from './routes/wellKnown';
 import { handleDeviceLinking } from './routes/deviceLinking';
 import {
@@ -378,6 +379,7 @@ export function createFetchRouter(
     handleWalletRecoveryRotate,
     handleWalletRecoveryRead,
     handleWalletRecoveryStatus,
+    handleExternalAuth,
     handleAuth,
     handleSyncAccount,
     handleOwnerWalletExecutionLanePreflight,

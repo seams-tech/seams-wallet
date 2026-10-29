@@ -13,6 +13,7 @@ import type {
   WalletRegistrationContextResolver,
   WalletRegistrationContextResult,
 } from '../../framework/apiCredentialPorts';
+import { parseExternalAuthConfiguration } from '@shared/auth/externalAuth';
 import {
   unavailableRegistrationContext,
   walletRegistrationContext,
@@ -67,6 +68,7 @@ const PRINCIPAL_FIELDS = new Set([
 ]);
 
 const PROJECT_ENVIRONMENT_FIELDS = new Set([
+  'externalAuth',
   'id',
   'projectId',
   'key',
@@ -205,6 +207,9 @@ function parseProjectEnvironment(value: unknown): RouterApiProjectEnvironment | 
     projectId,
     key,
     signingRootVersion,
+    externalAuth: parseExternalAuthConfiguration(
+      record.externalAuth ?? { kind: 'disabled', revision: 0 },
+    ),
     ...(status ? { status } : {}),
   };
 }

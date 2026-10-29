@@ -129,6 +129,13 @@ export function createHostContext(): HostContext {
 }
 
 export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
+  if (!ctx.parentOrigin) throw new Error('Wallet service requires an authenticated parent origin.');
+  if (ctx.walletRuntime && ctx.walletRuntime.parentOrigin !== ctx.parentOrigin) {
+    ctx.walletRuntime.dispose();
+    ctx.walletRuntime = null;
+    ctx.sessionObserver?.dispose();
+    ctx.sessionObserver = null;
+  }
   const { configuration } = ctx;
   if (configuration.kind === 'unconfigured') {
     throw new Error('Wallet service not configured. Call PM_SET_CONFIG first.');
@@ -139,7 +146,11 @@ export function ensureWalletRuntime(ctx: HostContext): WalletHostRuntime {
   }
   if (!ctx.walletRuntime) {
     __setWalletIframeHostMode(true);
-    ctx.walletRuntime = new WalletHostRuntime(configuration.config, ctx.nearClient);
+    ctx.walletRuntime = new WalletHostRuntime(
+      configuration.config,
+      ctx.parentOrigin,
+      ctx.nearClient,
+    );
     updateThemeBridge(ctx);
   }
   return ctx.walletRuntime;

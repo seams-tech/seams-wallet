@@ -3172,6 +3172,34 @@ export class WalletIframeRouter {
     return result.result;
   }
 
+  async authenticate(input: Parameters<AuthCapability['authenticate']>[0]): ReturnType<AuthCapability['authenticate']> {
+    const response = await this.post<Awaited<ReturnType<AuthCapability['authenticate']>>>({
+      type: 'PM_EXTERNAL_AUTH', payload: { action: 'authenticate', input },
+    });
+    return response.result;
+  }
+
+  async prepareExternalAuth(walletId: string): ReturnType<AuthCapability['prepareExternalAuth']> {
+    const response = await this.post<Awaited<ReturnType<AuthCapability['prepareExternalAuth']>>>({
+      type: 'PM_EXTERNAL_AUTH', payload: { action: 'prepare', walletId },
+    });
+    return response.result;
+  }
+
+  async removeExternalAuth(input: Parameters<AuthCapability['removeExternalAuth']>[0]): ReturnType<AuthCapability['removeExternalAuth']> {
+    const response = await this.post<Awaited<ReturnType<AuthCapability['removeExternalAuth']>>>({
+      type: 'PM_EXTERNAL_AUTH', payload: { action: 'unlink', walletId: input.walletId, associationId: input.associationId },
+    });
+    return response.result;
+  }
+
+  async associateExternalAuth(input: Parameters<AuthCapability['associateExternalAuth']>[0]): ReturnType<AuthCapability['associateExternalAuth']> {
+    const response = await this.post<Awaited<ReturnType<AuthCapability['associateExternalAuth']>>>({
+      type: 'PM_EXTERNAL_AUTH', payload: { action: 'associate', walletId: input.walletId, idToken: input.idToken },
+    });
+    return response.result;
+  }
+
   async getWalletSession(walletId?: string): Promise<WalletSession> {
     const expectedWalletId = walletId === undefined ? undefined : parseRequestedWalletId(walletId);
     if (!this.state.ready || !this.state.port) await this.init();

@@ -1,4 +1,5 @@
 import { toAccountId } from '@/core/types/accountIds';
+import { parseExternalWalletAuthentication, parseExternalWalletSettings } from '@shared/auth/externalAuth';
 import {
   thresholdEcdsaChainTargetFromRequest,
   type ThresholdEcdsaChainTarget,
@@ -19,7 +20,6 @@ import type {
   WalletSessionCapabilityProjection,
   WalletSessionCapabilityReadiness,
   WalletSessionIdentityResolveFailure,
-  WalletAuthenticationState,
 } from '@/core/types/seams';
 import {
   parseCapabilityInstanceRef,
@@ -423,12 +423,33 @@ export function parseWalletSessionFromBoundary(
   const capabilityProjection = parseWalletSessionCapabilityProjection(
     Reflect.get(value, 'capabilityProjection'),
   );
-  const parsed: WalletSession = {
+  const common = {
     appIdentity,
-    authentication,
-    capabilityProjection,
     nonceDiagnostics: parseNullableNonceDiagnostics(Reflect.get(value, 'nonceDiagnostics')),
   };
+  let parsed: WalletSession;
+  if (authentication.kind === 'external_authenticated') {
+    if (appIdentity.kind !== 'resolved') throw new Error('External authentication requires a resolved wallet');
+    if (common.nonceDiagnostics !== null) throw new Error('External authentication has no signing runtime');
+    if (capabilityProjection.kind !== 'not_requested') throw new Error('External authentication cannot grant signing capabilities');
+    const externalSettings = parseExternalWalletSettings(Reflect.get(value, 'externalSettings'));
+    if (externalSettings.authentication.sessionId !== authentication.sessionId ||
+        externalSettings.authentication.walletId !== authentication.walletId ||
+        externalSettings.authentication.associationId !== authentication.associationId ||
+        externalSettings.authentication.environmentId !== authentication.environmentId ||
+        externalSettings.authentication.expiresAtMs !== authentication.expiresAtMs) {
+      throw new Error('External settings identity mismatch');
+    }
+    parsed = {
+      appIdentity, nonceDiagnostics: common.nonceDiagnostics,
+      authentication, capabilityProjection, externalSettings,
+    };
+  } else {
+    parsed = {
+      appIdentity: common.appIdentity, nonceDiagnostics: common.nonceDiagnostics,
+      authentication, capabilityProjection,
+    };
+  }
   const expected = expectedWalletId === undefined ? null : requireWalletId(expectedWalletId);
   const canonicalWalletId = walletSessionCanonicalWalletId(parsed);
   if (expected !== null && canonicalWalletId === null) {
@@ -443,13 +464,15 @@ export function parseWalletSessionFromBoundary(
   return parsed;
 }
 
-function parseWalletAuthenticationState(value: unknown): WalletAuthenticationState {
+function parseWalletAuthenticationState(value: unknown): WalletSession['authentication'] {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Wallet Session authentication must be an object');
   }
   switch (Reflect.get(value, 'kind')) {
     case 'signed_out':
       return { kind: 'signed_out' };
+    case 'external_authenticated':
+      return parseExternalWalletAuthentication(value);
     case 'authenticated': {
       const authMethod = Reflect.get(value, 'authMethod');
       if (!isWalletAuthMethod(authMethod)) {

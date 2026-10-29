@@ -11,6 +11,11 @@ authentication method and handle each resulting state.
 
 ## Choose a flow
 
+- **Reuse Google login for settings** — a configured Google identity and an owner-authorized wallet association can open settings without another login.
+  Call `seams.auth.authenticate({ method: 'google', walletId, idToken })` after the app's login.
+  This grants settings reads. Signing and security changes still require wallet owner authentication.
+  Apps that keep tokens on their backend use `prepareExternalAuth` and a bound handoff.
+
 - **Passkey** — primary registration and unlock on supported browsers. The
   wallet origin and relying party ID (RP ID) define where the credential can be used.
 - **Google plus email OTP** — account discovery with a recoverable second

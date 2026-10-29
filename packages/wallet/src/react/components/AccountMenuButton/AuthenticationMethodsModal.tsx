@@ -1,4 +1,5 @@
 import { VoiceIdMethodRow, VoiceIdSetupRow } from './VoiceIdAvailabilityControl';
+import { ExternalWalletSettingsView } from './ExternalWalletSettings';
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
 import { walletText, walletDisplayText } from '@/core/ui/messages';
 import { AuthenticationMethodsView } from './AuthenticationMethodsView';
@@ -211,7 +212,16 @@ function methodDescription(method: AuthenticationMethodView): string {
   }
 }
 
-export const AuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProps> = ({
+export function AuthenticationMethodsModal(props: AuthenticationMethodsModalProps) {
+  const { loginState } = useSeams();
+  if (!props.isOpen) return null;
+  if (loginState.isLoggedIn && loginState.access === 'external') {
+    return <ExternalWalletSettingsView settings={loginState.externalSettings} view="methods" presentation={props.presentation} onClose={props.onClose} />;
+  }
+  return <OwnerAuthenticationMethodsModal {...props} />;
+}
+
+const OwnerAuthenticationMethodsModal: React.FC<AuthenticationMethodsModalProps> = ({
   walletId,
   isOpen,
   onClose,

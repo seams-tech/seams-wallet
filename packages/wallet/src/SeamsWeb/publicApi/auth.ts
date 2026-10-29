@@ -4,14 +4,21 @@ export type WalletAuthCommands = Omit<AuthCapability, 'onSessionChange'>;
 
 export type WalletSessionCommands = Pick<
   AuthCapability,
-  'unlock' | 'unlockWithAuthMethod' | 'lock' | 'getSession' | 'getRecentUnlocks' | 'hasPasskey'
+  | 'authenticate'
+  | 'prepareExternalAuth'
+  | 'associateExternalAuth'
+  | 'removeExternalAuth'
+  | 'unlock'
+  | 'unlockWithAuthMethod'
+  | 'lock'
+  | 'getSession'
+  | 'getRecentUnlocks'
+  | 'hasPasskey'
 >;
 
 export type EmailOtpAuthCommands = Pick<
   AuthCapability,
-  | 'requestEmailCode'
-  | 'unlockWithEmailCode'
-  | 'startGoogleSignIn'
+  'requestEmailCode' | 'unlockWithEmailCode' | 'startGoogleSignIn'
 >;
 
 export async function unlockWithEmailCode(

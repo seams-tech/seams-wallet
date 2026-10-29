@@ -37,6 +37,7 @@ type AuthWalletRequestType =
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
   | 'PM_UNLOCK'
   | 'PM_UNLOCK_AUTH_METHOD'
+  | 'PM_EXTERNAL_AUTH'
   | 'PM_LOCK'
   | 'PM_LOCK_EXACT_WALLET_SESSION'
   | 'PM_GET_LAST_WALLET_MOVE_REQUEST'
@@ -79,7 +80,9 @@ type DeviceLinkWalletRequestType =
   | 'PM_CANCEL_DEVICE_LINKING'
   | 'PM_SYNC_ACCOUNT_FLOW';
 type PreferencesWalletRequestType =
-  'PM_SET_CONFIRM_BEHAVIOR' | 'PM_SET_CONFIRMATION_CONFIG' | 'PM_GET_CONFIRMATION_CONFIG';
+  | 'PM_SET_CONFIRM_BEHAVIOR'
+  | 'PM_SET_CONFIRMATION_CONFIG'
+  | 'PM_GET_CONFIRMATION_CONFIG';
 
 type WalletHostRoute =
   | {
@@ -219,6 +222,7 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
     }
     case 'PM_UNLOCK':
     case 'PM_UNLOCK_AUTH_METHOD':
+    case 'PM_EXTERNAL_AUTH':
     case 'PM_LOCK':
     case 'PM_LOCK_EXACT_WALLET_SESSION':
     case 'PM_GET_LAST_WALLET_MOVE_REQUEST':

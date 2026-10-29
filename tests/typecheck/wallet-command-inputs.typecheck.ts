@@ -118,11 +118,11 @@ declare const rawWalletConfig: SeamsConfigsInput;
 declare const commonWalletConfig: SeamsConfigsReadonly;
 declare const hostConfig: WalletHostConfig;
 // @ts-expect-error Host construction requires resolved configuration.
-new WalletHostRuntime(rawWalletConfig);
+new WalletHostRuntime(rawWalletConfig, 'https://app.example.com');
 // @ts-expect-error A general configuration can select application iframe execution.
-new WalletHostRuntime(commonWalletConfig);
+new WalletHostRuntime(commonWalletConfig, 'https://app.example.com');
 // @ts-expect-error Spreading application configuration cannot establish host ownership.
-new WalletHostRuntime({ ...commonWalletConfig });
+new WalletHostRuntime({ ...commonWalletConfig }, 'https://app.example.com');
 const nestedHostConfig = {
   ...hostConfig,
   wallet: {
@@ -132,7 +132,7 @@ const nestedHostConfig = {
   },
 };
 // @ts-expect-error Host configuration excludes a nested application iframe origin.
-new WalletHostRuntime(nestedHostConfig);
+new WalletHostRuntime(nestedHostConfig, 'https://app.example.com');
 
 
 import type { PMSetConfigPayload } from '../../packages/wallet/src/SeamsWeb/walletIframe/shared/messages';

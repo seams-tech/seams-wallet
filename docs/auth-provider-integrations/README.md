@@ -1,19 +1,13 @@
 # Application Auth Provider Integrations
 
-Auth providers authenticate users to your application. Their tokens are not
-wallet credentials and must remain outside the wallet SDK.
+Applications can reuse a configured provider's login to open wallet settings.
+Google ID tokens are the first supported external credentials.
+The server verifies the token and an explicit, owner-authorized wallet association.
+The resulting session grants settings reads and has no signing permission or custody material.
 
-The integration is provider-independent:
+Use the [Google integration](./google-oidc.md) for browser tokens and backend handoffs.
+Other providers, app-issued tokens, and arbitrary WebAuthn responses do not yet have external-session adapters.
+Those integrations continue to use wallet passkey or Email OTP authentication for wallet access.
 
-1. authenticate the application user;
-2. look up that user's untrusted wallet locator in your application data;
-3. open the wallet SDK with the locator;
-4. complete the wallet's passkey or Email OTP owner ceremony.
-
-The wallet server then issues an opaque, budgeted Wallet Session. It does not
-exchange Auth0, Better Auth, Clerk, Firebase, Google, Okta, or Supabase tokens
-for wallet authority.
-
-See Bring Your Own Application Authentication (`docs/saas/bring-you-own-auth.md`)
-for the complete boundary. Customer-configured owner-verification webhooks are
-deferred to a later refactor.
+Signing, key export, recovery, and security changes retain their wallet authorization requirements.
+An app session cookie or an API secret alone cannot establish a user's wallet association.

@@ -1,4 +1,5 @@
 import { unlockPendingRegistration } from '@/SeamsWeb/operations/auth/unlockPendingRegistration';
+import { HostedExternalAuth } from './externalAuth';
 import {
   readPendingEcdsaRegistrationForWallet,
   resumePendingNearRegistrations,
@@ -56,7 +57,15 @@ type WalletHostAuthContext = WalletAuthWebContext & {
     Pick<WalletAuthenticationSurface, 'installAuthMethodSession'>;
 };
 
-export type WalletHostSessionCommands = Omit<WalletSessionCommands, 'unlockWithAuthMethod'> & {
+export type WalletHostSessionCommands = Omit<
+  WalletSessionCommands,
+  'unlockWithAuthMethod' | 'authenticate'
+> & {
+  authenticate(
+    input: Parameters<WalletSessionCommands['authenticate']>[0],
+    assertActive?: () => void,
+  ): ReturnType<WalletSessionCommands['authenticate']>;
+  readExternalSession(walletId?: string): Promise<WalletSession | null>;
   unlockWithAuthMethod(
     args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
     assertActive?: () => void,
@@ -66,12 +75,25 @@ export type WalletHostSessionCommands = Omit<WalletSessionCommands, 'unlockWithA
 
 export function createWalletHostSessionCommands(
   getContext: () => WalletHostAuthContext,
+  readOwnerCredential: import('@/SeamsWeb/operations/devices/walletHostOwnerAuthority').WalletHostOwnerAuthoritiesV1['readOwnerCredential'],
+  parentOrigin: string,
 ): WalletHostSessionCommands {
+  const external = new HostedExternalAuth(
+    getContext().configs,
+    lockCore.bind(null, getContext()),
+    readOwnerCredential,
+    parentOrigin,
+  );
   return {
-    unlock: unlock.bind(null, getContext),
-    unlockWithAuthMethod: unlockWithAuthMethod.bind(null, getContext),
-    lock: lock.bind(null, getContext),
-    getSession: getSession.bind(null, getContext),
+    readExternalSession: readExternalSession.bind(null, getContext, external),
+    authenticate: external.authenticate.bind(external),
+    prepareExternalAuth: external.prepare.bind(external),
+    associateExternalAuth: external.associate.bind(external),
+    removeExternalAuth: external.remove.bind(external),
+    unlock: unlock.bind(null, getContext, external),
+    unlockWithAuthMethod: unlockWithAuthMethod.bind(null, getContext, external),
+    lock: lock.bind(null, getContext, external),
+    getSession: getSession.bind(null, getContext, external),
     getRecentUnlocks: getRecentUnlocks.bind(null, getContext),
     hasPasskey: hasPasskey,
   };
@@ -83,10 +105,12 @@ function isActivePasskey(record: LocalWalletAuthMethodRecordV2): boolean {
 
 async function unlockWithAuthMethod(
   getContext: () => WalletHostAuthContext,
+  external: HostedExternalAuth,
   args: Parameters<WalletSessionCommands['unlockWithAuthMethod']>[0],
   assertActive: () => void = allowActiveRequest,
   mountCapture?: AuthMethodCaptureMount,
 ): ReturnType<WalletSessionCommands['unlockWithAuthMethod']> {
+  await external.lock();
   const context = getContext();
   const walletId = toWalletId(args.walletId);
   const methodId = parseWalletAuthMethodId(args.walletAuthMethodId);
@@ -182,9 +206,11 @@ function selectNearSubjectForActivation(
 
 async function unlock(
   getContext: () => WalletHostAuthContext,
+  external: HostedExternalAuth,
   walletId: string,
   options?: LoginHooksOptions,
 ): Promise<LoginAndCreateSessionResult> {
+  await external.lock();
   const resolvedWalletId = String(walletId || '').trim();
   if (!resolvedWalletId) throw new Error('unlock requires walletId');
 
@@ -214,15 +240,37 @@ async function unlock(
   return result;
 }
 
-async function lock(getContext: () => WalletHostAuthContext): Promise<void> {
-  await lockCore(getContext());
+async function lock(
+  getContext: () => WalletHostAuthContext,
+  external: HostedExternalAuth,
+): Promise<void> {
+  try {
+    await external.lock();
+  } finally {
+    await lockCore(getContext());
+  }
 }
 
 async function getSession(
   getContext: () => WalletHostAuthContext,
+  external: HostedExternalAuth,
   walletId?: string,
 ): Promise<WalletSession> {
+  const externalSession = await readExternalSession(getContext, external, walletId);
+  if (externalSession) return externalSession;
   return await getSessionCore(getContext(), walletId, new WalletSessionStatusReadScope());
+}
+
+async function readExternalSession(
+  getContext: () => WalletHostAuthContext,
+  external: HostedExternalAuth,
+  walletId?: string,
+): Promise<WalletSession | null> {
+  if (getContext().signingEngine.readWalletAuthenticationState().kind === 'authenticated') {
+    await external.releaseForOwner();
+    return null;
+  }
+  return external.getSession(walletId);
 }
 
 async function hasPasskey(walletId: string): Promise<boolean> {

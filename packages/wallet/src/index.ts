@@ -25,6 +25,13 @@ export type {
   EventsCapability,
 } from './SeamsWeb';
 export * from './externalEvm';
+export type {
+  ExternalAuthenticateInput,
+  ExternalAuthAttempt,
+  ExternalAuthResult,
+  ExternalWalletAuthentication,
+  ExternalWalletSettings,
+} from '@shared/auth/externalAuth';
 export {
   buildHostedAuthMenuOpenRequest,
   hostedAuthMenuExternalAuthRequestIdFromBoundary,

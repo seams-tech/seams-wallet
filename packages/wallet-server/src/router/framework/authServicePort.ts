@@ -1594,6 +1594,7 @@ export type { RouterApiPasskeyCustodyService } from '../cloudflare/d1/passkeyCus
 import type { RouterApiPasskeyCustodyService } from '../cloudflare/d1/passkeyCustody/d1PasskeyCustodyRouteService';
 
 export interface RouterApiServiceBag {
+  externalAuth?: import('../../auth/externalAuthService').ExternalAuthService;
   walletRegistration: RouterApiWalletRegistrationService;
   walletAuthMethods: RouterApiWalletAuthMethodService;
   walletUnlock: RouterApiWalletUnlockService;

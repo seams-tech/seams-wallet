@@ -147,6 +147,7 @@ export class WalletHostSessionObserver {
   private refresh: RefreshState = { kind: 'idle' };
   private invalidationRevision = 0;
   private activeOperations = 0;
+  private externalExpiryTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly pendingObservations = new Map<string, Promise<SessionObservation>>();
   private readonly unsubscribeAuthority: () => void;
   private readonly unsubscribeSelection: () => void;
@@ -167,6 +168,7 @@ export class WalletHostSessionObserver {
   }
 
   dispose(): void {
+    if (this.externalExpiryTimer !== null) clearTimeout(this.externalExpiryTimer);
     this.lifecycle = 'disposed';
     this.unsubscribeAuthority();
     this.unsubscribeSelection();
@@ -234,9 +236,11 @@ export class WalletHostSessionObserver {
         )
           continue;
         const walletId =
-          payload.wallet.kind === 'exact'
-            ? toWalletId(payload.wallet.walletId)
-            : this.runtime.preferences.getCurrentWalletId();
+          session.authentication.kind === 'external_authenticated'
+            ? session.authentication.walletId
+            : payload.wallet.kind === 'exact'
+              ? toWalletId(payload.wallet.walletId)
+              : this.runtime.preferences.getCurrentWalletId();
         publish({ revision, walletId, state: this.projectExpiry(state), session });
         return;
       } finally {
@@ -273,6 +277,20 @@ export class WalletHostSessionObserver {
   ): Promise<SessionObservation> {
     const revision = nextSessionObservationRevision();
     const statusReads = WalletSessionStatusReadScope.forHostObservation();
+    const externalSession = await this.runtime.readExternalSession(
+      payload.wallet.kind === 'exact' ? payload.wallet.walletId : undefined,
+    );
+    if (externalSession?.authentication.kind === 'external_authenticated') {
+      return {
+        revision,
+        state: {
+          kind: 'wallet_unlocked_without_signing_session',
+          walletId: externalSession.authentication.walletId,
+          reason: 'absent',
+        },
+        session: externalSession,
+      };
+    }
     const state = await resolveExactWalletSessionState(this.runtime, payload, statusReads);
     const session =
       state.kind === 'wallet_locked'
@@ -346,6 +364,14 @@ export class WalletHostSessionObserver {
 
   private publishSnapshot(snapshot: WalletIframeExactSessionSnapshot): void {
     this.assertActive();
+    if (this.externalExpiryTimer !== null) clearTimeout(this.externalExpiryTimer);
+    this.externalExpiryTimer = null;
+    if (snapshot.session.authentication.kind === 'external_authenticated') {
+      this.externalExpiryTimer = setTimeout(
+        this.requestRefresh.bind(this),
+        Math.max(1, snapshot.session.authentication.expiresAtMs - Date.now()),
+      );
+    }
     if (this.refresh.kind === 'running') this.refresh.pending = false;
     else if (this.refresh.kind === 'pending') this.refresh = { kind: 'idle' };
     this.post({ type: 'SESSION_CHANGED', payload: snapshot });

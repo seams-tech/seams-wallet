@@ -223,6 +223,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
   const accountMenuCapabilities = accountMenuCapabilitiesForLoginState(loginState);
   const canShowRecoveryCodes = accountMenuCapabilities.kind === 'owner' && Boolean(walletId);
   const canManageLinkedDevices = accountMenuCapabilities.canManageLinkedDevices;
+  const canReadSettings = loginState.isLoggedIn && loginState.access === 'external';
   const handleQrCodeScanned = useCallback(() => {
     setShowQRScanner(false);
     handleClose();
@@ -234,12 +235,12 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
       walletId !== null &&
       walletId !== accountSetupState.walletId;
     if (
-      (!canManageLinkedDevices && !accountSetupRunning && accountSetupState.kind !== 'added') ||
+      (!canManageLinkedDevices && !canReadSettings && !accountSetupRunning && accountSetupState.kind !== 'added') ||
       switchedWallet
     ) {
       setScreen('overview');
     }
-  }, [canManageLinkedDevices, accountSetupRunning, accountSetupState, walletId]);
+  }, [canManageLinkedDevices, canReadSettings, accountSetupRunning, accountSetupState, walletId]);
 
   // Keep local view state in sync with SDK preferences (mirrors wallet host in iframe mode)
   useEffect(() => {
@@ -487,7 +488,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           icon: <TouchIcon />,
           label: 'Authentication methods',
           description: 'Add or remove ways to unlock this device',
-          disabled: !canManageLinkedDevices,
+          disabled: !canManageLinkedDevices && !canReadSettings,
           onClick: setScreen.bind(null, 'authentication-methods'),
           keepOpenOnClick: true,
         },
@@ -505,7 +506,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
           icon: <LinkIcon />,
           label: 'Linked devices',
           description: 'See devices using this wallet',
-          disabled: !canManageLinkedDevices,
+          disabled: !canManageLinkedDevices && !canReadSettings,
           onClick: setScreen.bind(null, 'linked-devices'),
           keepOpenOnClick: true,
         },
@@ -535,6 +536,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     accountsRows.length,
     layout,
     accountMenuCapabilities,
+    canReadSettings,
     canShowRecoveryCodes,
     exportLoadingChain,
     loginState.isLoggedIn,
@@ -668,6 +670,7 @@ const AccountMenuButtonInner: React.FC<AccountMenuButtonInnerProps> = (props) =>
     return (
       <>
         <WalletSettingsLayout
+          access={loginState.access}
           walletId={toWalletId(walletId)}
           placement={seams.placement}
           menuItems={MENU_ITEMS}

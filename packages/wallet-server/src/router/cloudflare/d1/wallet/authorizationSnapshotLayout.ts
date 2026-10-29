@@ -10,6 +10,7 @@ const TABLES = [
   'wallet_recovery_code_locators',
   'wallet_authorities',
   'wallet_auth_methods',
+  'external_auth_associations',
   'wallet_relocation_approvals',
   'webauthn_credential_bindings',
   'webauthn_authenticators',
@@ -52,7 +53,9 @@ export class AuthorizationSnapshotLayout {
     const layout: unknown[] = [];
     const statements = [];
     for (const table of TABLES) statements.push(database.prepare(`PRAGMA table_info(${table})`));
-    const results = await database.batch<{ results?: { name: string; type: string; pk: number }[] }>(statements);
+    const results = await database.batch<{
+      results?: { name: string; type: string; pk: number }[];
+    }>(statements);
     for (const [index, table] of TABLES.entries()) {
       const result = results[index];
       if (!result) throw new Error('Authorization snapshot schema is incomplete');

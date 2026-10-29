@@ -344,7 +344,7 @@ declare global {
       readonly release: (spoil: boolean) => void;
     };
     __seamsIntendedE2EReadWalletLockState?: () => Promise<{
-      authenticationKind: 'authenticated' | 'signed_out';
+      authenticationKind: import('../../../packages/wallet/src/core/types/seams').WalletSession['authentication']['kind'];
     }>;
     __seamsIntendedE2EReadAuthenticationMethods?: () => Promise<{
       ownerDeviceCount: number;

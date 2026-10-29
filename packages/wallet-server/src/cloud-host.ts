@@ -1,5 +1,9 @@
 // Stable hosted-composition surface consumed by the private Seams cloud.
 // Keep additions limited to primitives already required by that composition.
+export {
+  parseExternalAuthConfiguration,
+  type ExternalAuthConfiguration,
+} from '@shared/auth/externalAuth';
 export * from './core/SessionService';
 export * from './core/ThresholdService/evmCryptoWasm';
 export * from './core/d1WalletStore';
@@ -292,4 +296,8 @@ export {
   type RegistrationDirectoryPublicationDelivery,
 } from './router/cloudflare/d1/registration/d1WalletExecutionAuthority';
 export { D1WalletObjectAddresses } from './router/cloudflare/d1/walletObjectAddresses';
-export { walletObjectIdentity, WalletObjectAddressSnapshot, type WalletObjectIdentity } from './router/cloudflare/runtime/walletObjectAddresses';
+export {
+  walletObjectIdentity,
+  WalletObjectAddressSnapshot,
+  type WalletObjectIdentity,
+} from './router/cloudflare/runtime/walletObjectAddresses';

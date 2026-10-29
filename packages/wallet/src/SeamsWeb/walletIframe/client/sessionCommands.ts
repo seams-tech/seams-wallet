@@ -9,6 +9,10 @@ export function createApplicationSessionCommands(
   walletIframe: SessionIframe,
 ): WalletSessionCommands {
   return {
+    authenticate: authenticate.bind(null, walletIframe),
+    prepareExternalAuth: prepareExternalAuth.bind(null, walletIframe),
+    associateExternalAuth: associateExternalAuth.bind(null, walletIframe),
+    removeExternalAuth: removeExternalAuth.bind(null, walletIframe),
     unlock: unlock.bind(null, walletIframe),
     unlockWithAuthMethod: unlockWithAuthMethod.bind(null, walletIframe),
     lock: lock.bind(null, walletIframe),
@@ -16,6 +20,34 @@ export function createApplicationSessionCommands(
     getRecentUnlocks: getRecentUnlocks.bind(null, walletIframe),
     hasPasskey: hasPasskey.bind(null, walletIframe),
   };
+}
+
+async function authenticate(
+  walletIframe: SessionIframe,
+  input: Parameters<WalletSessionCommands['authenticate']>[0],
+): ReturnType<WalletSessionCommands['authenticate']> {
+  return (await walletIframe.requireRouter()).authenticate(input);
+}
+
+async function prepareExternalAuth(
+  walletIframe: SessionIframe,
+  walletId: string,
+): ReturnType<WalletSessionCommands['prepareExternalAuth']> {
+  return (await walletIframe.requireRouter()).prepareExternalAuth(walletId);
+}
+
+async function associateExternalAuth(
+  walletIframe: SessionIframe,
+  input: Parameters<WalletSessionCommands['associateExternalAuth']>[0],
+): ReturnType<WalletSessionCommands['associateExternalAuth']> {
+  return (await walletIframe.requireRouter()).associateExternalAuth(input);
+}
+
+async function removeExternalAuth(
+  walletIframe: SessionIframe,
+  input: Parameters<WalletSessionCommands['removeExternalAuth']>[0],
+): ReturnType<WalletSessionCommands['removeExternalAuth']> {
+  return (await walletIframe.requireRouter()).removeExternalAuth(input);
 }
 
 async function unlock(
@@ -67,10 +99,7 @@ async function getSession(
   return await router.getWalletSession(walletId);
 }
 
-async function hasPasskey(
-  walletIframe: SessionIframe,
-  walletId: string,
-): Promise<boolean> {
+async function hasPasskey(walletIframe: SessionIframe, walletId: string): Promise<boolean> {
   const resolvedWalletId = String(walletId || '').trim();
   if (!resolvedWalletId) return false;
   const router = await walletIframe.requireRouter();

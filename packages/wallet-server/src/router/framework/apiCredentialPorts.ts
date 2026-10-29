@@ -92,9 +92,11 @@ export type WalletRegistrationContextResult = ReadonlyExclusiveUnion<
 >;
 
 export interface WalletRegistrationContextResolver {
-  resolve(input: RouterApiPublishableKeyAuthRequest & {
-    readonly registration: WalletRegistrationSetupRequest;
-  }): Promise<WalletRegistrationContextResult>;
+  resolve(
+    input: RouterApiPublishableKeyAuthRequest & {
+      readonly registration: WalletRegistrationSetupRequest;
+    },
+  ): Promise<WalletRegistrationContextResult>;
 }
 
 export type RouterApiUsageMeterAction = 'wallet_created';
@@ -117,6 +119,7 @@ export interface RouterApiUsageMeterAdapter {
 }
 
 export interface RouterApiProjectEnvironment {
+  externalAuth?: import('@shared/auth/externalAuth').ExternalAuthConfiguration;
   id: string;
   projectId: string;
   key: string;

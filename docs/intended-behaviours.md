@@ -14,6 +14,23 @@ plans explain how the design arose; they do not override this contract.
 E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 [Spec 9: Behaviour and test authority](spec-9-behaviour-and-test-authority.md).
 
+## External authentication for settings
+
+- An application can exchange an existing Google ID token for settings access after explicit owner-authorized identity association.
+- Provider trust belongs to the application environment. The server verifies Google signature, issuer, audience, authorized party, and expiry.
+- The wallet ID selects an associated wallet. Email matching and an application API key alone never establish wallet ownership.
+- Direct browser credentials and backend-held credentials converge on the same association and scoped session admission.
+- Backend handoffs bind an expiring attempt to its original hosted browser secrets and application origin.
+- Concurrent redemption and lost-response retries yield the same session without extending its expiry.
+- The SDK reports external authentication separately from signing readiness. Settings sessions carry no signing quotas or custody material.
+- Settings expose public addresses, active authentication-method summaries, and active device summaries.
+- Owner operations retain their authorization requirements. A settings credential fails owner-session admission.
+- Reload restores only a server-valid session for the same application environment and embedding origin.
+- Logout, explicit lock, and account switching supersede pending exchanges. A late response cannot reinstall an earlier session.
+- Sessions expire within one hour and no later than their Google credential. Trust revision changes, association removal, and authority revocation deny subsequent reads.
+- Relocation preserves durable identity associations through the authorization snapshot. External sessions and handoffs are re-established at the new home.
+- `tests/e2e/external-auth.e2e.mjs` exercises the production verifier, D1 stores, HTTP handlers, SDK iframe, and React settings with redacted evidence.
+
 ## Wallet display language
 
 The SDK supports English (`en`) and Japanese (`ja`). English is the default.

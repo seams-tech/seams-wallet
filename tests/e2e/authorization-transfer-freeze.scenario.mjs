@@ -125,6 +125,7 @@ export async function verifyAuthorizationFreeze({
     const operationHistory =
       table === 'authorized_operations' || table === 'authorized_operation_audit_events';
     let timestamp = 'expires_at_ms';
+    if (table === 'external_auth_associations') timestamp = 'authority_epoch';
     let movedIdentity = 'wallet_id';
     if (
       table === 'wallet_authorities' ||

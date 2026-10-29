@@ -41,6 +41,13 @@ registered passkey; an Email OTP flow verifies the appropriate email challenge.
 An application's login cookie or provider session alone does not establish
 Wallet signing permission.
 
+An application can exchange a configured Google identity for settings-only access.
+The owner must first authorize an association between that identity and the wallet.
+The SDK represents this as `external_authenticated`, with no requested signing capabilities.
+The exchange opens no custody envelope and issues no signing quota.
+Provider configuration changes, association removal, and authority revocation invalidate this access.
+See [Google external authentication](auth-provider-integrations/google-oidc.md).
+
 ## Adding a sign-in method
 
 A **Wallet authority** groups a set of permissions, sign-in methods, and signing

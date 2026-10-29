@@ -37,7 +37,6 @@ export type {
   StartDeviceLinkingOptionsDevice2,
 } from '../core/types/linkDevice';
 
-
 // === React states types ===
 
 export type LoginState =
@@ -48,19 +47,26 @@ export type LoginState =
       nearAccountId: null;
       authMethods: readonly [];
       currentAuthMethod: { kind: 'none' };
+      access?: never;
       thresholdEcdsaEthereumAddress?: null;
       thresholdEcdsaPublicKeyB64u?: null;
     }
-  | {
+  | ({
       isLoggedIn: true;
       walletId: string;
       nearPublicKey: string | null;
       nearAccountId: string | null;
       authMethods: readonly WalletAuthMethodBinding[];
-      currentAuthMethod: CurrentWalletAuthMethod;
       thresholdEcdsaEthereumAddress?: string | null;
       thresholdEcdsaPublicKeyB64u?: string | null;
-    };
+    } & (
+      | { access: 'wallet'; currentAuthMethod: CurrentWalletAuthMethod; externalSettings?: never }
+      | {
+          access: 'external';
+          currentAuthMethod: { kind: 'none' };
+          externalSettings: import('@shared/auth/externalAuth').ExternalWalletSettings;
+        }
+    ));
 
 export type AuthenticatedLoginState = Variant<LoginState, 'isLoggedIn', true>;
 type SignedOutLoginState = Variant<LoginState, 'isLoggedIn', false>;

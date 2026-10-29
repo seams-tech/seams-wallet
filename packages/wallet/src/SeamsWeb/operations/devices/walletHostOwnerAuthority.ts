@@ -47,6 +47,7 @@ export type WalletHostManagementRequestV1 = {
 };
 
 export type WalletHostOwnerAuthoritiesV1 = {
+  readonly readOwnerCredential: (walletId: WalletId) => Promise<WalletSessionOperationCredentialV1>;
   readonly ownerAuthorization: DeviceLinkingOwnerAuthorizationPortV1;
   readonly ownerRequest: LinkSessionOwnerAuthenticatedRequestPortV1;
   readonly managementRequest: WalletHostManagementRequestV1;
@@ -74,6 +75,7 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
 }): WalletHostOwnerAuthoritiesV1 {
   const context = normalizeContext(input);
   return {
+    readOwnerCredential: readOwnerCredential.bind(null, context),
     ownerAuthorization: {
       authenticateOwnerForLinkingV1: async (request) =>
         await authorizeOwnerForLinkingV1(context, request),
@@ -85,6 +87,17 @@ export function createWalletHostOwnerAuthoritiesV1(input: {
       request: async (request) => await requestManagementAsOwnerV1(context, request),
     },
   };
+}
+
+async function readOwnerCredential(
+  context: WalletHostOwnerAuthorityContextV1,
+  walletId: WalletId,
+): Promise<WalletSessionOperationCredentialV1> {
+  const authentication = context.readWalletAuthenticationState();
+  if (authentication.kind !== 'authenticated' || authentication.walletId !== walletId) {
+    throw walletUnlockRequiredV1();
+  }
+  return (await requireActiveWalletSessionForSelectedMethodV1(context, walletId)).operationCredential;
 }
 
 type WalletHostOwnerAuthorityContextV1 = {

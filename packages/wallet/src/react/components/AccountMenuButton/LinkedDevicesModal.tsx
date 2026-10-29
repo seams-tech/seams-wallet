@@ -1,4 +1,5 @@
 import { WalletText, useWalletLocale } from '@/react/context/WalletLocale';
+import { ExternalWalletSettingsView } from './ExternalWalletSettings';
 import { walletDisplayText, walletText } from '@/core/ui/messages';
 import type { WalletLocale } from '@/core/ui/locale';
 import React, { useEffect } from 'react';
@@ -327,7 +328,16 @@ function withLinkedDevicesLoadTimeout<T>(promise: Promise<T>): Promise<T> {
   });
 }
 
-export const LinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
+export function LinkedDevicesModal(props: LinkedDevicesModalProps) {
+  const { loginState } = useSeams();
+  if (!props.isOpen) return null;
+  if (loginState.isLoggedIn && loginState.access === 'external') {
+    return <ExternalWalletSettingsView settings={loginState.externalSettings} view="devices" presentation={props.presentation} onClose={props.onClose} />;
+  }
+  return <OwnerLinkedDevicesModal {...props} />;
+}
+
+const OwnerLinkedDevicesModal: React.FC<LinkedDevicesModalProps> = ({
   walletId,
   isOpen,
   onClose,

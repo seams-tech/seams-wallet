@@ -1,4 +1,5 @@
 import { createPlacementWalletIframeHandlers } from './placement';
+import { parseExternalAuthCommand, externalAuthFailure } from '@shared/auth/externalAuth';
 import type { LoginHooksOptions } from '@/core/types/sdkSentEvents';
 import type { WalletSession } from '@/core/types/seams';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
@@ -73,6 +74,45 @@ function walletOriginUnlockOptions(
   };
 }
 
+async function handleExternalAuth(deps: HandlerDeps, req: Req<'PM_EXTERNAL_AUTH'>): Promise<void> {
+  try {
+    await dispatchExternalAuth(deps, req);
+  } catch {
+    respondOkResult(deps, req.requestId, externalAuthFailure('unavailable'));
+  }
+}
+
+async function dispatchExternalAuth(
+  deps: HandlerDeps,
+  req: Req<'PM_EXTERNAL_AUTH'>,
+): Promise<void> {
+  if (deps.respondIfCancelled(req.requestId)) return;
+  const command = parseExternalAuthCommand(req.payload);
+  const auth = deps.getWalletRuntime().auth;
+  switch (command.action) {
+    case 'prepare':
+      respondOkResult(deps, req.requestId, await auth.prepareExternalAuth(command.walletId));
+      return;
+    case 'associate':
+      respondOkResult(deps, req.requestId, await auth.associateExternalAuth(command));
+      return;
+    case 'unlink':
+      respondOkResult(deps, req.requestId, await auth.removeExternalAuth(command));
+      return;
+    case 'authenticate': {
+      const result = await auth.authenticate(
+        command.input,
+        assertPluginUnlockActive.bind(null, deps, req.requestId),
+      );
+      if (result.ok) deps.getWalletRuntime().preferences.setCurrentWallet(result.value.walletId);
+      await deps.publishCurrentSession();
+      respondOkResult(deps, req.requestId, result);
+      return;
+    }
+  }
+  command satisfies never;
+}
+
 function walletSessionRequestWalletId(
   pm: Pick<ReturnType<HandlerDeps['getWalletRuntime']>, 'preferences'>,
   payload: Req<'PM_GET_WALLET_SESSION'>['payload'],
@@ -105,6 +145,7 @@ function publishSessionResponse(
 
 export function createAuthWalletIframeHandlers(deps: HandlerDeps): HandlerMap {
   return {
+    PM_EXTERNAL_AUTH: handleExternalAuth.bind(null, deps),
     ...createHostedAuthMenuHandlers(deps),
     PM_UNLOCK_AUTH_METHOD: async (req: Req<'PM_UNLOCK_AUTH_METHOD'>) => {
       const pm = deps.getWalletRuntime();

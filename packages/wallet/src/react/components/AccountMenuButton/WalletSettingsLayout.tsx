@@ -117,6 +117,7 @@ export function WalletSettingsHeader() {
 }
 
 interface WalletSettingsLayoutProps {
+  readonly access: 'wallet' | 'external';
   readonly walletId: WalletId;
   readonly placement: WalletPlacementCapability;
   readonly menuItems: readonly MenuItem[];
@@ -236,7 +237,13 @@ export class WalletSettingsLayout extends Component<WalletSettingsLayoutProps, L
               <div>
                 <strong>{this.props.walletId}</strong>
                 <small>
-                  <WalletText message="Unlocked on this device" />
+                  <WalletText
+                    copy={
+                      this.props.access === 'external'
+                        ? 'Connected with Google'
+                        : 'Unlocked on this device'
+                    }
+                  />
                 </small>
               </div>
             </div>

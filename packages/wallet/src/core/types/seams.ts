@@ -418,12 +418,21 @@ export type WalletSessionCapabilityProjection = ReadonlyExclusiveUnion<
     }
 >;
 
-export interface WalletSession {
-  readonly appIdentity: WalletSessionAppIdentity;
-  readonly authentication: WalletAuthenticationState;
-  readonly capabilityProjection: WalletSessionCapabilityProjection;
-  readonly nonceDiagnostics: NonceCoordinatorDiagnostics | null;
-}
+export type WalletSession = ReadonlyExclusiveUnion<
+  | {
+      authentication: WalletAuthenticationState;
+      appIdentity: WalletSessionAppIdentity;
+      capabilityProjection: WalletSessionCapabilityProjection;
+      nonceDiagnostics: NonceCoordinatorDiagnostics | null;
+    }
+  | {
+      authentication: import('@shared/auth/externalAuth').ExternalWalletAuthentication;
+      appIdentity: Variant<WalletSessionAppIdentity, 'kind', 'resolved'>;
+      capabilityProjection: { readonly kind: 'not_requested' };
+      externalSettings: import('@shared/auth/externalAuth').ExternalWalletSettings;
+      nonceDiagnostics: null;
+    }
+>;
 
 export type ThemeMode = 'light' | 'dark';
 type ThemeId = string;

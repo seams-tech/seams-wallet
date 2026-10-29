@@ -57,6 +57,7 @@ const tables = [
   'email_otp_auth_states',
   'wallet_authorities',
   'wallet_auth_methods',
+  'external_auth_associations',
   'authorization_wallet_session_quotas',
   'wallet_session_authorizations_v2',
   'wallet_session_hosted_credentials_v2',
@@ -107,6 +108,7 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+      export { ExternalAuthStore } from './packages/wallet-server/src/auth/externalAuthStore';
       export { buildSessionSigningOperationInputFixture, buildStepUpSigningOperationFixture, buildAdditionalStepUpOperationInputFixture } from './tests/unit/helpers/authorizedOperation.fixtures';
       export { reserveWalletCustodyRegistration } from './packages/wallet-server/src/router/domains/passkeyCustody/walletCustodyRegistrationCommit';
       export { CloudflareD1WalletCustodyCommitStore } from './packages/wallet-server/src/router/cloudflare/d1/passkeyCustody/d1WalletCustodyCommitStore';
@@ -213,6 +215,13 @@ try {
     walletId: fixture.authority.walletId,
   });
   const issued = await issueDeviceSession(source, sourceService, fixture, issuedAtMs);
+  const settingsStore = new api.ExternalAuthStore(source, scope);
+  assert.equal(await settingsStore.associate({
+    walletId: fixture.authority.walletId,
+    subject: 'external-transfer-subject',
+    authorityId: fixture.authority.authorityId,
+    authorityEpoch: fixture.authority.revocationEpoch,
+  }), true);
   assert.equal(issued.operationCredential.ownershipGeneration, 1);
   const relocationChallenges = await verifyRelocationChallenges(source, fixture, issued, issuedAtMs);
   const offlineFixture = await api.buildLinkedDeviceManagementAuthorityFixture({

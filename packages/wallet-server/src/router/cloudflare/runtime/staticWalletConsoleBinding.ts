@@ -2,6 +2,10 @@ import {
   ROUTER_API_CREDENTIAL_SCOPES,
   type RouterApiCredentialScope,
 } from '../../framework/apiCredentialPorts';
+import {
+  parseExternalAuthConfiguration,
+  type ExternalAuthConfiguration,
+} from '@shared/auth/externalAuth';
 import { WALLET_CONSOLE_OP_PATHS_V1, type WalletConsolePrincipalV1 } from './walletConsoleOps';
 import { decodeWalletConsoleTenantRootActiveLineageRequestV1 } from './walletConsoleOps';
 import type { WalletConsoleServiceBinding } from './walletConsoleOpsClient';
@@ -16,6 +20,7 @@ export interface StaticWalletConsoleBindingConfigV1 {
     readonly scopes: readonly RouterApiCredentialScope[];
   };
   readonly deployment: {
+    readonly externalAuth?: ExternalAuthConfiguration;
     readonly orgId: string;
     readonly projectId: string;
     readonly environmentId: string;
@@ -47,6 +52,9 @@ export function parseStaticWalletConsoleBindingConfigV1(
       scopes: requiredScopeList(credential.scopes),
     },
     deployment: {
+      externalAuth: parseExternalAuthConfiguration(
+        deployment.externalAuth ?? { kind: 'disabled', revision: 0 },
+      ),
       orgId: requiredConfigText(deployment.orgId, 'deployment.orgId'),
       projectId: requiredConfigText(deployment.projectId, 'deployment.projectId'),
       environmentId: requiredConfigText(deployment.environmentId, 'deployment.environmentId'),
@@ -171,6 +179,7 @@ function registrationContextResponse(
 
 function projectEnvironment(config: StaticWalletConsoleBindingConfigV1) {
   return {
+    externalAuth: config.deployment.externalAuth ?? { kind: 'disabled', revision: 0 },
     id: config.deployment.environmentId,
     projectId: config.deployment.projectId,
     key: config.deployment.environmentKey,
