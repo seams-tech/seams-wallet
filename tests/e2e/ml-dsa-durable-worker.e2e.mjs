@@ -1,3 +1,4 @@
+import { bindWorkerClients, runParallelRefill } from '../helpers/mlDsaParallelRefill.e2e.mjs';
 import { calibrateCpuProfiler } from './ml-dsa-cpu-profile.mjs';
 import { calibrateMemoryCounters, startMemorySampling } from './ml-dsa-memory-profile.mjs';
 import { installMlDsaActivation } from '../helpers/mlDsaActivation.e2e.mjs';
@@ -23,7 +24,9 @@ const artifact = resolve(process.argv[3] ?? '.artifacts/ml-dsa/durable-worker.js
 const root = resolve(import.meta.dirname, '../..');
 const buildRoot = process.env.ML_DSA_TEST_BUILD_ROOT ?? join(root, 'crates/router-ab-cloudflare/build/ml-dsa');
 const options = new Set(process.argv.slice(4));
-for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--profile-memory', '--passive-preparation-observer', '--calibrate-stage-delays'].includes(option), 'Unknown measurement option');
+for (const option of options) assert.ok(['--profile-preparation', '--profile-signing', '--profile-memory', '--passive-preparation-observer', '--calibrate-stage-delays', '--parallel-refill-only'].includes(option), 'Unknown measurement option');
+const parallelOnly = options.has('--parallel-refill-only');
+assert.ok(!parallelOnly || options.size === 1, 'Use the focused parallel scenario without profiling options');
 const calibrateStages = options.has('--calibrate-stage-delays');
 const stageEvents = [];
 const signingEvents = [];
@@ -50,6 +53,7 @@ const keks = await Promise.all(['a', 'b'].map(readKek));
 const policy = {
   wallet_cooldown: { mode: 'enabled', interval_ms: 1000 },
   max_active_operations: 1,
+  max_active_preparations: parallelOnly ? 2 : 1,
   operation_timeout_ms: 30000,
   candidate_group_size: 2,
   preparation_group_size: 4,
@@ -65,7 +69,7 @@ const bindings = {
 };
 let takeFaultEnabled = false;
 const publicationBarrierScript = `
-function holdPublication(resolve) { setTimeout(resolve, 60000); }
+function holdPublication(resolve) { this.releasePublication = resolve; setTimeout(resolve, 60000); }
 function delayAuthorization(resolve) { setTimeout(resolve, 200); }
 function expireAdmission(resolve) { setTimeout(resolve, 31000); }
 function waitForFailureRelease(resolve) { setTimeout(resolve, 50); }
@@ -73,12 +77,18 @@ function waitForFailureRelease(resolve) { setTimeout(resolve, 50); }
 export class PublicationBarrier {
   constructor(state, env) { this.state = state; this.env = env; }
   async hold(stage, job) {
+    if (this.holdClaimed) return;
+    this.holdClaimed = true;
     await this.state.storage.delete('hold_stage');
     await this.state.storage.put('held', { stage, job });
-    await new Promise(holdPublication);
+    await new Promise(holdPublication.bind(this));
   }
   async fetch(request) {
     const path = new URL(request.url).pathname;
+    if (path === '/release-publication') {
+      if (this.releasePublication) this.releasePublication();
+      return new Response('Released');
+    }
     if (path === '/lose-publication-reply-once') {
       await this.state.storage.put('lose_publication_reply', true);
       return new Response('Armed');
@@ -93,8 +103,11 @@ export class PublicationBarrier {
       await this.state.storage.put('failure_released', true);
       return new Response('Released');
     }
-    if (path === '/arm-before' || path === '/arm-after') {
-      const stage = path === '/arm-before' ? 'before' : 'after';
+    if (path === '/arm-before' || path === '/arm-after' || path === '/arm-before-job') {
+      const stage = path === '/arm-after' ? 'after' : 'before';
+      const target = path === '/arm-before-job' ? await request.json() : null;
+      this.holdClaimed = false;
+      await this.state.storage.put('hold_target', target);
       await this.state.storage.put('hold_stage', stage);
       await this.state.storage.delete('held');
       await this.state.storage.put('fail_inspection', stage === 'after');
@@ -126,7 +139,9 @@ export class PublicationBarrier {
       return new Response('Injected publication failure', { status: 503 });
     }
     const stage = await this.state.storage.get('hold_stage');
-    if (command.command === 'put' && stage === 'before') {
+    const target = await this.state.storage.get('hold_target');
+    const matchesTarget = !target || JSON.stringify(target) === JSON.stringify(command.job?.batch);
+    if (command.command === 'put' && stage === 'before' && matchesTarget) {
       await this.hold(stage, command.job);
     }
     const response = await this.env.ROLE.fetch(request);
@@ -140,7 +155,7 @@ export class PublicationBarrier {
       await this.state.storage.put('wake_reply_failures', 1);
       return new Response('Injected lost wake acknowledgement', {status:503});
     }
-    if (command.command === 'put' && response.status === 200 && stage === 'after') {
+    if (command.command === 'put' && response.status === 200 && stage === 'after' && matchesTarget) {
       await this.hold(stage, command.job);
     }
     return response;
@@ -246,7 +261,7 @@ export class AdmissionBarrier {
     if (command.command === 'finish_refill' && response.status === 200 && await this.state.storage.get('handoff_armed')) {
       await this.state.storage.put('handoff_armed', false);
       await this.state.storage.put('held_settlement', command.job);
-      await new Promise(holdPublication);
+      await new Promise(holdPublication.bind(this));
     }
     const lostReply = await this.state.storage.get('lose_reply');
     if (command.command === 'finish_refill' && response.status === 200 && lostReply && JSON.stringify(command.job.batch) === JSON.stringify(lostReply)) {
@@ -274,7 +289,7 @@ async function fetch(request, env) {
   }
   if (holdNextPeerInventory && path === '/router-ab/ml-dsa/role') {
     const command = await request.clone().json();
-    if (command.command === 'inventory') {
+    if ((command.command === 'inventory' || command.command === 'live_inventory') && holdNextPeerInventory) {
       holdNextPeerInventory = false;
       peerInventoryHeld = true;
       await new Promise(holdPeerInventory);
@@ -312,6 +327,7 @@ observations.provenance = {
   miniflare: JSON.parse(await readFile(join(root, 'node_modules/miniflare/package.json'), 'utf8')).version,
   sourceSha256: Object.fromEntries(await Promise.all([
     'tests/e2e/ml-dsa-durable-worker.e2e.mjs',
+    'tests/helpers/mlDsaParallelRefill.e2e.mjs',
     'tests/e2e/ml-dsa-memory-profile.mjs',
     'tests/e2e/ml-dsa-cpu-profile.mjs',
     'tests/helpers/mlDsaOwnerAdmission.fixtures.ts',
@@ -345,12 +361,13 @@ class OwnerRouterProxy {
 }
 
 let runtime;
+let clients;
 let lastSuccessful;
 let profileConnections = [];
 let memorySamplers = [];
 let initialRefillStarted;
 try {
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   observations.idleTimerMs = await timerControl();
   if (profilePreparation || profileSigning) {
@@ -403,6 +420,61 @@ try {
     };
     profileConnections = [];
   }
+  if (!parallelOnly) await runDurableCases(emptyInput);
+  await waitReady(policy.refill_target_batches);
+  await waitForTerminalProducerSettlement();
+  await runtime.dispose();
+  const parallelPolicy = { ...policy, max_active_preparations: 2 };
+  bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify(parallelPolicy);
+  runtime = await createRuntime();
+  await runtime.ready;
+  observations.parallelRefill = await runParallelRefill({
+    inventories,
+    post,
+    admissionCheck: actualAdmissionCheck,
+    producerReceipt,
+    publicationBarrier: clients.publication,
+    peerBarrier: clients.workers.get('publication-barrier'),
+    key: records[0].activation.key,
+    policy: parallelPolicy,
+    preparationEvents,
+    progress: parallelProgress,
+    publicKey: records[0].public_key,
+    verifyStandardSignature,
+    serviceAuth,
+    gatewayAuth,
+  });
+  observations.signatures.push({
+    operationHex: observations.parallelRefill.operation,
+    messageHex: observations.parallelRefill.messageHex,
+    contextHex: observations.parallelRefill.contextHex,
+    signatureHex: observations.parallelRefill.signatureHex,
+    elapsedMs: observations.parallelRefill.signingMs,
+    source: 'parallel_refill',
+  });
+  observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
+  observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
+  observations.passed = true;
+} catch (error) {
+  observations.passed = false;
+  observations.error = String(error);
+  throw error;
+} finally {
+  closeProfiles(profileConnections);
+  for (const sampler of memorySamplers) observations.preparationMemory.push(await sampler.stop());
+  await mkdir(resolve(artifact, '..'), { recursive: true });
+  observations.signingTraces = signingEvents;
+  observations.stageTraces = stageEvents;
+  await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
+  await runtime?.dispose();
+  await mkdir(resolve(artifact, '..'), { recursive: true });
+  observations.signingTraces = signingEvents;
+  observations.stageTraces = stageEvents;
+  await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
+  await rm(persistence, { recursive: true, force: true });
+  console.log(JSON.stringify({ artifact, passed: observations.passed, signingMs: observations.signatures.map(signingTime), stalledPeerClosedMs: observations.stalledPeerClosedMs }));
+}
+async function runDurableCases(emptyInput) {
   observations.refillWakeInterleaving = await checkRefillWakeInterleaving();
   observations.unusedPreparation = await checkUnusedPreparation();
   // Let the full-pool maintenance alarm settle before the first consumption.
@@ -410,7 +482,7 @@ try {
   const emptyReplay = await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth);
   assert.equal(emptyReplay.status, 'existing');
   assert.equal(emptyReplay.operation.state, 'succeeded');
-  verifyStandardSignature(records[0].public_key, emptyMessage, [], emptyReplay.operation.signature);
+  verifyStandardSignature(records[0].public_key, emptyInput.message, [], emptyReplay.operation.signature);
   assert.deepEqual(await post('router', '/router-ab/ml-dsa/sign', emptyInput, gatewayAuth), emptyReplay);
   observations.emptyPoolRetryPreservesOperationAndSignature = true;
   observations.expiredUnadmittedRecovery = await checkExpiredUnadmittedRecovery(emptyInput.request);
@@ -442,7 +514,7 @@ try {
     }
     if (profileSigning) profileConnections = await startProfiles(runtime, signingTarget, 1000);
     const started = performance.now();
-    const router = await runtime.getWorker('router');
+    const router = clients.workers.get('router');
     const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), prepared);
     assert.equal(response.status, 200, await response.clone().text());
     const result = await response.json();
@@ -488,7 +560,7 @@ try {
       const barrier = await publicationBarrier();
       assert.equal((await barrier.fetch('https://fault.internal/release-failed-publication')).status, 200);
       const failed = await waitForFailedPreparation(barrier);
-      const beforeRetry = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+      const beforeRetry = await admissionCheck({ command: 'claim_refill', key: failed.key, occupied: await stalePreparationStock() });
       assert.equal(beforeRetry.status, 'busy');
       assert.ok(beforeRetry.retry_at_ms > Date.now(), 'A failed producer retried without a delay');
       initialStarts = await preprocessingStarts();
@@ -601,7 +673,7 @@ try {
       const settlementBarrier = await admissionBarrier();
       assert.equal((await settlementBarrier.fetch('https://fault.internal/arm', { method: 'POST', body: JSON.stringify(job) })).status, 200);
       await runtime.dispose();
-      runtime = createRuntime();
+      runtime = await createRuntime();
       await runtime.ready;
       await waitForRecoveredPublication(job);
       observations.interruptedProducer.terminalStateMs = performance.now() - resetStarted;
@@ -653,10 +725,10 @@ try {
   await waitReady(policy.refill_target_batches);
   await runtime.dispose();
   bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify({ ...policy, operation_timeout_ms: 1000 });
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   assert.deepEqual(
-    await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(await runtime.getWorker('router')), lastSuccessful.prepared)).json(),
+    await (await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(clients.workers.get('router')), lastSuccessful.prepared)).json(),
     lastSuccessful.result,
   );
   assert.deepEqual(
@@ -693,7 +765,7 @@ try {
     assert.equal(inventory.refill_due, false);
   }
   const control = timerControl();
-  const peer = await runtime.getWorker('b');
+  const peer = clients.workers.get('b');
   const started = performance.now();
   const response = await peer.fetch('https://ml-dsa.internal/router-ab/ml-dsa/connect', {
     headers: {
@@ -789,24 +861,13 @@ try {
   observations.preparationResources = preparationResourceEvidence();
   assert.ok(observations.expiredUnadmittedRecovery.verifiedReuseOperation,
     'No verified signature consumed the reclaimed untouched material');
-  observations.standardSignaturesVerifiedByRouter = observations.signatures.length;
-  observations.standardSignaturesVerifiedByOpenSsl = observations.signatures.length;
-  observations.passed = true;
-} catch (error) {
-  observations.passed = false;
-  observations.error = String(error);
-  throw error;
-} finally {
-  closeProfiles(profileConnections);
-  for (const sampler of memorySamplers) observations.preparationMemory.push(await sampler.stop());
-  await runtime?.dispose();
-  await mkdir(resolve(artifact, '..'), { recursive: true });
-  observations.signingTraces = signingEvents;
-  observations.stageTraces = stageEvents;
-  await writeFile(artifact, `${JSON.stringify(observations, null, 2)}\n`);
-  await rm(persistence, { recursive: true, force: true });
-  console.log(JSON.stringify({ artifact, passed: observations.passed, signingMs: observations.signatures.map(signingTime), stalledPeerClosedMs: observations.stalledPeerClosedMs }));
 }
+
+async function parallelProgress(stage, data) {
+  const entry = { stage, atMs: Date.now(), ...data };
+  await writeFile(artifact + '.parallel-progress.json', JSON.stringify(entry, null, 2) + '\n');
+}
+
 async function readRecord(role) {
   return JSON.parse(await readFile(join(fixtures, `${role}.json`), 'utf8'));
 }
@@ -816,13 +877,16 @@ async function readKek(role) {
 function digest(bytes) {
   return Array.from(createHash('sha256').update(Buffer.from(bytes)).digest());
 }
-function createRuntime() {
-  return new Miniflare({
+async function createRuntime() {
+  const next = new Miniflare({
     handleRuntimeStdio,
     workers: workers(),
     durableObjectsPersist: persistence,
     inspectorPort: profilePreparation || profileSigning || profileMemory ? 0 : undefined,
   });
+  await next.ready;
+  clients = await bindWorkerClients(next, fixturePoolName());
+  return next;
 }
 
 function base(name, build, extraBindings) {
@@ -855,8 +919,10 @@ function workers() {
     },
     roleWorker('a', 0),
     roleWorker('b', 1),
-    preparerWorker('a', 0),
-    preparerWorker('b', 1),
+    preparerWorker('a', 0, 'primary'),
+    preparerWorker('b', 1, 'primary'),
+    preparerWorker('a', 0, 'secondary'),
+    preparerWorker('b', 1, 'secondary'),
     {
       name: 'publication-barrier',
       modules: true,
@@ -912,6 +978,9 @@ function roleWorker(role, index) {
     worker.durableObjects.ML_DSA_PRODUCER_DO = {
       className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a',
     };
+    worker.durableObjects.ML_DSA_SECONDARY_PRODUCER_DO = {
+      className: 'RouterAbMlDsaProducerDurableObject', scriptName: 'preparer-a-secondary',
+    };
   }
   if (calibrateStages && role === 'a') {
     worker.durableObjects.ML_DSA_ADMISSION_DO = {
@@ -920,9 +989,10 @@ function roleWorker(role, index) {
   }
   return worker;
 }
-function preparerWorker(role, index) {
+function preparerWorker(role, index, slot) {
   const worker = roleWorker(role, index);
-  worker.name = `preparer-${role}`;
+  const suffix = slot === 'secondary' ? '-secondary' : '';
+  worker.name = `preparer-${role}${suffix}`;
   worker.durableObjects.ML_DSA_POOL_DO = {
     className: role === 'a' ? 'PublicationBarrier' : 'RouterAbMlDsaPoolDurableObject',
     scriptName: role === 'a' ? 'publication-barrier' : role,
@@ -936,20 +1006,20 @@ function preparerWorker(role, index) {
     };
   }
   delete worker.durableObjects.ML_DSA_REGISTRATION_DO;
-  worker.serviceBindings = { DERIVER_B: 'preparer-b' };
+  worker.serviceBindings = { DERIVER_B: `preparer-b${suffix}` };
   return worker;
 }
 async function producerReceipt(job, credential) {
-  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_PRODUCER_DO', 'preparer-a');
-  const stub = namespace.get(namespace.idFromName('ml-dsa-producer-v1'));
+  const stub = clients.producers.get(job.producer_slot);
   return stub.fetch('https://ml-dsa.internal/router-ab/ml-dsa/prepare', {
     method: 'POST',
     headers: { 'content-type': 'application/json', [authHeader]: credential },
     body: JSON.stringify(job),
   });
 }
+
 async function raw(worker, path, input, credential) {
-  const fetcher = await runtime.getWorker(worker);
+  const fetcher = clients.workers.get(worker);
   return fetcher.fetch(`https://ml-dsa.internal${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', [authHeader]: credential },
@@ -1018,11 +1088,7 @@ function isReserved(value) {
 }
 
 async function publicationBarrier() {
-  const namespace = await runtime.getDurableObjectNamespace('BARRIER', 'publication-barrier');
-  const wallet = records[0].activation.key.wallet;
-  const ordered = { org: wallet.org, project: wallet.project, environment: wallet.environment, wallet: wallet.wallet };
-  const name = createHash('sha256').update('wallet').update(JSON.stringify(ordered)).digest('hex');
-  return namespace.get(namespace.idFromName(`ml-dsa-pool-${name}`));
+  return clients.publication;
 }
 
 async function waitForHeldPublication(barrier) {
@@ -1068,8 +1134,7 @@ async function waitForRecoveredPublication(job) {
 }
 
 async function admissionBarrier() {
-  const namespace = await runtime.getDurableObjectNamespace('ADMISSION_BARRIER', 'publication-barrier');
-  return namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
+  return clients.admissionBarrier;
 }
 
 async function checkExpiredUnadmittedRecovery(template) {
@@ -1105,11 +1170,16 @@ async function checkExpiredUnadmittedRecovery(template) {
 function batchInSet(ids, batch) { return ids.has(batchId(batch)); }
 
 async function admissionCheck(command) {
-  const namespace = await runtime.getDurableObjectNamespace('ML_DSA_ADMISSION_DO', 'router');
-  const stub = namespace.get(namespace.idFromName('ml-dsa-admission-v1'));
+  return admissionQuery(clients.admission, command);
+}
+async function actualAdmissionCheck(command) {
+  return admissionQuery(clients.actualAdmission, command);
+}
+async function admissionQuery(stub, command) {
   const response = await stub.fetch('https://admission.internal/check', {
     method: 'POST', headers: { 'content-type': 'application/json', [authHeader]: serviceAuth },
     body: JSON.stringify(command),
+    signal: AbortSignal.timeout(5000),
   });
   assert.equal(response.status, 200);
   return response.json();
@@ -1139,7 +1209,7 @@ async function checkPrepublicationFallback() {
   assert.equal(await producerState(job), 'running');
   const started = performance.now();
   await runtime.dispose();
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   await new Promise(waitSixSeconds);
   assert.equal(await producerState(job), 'running');
@@ -1276,7 +1346,7 @@ async function checkProducerHandoff(restart) {
   await rm(persistence, { recursive: true, force: true });
   persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-handoff-e2e-'));
   bindings.ML_DSA_ADMISSION_POLICY = JSON.stringify(policy);
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   const barrier = await admissionBarrier();
   assert.equal((await barrier.fetch('https://fault.internal/arm-handoff')).status, 200);
@@ -1304,7 +1374,7 @@ async function checkProducerHandoff(restart) {
   const handoffStarted = performance.now();
   if (restart) {
     await runtime.dispose();
-    runtime = createRuntime();
+    runtime = await createRuntime();
     await runtime.ready;
   }
   await assert.rejects(producerReceipt(held, serviceAuth), /ML-DSA preprocessing lease is inactive/);
@@ -1340,7 +1410,7 @@ function isRunningJob(event) { return event.stage === 'running' && event.batch =
 
 async function checkRefillWakeInterleaving() {
   await waitForTerminalProducerSettlement();
-  const barrier = await runtime.getWorker('publication-barrier');
+  const barrier = clients.workers.get('publication-barrier');
   assert.equal((await barrier.fetch('https://fault.internal/arm-peer-inventory')).status, 200);
   await post('a', '/router-ab/ml-dsa/role', { command: 'wake_refill', key: records[0].activation.key });
   const deadline = performance.now() + 10000;
@@ -1360,6 +1430,7 @@ async function checkRefillWakeInterleaving() {
     assert.ok(event.after_ms <= event.requested_ms + 50, 'Wake acknowledgement retained the maintenance delay');
   }
   const releasedAt = performance.now();
+  await new Promise(waitPastWakeDeadline);
   assert.equal((await barrier.fetch('https://fault.internal/release-peer-inventory')).status, 200);
   while (performance.now() - releasedAt < 3000 && refillAlarmEvents.filter(isControllerAlarm).length <= previous) {
     await new Promise(waitForMarker);
@@ -1369,14 +1440,22 @@ async function checkRefillWakeInterleaving() {
   const stocks = await inventories();
   for (const stock of stocks) assert.equal(stock.ready.length, policy.refill_target_batches);
   return { heldPeerInventory: true, wakeAcknowledgedDuringAlarm: true,
-    maintenanceDidNotPostponeWake: true, releaseToNextAlarmUpperBoundMs: performance.now() - releasedAt,
+    maintenanceDidNotPostponeWake: true, heldBeyondWakeDeadline: true, releaseToNextAlarmUpperBoundMs: performance.now() - releasedAt,
     sameActorAlarmObservations: scheduled };
 }
+function waitPastWakeDeadline(resolve) { setTimeout(resolve, 200); }
 function isControllerAlarm(event) { return event.event === 'ml_dsa_refill_controller_v1'; }
 function isWakeAlarm(event) { return event.event === 'ml_dsa_refill_alarm_v1'; }
 
-async function claimPreparation(groups) {
-  const result = await admissionCheck({ command: 'claim_refill', key: records[0].activation.key, groups });
+async function stalePreparationStock() {
+  const [a, b] = await inventories();
+  const known = new Map();
+  for (const batch of [...a.ready, ...a.reserved, ...b.ready, ...b.reserved]) known.set(batchId(batch), batch);
+  return Array.from(known.values()).slice(0, policy.refill_target_batches - 2);
+}
+
+async function claimPreparation() {
+  const result = await admissionCheck({ command: 'claim_refill', key: records[0].activation.key, occupied: await stalePreparationStock() });
   assert.equal(result.status, 'acquired');
   return result.job;
 }
@@ -1395,12 +1474,12 @@ async function checkUnusedPreparation() {
   const initial = await inventories();
   const markers = await preprocessingStarts();
   for (const role of initial) assert.equal(role.ready.length, policy.refill_target_batches);
-  const failed = await claimPreparation('two');
+  const failed = await claimPreparation();
   await admissionCheck({ command: 'finish_refill', job: failed, outcome: 'failed' });
-  const blocked = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+  const blocked = await admissionCheck({ command: 'claim_refill', key: failed.key, occupied: await stalePreparationStock() });
   assert.equal(blocked.status, 'busy');
   await delayUntil(blocked.retry_at_ms);
-  const unused = await claimPreparation('two');
+  const unused = await claimPreparation();
   const barrier = await admissionBarrier();
   assert.equal((await barrier.fetch('https://fault.internal/arm-unused', {
     method: 'POST', body: JSON.stringify(unused),
@@ -1417,7 +1496,7 @@ async function checkUnusedPreparation() {
   assert.equal(faults.before, 1);
   assert.equal(await admissionCheck({ command: 'check_refill', job: unused }), true);
   await runtime.dispose();
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   await waitForLeaseRelease(unused);
   await waitForTerminalProducerSettlement();
@@ -1434,12 +1513,12 @@ async function checkUnusedPreparation() {
   assert.equal(running.length, 1, 'Unused recovery restarted the producer');
   const cryptographicStages = preparationEvents.filter(matchesCryptoJob.bind(null, unused));
   assert.deepEqual(cryptographicStages, [], 'Unused work entered the cryptographic protocol');
-  const replacement = await claimPreparation('two');
+  const replacement = await claimPreparation();
   assert.deepEqual(await admissionCheck({ command: 'finish_refill', job: unused, outcome: 'unused' }), []);
   assert.equal(await admissionCheck({ command: 'check_refill', job: replacement }), true);
   await admissionCheck({ command: 'finish_refill', job: replacement, outcome: 'failed' });
   const finishedAt = Date.now();
-  const secondBackoff = await admissionCheck({ command: 'claim_refill', key: failed.key, groups: 'two' });
+  const secondBackoff = await admissionCheck({ command: 'claim_refill', key: failed.key, occupied: await stalePreparationStock() });
   assert.equal(secondBackoff.status, 'busy');
   assert.ok(secondBackoff.retry_at_ms - finishedAt >= 3500, 'Unused settlement reset failure backoff');
   await delayUntil(secondBackoff.retry_at_ms);
@@ -1449,7 +1528,7 @@ async function checkUnusedPreparation() {
       command: 'retire_unpaired', key: failed.key, batches: onePair,
     });
   }
-  const oversized = await claimPreparation('two');
+  const oversized = await claimPreparation();
   assert.equal((await producerReceipt(oversized, serviceAuth)).status, 202);
   await waitUnused(oversized);
   await waitForLeaseRelease(oversized);
@@ -1529,7 +1608,7 @@ async function wasmDigest(role) {
 }
 
 async function timerControl() {
-  const peer = await runtime.getWorker('timer-control');
+  const peer = clients.workers.get('timer-control');
   const started = performance.now();
   const response = await peer.fetch('https://timer.internal');
   assert.deepEqual(await response.json(), { completed: true });
@@ -1742,7 +1821,7 @@ async function dispatchFixtureMessage(label) {
   const message = digest(Array.from(Buffer.from(label)));
   const owner = await admission.mlDsaOwnerFixture(records[0], new Uint8Array(message), label);
   assert.equal(owner.admitted.kind, 'prepared');
-  const router = await runtime.getWorker('router');
+  const router = clients.workers.get('router');
   const response = await admission.dispatchMlDsaOwnerOperation(new OwnerRouterProxy(router), owner.admitted.operation);
   assert.equal(response.status, 200, await response.clone().text());
   return { message, operation: JSON.parse(owner.admitted.operation.encode()).request.operation, result: await response.json() };
@@ -1752,10 +1831,9 @@ async function checkUnopenedAfterFailure() {
   await new Promise(waitForQuietPool);
   await runtime.dispose();
   takeFaultEnabled = true;
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
-  const namespace = await runtime.getDurableObjectNamespace('TAKE_BARRIER', 'publication-barrier');
-  const barrier = namespace.get(namespace.idFromName(fixturePoolName()));
+  const barrier = clients.takeB;
   assert.equal((await barrier.fetch('https://fault.internal/arm')).status, 200);
   const failureStarted = performance.now();
   const failed = await dispatchFixtureMessage('retained-after-failure');
@@ -1783,8 +1861,7 @@ async function checkUnopenedAfterFailure() {
   const fresh = await dispatchFixtureMessage('fresh-after-retained-failure');
   assert.equal(fresh.result.operation.state, 'succeeded');
   verifyStandardSignature(records[0].public_key, fresh.message, [], fresh.result.operation.signature);
-  const aNamespace = await runtime.getDurableObjectNamespace('TAKE_BARRIER_A', 'publication-barrier');
-  const aBarrier = aNamespace.get(aNamespace.idFromName(fixturePoolName()));
+  const aBarrier = clients.takeA;
   const aTakes = await (await aBarrier.fetch('https://fault.internal/takes')).json();
   const bTakes = await (await barrier.fetch('https://fault.internal/takes')).json();
   const retainedIds = new Set(retained.map(batchId));
@@ -1796,7 +1873,7 @@ async function checkUnopenedAfterFailure() {
   assert.equal(new Set(aConsumed).size, aConsumed.length);
   await runtime.dispose();
   takeFaultEnabled = false;
-  runtime = createRuntime();
+  runtime = await createRuntime();
   await runtime.ready;
   return { failureSettledMs, failureRequestedPeerClose: true, failureOutcome: outcomes[0].outcome, retainedPairs: retained.length, consumedRetainedPairs: aConsumed.length,
     failedOperation: batchId(failed.operation), freshOperation: freshId, retainedIds: [...retainedIds],

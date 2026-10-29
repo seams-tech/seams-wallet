@@ -19,6 +19,9 @@ use zeroize::Zeroizing;
 #[path = "ml_dsa_durable_pool/refill_backoff.rs"]
 mod refill_backoff;
 
+#[path = "ml_dsa_durable_pool/parallel_refill.rs"]
+mod parallel_refill;
+
 #[path = "ml_dsa_durable_pool/unopened_failure.rs"]
 mod unopened_failure;
 
@@ -80,6 +83,15 @@ fn key(wallet: &str) -> KeyScope {
         public_key_digest: [7; 32],
         schedule_digest: [8; 32],
     }
+}
+fn observed_stock(free_pairs: usize) -> m::refill::OccupiedBatches {
+    let mut occupied = Vec::new();
+    for index in 0..Policy::default().refill_target_batches() - free_pairs {
+        let mut batch = [0; 32];
+        batch[..8].copy_from_slice(&(index as u64).to_le_bytes());
+        occupied.push(batch);
+    }
+    m::refill::OccupiedBatches::new(occupied)
 }
 fn request(key: &KeyScope, operation: u8) -> SigningRequest {
     SigningRequest {
@@ -369,7 +381,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
                 &router,
                 &Policy::default(),
                 key.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_005
             )
         )
@@ -401,7 +413,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &Policy::default(),
             key.clone(),
-            m::refill::Groups::One,
+            observed_stock(1),
             1_006,
         ),
     )
@@ -846,7 +858,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
                 &router,
                 &Policy::default(),
                 verified_request.key.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 500_004
             )
         )
@@ -892,7 +904,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &Policy::default(),
             refill_key.clone(),
-            m::refill::Groups::One,
+            observed_stock(1),
             600_000,
         ),
     )
@@ -906,7 +918,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
                 &router,
                 &Policy::default(),
                 refill_key.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 600_001
             )
         )
@@ -934,6 +946,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
         &refill_store,
         m::refill::publish_role(
             &refill_store,
+            &Policy::default(),
             &job,
             late_binding,
             late_sealed,
@@ -950,7 +963,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &Policy::default(),
             refill_key.clone(),
-            m::refill::Groups::Two,
+            observed_stock(2),
             job.expires_at_ms,
         ),
     )
@@ -965,7 +978,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &router,
             &Policy::default(),
             refill_key,
-            m::refill::Groups::Two,
+            observed_stock(2),
             replacement_at,
         ),
     )
@@ -991,6 +1004,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &refill_store,
             m::refill::publish_role(
                 &refill_store,
+                &Policy::default(),
                 &replacement,
                 fresh_binding.clone(),
                 fresh_sealed,
@@ -1004,6 +1018,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
             &refill_store,
             m::refill::publish_role(
                 &refill_store,
+                &Policy::default(),
                 &replacement,
                 fresh_binding,
                 duplicate_sealed,
@@ -1086,7 +1101,7 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     registration_allocator_campaign(&directory);
     registration_retirement_campaign(&directory);
     let refill_fairness = refill_fairness_campaign(&directory);
-    let parallel_refill = parallel_refill_campaign(&directory);
+    let parallel_refill = parallel_refill::campaign(&directory);
     let refill_backoff = refill_backoff::campaign(&directory);
     let unopened_after_failure = unopened_failure::campaign(&directory);
     let retirement_evidence = serde_json::json!({ "restart": true, "late_ready_rejected": true, "changed_identity_rejected": true, "claimed_job_preserved": true, "other_stock_preserved": true, "fresh_replacement": true });
@@ -1124,144 +1139,6 @@ fn durable_admission_pool_restart_and_concurrent_claims() {
     eprintln!("ML-DSA lifecycle evidence: {}", output.display());
 }
 
-fn parallel_refill_campaign(directory: &Path) -> serde_json::Value {
-    let path = directory.join("parallel-refill.sqlite");
-    let router = Db::open(&path);
-    let policy = Policy::parse(r#"{"wallet_cooldown":{"mode":"enabled","interval_ms":60000},"max_active_operations":1,"max_active_preparations":2,"operation_timeout_ms":30000,"candidate_group_size":2,"preparation_group_size":4,"minimum_ready_batches":8,"refill_target_batches":16}"#).unwrap();
-    let a = key("parallel-a");
-    let b = key("parallel-b");
-    let c = key("parallel-c");
-    for key in [&a, &b, &c] {
-        activate(&router, key);
-    }
-    let m::refill::Claim::Acquired { job: first } = tx(
-        &router,
-        m::refill::claim(&router, &policy, a.clone(), m::refill::Groups::Two, 1_000),
-    )
-    .unwrap() else {
-        panic!("Missing first slot")
-    };
-    let m::refill::Claim::Acquired { job: second } = tx(
-        &router,
-        m::refill::claim(&router, &policy, b.clone(), m::refill::Groups::Two, 1_001),
-    )
-    .unwrap() else {
-        panic!("Missing second slot")
-    };
-    assert_ne!(first.producer_slot, second.producer_slot);
-    assert_ne!(
-        first.producer_slot.namespace(),
-        second.producer_slot.namespace()
-    );
-    assert!(tx(&router, m::refill::check(&router, &first, 1_002)).unwrap());
-    assert!(tx(&router, m::refill::check(&router, &second, 1_002)).unwrap());
-    assert!(matches!(
-        tx(
-            &router,
-            m::refill::claim(&router, &policy, a.clone(), m::refill::Groups::Two, 1_002)
-        )
-        .unwrap(),
-        m::refill::Claim::Busy { .. }
-    ));
-    assert!(matches!(
-        tx(
-            &router,
-            m::refill::claim(&router, &policy, c.clone(), m::refill::Groups::Two, 1_003)
-        )
-        .unwrap(),
-        m::refill::Claim::Busy { .. }
-    ));
-    // Restart preserves both leases. A one-slot policy cannot overbook the other slot.
-    drop(router);
-    let router = Db::open(&path);
-    let wake = tx(
-        &router,
-        m::refill::finish(
-            &router,
-            &policy,
-            &first,
-            m::refill::Outcome::Published,
-            1_004,
-        ),
-    )
-    .unwrap();
-    assert_eq!(wake.first(), Some(&c));
-    assert!(tx(&router, m::refill::check(&router, &second, 1_004)).unwrap());
-    assert!(matches!(
-        tx(
-            &router,
-            m::refill::claim(
-                &router,
-                &Policy::default(),
-                c.clone(),
-                m::refill::Groups::Two,
-                1_005
-            )
-        )
-        .unwrap(),
-        m::refill::Claim::Busy { .. }
-    ));
-    let m::refill::Claim::Acquired { job: replacement } = tx(
-        &router,
-        m::refill::claim(&router, &policy, c.clone(), m::refill::Groups::Two, 1_006),
-    )
-    .unwrap() else {
-        panic!("Missing reused slot")
-    };
-    assert_eq!(replacement.producer_slot, first.producer_slot);
-    assert!(tx(
-        &router,
-        m::refill::finish(
-            &router,
-            &policy,
-            &first,
-            m::refill::Outcome::Published,
-            1_007
-        )
-    )
-    .unwrap()
-    .is_empty());
-    assert!(tx(&router, m::refill::check(&router, &replacement, 1_007)).unwrap());
-    let mut changed = second.clone();
-    changed.producer_slot = first.producer_slot;
-    assert!(!tx(&router, m::refill::check(&router, &changed, 1_007)).unwrap());
-    assert!(tx(
-        &router,
-        m::refill::finish(
-            &router,
-            &policy,
-            &changed,
-            m::refill::Outcome::Published,
-            1_007
-        )
-    )
-    .unwrap()
-    .is_empty());
-    let mut recovered = b.clone();
-    recovered.epoch += 1;
-    activate(&router, &recovered);
-    assert!(!tx(&router, m::refill::check(&router, &second, 1_008)).unwrap());
-    assert!(tx(&router, m::refill::check(&router, &replacement, 1_008)).unwrap());
-    tx(
-        &router,
-        m::refill::finish(
-            &router,
-            &policy,
-            &second,
-            m::refill::Outcome::Published,
-            1_009,
-        ),
-    )
-    .unwrap();
-    assert!(tx(&router, m::refill::check(&router, &replacement, 1_009)).unwrap());
-    // Decode the existing primary storage format at its persistence boundary.
-    let mut stored = serde_json::to_value(&replacement).unwrap();
-    stored.as_object_mut().unwrap().remove("producer_slot");
-    tx(&router, router.put("preprocessing-active", &stored)).unwrap();
-    assert!(tx(&router, m::refill::check(&router, &replacement, 1_010)).unwrap());
-    serde_json::json!({"two_distinct_slots":true,"one_job_per_key":true,"third_job_waits":true,"restart":true,"serial_reconfiguration_drains":true,"stale_finish_preserves_successor":true,"changed_slot_rejected":true,"recovery_fences_only_its_key":true,"primary_storage_boundary":true,"per_wallet_target_candidates":32})
-}
-
 fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
     let path = directory.join("fair-refill.sqlite");
     let router = Db::open(&path);
@@ -1280,7 +1157,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                     &router,
                     &Policy::default(),
                     a.clone(),
-                    m::refill::Groups::One,
+                    observed_stock(1),
                     now
                 )
             )
@@ -1296,7 +1173,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                     &router,
                     &Policy::default(),
                     key.clone(),
-                    m::refill::Groups::One,
+                    observed_stock(1),
                     now
                 )
             )
@@ -1330,7 +1207,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 a.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_009
             )
         )
@@ -1362,7 +1239,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 b.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_012
             )
         )
@@ -1377,7 +1254,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 c.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_014
             )
         )
@@ -1395,7 +1272,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 recovered_b.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_015
             )
         )
@@ -1440,7 +1317,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 a.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_017
             )
         )
@@ -1455,7 +1332,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 installing_c.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 1_018
             )
         )
@@ -1469,7 +1346,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &Policy::default(),
                 installing_c.clone(),
-                m::refill::Groups::One,
+                observed_stock(1),
                 30_000
             )
         )
@@ -1502,7 +1379,7 @@ fn refill_fairness_campaign(directory: &Path) -> serde_json::Value {
                     &router,
                     &Policy::default(),
                     key.clone(),
-                    m::refill::Groups::One,
+                    observed_stock(1),
                     32_001 + index
                 )
             )
@@ -1573,7 +1450,7 @@ fn refill_turn(router: &Db, key: &KeyScope, now: u64) -> m::refill::Job {
             router,
             &Policy::default(),
             key.clone(),
-            m::refill::Groups::One,
+            observed_stock(1),
             now,
         ),
     )
@@ -1748,13 +1625,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     assert!(matches!(
         tx(
             &db,
-            m::refill::claim(
-                &db,
-                &Policy::default(),
-                refill_key,
-                m::refill::Groups::One,
-                107
-            )
+            m::refill::claim(&db, &Policy::default(), refill_key, observed_stock(1), 107)
         )
         .unwrap(),
         m::refill::Claim::Busy { .. }

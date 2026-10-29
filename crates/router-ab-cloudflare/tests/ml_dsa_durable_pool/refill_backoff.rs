@@ -20,7 +20,7 @@ pub(super) fn campaign(directory: &Path) -> serde_json::Value {
                 &router,
                 &policy,
                 waiting_key.clone(),
-                m::refill::Groups::Two,
+                observed_stock(2),
                 1_002
             )
         )
@@ -197,7 +197,7 @@ pub(super) fn campaign(directory: &Path) -> serde_json::Value {
 fn acquire(db: &Db, policy: &Policy, key: &KeyScope, now: u64) -> m::refill::Job {
     match tx(
         db,
-        m::refill::claim(db, policy, key.clone(), m::refill::Groups::Two, now),
+        m::refill::claim(db, policy, key.clone(), observed_stock(2), now),
     )
     .unwrap()
     {
@@ -209,7 +209,7 @@ fn acquire(db: &Db, policy: &Policy, key: &KeyScope, now: u64) -> m::refill::Job
 fn assert_busy(db: &Db, policy: &Policy, key: &KeyScope, now: u64, expected_retry: u64) {
     match tx(
         db,
-        m::refill::claim(db, policy, key.clone(), m::refill::Groups::Two, now),
+        m::refill::claim(db, policy, key.clone(), observed_stock(2), now),
     )
     .unwrap()
     {

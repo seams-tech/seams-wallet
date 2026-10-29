@@ -73,7 +73,10 @@ pub enum AdmissionCommand {
     },
     ClaimRefill {
         key: KeyScope,
-        groups: refill::Groups,
+        occupied: refill::OccupiedBatches,
+    },
+    PendingRefills {
+        key: KeyScope,
     },
     WithdrawRefill {
         key: KeyScope,
@@ -211,6 +214,10 @@ pub enum RoleCommand {
         job: refill::Job,
         batches: Vec<(Binding, Sealed)>,
     },
+    LiveInventory {
+        key: KeyScope,
+        target: usize,
+    },
     Inventory {
         key: KeyScope,
         target: usize,
@@ -247,6 +254,7 @@ impl RoleCommand {
             }
             Self::Install { key }
             | Self::Inventory { key, .. }
+            | Self::LiveInventory { key, .. }
             | Self::RefillStatus { key }
             | Self::WakeRefill { key }
             | Self::Inspect { key, .. }
@@ -451,6 +459,7 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
                     | AdmissionCommand::ActiveKey { .. }
                     | AdmissionCommand::KeyState { .. }
                     | AdmissionCommand::ClaimRefill { .. }
+                    | AdmissionCommand::PendingRefills { .. }
                     | AdmissionCommand::WithdrawRefill { .. }
                     | AdmissionCommand::CheckRefill { .. }
                     | AdmissionCommand::FinishRefill { .. }
@@ -545,12 +554,10 @@ async fn execute_admission(
         AdmissionCommand::FinishRegistration { claim, result } => {
             json(super::registration::finish(store, &claim, result, now).await?)
         }
-        AdmissionCommand::ClaimRefill { key, groups } => {
-            if groups.count() > policy.preparation_groups(2).count() {
-                return Err(invalid("Preparation exceeds configured group size"));
-            }
-            json(refill::claim(store, policy, key, groups, now).await?)
+        AdmissionCommand::ClaimRefill { key, occupied } => {
+            json(refill::claim(store, policy, key, occupied, now).await?)
         }
+        AdmissionCommand::PendingRefills { key } => json(refill::pending(store, &key, now).await?),
         AdmissionCommand::WithdrawRefill { key } => {
             refill::withdraw(store, &key).await?;
             json(true)
@@ -650,7 +657,9 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         if let Some(trace) = &trace {
             trace.mark("authorized");
         }
-        if let RoleCommand::Inventory { key, .. } = &command {
+        if let RoleCommand::Inventory { key, .. } | RoleCommand::LiveInventory { key, .. } =
+            &command
+        {
             recover_expired_reservations(&self.env, &self.state, key)
                 .await
                 .map_err(protocol_error)?;
@@ -673,7 +682,13 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
         let value = durable_trace::observe(
             durable.as_ref(),
             "transaction",
-            role_transaction(&self.state, role, command, durable.clone()),
+            role_transaction(
+                &self.state,
+                policy(&self.env).map_err(protocol_error)?,
+                role,
+                command,
+                durable.clone(),
+            ),
         )
         .await?;
         if let Some(trace) = &trace {
@@ -765,6 +780,7 @@ async fn recover_expired_reservations(env: &Env, state: &State, key: &KeyScope) 
 
 async fn role_transaction(
     state: &State,
+    policy: Policy,
     role: Participant,
     command: RoleCommand,
     trace: Option<durable_trace::DurableTrace>,
@@ -787,7 +803,7 @@ async fn role_transaction(
                         .map_err(protocol_error)?;
                 }
             }
-            let value = execute_role(&store, role, command, now)
+            let value = execute_role(&store, &policy, role, command, now)
                 .await
                 .map_err(protocol_error)?;
             captured.replace(Some(value));
@@ -980,6 +996,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
         }
         RoleCommand::CheckMaterial { .. }
         | RoleCommand::Inventory { .. }
+        | RoleCommand::LiveInventory { .. }
         | RoleCommand::RefillStatus { .. }
         | RoleCommand::PublicationRecorded { .. }
         | RoleCommand::Inspect { .. }
@@ -1001,6 +1018,7 @@ async fn authorize_role_command(env: &Env, command: &RoleCommand) -> Result<()> 
 }
 async fn execute_role(
     store: &impl Store,
+    policy: &Policy,
     role: Participant,
     command: RoleCommand,
     now: u64,
@@ -1090,9 +1108,15 @@ async fn execute_role(
             }
             // The transaction publishes the bounded job together or rolls back every pair.
             for (binding, sealed) in batches {
-                refill::publish_role(store, &job, binding, sealed, now).await?;
+                refill::publish_role(store, policy, &job, binding, sealed, now).await?;
             }
             json(true)
+        }
+        RoleCommand::LiveInventory { key, target } => {
+            if target == 0 || target > 20 {
+                return Err(invalid("Invalid ML-DSA refill target"));
+            }
+            json(pool::inventory(store, &key, target, now, now).await?)
         }
         RoleCommand::Inventory {
             key,
@@ -1359,13 +1383,21 @@ async fn before_deadline<T>(
 // Storage input gates keep this read/update together. Never postpone demand
 // that arrived while a producer awaited its peer's inventory or publication.
 async fn schedule_refill_alarm(state: &State, delay_ms: u64) -> worker::Result<()> {
-    let next = crate::cloudflare_now_unix_ms_v1()
-        .map_err(protocol_error)?
-        .saturating_add(delay_ms);
+    let scheduled = state.storage().get_alarm().await?;
+    let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
+    let next = now.saturating_add(delay_ms);
+    let now =
+        i64::try_from(now).map_err(|_| protocol_error(invalid("ML-DSA alarm time overflow")))?;
     let next =
         i64::try_from(next).map_err(|_| protocol_error(invalid("ML-DSA alarm time overflow")))?;
-    let scheduled = state.storage().get_alarm().await?;
-    if scheduled.is_none_or(|current| current > next) {
+    // A delayed handler must not replace an urgent overdue wake with its
+    // longer maintenance delay. Keep overdue work prompt and future work early.
+    let next = match scheduled {
+        Some(current) if current <= now => now.saturating_add(1),
+        Some(current) => current.min(next),
+        None => next,
+    };
+    if scheduled != Some(next) {
         let date = worker::Date::new(worker::DateInit::Millis(next as u64));
         state
             .storage()
