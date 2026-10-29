@@ -244,7 +244,8 @@ async fn controller_inventory(
     )
     .await
     .map_err(storage_error)?;
-    serde_json::from_value(value).map_err(|_| invalid("Invalid ML-DSA local inventory"))
+    serde_json::from_value(value.into_json()?)
+        .map_err(|_| invalid("Invalid ML-DSA local inventory"))
 }
 
 async fn withdraw(env: &Env, key: &KeyScope) -> Result<()> {
@@ -682,7 +683,8 @@ async fn reconcile_unpaired(
                 None,
             )
             .await
-            .map_err(storage_error)?,
+            .map_err(storage_error)?
+            .into_json()?,
         )
         .map_err(|_| invalid("Invalid local inventory"))?;
         if states.len() != only_b.len() {

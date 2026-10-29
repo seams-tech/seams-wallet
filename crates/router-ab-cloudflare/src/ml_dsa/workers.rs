@@ -2,6 +2,8 @@
 mod coordinator;
 mod durable_trace;
 mod executor;
+mod material_delivery;
+use material_delivery::RoleOutput;
 mod preparation;
 pub(crate) mod recipient_keys;
 pub(crate) mod registration;
@@ -726,7 +728,7 @@ impl DurableObject for RouterAbMlDsaPoolDurableObject {
                 );
             }
         }
-        let response = Response::from_json(&value);
+        let response = value.into_response();
         if response.is_ok() {
             if let Some(trace) = &trace {
                 trace.finish();
@@ -784,7 +786,7 @@ async fn role_transaction(
     role: Participant,
     command: RoleCommand,
     trace: Option<durable_trace::DurableTrace>,
-) -> worker::Result<serde_json::Value> {
+) -> worker::Result<RoleOutput> {
     let output = Rc::new(RefCell::new(None));
     let captured = Rc::clone(&output);
     state
@@ -1022,12 +1024,12 @@ async fn execute_role(
     role: Participant,
     command: RoleCommand,
     now: u64,
-) -> Result<serde_json::Value> {
+) -> Result<RoleOutput> {
     match command {
         RoleCommand::InitializeRegistrationStorage { claim } => {
             // A bounded read warms this actor without changing custody or pool state.
             let _ = pool::installed_key(store, &claim.request.key_id).await?;
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::InstallRegistrationStock { delivery, .. } => {
             // The surrounding transaction commits every batch together or rolls back all writes.
@@ -1037,19 +1039,19 @@ async fn execute_role(
                 }
                 pool::install_registration_batch(store, batch.binding, batch.sealed, now).await?;
             }
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::StartRefill { job } => {
             refill::start_role(store, &job, now).await?;
             // The isolated producer receives public key bytes only, never role material.
-            json(material::get(store, &job.key).await?.public_key)
+            material_delivery::json(material::get(store, &job.key).await?.public_key)
         }
         RoleCommand::InstallMaterial { record } => {
             material::put(store, record).await?;
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::CheckMaterial { activation } => {
-            json(material::installed(store, role, &activation).await?)
+            material_delivery::json(material::installed(store, role, &activation).await?)
         }
         RoleCommand::LoadSigningInputs { permit } => {
             let material = material::get(store, &permit.request.key).await?;
@@ -1058,14 +1060,18 @@ async fn execute_role(
                 .first()
                 .ok_or_else(|| invalid("ML-DSA permit has no prepared pair"))?;
             let (binding, sealed) = pool::take(store, role, &permit, batch, now).await?;
-            json(executor::SigningInputs {
-                material,
-                batch,
-                binding,
-                sealed,
-            })
+            Ok(RoleOutput::SigningInputs(
+                material_delivery::SigningInputs {
+                    metadata: material_delivery::SigningMetadata {
+                        material,
+                        batch,
+                        binding,
+                    },
+                    sealed,
+                },
+            ))
         }
-        RoleCommand::PublicationRecorded { job } => json(
+        RoleCommand::PublicationRecorded { job } => material_delivery::json(
             pool::publication_recorded(
                 store,
                 &job.key,
@@ -1074,25 +1080,29 @@ async fn execute_role(
             )
             .await?,
         ),
-        RoleCommand::Inspect { key, batches } => json(pool::inspect(store, &key, &batches).await?),
+        RoleCommand::Inspect { key, batches } => {
+            material_delivery::json(pool::inspect(store, &key, &batches).await?)
+        }
         RoleCommand::RetireUnpaired { key, batches } => {
             pool::retire_unpaired(store, &key, &batches).await?;
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::Fence { request, batches } => {
-            json(pool::fence(store, &request, &batches).await?)
+            material_delivery::json(pool::fence(store, &request, &batches).await?)
         }
         RoleCommand::WakeRefill { key } => {
             if role != Participant::A {
                 return Err(invalid("ML-DSA refill wake requires participant A"));
             }
             pool::check_key(store, &key).await?;
-            json(true)
+            material_delivery::json(true)
         }
-        RoleCommand::RefillStatus { key } => json(pool::refill_status(store, &key, now).await?),
+        RoleCommand::RefillStatus { key } => {
+            material_delivery::json(pool::refill_status(store, &key, now).await?)
+        }
         RoleCommand::Install { key } => {
             pool::install_key(store, key).await?;
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::Put { job, batches } => {
             let expected = job.batch_ids();
@@ -1110,13 +1120,13 @@ async fn execute_role(
             for (binding, sealed) in batches {
                 refill::publish_role(store, policy, &job, binding, sealed, now).await?;
             }
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::LiveInventory { key, target } => {
             if target == 0 || target > 20 {
                 return Err(invalid("Invalid ML-DSA refill target"));
             }
-            json(pool::inventory(store, &key, target, now, now).await?)
+            material_delivery::json(pool::inventory(store, &key, target, now, now).await?)
         }
         RoleCommand::Inventory {
             key,
@@ -1126,14 +1136,17 @@ async fn execute_role(
             if target == 0 || target > 20 {
                 return Err(invalid("Invalid ML-DSA refill target"));
             }
-            json(pool::inventory(store, &key, target, now, ready_until_ms).await?)
+            material_delivery::json(
+                pool::inventory(store, &key, target, now, ready_until_ms).await?,
+            )
         }
         RoleCommand::Reserve { claim, batches } => {
             pool::reserve(store, &claim.request, &batches, claim.expires_at_ms, now).await?;
-            json(true)
+            material_delivery::json(true)
         }
         RoleCommand::Take { permit, batch } => {
-            json(pool::take(store, role, &permit, batch, now).await?)
+            let (binding, sealed) = pool::take(store, role, &permit, batch, now).await?;
+            Ok(RoleOutput::Taken { binding, sealed })
         }
         RoleCommand::Release {
             request,
@@ -1151,7 +1164,7 @@ async fn execute_role(
                 &unopened_intersection,
             )
             .await?;
-            json(true)
+            material_delivery::json(true)
         }
     }
 }

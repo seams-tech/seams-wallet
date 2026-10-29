@@ -13,14 +13,6 @@ struct WorkerHost<'a> {
     first_pair: RefCell<Option<([u8; 32], Binding, Sealed)>>,
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct SigningInputs {
-    pub material: material::Record,
-    pub batch: [u8; 32],
-    pub binding: Binding,
-    pub sealed: Sealed,
-}
 impl Host for WorkerHost<'_> {
     fn now_ms(&self) -> Result<u64> {
         crate::cloudflare_now_unix_ms_v1()
@@ -64,7 +56,7 @@ impl Host for WorkerHost<'_> {
         if response.status_code() != 200 {
             return Err(invalid("ML-DSA material consumption failed"));
         }
-        let result = response.json().await.map_err(storage_error)?;
+        let result = material_delivery::take(&mut response).await?;
         trace.finish();
         Ok(result)
     }
@@ -143,8 +135,8 @@ async fn execute(
     if response.status_code() != 200 {
         return Err(invalid("ML-DSA key material is unavailable"));
     }
-    let inputs: SigningInputs = response.json().await.map_err(storage_error)?;
-    let record = inputs.material;
+    let inputs = material_delivery::signing_inputs(&mut response).await?;
+    let record = inputs.metadata.material;
     trace.mark("material_loaded");
     if record.activation.key != input.permit.request.key {
         return Err(invalid("ML-DSA role key changed"));
@@ -173,7 +165,11 @@ async fn execute(
         &WorkerHost {
             env,
             trace: &trace,
-            first_pair: RefCell::new(Some((inputs.batch, inputs.binding, inputs.sealed))),
+            first_pair: RefCell::new(Some((
+                inputs.metadata.batch,
+                inputs.metadata.binding,
+                inputs.sealed,
+            ))),
         },
         &mut transport,
     )

@@ -21,6 +21,10 @@ It records fifteen below-minimum stock responses across three operations. One fi
 Different measured CPU costs and rejection outcomes prevent a pure code-speedup claim.
 The benchmark's five-second admission retry cap differs from the public Gateway's existing 500 ms service-capacity cap.
 
+The [binary prepared-material prototype](router-ab/ml-dsa-65-binary-material-report.md) passes local lifecycle and malformed-delivery recovery checks.
+It targets the repeated take/response boundary in the 7.699-second warm-cache outlier, without changing pool capacity or cryptographic work.
+Its matched hosted comparison remains pending. Both arms use the actual public Gateway retry cadence rather than the earlier generic benchmark cap.
+
 The next high-impact tasks are:
 
 - Qualify sustained public Gateway/SDK traffic with its actual retry cadence and complete user waits.

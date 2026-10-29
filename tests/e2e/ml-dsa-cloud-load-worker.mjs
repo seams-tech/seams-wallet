@@ -322,7 +322,10 @@ export class LoadWallet extends DurableObject {
           throw new Error('Invalid admission response');
         row.reason = result.reason;
         row.retryAtMs = result.retry_at_ms;
-        nextAt = Date.now() + Math.max(1000, Math.min(5000, result.retry_at_ms - Date.now()));
+        const retryAtMs = result.reason === 'service_capacity'
+          ? Math.min(result.retry_at_ms, Date.now() + 500)
+          : result.retry_at_ms;
+        nextAt = Math.max(Date.now() + 100, retryAtMs);
       } else if (result.status === 'existing') {
         row.state = result.operation.state;
         switch (result.operation.state) {

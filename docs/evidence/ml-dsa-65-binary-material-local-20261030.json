@@ -1,0 +1,69 @@
+{
+  "schema": "ml-dsa-binary-material-local-v1",
+  "date": "2026-10-30",
+  "base_commit": "b95699c78",
+  "scope": "Real local strict Workers with disposable canonical fixtures. No hosted latency improvement established.",
+  "passed": true,
+  "native_durable_passed": true,
+  "source_sha256": {
+    "crates/router-ab-cloudflare/src/ml_dsa/workers.rs": "298d118e8376c4cd684a27c22f8b094a87daf9150355f414d27198ff5c63b646",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/executor.rs": "e103e2a81db0fe522d436a27a2db22e664a1860d45c4d4b79e4e578d421e8e5f",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/material_delivery.rs": "5fcc90680b083add097b6b4c91a8c8d1c896bb61fd5a617ee5d16f355785cc70",
+    "crates/router-ab-cloudflare/src/ml_dsa/workers/preparation.rs": "905c3030ac9cd5227a22510f5373677fcd9a63420ce21f06afda142e66354513",
+    "tests/e2e/ml-dsa-durable-worker.e2e.mjs": "b971012e8a0f7b3f0cfeee69fcd12bd919a815deee6968ad2590ddc0e5312908",
+    "tests/e2e/ml-dsa-cloud-load-worker.mjs": "ceee322e98ec86d53dc2de0413a94eeb9a8627ad43fc9d4c8b2d8e69192967dd"
+  },
+  "worker_wasm_sha256": {
+    "router": "59923772b8888fa66efb14f6b7deaae6773a8a4d37f1288b6faf6c15a8722ee0",
+    "deriver-a": "73e156cbd15c6638bff9842c01bf2d3957bf14376aba208d0838056dd15f3227",
+    "deriver-b": "3403646c4e3cc90479244fa1bd8fc88ca5f30f5df1e810dad22a4a2a85f1f622"
+  },
+  "truncated_delivery": {
+    "failureSettledMs": 249.00054200002342,
+    "failureRequestedPeerClose": true,
+    "failureOutcome": {
+      "failure": {
+        "reason": "http",
+        "status": 500
+      },
+      "status": "dispatch_error"
+    },
+    "retainedPairs": 15,
+    "consumedRetainedPairs": 2,
+    "failedOperation": "b00796f362d27977a84b554750874d08c1cd0d622a7a5f5e92deb8c1cca31d1d",
+    "freshOperation": "8582cfb78cf13708d6ac5b8e7034bb78e3c38781eeda671a03d03592f32a6516",
+    "lostReplyAfterConsumption": true,
+    "oldTakeRejected": true,
+    "freshSignatureVerifiedByOpenSsl": true
+  },
+  "recorded_standard_signatures": 4,
+  "initial_oracle_failure": {
+    "classification": "valid_test_needs_update",
+    "cause": "The old evidence checker recognized the interrupted-producer proof but omitted the separately verified paired-ready proof after a lost publication reply.",
+    "retained_failed_artifact": true,
+    "unrestricted_missing_log_fallback_added": false
+  },
+  "fixed_requirements": {
+    "workers_preparation": true,
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true,
+    "consume_candidates": 2,
+    "prepare_candidates": 4,
+    "capacity_candidates": 32,
+    "admission_candidates": 16,
+    "storage_and_cryptographic_formats_unchanged": true
+  },
+  "hosted_status": "This artifact qualifies local behavior only. Hosted performance is measured separately.",
+  "bloat": {
+    "rust_duplicated_lines": 13992,
+    "baseline": 13754,
+    "inherited": true
+  },
+  "archive": {
+    "path": "ml-dsa-65-binary-material-local-20261030.tar.gz",
+    "bytes": 893067,
+    "sha256": "814efcc61fbb65fc1b454a6d1abfb1f1446965874fd8eab7823b4b57c0586921",
+    "members": 15,
+    "credential_scan_matches": 0
+  }
+}
