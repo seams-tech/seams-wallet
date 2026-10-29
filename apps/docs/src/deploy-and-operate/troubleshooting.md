@@ -127,7 +127,7 @@ tokens, assertions, OTPs, recovery data, and key material.
 ## External NEAR wallets
 
 **Boundary:** application document and selected external wallet.
-The connector is a development preview included in npm version `0.26.0`.
+The connector is a development preview included in npm version `0.28.0`.
 See [availability and integration](/guides/external-near-wallets).
 
 - Meteor may inject its page API after initial load. Retry after initialization in the correct browser profile. A toolbar icon alone does not prove page API readiness.

@@ -32,6 +32,12 @@ When a node fails, another node takes over its Durable Objects.
 **Cloudflare.** The Wallet lifecycle contract suite runs on the Workers
 runtime. The hosted service runs on Cloudflare.
 
+## Historical provider qualification
+
+The current SDK release is **0.28.0**. The results below record the versions and configurations tested at those dates.
+They do not establish qualification of 0.28.0 on the same infrastructure.
+See [Release 0.28.0](/releases) for current deployment requirements.
+
 **Google Cloud.** Tested in `us-central1` with Wallet Server 0.11.0. All 16
 selected Wallet browser contracts pass on an ordinary VM and on an AMD SEV-SNP
 Confidential VM. A live Yao key ceremony keeps its safety guarantees when a

@@ -6,7 +6,7 @@ description: Seamsのドキュメントで使う、ウォレット、鍵管理�
 # 用語集 {#glossary}
 
 パスキーとメールOTPは、リリース済みの所有者認証方法です。
-SDK 0.26.0では、任意の[VoiceID](/ja/concepts/auth-methods/voiceid)を追加します。
+SDK 0.28.0では、任意の[VoiceID](/ja/concepts/auth-methods/voiceid)に対応します。
 委任エージェントの発行と、より広い決済アダプターは計画中の機能です。
 利用可能なAPIとして扱う前に、[リリース状況](/ja/releases)を確認してください。
 

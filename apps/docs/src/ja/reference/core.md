@@ -93,6 +93,15 @@ seams.connection.dispose();
 - ウォレットのリージョンに関する型（`WalletPlacementCapability`、`WalletRegion`、`WalletMoveRequest`、`WalletPlacement`、`WalletPlacementResult`、`WalletMoveStatus`、`WalletMoveStatusResult`、`WalletMoveId`）と`parseWalletMoveId`。
 - ホストする認証メニューのリクエストビルダーと、境界で安全に扱えるメッセージの型。
 
+## 認証を持ち込む {#bring-your-own-authentication}
+
+`seams.auth.authenticate`は、Google IDトークンと、ブラウザーに結び付いたバックエンドの引き渡しに対応します。
+既存の認証方法で所有者を認証した状態で、`associateExternalAuth`を一度呼び出してください。
+`removeExternalAuth`にも所有者認証が必要です。削除すると、関連付けた設定セッションを失効させます。
+
+これらの呼び出しは設定の読み取り権限を付与し、ウォレットの鍵と署名権限を保持します。
+設定、結果の処理、有効期限は[Google SSOガイド](/ja/guides/google-sso)を参照してください。
+
 ## セッションの呼び出し {#session-calls}
 
 ```ts [部分的な実装例]

@@ -109,6 +109,15 @@ The main entrypoint includes:
   `WalletMoveStatusResult`, `WalletMoveId`) and `parseWalletMoveId`.
 - hosted auth-menu request builders and boundary-safe message types.
 
+## Bring your own authentication
+
+Use `seams.auth.authenticate` with a Google ID token or a browser-bound backend handoff.
+Call `associateExternalAuth` once while the owner has authenticated with an existing wallet method.
+`removeExternalAuth` requires owner authentication and revokes the association's settings sessions.
+
+These calls grant settings access. They preserve the wallet's keys and signing permissions.
+See [Google SSO](/guides/google-sso) for configuration, result handling, and the full lifecycle.
+
 ## Session calls
 
 ```ts [Partial example]

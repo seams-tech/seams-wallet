@@ -30,6 +30,12 @@ Workerコードを実行し、Durable Objects、D1、KVのAPIを提供し、永�
 **Cloudflare。** Walletのライフサイクル契約テストは、Workersランタイム上で実行します。
 ホストサービスはCloudflare上で稼働します。
 
+## 過去のプロバイダー検証 {#historical-provider-qualification}
+
+現在のSDKは**0.28.0**です。以下は、各検証時のバージョンと構成を記録したものです。
+古いバージョンの検証結果は、0.28.0の同じ環境での検証を示しません。
+現在のデプロイ要件は[リリース 0.28.0](/ja/releases)を参照してください。
+
 **Google Cloud。** `us-central1`でWallet Server 0.11.0を検証しました。
 選択した16件のWalletブラウザー契約テストは、通常のVMとAMD SEV-SNP Confidential VMの両方で成功しました。
 進行中のYao鍵生成手順は、ノード停止や相手との通信切断でも安全性を維持します。

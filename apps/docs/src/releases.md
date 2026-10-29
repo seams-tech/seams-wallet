@@ -22,6 +22,7 @@ Version **0.28.0** lets applications reuse a Google ID token to open associated 
 
 Upgrade the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together. Apply the server migrations before enabling external authentication.
 See the [authentication guide](/guides/authentication) for the supported flows.
+Use the [Google SSO guide](/guides/google-sso) for the complete BYO auth integration.
 
 ## Release 0.27.0
 

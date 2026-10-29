@@ -11,6 +11,10 @@ and a Seams project with a wallet origin, relayer URL, and managed-registration 
 
 ## Choose your wallet path
 
+If your app already uses Google SSO, [reuse that login for wallet settings](/guides/google-sso).
+SDK 0.28.0 supports direct Google ID tokens and backend handoffs for associated wallets.
+Signing and security changes retain their owner authentication requirements.
+
 The steps below create a Seams threshold wallet. To let users bring Meteor,
 HOT Wallet, or Intear Wallet, use the [external NEAR connector](/guides/external-near-wallets).
 That path needs no Seams provider or login. It is a development preview.

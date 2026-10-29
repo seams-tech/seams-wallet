@@ -5,7 +5,7 @@ description: Choose the supported Seams SDK entrypoint for browser, React, thres
 
 # SDK reference
 
-This reference describes **@seams/wallet 0.26.0**. The Seams package provides a small set
+This reference describes **@seams/wallet 0.28.0**. The Seams package provides a small set
 of public import paths. Start with the browser or React API. Use lower-level import
 paths only when your integration manages the corresponding runtime or protocol.
 
@@ -25,12 +25,12 @@ wallet HTML asset. Those surfaces are documented on the [React
 reference](/reference/react) and [hosted integration](/deploy-and-operate/hosted-integration)
 pages.
 
-The browser and server SDKs use **0.26.0**. The recovery CLI uses **0.25.0**.
-See [Release 0.26.0](/releases) for integration and deployment requirements.
+The browser and server SDKs use **0.28.0**. The recovery CLI uses **0.28.0**.
+See [Release 0.28.0](/releases) for integration and deployment requirements.
 
 ## Prepared NEAR connector
 
-Version **0.26.0** includes these entry points. The connector remains a development preview.
+Version **0.28.0** includes these entry points. The connector remains a development preview.
 See [external NEAR wallets](/guides/external-near-wallets) for availability, examples, and result branches.
 
 | Import path                         | Exports                                                                                                 |

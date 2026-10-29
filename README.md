@@ -3,19 +3,21 @@
 Open-source browser and server Wallet SDKs, signer runtimes, Rust/Wasm
 implementation crates, documentation, examples, and recovery CLI.
 
+Current SDK release: **0.28.0**. [Read the documentation](https://wallet.seams.sh/docs/) or start with the [release notes](./apps/docs/src/releases.md).
+
 Packages for this release:
 
 - `@seams/wallet@0.28.0` — browser SDK and React components.
 - `@seams/wallet-server@0.28.0` — server SDK and packaged Worker runtimes.
 - `@seams/voiceid@0.28.0` — optional VoiceID authentication plugin.
-- `@seams/wallet-cli@0.25.0` — with its signed native release;
+- `@seams/wallet-cli@0.28.0` — with its signed native release;
   see the [recovery CLI](./apps/docs/src/deploy-and-operate/recovery-cli.md).
 
 Seams Wallet is licensed under Apache-2.0. See `LICENSE.md`.
 
-The browser and server SDKs use wallet iframe protocol `17.0.0`. Upgrade the browser
+The browser and server SDKs use wallet iframe protocol `18.0.0`. Upgrade the browser
 SDK, wallet-origin assets, server SDK, and enabled VoiceID plugin together.
-The CLI has its own release cadence.
+All four public Seams packages use version **0.28.0** in this release.
 See [release notes](./apps/docs/src/releases.md) and the
 [hosted integration guide](./apps/docs/src/deploy-and-operate/hosted-integration.md)
 for changes and deployment requirements. The development checkout can contain
@@ -23,6 +25,14 @@ changes that npm does not yet publish.
 
 The hosted Seams Console, product sites, and deployment configuration live
 in the private `seams-tech/seams-monorepo` repository.
+
+## New in 0.28.0
+
+- **Bring your own Google authentication.** Reuse the app's Google ID token to open associated wallet settings without a second login.
+  Existing wallets need a one-time owner-approved association. Signing and security changes retain their owner authentication requirements.
+  Follow the [Google SSO guide](./apps/docs/src/guides/google-sso.md).
+- **Wallet settings drawers.** Show localized account, method, and device views in a responsive settings panel.
+- **Configurable VoiceID.** Select Citrinet or Aurora transcription models through the optional VoiceID package.
 
 ## Integrate the SDK
 

@@ -15,13 +15,14 @@ authentication method and handle each resulting state.
   Call `seams.auth.authenticate({ method: 'google', walletId, idToken })` after the app's login.
   This grants settings reads. Signing and security changes still require wallet owner authentication.
   Apps that keep tokens on their backend use `prepareExternalAuth` and a bound handoff.
+  Follow the [Google SSO guide](/guides/google-sso) for provider configuration, association, logout, and revocation.
 
 - **Passkey** — primary registration and unlock on supported browsers. The
   wallet origin and relying party ID (RP ID) define where the credential can be used.
 - **Google plus email OTP** — account discovery with a recoverable second
   factor. The application supplies the Google token. The wallet flow manages OTP
   and recovery state.
-- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.26.0.
+- **VoiceID** — optional browser enrollment, unlock, and reviewed transfer approval in SDK 0.28.0.
   Install `@seams/voiceid`, enable its descriptor, and prepare the Wallet host.
   See [VoiceID setup](/concepts/auth-methods/voiceid) for code examples and enrollment steps.
 
