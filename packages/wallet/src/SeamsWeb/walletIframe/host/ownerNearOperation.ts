@@ -178,8 +178,12 @@ class HostedOwnerNearOperation {
         signedTransaction: session.signedTransaction,
         options: { onEvent: this.onEvent },
       });
-      if (!result.success && result.kind !== 'not_submitted') return this.unknown();
-      outcome = { kind: 'completed', result };
+      if (!result.success) {
+        if (result.kind !== 'not_submitted') return this.unknown();
+        outcome = { kind: 'failed', error: result.error };
+      } else {
+        outcome = { kind: 'completed', result };
+      }
     } catch (error) {
       if (this.submission === 'dispatched') return this.unknown();
       if (error instanceof OwnerNearExpired) outcome = { kind: 'expired' };

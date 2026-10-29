@@ -1,5 +1,6 @@
 import type { ActionResult } from '../../packages/wallet/src/core/types/seams';
 import type {
+  OwnerNearOutcome,
   OwnerNearOperationState,
   PrepareOwnerNearTransaction,
 } from '../../packages/wallet/src/SeamsWeb/publicApi/ownerNearOperation';
@@ -49,3 +50,8 @@ void [
   contradictoryCancellation,
   ownerRegistrationWithSession,
 ];
+
+declare const failedResult: Extract<ActionResult, { success: false }>;
+// @ts-expect-error A completed owner outcome cannot contain a failed transaction.
+const completedWithFailure: OwnerNearOutcome = { kind: 'completed', result: failedResult };
+void completedWithFailure;

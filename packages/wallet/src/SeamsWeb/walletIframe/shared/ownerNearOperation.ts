@@ -34,7 +34,7 @@ export type OwnerNearCommand = Readonly<{
   >;
 
 export type OwnerNearOutcome = ReadonlyExclusiveUnion<
-  | { kind: 'completed'; result: ActionResult }
+  | { kind: 'completed'; result: Extract<ActionResult, { success: true }> }
   | { kind: 'reverted'; transactionId: string; error: string }
   | { kind: 'cancelled' }
   | { kind: 'expired' }
@@ -99,8 +99,11 @@ export function parseOwnerNearCommand(raw: unknown): OwnerNearCommand {
 export function parseOwnerNearOutcome(raw: unknown): OwnerNearOutcome {
   const value = requireRecord(raw, 'owner operation outcome');
   switch (value.kind) {
-    case 'completed':
-      return { kind: 'completed', result: parseNearTransactionResult(value.result) };
+    case 'completed': {
+      const result = parseNearTransactionResult(value.result);
+      if (!result.success) throw new Error('A completed owner operation requires a successful transaction.');
+      return { kind: 'completed', result };
+    }
     case 'reverted':
       return {
         kind: 'reverted',

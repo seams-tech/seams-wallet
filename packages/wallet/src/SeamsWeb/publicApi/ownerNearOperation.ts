@@ -3,7 +3,6 @@ import { toAccountId } from '@/core/types/accountIds';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { ActionResult } from '@/core/types/seams';
 import type { ExternalWalletAuthentication } from '@shared/auth/externalAuth';
-import { safeErrorMessage } from '@shared/utils/errors';
 import { secureRandomBase64Url } from '@shared/utils/secureRandomId';
 import type { ReadonlyExclusiveUnion } from '@shared/utils/variant';
 import {
@@ -181,13 +180,8 @@ class OwnerNearTransaction implements OwnerNearOperation {
           command.action === 'recover' ? new AbortController().signal : this.controller.signal,
         onSubmission: this.submitted.bind(this),
       });
-    } catch (error) {
+    } catch {
       outcome = { kind: 'unknown', recovery: command.recovery };
-      if (this.state.kind === 'prepared')
-        outcome = {
-          kind: 'failed',
-          error: safeErrorMessage(error) || 'The operation could not start.',
-        };
     }
     this.settle(outcome, command.recovery);
     this.inFlight = null;
@@ -197,11 +191,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
   private settle(outcome: OwnerNearOutcome, recovery: OwnerNearRecovery): void {
     switch (outcome.kind) {
       case 'completed':
-        if (outcome.result.success)
-          this.transition({ kind: 'completed', recovery, result: outcome.result });
-        else if (outcome.result.kind === 'not_submitted')
-          this.transition({ kind: 'failed', recovery, error: outcome.result.error });
-        else this.transition({ kind: 'unknown', recovery });
+        this.transition({ kind: 'completed', recovery, result: outcome.result });
         return;
       case 'reverted':
         this.transition({
