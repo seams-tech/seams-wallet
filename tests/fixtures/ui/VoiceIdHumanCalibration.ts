@@ -84,6 +84,9 @@ class HumanCalibration {
   private readonly prompt = new VoicePrompt(document, 'Local VoiceID calibration', SPOKEN_PHRASES[0]);
 
   constructor(private readonly metadata: Metadata) {
+    const revision = metadata.revision.slice(0, 9);
+    document.title = `VoiceID calibration · ${revision}`;
+    element('build', HTMLParagraphElement).textContent = `Build ${revision} · ${SPOKEN_PHRASES.length} phrases · cutoff ${VOICE_MATCH_THRESHOLD}`;
     element('capture', HTMLDivElement).append(this.prompt.element);
     this.prompt.record.disabled = true;
     this.prompt.record.textContent = 'Record';

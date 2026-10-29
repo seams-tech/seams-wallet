@@ -26,6 +26,7 @@ button:disabled{opacity:.45;cursor:default}button[hidden]{display:none}#status{m
 @media(max-width:760px){body{padding:20px}.layout{grid-template-columns:1fr}#results{overflow:auto}}
 </style><main>
 <h1>VoiceID human calibration</h1>
+<p id="build" class="notes"></p>
 <p class="notes">Local measurement only. No wallet actions. Raw audio is discarded after each capture. Voice vectors stay in memory and are cleared when this page closes. Export contains scores and pseudonymous labels only.</p>
 <div class="layout"><section>
 <label><input id="consent" type="checkbox"> I agree to this local recording session and will identify speakers accurately.</label>

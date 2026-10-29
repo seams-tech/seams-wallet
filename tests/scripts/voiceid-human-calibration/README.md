@@ -11,6 +11,7 @@ assets only. It accepts no uploads. Recordings use the production microphone,
 MediaRecorder, Silero, Aurora, and ReDimNet code. This page never opens a wallet,
 reads a wallet enrollment, activates an authentication method, or signs anything.
 It can remember microphone preferences in this isolated localhost origin.
+Check the build label before recording. The page title also identifies its source revision.
 
 ## Collect real readings
 
