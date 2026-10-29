@@ -2,12 +2,15 @@
 
 For published integration instructions, use the
 [public documentation](https://wallet.seams.sh/docs/) and
-[release notes](../apps/docs/src/releases.md). The published SDK baseline checked
-October 20, 2026 is 0.15.4, with CLI 0.15.0 and iframe protocol 16.0.0.
+[release notes](../apps/docs/src/releases.md). The current browser SDK, server SDK,
+VoiceID plugin, and recovery CLI use **0.28.0**. The wallet iframe protocol is **18.0.0**.
 
 Seams Wallet lets people use blockchain accounts with a passkey or an email
 verification code. An application uses the Wallet SDK to handle sign-in, request
 signatures, and manage access to those accounts.
+
+Apps can also [reuse Google login for wallet settings](../apps/docs/src/guides/google-sso.md)
+after an owner-approved association. Settings sessions retain separate permissions from signing.
 
 A wallet keeps its keys as the user adds sign-in methods, links devices, or
 recovers access. Normal signing uses cryptographic material held by the client

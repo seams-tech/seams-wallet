@@ -1,19 +1,19 @@
 # Seams Wallet SDK
 
-`@seams/wallet` **0.17.0** provides browser wallet lifecycle, NEAR and EVM-family
+`@seams/wallet` **0.28.0** provides browser wallet lifecycle, NEAR and EVM-family
 threshold signing, React components, and hosted wallet runtime assets.
 
 ## Install
 
 ```sh
-pnpm add @seams/wallet@0.17.0
+pnpm add @seams/wallet@0.28.0
 ```
 
 React integrations support React 18 and 19. Import the provider and UI from
 `@seams/wallet/react` and its stylesheet from `@seams/wallet/react/styles`.
 Keep the application package, wallet-origin assets, and
-`@seams/wallet-server@0.17.0` on the matching release. The wallet iframe protocol
-is `16.0.0`. The application and wallet host must use the same protocol version.
+`@seams/wallet-server@0.28.0` on the matching release. The wallet iframe protocol
+is `18.0.0`. The application and wallet host must use the same protocol version.
 
 ## Current API
 
@@ -45,6 +45,22 @@ The SDK selects signers and completes pending activation internally.
 
 Request email codes only after a user chooses that method. The wallet host owns
 the challenge and its expiry. The application receives the typed challenge handle.
+
+## Bring your own Google authentication
+
+SDK 0.28.0 can reuse an application's Google ID token to open associated wallet settings.
+Configure the environment's Google client ID and let the owner associate their wallet once.
+Then pass the token after the application's existing Google login:
+
+```ts
+const result = await seams.auth.authenticate({ method: 'google', walletId, idToken });
+if (!result.ok) throw new Error(result.code);
+```
+
+Apps that retain the token on their backend use `prepareExternalAuth` and a browser-bound handoff.
+Call `seams.auth.lock()` when the app logs out or switches accounts.
+These sessions grant settings reads. Signing, export, recovery, and security changes retain their owner authentication requirements.
+See the [Google SSO guide](https://wallet.seams.sh/docs/guides/google-sso) for both exchange paths, association, expiry, and revocation.
 
 ## React quick start
 
