@@ -26,9 +26,9 @@ import {
   activateVoiceIdForUnlockedWallet,
   type VoiceIdSeedResealPort,
 } from '@voiceid/session/activation';
-import {
-  captureVoiceIdActivation,
-  captureVoiceIdUnlock,
+import type {
+  VoiceIdActivationCapture,
+  VoiceIdUnlockCapture,
 } from '@voiceid/capture/deviceBridge';
 import { VoiceIdActivationStore, type VoiceIdActivationStoragePort } from '@voiceid/session/activationStore';
 import type { ActiveVoiceIdWalletAuthMethodRecordV2 } from '@shared/utils/walletAuthMethodRecord';
@@ -185,8 +185,8 @@ class TestVoiceIdCapture {
   constructor(private readonly device: TestDeviceKey) {}
 
   async capture(
-    _input: Parameters<typeof captureVoiceIdActivation>[0],
-  ): ReturnType<typeof captureVoiceIdActivation> {
+    _input: Parameters<VoiceIdActivationCapture>[0],
+  ): ReturnType<VoiceIdActivationCapture> {
     this.calls += 1;
     return {
       kind: 'activated',
@@ -288,8 +288,8 @@ class GeneratedVoiceIdCapture {
   ) {}
 
   async capture(
-    input: Parameters<typeof captureVoiceIdUnlock>[0],
-  ): ReturnType<typeof captureVoiceIdUnlock> {
+    input: Parameters<VoiceIdUnlockCapture>[0],
+  ): ReturnType<VoiceIdUnlockCapture> {
     input.onCapture({ kind: 'processing' });
     const signature = await crypto.subtle.sign(
       'Ed25519',
