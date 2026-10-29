@@ -711,7 +711,8 @@
     "Stage-clock spans include scheduling, transfer and processing and can omit CPU.",
     "Equal-pair comparisons exclude four schedule-cache-miss operations per window.",
     "Whole invocation CPU is a record total, not isolated storage or serialization cost.",
-    "The JSON control already completes an eleven-pair operation in 2.634 seconds."
+    "The JSON control already completes an eleven-pair operation in 2.634 seconds.",
+    "Binary driver alarm lateness reaches 43.159 and 30.397 seconds before new demands, reducing offered load. Its 41.857-second demand includes 37.448 seconds of recorded driver alarm lateness. Preserve measured throughput; the exact delay cause remains unknown."
   ],
   "retry_descriptor": {
     "json_control_raw_descriptor_stale": true,
@@ -964,11 +965,95 @@
       "repair": "Preserved the failed evidence and copied the approved holder key set into each disposable client directory. Recipient equality checks stayed unchanged."
     }
   ],
+  "driver_alarm_lateness": {
+    "json30": [
+      {
+        "request_index": 152,
+        "wallet": 2,
+        "demand": 9,
+        "alarm_lateness_ms": 3507,
+        "start_at_ms": 1793296771084,
+        "elapsed_ms": 18,
+        "demand_elapsed_ms": 18,
+        "status": "unavailable",
+        "state": null,
+        "reason": "wallet_cooldown"
+      }
+    ],
+    "binary30": [
+      {
+        "request_index": 26,
+        "wallet": 0,
+        "demand": 14,
+        "alarm_lateness_ms": 37448,
+        "start_at_ms": 1793297985429,
+        "elapsed_ms": 1297,
+        "demand_elapsed_ms": 41857,
+        "status": "existing",
+        "state": "succeeded",
+        "reason": null
+      },
+      {
+        "request_index": 27,
+        "wallet": 0,
+        "demand": 15,
+        "alarm_lateness_ms": 11885,
+        "start_at_ms": 1793297986754,
+        "elapsed_ms": 31,
+        "demand_elapsed_ms": 31,
+        "status": "unavailable",
+        "state": null,
+        "reason": "wallet_cooldown"
+      },
+      {
+        "request_index": 43,
+        "wallet": 0,
+        "demand": 23,
+        "alarm_lateness_ms": 1366,
+        "start_at_ms": 1793298229934,
+        "elapsed_ms": 31,
+        "demand_elapsed_ms": 31,
+        "status": "unavailable",
+        "state": null,
+        "reason": "wallet_cooldown"
+      },
+      {
+        "request_index": 90,
+        "wallet": 1,
+        "demand": 13,
+        "alarm_lateness_ms": 43159,
+        "start_at_ms": 1793297958026,
+        "elapsed_ms": 1518,
+        "demand_elapsed_ms": 1518,
+        "status": "existing",
+        "state": "succeeded",
+        "reason": null
+      },
+      {
+        "request_index": 95,
+        "wallet": 1,
+        "demand": 16,
+        "alarm_lateness_ms": 30397,
+        "start_at_ms": 1793298078424,
+        "elapsed_ms": 671,
+        "demand_elapsed_ms": 671,
+        "status": "existing",
+        "state": "succeeded",
+        "reason": null
+      }
+    ],
+    "binary_maximum_demand_decomposition": {
+      "cooldown_response_ms": 26,
+      "scheduled_wait_ms": 3086,
+      "driver_alarm_lateness_ms": 37448,
+      "successful_call_ms": 1297
+    }
+  },
   "archive": {
     "path": "ml-dsa-65-binary-material-hosted-20261030.tar.gz",
-    "bytes": 7931698,
-    "sha256": "74493ddcd2261fb9ddef89ddb290da86fa48adc6d44717db2343d49a298e1dbf",
-    "members": 95,
+    "bytes": 7927394,
+    "sha256": "57e4727de20deab216766d922239968d16f0c02536e355b45ff037b93b684b74",
+    "members": 97,
     "credential_scan_matches": 0
   }
 }
