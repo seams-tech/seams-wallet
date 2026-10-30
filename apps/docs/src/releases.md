@@ -1,9 +1,34 @@
 ---
-title: Release 0.29.0
-description: Trusted application sessions, owner-only NEAR onboarding, fresh transaction approval, and recoverable submission states.
+title: Release 0.30.0
+description: Combined hosted authentication and configurable NEAR and EVM wallet alternatives.
 ---
 
-# Release 0.29.0
+# Release 0.30.0
+
+Version **0.30.0** combines Seams authentication and configured external wallet connections in one hosted screen.
+
+| Component | Version |
+| --- | --- |
+| `@seams/wallet` | **0.30.0** |
+| `@seams/wallet-server` | **0.30.0** |
+| `@seams/voiceid` | **0.30.0** |
+| Signed recovery CLI | **0.29.0** |
+| Wallet iframe protocol | **20.0.0** |
+| Wallet-management protocol | **5** |
+
+- Use `HostedSeamsAuthMenu` with optional ordered `walletAlternatives.primary` and `walletAlternatives.secondary` groups.
+- Omitted configuration and empty groups hide their sections. Secondary wallets appear inside More wallets.
+- Reuse the existing NEAR and EVM controllers. Connection callbacks stay in the application.
+- Recover or link wallet expands device linking and recovery. Alternative icons gain color on hover or keyboard focus.
+- Closing the menu or replacing a controller invalidates pending connections. Completed connections survive menu closure.
+- Signing sessions use sealed refresh by default. Passkey unlock also works without saved sealed-session material.
+
+`WalletConnectorMenu` is removed. Move its wallet entries into `HostedSeamsAuthMenu.walletAlternatives`.
+Low-level connector requests use `alternativeId`. External success emits `wallet_connected` without creating a Seams session.
+Upgrade application SDKs and hosted Wallet assets together. This release changes the iframe protocol and adds no database migrations.
+See the [React reference](/reference/react#wallet-alternatives) for configuration.
+
+## Release 0.29.0
 
 Version **0.29.0** connects an application's authenticated user to a readable wallet.
 Fresh wallet-origin owner proof approves each NEAR transaction.

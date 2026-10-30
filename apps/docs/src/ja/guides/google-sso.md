@@ -1,13 +1,13 @@
 ---
 title: Google認証を持ち込む
-description: SDK 0.29.0で、アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
+description: SDK 0.30.0で、アプリのGoogle SSOログインを関連付けたウォレットの設定表示に再利用します。
 ---
 
 # Google認証を持ち込む {#bring-your-own-google-authentication}
 
 アプリのGoogle IDトークンを使うと、関連付けたウォレットの設定を、再ログインなしで開けます。
 署名と鍵管理には、引き続き所有者の認証が必要です。
-SDK **0.29.0**では、Googleが最初のBYO認証プロバイダーです。
+SDK **0.30.0**では、Googleが最初のBYO認証プロバイダーです。
 設定したOAuthクライアント向けの**IDトークン**を渡してください。
 このAPIは、Googleアクセストークンや任意のWebAuthnアサーションには対応していません。
 
@@ -141,7 +141,7 @@ await seams.auth.removeExternalAuth({ walletId, associationId });
 
 ## 検証 {#verification}
 
-対象は、SDK **0.29.0**とウォレットiframeプロトコル**19.0.0**です。
+対象は、SDK **0.30.0**とウォレットiframeプロトコル**20.0.0**です。
 リポジトリのルートで、`pnpm -C packages/wallet build:sdk`の後に`node tests/e2e/external-auth.e2e.mjs`を実行します。
 構造化された結果と設定画面の画像を、`.artifacts/external-auth/`に保存します。
 E2Eは生成したテストトークンと、テスト専用のGoogle公開鍵の差し替えを使います。

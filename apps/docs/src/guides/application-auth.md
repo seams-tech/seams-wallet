@@ -5,7 +5,7 @@ description: Connect an application account and approve each NEAR operation with
 
 # Application sessions and owner approval
 
-SDK **0.29.0** accepts a handoff from an explicitly trusted application backend.
+SDK **0.30.0** accepts a handoff from an explicitly trusted application backend.
 Google and application-passkey login can use the same stable application user ID.
 The wallet connection grants settings access. Each transaction requires fresh wallet owner proof.
 
