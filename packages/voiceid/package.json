@@ -51,10 +51,14 @@
   },
   "peerDependencies": {
     "@seams/wallet": "0.31.0",
-    "react": "19.1.1"
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   },

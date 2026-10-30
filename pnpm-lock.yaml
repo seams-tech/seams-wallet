@@ -133,6 +133,9 @@ importers:
       react:
         specifier: 19.1.1
         version: 19.1.1
+      react-dom:
+        specifier: 19.1.1
+        version: 19.1.1(react@19.1.1)
       voice-glow:
         specifier: 0.2.1
         version: 0.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
