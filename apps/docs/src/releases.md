@@ -1,9 +1,26 @@
 ---
-title: Release 0.31.0
-description: Exact dependency versions, React 19.1.1 peers, and aligned Wallet runtime builds.
+title: Release 0.32.0
+description: Exact dependency versions and aligned React peers for coordinated Wallet deployments.
 ---
 
-# Release 0.31.0
+# Release 0.32.0
+
+Version **0.32.0** keeps the exact dependency versions and aligned React peers from 0.31.0.
+
+| Component | Version |
+| --- | --- |
+| `@seams/wallet` | **0.32.0** |
+| `@seams/wallet-server` | **0.32.0** |
+| `@seams/voiceid` | **0.32.0** |
+| Signed recovery CLI | **0.29.0** |
+| Wallet iframe protocol | **20.0.0** |
+| Wallet-management protocol | **5** |
+
+React integrations require `react@19.1.1` and `react-dom@19.1.1`.
+Update the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+This version adds no database migrations or iframe protocol changes.
+
+## Release 0.31.0
 
 Version **0.31.0** pins external npm and Cargo dependencies and aligns the Wallet runtime builds.
 

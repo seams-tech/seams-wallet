@@ -1,6 +1,6 @@
 {
   "name": "@seams/voiceid",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "type": "module",
   "description": "Optional browser VoiceID authentication for Seams Wallet",
   "license": "Apache-2.0",
@@ -50,7 +50,7 @@
     "voice-glow": "0.2.1"
   },
   "peerDependencies": {
-    "@seams/wallet": "0.31.0",
+    "@seams/wallet": "0.32.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
