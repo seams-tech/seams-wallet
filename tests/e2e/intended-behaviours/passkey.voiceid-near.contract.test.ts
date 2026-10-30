@@ -16,6 +16,7 @@ import {
   startReviewedTransfer,
   VoiceIdNearSigningEvidence,
 } from './voiceid-near-signing';
+import { beginDirectVoiceUnlock } from './voiceid-selection';
 import type {} from '../../intended-app/src/voiceIdHelpers';
 
 test.use({ ...voiceIdBrowserAudio, video: 'off', trace: 'off', screenshot: 'off' });
@@ -40,6 +41,7 @@ async function verifyTransfer(
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   const unlocking = page.evaluate(unlockWithVoice, method.walletAuthMethodId);
+  await beginDirectVoiceUnlock(page);
   expect(await unlocking).toMatchObject({ success: true });
   const evidence = new VoiceIdNearSigningEvidence(
     process.env.SEAMS_INTENDED_ROUTER_URL || 'http://127.0.0.1:4100',
@@ -49,13 +51,6 @@ async function verifyTransfer(
   await evidence.observe(context);
   await startReviewedTransfer(page);
   await wallet.locator('button.confirm').click();
-  await expect(wallet.locator('body')).toHaveAttribute('data-voice-verification', /phraseMatched/, {
-    timeout: 20_000,
-  });
-  const verification = JSON.parse(
-    (await wallet.locator('body').getAttribute('data-voice-verification')) || '{}',
-  );
-  expect(verification.phraseMatched).toBe(true);
   await expect(page.getByTestId('reviewed-near-result')).toHaveAttribute('data-state', 'failed', {
     timeout: 60_000,
   });

@@ -165,25 +165,6 @@ class VoiceEnrollmentSurface {
           );
         }
       }
-      let minimumSimilarity = 1;
-      for (const previous of this.samples)
-        minimumSimilarity = Math.min(minimumSimilarity, voiceSimilarity(previous, embedding));
-      this.status.dataset.voiceCapture = JSON.stringify({
-        attemptId: pcm.quality.attemptId,
-        capturedAtMs: pcm.quality.capturedAtMs,
-        sample: this.samples.length + 1,
-        durationMs: pcm.quality.durationMs,
-        recordingMs: pcm.quality.recordingMs,
-        endedBy: pcm.quality.endedBy,
-        voicedMs: pcm.quality.voicedMs,
-        microphone: pcm.quality.microphone,
-        microphoneSelection: pcm.quality.microphoneSelection,
-        processing: pcm.quality.processing,
-        backgroundRms: pcm.quality.backgroundRms,
-        speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
-        noise: pcm.quality.noise,
-        minimumSimilarity,
-      });
       for (const previous of this.samples) {
         if (voiceSimilarity(previous, embedding) < VOICE_MATCH_THRESHOLD) {
           embedding.fill(0);
@@ -319,7 +300,6 @@ export async function verifyBrowserVoice(
   | { kind: 'phrase_mismatch' }
   | { kind: 'insufficient_audio'; quality: VoiceCaptureQuality }
 > {
-  delete document.body.dataset.voiceVerification;
   const pcm = await recordVoice(signal, onCapture);
   if (pcm.kind === 'insufficient_audio') {
     signal.throwIfAborted();
@@ -328,19 +308,13 @@ export async function verifyBrowserVoice(
   try {
     signal.throwIfAborted();
     const phraseCheck = await checkSpokenPhrase(pcm.samples, phrase, model);
-    const phraseMatched = phraseCheck.kind === 'matched';
-    const modelInputMs = pcm.samples.length / 16;
     const embedding = await voiceEmbedding(pcm.samples);
     let similarity: number;
-    let baselineSimilarity: number;
-    let referenceKind: 'baseline' | 'adapted';
     try {
       signal.throwIfAborted();
       const reference = await readVoiceTemplate(access, signal);
       try {
         similarity = voiceSimilarity(embedding, reference.template);
-        baselineSimilarity = voiceSimilarity(embedding, reference.baseline);
-        referenceKind = reference.kind;
       } finally {
         reference.template.fill(0);
         reference.baseline.fill(0);
@@ -348,28 +322,6 @@ export async function verifyBrowserVoice(
     } finally {
       embedding.fill(0);
     }
-    document.body.dataset.voiceVerification = JSON.stringify({
-      attemptId: pcm.quality.attemptId,
-      capturedAtMs: pcm.quality.capturedAtMs,
-      durationMs: pcm.quality.durationMs,
-      recordingMs: pcm.quality.recordingMs,
-      endedBy: pcm.quality.endedBy,
-      voicedMs: pcm.quality.voicedMs,
-      microphone: pcm.quality.microphone,
-      microphoneSelection: pcm.quality.microphoneSelection,
-      processing: pcm.quality.processing,
-      backgroundRms: pcm.quality.backgroundRms,
-      speechToBackgroundDb: pcm.quality.speechToBackgroundDb,
-      noise: pcm.quality.noise,
-      similarity,
-      baselineSimilarity,
-      referenceKind,
-      modelInputMs,
-      threshold: VOICE_MATCH_THRESHOLD,
-      phraseMatched,
-      phraseRecognition: phraseCheck.recognition,
-      expectedPhrase: phrase,
-    });
     if (similarity < VOICE_MATCH_THRESHOLD) return { kind: 'mismatch', quality: pcm.quality };
     return phraseCheck.kind === 'matched' ? { kind: 'matched' } : { kind: 'phrase_mismatch' };
   } finally {

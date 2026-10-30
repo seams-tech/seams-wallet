@@ -207,8 +207,9 @@ same hash-verified browser cache as the models. If storage is unavailable, loadi
 still works for the current session. Transaction approval uses the same preparation
 before starting its bounded recording attempt.
 The lightweight shell itself still needs its first module download.
-Unlock starts listening automatically after preparation. The initial Unlock with
-VoiceID action opens this flow. Back cancels capture and returns to the login menu.
+The Wallet auth menu starts listening after the user selects VoiceID and preparation
+finishes. A direct SDK unlock request waits for the user to select Unlock with VoiceID
+inside the Wallet. Back cancels capture and returns to the login menu.
 Retries require Try again. The card uses the wallet's Back icon and Seams wordmark,
 with one rounded surface and a transparent activation container.
 Cancellation aborts the challenge request and prevents late UI or recording.

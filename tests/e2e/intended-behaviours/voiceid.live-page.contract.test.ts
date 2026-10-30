@@ -169,6 +169,14 @@ async function verifyLivePage(
   await expect(page.getByTestId('live-voiceid-auth')).toHaveText('locked');
   await wallet.locator('body').evaluate(useWrongPhrase);
   await page.getByRole('button', { name: 'Unlock with VoiceID', exact: true }).click();
+  const record = wallet.getByRole('button', { name: 'Unlock with VoiceID', exact: true });
+  await expect(record).toBeEnabled({ timeout: 45_000 });
+  await expect(wallet.locator('.seams-voiceid-prompt')).not.toHaveAttribute(
+    'data-capture',
+    'listening',
+  );
+  expect(await wallet.locator('body').evaluate(microphoneStates)).not.toContain('live');
+  await record.click();
   const unlockPhrase = await wallet
     .locator('[data-voiceid-phrase]')
     .getAttribute('data-voiceid-phrase');
@@ -268,10 +276,6 @@ async function verifyLivePage(
   const retry = wallet.getByRole('button', { name: 'Try again', exact: true });
   await expect(retry).toBeEnabled();
   expect(evidence.snapshot()).toEqual(beforeMismatch);
-  const mismatchCapture = await wallet.locator('body').getAttribute('data-voice-verification');
-  if (mismatchCapture === null) throw new Error('Voice verification measurement is missing');
-  const mismatch = JSON.parse(mismatchCapture);
-  expect(mismatch.similarity).toBeLessThan(mismatch.threshold);
   const stalePhrase = await readFile(
     path.resolve(
       import.meta.dirname,
@@ -324,7 +328,6 @@ async function verifyLivePage(
         liveWaveformUsesSingleRecordingStream: true,
         cancelDuringSigningCaptureStopsMicrophoneAndPreventsSigning: true,
         ownerReenrollmentReusesDeviceCredential: true,
-        mismatchCapture: mismatch,
         mismatchPreventsSigning: true,
         explicitRetrySignsSameReview: true,
         cancellationStopsMicrophone: true,

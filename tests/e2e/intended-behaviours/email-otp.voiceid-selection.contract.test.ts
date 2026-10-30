@@ -9,6 +9,7 @@ import {
 import { VoiceIdNearSigningEvidence } from './voiceid-near-signing';
 import {
   VoiceDownloads,
+  beginDirectVoiceUnlock,
   voiceEntryName,
   signTransfer,
   microphoneCount,
@@ -100,7 +101,9 @@ test('an Email-backed VoiceID session adds its first passkey with one fresh emai
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   await harness.lockWallet();
-  expect(await page.evaluate(unlockVoice, method.walletAuthMethodId)).toMatchObject({
+  const unlockOperation = page.evaluate(unlockVoice, method.walletAuthMethodId);
+  await beginDirectVoiceUnlock(page);
+  expect(await unlockOperation).toMatchObject({
     success: true,
   });
   const before = (await page.evaluate(session)).authentication;

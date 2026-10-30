@@ -6,7 +6,7 @@ import {
   requireActivatedVoiceId,
   voiceIdBrowserAudio,
 } from './voiceid-browser-audio';
-import { session, saveEvidence } from './voiceid-selection';
+import { beginDirectVoiceUnlock, session, saveEvidence } from './voiceid-selection';
 
 test.use({ ...voiceIdBrowserAudio, video: 'off', trace: 'off' });
 test.setTimeout(180_000);
@@ -25,7 +25,9 @@ test('a VoiceID session adds Email OTP with one action-level passkey proof', asy
   await enrollBrowserMicrophone(page);
   const method = requireActivatedVoiceId(await activation);
   await harness.lockWallet();
-  expect(await page.evaluate(unlock, method.walletAuthMethodId)).toMatchObject({ success: true });
+  const unlockOperation = page.evaluate(unlock, method.walletAuthMethodId);
+  await beginDirectVoiceUnlock(page);
+  expect(await unlockOperation).toMatchObject({ success: true });
   const before = (await page.evaluate(session)).authentication;
   expect(before).toMatchObject({ kind: 'authenticated', authMethod: 'voiceid' });
   const requestsBefore = await wallet.locator('body').evaluate(readPasskeyRequests);

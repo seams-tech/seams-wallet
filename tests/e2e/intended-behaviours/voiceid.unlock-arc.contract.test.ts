@@ -6,7 +6,13 @@ import {
   requireActivatedVoiceId,
   voiceIdBrowserAudio,
 } from './voiceid-browser-audio';
-import { session, saveEvidence, microphoneCount, signTransfer } from './voiceid-selection';
+import {
+  beginDirectVoiceUnlock,
+  session,
+  saveEvidence,
+  microphoneCount,
+  signTransfer,
+} from './voiceid-selection';
 import { readNearIdentity, VoiceIdNearSigningEvidence } from './voiceid-near-signing';
 import { VoiceIdArcRpc } from './voiceid-arc-rpc';
 import type {} from '../../intended-app/src/voiceIdHelpers';
@@ -35,7 +41,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
     const method = requireActivatedVoiceId(await activation);
     if (profile === 'add_ecdsa_after_voice') {
       await harness.lockWallet();
-      expect(await page.evaluate(unlock, method.walletAuthMethodId)).toMatchObject({
+      const firstUnlock = page.evaluate(unlock, method.walletAuthMethodId);
+      await beginDirectVoiceUnlock(page);
+      expect(await firstUnlock).toMatchObject({
         success: true,
       });
       const passkeysBefore = await wallet.locator('body').evaluate(readPasskeyRequests);
@@ -47,7 +55,9 @@ for (const profile of ['ecdsa_only', 'add_ecdsa_after_voice'] as const) {
       throw new Error('ECDSA owner identity is unavailable');
     const ownerAddress = owner.appIdentity.thresholdEcdsaEthereumAddress;
     await harness.lockWallet();
-    const unlocked = await page.evaluate(unlock, method.walletAuthMethodId);
+    const unlockOperation = page.evaluate(unlock, method.walletAuthMethodId);
+    await beginDirectVoiceUnlock(page);
+    const unlocked = await unlockOperation;
     expect(unlocked).toMatchObject({
       success: true,
       kind: profile === 'ecdsa_only' ? 'ecdsa_wallet_unlocked' : 'near_wallet_unlocked',

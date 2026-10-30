@@ -1,4 +1,5 @@
 import { readAuthMethodEnabled } from '@seams/wallet/voiceid-host';
+import { requireVoiceUserAction } from '../browser/microphone';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 import type { VoiceCaptureObserver } from '../browser/microphone';
 import type { SpokenPhrase } from '../browser/phrase';
@@ -23,6 +24,7 @@ type PreparedVoiceIdUnlock = Readonly<{
   challenge: VoiceIdWalletSessionChallenge;
   http: VoiceIdHttpClient;
   install: AuthMethodSessionInstaller;
+  initiation: 'hosted_menu' | 'sdk_request';
 }>;
 
 export async function prepareUnlockSurface(
@@ -64,7 +66,13 @@ export async function prepareUnlockSurface(
     signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
   input.assertActive();
-  const prepared: PreparedVoiceIdUnlock = { authMethod, challenge, http, install };
+  const prepared: PreparedVoiceIdUnlock = {
+    authMethod,
+    challenge,
+    http,
+    install,
+    initiation: input.mountCapture ? 'hosted_menu' : 'sdk_request',
+  };
   signal.throwIfAborted();
   return {
     kind: 'recording',
@@ -96,6 +104,15 @@ async function captureAndInstall(
   onCapture: VoiceCaptureObserver,
   phrase: SpokenPhrase,
 ): Promise<AuthMethodUnlockSuccess> {
+  switch (prepared.initiation) {
+    case 'sdk_request':
+      requireVoiceUserAction();
+      break;
+    case 'hosted_menu':
+      break;
+    default:
+      return assertNever(prepared.initiation);
+  }
   return await verifyVoiceIdChallengeWithDevice({
     authMethod: prepared.authMethod,
     challenge: prepared.challenge,
@@ -106,4 +123,8 @@ async function captureAndInstall(
     onCapture,
     phrase,
   });
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected VoiceID initiation: ${String(value)}`);
 }

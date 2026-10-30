@@ -190,6 +190,8 @@ It cannot approve from a truncated recording or change a voice enrollment.
 The prompt gives brief guidance for insufficient audio. Internal measurements carry
 an attempt ID and timestamp. Audio is not retained. Unlock can retry a typed
 insufficient-audio result or a microphone interruption in place with a fresh phrase.
+The Wallet does not expose decoded speech, speaker scores, or microphone measurements
+through DOM attributes.
 Retries preserve the original challenge and expiry timer. Cancellation, expiry, and
 authorization failures stay terminal.
 Each enrollment, unlock, and signing attempt displays a randomly selected short
@@ -202,8 +204,9 @@ The lazy VoiceID host entry mounts a cancellable prompt and yields a frame befor
 loading the activation or unlock implementation. Unlock session cleanup and
 generation allocation occur within this visible preparation phase. Recording stays
 disabled while preparation runs. Model download progress stays inside the card.
-Unlock starts listening automatically when preparation finishes, using the first
-Unlock with VoiceID action. It does not require a second unlock click. Retry remains
+The Wallet auth menu starts listening after a person selects VoiceID and preparation
+finishes. A direct SDK unlock request shows an Unlock with VoiceID button inside the
+Wallet. Recording starts after that Wallet button is selected. Retry remains
 explicit. Unlock capture requires a visible, focused Wallet. Enrollment still requires
 a fresh Record action for each sample.
 Cancelling during implementation loading prevents later session preparation or

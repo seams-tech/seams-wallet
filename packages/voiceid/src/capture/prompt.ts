@@ -438,7 +438,6 @@ export class VoicePrompt {
         return;
       case 'listening':
         this.microphone.hidden = true;
-        delete this.status.dataset.voiceCaptureQuality;
         this.element.dataset.capture = 'listening';
         this.record.hidden = true;
         this.status.textContent = 'Listening';
@@ -449,7 +448,6 @@ export class VoicePrompt {
         return;
       case 'measured': {
         const quality = event.quality;
-        this.status.dataset.voiceCaptureQuality = JSON.stringify(quality);
         if (quality.noise === 'high')
           this.status.textContent = 'Background noise is high. Move closer to the microphone.';
         return;

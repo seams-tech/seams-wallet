@@ -57,6 +57,7 @@ class VoiceIdCaptureSurface<T> {
   private readonly status: HTMLElement;
   private readonly prompt: VoicePrompt;
   private readonly unlockFrame: VoiceUnlockFrame | null;
+  private readonly autoStartUnlock: boolean;
   private readonly unmountCapture: ((settlement: AuthMethodCaptureSettlement) => void) | null;
   private readonly measurement: WalletIframeSurfaceMeasurementReporter | null;
   private phrase = newSpokenPhrase(null);
@@ -83,6 +84,7 @@ class VoiceIdCaptureSurface<T> {
     this.element.append(this.prompt.element);
     this.unlockFrame =
       purpose === 'unlock' ? new VoiceUnlockFrame(this.element, this.prompt) : null;
+    this.autoStartUnlock = this.unlockFrame !== null && mountCapture !== undefined;
     this.status = this.prompt.status;
     this.status.textContent = 'Loading VoiceID…';
     this.prompt.title.textContent = 'VoiceID';
@@ -90,7 +92,7 @@ class VoiceIdCaptureSurface<T> {
     this.activateButton = this.prompt.record;
     this.activateButton.textContent = actionLabel;
     this.activateButton.disabled = true;
-    this.activateButton.hidden = this.unlockFrame !== null;
+    this.activateButton.hidden = this.autoStartUnlock;
     this.activateButton.addEventListener('click', this.begin);
     this.cancelButton = this.prompt.cancel;
     this.cancelButton.addEventListener('click', this.cancel);
@@ -152,7 +154,7 @@ class VoiceIdCaptureSurface<T> {
       this.prompt.title.textContent = 'Read aloud';
       this.status.textContent = 'Read naturally, then pause.';
       this.activateButton.disabled = false;
-      if (this.unlockFrame) this.begin();
+      if (this.autoStartUnlock) this.begin();
       else this.activateButton.focus();
     } catch (error) {
       if (this.state.kind === 'closed') return;
