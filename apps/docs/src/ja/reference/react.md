@@ -101,13 +101,12 @@ MetaMaskやRabbyも既存のEVMコネクターを利用します。
 Seamsの認証セッションは作成しません。メニューを閉じても完了した接続は維持します。
 接続待ちの間に閉じた場合は、その要求を無効にして遅れて届く結果を無視します。
 
-
 ### 認証メニューの表示設定
 
 `HostedSeamsAuthMenu` の `recoveryOptions` は `"collapsible"`（既定）、
 `"expanded"`（常時表示）、`"hidden"`（非表示）を指定できます。
-`footerBrand={{ kind: 'custom', logo: 'https://example.com/logo.svg', name: 'Example' }}`
-でフッター全体をアプリのロゴに置き換えます。`logo` は HTTPS の絶対 URL または
+`footerBrand` に `{ kind: 'custom', logo: 'https://example.com/logo.svg', name: 'Example' }` を指定すると、
+フッター全体をアプリのロゴに置き換えられます。`logo` は HTTPS の絶対 URL または
 画像のデータ URL です。`name` は画像の代替テキストです。
 省略するか `{ kind: 'seams' }` を指定すると、既定のブランド表示に戻ります。
 接続状態やエラーはフッターに表示されます。
