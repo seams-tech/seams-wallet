@@ -1,3 +1,8 @@
+import {
+  parseWalletConnectionResolution,
+  type WalletConnectionRequest,
+  type WalletConnectionResolutionInput,
+} from '../shared/walletAlternatives';
 import { executeOwnerNearRequest } from './ownerNearOperation';
 import type { ExecuteOwnerNearOperation } from '@/SeamsWeb/publicApi/ownerNearOperation';
 import { parseAuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
@@ -675,7 +680,12 @@ function walletIframeSessionStatesEqual(
     case 'wallet_locked':
       return right.kind === 'wallet_locked';
     case 'external_read':
-      return right.kind === 'external_read' && left.walletId === right.walletId && left.externalSessionId === right.externalSessionId && left.expiresAtMs === right.expiresAtMs;
+      return (
+        right.kind === 'external_read' &&
+        left.walletId === right.walletId &&
+        left.externalSessionId === right.externalSessionId &&
+        left.expiresAtMs === right.expiresAtMs
+      );
     case 'active_session':
     case 'expired_session':
       return (
@@ -1254,6 +1264,7 @@ export class WalletIframeRouter {
       (state: WalletIframeExactSessionState, publication: WalletIframeSessionPublication) => void
     >(),
     preferencesChanged: new Set<(payload: PreferencesChangedPayload) => void>(),
+    walletConnectionRequest: new Set<(payload: WalletConnectionRequest) => void>(),
     hostedAuthMenuExternalAuthRequest: new Set<
       (payload: HostedAuthMenuExternalAuthRequest) => void
     >(),
@@ -2442,6 +2453,27 @@ export class WalletIframeRouter {
   onConnectionClosed(listener: () => void): () => void {
     this.listeners.connectionClosed.add(listener);
     return this.listeners.connectionClosed.delete.bind(this.listeners.connectionClosed, listener);
+  }
+
+  onWalletConnectionRequest(listener: (request: WalletConnectionRequest) => void): () => void {
+    this.listeners.walletConnectionRequest.add(listener);
+    return this.listeners.walletConnectionRequest.delete.bind(
+      this.listeners.walletConnectionRequest,
+      listener,
+    );
+  }
+
+  async resolveWalletConnection(resolution: WalletConnectionResolutionInput): Promise<void> {
+    const requestId = this.hostedAuthMenuRequestIds.get(resolution.authMenuSessionId);
+    if (!requestId) return;
+    const payload = parseWalletConnectionResolution({
+      authMenuSessionId: resolution.authMenuSessionId,
+      connectionRequestId: resolution.connectionRequestId,
+      requestId,
+      result: resolution.result,
+    });
+    if (!payload) throw new Error('Invalid wallet connection resolution');
+    await this.post({ type: 'PM_RESOLVE_WALLET_CONNECTION', payload });
   }
 
   onHostedAuthMenuExternalAuthRequest(
@@ -4330,6 +4362,17 @@ export class WalletIframeRouter {
     if (msg.type === 'PREFERENCES_CHANGED') {
       const payload = msg.payload;
       this.handlePreferencesChanged(payload);
+      return;
+    }
+    if (msg.type === 'WALLET_CONNECTION_REQUEST') {
+      const payload = msg.payload;
+      const activeRequestId = this.hostedAuthMenuRequestIds.get(payload.authMenuSessionId);
+      if (!activeRequestId || msg.requestId !== activeRequestId) return;
+      for (const listener of this.listeners.walletConnectionRequest) {
+        try {
+          listener(payload);
+        } catch {}
+      }
       return;
     }
     if (msg.type === 'AUTH_MENU_EXTERNAL_AUTH_REQUEST') {

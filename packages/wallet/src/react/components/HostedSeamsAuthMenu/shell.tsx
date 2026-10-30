@@ -1,3 +1,9 @@
+import {
+  describeWalletAlternatives,
+  WalletAlternativesBroker,
+  walletAlternativesControllerKey,
+  type WalletAlternativesConfig,
+} from './walletAlternatives';
 import React from 'react';
 import { SeamsAuthMenuMock } from './SeamsAuthMenuMock';
 import { useSeams } from '@/react/context';
@@ -37,6 +43,7 @@ type HostedAuthMenuSessionArgs = {
   showProgress: boolean;
   copy: HostedSeamsAuthMenuProps['copy'];
   externalAuthBroker: BrokerRef;
+  walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
   onOutcome: OutcomeRef;
 };
 
@@ -56,6 +63,7 @@ type HostedAuthMenuEffectConfig = {
   readonly showProgress: boolean;
   readonly copy: HostedSeamsAuthMenuProps['copy'];
   readonly enabledExternalProviders: readonly HostedAuthMenuExternalProvider[];
+  readonly walletAlternatives: WalletAlternativesConfig | undefined;
 };
 
 let sessionCounter = 0;
@@ -174,6 +182,7 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       showProgress: config.showProgress,
       copy: config.copy,
       enabledExternalProviders: config.enabledExternalProviders,
+      walletAlternatives: describeWalletAlternatives(config.walletAlternatives),
     });
     return JSON.stringify({
       initialMode: normalized.initialMode,
@@ -183,6 +192,8 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       showProgress: normalized.showProgress,
       copy: normalized.copy,
       enabledExternalProviders: normalized.enabledExternalProviders,
+      walletAlternatives: normalized.walletAlternatives,
+      walletControllers: walletAlternativesControllerKey(config.walletAlternatives),
     });
   } catch {
     return 'invalid';
@@ -200,6 +211,8 @@ class HostedAuthMenuSessionController {
   private readonly showProgress: boolean;
   private readonly copy: HostedSeamsAuthMenuProps['copy'];
   private readonly externalAuthBroker: BrokerRef;
+  private readonly walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
+  private readonly walletBroker: WalletAlternativesBroker;
   private readonly onOutcome: OutcomeRef;
   private readonly externalAuthRequestIds = new Set<HostedAuthMenuExternalAuthRequestId>();
   private readonly handleExternalAuthRequestBound: (
@@ -222,6 +235,12 @@ class HostedAuthMenuSessionController {
     this.showProgress = args.showProgress;
     this.copy = args.copy;
     this.externalAuthBroker = args.externalAuthBroker;
+    this.walletAlternatives = args.walletAlternatives;
+    this.walletBroker = new WalletAlternativesBroker(
+      args.seams.authMenu,
+      args.authMenuSessionId,
+      args.walletAlternatives,
+    );
     this.onOutcome = args.onOutcome;
     this.handleExternalAuthRequestBound = this.handleExternalAuthRequest.bind(this);
   }
@@ -229,6 +248,7 @@ class HostedAuthMenuSessionController {
   start(): void {
     if (this.isActive) return;
     this.isActive = true;
+    this.walletBroker.start();
     resetHostedAuthMenuAnchor(this.anchorElement);
     this.unsubscribeExternalAuthRequest = this.seams.authMenu.onExternalAuthRequest(
       this.handleExternalAuthRequestBound,
@@ -240,6 +260,7 @@ class HostedAuthMenuSessionController {
     if (this.hasFinalizedCleanup) return;
     this.hasFinalizedCleanup = true;
     this.isActive = false;
+    this.walletBroker.cleanup();
     this.unsubscribeExternalAuthRequest?.();
     this.unsubscribeExternalAuthRequest = null;
     this.externalAuthRequestIds.clear();
@@ -266,6 +287,7 @@ class HostedAuthMenuSessionController {
         showProgress: this.showProgress,
         copy: this.copy,
         enabledExternalProviders: this.externalAuthBroker.current ? ['google'] : [],
+        walletAlternatives: describeWalletAlternatives(this.walletAlternatives.current),
       });
     } catch (error: unknown) {
       this.emitFailure(failureCodeForError(error), errorMessage(error));
@@ -351,6 +373,12 @@ class HostedAuthMenuSessionController {
     this.hasTerminalOutcome = true;
     endHostedAuthMenuAnchor(this.anchorElement);
     try {
+      if (outcome.kind === 'wallet_connected') this.walletBroker.complete(outcome.alternativeId);
+    } catch {
+      // Application connection handlers cannot interrupt terminal cleanup.
+    }
+    this.walletBroker.cleanup();
+    try {
       this.onOutcome.current(outcome);
     } catch {
       // An application callback cannot invalidate the wallet-host terminal state.
@@ -430,6 +458,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   showProgress = false,
   copy,
   externalAuthBroker = null,
+  walletAlternatives,
   onOutcome,
 }) => {
   const { seams, isLoggedIn } = useOptionalSeams();
@@ -443,10 +472,13 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     showProgress,
     copy,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
+    walletAlternatives,
   });
   const externalAuthBrokerRef = React.useRef<HostedAuthMenuExternalAuthBroker | null>(
     externalAuthBroker,
   );
+  const walletAlternativesRef = React.useRef(walletAlternatives);
+  walletAlternativesRef.current = walletAlternatives;
   const onOutcomeRef = React.useRef<HostedSeamsAuthMenuProps['onOutcome']>(onOutcome);
   const terminalGateRef = React.useRef<HostedAuthMenuTerminalGate | null>(terminalGate);
   const forwardedOutcomeRef = React.useRef<HostedSeamsAuthMenuProps['onOutcome']>(() => {});
@@ -459,6 +491,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     showProgress,
     copy,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
+    walletAlternatives,
   };
   externalAuthBrokerRef.current = externalAuthBroker;
   onOutcomeRef.current = onOutcome;
@@ -490,6 +523,7 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
       showProgress: config.showProgress,
       copy: config.copy,
       externalAuthBroker: externalAuthBrokerRef,
+      walletAlternatives: walletAlternativesRef,
       onOutcome: forwardedOutcomeRef,
     });
     session.start();

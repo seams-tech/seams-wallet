@@ -81,6 +81,7 @@ export function walletForHostRequest(
     case 'PM_OPEN_AUTH_MENU':
     case 'PM_CANCEL_AUTH_MENU':
     case 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH':
+    case 'PM_RESOLVE_WALLET_CONNECTION':
     case 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION':
     case 'PM_REGISTER_WALLET':
     case 'PM_UNLOCK':

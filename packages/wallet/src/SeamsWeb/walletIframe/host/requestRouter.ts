@@ -1,3 +1,4 @@
+import { parseWalletConnectionResolution } from '../shared/walletAlternatives';
 import { parseOwnerNearCommand } from '../shared/ownerNearOperation';
 import { parseExternalAuthCommand } from '@shared/auth/externalAuth';
 import type { ParentToChildEnvelope, ParentToChildType } from '../shared/messages';
@@ -38,6 +39,7 @@ type AuthWalletRequestType =
   | 'PM_OPEN_AUTH_MENU'
   | 'PM_CANCEL_AUTH_MENU'
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
+  | 'PM_RESOLVE_WALLET_CONNECTION'
   | 'PM_UNLOCK'
   | 'PM_UNLOCK_AUTH_METHOD'
   | 'PM_EXTERNAL_AUTH'
@@ -208,6 +210,21 @@ export function routeWalletHostRequest(request: ParentToChildEnvelope): WalletHo
           payload: requireHostedAuthMenuPayload(
             parseHostedAuthMenuCancelPayload(request.payload),
             'hosted auth-menu cancellation',
+          ),
+        },
+      };
+    }
+    case 'PM_RESOLVE_WALLET_CONNECTION': {
+      const requestId = requireHostedAuthMenuRequestId(request.requestId);
+      return {
+        kind: 'auth',
+        type: request.type,
+        request: {
+          ...request,
+          requestId,
+          payload: requireHostedAuthMenuPayload(
+            parseWalletConnectionResolution(request.payload),
+            'wallet connection resolution',
           ),
         },
       };

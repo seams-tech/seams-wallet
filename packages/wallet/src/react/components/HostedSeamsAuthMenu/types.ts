@@ -1,3 +1,5 @@
+import type { WalletAlternativesConfig } from './walletAlternatives';
+export type { WalletAlternative, WalletAlternativesConfig } from './walletAlternatives';
 import type {
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
@@ -34,6 +36,8 @@ export type HostedAuthMenuExternalAuthBroker = (
 
 type HostedAuthMenuOutcomeHandler = (outcome: HostedAuthMenuOutcome) => void;
 export interface HostedSeamsAuthMenuProps {
+  /** Explicit ordered wallet groups. Omitted or empty groups render no UI. */
+  walletAlternatives?: WalletAlternativesConfig;
   /** Initial panel height for a continuous transition from an app-origin menu. */
   initialHeightCssPx?: number;
   /** Inert app-origin content displayed while the wallet-origin menu loads. */

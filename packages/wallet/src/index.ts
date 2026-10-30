@@ -285,3 +285,11 @@ export type {
 export type { OwnerNearOperation, OwnerNearOperationState, OwnerNearRecovery, OwnerNearOutcome, PrepareOwnerNearTransaction, ResumeOwnerNearTransaction } from './SeamsWeb/publicApi/ownerNearOperation';
 
 export { parseOwnerNearRecovery } from './SeamsWeb/walletIframe/shared/ownerNearOperation';
+
+export type {
+  WalletAlternatives,
+  WalletAlternativeDescriptor,
+  WalletConnectionRequest,
+  WalletConnectionResolutionInput,
+  WalletConnectionResult,
+} from './SeamsWeb/walletIframe/shared/walletAlternatives';

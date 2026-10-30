@@ -151,3 +151,11 @@ export {
   DeviceLinkingErrorCode,
 } from '@/core/types/linkDevice';
 export type { SyncAccountResult } from '@/core/types/sdkPublicResults';
+
+export type {
+  WalletAlternatives,
+  WalletAlternativeDescriptor,
+  WalletConnectionRequest,
+  WalletConnectionResolutionInput,
+  WalletConnectionResult,
+} from './walletIframe/shared/walletAlternatives';

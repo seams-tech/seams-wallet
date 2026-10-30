@@ -1,9 +1,19 @@
+import {
+  emptyWalletAlternatives,
+  parseWalletAlternatives,
+  type WalletAlternatives,
+  type WalletConnectionRequest,
+  type WalletConnectionResolution,
+} from './walletAlternatives';
 import type { OwnerNearCommand } from './ownerNearOperation';
 import { parseWalletSessionHome } from '@shared/device-linking/activeWalletSession';
 import type { WalletSessionHome } from '@shared/device-linking/contracts';
 import type { SigningEngineResolveExactKeyExportLaneInput as ResolveExactKeyExportLaneInput } from '@/core/signingEngine/flows/recovery/public';
 import type { TransactionReviewWire, TransactionReviewStateMessage } from './transactionReview';
-import type { WalletAuthMethodPlugin, VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
+import type {
+  WalletAuthMethodPlugin,
+  VoiceIdConfirmationOptions,
+} from '@/core/authMethods/plugins';
 // Typed RPC messages for the wallet service iframe channel (SeamsWeb-first)
 import { SignedTransaction } from '@/core/rpcClients/near/NearClient';
 import { TransactionInput } from '@/core/types';
@@ -156,6 +166,7 @@ export type HostedAuthMenuOpenRequest = {
   showProgress: boolean;
   copy: HostedAuthMenuCopy;
   enabledExternalProviders: readonly HostedAuthMenuExternalProvider[];
+  walletAlternatives: WalletAlternatives;
 };
 
 export type HostedAuthMenuExternalAuthRequest = {
@@ -229,6 +240,7 @@ export type HostedAuthMenuFailureCode =
   | 'internal_error';
 
 export type HostedAuthMenuOutcome =
+  | { kind: 'wallet_connected'; authMenuSessionId: HostedAuthMenuSessionId; alternativeId: string }
   | {
       kind: 'authenticated';
       authMenuSessionId: HostedAuthMenuSessionId;
@@ -528,6 +540,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
       'showProgress',
       'copy',
       'enabledExternalProviders',
+      'walletAlternatives',
     ]) ||
     !hasOnlyHostedAuthMenuCopyKeys(record.copy)
   ) {
@@ -563,6 +576,10 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
           : null;
   const registrationAccountInput = parseRegistrationAccountInput(record.registrationAccountInput);
   const providers = parseExternalProviders(record.enabledExternalProviders);
+  const walletAlternatives =
+    record.walletAlternatives === undefined
+      ? emptyWalletAlternatives()
+      : parseWalletAlternatives(record.walletAlternatives);
   if (
     !authMenuSessionId ||
     !initialMode ||
@@ -571,6 +588,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     typeof record.showRegistrationInput !== 'boolean' ||
     typeof record.showProgress !== 'boolean' ||
     !providers ||
+    !walletAlternatives ||
     !isWireSerializable(record.copy, new Set<unknown>(), true)
   ) {
     return null;
@@ -586,6 +604,7 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     showProgress: record.showProgress,
     copy: normalizeHostedAuthMenuCopy(record.copy),
     enabledExternalProviders: providers,
+    walletAlternatives,
   };
 }
 
@@ -599,6 +618,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
   showProgress?: boolean;
   copy?: HostedAuthMenuCopyInput;
   enabledExternalProviders?: readonly HostedAuthMenuExternalProvider[];
+  walletAlternatives?: WalletAlternatives;
 }): HostedAuthMenuOpenRequest {
   if (!isWireSerializable(args, new Set<unknown>(), true)) {
     throw new Error('Hosted auth-menu open configuration must be serializable');
@@ -616,6 +636,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
       'showProgress',
       'copy',
       'enabledExternalProviders',
+      'walletAlternatives',
     ]) ||
     (args.copy !== undefined && !hasOnlyHostedAuthMenuCopyKeys(args.copy))
   ) {
@@ -634,6 +655,7 @@ export function buildHostedAuthMenuOpenRequest(args: {
     showProgress: args.showProgress ?? false,
     copy: normalizeHostedAuthMenuCopy(args.copy),
     enabledExternalProviders: [...(args.enabledExternalProviders ?? [])],
+    walletAlternatives: args.walletAlternatives ?? emptyWalletAlternatives(),
   };
   if (!parseHostedAuthMenuOpenRequest(request)) {
     throw new Error('Hosted auth-menu open request is invalid');
@@ -802,6 +824,10 @@ export function parseHostedAuthMenuOutcome(value: unknown): HostedAuthMenuOutcom
         ? { kind: record.kind, authMenuSessionId, walletId: walletId.value, method }
         : null;
     }
+    case 'wallet_connected': {
+      const alternativeId = boundaryString(record.alternativeId, 'alternativeId');
+      return alternativeId ? { kind: 'wallet_connected', authMenuSessionId, alternativeId } : null;
+    }
     case 'account_synced': {
       if (!hasOnlyKeys(record, ['kind', 'authMenuSessionId', 'walletId'])) return null;
       const walletId = parseWalletId(record.walletId);
@@ -843,6 +869,7 @@ export type ParentToChildType =
   | 'PM_OPEN_AUTH_MENU'
   | 'PM_CANCEL_AUTH_MENU'
   | 'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH'
+  | 'PM_RESOLVE_WALLET_CONNECTION'
   | 'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION'
   // SeamsWeb API surface
   | 'PM_REGISTER_WALLET'
@@ -1641,6 +1668,7 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_OPEN_AUTH_MENU', PMOpenAuthMenuPayload>
   | RpcEnvelope<'PM_CANCEL_AUTH_MENU', PMCancelAuthMenuPayload>
   | RpcEnvelope<'PM_RESOLVE_AUTH_MENU_EXTERNAL_AUTH', PMResolveAuthMenuExternalAuthPayload>
+  | RpcEnvelope<'PM_RESOLVE_WALLET_CONNECTION', WalletConnectionResolution>
   | RpcEnvelope<'PM_REDEEM_HOSTED_WALLET_SEAMS_SESSION', PMRedeemHostedWalletSeamsSessionPayload>
   | RpcEnvelope<'PM_REGISTER_WALLET', PMRegisterWalletPayload>
   | RpcEnvelope<'PM_ADD_WALLET_SIGNER', PMAddWalletSignerPayload>
@@ -1652,7 +1680,18 @@ export type ParentToChildEnvelope =
   | RpcEnvelope<'PM_REVOKE_AUTH_METHOD', PMRevokeAuthMethodPayload>
   | RpcEnvelope<'PM_UNLOCK', PMUnlockPayload>
   | RpcEnvelope<'PM_EXTERNAL_AUTH', import('@shared/auth/externalAuth').ExternalAuthCommand>
-  | (RpcEnvelope<'PM_EXTERNAL_OWNER_AUTH', Extract<import('@shared/auth/externalAuth').ExternalAuthCommand, { action: 'associate' | 'unlink' }>> & { payload: Extract<import('@shared/auth/externalAuth').ExternalAuthCommand, { action: 'associate' | 'unlink' }> })
+  | (RpcEnvelope<
+      'PM_EXTERNAL_OWNER_AUTH',
+      Extract<
+        import('@shared/auth/externalAuth').ExternalAuthCommand,
+        { action: 'associate' | 'unlink' }
+      >
+    > & {
+      payload: Extract<
+        import('@shared/auth/externalAuth').ExternalAuthCommand,
+        { action: 'associate' | 'unlink' }
+      >;
+    })
   | RpcEnvelope<
       'PM_UNLOCK_AUTH_METHOD',
       {
@@ -1767,6 +1806,7 @@ export type ChildToParentEnvelope =
   | RpcEnvelope<'SESSION_CHANGED', WalletIframeExactSessionSnapshot>
   | RpcEnvelope<'PREFERENCES_CHANGED', PreferencesChangedPayload>
   | RpcEnvelope<'AUTH_MENU_EXTERNAL_AUTH_REQUEST', HostedAuthMenuExternalAuthRequest>
+  | RpcEnvelope<'WALLET_CONNECTION_REQUEST', WalletConnectionRequest>
   | RpcEnvelope<'AUTH_MENU_ERROR', HostedAuthMenuErrorEvent>
   | RpcEnvelope<'SURFACE_MEASUREMENT', WalletIframeSurfaceMeasurement>
   | RpcEnvelope<'PM_RESULT', PMResultPayload>

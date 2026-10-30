@@ -319,3 +319,70 @@
     animation: none;
   }
 }
+
+:where(.seams-auth-menu-surface) .seams-connection-controls {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+:where(.seams-auth-menu-surface) .seams-menu-expander > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  color: var(--seams-colors-textSecondary);
+  font-size: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+}
+:where(.seams-auth-menu-surface) .seams-menu-expander > summary::-webkit-details-marker {
+  display: none;
+}
+:where(.seams-auth-menu-surface) .seams-alternative-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  filter: grayscale(1);
+}
+:where(.seams-auth-menu-surface) .seams-alternative-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+:where(.seams-auth-menu-surface) .seams-wallet-alternative {
+  min-height: 60px;
+  padding: 12px;
+}
+:where(.seams-auth-menu-surface) .seams-wallet-alternative:hover .seams-alternative-icon,
+:where(.seams-auth-menu-surface) .seams-wallet-alternative:focus-visible .seams-alternative-icon {
+  filter: grayscale(0);
+}
+:where(.seams-auth-menu-surface) .seams-alternative-arrow {
+  margin-inline-start: auto;
+}
+:where(.seams-auth-menu-surface) .seams-alternatives-heading {
+  margin-top: 20px;
+  text-align: center;
+}
+
+:where(.seams-auth-menu-surface) .seams-menu-dismiss {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--seams-shape-control, 10px);
+  background: transparent;
+  color: var(--seams-colors-textPrimary);
+  font-size: 24px;
+  cursor: pointer;
+}
+:where(.seams-auth-menu-surface) .seams-menu-expander[open] > summary > svg {
+  transform: rotate(90deg);
+}

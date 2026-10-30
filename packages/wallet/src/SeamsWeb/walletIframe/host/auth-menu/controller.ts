@@ -1,3 +1,4 @@
+import type { WalletConnectionResolution } from '../../shared/walletAlternatives';
 import type { AuthMenuAccountOption } from './domain';
 import { IndexedDBManager } from '@/core/indexedDB';
 import type { AppearanceConfig, GetRecentUnlocksResult } from '@/core/types/seams';
@@ -535,6 +536,12 @@ export class AuthMenuController {
     if (!session || session.identity.requestId !== payload.requestId) return false;
     session.cancel(payload.reason);
     return true;
+  }
+
+  resolveWalletConnection(resolution: WalletConnectionResolution): boolean {
+    const session = this.sessions.get(resolution.authMenuSessionId);
+    if (!session || session.identity.requestId !== resolution.requestId) return false;
+    return session.acceptWalletConnection(resolution);
   }
 
   resolveExternalAuth(resolution: HostedAuthMenuExternalAuthResolution): boolean {

@@ -1,3 +1,7 @@
+import type {
+  WalletConnectionRequest,
+  WalletConnectionResolutionInput,
+} from '../walletIframe/shared/walletAlternatives';
 import type { AuthMethodAvailability } from '@/core/authMethods/availabilityTypes';
 import type { VoiceIdConfirmationOptions } from '@/core/authMethods/plugins';
 import type { SdkLifecycleEventListener } from '@/core/types/sdkSentEvents';
@@ -164,6 +168,8 @@ export interface AuthMenuCapability {
     anchorElement?: HTMLElement,
   ): Promise<HostedAuthMenuOutcome>;
   cancel(args: { authMenuSessionId: HostedAuthMenuSessionId }): Promise<void>;
+  onWalletConnectionRequest(listener: (request: WalletConnectionRequest) => void): () => void;
+  resolveWalletConnection(resolution: WalletConnectionResolutionInput): Promise<void>;
   onExternalAuthRequest(listener: (request: HostedAuthMenuExternalAuthRequest) => void): () => void;
   resolveExternalAuth(resolution: HostedAuthMenuExternalAuthResolutionInput): Promise<void>;
 }

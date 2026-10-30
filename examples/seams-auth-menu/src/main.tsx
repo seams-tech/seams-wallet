@@ -1,10 +1,8 @@
 import { exampleConfig } from './exampleConfig';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { SeamsWebProvider, WalletConnectorMenu } from '@seams/wallet/react';
-import {
-  type HostedAuthMenuOutcome,
-} from '@seams/wallet/react/hosted-seams-auth-menu';
+import { SeamsWebProvider, HostedSeamsAuthMenu } from '@seams/wallet/react';
+import { type HostedAuthMenuOutcome } from '@seams/wallet/react/hosted-seams-auth-menu';
 import '@seams/wallet/react/styles';
 import { ExternalNearController, type ExternalNearConnection } from '@seams/wallet/external-near';
 import './styles.css';
@@ -31,9 +29,19 @@ createRoot(root).render(
     <SeamsWebProvider config={exampleConfig}>
       <main>
         <h1>Wallet authentication</h1>
-        <WalletConnectorMenu
+        <HostedSeamsAuthMenu
           onOutcome={handleOutcome}
-          externalNear={{ controller: externalNear, onConnected: handleExternalConnection }}
+          walletAlternatives={{
+            primary: [
+              {
+                kind: 'near',
+                wallet: 'meteor',
+                controller: externalNear,
+                onConnected: handleExternalConnection,
+              },
+            ],
+            secondary: [],
+          }}
         />
       </main>
     </SeamsWebProvider>

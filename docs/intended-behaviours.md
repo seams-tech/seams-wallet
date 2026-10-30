@@ -996,6 +996,20 @@ the same theme merges its colors and shape values. Selecting another theme remov
 the previous theme's overrides. Configuration alone does not load the full wallet
 runtime; the recovery summary can appear and cancel without that runtime.
 
+The hosted auth menu combines authentication and configured external wallet alternatives.
+`walletAlternatives.primary` controls the ordered primary rows. `secondary` controls
+the ordered rows in the collapsed More wallets section. Omitted configuration and
+empty groups produce no headings, dividers, or empty sections. Discovery never adds
+unconfigured rows. NEAR and EVM connections remain owned by application controllers.
+Icons are monochrome until hover or keyboard focus. Device linking and recovery
+remain available under the collapsed Recover or link wallet section.
+
+External connection requests bind to the active menu session and configured wallet.
+Only one request runs at a time. Rejection leaves the menu available for another
+choice. Closing invalidates pending requests, so stale results cannot notify a new
+session. Success emits `wallet_connected` and the typed application connection
+callback. It creates no Seams session and survives menu unmounting.
+
 When hosted wallet-iframe mode is configured, mounting `HostedSeamsAuthMenu` opens one
 `modal_auth_menu` surface in the wallet-origin iframe. The app document contains
 an inert loading shell until the hosted surface appears; auth inputs, progress, OTP prompts, and the final

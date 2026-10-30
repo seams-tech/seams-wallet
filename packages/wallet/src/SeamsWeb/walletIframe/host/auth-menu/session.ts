@@ -1,3 +1,7 @@
+import {
+  type WalletConnectionState,
+  type WalletConnectionResolution,
+} from '../../shared/walletAlternatives';
 import type { WalletHostSessionCommands } from '../createSessionCommands';
 import { isUserCancellationError } from '@shared/utils/errors';
 import type {
@@ -979,6 +983,7 @@ export class AuthMenuSession {
 
   private stateValue: AuthMenuSessionState;
   private surface: AuthMenuSurfaceHandle | null = null;
+  private walletConnection: WalletConnectionState = { kind: 'idle' };
   private outcomeResolver: OutcomeResolver | null = null;
   private outcomePromise: Promise<HostedAuthMenuOutcome> | null = null;
   private successTimers: ReturnType<typeof setTimeout>[] = [];
@@ -1178,6 +1183,7 @@ export class AuthMenuSession {
       viewModel: this.currentViewModel(),
       initialHeightCssPx: this.request.initialHeightCssPx,
       onIntent: this.onIntent,
+      walletAlternatives: this.request.walletAlternatives,
     });
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'auth_menu_surface',
@@ -1793,9 +1799,68 @@ export class AuthMenuSession {
     this.sendToParent({ type: 'AUTH_MENU_ERROR', requestId: this.identity.requestId, payload });
   }
 
+  private requestWalletConnection(walletId: string): void {
+    if (this.walletConnection.kind === 'pending') return;
+    const state = this.stateValue;
+    if (
+      (state.kind !== 'ready' && state.kind !== 'preparing') ||
+      state.viewModel.kind !== 'passkey'
+    )
+      return;
+    const alternatives = this.request.walletAlternatives;
+    const wallet = [...alternatives.primary, ...alternatives.secondary].find(
+      matchesAlternative.bind(null, walletId),
+    );
+    if (!wallet) return;
+    const request = {
+      authMenuSessionId: this.identity.authMenuSessionId,
+      connectionRequestId: crypto.randomUUID(),
+      walletId: wallet.id,
+    };
+    this.walletConnection = { kind: 'pending', request };
+    this.surface?.updateWalletConnection(this.walletConnection);
+    this.sendToParent({
+      type: 'WALLET_CONNECTION_REQUEST',
+      requestId: this.identity.requestId,
+      payload: request,
+    });
+  }
+
+  acceptWalletConnection(resolution: WalletConnectionResolution): boolean {
+    const state = this.walletConnection;
+    if (
+      this.stateValue.kind === 'complete' ||
+      state.kind !== 'pending' ||
+      state.request.connectionRequestId !== resolution.connectionRequestId
+    )
+      return false;
+    switch (resolution.result.kind) {
+      case 'connected':
+        this.walletConnection = { kind: 'idle' };
+        this.complete({
+          kind: 'wallet_connected',
+          authMenuSessionId: this.identity.authMenuSessionId,
+          alternativeId: state.request.walletId,
+        });
+        break;
+      case 'cancelled':
+        this.walletConnection = { kind: 'idle' };
+        this.surface?.updateWalletConnection(this.walletConnection);
+        break;
+      case 'failed':
+        this.walletConnection = { kind: 'failed', message: resolution.result.message };
+        this.surface?.updateWalletConnection(this.walletConnection);
+        break;
+      default:
+        return assertNeverWalletConnectionResult(resolution.result);
+    }
+    return true;
+  }
+
   private onIntent = (intent: AuthMenuIntent): void => {
     if (this.stateValue.kind === 'complete') return;
     if (this.voiceLogin.kind === 'running' && intent.kind !== 'close') return;
+    if (this.walletConnection.kind === 'pending' && intent.kind !== 'close') return;
     switch (intent.kind) {
       case 'mode_selected':
         this.selectMode(intent.mode);
@@ -1914,6 +1979,9 @@ export class AuthMenuSession {
             this.performPreparedPasskey(this.stateValue.prepared);
           }
         }
+        return;
+      case 'wallet_connection':
+        this.requestWalletConnection(intent.walletId);
         return;
       case 'external_auth':
         this.requestExternalAuth(intent.provider);
@@ -3986,4 +4054,12 @@ function voiceAccountForWallet(
   account: AuthMenuAccountOption,
 ): boolean {
   return account.walletId === walletId && account.authMethod === 'voiceid';
+}
+
+function matchesAlternative(id: string, wallet: { readonly id: string }): boolean {
+  return wallet.id === id;
+}
+
+function assertNeverWalletConnectionResult(value: never): never {
+  throw new Error(`Unexpected wallet connection result: ${String(value)}`);
 }

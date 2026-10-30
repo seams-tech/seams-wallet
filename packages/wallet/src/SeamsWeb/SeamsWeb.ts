@@ -113,6 +113,10 @@ export class SeamsWeb {
       prepare: this.walletIframe.prepareHostedAuthMenu.bind(this.walletIframe),
       open: this.walletIframe.openHostedAuthMenu.bind(this.walletIframe),
       cancel: this.walletIframe.cancelHostedAuthMenu.bind(this.walletIframe),
+      onWalletConnectionRequest: this.walletIframe.onWalletConnectionRequest.bind(
+        this.walletIframe,
+      ),
+      resolveWalletConnection: this.walletIframe.resolveWalletConnection.bind(this.walletIframe),
       onExternalAuthRequest: this.walletIframe.onHostedAuthMenuExternalAuthRequest.bind(
         this.walletIframe,
       ),

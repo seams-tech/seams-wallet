@@ -1,49 +1,44 @@
 import type { ExternalNearController } from '@/externalNear/controller';
-import type { WalletConnectorMenuProps } from '@/react/components/HostedSeamsAuthMenu/WalletConnectorMenu';
+import type { ExternalEvmController } from '@/externalEvm/controller';
+import type { ExternalEvmWallet } from '@/externalEvm/types';
 import type { HostedSeamsAuthMenuProps } from '@/react/components/HostedSeamsAuthMenu/types';
+import type { WalletAlternative } from '@/react/components/HostedSeamsAuthMenu/walletAlternatives';
+import type { WalletConnectionState } from '@/SeamsWeb/walletIframe/shared/walletAlternatives';
 
-declare const controller: ExternalNearController;
+declare const near: ExternalNearController;
+declare const evm: ExternalEvmController;
+declare const wallet: ExternalEvmWallet;
 declare const onOutcome: HostedSeamsAuthMenuProps['onOutcome'];
-
-const seamsOnly: WalletConnectorMenuProps = { onOutcome };
-const external: WalletConnectorMenuProps = {
+function accept(): void {}
+const omitted: HostedSeamsAuthMenuProps = { onOutcome };
+const configured: HostedSeamsAuthMenuProps = {
   onOutcome,
-  externalNear: { controller, onConnected: acceptConnection },
-  options: { meteor: { label: 'Use Meteor' } },
-  authMenu: { initialMode: 'register' },
+  walletAlternatives: {
+    primary: [{ kind: 'near', wallet: 'meteor', controller: near, onConnected: accept }],
+    secondary: [{ kind: 'evm', wallet, controller: evm, onConnected: accept }],
+  },
 };
-
-const missingConnectionHandler: WalletConnectorMenuProps = {
-  onOutcome,
-  // @ts-expect-error An enabled controller requires its typed connection handler.
-  externalNear: { controller },
+// @ts-expect-error A connection callback is required for every alternative.
+const missingCallback: WalletAlternative = { kind: 'near', wallet: 'meteor', controller: near };
+// @ts-expect-error An EVM controller cannot connect a NEAR wallet.
+const mixedController: WalletAlternative = {
+  kind: 'near',
+  wallet: 'meteor',
+  controller: evm,
+  onConnected: accept,
 };
-
-const replacedOutcomeHandler: WalletConnectorMenuProps = {
-  onOutcome,
-  // @ts-expect-error The connector owns forwarding the hosted auth outcome.
-  authMenu: { onOutcome },
-};
-
-const replacedTransition: WalletConnectorMenuProps = {
-  onOutcome,
-  // @ts-expect-error The connector measures the entry height itself.
-  authMenu: { initialHeightCssPx: 400 },
-};
-
-const invalidHeight: HostedSeamsAuthMenuProps = {
-  onOutcome,
-  // @ts-expect-error Layout height is a numeric CSS-pixel measurement.
-  initialHeightCssPx: '400px',
-};
-
-function acceptConnection(): void {}
-
+// @ts-expect-error Spread construction must preserve the connector branch.
+const mixedSpread: WalletAlternative = { ...mixedController, kind: 'evm', wallet: 'meteor' };
+// @ts-expect-error A pending connection requires its request identity.
+const missingRequest: WalletConnectionState = { kind: 'pending' };
+// @ts-expect-error Idle state cannot carry a failure message.
+const invalidState: WalletConnectionState = { kind: 'idle', message: 'failed' };
 void [
-  seamsOnly,
-  external,
-  missingConnectionHandler,
-  replacedOutcomeHandler,
-  replacedTransition,
-  invalidHeight,
+  omitted,
+  configured,
+  missingCallback,
+  mixedController,
+  mixedSpread,
+  missingRequest,
+  invalidState,
 ];

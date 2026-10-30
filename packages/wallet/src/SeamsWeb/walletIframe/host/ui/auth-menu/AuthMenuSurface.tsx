@@ -1,4 +1,6 @@
 /** @jsxImportSource preact */
+import type { WalletAlternatives, WalletConnectionState } from '../../../shared/walletAlternatives';
+import { WalletAlternativesSection } from './WalletAlternativesSection';
 import {
   WalletText,
   WalletLocaleContext,
@@ -77,6 +79,8 @@ import {
 } from './icons';
 
 type AuthMenuSurfaceProps = {
+  readonly walletAlternatives: WalletAlternatives;
+  readonly walletConnection: WalletConnectionState;
   readonly viewModel: AuthMenuViewModel;
   readonly element: HTMLElement;
   readonly onIntent: (intent: AuthMenuIntent) => void;
@@ -201,7 +205,10 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     const current = this.viewModel;
     if (previous?.kind === 'recovery' && current.kind !== 'recovery') {
       this.previousRecoveryStage = null;
-      this.props.element.querySelector<HTMLElement>('[data-recovery-action]')?.focus();
+      const action = this.props.element.querySelector<HTMLElement>('[data-recovery-action]');
+      const expander = action?.closest('details');
+      if (expander) expander.open = true;
+      action?.focus();
       return;
     }
     if (current.kind !== 'recovery') return;
@@ -323,10 +330,15 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
   private focusableElements(): HTMLElement[] {
     return Array.from(
       this.props.element.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        'button, input, select, textarea, summary, a[href], [tabindex]:not([tabindex="-1"])',
       ),
-    );
+    ).filter(isAvailableMenuControl);
   }
+
+  private onDismiss = (): void => {
+    if (recoveryNavigationLocked(this.viewModel)) return;
+    this.emitIntent({ kind: 'close', reason: 'close_button' });
+  };
 
   private onBackClick = (): void => {
     this.emitIntent({ kind: 'back' });
@@ -680,6 +692,16 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           {/* The site asking stays put in every view, so switching views never moves it. */}
           <div class="seams-menu-origin">
             <PadlockIcon /> <span>{viewModel.hostname}</span>
+            <button
+              type="button"
+              class="seams-menu-dismiss"
+              aria-label={viewModel.closeLabel}
+              disabled={recoveryNavigationLocked(viewModel)}
+              onClick={this.onDismiss}
+              data-auth-menu-dismiss
+            >
+              <span aria-hidden="true">×</span>
+            </button>
           </div>
           <div class="seams-content-switcher">
             <button
@@ -732,9 +754,28 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
     if (viewModel.kind === 'google_registration') return this.renderGoogleRegistration(viewModel);
     return (
       <>
-        {this.renderMenuHeader(viewModel)} {this.renderPasskeyInput(viewModel)}
-        {this.renderAuthMethods(viewModel)} {this.renderOtherOptions()}
-        {this.renderIntentSwitch(viewModel)}
+        {this.renderMenuHeader(viewModel)}
+        <fieldset
+          class="seams-connection-controls"
+          disabled={this.props.walletConnection.kind === 'pending'}
+        >
+          {this.renderPasskeyInput(viewModel)}
+          {this.renderAuthMethods(viewModel)}
+          <WalletAlternativesSection
+            alternatives={this.props.walletAlternatives}
+            onIntent={this.props.onIntent}
+          />
+          {this.renderOtherOptions()}
+          {this.renderIntentSwitch(viewModel)}
+        </fieldset>
+        {this.props.walletConnection.kind === 'pending' && (
+          <p role="status">
+            <WalletText copy="Complete the request in your wallet." />
+          </p>
+        )}
+        {this.props.walletConnection.kind === 'failed' && (
+          <p role="alert">{this.props.walletConnection.message}</p>
+        )}
       </>
     );
   }
@@ -1019,10 +1060,11 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
 
   private renderOtherOptions(): ComponentChildren {
     return (
-      <>
-        <div class="seams-menu-options-label">
-          <WalletText message="Other options" />
-        </div>
+      <details class="seams-menu-expander">
+        <summary>
+          <WalletText copy="Recover or link wallet" />
+          {chevronIcon()}
+        </summary>
         <div class="seams-menu-options">
           <button class="seams-menu-option" type="button" onClick={this.onLinkDeviceOpen}>
             <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
@@ -1050,7 +1092,7 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             {chevronIcon()}
           </button>
         </div>
-      </>
+      </details>
     );
   }
 
@@ -1995,4 +2037,23 @@ function voiceAvailableForWallet(
   return account.walletId === walletId && account.authMethod === 'voiceid';
 }
 
-function voiceMethodIcon(): ComponentChildren { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden="true"><path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" /></svg>; }
+function voiceMethodIcon(): ComponentChildren {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4" />
+    </svg>
+  );
+}
+
+function isAvailableMenuControl(element: HTMLElement): boolean {
+  return !element.matches(':disabled') && element.getClientRects().length > 0;
+}

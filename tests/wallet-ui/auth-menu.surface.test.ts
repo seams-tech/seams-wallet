@@ -317,6 +317,7 @@ test.describe('wallet-host Preact auth menu surface', () => {
       };
     }, AUTH_MENU_TAG);
 
+    await page.getByText('Recover or link wallet', { exact: true }).click();
     await page.locator(`${AUTH_MENU_TAG} [data-recovery-action]`).click();
     expect(
       await page.evaluate(

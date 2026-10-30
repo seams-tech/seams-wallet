@@ -1,3 +1,7 @@
+import type {
+  WalletConnectionRequest,
+  WalletConnectionResolutionInput,
+} from './shared/walletAlternatives';
 import { buildAnonymousWalletSession } from '@/SeamsWeb/publicApi/session';
 import type { ClientConnectionState } from '@/SeamsWeb/publicApi/types';
 import type { PreferenceState } from './client/preferenceState';
@@ -80,10 +84,12 @@ export class WalletIframeCoordinator {
   private walletIframePrefsUnsubscribe: (() => void) | null = null;
   private sessionDeliveryRevision = 0;
   private walletIframeSessionUnsubscribe: (() => void) | null = null;
-  private readonly sessionListeners = new Set<
-    (session: WalletSession) => void
-  >();
+  private readonly sessionListeners = new Set<(session: WalletSession) => void>();
   private walletIframeLifecycleUnsubscribe: (() => void) | null = null;
+  private walletConnectionUnsubscribe: (() => void) | null = null;
+  private readonly walletConnectionListeners = new Set<
+    (request: WalletConnectionRequest) => void
+  >();
   private walletIframeAuthMenuUnsubscribe: (() => void) | null = null;
   private readonly sdkLifecycleEventListeners = new Set<SdkLifecycleEventListener>();
   private readonly hostedAuthMenuExternalAuthRequestListeners = new Set<
@@ -149,6 +155,7 @@ export class WalletIframeCoordinator {
     this.sdkLifecycleEventListeners.clear();
     this.sessionListeners.clear();
     this.hostedAuthMenuExternalAuthRequestListeners.clear();
+    this.walletConnectionListeners.clear();
   }
 
   private releaseRouter(): void {
@@ -158,6 +165,8 @@ export class WalletIframeCoordinator {
     this.walletIframeLifecycleUnsubscribe?.();
     this.walletIframeSessionUnsubscribe?.();
     this.walletIframeAuthMenuUnsubscribe?.();
+    this.walletConnectionUnsubscribe?.();
+    this.walletConnectionUnsubscribe = null;
     this.walletIframeCloseUnsubscribe = null;
     this.walletIframePrefsUnsubscribe = null;
     this.walletIframeLifecycleUnsubscribe = null;
@@ -356,6 +365,22 @@ export class WalletIframeCoordinator {
     await router.cancelHostedAuthMenu(args);
   }
 
+  onWalletConnectionRequest(listener: (request: WalletConnectionRequest) => void): () => void {
+    if (this.connection.kind === 'disposed') return noSubscription;
+    this.walletConnectionListeners.add(listener);
+    if (this.iframeRouter) this.ensureWalletIframeAuthMenuMirror(this.iframeRouter);
+    return this.walletConnectionListeners.delete.bind(this.walletConnectionListeners, listener);
+  }
+
+  async resolveWalletConnection(resolution: WalletConnectionResolutionInput): Promise<void> {
+    const router = await this.requireRouter();
+    await router.resolveWalletConnection(resolution);
+  }
+
+  private forwardWalletConnection = (request: WalletConnectionRequest): void => {
+    for (const listener of this.walletConnectionListeners) listener(request);
+  };
+
   onHostedAuthMenuExternalAuthRequest(
     listener: (request: HostedAuthMenuExternalAuthRequest) => void,
   ): () => void {
@@ -411,12 +436,16 @@ export class WalletIframeCoordinator {
   }
 
   private ensureWalletIframeAuthMenuMirror(router: WalletIframeRouter): void {
+    if (!this.walletConnectionUnsubscribe) {
+      this.walletConnectionUnsubscribe = router.onWalletConnectionRequest(
+        this.forwardWalletConnection,
+      );
+    }
     if (!this.walletIframeAuthMenuUnsubscribe) {
       this.walletIframeAuthMenuUnsubscribe = router.onHostedAuthMenuExternalAuthRequest(
         this.forwardHostedAuthMenuExternalAuthRequestListener,
       );
     }
-
   }
 
   private forwardSdkLifecycleEvent(event: SdkLifecycleEvent): void {

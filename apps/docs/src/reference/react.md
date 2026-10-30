@@ -75,23 +75,21 @@ account input. It retains lowercase normalization and saved-wallet matching.
 
 ## Components
 
-The stable surface includes `WalletConnectorMenu`, `HostedSeamsAuthMenu`, `WalletSettingsPage`,
+The stable surface includes `HostedSeamsAuthMenu`, `WalletSettingsPage`,
 `AccountMenuButton`, `ProfileSettingsButton`, `QRCodeScanner`, and `ShowQRCode`. Use the
 hosted auth menu when the wallet-origin boundary owns the complete auth experience.
 `SeamsAuthMenuMock` is a loading placeholder and preview with no active controls.
 `HostedSeamsAuthMenu` shows it while the wallet UI opens.
 
-### Wallet connector menu
+### Wallet alternatives
 
-Use `WalletConnectorMenu` for the default “Connect wallet” panel. It offers a Seams
-wallet and the external NEAR wallets enabled by your controller. Selecting Seams
-resizes the panel into `HostedSeamsAuthMenu`. Authentication remains on the wallet
-origin. The component uses the provider's theme tokens and supports reduced motion.
+`HostedSeamsAuthMenu` combines Seams authentication and external wallet connections
+in one wallet-origin screen. Pass `walletAlternatives` to choose the groups and order.
+Omit it to hide both groups. Empty arrays hide their own headings and controls.
 
 ```tsx [Partial example]
-import { WalletConnectorMenu } from '@seams/wallet/react';
+import { HostedSeamsAuthMenu } from '@seams/wallet/react';
 import { ExternalNearController } from '@seams/wallet/external-near';
-import '@seams/wallet/react/styles';
 
 const nearWallets = new ExternalNearController({
   network: 'testnet',
@@ -99,48 +97,46 @@ const nearWallets = new ExternalNearController({
   wallets: ['meteor'],
 });
 
-<WalletConnectorMenu
-  onOutcome={handleSeamsOutcome}
-  externalNear={{ controller: nearWallets, onConnected: handleExternalConnection }}
-  title="Connect wallet"
-  options={{
-    seams: { label: 'Create a wallet', description: 'Start with a passkey' },
-    meteor: { label: 'Connect Meteor', icon: <MeteorIcon /> },
+<HostedSeamsAuthMenu
+  onOutcome={handleOutcome}
+  walletAlternatives={{
+    primary: [
+      {
+        kind: 'near',
+        wallet: 'meteor',
+        controller: nearWallets,
+        onConnected: handleNearConnection,
+      },
+    ],
+    secondary: [],
   }}
-  authMenu={{ initialMode: 'register' }}
 />;
 ```
 
-Mount the component inside `SeamsWebProvider`. `externalNear` is optional. Without it,
-the panel offers only Seams. The controller's `wallets` list controls the enabled
-wallets and their order, including changes through `setWallets`.
+Primary entries appear under “Or connect another wallet”. Secondary entries appear
+inside “More wallets”, initially collapsed. “Recover or link wallet” contains device
+linking and recovery. Wallet icons remain monochrome until hover or keyboard focus.
 
-Customize `title`, `description`, `closeLabel`, `backLabel`, `className`, and `style`. The `options`
-map accepts `label`, `description`, and a React `icon` for `seams`, `meteor`, `hot`,
-and `intear`. Pass authentication copy and provider options through `authMenu`.
-Configure colors and corners through the existing provider appearance settings.
-Connector rows use `secondaryButtonBackground`, `secondaryButtonHoverBackground`,
-`secondaryButtonBorder`, and `secondaryButtonText`. Panel spacing, corners, control
-height, and elevation follow `spacing`, `shape`, and `shadows` from the active theme.
-The optional CSS variables `--seams-font-family` and `--seams-font-size-base` control
-the connector's typography.
+Each entry accepts optional `label`, `description`, and `icon` display overrides.
+`icon` is an HTTPS image URL or an image data URL. React elements and callbacks stay
+outside the iframe. The SDK sends only the display descriptors across that boundary.
+Identifiers must be unique across both groups.
 
-Authentication success uses `buttonBackground` for its seal and animated ring,
-`textButton` for the check, and optional `passkeyHaloBackground` for the halo.
-These values also apply to the wallet-created and login-success showcase cards.
-Meteor and HOT use bundled official wallet icons by default. App-supplied icons override them.
+For EVM entries, use `kind: 'evm'`, an `ExternalEvmController`, and a wallet object
+from its discovery snapshot. Mount discovery in the application with `useExternalEvm`.
+Pass a typed EVM `onConnected` callback. MetaMask and Rabby use the same connector.
+Discovery alone never adds wallets to the menu. The application selects the entries.
+Keep the controller mounted for the lifetime of the application's connection.
 
-When opened from the connector, the auth view includes a back button that returns to
-wallet selection and cancels the pending auth session without calling `onClose`.
-The standalone `HostedSeamsAuthMenu` does not show this connector navigation button.
+A successful connection calls the entry's `onConnected` callback and emits a
+`wallet_connected` menu outcome with `alternativeId`. This outcome establishes no
+Seams session. Closing the menu preserves a completed external connection. Closing
+during a pending request invalidates it and ignores its later result.
 
-Supply `onClose` to show a close button. Canceling authentication returns to the
-connector and calls `onClose` when supplied. Authentication failures return to the
-connector with an error. Every auth outcome also reaches `onOutcome`.
-
-External connection success calls `externalNear.onConnected`. The app owns that
-controller: closing the connector preserves a completed connection. Unmounting
-while an external connection is pending cancels that pending request.
+The low-level `authMenu.open()` request accepts the same serializable groups.
+Applications handle `authMenu.onWalletConnectionRequest()` and reply through
+`authMenu.resolveWalletConnection()`. Requests carry the menu session, request
+identity, and configured wallet identifier. The React component handles this exchange.
 
 `AccountMenuButton` defaults to `presentation="dropdown"` and includes the SDK trigger.
 Use `presentation="modal"` or `presentation="drawer"` to open the same settings from an application button.

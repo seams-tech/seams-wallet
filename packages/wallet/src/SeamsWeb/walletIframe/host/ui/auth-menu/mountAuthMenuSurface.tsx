@@ -1,5 +1,10 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import {
+  emptyWalletAlternatives,
+  type WalletAlternatives,
+  type WalletConnectionState,
+} from '../../../shared/walletAlternatives';
 import { withWalletLocale } from '@/core/signingEngine/uiConfirm/ui/preact/WalletLocale';
 import {
   createCspStylesheetManager,
@@ -13,6 +18,7 @@ import { AuthMenuSurface } from './AuthMenuSurface';
 export type AuthMenuSurfaceHandle = {
   readonly element: HTMLElement;
   update(viewModel: AuthMenuViewModel): void;
+  updateWalletConnection(state: WalletConnectionState): void;
   dispose(): void;
 };
 
@@ -20,6 +26,7 @@ type MountAuthMenuSurfaceInput = {
   readonly parent: HTMLElement;
   readonly viewModel: AuthMenuViewModel;
   readonly initialHeightCssPx?: number;
+  readonly walletAlternatives?: WalletAlternatives;
   readonly onIntent: (intent: AuthMenuIntent) => void;
 };
 
@@ -42,6 +49,9 @@ function authMenuStyles(document: Document): CspStylesheetManager {
 
 class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   readonly element: HTMLElement;
+  private readonly walletAlternatives: WalletAlternatives;
+  private walletConnection: WalletConnectionState = { kind: 'idle' };
+  private viewModel: AuthMenuViewModel;
   private readonly styles: CspStylesheetManager;
   private entrance: Animation[] = [];
   private state:
@@ -49,6 +59,8 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
     | { kind: 'disposed' };
 
   constructor(input: MountAuthMenuSurfaceInput) {
+    this.walletAlternatives = input.walletAlternatives ?? emptyWalletAlternatives();
+    this.viewModel = input.viewModel;
     const document = input.parent.ownerDocument;
     this.styles = authMenuStyles(document);
     this.element = document.createElement('div');
@@ -97,7 +109,13 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
     }
   }
 
+  updateWalletConnection(state: WalletConnectionState): void {
+    this.walletConnection = state;
+    this.update(this.viewModel);
+  }
+
   update(viewModel: AuthMenuViewModel): void {
+    this.viewModel = viewModel;
     if (this.state.kind === 'disposed') return;
     this.element.lang = viewModel.appearance.locale ?? 'en';
     this.element.dataset.theme = viewModel.appearance.theme.mode;
@@ -111,6 +129,8 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
         <AuthMenuSurface
           element={this.element}
           viewModel={viewModel}
+          walletAlternatives={this.walletAlternatives}
+          walletConnection={this.walletConnection}
           onIntent={this.state.onIntent}
           styles={this.styles}
         />,

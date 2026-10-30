@@ -266,6 +266,7 @@ async function handleAuthOutcome(
     case 'failed':
       setAuthMenu({ kind: 'failed', message: outcome.message });
       return;
+    case 'wallet_connected':
     case 'cancelled':
       setAuthMenu({ kind: 'closed' });
       return;

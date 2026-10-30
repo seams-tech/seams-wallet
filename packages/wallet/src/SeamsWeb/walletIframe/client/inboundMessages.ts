@@ -1,3 +1,4 @@
+import { parseWalletConnectionRequest } from '../shared/walletAlternatives';
 import { parseTransactionReviewState } from '../shared/transactionReview';
 import {
   type ProgressPayload,
@@ -32,6 +33,11 @@ type ParsedSdkLifecycleEnvelope =
     };
 
 type ParsedChildToParentEnvelope =
+  | {
+      readonly type: 'WALLET_CONNECTION_REQUEST';
+      readonly requestId?: string;
+      readonly payload: NonNullable<ReturnType<typeof parseWalletConnectionRequest>>;
+    }
   | { readonly type: 'SESSION_CHANGED'; readonly payload: WalletIframeExactSessionSnapshot }
   | {
       readonly type: 'TRANSACTION_REVIEW_STATE';
@@ -207,6 +213,10 @@ export function parseClientChildToParentEnvelope(
     }
     case 'PREFERENCES_CHANGED': {
       const payload = parseClientPreferencesChangedPayload(Reflect.get(record, 'payload'));
+      return payload ? { ...requestIdFields, type, payload } : null;
+    }
+    case 'WALLET_CONNECTION_REQUEST': {
+      const payload = parseWalletConnectionRequest(Reflect.get(record, 'payload'));
       return payload ? { ...requestIdFields, type, payload } : null;
     }
     case 'AUTH_MENU_EXTERNAL_AUTH_REQUEST': {

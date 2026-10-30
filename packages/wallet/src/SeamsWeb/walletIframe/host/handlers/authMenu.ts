@@ -1,3 +1,4 @@
+import { parseWalletConnectionResolution } from '../../shared/walletAlternatives';
 import type { HandlerDeps, HandlerMap, Req } from './walletIframeHandler.types';
 import { respondOkResult } from './shared';
 import {
@@ -16,6 +17,13 @@ export function createHostedAuthMenuHandlers(
   }),
 ): HandlerMap {
   return {
+    PM_RESOLVE_WALLET_CONNECTION: async (req: Req<'PM_RESOLVE_WALLET_CONNECTION'>) => {
+      const payload = parseWalletConnectionResolution(req.payload);
+      if (!payload) throw new Error('Invalid wallet connection resolution');
+      respondOkResult(deps, req.requestId, {
+        accepted: controller.resolveWalletConnection(payload),
+      });
+    },
     PM_OPEN_AUTH_MENU: async (req: Req<'PM_OPEN_AUTH_MENU'>) => {
       const payload = parseHostedAuthMenuOpenRequest(req.payload);
       if (!payload) throw new Error('Hosted auth-menu open request is invalid');

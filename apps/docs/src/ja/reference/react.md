@@ -72,56 +72,34 @@ await wallet.near.signAndSendTransaction({
 
 ## コンポーネント {#components}
 
-安定版のAPIには、`WalletConnectorMenu`、`HostedSeamsAuthMenu`、`WalletSettingsPage`、`AccountMenuButton`、`ProfileSettingsButton`、`QRCodeScanner`、`ShowQRCode`を含みます。
+安定版のAPIには、`HostedSeamsAuthMenu`、`WalletSettingsPage`、`AccountMenuButton`、`ProfileSettingsButton`、`QRCodeScanner`、`ShowQRCode`を含みます。
 ウォレットオリジン側で認証体験全体を管理する場合は、ホストする認証メニューを使います。
 `SeamsAuthMenuMock`は、操作を実行しない読み込み用プレースホルダー兼プレビューです。
 `HostedSeamsAuthMenu`は、ウォレットUIを開く間にこれを表示します。
 
 ### ウォレット接続メニュー {#wallet-connector-menu}
 
-`WalletConnectorMenu`は、Seamsと外部NEARウォレットを選ぶ標準UIです。
-`SeamsWebProvider`内に配置します。Seamsを選ぶと、同じパネルがサイズを変えながら
-`HostedSeamsAuthMenu`に切り替わります。認証操作はウォレットオリジンのiframe内で行います。
+`HostedSeamsAuthMenu`は、Seams認証と外部ウォレット接続を同じ画面に表示します。
+省略可能な`walletAlternatives`で、表示項目と順序を指定します。
+`primary`は「Or connect another wallet」の下に表示します。
+`secondary`は、初期状態で閉じた「More wallets」に表示します。
+設定を省略すると両方を非表示にします。空の配列に対応する見出しも表示しません。
 
-```tsx [部分的な実装例]
-import { WalletConnectorMenu } from '@seams/wallet/react';
-import { ExternalNearController } from '@seams/wallet/external-near';
-import '@seams/wallet/react/styles';
+NEARの項目には`kind: 'near'`、ウォレットID、`ExternalNearController`、
+`onConnected`を指定します。EVMの項目には`kind: 'evm'`、検出したウォレット、
+`ExternalEvmController`、型付きの`onConnected`を指定します。
+EVMの検出はアプリ側の`useExternalEvm`で開始します。
+MetaMaskやRabbyも既存のEVMコネクターを利用します。
+検出しただけでは項目を追加しません。表示するウォレットはアプリ側で選択します。
 
-const nearWallets = new ExternalNearController({
-  network: 'testnet',
-  rpcUrl: 'https://rpc.testnet.near.org',
-  wallets: ['meteor'],
-});
+各項目の`label`、`description`、画像URLの`icon`を変更できます。
+アイコンは通常モノクロで、ホバーまたはキーボードフォーカス時に色を表示します。
+「Recover or link wallet」を開くと、デバイス連携と復元の操作を表示します。
+認証操作はウォレットオリジン内に残り、接続コントローラーはアプリ側に残ります。
 
-<WalletConnectorMenu
-  onOutcome={handleSeamsOutcome}
-  externalNear={{ controller: nearWallets, onConnected: handleExternalConnection }}
-  options={{ meteor: { label: 'Meteorを接続', icon: <MeteorIcon /> } }}
-  authMenu={{ initialMode: 'register' }}
-/>;
-```
-
-`externalNear`を省略するとSeamsだけを表示します。外部ウォレットの一覧と順序は
-コントローラーの`wallets`で指定します。`setWallets`による変更も反映します。
-`options`で各項目の`label`、`description`、`icon`を変更できます。
-パネルには`title`、`description`、`closeLabel`、`backLabel`、`className`、`style`を指定できます。
-色と角丸は既存のプロバイダー設定を使用し、認証画面の文言は`authMenu.copy`で変更します。
-接続項目には`secondaryButtonBackground`、`secondaryButtonHoverBackground`、
-`secondaryButtonBorder`、`secondaryButtonText`を使います。余白、角丸、高さ、影は
-テーマの`spacing`、`shape`、`shadows`に従います。
-成功表示の円とリングには`buttonBackground`、チェックには`textButton`、
-ハローには省略可能な`passkeyHaloBackground`を使います。
-MeteorとHOTの公式アイコンを同梱しています。`options`の`icon`で置き換えることもできます。
-
-コネクターから開いた認証画面には、ウォレット選択へ戻るボタンを表示します。
-戻る操作は認証セッションをキャンセルし、`onClose`を呼び出さずに選択画面へ戻ります。
-単独で表示する`HostedSeamsAuthMenu`には、このボタンを表示しません。
-
-`onClose`を渡すと閉じるボタンを表示します。認証結果は`onOutcome`へ通知します。
-外部接続の成功は`externalNear.onConnected`へ通知します。
-接続後にメニューを閉じても接続を維持します。接続待ちの間にメニューを削除した場合は、
-その接続要求をキャンセルします。動きを減らすブラウザー設定にも対応します。
+外部接続の成功時は`onConnected`と`wallet_connected`の結果を通知します。
+Seamsの認証セッションは作成しません。メニューを閉じても完了した接続は維持します。
+接続待ちの間に閉じた場合は、その要求を無効にして遅れて届く結果を無視します。
 
 `AccountMenuButton`の既定値は`presentation="dropdown"`です。SDKのトリガーボタンを表示します。
 アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`または`presentation="drawer"`を指定します。

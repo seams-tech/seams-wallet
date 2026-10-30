@@ -18,3 +18,5 @@ export type {
 } from './types';
 
 export default HostedSeamsAuthMenu;
+
+export type { WalletAlternative, WalletAlternativesConfig } from './walletAlternatives';
