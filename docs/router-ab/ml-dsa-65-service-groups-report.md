@@ -2,7 +2,8 @@
 
 Optional service-group routing is implemented. One shared group remains the production default.
 Native and real local Worker campaigns pass. Independent replay accepts nine standard signatures and rejects nine altered messages.
-Hosted scaling remains unqualified. No production deployment or configuration changes are part of this checkpoint.
+The [hosted screen](ml-dsa-65-service-groups-hosted-report.md) reaches 7.45, 12.01, and 25.48 complete-cycle signatures/minute with one, two, and four groups.
+Broader population and production capacity remain unqualified. Production deployment and defaults remain unchanged.
 All three strict release builds pass. The inherited bloat failure remains 13,992 Rust duplicated lines against 13,754; this change adds none.
 
 ## Configuration and ownership
@@ -59,7 +60,7 @@ The A-before-B order prevents opposite resource ownership between co-located job
 The final local overlap reports a maximum of one active preparation and 117,506,048 Wasm bytes, about 112.1 MiB.
 This excludes JavaScript heap and does not establish the complete hosted memory budget.
 Observed busy-alarm intervals in the guarded control are 1,022–1,062 ms. The alarm helper can retain an earlier deadline, so this is not a strict backoff guarantee.
-Co-located jobs serialize. Separate isolates can progress independently. Hosted physical CPU distribution and throughput still require measurement.
+Co-located jobs serialize. Separate isolates can progress independently. The linked hosted comparison measures achieved throughput. Physical CPU placement and production capacity remain unqualified.
 
 ## Local evidence and limitations
 
