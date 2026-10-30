@@ -259,6 +259,108 @@ Report:
 Four-candidate jobs at 6 and 10 seconds imply a theoretical combined rate of 64 candidates/minute before scheduling gaps and failures.
 That arithmetic is only a ceiling. Convert it using measured candidate consumption and actual duty cycle, not an assumed constant of 5.1 candidates/signature.
 
+## Strategy 6: retain shared capacity now and prepare for independent service groups
+
+Status: planned. Keep the current runtime and deployed configuration unchanged until this strategy passes its local and hosted checks.
+One shared group remains the low-volume default. Existing per-wallet pools remain separate.
+The latest 7.738/minute JSON and 7.435/minute binary screens measure aggregate throughput across four wallets in one deployment.
+Those screens use two preparation slots and one signing slot. They do not demonstrate scaling across groups.
+Production defaults remain one preparation slot, one signing slot, and a sixty-second wallet cooldown.
+
+### Group ownership and stable wallet placement
+
+A service group owns an admission object and its bounded preparation objects.
+Reuse the existing Durable Object classes and participant deployments. Separate deployments for each group are unnecessary.
+Cloudflare supplies execution for distinct object identities; our application supplies wallet placement and concurrency bounds.
+
+Keep one authoritative, durable group assignment for each wallet scope, including organization, project, environment, and wallet.
+All signing keys, material epochs, devices, recovery operations, and duplicate operation IDs for that wallet follow that assignment.
+Never select a group from a browser value, a retry, the active device, or the current material epoch.
+Preserve participant A/B separation and the existing role-private wallet pool identities.
+Keep placement metadata separate from cryptographic key derivation, circuit identities, and FIPS seed export.
+
+Increasing the configured group count must not rehash existing wallets.
+Pin existing wallets to the current group at the persistence boundary before assigning new wallets elsewhere.
+Initially assign only new wallets to added groups. Defer transfer of existing wallets between groups.
+A missing or contradictory assignment must fail closed after enrollment. It must never select another group to bypass a busy controller.
+An unavailable group returns a retry result while its durable state remains authoritative.
+
+Resolve placement once at the authenticated boundary and validate it at the destination.
+Reuse the existing authoritative wallet persistence and private transport where they can express this rule.
+Avoid a global controller round trip for every candidate pair, storage read, or protocol exchange.
+Do not add a general scheduling framework, per-wallet Worker deployment, or caller-selected group override.
+
+### Registration and lifecycle ownership
+
+Generic registration preparation currently shares the admission store with key activation and custody-continuity checks.
+Moving only signing or refill dispatch would split authority and is insufficient.
+
+- Associate each generic registration job with its intended group before either participant starts work.
+- Keep preparation readiness, retirement, exact claims, completion, and key activation in that group.
+- Keep generic stock reusable only within its tenant scope and assigned group.
+- Derive the destination from the authoritative wallet assignment when claiming stock for registration or recovery.
+- Preserve the group for export, linked-device signing, participant restoration, and all later material epochs.
+- Check group ownership before accepting commands at admission and producer objects.
+- Reject wrong-group, stale, and changed-request replays before allocating material or charging cooldown.
+
+Use request/persistence boundary changes for placement metadata. Preserve ordinary ML-DSA keys and signatures.
+Do not add a second authority store that can independently admit the same wallet operation.
+
+### Bounded expansion and low-volume behavior
+
+Use the existing admission policy as the source of per-group signing and preparation limits.
+Make those limits explicitly per group when expansion is implemented.
+Bound the number of enabled groups as well. The deployment's maximum concurrent preparation is the enabled group count times its per-group limit.
+Keep expansion operator-controlled initially. Add automatic expansion only after measured thresholds and spend limits exist.
+Cloudflare activation of configured object identities is separate from our decision to enable more groups.
+
+Start with one enabled group and retain current object identities, queue fairness, producer borrowing, leases, and recovery alarms.
+Enable a second group only after qualification. Then test four groups under the same rules.
+Idle groups must not generate material without wallet demand or their existing expiry-maintenance requirements.
+Per-wallet capacity remains thirty-two candidates. Admission still requires sixteen candidates. Prepare four and consume two at a time.
+A second group adds compute concurrency; it does not shorten the cryptographic work required for each candidate.
+Do not promise linear growth before measuring placement, CPU variation, storage waits, failures, and useful refill output.
+
+### Local implementation and evidence gates
+
+Implement optional grouped routing only after its placement and registration ownership contract is explicit.
+Keep the production default at one group throughout qualification.
+Use the existing real-Worker lifecycle E2Es and retain a repeatable public evidence artifact.
+
+1. Demonstrate unchanged one-group registration, recovery, signing, export, and full-owner device linking.
+2. Hold one group's producer or admission slot. Show another group can refill and sign while the first remains blocked.
+3. Saturate every enabled group. Show per-group concurrency, aggregate concurrency, and per-wallet stock stay within their bounds.
+4. Replay one wallet operation concurrently through different entry points. Require the same owning group and one admitted operation.
+5. Restart controllers and producers with live work. Preserve assignments, fencing, terminal results, and exact single-use material accounting.
+6. Increase the assignment target for new wallets. Verify existing wallets retain their group and new wallets can use added groups.
+7. Exercise wrong-group commands, lost publication replies, recovery epochs, linked devices, and failed preparation.
+
+Do not add unit tests or source-text checks. Extend behavioral E2Es only for the new ownership and concurrency guarantees.
+
+### Hosted scaling campaign
+
+Compare one, two, and four independent groups within the same A/B Worker deployments.
+Report the operational one-slot profile separately from the two-slot-per-group capacity profile.
+Keep policy, wallet demand, per-wallet pool capacity, binaries, retry cadence, and participant trust boundaries comparable.
+Use four active synthetic wallets per group for the scaled-load comparison. Also record a fixed-wallet-count control to expose scheduling overhead.
+Use a benchmark cooldown with enough offered demand to exceed measured refill output. Retain the production cooldown unchanged.
+
+For each profile:
+
+- Verify creation and wallet-seed recovery before load. Independently verify every retained signature and reject altered messages.
+- Record authoritative wallet placements and actual admission/producer object identities for every group.
+- Consume all initial stock and restore the same final reserve. Include preparation failures, expiry waste, unused jobs, and closing refill time.
+- Report aggregate and per-group signatures/minute, fresh candidates/minute, preparation CPU, and CPU per successful signature.
+- Report per-wallet fairness, queue growth, below-minimum stock waits, complete demand latency, and successful-call latency.
+- Preserve driver alarm lateness and censored demands. Do not attribute offered-load gaps to the signing protocol without evidence.
+- Correlate all claims, cryptographic executions, paired publications, settlements, and material ledgers.
+- Measure cold activation and warm reuse. Repeat comparable windows before assigning a scaling factor.
+- Delete temporary Workers and test credentials after capturing replayable evidence.
+
+Advance only when added groups increase sustained useful output without growing queues, breaking lifecycle behavior, or hiding reserve depletion.
+If improvement is sublinear, identify the shared resource from measured traces before adding groups or changing protocol code.
+Select production group count and per-group limits from the observed failure rate, cost, and load. No expanded production configuration is approved by this plan alone.
+
 ## Execution order and stopping rules
 
 - [x] Establish an exact-version baseline and calibrated inner-stage sampling.
