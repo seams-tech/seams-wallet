@@ -1,9 +1,23 @@
 ---
-title: Release 0.33.0
-description: Stable authentication-menu sizing, recovery display options, and application footer branding.
+title: Release 0.34.0
+description: Exact SDK dependencies and open React peer versions.
 ---
 
-# Release 0.33.0
+# Release 0.34.0
+
+The browser SDK, server SDK, and VoiceID plugin use **0.34.0**.
+
+- Runtime and development dependencies retain exact versions to reduce exposure to unreviewed dependency updates.
+- React and React DOM remain optional peers with `>=19.0.0`. This range includes React 20 and later major versions.
+- SDK development uses exact React and React DOM **19.2.9**.
+- Applications select their React version through their own dependency declarations and lockfiles.
+- The peer range permits installation with future React versions. It does not certify untested versions.
+
+Update the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+The signed recovery CLI remains **0.29.0**, the Wallet iframe protocol remains **21.0.0**, and the wallet-management protocol remains **5**.
+This release adds no database migrations or protocol changes.
+
+## Release 0.33.0
 
 Version **0.33.0** adds application controls for the hosted authentication menu.
 

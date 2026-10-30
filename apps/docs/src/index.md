@@ -12,7 +12,7 @@ and a Seams project with a wallet origin, relayer URL, and managed-registration 
 ## Choose your wallet path
 
 If your app already uses Google SSO, [reuse that login for wallet settings](/guides/google-sso).
-SDK 0.33.0 supports direct Google ID tokens and backend handoffs for associated wallets.
+SDK 0.34.0 supports direct Google ID tokens and backend handoffs for associated wallets.
 Signing and security changes retain their owner authentication requirements.
 
 The steps below create a Seams threshold wallet. To let users bring Meteor,
@@ -22,7 +22,7 @@ That path needs no Seams provider or login. It is a development preview.
 ## 1. Install the SDK
 
 ```sh
-pnpm add @seams/wallet@0.33.0
+pnpm add @seams/wallet@0.34.0
 ```
 
 ## 2. Mount the provider
@@ -34,7 +34,7 @@ values from `import.meta.env`. Use the same environment variable names or your o
 configuration loader. Pass `chains` to configure different networks. Use
 `defineSeamsConfig` for networks other than testnet.
 
-These docs target `@seams/wallet` **0.33.0**. Keep the wallet-origin assets and
+These docs target `@seams/wallet` **0.34.0**. Keep the wallet-origin assets and
 `@seams/wallet-server` on the matching release. See
 [the deployment requirements](/deploy-and-operate/hosted-integration)
 before updating an existing integration.
@@ -43,7 +43,7 @@ before updating an existing integration.
 unlock, and reviewed transfer approval. Its engine and models load only when VoiceID is used.
 
 The wallet iframe protocol is **21.0.0**. The recovery CLI uses **0.29.0**.
-See [Release 0.33.0](/releases) for integration and deployment requirements.
+See [Release 0.34.0](/releases) for integration and deployment requirements.
 
 <<< ./examples/setup.tsx
 
