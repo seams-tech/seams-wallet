@@ -2,6 +2,10 @@ import { UserVerificationPolicy } from '../types/authenticatorOptions';
 import type { EcdsaSignerProvisioningDefaults } from '../types/ecdsaSignerProvisioningDefaults';
 import { ECDSA_CLIENT_PRESIGNATURE_CAPACITY } from '@/core/config/presignatures';
 import { DEFAULT_THRESHOLD_SESSION_TTL_MS } from '../signingEngine/threshold/sessionPolicy';
+import {
+  SIGNING_SESSION_SEAL_ALG,
+  SIGNING_SESSION_SEAL_GROUP_ID,
+} from '@shared/utils/signingSessionSeal';
 import type {
   SeamsChainConfig,
   SeamsConfigsInput,
@@ -130,8 +134,14 @@ export const PASSKEY_MANAGER_DEFAULT_CONFIGS: SeamsClientConfig = {
     emailOtp: {
       authPolicy: 'session',
     },
-    sessionPersistenceMode: 'none',
-    sessionSeal: { mode: 'none' },
+    sessionPersistenceMode: 'sealed_refresh_v1',
+    sessionSeal: {
+      mode: 'sealed_refresh_v1',
+      protocol: {
+        algorithm: SIGNING_SESSION_SEAL_ALG,
+        groupId: SIGNING_SESSION_SEAL_GROUP_ID,
+      },
+    },
     routerAb: {
       normalSigning: {
         mode: 'disabled',

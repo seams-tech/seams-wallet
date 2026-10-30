@@ -162,9 +162,25 @@ async function verifyPasskeyPageRefreshHydration(
   expect(stepUpWireSummary.exportProofs).toBeGreaterThan(0);
   expect(stepUpWireSummary.signingProofs).toBeGreaterThan(0);
   expect(stepUpWireSummary.unredactedProofs).toBe(0);
-  const artifactPath = testInfo.outputPath('ecdsa-step-up-prf-boundary.json');
-  await writeFile(artifactPath, JSON.stringify(stepUpWireSummary, null, 2) + '\n', 'utf8');
-  await testInfo.attach('ecdsa-step-up-prf-boundary', {
+  const artifactPath = path.resolve(
+    testInfo.config.rootDir,
+    '../.artifacts/passkey-session-persistence/default-sealed-refresh.json',
+  );
+  await mkdir(path.dirname(artifactPath), { recursive: true });
+  const receipt = {
+    kind: 'default_sealed_refresh_v1',
+    configuration: 'no_persistence_override',
+    registration: 'succeeded',
+    unlock: 'succeeded',
+    reload: 'restored',
+    verifiedSignatures: ['near', 'tempo', 'arc_evm'],
+    keyExport: ['ed25519', 'ecdsa'],
+    stepUpWireSummary,
+    reproduce:
+      "SEAMS_INTENDED_SKIP_BUILD=1 node tests/scripts/run-wallet-intended-isolated.mjs -- e2e/intended-behaviours/passkey.unlock.contract.test.ts --grep 'default sealed refresh hydrates'",
+  };
+  await writeFile(artifactPath, JSON.stringify(receipt, null, 2) + '\n', 'utf8');
+  await testInfo.attach('default-sealed-refresh', {
     path: artifactPath,
     contentType: 'application/json',
   });
@@ -172,7 +188,7 @@ async function verifyPasskeyPageRefreshHydration(
 }
 
 test(
-  'page refresh hydrates warm signing, one-use step-up, and key export',
+  'default sealed refresh hydrates warm signing, one-use step-up, and key export',
   verifyPasskeyPageRefreshHydration,
 );
 

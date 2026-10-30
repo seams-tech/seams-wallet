@@ -89,6 +89,19 @@ EVM系チェーンには、数値のチェーン識別子も必要です。
 
 `relayerAccount`を設定すると、SDKは自動取得を省略します。指定値はサーバーと一致させてください。
 
+## 署名セッションの永続化 {#signing-session-persistence}
+
+`signingSessionPersistenceMode`の既定値は`sealed_refresh_v1`です。
+`SeamsWebProvider`へ渡す設定で、この項目を省略するとシールドリフレッシュを利用します。
+アプリは、解決した設定をホストするウォレットiframeへ渡します。
+
+このモードは、ウォレットワーカーとリレーヤーのセッションシールAPIを通じて、暗号化したリフレッシュ情報を保存します。
+有効なセッションは、既存の有効期限と署名回数の範囲内でページ再読み込み後に復元できます。
+リレーヤーは、これらのAPIに対応する必要があります。
+
+`signingSessionPersistenceMode: 'none'`を明示すると、署名用の情報をメモリー内だけに保持します。
+アンロックと署名は利用できます。ページ再読み込み後に、再認証が必要になる場合があります。
+
 ## 表示の設定 {#appearance-branch}
 
 SDK 0.18.0で、`appearance.locale: 'en' | 'ja'`が追加されました。既定は英語です。

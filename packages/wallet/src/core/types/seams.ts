@@ -204,8 +204,8 @@ export interface SeamsConfigsInput {
   /**
    * Warm signing session persistence mode.
    *
-   * - `none`: no refresh-time persistence (default).
-   * - `sealed_refresh_v1`: sealed refresh persistence via worker + server signing-session seal module.
+   * - `sealed_refresh_v1`: sealed refresh persistence via worker + server signing-session seal module (default).
+   * - `none`: explicitly disable refresh-time persistence.
    */
   signingSessionPersistenceMode?: SigningSessionPersistenceMode;
   /**

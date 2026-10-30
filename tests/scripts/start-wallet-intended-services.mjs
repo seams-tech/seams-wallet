@@ -119,7 +119,6 @@ function startIntendedApp(label, origin, cacheName, walletPublicDirectory) {
     VITE_SEAMS_WALLET_ASSET_HOST: cacheName === 'wallet-host' ? '1' : '0',
     VITE_SEAMS_WALLET_DIST_ROOT: walletDistRoot,
     VITE_SEAMS_WALLET_PUBLIC_ROOT: walletPublicDirectory,
-    VITE_SIGNING_SESSION_PERSISTENCE_MODE: 'sealed_refresh_v1',
     VITE_WALLET_ORIGIN: walletOrigin,
   };
   const appOutput = path.join(runtimeRoot, '.runtime', `production-${cacheName}`);

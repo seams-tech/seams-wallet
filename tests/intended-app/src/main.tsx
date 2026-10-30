@@ -42,12 +42,11 @@ function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number
   return { ttlMs, remainingUses };
 }
 
-function signingSessionPersistenceModeFromUrl(): 'none' | 'sealed_refresh_v1' {
-  const mode =
-    new URL(window.location.href).searchParams.get('signingSessionPersistenceMode') ??
-    import.meta.env.VITE_SIGNING_SESSION_PERSISTENCE_MODE;
+function signingSessionPersistenceModeFromUrl(): 'none' | 'sealed_refresh_v1' | undefined {
+  const mode = new URL(window.location.href).searchParams.get('signingSessionPersistenceMode');
   switch (mode) {
-    case undefined:
+    case null:
+      return undefined;
     case 'none':
       return 'none';
     case 'sealed_refresh_v1':
@@ -58,6 +57,7 @@ function signingSessionPersistenceModeFromUrl(): 'none' | 'sealed_refresh_v1' {
 }
 
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
+const signingSessionPersistenceMode = signingSessionPersistenceModeFromUrl();
 const config = defineSeamsConfig({
   walletOrigin,
   authMethods:
@@ -81,7 +81,7 @@ const config = defineSeamsConfig({
       explorerUrl: 'https://testnet.arcscan.app',
     },
   ],
-  signingSessionPersistenceMode: signingSessionPersistenceModeFromUrl(),
+  ...(signingSessionPersistenceMode === undefined ? {} : { signingSessionPersistenceMode }),
   routerAb: {
     normalSigning: {
       mode: 'enabled',

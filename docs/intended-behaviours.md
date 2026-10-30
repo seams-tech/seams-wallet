@@ -876,6 +876,9 @@ The SDK owns transient read retry and RPC handling. The browser contract is
 - Page refresh must not create new authority by itself. It may rehydrate valid
   persisted/sealed session state. If rehydration fails or a session is expired
   or exhausted, the next operation must use normal unlock or step-up auth.
+- Omitting `signingSessionPersistenceMode` selects `sealed_refresh_v1`. Registration
+  and unlock persist sealed refresh material, and reload restores only exact,
+  valid sessions within their existing expiry and signing budget.
 - Application authentication is outside the wallet SDK. An application token,
   cookie, user id, or provider session never proves wallet ownership.
 - Primary and hosted operation credentials are opaque. Client code must not decode
@@ -2135,6 +2138,7 @@ restore, lane selection, or budget handling.
 | Email OTP registration reroll reuses only the matching challenge and provider subject                            | Private boundary coverage: `seams-monorepo/tests/unit/authService.hostedAccountPrivacy.unit.test.ts`              |
 | Passkey registration signs Tempo immediately and NEAR at readiness                                               | `tests/e2e/intended-behaviours/passkey.registration.contract.test.ts`                                             |
 | Passkey unlock restores exact mixed-wallet signing, export, refresh, and step-up                                 | `tests/e2e/intended-behaviours/passkey.unlock.contract.test.ts`                                                   |
+| Default sealed refresh restores signing after reload; explicit `none` retains memory-only unlock                 | `tests/e2e/intended-behaviours/passkey.unlock.contract.test.ts`                                                   |
 | Email OTP registration and unlock restore signing, export, refresh, and step-up without passkey fallback         | `tests/e2e/intended-behaviours/email-otp.unlock.contract.test.ts`                                                 |
 | Local Ed25519 Yao execution preserves retry and terminal-failure semantics                                       | `tests/e2e/intended-behaviours/passkey.ed25519-yao-local.contract.test.ts`                                        |
 | Adding Email OTP reuses the Passkey authority and enables every allowed signer and export family                 | `tests/e2e/intended-behaviours/passkey.add-email-otp.contract.test.ts`                                            |

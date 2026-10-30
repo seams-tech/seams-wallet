@@ -69,7 +69,8 @@ export async function verifyMemoryOnlyPasskeyUnlock(
           signingSessionPersistenceMode: 'none',
           unlock: 'succeeded',
           verifiedSignatures: ['near', 'tempo', 'arc_evm'],
-          sealedModeUnlock: 'succeeded',
+          defaultModeUnlock: 'succeeded',
+          defaultModeSealedRecords: sealsBeforeUnlock,
           sealsBeforeUnlock,
           sealsAfterSigning,
           reproduce:

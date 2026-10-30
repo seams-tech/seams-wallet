@@ -96,15 +96,15 @@ If you set `relayerAccount`, the SDK skips discovery. Your value must match the 
 
 ## Signing session persistence
 
-Set `signingSessionPersistenceMode` in the configuration passed to `SeamsWebProvider`.
-The app passes this setting to the hosted wallet iframe.
+`signingSessionPersistenceMode` defaults to `sealed_refresh_v1`. Omit this setting
+from the configuration passed to `SeamsWebProvider` to use sealed refresh.
+The app passes the resolved setting to the hosted wallet iframe.
 
 ```ts [Partial example]
 const config = defineSeamsConfig({
   walletOrigin: import.meta.env.VITE_WALLET_ORIGIN,
   relayerUrl: import.meta.env.VITE_RELAYER_URL,
   publishableKey: import.meta.env.VITE_SEAMS_PUBLISHABLE_KEY,
-  signingSessionPersistenceMode: 'sealed_refresh_v1',
 });
 ```
 
@@ -112,8 +112,8 @@ const config = defineSeamsConfig({
 the relayer's session seal endpoints. It lets eligible warm sessions restore after a
 page reload. The configured relayer must support these endpoints.
 
-`none` is the default. It keeps warm signing material in memory. Passkey unlock and
-signing remain available. A reload can require fresh authentication.
+Set `signingSessionPersistenceMode: 'none'` to keep warm signing material in memory.
+Passkey unlock and signing remain available. A reload can require fresh authentication.
 
 ## Appearance branch
 

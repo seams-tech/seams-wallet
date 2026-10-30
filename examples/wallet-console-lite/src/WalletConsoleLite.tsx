@@ -228,7 +228,6 @@ function createWalletConfig(workspace: ReadyLocalWorkspace) {
         explorerUrl: 'https://testnet.arcscan.app',
       },
     ],
-    signingSessionPersistenceMode: 'sealed_refresh_v1',
     routerAb: {
       normalSigning: {
         mode: 'enabled',
