@@ -59,7 +59,7 @@ test.describe('wallet-host auth-menu integration', () => {
       skipSeamsWebInit: true,
       injectWalletServiceImportMap: true,
     });
-    await page.goto('about:blank');
+    await page.goto('/');
     await injectImportMap(page);
     await registerWalletServiceRoute(page, HOST_HTML, WALLET_SERVICE_ROUTE);
   });
