@@ -1,13 +1,13 @@
 ---
 title: Bring your own Google authentication
-description: Reuse an application's Google SSO login for associated wallet settings in SDK 0.30.0.
+description: Reuse an application's Google SSO login for associated wallet settings in SDK 0.31.0.
 ---
 
 # Bring your own Google authentication
 
 Use the application's existing Google ID token to open an associated wallet without another login prompt.
 This flow grants settings access. Signing and custody operations retain their existing authentication requirements.
-SDK **0.30.0** supports direct Google trust and [application-session handoff](/guides/application-auth).
+SDK **0.31.0** supports direct Google trust and [application-session handoff](/guides/application-auth).
 Pass the Google **ID token** issued for the configured OAuth client. Google access tokens and arbitrary WebAuthn assertions are not supported by this API.
 
 ## Configure trust
@@ -136,7 +136,7 @@ Wallet relocation preserves associations. External sessions and pending handoffs
 
 ## Verification
 
-SDK **0.30.0** uses wallet iframe protocol **20.0.0**.
+SDK **0.31.0** uses wallet iframe protocol **20.0.0**.
 
 Run `pnpm -C packages/wallet build:sdk`, then `node tests/e2e/external-auth.e2e.mjs` from the repository root.
 The scenario writes `.artifacts/external-auth/result.json` and a settings screenshot.

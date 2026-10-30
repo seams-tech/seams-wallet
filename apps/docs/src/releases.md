@@ -1,9 +1,27 @@
 ---
-title: Release 0.30.0
-description: Combined hosted authentication and configurable NEAR and EVM wallet alternatives.
+title: Release 0.31.0
+description: Exact dependency versions, React 19.1.1 peers, and aligned Wallet runtime builds.
 ---
 
-# Release 0.30.0
+# Release 0.31.0
+
+Version **0.31.0** pins external npm and Cargo dependencies and aligns the Wallet runtime builds.
+
+| Component | Version |
+| --- | --- |
+| `@seams/wallet` | **0.31.0** |
+| `@seams/wallet-server` | **0.31.0** |
+| `@seams/voiceid` | **0.31.0** |
+| Signed recovery CLI | **0.29.0** |
+| Wallet iframe protocol | **20.0.0** |
+| Wallet-management protocol | **5** |
+
+React integrations require `react@19.1.1` and `react-dom@19.1.1`.
+Optional QR integrations use `jsqr@1.4.0` and `qrcode@1.5.4`.
+Update the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+This release adds no database migrations or iframe protocol changes.
+
+## Release 0.30.0
 
 Version **0.30.0** combines Seams authentication and configured external wallet connections in one hosted screen.
 
