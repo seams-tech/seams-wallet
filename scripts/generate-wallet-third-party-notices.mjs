@@ -126,16 +126,24 @@ function collectCargoDependencies() {
 }
 
 function runCargoMetadata(manifestPath) {
+  const metadataArguments = [
+    'metadata',
+    '--format-version',
+    '1',
+    '--locked',
+    '--manifest-path',
+    path.join(repositoryRoot, manifestPath),
+  ];
+  if (
+    manifestPath === 'crates/router-ab-cloudflare/Cargo.toml' ||
+    manifestPath === 'wasm/near_signer/Cargo.toml'
+  ) {
+    // Include the separately shipped ML-DSA Worker and browser builds.
+    metadataArguments.push('--features', 'ml-dsa');
+  }
   const result = spawnSync(
     'cargo',
-    [
-      'metadata',
-      '--format-version',
-      '1',
-      '--locked',
-      '--manifest-path',
-      path.join(repositoryRoot, manifestPath),
-    ],
+    metadataArguments,
     { encoding: 'utf8', cwd: repositoryRoot, maxBuffer: 32 * 1024 * 1024 },
   );
   if (result.error) throw result.error;
