@@ -1,0 +1,192 @@
+{
+  "schema": "ml-dsa-quiet-producer-hosted-summary-v1",
+  "measurement_date": "2026-10-31 Asia/Tokyo",
+  "frozen_runtime_revision": "f77984cee22db8fcedb1bd189b788ceea8e17152",
+  "production_source_changed": false,
+  "retained_optimization": null,
+  "ordinary_quiet_summary": [
+    {
+      "repeat": "ordinary",
+      "group": 0,
+      "quiet_jobs": 2,
+      "paired_cpu_ms_median": 15741.5,
+      "a_cpu_ms_median": 7597.5,
+      "b_cpu_ms_median": 8144.0
+    },
+    {
+      "repeat": "ordinary",
+      "group": 1,
+      "quiet_jobs": 2,
+      "paired_cpu_ms_median": 7336.0,
+      "a_cpu_ms_median": 3584.5,
+      "b_cpu_ms_median": 3751.5
+    },
+    {
+      "repeat": "reverse",
+      "group": 0,
+      "quiet_jobs": 2,
+      "paired_cpu_ms_median": 16495.5,
+      "a_cpu_ms_median": 7982.5,
+      "b_cpu_ms_median": 8513.0
+    },
+    {
+      "repeat": "reverse",
+      "group": 1,
+      "quiet_jobs": 2,
+      "paired_cpu_ms_median": 7037.0,
+      "a_cpu_ms_median": 3449.0,
+      "b_cpu_ms_median": 3588.0
+    }
+  ],
+  "ordinary_ratios": [
+    2.145787895310796,
+    2.344109705840557
+  ],
+  "public_probe_summary": [
+    {
+      "kind": 0,
+      "group": 0,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 0
+    },
+    {
+      "kind": 0,
+      "group": 0,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 0
+    },
+    {
+      "kind": 0,
+      "group": 1,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 0
+    },
+    {
+      "kind": 0,
+      "group": 1,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 0
+    },
+    {
+      "kind": 1,
+      "group": 0,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 23
+    },
+    {
+      "kind": 1,
+      "group": 0,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 25
+    },
+    {
+      "kind": 1,
+      "group": 1,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 15
+    },
+    {
+      "kind": 1,
+      "group": 1,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 17
+    },
+    {
+      "kind": 2,
+      "group": 0,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 226
+    },
+    {
+      "kind": 2,
+      "group": 0,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 212
+    },
+    {
+      "kind": 2,
+      "group": 1,
+      "role": "a",
+      "eligible": 3,
+      "cpu_ms_median": 97
+    },
+    {
+      "kind": 2,
+      "group": 1,
+      "role": "b",
+      "eligible": 3,
+      "cpu_ms_median": 87
+    }
+  ],
+  "public_probes_eligible": 36,
+  "closure": {
+    "passed": true,
+    "selected_jobs": 24,
+    "post_setup_jobs": 31,
+    "ledger_pairs": {
+      "initial": 64,
+      "fresh": 59,
+      "explicitly_retired": 48,
+      "signature_consumed": 11,
+      "final": 64
+    },
+    "paired_preparation_cpu_ms": 330568,
+    "final_signature_cases": [
+      {
+        "wallet": 1,
+        "request_count": 1,
+        "elapsed_ms": 3497
+      },
+      {
+        "wallet": 2,
+        "request_count": 1,
+        "elapsed_ms": 2327
+      },
+      {
+        "wallet": 3,
+        "request_count": 1,
+        "elapsed_ms": 1766
+      },
+      {
+        "wallet": 4,
+        "request_count": 1,
+        "elapsed_ms": 1135
+      }
+    ],
+    "raw_invocations": 12043,
+    "final_trace_sha256": "68582f7b5743d71d9b876000246decbb96f8d9c093d966c6d5f45c381d527bc4",
+    "limits": [
+      "This is a controlled retirement/refill experiment, not sustained signature throughput.",
+      "The selected24jobs include48 explicit retired pairs as experiment cost.",
+      "The ledger excludes separately recorded setup and normalization work."
+    ]
+  },
+  "standard_signatures_verified": 12,
+  "altered_messages_rejected": 12,
+  "cleanup": "pending_explicit_worker_deletion_approval",
+  "private_credential_matches": 0,
+  "archive": {
+    "name": "ml-dsa-65-quiet-producer-hosted-20261031.tar.gz",
+    "bytes": 13537308,
+    "sha256": "29fcab2a7061e2a19bf30157cb155bdbaee209cecd826eff15101b7d01bc7c73",
+    "files": 167
+  },
+  "replay": "Extract the archive and run python3 quiet-producer-hosted/replay-hosted.py. Requires Node with ML-DSA verification and Python3; no credentials or external calls.",
+  "limits": [
+    "No new sustained throughput or production latency guarantee.",
+    "Host and compiler causes remain unknown.",
+    "Bulk AES does not quantify production conversion batch costs.",
+    "Wasm allocation excludes JavaScript heap and native memory.",
+    "Setup and normalization work remain outside selected producer timing samples."
+  ]
+}

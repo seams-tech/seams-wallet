@@ -1,5 +1,7 @@
 # ML-DSA quiet producer controls: local qualification
 
+This is the October 30 local checkpoint. The [October 31 hosted follow-up](ml-dsa-65-quiet-producer-hosted-report.md) records the completed tests.
+
 The same-core public CPU instrument passes local qualification. Hosted diagnosis has not started.
 This checkpoint establishes no preparation speedup or new signatures-per-minute result.
 The latest hosted scaling screen remains the historical [service-group comparison](ml-dsa-65-service-groups-hosted-report.md).
