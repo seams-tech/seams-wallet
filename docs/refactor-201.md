@@ -261,7 +261,8 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 
 ## Strategy 6: retain shared capacity now and prepare for independent service groups
 
-Status: planned. Keep the current runtime and deployed configuration unchanged until this strategy passes its local and hosted checks.
+Status: optional routing and a per-isolate compute guard are implemented. Native and final frozen Worker campaigns pass. Hosted scaling remains unqualified.
+See the [implementation and local qualification report](router-ab/ml-dsa-65-service-groups-report.md). Keep deployed configuration unchanged until hosted checks pass.
 One shared group remains the low-volume default. Existing per-wallet pools remain separate.
 The latest 7.738/minute JSON and 7.435/minute binary screens measure aggregate throughput across four wallets in one deployment.
 Those screens use two preparation slots and one signing slot. They do not demonstrate scaling across groups.
@@ -310,7 +311,8 @@ Do not add a second authority store that can independently admit the same wallet
 
 Use the existing admission policy as the source of per-group signing and preparation limits.
 Make those limits explicitly per group when expansion is implemented.
-Bound the number of enabled groups as well. The deployment's maximum concurrent preparation is the enabled group count times its per-group limit.
+Bound the number of enabled groups as well. The maximum concurrent refill jobs equal the enabled group count times the per-group refill limit.
+Generic registration preparation has a separate bound of one preparing job per group; include that work in the aggregate budget.
 Keep expansion operator-controlled initially. Add automatic expansion only after measured thresholds and spend limits exist.
 Cloudflare activation of configured object identities is separate from our decision to enable more groups.
 
@@ -323,7 +325,14 @@ Do not promise linear growth before measuring placement, CPU variation, storage 
 
 ### Local implementation and evidence gates
 
-Implement optional grouped routing only after its placement and registration ownership contract is explicit.
+The implementation keeps immutable wallet placement in the original admission object and uses a bounded in-process cache.
+Its private registration job includes the owning group. Admission and producer objects check their exact destinations.
+Older activations, operation journals, cooldowns, and active registration claims normalize to group zero before new placement begins.
+The local campaign covers seventy failed-only journal records across a page boundary. Total atomic migration cost still requires measurement at larger histories.
+Co-located heavy refills share a compute guard. A acquires before B, and B waits before role claim or socket readiness.
+The guarded local maximum is about 112.1 MiB of Wasm memory; JavaScript heap and hosted scaling remain unqualified.
+`service_groups` defaults to one in the existing admission policy. It can increase through sixty-four and cannot decrease after persistence.
+The directory remains a shared dependency on cache misses. High wallet cardinality and cold-start rates require hosted qualification.
 Keep the production default at one group throughout qualification.
 Use the existing real-Worker lifecycle E2Es and retain a repeatable public evidence artifact.
 

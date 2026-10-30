@@ -10,6 +10,7 @@ pub mod registration;
 pub mod registration_preparation;
 pub mod registration_tables;
 pub mod sealing;
+pub mod service_group;
 #[cfg(feature = "workers-rs")]
 pub mod workers;
 

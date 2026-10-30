@@ -4,7 +4,6 @@ use std::cell::Cell;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 const PENDING: &str = "producer-pending";
-const PRODUCER_NAME: &str = "ml-dsa-producer-v1";
 const MAX_PENDING: usize = 2;
 const RECOVERY_CHECK_MS: u64 = 5_000;
 static CONSTRUCTIONS: AtomicU32 = AtomicU32::new(0);
@@ -53,7 +52,11 @@ pub(super) async fn dispatch(env: &Env, job: &refill::Job) -> Result<()> {
     let stub = env
         .durable_object(job.producer_slot.namespace())
         .map_err(storage_error)?
-        .id_from_name(PRODUCER_NAME)
+        .id_from_name(
+            &routing::resolve(env, &job.key.wallet)
+                .await?
+                .producer_name(),
+        )
         .map_err(storage_error)?
         .get_stub()
         .map_err(storage_error)?;
@@ -110,6 +113,9 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
         let job: refill::Job = decode_bounded_json_request(&mut request, 16_384)
             .await
             .map_err(protocol_error)?;
+        routing::check_producer(&self.env, &self.state, &job)
+            .await
+            .map_err(protocol_error)?;
         log_stage(&job, Participant::A, job.batch, "producer_received");
         check_job(&self.env, &job).await.map_err(protocol_error)?;
         log_stage(&job, Participant::A, job.batch, "producer_authorized");
@@ -143,6 +149,13 @@ impl DurableObject for RouterAbMlDsaProducerDurableObject {
     async fn alarm(&self) -> worker::Result<Response> {
         self.invocation.set(self.invocation.get().saturating_add(1));
         self.log_entry("alarm_entered");
+        // Defer before Running, role claims, or peer dispatch. Preserve the queued job and its lease.
+        let Some(_compute) = compute_slot().try_lock_owned() else {
+            self.log_entry("compute_deferred");
+            let _guard = self.storage_gate.lock().await;
+            schedule_refill_alarm(&self.state, 1_000).await?;
+            return Response::empty();
+        };
         worker::console_log!(
             "{}",
             serde_json::json!({

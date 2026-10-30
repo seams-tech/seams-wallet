@@ -1,0 +1,69 @@
+{
+  "schema": "ml-dsa-service-groups-local-v1",
+  "date": "2026-10-30",
+  "production_defaults": {
+    "service_groups": 1,
+    "preparation_slots_per_group": 1,
+    "signing_slots_per_group": 1,
+    "wallet_cooldown_ms": 60000
+  },
+  "fixed_requirements": {
+    "wallet_seed_recovery": true,
+    "canonical_fips_export": true,
+    "prepared_candidates_per_job": 4,
+    "consumed_candidates_per_pair": 2,
+    "candidates_per_wallet": 32,
+    "admission_minimum_candidates": 16
+  },
+  "measured": {
+    "groups_lifecycle_passed": true,
+    "single_group_lifecycle_passed": true,
+    "standard_signatures_verified": 9,
+    "altered_messages_rejected": 9,
+    "unguarded_parallel_wasm_bytes": 161873920,
+    "guarded_parallel_wasm_bytes": 117506048,
+    "guarded_active_crypto_maximum": 1,
+    "legacy_failed_journal_fixtures": 70
+  },
+  "limits": [
+    "Private local workerd, not hosted user latency.",
+    "Wasm allocation excludes JavaScript heap.",
+    "Distinct producer identities do not establish physical CPU parallelism.",
+    "Directory initialization scans all retained journals atomically; only page size is bounded.",
+    "Asymmetric B guard contention is not directly injected by this local topology.",
+    "Counterfactual source hashes describe the working tree at capture, not the older frozen binary."
+  ],
+  "failures": [
+    {
+      "artifact": "local-groups-initial-failure.json",
+      "classification": "valid_test_needs_update",
+      "reason": "The shared transaction adapter masks the exact group-count-decrease error. The final E2E checks rejection and unchanged allocation."
+    },
+    {
+      "artifact": "local-single-group-initial-failure.json",
+      "classification": "valid_test_needs_update",
+      "reason": "Earlier verified interruption cases used reclaimed material; the old assertion counted only later main-loop signatures.",
+      "earlier_committed_reclaimed_pairs": {
+        "lost_reply": 11,
+        "truncated": 2
+      }
+    },
+    {
+      "artifact": "parallel-node-sample.txt",
+      "classification": "environment_or_infrastructure_failure",
+      "reason": "All 828 sampled Node main-thread stacks enter Atomics.wait. The exact synchronous proxy call remains unknown. Prebinding restores progress without protocol changes."
+    },
+    {
+      "artifact": "journal-counterfactual.json",
+      "classification": "production_regression",
+      "reason": "The unreleased earlier routing prototype assigns a failed-only historical wallet to group one. The final migration preserves zero."
+    }
+  ],
+  "archive": {
+    "file": "ml-dsa-65-service-groups-local-20261030.tar.gz",
+    "sha256": "66a3fdeac9ff0b957655e4a5ac57702fec331c137cade52b54a80857798d0421",
+    "bytes": 3306531,
+    "credential_scan_matches": 0,
+    "scope": "Persisted generated role keys and hosted credentials. Ephemeral local authentication tokens were not retained."
+  }
+}

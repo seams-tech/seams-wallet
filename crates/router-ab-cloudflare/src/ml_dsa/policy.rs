@@ -42,6 +42,7 @@ impl From<CandidateGroupSize> for u16 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(try_from = "PolicyWire")]
 pub struct Policy {
+    pub(crate) service_groups: u8,
     pub(crate) wallet_cooldown: WalletCooldown,
     pub(crate) max_active_operations: usize,
     pub(crate) max_active_preparations: usize,
@@ -54,6 +55,8 @@ pub struct Policy {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PolicyWire {
+    #[serde(default = "single_service_group")]
+    service_groups: u8,
     wallet_cooldown: WalletCooldown,
     max_active_operations: usize,
     #[serde(default = "serial_preparation")]
@@ -64,6 +67,9 @@ struct PolicyWire {
     minimum_ready_batches: usize,
     refill_target_batches: usize,
 }
+const fn single_service_group() -> u8 {
+    1
+}
 const fn serial_preparation() -> usize {
     1
 }
@@ -73,10 +79,12 @@ impl TryFrom<PolicyWire> for Policy {
     fn try_from(value: PolicyWire) -> Result<Self> {
         let consumed = u16::from(value.candidate_group_size);
         let prepared = u16::from(value.preparation_group_size);
-        if matches!(
-            value.wallet_cooldown,
-            WalletCooldown::Enabled { interval_ms: 0 }
-        ) || value.max_active_operations == 0
+        if !(1..=64).contains(&value.service_groups)
+            || matches!(
+                value.wallet_cooldown,
+                WalletCooldown::Enabled { interval_ms: 0 }
+            )
+            || value.max_active_operations == 0
             || value.max_active_operations > 64
             || !(1..=2).contains(&value.max_active_preparations)
             || !(1_000..=300_000).contains(&value.operation_timeout_ms)
@@ -88,6 +96,7 @@ impl TryFrom<PolicyWire> for Policy {
             return Err(invalid("Invalid ML-DSA admission policy"));
         }
         Ok(Self {
+            service_groups: value.service_groups,
             wallet_cooldown: value.wallet_cooldown,
             max_active_operations: value.max_active_operations,
             max_active_preparations: value.max_active_preparations,
@@ -102,6 +111,7 @@ impl TryFrom<PolicyWire> for Policy {
 impl Default for Policy {
     fn default() -> Self {
         Self {
+            service_groups: single_service_group(),
             wallet_cooldown: WalletCooldown::Enabled {
                 interval_ms: 60_000,
             },

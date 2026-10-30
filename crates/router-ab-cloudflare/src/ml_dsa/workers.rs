@@ -3,6 +3,7 @@ mod coordinator;
 mod durable_trace;
 mod executor;
 mod material_delivery;
+mod routing;
 use material_delivery::RoleOutput;
 mod preparation;
 pub(crate) mod recipient_keys;
@@ -47,7 +48,7 @@ const CHECK_PATH: &str = "/check";
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AdmissionCommand {
     PrepareRegistration {
-        scope: [u8; 32],
+        wallet: WalletScope,
         schedule: [u8; 32],
         signing_schedule: [u8; 32],
         signing_batches: usize,
@@ -431,6 +432,9 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         if request.method() != Method::Post {
             return Response::error("ML-DSA requires POST", 405);
         }
+        if routing::is_path(&request.path()) {
+            return routing::handle(request, &self.env, &self.state).await;
+        }
         let checking = request.path() == CHECK_PATH;
         if !checking && request.path() != CONTROL_PATH {
             return Response::error("Unknown ML-DSA route", 404);
@@ -469,6 +473,9 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
         {
             return Response::error("ML-DSA read authority required", 403);
         }
+        let group = routing::check_destination(&self.env, &self.state, &command)
+            .await
+            .map_err(protocol_error)?;
         let call = crate::parse_cloudflare_trace_id_from_request_v1(&request)
             .ok()
             .flatten();
@@ -491,7 +498,7 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
                         trace: callback_trace.clone(),
                     };
                     let now = crate::cloudflare_now_unix_ms_v1().map_err(protocol_error)?;
-                    let value = execute_admission(&store, &policy, command, now)
+                    let value = execute_admission(&store, &policy, group, command, now)
                         .await
                         .map_err(protocol_error)?;
                     captured.replace(Some(value));
@@ -509,19 +516,21 @@ impl DurableObject for RouterAbMlDsaAdmissionDurableObject {
 async fn execute_admission(
     store: &impl Store,
     policy: &Policy,
+    group: service_group::ServiceGroup,
     command: AdmissionCommand,
     now: u64,
 ) -> Result<serde_json::Value> {
     match command {
         AdmissionCommand::PrepareRegistration {
-            scope,
+            wallet,
             schedule,
             signing_schedule,
             signing_batches,
         } => json(
             super::registration::prepare(
                 store,
-                scope,
+                super::registration::scope(&wallet)?,
+                group,
                 schedule,
                 signing_schedule,
                 signing_batches,
@@ -1270,7 +1279,7 @@ async fn service_call<T: serde::de::DeserializeOwned>(
 ) -> Result<T> {
     let namespace = env.durable_object(SERVICE_BINDING).map_err(storage_error)?;
     let stub = namespace
-        .id_from_name(SERVICE_NAME)
+        .id_from_name(&routing::destination(env, command).await?.admission_name())
         .map_err(storage_error)?
         .get_stub()
         .map_err(storage_error)?;

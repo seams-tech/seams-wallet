@@ -198,7 +198,7 @@ async fn prepare_request(
         env,
         CallAuthority::Gateway(request.headers()),
         &AdmissionCommand::PrepareRegistration {
-            scope: core::scope(&input.wallet).map_err(protocol_error)?,
+            wallet: input.wallet,
             schedule: schedules::DIGEST,
             signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
             // Registration needs admissible stock. The durable refill loop builds

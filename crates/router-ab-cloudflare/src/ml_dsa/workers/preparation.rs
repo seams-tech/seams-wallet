@@ -8,6 +8,14 @@ pub(crate) const START_PATH: &str = "/router-ab/ml-dsa/prepare";
 pub(crate) const PREPARE_PATH: &str = "/router-ab/ml-dsa/prepare-connect";
 const QUEUE: &str = "preprocessing-queue";
 static ACTIVE_CRYPTO: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+thread_local! {
+    // Several producer objects can share one Wasm heap. One real preparation fits its memory budget.
+    static COMPUTE_SLOT: std::sync::Arc<futures::lock::Mutex<()>> =
+        std::sync::Arc::new(futures::lock::Mutex::new(()));
+}
+fn compute_slot() -> std::sync::Arc<futures::lock::Mutex<()>> {
+    COMPUTE_SLOT.with(std::sync::Arc::clone)
+}
 struct CryptoActivity;
 impl CryptoActivity {
     fn enter() -> Self {
@@ -567,10 +575,18 @@ pub(crate) async fn handle_prepare(
     let job: refill::Job = socket_input(&request).map_err(protocol_error)?;
     log_stage(&job, Participant::B, job.batch, "peer_received");
     check_job(&env, &job).await.map_err(protocol_error)?;
+    // A owns its compute slot before requesting B. Admit B before returning a socket.
+    let compute = before_deadline(job.expires_at_ms, async {
+        Ok(compute_slot().lock_owned().await)
+    })
+    .await
+    .map_err(protocol_error)?;
+    check_job(&env, &job).await.map_err(protocol_error)?;
     let public_key = claim_role(&env, &job).await.map_err(protocol_error)?;
     log_stage(&job, Participant::B, job.batch, "role_claimed");
     let pair = WebSocketPair::new()?;
     context.wait_until(async move {
+        let _compute = compute;
         let result = before_deadline(
             job.expires_at_ms,
             produce_b(&env, &job, &public_key, &pair.server),

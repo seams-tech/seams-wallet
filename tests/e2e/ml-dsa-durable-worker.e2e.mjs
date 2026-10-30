@@ -40,6 +40,19 @@ const authHeader = 'x-router-ab-internal-service-auth';
 const serviceAuth = randomBytes(32).toString('hex');
 const gatewayAuth = randomBytes(32).toString('hex');
 let persistence = await mkdtemp(join(tmpdir(), 'ml-dsa-worker-e2e-'));
+// Fault proxies retain their own namespaces. The real object validates its actual namespace.
+const admissionRouterPath = join(buildRoot, 'ml-dsa-admission-fault-router.e2e.mjs');
+await writeFile(admissionRouterPath, `
+export * from './router/worker/shim.mjs';
+export { default } from './router/worker/shim.mjs';
+import { RouterAbMlDsaAdmissionDurableObject as Admission } from './router/worker/shim.mjs';
+export class RouterAbMlDsaAdmissionDurableObject extends Admission {
+  constructor(state, env) {
+    super(state, { ...env, ML_DSA_ADMISSION_DO: env.ML_DSA_REAL_ADMISSION_DO });
+  }
+}
+`);
+
 const admissionBundle = await build({
   entryPoints: [join(root, 'tests/helpers/mlDsaOwnerAdmission.fixtures.ts')],
   bundle: true, format: 'esm', platform: 'node', write: false,
@@ -925,6 +938,7 @@ function workers() {
   return [
     {
       ...base('router', 'router', {}),
+      scriptPath: admissionRouterPath,
       durableObjects: {
         ML_DSA_ADMISSION_DO: {
           className: 'AdmissionBarrier', scriptName: 'publication-barrier',
@@ -1888,6 +1902,10 @@ async function checkUnopenedAfterFailure(fault) {
   assert.ok(aConsumed.length > 0, 'Fresh signature did not consume retained material');
   assert.deepEqual(aConsumed, bConsumed, 'Both roles must confirm the retained takes');
   assert.equal(new Set(aConsumed).size, aConsumed.length);
+  const recoveredIds = new Set(observations.expiredUnadmittedRecovery.batches.map(batchId));
+  if (aConsumed.some(recoveredIds.has.bind(recoveredIds))) {
+    observations.expiredUnadmittedRecovery.verifiedReuseOperation = freshId;
+  }
   await runtime.dispose();
   takeFaultEnabled = false;
   runtime = await createRuntime();
