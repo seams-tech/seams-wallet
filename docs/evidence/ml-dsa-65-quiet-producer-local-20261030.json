@@ -1,0 +1,57 @@
+{
+  "schema": "ml-dsa-quiet-producer-local-summary-v1",
+  "revision": "f77984cee22db8fcedb1bd189b788ceea8e17152",
+  "hosted_execution": "awaiting_new_destination_credential_approval",
+  "production_cryptographic_source_changed": false,
+  "public_samples_matched": 18,
+  "request_refusals": 6,
+  "standard_signatures": 3,
+  "live_probe_refused": true,
+  "post_preparation_probe": {
+    "event": "ml_dsa_public_probe_v1",
+    "js_module": "3301589a-23ec-40fa-8f52-8a0a52675de4",
+    "core_epoch": 1,
+    "actor": "fetch",
+    "request_id": null,
+    "at_ms": 1793368108347,
+    "active_crypto": 0,
+    "checksum": 2843250247,
+    "kind": 2,
+    "memory_bytes": 94371840,
+    "module_instance": "2562142e390ccb7855cf27303a6eaa83",
+    "seed": 1
+  },
+  "resources": {
+    "maximumActiveCrypto": 1,
+    "maximumWasmBytes": 117506048,
+    "scope": "Wasm memory and public activity counters. JavaScript heap and physical CPU parallelism are not measured."
+  },
+  "lifecycle_assertions": {
+    "migrationCrossesSixtyFourRowPage": true,
+    "legacyJournalsAndCooldownKeepGroupZero": true,
+    "independentProducerIdentity": "a9a6739e2206221ae08a908cb80fb4c2724ce502b0a7de013f6670c38a8e8ce7",
+    "otherGroupSignsDuringHeldAdmission": true,
+    "otherGroupPreparesDuringHeldProducerLease": true,
+    "capacityBoundAndWrongGroupChecks": true,
+    "duplicateResultReused": true,
+    "restartAndExpansionPreservePlacement": true,
+    "recoveryPreservesCanonicalKeyAndGroup": true,
+    "groupCountCannotShrink": true
+  },
+  "archive": {
+    "name": "ml-dsa-65-quiet-producer-local-20261030.tar.gz",
+    "bytes": 744070,
+    "sha256": "6248f61e0420eabc9a48957b6e49e370122346fc0a9d1aa3a75a76de662f061f",
+    "files": 42
+  },
+  "private_credential_matches": 0,
+  "replay": "Extract the archive and run node quiet-producer-local/replay.mjs.",
+  "limits": [
+    "No new hosted throughput or speedup measurement.",
+    "The AES probe is bulk calibration; production uses smaller batches.",
+    "Wasm returns a 32-bit checksum; full ciphertext hashes belong to the reference.",
+    "Native encoder agreement uses the same pinned implementation.",
+    "Wasm allocation excludes JavaScript heap and native memory.",
+    "Local workerd timing does not predict hosted latency."
+  ]
+}
