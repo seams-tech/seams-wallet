@@ -10,10 +10,10 @@ vstd = "=0.0.0-2026-03-29-0113"
 
 [dev-dependencies]
 curve25519-dalek = "=4.1.3"
-rand_chacha = "0.3"
-rand_core = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+rand_chacha = "=0.3.1"
+rand_core = "=0.6.4"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
 threshold-prf = { path = "../.." }
 
 [lib]

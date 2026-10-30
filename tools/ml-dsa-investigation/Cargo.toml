@@ -8,13 +8,13 @@ publish = false
 
 [dependencies]
 ml-dsa = "=0.1.1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
 sha2 = "=0.10.9"
 sha3 = "=0.10.8"
 keccak = "=0.1.6"
-hex = "0.4"
-tempfile = "3"
+hex = "=0.4.3"
+tempfile = "=3.27.0"
 ed25519-yao-generator = { path = "../ed25519-yao-generator" }
 ed25519-yao = { path = "../../crates/ed25519-yao", features = ["passive-benchmark"] }
 zeroize = "=1.9.0"

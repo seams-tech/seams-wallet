@@ -21,25 +21,25 @@ name = "seams-release-manifest"
 path = "src/bin/seams-release-manifest.rs"
 
 [dependencies]
-base64ct = { version = "1.6", features = ["alloc"] }
-rand_core_09 = { package = "rand_core", version = "0.9.5", features = ["os_rng"] }
+base64ct = { version = "=1.8.3", features = ["alloc"] }
+rand_core_09 = { package = "rand_core", version = "=0.9.5", features = ["os_rng"] }
 router-ab-core = { path = "../router-ab-core" }
 seams-recovery-core = { path = "../seams-recovery-core" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.10"
-ureq = { version = "3.4.0", default-features = false, features = ["rustls", "platform-verifier"] }
-zeroize = { version = "1.8" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = "=0.10.9"
+ureq = { version = "=3.4.0", default-features = false, features = ["rustls", "platform-verifier"] }
+zeroize = { version = "=1.9.0" }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
-nix = { version = "0.31.3", default-features = false, features = ["mman", "resource", "process"] }
+nix = { version = "=0.31.3", default-features = false, features = ["mman", "resource", "process"] }
 
-zip = { version = "2.4.2", default-features = false, features = ["aes-crypto"] }
+zip = { version = "=2.4.2", default-features = false, features = ["aes-crypto"] }
 
 [dev-dependencies]
-base64ct = { version = "1.6", features = ["alloc"] }
-ed25519-dalek = { version = "2.1", default-features = false }
-serde_json = "1.0"
+base64ct = { version = "=1.8.3", features = ["alloc"] }
+ed25519-dalek = { version = "=2.2.0", default-features = false }
+serde_json = "=1.0.151"
 
 [profile.test]
 opt-level = 2

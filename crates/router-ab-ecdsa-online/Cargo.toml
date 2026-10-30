@@ -7,10 +7,10 @@ description = "Fixed-role Router A/B ECDSA online client kernel"
 license = "Apache-2.0"
 
 [dependencies]
-hkdf = "0.12"
-k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"] }
-sha3 = "0.10"
-subtle = "2.6"
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
+hkdf = "=0.12.4"
+k256 = { version = "=0.13.4", default-features = false, features = ["arithmetic", "ecdsa"] }
+sha3 = "=0.10.9"
+subtle = "=2.6.1"
+zeroize = { version = "=1.9.0", features = ["zeroize_derive"] }
 
 [dev-dependencies]

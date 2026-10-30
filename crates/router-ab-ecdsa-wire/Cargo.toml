@@ -7,4 +7,4 @@ description = "Fixed-role wire values for Router A/B ECDSA presigning"
 license = "Apache-2.0"
 
 [dependencies]
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
+zeroize = { version = "=1.9.0", features = ["zeroize_derive"] }

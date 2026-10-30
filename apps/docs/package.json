@@ -12,11 +12,11 @@
   "devDependencies": {
     "@seams/voiceid": "workspace:*",
     "@seams/wallet": "workspace:*",
-    "@types/react": "^19.1.12",
-    "@types/react-dom": "^19.1.9",
-    "mermaid": "^11.12.1",
-    "react": "^19.1.1",
-    "vitepress": "^1.5.0",
-    "vue": "^3.5.22"
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "mermaid": "11.12.1",
+    "react": "19.1.1",
+    "vitepress": "1.6.4",
+    "vue": "3.5.22"
   }
 }

@@ -11,6 +11,7 @@ packages:
   - tests
   - tests/intended-app
 nodeLinker: hoisted
+saveExact: true
 verifyDepsBeforeRun: false
 allowBuilds:
   bufferutil: true

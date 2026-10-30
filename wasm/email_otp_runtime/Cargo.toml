@@ -21,7 +21,7 @@ panic = "abort"
 crate-type = ["cdylib"]
 
 [dependencies]
-hmac = "0.12"
-sha2 = "0.10"
-wasm-bindgen = "0.2"
-zeroize = "1.8"
+hmac = "=0.12.1"
+sha2 = "=0.10.9"
+wasm-bindgen = "=0.2.118"
+zeroize = "=1.8.2"

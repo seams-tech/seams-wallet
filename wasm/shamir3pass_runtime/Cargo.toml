@@ -19,6 +19,6 @@ panic = "abort"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-getrandom = { version = "0.2", features = ["js"] }
-shamir-3-pass = "0.6.0"
-wasm-bindgen = "0.2"
+getrandom = { version = "=0.2.17", features = ["js"] }
+shamir-3-pass = "=0.6.0"
+wasm-bindgen = "=0.2.113"

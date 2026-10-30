@@ -119,12 +119,12 @@
   },
   "homepage": "https://github.com/seams-tech/seams-wallet#readme",
   "dependencies": {
-    "@simplewebauthn/server": "^13.2.2",
-    "bs58": "^6.0.0"
+    "@simplewebauthn/server": "13.2.2",
+    "bs58": "6.0.0"
   },
   "devDependencies": {
-    "@near-js/types": "^2.4.0",
-    "@types/node": "^20.19.9",
-    "rolldown": "^1.0.0-beta.27"
+    "@near-js/types": "2.4.0",
+    "@types/node": "20.19.13",
+    "rolldown": "1.0.0-rc.9"
   }
 }

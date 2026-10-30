@@ -60,7 +60,7 @@
   },
   "devDependencies": {
     "@seams/wallet": "workspace:*",
-    "rolldown": "^1.0.0-beta.27"
+    "rolldown": "1.0.0-rc.9"
   },
   "bin": {
     "seams-voiceid-host": "dist/compose-host.mjs"

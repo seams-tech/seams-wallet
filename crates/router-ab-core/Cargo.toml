@@ -12,28 +12,28 @@ path = "src/lib.rs"
 crate-type = ["rlib"]
 
 [dependencies]
-base64ct = { version = "1.6", features = ["alloc"] }
-chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
-borsh = { version = "1.3", features = ["derive"] }
-bs58 = "0.5"
+base64ct = { version = "=1.8.3", features = ["alloc"] }
+chacha20poly1305 = { version = "=0.10.1", default-features = false, features = ["alloc"] }
+borsh = { version = "=1.6.1", features = ["derive"] }
+bs58 = "=0.5.1"
 curve25519-dalek = { version = "=4.1.3", features = ["zeroize"] }
-ed25519-dalek = { version = "2.1", default-features = false, features = ["zeroize"] }
-hex = "0.4"
-hmac = "0.12"
-hpke-ng = "0.1.0"
-rand_core = "0.6.4"
-rand_core_09 = { package = "rand_core", version = "0.9.5" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.10"
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["zeroize"] }
+hex = "=0.4.3"
+hmac = "=0.12.1"
+hpke-ng = "=0.1.0"
+rand_core = "=0.6.4"
+rand_core_09 = { package = "rand_core", version = "=0.9.5" }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = "=0.10.9"
 subtle = "=2.6.1"
 threshold-prf = { path = "../threshold-prf" }
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
-ts-rs = { version = "12.0.1", optional = true }
+zeroize = { version = "=1.9.0", features = ["zeroize_derive"] }
+ts-rs = { version = "=12.0.1", optional = true }
 
 [dev-dependencies]
-rand_chacha = "0.3"
-rand_chacha_09 = { package = "rand_chacha", version = "0.9", default-features = false }
+rand_chacha = "=0.3.1"
+rand_chacha_09 = { package = "rand_chacha", version = "=0.9.0", default-features = false }
 router-ab-ecdsa-client-protocol = { path = "../router-ab-ecdsa-client-protocol", features = ["hpke"] }
 
 [features]

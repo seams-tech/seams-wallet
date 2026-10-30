@@ -27,7 +27,7 @@
     "type-check": "tsrs --noEmit"
   },
   "dependencies": {
-    "@near-js/types": "^2.4.0",
-    "bs58": "^6.0.0"
+    "@near-js/types": "2.4.0",
+    "bs58": "6.0.0"
   }
 }
