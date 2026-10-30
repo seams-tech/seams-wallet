@@ -18,13 +18,13 @@ Meteor、HOT Wallet、Intear Walletを接続する場合は、[外部NEARコネ�
 この機能は開発プレビューです。
 
 Google SSOを使うアプリは、[同じログインでウォレット設定を開けます](/ja/guides/google-sso)。
-SDK 0.32.0では、関連付けたウォレットに対してGoogle IDトークンとバックエンド経由の引き渡しを使えます。
+SDK 0.33.0では、関連付けたウォレットに対してGoogle IDトークンとバックエンド経由の引き渡しを使えます。
 署名とセキュリティ設定の変更には、引き続き所有者の認証が必要です。
 
 ## 1. SDKをインストール {#\_1-install-the-sdk}
 
 ```sh
-pnpm add @seams/wallet@0.32.0
+pnpm add @seams/wallet@0.33.0
 ```
 
 <!-- prettier-ignore -->
@@ -36,15 +36,15 @@ pnpm add @seams/wallet@0.32.0
 同じ環境変数名を使うか、独自の設定ローダーを使用してください。
 別のネットワークを設定する場合は`chains`を渡します。テストネット以外では`defineSeamsConfig`を使います。
 
-このドキュメントは`@seams/wallet` **0.32.0**を対象としています。
+このドキュメントは`@seams/wallet` **0.33.0**を対象としています。
 ウォレットオリジンのアセットと`@seams/wallet-server`も、対応するリリースに合わせてください。
 既存の実装を更新する前に、[デプロイ要件](/ja/deploy-and-operate/hosted-integration)を確認してください。
 
 [VoiceID](/ja/concepts/auth-methods/voiceid)は、音声の登録、アンロック、送金承認に使う任意のパッケージです。
 エンジンとモデルは、VoiceIDを使うときだけ読み込みます。
 
-ウォレットiframeのプロトコルは**20.0.0**、復元CLIは**0.29.0**です。
-導入とデプロイの要件は[リリース 0.32.0](/ja/releases)を参照してください。
+ウォレットiframeのプロトコルは**21.0.0**、復元CLIは**0.29.0**です。
+導入とデプロイの要件は[リリース 0.33.0](/ja/releases)を参照してください。
 
 <<< ../examples/setup.tsx
 

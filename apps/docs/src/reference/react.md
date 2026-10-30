@@ -124,7 +124,7 @@ accessible text. Relative URLs would resolve against the wallet origin.
 The wallet host must allow remote image origins in its CSP `img-src` directive.
 Use an image data URL when the host permits only local images.
 
-```tsx
+```tsx [Partial example]
 <HostedSeamsAuthMenu
   onOutcome={handleOutcome}
   recoveryOptions="expanded"

@@ -3,8 +3,8 @@
 For published integration instructions, use the
 [public documentation](https://wallet.seams.sh/docs/) and
 [release notes](../apps/docs/src/releases.md). The current browser SDK, server SDK,
-and VoiceID plugin use **0.32.0**. The signed recovery CLI uses **0.29.0**.
-The wallet iframe protocol is **20.0.0**.
+and VoiceID plugin use **0.33.0**. The signed recovery CLI uses **0.29.0**.
+The wallet iframe protocol is **21.0.0**.
 
 Seams Wallet lets people use blockchain accounts with a passkey or an email
 verification code. An application uses the Wallet SDK to handle sign-in, request

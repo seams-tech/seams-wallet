@@ -1,9 +1,34 @@
 ---
-title: Release 0.32.0
-description: Exact dependency versions and aligned React peers for coordinated Wallet deployments.
+title: Release 0.33.0
+description: Stable authentication-menu sizing, recovery display options, and application footer branding.
 ---
 
-# Release 0.32.0
+# Release 0.33.0
+
+Version **0.33.0** adds application controls for the hosted authentication menu.
+
+| Component | Version |
+| --- | --- |
+| `@seams/wallet` | **0.33.0** |
+| `@seams/wallet-server` | **0.33.0** |
+| `@seams/voiceid` | **0.33.0** |
+| Signed recovery CLI | **0.29.0** |
+| Wallet iframe protocol | **21.0.0** |
+| Wallet-management protocol | **5** |
+
+- External wallet status uses the footer. Temporary iframe scrollbars stay hidden.
+- Wallet icons retain their original colors.
+- Set `recoveryOptions` to `collapsible` (default), `expanded`, or `hidden`.
+- Use `footerBrand` with a custom image and accessible name to replace the Seams brand line.
+- Meteor transport failures explain how to enable the extension for the site.
+- Choosing another action clears the previous external-connection error.
+
+Update the browser SDK, hosted Wallet assets, server SDK, and enabled VoiceID plugin together.
+The hosted-menu request fields advance the iframe protocol to **21.0.0**.
+React integrations require `react@19.1.1` and `react-dom@19.1.1`.
+This release adds no database migrations. See the [React reference](/reference/react#wallet-alternatives).
+
+## Release 0.32.0
 
 Version **0.32.0** keeps the exact dependency versions and aligned React peers from 0.31.0.
 
