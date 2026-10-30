@@ -56,9 +56,23 @@ const controller = new ExternalNearController({
 const evm = new ExternalEvmController([
   { chainId: 1, name: 'Ethereum', rpcUrl: 'https://rpc.example.test' },
 ]);
+// Exercise an image above the old menu limit, within the discovery limit.
+const evmIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
+  '<circle cx="16" cy="16" r="14" fill="#627eea"/><!--' +
+  'a'.repeat(100_000) +
+  '--></svg>';
+const evmIcon = 'data:IMAGE/SVG+XML,' + encodeURIComponent(evmIconSvg);
+let evmConnectionRequests = 0;
 const provider = {
   async request(args) {
     if (args.method === 'eth_chainId') return '0x1';
+    if (args.method === 'eth_requestAccounts') {
+      evmConnectionRequests += 1;
+      if (evmConnectionRequests === 1) {
+        throw { code: 4001, message: 'User rejected the request.' };
+      }
+    }
     if (args.method === 'eth_accounts' || args.method === 'eth_requestAccounts')
       return ['0x1111111111111111111111111111111111111111'];
     throw new Error('Unexpected provider request: ' + args.method);
@@ -74,7 +88,7 @@ window.dispatchEvent(
         uuid: '350670db-19fa-4704-a166-e52e178b59d2',
         name: 'Rabby',
         rdns: 'io.rabby',
-        icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E',
+        icon: evmIcon,
       },
       provider,
     },
@@ -221,6 +235,7 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   await auth.locator('summary').filter({ hasText: 'More wallets' }).click();
   const rabby = auth.getByRole('button', { name: /Rabby/ });
   await expect(rabby).toBeVisible();
+  await expect(rabby.locator('img')).toHaveJSProperty('naturalWidth', 32);
   await expect
     .poll(
       auth
@@ -229,6 +244,9 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
     )
     .toBe(true);
   await page.screenshot({ path: testInfo.outputPath('combined-wallet-expanded.png') });
+  await rabby.click();
+  await expect(rabby).toBeEnabled();
+  expect(await page.evaluate('window.__connector.connections.length')).toBe(0);
   await rabby.click();
   await expect.poll(page.evaluate.bind(page, 'window.__connector.connections.length')).toBe(1);
   const results = await page.evaluate(

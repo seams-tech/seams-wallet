@@ -1799,23 +1799,24 @@ export class AuthMenuSession {
     this.sendToParent({ type: 'AUTH_MENU_ERROR', requestId: this.identity.requestId, payload });
   }
 
-  private requestWalletConnection(walletId: string): void {
+  private requestWalletConnection(alternativeId: string): void {
     if (this.walletConnection.kind === 'pending') return;
     const state = this.stateValue;
     if (
       (state.kind !== 'ready' && state.kind !== 'preparing') ||
       state.viewModel.kind !== 'passkey'
-    )
+    ) {
       return;
+    }
     const alternatives = this.request.walletAlternatives;
-    const wallet = [...alternatives.primary, ...alternatives.secondary].find(
-      matchesAlternative.bind(null, walletId),
+    const alternative = [...alternatives.primary, ...alternatives.secondary].find(
+      matchesAlternative.bind(null, alternativeId),
     );
-    if (!wallet) return;
+    if (!alternative) return;
     const request = {
       authMenuSessionId: this.identity.authMenuSessionId,
       connectionRequestId: crypto.randomUUID(),
-      walletId: wallet.id,
+      alternativeId: alternative.id,
     };
     this.walletConnection = { kind: 'pending', request };
     this.surface?.updateWalletConnection(this.walletConnection);
@@ -1832,15 +1833,16 @@ export class AuthMenuSession {
       this.stateValue.kind === 'complete' ||
       state.kind !== 'pending' ||
       state.request.connectionRequestId !== resolution.connectionRequestId
-    )
+    ) {
       return false;
+    }
     switch (resolution.result.kind) {
       case 'connected':
         this.walletConnection = { kind: 'idle' };
         this.complete({
           kind: 'wallet_connected',
           authMenuSessionId: this.identity.authMenuSessionId,
-          alternativeId: state.request.walletId,
+          alternativeId: state.request.alternativeId,
         });
         break;
       case 'cancelled':
@@ -1981,7 +1983,7 @@ export class AuthMenuSession {
         }
         return;
       case 'wallet_connection':
-        this.requestWalletConnection(intent.walletId);
+        this.requestWalletConnection(intent.alternativeId);
         return;
       case 'external_auth':
         this.requestExternalAuth(intent.provider);
@@ -4056,8 +4058,8 @@ function voiceAccountForWallet(
   return account.walletId === walletId && account.authMethod === 'voiceid';
 }
 
-function matchesAlternative(id: string, wallet: { readonly id: string }): boolean {
-  return wallet.id === id;
+function matchesAlternative(alternativeId: string, alternative: { readonly id: string }): boolean {
+  return alternative.id === alternativeId;
 }
 
 function assertNeverWalletConnectionResult(value: never): never {

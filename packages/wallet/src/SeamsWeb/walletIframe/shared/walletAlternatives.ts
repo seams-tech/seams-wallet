@@ -1,4 +1,5 @@
 import { isPlainObject } from '@shared/utils/validation';
+import { MAX_WALLET_ICON_LENGTH, parseWalletDataIcon } from '@/core/ui/walletIcon';
 import { hostedAuthMenuSessionIdFromBoundary, type HostedAuthMenuSessionId } from './messages';
 import {
   walletIframeRequestIdFromBoundary,
@@ -20,7 +21,7 @@ export type WalletAlternatives = Readonly<{
 export type WalletConnectionRequest = Readonly<{
   authMenuSessionId: HostedAuthMenuSessionId;
   connectionRequestId: string;
-  walletId: string;
+  alternativeId: string;
 }>;
 
 export type WalletConnectionResult =
@@ -54,15 +55,29 @@ function boundedText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= 512;
 }
 
-function parseWalletIcon(value: unknown): string | null | false {
-  if (value === null) return null;
-  if (typeof value !== 'string' || value.length > 100_000) return false;
-  if (/^data:image\/(?:png|jpeg|webp|svg\+xml)[;,]/.test(value)) return value;
-  try {
-    return new URL(value).protocol === 'https:' ? value : false;
-  } catch {
-    return false;
+type WalletIconResult =
+  | { readonly ok: true; readonly value: string | null }
+  | { readonly ok: false; readonly value?: never };
+
+function parseWalletIcon(value: unknown): WalletIconResult {
+  if (value === null) {
+    return { ok: true, value: null };
   }
+  const dataIcon = parseWalletDataIcon(value);
+  if (dataIcon !== null) {
+    return { ok: true, value: dataIcon };
+  }
+  if (typeof value !== 'string' || value.length > MAX_WALLET_ICON_LENGTH) {
+    return { ok: false };
+  }
+  try {
+    if (new URL(value).protocol === 'https:') {
+      return { ok: true, value };
+    }
+  } catch {
+    return { ok: false };
+  }
+  return { ok: false };
 }
 
 function parseWalletRows(value: unknown, ids: Set<string>): WalletAlternativeDescriptor[] | null {
@@ -76,12 +91,15 @@ function parseWalletRows(value: unknown, ids: Set<string>): WalletAlternativeDes
       typeof row.description !== 'string' ||
       row.description.length > 512 ||
       ids.has(row.id)
-    )
+    ) {
       return null;
+    }
     const icon = parseWalletIcon(row.icon);
-    if (icon === false) return null;
+    if (!icon.ok) {
+      return null;
+    }
     ids.add(row.id);
-    rows.push({ id: row.id, label: row.label, description: row.description, icon });
+    rows.push({ id: row.id, label: row.label, description: row.description, icon: icon.value });
   }
   return rows;
 }
@@ -97,20 +115,30 @@ export function parseWalletAlternatives(value: unknown): WalletAlternatives | nu
 export function parseWalletConnectionRequest(value: unknown): WalletConnectionRequest | null {
   if (!isPlainObject(value)) return null;
   const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(value.authMenuSessionId);
-  if (!authMenuSessionId || !boundedText(value.connectionRequestId) || !boundedText(value.walletId))
+  if (
+    !authMenuSessionId ||
+    !boundedText(value.connectionRequestId) ||
+    !boundedText(value.alternativeId)
+  ) {
     return null;
+  }
   return {
     authMenuSessionId,
     connectionRequestId: value.connectionRequestId,
-    walletId: value.walletId,
+    alternativeId: value.alternativeId,
   };
 }
 
 export function parseWalletConnectionResolution(value: unknown): WalletConnectionResolution | null {
   if (!isPlainObject(value) || !isPlainObject(value.result)) return null;
   const authMenuSessionId = hostedAuthMenuSessionIdFromBoundary(value.authMenuSessionId);
-  const requestId = walletIframeRequestIdFromBoundary(value.requestId);
-  if (!authMenuSessionId || !requestId || !boundedText(value.connectionRequestId)) return null;
+  let requestId: WalletIframeRequestId;
+  try {
+    requestId = walletIframeRequestIdFromBoundary(value.requestId);
+  } catch {
+    return null;
+  }
+  if (!authMenuSessionId || !boundedText(value.connectionRequestId)) return null;
   let result: WalletConnectionResult;
   switch (value.result.kind) {
     case 'connected':

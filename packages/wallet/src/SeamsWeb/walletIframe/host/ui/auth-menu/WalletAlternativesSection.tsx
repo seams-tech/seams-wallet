@@ -11,11 +11,11 @@ export class WalletAlternativesSection extends Component<{
   alternatives: WalletAlternatives;
   onIntent: (intent: AuthMenuIntent) => void;
 }> {
-  private connect = (walletId: string): void => {
-    this.props.onIntent({ kind: 'wallet_connection', walletId });
+  private connect = (alternativeId: string): void => {
+    this.props.onIntent({ kind: 'wallet_connection', alternativeId });
   };
 
-  private rows(wallets: readonly WalletAlternativeDescriptor[]): ComponentChildren {
+  private renderWalletRows(wallets: readonly WalletAlternativeDescriptor[]): ComponentChildren {
     const rows: ComponentChildren[] = [];
     for (const wallet of wallets) {
       rows.push(
@@ -50,7 +50,7 @@ export class WalletAlternativesSection extends Component<{
             <div class="seams-menu-options-label seams-alternatives-heading">
               <WalletText copy="Or connect another wallet" />
             </div>
-            {this.rows(primary)}
+            {this.renderWalletRows(primary)}
           </section>
         )}
         {secondary.length > 0 && (
@@ -59,7 +59,7 @@ export class WalletAlternativesSection extends Component<{
               <WalletText copy="More wallets" />
               <span aria-hidden="true">⌄</span>
             </summary>
-            {this.rows(secondary)}
+            {this.renderWalletRows(secondary)}
           </details>
         )}
       </>

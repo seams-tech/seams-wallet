@@ -413,7 +413,7 @@ export type AuthMenuViewModel =
 type AuthMenuCloseReason = 'close_button' | 'escape';
 
 export type AuthMenuIntent =
-  | { readonly kind: 'wallet_connection'; readonly walletId: string }
+  | { readonly kind: 'wallet_connection'; readonly alternativeId: string }
   | {
       readonly kind: 'close';
       readonly reason: AuthMenuCloseReason;

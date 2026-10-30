@@ -2,6 +2,7 @@ import type { ExternalNearController } from '@/externalNear/controller';
 import type { ExternalNearConnection, ExternalNearWalletId } from '@/externalNear/types';
 import type { ExternalEvmController } from '@/externalEvm/controller';
 import type { ExternalEvmConnection, ExternalEvmWallet } from '@/externalEvm/types';
+import type { Variant } from '@shared/utils/variant';
 import { nearWalletName } from '@/externalNear/wallets';
 import { hotWalletIcon, meteorWalletIcon } from '../externalWalletBrandImages';
 import type { SeamsWeb } from '@/SeamsWeb';
@@ -52,7 +53,7 @@ function walletAlternativeId(alternative: WalletAlternative): string {
   }
 }
 
-function descriptor(alternative: WalletAlternative): WalletAlternativeDescriptor {
+function describeWalletAlternative(alternative: WalletAlternative): WalletAlternativeDescriptor {
   let label: string;
   let icon: string | null;
   switch (alternative.kind) {
@@ -79,11 +80,12 @@ export function describeWalletAlternatives(
   config: WalletAlternativesConfig | undefined,
 ): WalletAlternatives {
   const parsed = parseWalletAlternatives({
-    primary: (config?.primary ?? []).map(descriptor),
-    secondary: (config?.secondary ?? []).map(descriptor),
+    primary: (config?.primary ?? []).map(describeWalletAlternative),
+    secondary: (config?.secondary ?? []).map(describeWalletAlternative),
   });
-  if (!parsed)
+  if (!parsed) {
     throw new Error('Wallet alternatives must have unique identifiers and valid display data');
+  }
   return parsed;
 }
 
@@ -101,6 +103,13 @@ type ConnectionAttempt =
       notify: () => void;
     };
 
+type PendingConnectionAttempt = Variant<ConnectionAttempt, 'kind', 'pending'>;
+
+type WalletAlternativeConnectionResult =
+  | { readonly kind: 'connected'; readonly notify: () => void; readonly message?: never }
+  | { readonly kind: 'cancelled'; readonly notify?: never; readonly message?: never }
+  | { readonly kind: 'failed'; readonly message: string; readonly notify?: never };
+
 /** Owns application-origin requests for exactly one hosted menu session. */
 export class WalletAlternativesBroker {
   private state: ConnectionAttempt | { kind: 'idle' } | { kind: 'inactive' } = { kind: 'inactive' };
@@ -117,8 +126,9 @@ export class WalletAlternativesBroker {
     if (
       !this.config.current ||
       this.config.current.primary.length + this.config.current.secondary.length === 0
-    )
+    ) {
       return;
+    }
     this.state = { kind: 'idle' };
     this.unsubscribe = this.api.onWalletConnectionRequest(this.receive);
   }
@@ -135,7 +145,9 @@ export class WalletAlternativesBroker {
 
   complete(alternativeId: string): void {
     const attempt = this.state;
-    if (attempt.kind !== 'connected' || attempt.request.walletId !== alternativeId) return;
+    if (attempt.kind !== 'connected' || attempt.request.alternativeId !== alternativeId) {
+      return;
+    }
     this.state = { kind: 'idle' };
     attempt.notify();
   }
@@ -145,8 +157,9 @@ export class WalletAlternativesBroker {
       this.state.kind !== 'idle' ||
       request.authMenuSessionId !== this.sessionId ||
       this.seen.has(request.connectionRequestId)
-    )
+    ) {
       return;
+    }
     this.seen.add(request.connectionRequestId);
     const rows = [
       ...(this.config.current?.primary ?? []),
@@ -159,55 +172,29 @@ export class WalletAlternativesBroker {
     void this.connect(attempt);
   };
 
-  private async connect(attempt: Extract<ConnectionAttempt, { kind: 'pending' }>): Promise<void> {
-    const alternative = attempt.alternative;
+  private async connect(attempt: PendingConnectionAttempt): Promise<void> {
+    const result = await connectWalletAlternative(attempt.alternative);
+    if (this.state !== attempt) {
+      return;
+    }
     let resolution: WalletConnectionResult;
-    try {
-      switch (alternative.kind) {
-        case 'near': {
-          const result = await alternative.controller.connect(alternative.wallet);
-          if (this.state !== attempt) return;
-          if (result.ok) {
-            this.state = {
-              kind: 'connected',
-              alternative,
-              request: attempt.request,
-              notify: alternative.onConnected.bind(null, result.value),
-            };
-            resolution = { kind: 'connected' };
-          } else {
-            this.state = { kind: 'idle' };
-            resolution = { kind: 'failed', message: result.message };
-          }
-          break;
-        }
-        case 'evm': {
-          const result = await alternative.controller.connect(alternative.wallet.id);
-          if (this.state !== attempt) return;
-          if (result.ok) {
-            this.state = {
-              kind: 'connected',
-              alternative,
-              request: attempt.request,
-              notify: alternative.onConnected.bind(null, result.value),
-            };
-            resolution = { kind: 'connected' };
-          } else {
-            this.state = { kind: 'idle' };
-            resolution =
-              result.code === 'rejected'
-                ? { kind: 'cancelled' }
-                : { kind: 'failed', message: result.message };
-          }
-          break;
-        }
-        default:
-          return assertNeverAlternative(alternative);
-      }
-    } catch {
-      if (this.state !== attempt) return;
-      this.state = { kind: 'idle' };
-      resolution = { kind: 'failed', message: 'Unable to connect this wallet.' };
+    switch (result.kind) {
+      case 'connected':
+        this.state = {
+          kind: 'connected',
+          alternative: attempt.alternative,
+          request: attempt.request,
+          notify: result.notify,
+        };
+        resolution = { kind: 'connected' };
+        break;
+      case 'cancelled':
+      case 'failed':
+        this.state = { kind: 'idle' };
+        resolution = result;
+        break;
+      default:
+        return assertNeverAlternative(result);
     }
     try {
       await this.api.resolveWalletConnection({
@@ -221,8 +208,44 @@ export class WalletAlternativesBroker {
   }
 }
 
+async function connectWalletAlternative(
+  alternative: WalletAlternative,
+): Promise<WalletAlternativeConnectionResult> {
+  try {
+    switch (alternative.kind) {
+      case 'near': {
+        const result = await alternative.controller.connect(alternative.wallet);
+        if (!result.ok) {
+          return { kind: 'failed', message: result.message };
+        }
+        return {
+          kind: 'connected',
+          notify: alternative.onConnected.bind(null, result.value),
+        };
+      }
+      case 'evm': {
+        const result = await alternative.controller.connect(alternative.wallet.id);
+        if (result.ok) {
+          return {
+            kind: 'connected',
+            notify: alternative.onConnected.bind(null, result.value),
+          };
+        }
+        if (result.code === 'rejected') {
+          return { kind: 'cancelled' };
+        }
+        return { kind: 'failed', message: result.message };
+      }
+      default:
+        return assertNeverAlternative(alternative);
+    }
+  } catch {
+    return { kind: 'failed', message: 'Unable to connect this wallet.' };
+  }
+}
+
 function matchesRequest(request: WalletConnectionRequest, alternative: WalletAlternative): boolean {
-  return request.walletId === walletAlternativeId(alternative);
+  return request.alternativeId === walletAlternativeId(alternative);
 }
 
 function nearWalletIcon(wallet: ExternalNearWalletId): string | null {

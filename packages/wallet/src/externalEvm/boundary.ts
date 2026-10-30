@@ -15,6 +15,7 @@ import {
   type ExternalEvmResult,
   type ExternalEvmWallet,
 } from './types';
+import { parseWalletDataIcon } from '@/core/ui/walletIcon';
 
 export interface ExternalProvider {
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
@@ -73,18 +74,15 @@ export function parseAnnouncement(
   }
   if (typeof name !== 'string' || !name.trim() || name.length > 128) return null;
   if (typeof rdns !== 'string' || !rdns.trim() || rdns.length > 253) return null;
-  if (
-    typeof icon !== 'string' ||
-    icon.length > 131072 ||
-    !/^data:image\/(?:png|webp|jpeg|svg\+xml)[;,]/i.test(icon)
-  ) {
+  const walletIcon = parseWalletDataIcon(icon);
+  if (walletIcon === null) {
     return null;
   }
   return Object.freeze({
     wallet: Object.freeze({
       id: uuid.toLowerCase(),
       name: name.trim(),
-      icon,
+      icon: walletIcon,
       rdns: rdns.trim(),
     }),
     provider,

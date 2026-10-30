@@ -136,7 +136,7 @@ during a pending request invalidates it and ignores its later result.
 The low-level `authMenu.open()` request accepts the same serializable groups.
 Applications handle `authMenu.onWalletConnectionRequest()` and reply through
 `authMenu.resolveWalletConnection()`. Requests carry the menu session, request
-identity, and configured wallet identifier. The React component handles this exchange.
+identity, and configured `alternativeId`. The React component handles this exchange.
 
 `AccountMenuButton` defaults to `presentation="dropdown"` and includes the SDK trigger.
 Use `presentation="modal"` or `presentation="drawer"` to open the same settings from an application button.
