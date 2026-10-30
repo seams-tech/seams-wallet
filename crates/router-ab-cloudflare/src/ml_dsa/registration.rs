@@ -4,6 +4,8 @@ use signer_core::ml_dsa_custody::{SealedMlDsaRoleInputV1, SealedMlDsaRoleResultV
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Job {
+    #[serde(default)]
+    pub service_group: service_group::ServiceGroup,
     pub id: [u8; 32],
     pub scope: [u8; 32],
     pub schedule: [u8; 32],
@@ -118,6 +120,7 @@ fn operation_key(request: &Request) -> Result<String> {
 pub async fn prepare(
     store: &impl Store,
     scope: [u8; 32],
+    service_group: service_group::ServiceGroup,
     schedule: [u8; 32],
     signing_schedule: [u8; 32],
     signing_batches: usize,
@@ -149,6 +152,7 @@ pub async fn prepare(
     let mut id = [0; 32];
     getrandom::getrandom(&mut id).map_err(|_| invalid("Registration randomness unavailable"))?;
     let job = Job {
+        service_group,
         id,
         scope,
         schedule,

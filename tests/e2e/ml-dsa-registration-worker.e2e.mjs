@@ -120,7 +120,10 @@ const candidateGroupSize = Number(process.env.ML_DSA_TEST_CANDIDATE_GROUP_SIZE ?
 assert.ok([2, 4, 8].includes(candidateGroupSize));
 const preparationGroupSize = Number(process.env.ML_DSA_TEST_PREPARATION_GROUP_SIZE ?? 4);
 assert.ok(preparationGroupSize === candidateGroupSize || (preparationGroupSize === 4 && candidateGroupSize === 2));
+const serviceGroups = Number(process.env.ML_DSA_TEST_SERVICE_GROUPS ?? 1);
+assert.ok(Number.isSafeInteger(serviceGroups) && serviceGroups >= 1 && serviceGroups <= 64);
 const policy = {
+  service_groups: serviceGroups,
   wallet_cooldown: { mode: 'enabled', interval_ms: cooldownMs },
   max_active_operations: 1,
   max_active_preparations: Number(process.env.ML_DSA_TEST_PREPARATION_JOBS ?? 1),
@@ -347,6 +350,7 @@ try {
       break;
     }
     if (loseDeliveryReply && epoch === 1) observations.deliveryRecovery = await checkDeliveryRecovery(payload.request);
+    assert.ok(Number.isInteger(ready.job.service_group) && ready.job.service_group >= 0 && ready.job.service_group < serviceGroups);
     const profiler = profilePrefix ? await startCpuProfile(runtime, 'b') : null;
     const started = performance.now();
     const response = await post('/router-ab/ml-dsa/register', payload.request);
@@ -378,6 +382,7 @@ try {
     if (previous) assert.deepEqual(result.a.public_key, previous.a.public_key);
     const measurement = {
       epoch,
+      serviceGroup: ready.job.service_group,
       operation: Buffer.from(payload.request.operation).toString('hex'),
       key: result.a.activation.key,
       preparationMs,
@@ -996,7 +1001,7 @@ async function checkPreparationRetirement() {
   assert.equal(await retry.json(), 'already_retired');
   const replacementStarted = performance.now();
   const replacement = await admissionCommand('/control', {
-    command: 'prepare_registration', scope: retiredJob.scope, schedule: retiredJob.schedule,
+    command: 'prepare_registration', wallet, schedule: retiredJob.schedule,
     signing_schedule: retiredJob.signing_schedule, signing_batches: retiredJob.signing_batches,
   }, gatewayAuth);
   assert.equal(replacement.status, 200);

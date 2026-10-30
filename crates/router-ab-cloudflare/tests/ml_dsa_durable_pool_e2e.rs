@@ -1469,7 +1469,7 @@ fn registration_retirement_campaign(directory: &Path) {
     let scope = registration::scope(&input.wallet).unwrap();
     let retained = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 100),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 100),
     )
     .unwrap();
     for role in [Participant::A, Participant::B] {
@@ -1477,7 +1477,7 @@ fn registration_retirement_campaign(directory: &Path) {
     }
     let failed = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 102),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 102),
     )
     .unwrap();
     tx(&db, registration::ready(&db, &failed, Participant::A, 103)).unwrap();
@@ -1501,7 +1501,7 @@ fn registration_retirement_campaign(directory: &Path) {
     }
     let replacement = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 106),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 106),
     )
     .unwrap();
     assert_ne!(replacement.id, failed.id);
@@ -1529,7 +1529,7 @@ fn registration_retirement_campaign(directory: &Path) {
     assert!(tx(&db, registration::check_claim(&db, &claim, 109)).unwrap());
     let completed = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 110),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 110),
     )
     .unwrap();
     for role in [Participant::A, Participant::B] {
@@ -1562,12 +1562,12 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     ));
     let job = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 100),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 100),
     )
     .unwrap();
     assert!(tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 101)
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 101)
     )
     .is_err());
     tx(&db, registration::ready(&db, &job, Participant::A, 102)).unwrap();
@@ -1632,7 +1632,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     ));
     let next = tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 107),
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 107),
     )
     .unwrap();
     tx(&db, registration::ready(&db, &next, Participant::A, 108)).unwrap();
@@ -1668,7 +1668,15 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     for ordinal in 0..4 {
         let ready = tx(
             &db,
-            registration::prepare(&db, scope, [7; 32], [8; 32], 4, 40_000 + ordinal),
+            registration::prepare(
+                &db,
+                scope,
+                Default::default(),
+                [7; 32],
+                [8; 32],
+                4,
+                40_000 + ordinal,
+            ),
         )
         .unwrap();
         tx(
@@ -1684,7 +1692,7 @@ fn registration_allocator_campaign(directory: &std::path::Path) {
     }
     assert!(tx(
         &db,
-        registration::prepare(&db, scope, [7; 32], [8; 32], 4, 40_100)
+        registration::prepare(&db, scope, Default::default(), [7; 32], [8; 32], 4, 40_100)
     )
     .is_err());
 }
