@@ -261,7 +261,9 @@ That arithmetic is only a ceiling. Convert it using measured candidate consumpti
 
 ## Strategy 6: retain shared capacity now and prepare for independent service groups
 
-Status: optional routing and a per-isolate compute guard are implemented. Native and final frozen Worker campaigns pass. Hosted scaling remains unqualified.
+Status: optional routing and a per-isolate compute guard are implemented. Native, final frozen Worker, and initial hosted scaling screens pass.
+The [hosted scaling screen](router-ab/ml-dsa-65-service-groups-hosted-report.md) measures 7.45, 12.01, and 25.48 complete-cycle signatures/minute for one, two, and four groups.
+Keep the production one-group default. Larger active/idle populations, public SDK demand, and repeated scaling windows remain to be qualified.
 See the [implementation and local qualification report](router-ab/ml-dsa-65-service-groups-report.md). Keep deployed configuration unchanged until hosted checks pass.
 One shared group remains the low-volume default. Existing per-wallet pools remain separate.
 The latest 7.738/minute JSON and 7.435/minute binary screens measure aggregate throughput across four wallets in one deployment.

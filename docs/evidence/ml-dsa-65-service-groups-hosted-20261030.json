@@ -1,0 +1,141 @@
+{
+  "schema": "ml-dsa-service-groups-hosted-v1",
+  "date": "2026-10-30",
+  "frozen_source_commit": "ba13e5d6b",
+  "rebased_source_commit": "56f934b7b216b1271f66f828f0d0daa5d2fa100f",
+  "boundary": "Private Router on real Cloudflare Workers. Public Gateway/SDK, browser, approval, NEAR submission, and finality are excluded.",
+  "configuration": {
+    "worker_scripts": 8,
+    "active_wallets_per_profile": 4,
+    "window_ms": 360000,
+    "benchmark_cooldown_ms": 5000,
+    "refill_slots_per_group": 2,
+    "signing_slots_per_group": 1,
+    "candidates_per_wallet": 32,
+    "minimum_candidates": 16,
+    "prepared_candidates_per_job": 4,
+    "consumed_candidates_per_pair": 2
+  },
+  "production_defaults": {
+    "groups": 1,
+    "refill_slots": 1,
+    "signing_slots": 1,
+    "wallet_cooldown_ms": 60000
+  },
+  "profiles": [
+    {
+      "groups": 1,
+      "label": "capacity",
+      "successes": 59,
+      "successes_in_window": 59,
+      "whole_cycle_signatures_per_minute": 7.450686557614434,
+      "closure_after_cutoff_ms": 115124,
+      "successful_call_ms": {
+        "count": 59,
+        "minimum": 570,
+        "median": 984,
+        "p95_nearest_rank": 3183,
+        "maximum": 4309
+      },
+      "successful_demand_ms": {
+        "count": 59,
+        "minimum": 2824,
+        "median": 20666,
+        "p95_nearest_rank": 80042,
+        "maximum": 84583
+      },
+      "failed_operations": 0,
+      "candidates_consumed": 314,
+      "preparation_cpu_ms": 696242,
+      "all_captured_cpu_ms": 811662,
+      "initial_pairs": 64,
+      "fresh_pairs": 157,
+      "consumed_pairs": 157,
+      "final_pairs": 64
+    },
+    {
+      "groups": 2,
+      "label": "capacity-g2",
+      "successes": 88,
+      "successes_in_window": 87,
+      "whole_cycle_signatures_per_minute": 12.009361843437043,
+      "closure_after_cutoff_ms": 79657,
+      "successful_call_ms": {
+        "count": 88,
+        "minimum": 488,
+        "median": 1045.5,
+        "p95_nearest_rank": 2222,
+        "maximum": 2996
+      },
+      "successful_demand_ms": {
+        "count": 88,
+        "minimum": 1729,
+        "median": 5895.5,
+        "p95_nearest_rank": 44151,
+        "maximum": 61105
+      },
+      "failed_operations": 3,
+      "candidates_consumed": 518,
+      "preparation_cpu_ms": 1374859,
+      "all_captured_cpu_ms": 1509314,
+      "initial_pairs": 64,
+      "fresh_pairs": 259,
+      "consumed_pairs": 259,
+      "final_pairs": 64
+    },
+    {
+      "groups": 4,
+      "label": "capacity-g4",
+      "successes": 165,
+      "successes_in_window": 164,
+      "whole_cycle_signatures_per_minute": 25.47934628747909,
+      "closure_after_cutoff_ms": 28550,
+      "successful_call_ms": {
+        "count": 165,
+        "minimum": 349,
+        "median": 737,
+        "p95_nearest_rank": 2020,
+        "maximum": 3083
+      },
+      "successful_demand_ms": {
+        "count": 165,
+        "minimum": 848,
+        "median": 5103,
+        "p95_nearest_rank": 21404,
+        "maximum": 49573
+      },
+      "failed_operations": 4,
+      "candidates_consumed": 978,
+      "preparation_cpu_ms": 2437948,
+      "all_captured_cpu_ms": 2637623,
+      "initial_pairs": 64,
+      "fresh_pairs": 489,
+      "consumed_pairs": 489,
+      "final_pairs": 64
+    }
+  ],
+  "verified_load_signatures": 312,
+  "four_vs_one_achieved_ratio": 3.419731334884806,
+  "limits": [
+    "One sequential window per profile, fresh wallets and rejection outcomes, fixed active wallet count.",
+    "No linear scaling guarantee or production capacity ceiling.",
+    "Existing wallet assignments do not move when groups are enabled.",
+    "Wasm counters exclude JS heap.",
+    "Whole invocation CPU includes active setup/serialization and does not isolate the kernel; waits belong to wall time.",
+    "First-demand raw alarm lateness includes cadence debt; actual retry stalls remain.",
+    "Idle expiry maintenance may resume after windows; its population-sized cost remains unqualified."
+  ],
+  "cleanup": {
+    "workers_deleted": 8,
+    "independent_absence_confirmations": 8,
+    "final_pending_jobs": 0,
+    "generated_private_files_removed": 43
+  },
+  "archive": {
+    "file": "ml-dsa-65-service-groups-hosted-20261030.tar.gz",
+    "bytes": 14885173,
+    "sha256": "a19c1c6348c7100018b67a63132416d7bde0056fff3ff926a76c505b51a889e6",
+    "credential_scan_matches": 0,
+    "members": 112
+  }
+}
