@@ -551,6 +551,8 @@ class PasskeyMpcSessionManagerImpl implements PasskeyMpcSessionPort {
       bucket: 'worker_put',
       startedAt: workerPutStartedAt,
     });
+    if (this.deps.signingSessionPersistenceMode !== 'sealed_refresh_v1') return;
+
     let completedSeal: Extract<WarmSessionSealAndPersistResult, { readonly ok: true }> | undefined;
     if (preparedServerSeal && args.transport) {
       const completed = await this.sendMessage({

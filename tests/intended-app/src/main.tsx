@@ -42,6 +42,21 @@ function signingSessionDefaultsFromUrl(): { ttlMs: number; remainingUses: number
   return { ttlMs, remainingUses };
 }
 
+function signingSessionPersistenceModeFromUrl(): 'none' | 'sealed_refresh_v1' {
+  const mode =
+    new URL(window.location.href).searchParams.get('signingSessionPersistenceMode') ??
+    import.meta.env.VITE_SIGNING_SESSION_PERSISTENCE_MODE;
+  switch (mode) {
+    case undefined:
+    case 'none':
+      return 'none';
+    case 'sealed_refresh_v1':
+      return 'sealed_refresh_v1';
+    default:
+      throw new Error('Invalid signing session persistence mode');
+  }
+}
+
 const walletOrigin = requiredEnvironmentValue('VITE_WALLET_ORIGIN');
 const config = defineSeamsConfig({
   walletOrigin,
@@ -66,10 +81,7 @@ const config = defineSeamsConfig({
       explorerUrl: 'https://testnet.arcscan.app',
     },
   ],
-  signingSessionPersistenceMode:
-    import.meta.env.VITE_SIGNING_SESSION_PERSISTENCE_MODE === 'sealed_refresh_v1'
-      ? 'sealed_refresh_v1'
-      : 'none',
+  signingSessionPersistenceMode: signingSessionPersistenceModeFromUrl(),
   routerAb: {
     normalSigning: {
       mode: 'enabled',

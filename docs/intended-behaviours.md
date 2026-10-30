@@ -1520,6 +1520,9 @@ Expected behaviour:
 - If the credential id is known, WebAuthn should request that credential
   directly so the browser does not show an unnecessary account picker.
 - By default, unlock warms NEAR Ed25519 and configured ECDSA signing lanes.
+- With `signingSessionPersistenceMode: 'none'`, unlock keeps warm signing material
+  in memory and skips sealed refresh persistence. All configured signing lanes
+  remain available without creating or replacing refresh seals.
 - Callers may request an explicit subset, such as NEAR-only, ECDSA-only, or
   specific ECDSA targets, to avoid unnecessary unlock latency.
 - Unlock issues one exact Wallet Session for the selected auth method and its

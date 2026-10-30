@@ -17,12 +17,17 @@ import { verifyPassiveWalletLock } from './session-passive-lock';
 import { verifyLockPreservesPresignatures } from './session-presign-retention';
 import { verifyBrowserSecurityFailureAndRetry } from './passkey-browser-security';
 import { verifyColdCustodyRecoveryThenUnlock } from './passkey-custody-cache';
+import { verifyMemoryOnlyPasskeyUnlock } from './passkey-session-persistence';
 
 // Export flows retain sanitized evidence instead of secret-bearing DOM or network captures.
 test.use({ trace: 'off', screenshot: 'off', video: 'off' });
 
 test('browser security failures remain visible and a cancelled retry can unlock the same wallet', verifyBrowserSecurityFailureAndRetry);
 test('cold custody recovery preserves authority through a later unlock and signing', verifyColdCustodyRecoveryThenUnlock);
+test(
+  'passkey unlock with persistence disabled warms all configured signing lanes',
+  verifyMemoryOnlyPasskeyUnlock,
+);
 
 test('lock retains durable presignatures across a fresh unlock', verifyLockPreservesPresignatures);
 test('locking a wallet updates an idle tab without a session query', verifyPassiveWalletLock);
