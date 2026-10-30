@@ -1,10 +1,13 @@
 # ML-DSA latency and sustainable preparation
 
-Status: in progress. Date: October 30, 2026.
+Status: in progress. Date: October 31, 2026.
 
-Current step: the [same-core producer instrument](router-ab/ml-dsa-65-quiet-producer-report.md) passes local lifecycle and public-output checks.
-Run ordinary quiet–overlap–quiet controls before probing. Stop if the CPU gap fails to repeat.
-Hosted execution awaits approval for the new test credentials and destinations. No new preparation speedup is claimed.
+The [hosted quiet producer controls](router-ab/ml-dsa-65-quiet-producer-hosted-report.md) complete twenty-four selected jobs and thirty-six matched public probes.
+Quiet paired CPU ratios remain 2.146 and 2.344 across reversed order. The ordinary return build retains the processing gap.
+Fixed public encoder and bulk AES workloads also differ. The host or compiler cause remains unknown.
+No warmup or kernel change is retained, and no new throughput gain is established.
+Next, profile production conversion with its actual eight/sixteen-block batches, copying, extraction, and erasure before another implementation change.
+The tests and replay pass. Test-Worker deletion awaits explicit approval after automatic review rejected cleanup.
 
 The [matched hosted capacity comparison](router-ab/ml-dsa-65-capacity-guard-hosted-report.md) completes with 64 verified signatures in each twelve-minute capacity screen.
 Complete-cycle rates are 5.035 and 5.072 signatures/minute, including full reserve restoration.
@@ -34,9 +37,9 @@ One binary operation waits for the reserve to recover from six to eight pairs. M
 
 The next high-impact tasks are:
 
-- Reproduce the persistent CPU gap with ordinary quiet–overlap–quiet jobs before adding calibration.
-- If it repeats, compare fixed public workloads inside the actual core module, with exact role and instance matching.
-- Optimize the preparation stage supported by those results. Require repeated complete-job gains and unchanged material accounting.
+- Profile actual production conversion and encoder work, including eight/sixteen-block AES batches, copying, extraction, and erasure.
+- Measure bounded scratch reuse or public encoder expansion only when the profile identifies a dominant cost.
+- Require fixed-output checks, repeated complete-job gains, unchanged material accounting, and matched hosted controls before retaining a change.
 - Qualify four active wallets per group and idle-wallet maintenance before choosing production budgets.
 - Keep sustained public Gateway/SDK traffic and its complete user waits as a separate product qualification.
 
@@ -380,6 +383,7 @@ Select production group count and per-group limits from the observed failure rat
 ## Execution order and stopping rules
 
 - [x] Establish an exact-version baseline and calibrated inner-stage sampling.
+- [x] Reproduce actor CPU variation with reversed quiet controls, same-core public probes, exact software matching, and an ordinary return. Keep host and compiler causes unresolved.
 - [x] Run producer workload/slot crossover and isolated-versus-concurrent comparisons.
 - [x] Separate AES setup, rounds, conversion, and erasure. Reject native context reuse after the hosted bridge screen.
 - [x] Add matched in-producer calibration and compare a proven masked-shift AES candidate. Reject the candidate after the hosted controls.
