@@ -1,0 +1,42 @@
+{
+  "schema": "seams.ml-dsa-production-profile-evidence.v1",
+  "archive": {
+    "name": "ml-dsa-65-production-profile-20261031.tar.gz",
+    "sha256": "ec93d2df30096bb71184a8a309c09d4d0b8bc0660bae854038a9258ee459d26a",
+    "bytes": 3900530,
+    "member_files": 102
+  },
+  "source_revision": "24a3dd453920e51733487365a7fecf4bf88b7849",
+  "runtime_source_unchanged": true,
+  "profiled_runs_passed": 3,
+  "unprofiled_windows_passed": 3,
+  "standard_signatures_verified": 21,
+  "kernel": {
+    "gate": "Advance only when both current-control kernel median improvements are at least 10 percent",
+    "gains": [
+      0.03906525105991776,
+      0.03500537832405293
+    ],
+    "advance": false,
+    "production_source_changed": false,
+    "hosted_gain_established": false
+  },
+  "local_first_reserve_ms": {
+    "profiled": {
+      "ordinary-first": 36075.9205,
+      "diagnostic": 38102.39975,
+      "ordinary-return": 39124.087542
+    },
+    "unprofiled": {
+      "ordinary-unprofiled-first": 38107.823167,
+      "diagnostic-unprofiled": 37080.836584,
+      "ordinary-unprofiled-return": 37078.552583
+    }
+  },
+  "limits": [
+    "Samples are not billed CPU.",
+    "Diagnostic boundaries can perturb compilation and hide inlined work.",
+    "Kernel improvement misses the predeclared gate and establishes no complete-job or hosted gain.",
+    "No cloud resources are changed; earlier eight-Worker deletion approval remains pending."
+  ]
+}

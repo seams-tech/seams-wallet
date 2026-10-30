@@ -2,11 +2,19 @@
 
 Status: in progress. Date: October 31, 2026.
 
+The [production preparation profile](router-ab/ml-dsa-65-production-profile-report.md) completes three profiled and three unprofiled Worker controls.
+Private AES remains the largest local sampled cost. Encoder accumulation and public index refill contribute about seventeen and seven percent.
+A bounded accumulator candidate passes complete-output and short-input checks, but its isolated gains are only 3.5–3.9 percent.
+It misses the predeclared ten-percent gate and is discarded without production changes or hosted deployment.
+Twenty-one standard signatures and twenty-one altered-message rejections verify independently.
+Conversion remains partly inlined. Inspect compiled accumulator and index-generation work before selecting another rewrite.
+No new complete-job latency or throughput gain is established.
+
 The [hosted quiet producer controls](router-ab/ml-dsa-65-quiet-producer-hosted-report.md) complete twenty-four selected jobs and thirty-six matched public probes.
 Quiet paired CPU ratios remain 2.146 and 2.344 across reversed order. The ordinary return build retains the processing gap.
 Fixed public encoder and bulk AES workloads also differ. The host or compiler cause remains unknown.
 No warmup or kernel change is retained, and no new throughput gain is established.
-Next, profile production conversion with its actual eight/sixteen-block batches, copying, extraction, and erasure before another implementation change.
+That hosted campaign motivates the local production-path profile above. The host or compiler cause remains unresolved.
 The tests and replay pass. Test-Worker deletion awaits explicit approval after automatic review rejected cleanup.
 
 The [matched hosted capacity comparison](router-ab/ml-dsa-65-capacity-guard-hosted-report.md) completes with 64 verified signatures in each twelve-minute capacity screen.
@@ -37,14 +45,15 @@ One binary operation waits for the reserve to recover from six to eight pairs. M
 
 The next high-impact tasks are:
 
-- Profile actual production conversion and encoder work, including eight/sixteen-block AES batches, copying, extraction, and erasure.
+- Isolate remaining inlined conversion work and inspect compiled accumulator/index-generation costs before another source rewrite.
 - Measure bounded scratch reuse or public encoder expansion only when the profile identifies a dominant cost.
 - Require fixed-output checks, repeated complete-job gains, unchanged material accounting, and matched hosted controls before retaining a change.
 - Qualify four active wallets per group and idle-wallet maintenance before choosing production budgets.
 - Keep sustained public Gateway/SDK traffic and its complete user waits as a separate product qualification.
 
 Preparation remains on Workers. Wallet-seed recovery, FIPS export, and two-at-once consumption remain unchanged.
-Production defaults remain unchanged. All eight temporary Workers are deleted, with independent absence checks.
+Production defaults remain unchanged. The earlier delivery-comparison fleet is deleted, with independent absence checks.
+The quiet-producer fleet still awaits explicit deletion approval; the new production-path campaign makes no cloud changes.
 
 The [producer profiling checkpoint](router-ab/ml-dsa-65-producer-profile-report.md) records fresh slot controls, complete hosted comparisons, and the retained correlation-consumption improvement.
 The historical producer speed difference does not repeat in fresh isolated controls. Its cause remains unknown.
