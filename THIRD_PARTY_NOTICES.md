@@ -5,7 +5,7 @@ distributed Seams Wallet SDK, server runtime, Wasm, strict Workers, and CLI.
 Dependency license expressions come from their package metadata. Packaged
 license and notice wording is reproduced below with normalized whitespace.
 
-Inventory: 476 dependency records (89 npm, 387 Cargo).
+Inventory: 520 dependency records (92 npm, 428 Cargo).
 
 ## Dependency inventory
 
@@ -14,8 +14,10 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | aead | 0.5.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | aes-gcm | 0.10.3 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | aes | 0.8.4 | MIT OR Apache-2.0 | RustCrypto Developers |
+| cargo | aes | 0.9.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | ahash | 0.8.12 | MIT OR Apache-2.0 | Tom Kaitchuck <Tom.Kaitchuck@gmail.com> |
 | cargo | arbitrary | 1.4.2 | MIT OR Apache-2.0 | Brian L. Troutwine <brian@troutwine.us>; Corey Farwell <coreyf@rwell.org>; Manish Goregaokar <manishsmail@gmail.com>; Nick Fitzgerald <fitzgen@gmail.com>; Simonas Kazlauskas <arbitrary@kazlauskas.me>; The Rust-Fuzz Project Developers |
+| cargo | arrayvec | 0.7.8 | MIT OR Apache-2.0 | bluss |
 | cargo | async-trait | 0.1.89 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | atomic-polyfill | 1.0.3 | MIT OR Apache-2.0 | Dario Nieuwenhuis <dirbaio@dirbaio.net> |
 | cargo | autocfg | 1.5.0 | Apache-2.0 OR MIT | Josh Stone <cuviper@gmail.com> |
@@ -27,6 +29,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | base64ct | 1.8.3 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | bitflags | 2.13.1 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | bitflags | 2.13.2 | MIT OR Apache-2.0 | The Rust Project Developers |
+| cargo | blake3 | 1.8.7 | CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception | Jack O'Connor <oconnor663@gmail.com>; Samuel Neves |
 | cargo | block-buffer | 0.10.4 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | block-buffer | 0.12.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | borsh-derive | 1.6.1 | Apache-2.0 | Near Inc <hello@nearprotocol.com> |
@@ -36,6 +39,8 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | bumpalo | 3.19.1 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
 | cargo | bumpalo | 3.20.2 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
 | cargo | bumpalo | 3.20.3 | MIT OR Apache-2.0 | Nick Fitzgerald <fitzgen@gmail.com> |
+| cargo | bytemuck_derive | 1.12.1 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
+| cargo | bytemuck | 1.25.2 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | byteorder | 1.5.0 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | bytes | 1.11.1 | MIT | Carl Lerche <me@carllerche.com>; Sean McArthur <sean@seanmonstar.com> |
 | cargo | bytes | 1.12.1 | MIT | Carl Lerche <me@carllerche.com>; Sean McArthur <sean@seanmonstar.com> |
@@ -46,12 +51,15 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | cfg_aliases | 0.2.2 | MIT | Zicklag <zicklag@katharostech.com> |
 | cargo | cfg-if | 1.0.1 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
 | cargo | cfg-if | 1.0.4 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
+| cargo | cfg-if | 1.0.5 | MIT OR Apache-2.0 | Alex Crichton <alex@alexcrichton.com> |
+| cargo | chacha20 | 0.10.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | chacha20 | 0.9.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | chacha20poly1305 | 0.10.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | ciborium-io | 0.2.2 | Apache-2.0 | Nathaniel McCallum <npmccallum@profian.com> |
 | cargo | ciborium-ll | 0.2.2 | Apache-2.0 | Nathaniel McCallum <npmccallum@profian.com> |
 | cargo | ciborium | 0.2.2 | Apache-2.0 | Nathaniel McCallum <npmccallum@profian.com> |
 | cargo | cipher | 0.4.4 | MIT OR Apache-2.0 | RustCrypto Developers |
+| cargo | cipher | 0.5.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | cmov | 0.5.4 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | cobs | 0.3.0 | MIT OR Apache-2.0 | Allen Welkie <>; James Munns <james@onevariable.com> |
 | cargo | combine | 4.6.8 | MIT | Markus Westerlind <marwes91@gmail.com> |
@@ -59,6 +67,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | const-oid | 0.10.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | const-oid | 0.9.6 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | constant_time_eq | 0.3.1 | CC0-1.0 OR MIT-0 OR Apache-2.0 | Cesar Eduardo Barros <cesarb@cesarb.eti.br> |
+| cargo | constant_time_eq | 0.4.2 | CC0-1.0 OR MIT-0 OR Apache-2.0 | Cesar Eduardo Barros <cesarb@cesarb.eti.br> |
 | cargo | core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 | The Servo Project Developers |
 | cargo | core-foundation | 0.10.1 | MIT OR Apache-2.0 | The Servo Project Developers |
 | cargo | cpubits | 0.1.1 | MIT OR Apache-2.0 | RustCrypto Developers |
@@ -77,12 +86,14 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | crypto-common | 0.2.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | ctr | 0.9.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | ctutils | 0.4.2 | Apache-2.0 OR MIT | RustCrypto Developers |
+| cargo | ctutils | 0.4.3 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | curve25519-dalek-derive | 0.1.1 | MIT/Apache-2.0 |  |
 | cargo | curve25519-dalek | 4.1.3 | BSD-3-Clause | Henry de Valence <hdevalence@hdevalence.ca>; Isis Lovecruft <isis@patternsinthevoid.net> |
 | cargo | debugless-unwrap | 0.0.4 | MIT OR Apache-2.0 | Tamme Schichler <tamme@schichler.dev> |
 | cargo | der | 0.7.10 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | der | 0.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | der | 0.8.1 | Apache-2.0 OR MIT | RustCrypto Developers |
+| cargo | der | 0.8.2 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | derive_arbitrary | 1.4.2 | MIT OR Apache-2.0 | Andre Bogus <bogusandre@gmail.com>; Corey Farwell <coreyf@rwell.org>; Manish Goregaokar <manishsmail@gmail.com>; Nick Fitzgerald <fitzgen@gmail.com>; The Rust-Fuzz Project Developers |
 | cargo | derive-getters | 0.5.0 | MIT | Stephan Luther <stephan@kvsari.org> |
 | cargo | digest | 0.10.7 | MIT OR Apache-2.0 | RustCrypto Developers |
@@ -97,14 +108,17 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | either | 1.15.0 | MIT OR Apache-2.0 | bluss |
 | cargo | either | 1.16.0 | MIT OR Apache-2.0 |  |
 | cargo | either | 1.17.0 | MIT OR Apache-2.0 |  |
+| cargo | either | 1.19.0 | MIT OR Apache-2.0 |  |
 | cargo | elliptic-curve | 0.13.8 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | elliptic-curve | 0.14.0-rc.34 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | elliptic-curve | 0.14.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | embedded-io | 0.4.0 | MIT OR Apache-2.0 |  |
 | cargo | embedded-io | 0.6.1 | MIT OR Apache-2.0 |  |
 | cargo | equivalent | 1.0.2 | Apache-2.0 OR MIT |  |
+| cargo | equivalent | 1.0.3 | Apache-2.0 OR MIT |  |
 | cargo | fallible-iterator | 0.3.0 | MIT/Apache-2.0 | Steven Fackler <sfackler@gmail.com> |
 | cargo | fallible-streaming-iterator | 0.1.9 | MIT/Apache-2.0 | Steven Fackler <sfackler@gmail.com> |
+| cargo | fastdivide | 0.4.2 | zlib-acknowledgement OR MIT | Paul Masurel <paul.masurel@gmail.com> |
 | cargo | ff | 0.13.1 | MIT/Apache-2.0 | Jack Grigg <thestr4d@gmail.com>; Sean Bowe <ewillbefull@gmail.com> |
 | cargo | ff | 0.14.0 | MIT/Apache-2.0 | Jack Grigg <thestr4d@gmail.com>; Sean Bowe <ewillbefull@gmail.com> |
 | cargo | fiat-crypto | 0.2.9 | MIT OR Apache-2.0 OR BSD-1-Clause | Fiat Crypto library authors <jgross@mit.edu> |
@@ -117,6 +131,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | futures-channel | 0.3.33 | MIT OR Apache-2.0 |  |
 | cargo | futures-core | 0.3.32 | MIT OR Apache-2.0 |  |
 | cargo | futures-core | 0.3.33 | MIT OR Apache-2.0 |  |
+| cargo | futures-core | 0.3.34 | MIT OR Apache-2.0 |  |
 | cargo | futures-executor | 0.3.32 | MIT OR Apache-2.0 |  |
 | cargo | futures-executor | 0.3.33 | MIT OR Apache-2.0 |  |
 | cargo | futures-io | 0.3.32 | MIT OR Apache-2.0 |  |
@@ -127,6 +142,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | futures-sink | 0.3.33 | MIT OR Apache-2.0 |  |
 | cargo | futures-task | 0.3.32 | MIT OR Apache-2.0 |  |
 | cargo | futures-task | 0.3.33 | MIT OR Apache-2.0 |  |
+| cargo | futures-task | 0.3.34 | MIT OR Apache-2.0 |  |
 | cargo | futures-util | 0.3.32 | MIT OR Apache-2.0 |  |
 | cargo | futures-util | 0.3.33 | MIT OR Apache-2.0 |  |
 | cargo | futures | 0.3.32 | MIT OR Apache-2.0 |  |
@@ -134,6 +150,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | generic-array | 0.14.9 | MIT | Aaron Trent <novacrazy@gmail.com>; Bartłomiej Kamiński <fizyk20@gmail.com> |
 | cargo | getrandom | 0.2.17 | MIT OR Apache-2.0 | The Rand Project Developers |
 | cargo | getrandom | 0.3.4 | MIT OR Apache-2.0 | The Rand Project Developers |
+| cargo | getrandom | 0.4.3 | MIT OR Apache-2.0 | The Rand Project Developers |
 | cargo | ghash | 0.5.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | group | 0.13.0 | MIT/Apache-2.0 | Jack Grigg <jack@z.cash>; Sean Bowe <ewillbefull@gmail.com> |
 | cargo | group | 0.14.0 | MIT/Apache-2.0 | Jack Grigg <jack@z.cash>; Sean Bowe <ewillbefull@gmail.com> |
@@ -157,10 +174,12 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | hybrid-array | 0.4.12 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | hybrid-array | 0.4.13 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | hybrid-array | 0.4.14 | MIT OR Apache-2.0 | RustCrypto Developers |
+| cargo | hybrid-array | 0.4.15 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | indexmap | 2.14.0 | Apache-2.0 OR MIT |  |
 | cargo | indexmap | 2.14.2 | Apache-2.0 OR MIT |  |
 | cargo | indexmap | 2.9.0 | Apache-2.0 OR MIT |  |
 | cargo | inout | 0.1.4 | MIT OR Apache-2.0 | RustCrypto Developers |
+| cargo | inout | 0.2.2 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | itertools | 0.14.0 | MIT OR Apache-2.0 | bluss |
 | cargo | itoa | 1.0.18 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | jni-macros | 0.22.4 | MIT OR Apache-2.0 |  |
@@ -184,9 +203,11 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | libc | 0.2.185 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.186 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | libc | 0.2.189 | MIT OR Apache-2.0 |  |
+| cargo | libc | 0.2.191 | MIT OR Apache-2.0 |  |
 | cargo | libm | 0.2.16 | MIT | Alex Crichton <alex@alexcrichton.com>; Amanieu d'Antras <amanieu@gmail.com>; Jorge Aparicio <japaricious@gmail.com>; Trevor Gross <tg@trevorgross.com> |
 | cargo | libsqlite3-sys | 0.30.1 | MIT | The rusqlite developers |
 | cargo | litrs | 1.0.0 | MIT OR Apache-2.0 | Lukas Kalbertodt <lukas.kalbertodt@gmail.com> |
+| cargo | litrs | 1.0.1 | MIT OR Apache-2.0 | Lukas Kalbertodt <lukas.kalbertodt@gmail.com> |
 | cargo | lock_api | 0.4.14 | MIT OR Apache-2.0 | Amanieu d'Antras <amanieu@gmail.com> |
 | cargo | log | 0.4.27 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | log | 0.4.33 | MIT OR Apache-2.0 | The Rust Project Developers |
@@ -196,10 +217,13 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | memchr | 2.8.3 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com>; bluss |
 | cargo | minicov | 0.3.8 | Apache-2.0/MIT | Amanieu d'Antras <amanieu@gmail.com> |
 | cargo | mio | 1.2.4 | MIT | Carl Lerche <me@carllerche.com>; Thomas de Zeeuw <thomasdezeeuw@gmail.com>; Tokio Contributors <team@tokio.rs> |
+| cargo | ml-dsa | 0.1.1 | Apache-2.0 OR MIT |  |
+| cargo | module-lattice | 0.2.3 | Apache-2.0 OR MIT |  |
 | cargo | nix | 0.31.3 | MIT |  |
 | cargo | nu-ansi-term | 0.50.3 | MIT | Josh Triplett <josh@joshtriplett.org>; Ryan Scheel (Havvy) <ryan.havvy@gmail.com>; The Nushell Project Developers; ogham@bsago.me |
 | cargo | num-bigint | 0.4.6 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | num-integer | 0.1.46 | MIT OR Apache-2.0 | The Rust Project Developers |
+| cargo | num-integer | 0.1.47 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | num-traits | 0.2.19 | MIT OR Apache-2.0 | The Rust Project Developers |
 | cargo | once_cell | 1.21.3 | MIT OR Apache-2.0 | Aleksey Kladov <aleksey.kladov@gmail.com> |
 | cargo | once_cell | 1.21.4 | MIT OR Apache-2.0 | Aleksey Kladov <aleksey.kladov@gmail.com> |
@@ -231,11 +255,13 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | quote | 1.0.46 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | quote | 1.0.47 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |  |
+| cargo | r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |  |
 | cargo | rand_chacha | 0.3.1 | MIT OR Apache-2.0 | The CryptoCorrosion Contributors; The Rand Project Developers; The Rust Project Developers |
 | cargo | rand_chacha | 0.9.0 | MIT OR Apache-2.0 | The CryptoCorrosion Contributors; The Rand Project Developers; The Rust Project Developers |
 | cargo | rand_core | 0.10.1 | MIT OR Apache-2.0 | The Rand Project Developers |
 | cargo | rand_core | 0.6.4 | MIT OR Apache-2.0 | The Rand Project Developers; The Rust Project Developers |
 | cargo | rand_core | 0.9.5 | MIT OR Apache-2.0 | The Rand Project Developers; The Rust Project Developers |
+| cargo | rand | 0.10.3 | MIT OR Apache-2.0 | The Rand Project Developers; The Rust Project Developers |
 | cargo | rfc6979 | 0.4.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | ring | 0.17.14 | Apache-2.0 AND ISC |  |
 | cargo | rusqlite | 0.32.1 | MIT | The rusqlite developers |
@@ -249,6 +275,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | rustversion | 1.0.21 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | rustversion | 1.0.22 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | rustversion | 1.0.23 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | safe_arch | 1.2.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | same-file | 1.0.6 | Unlicense/MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | schannel | 0.1.29 | MIT | Steffen Butzer <steffen.butzer@outlook.com>; Steven Fackler <sfackler@gmail.com> |
 | cargo | scopeguard | 1.2.0 | MIT OR Apache-2.0 | bluss |
@@ -258,6 +285,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | security-framework | 3.7.0 | MIT OR Apache-2.0 | Kornel <kornel@geekhood.net>; Steven Fackler <sfackler@gmail.com> |
 | cargo | semver | 1.0.26 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | semver | 1.0.28 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | seq-macro | 0.3.6 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | serde_core | 1.0.229 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com>; Erick Tryzelaar <erick.tryzelaar@gmail.com> |
 | cargo | serde_derive | 1.0.229 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com>; Erick Tryzelaar <erick.tryzelaar@gmail.com> |
 | cargo | serde_json | 1.0.151 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com>; Erick Tryzelaar <erick.tryzelaar@gmail.com> |
@@ -273,6 +301,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | shamir-3-pass | 0.6.0 | Apache-2.0 |  |
 | cargo | shlex | 2.0.1 | MIT OR Apache-2.0 | Adrian Taylor <adetaylor@chromium.org>; Alex Touchet <alextouchet@outlook.com>; Daniel Parks <dp+git@oxidized.org>; Fenhl <fenhl@fenhl.net>; Garrett Berg <googberg@gmail.com>; comex <comexk@gmail.com> |
 | cargo | signature | 2.2.0 | Apache-2.0 OR MIT | RustCrypto Developers |
+| cargo | signature | 3.0.0 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | simd_cesu8 | 1.2.0 | Apache-2.0 OR MIT | Sean C. Roach <me@seancroach.dev> |
 | cargo | simdutf8 | 0.1.5 | MIT OR Apache-2.0 | Hans Kratz <hans@appfour.com> |
 | cargo | slab | 0.4.12 | MIT | Carl Lerche <me@carllerche.com> |
@@ -282,13 +311,13 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | spin | 0.9.9 | MIT | John Ericson <git@JohnEricson.me>; Joshua Barretto <joshua.s.barretto@gmail.com>; Mathijs van de Nes <git@mathijs.vd-nes.nl> |
 | cargo | spki | 0.7.3 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | spki | 0.8.0 | Apache-2.0 OR MIT | RustCrypto Developers |
+| cargo | spki | 0.8.1 | Apache-2.0 OR MIT | RustCrypto Developers |
 | cargo | sponge-cursor | 0.1.0 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | stable_deref_trait | 1.2.1 | MIT OR Apache-2.0 | Robert Grosse <n210241048576@gmail.com> |
 | cargo | subtle | 2.6.1 | BSD-3-Clause | Henry de Valence <hdevalence@hdevalence.ca>; Isis Lovecruft <isis@patternsinthevoid.net> |
 | cargo | syn | 2.0.103 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 2.0.114 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 2.0.117 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
-| cargo | syn | 2.0.118 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 2.0.119 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.3 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | syn | 3.0.5 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
@@ -298,32 +327,41 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | thiserror-impl | 2.0.18 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror-impl | 2.0.19 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror-impl | 2.0.20 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | thiserror-impl | 2.0.21 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror | 2.0.17 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror | 2.0.18 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror | 2.0.19 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | thiserror | 2.0.20 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | thiserror | 2.0.21 | MIT OR Apache-2.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | tinyvec_macros | 0.1.1 | MIT OR Apache-2.0 OR Zlib | Soveu <marx.tomasz@gmail.com> |
 | cargo | tinyvec | 1.11.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tinyvec | 1.12.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tinyvec | 1.13.2 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
+| cargo | tinyvec | 1.13.3 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tinyvec | 1.9.0 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | tokio-macros | 2.7.2 | MIT | Tokio Contributors <team@tokio.rs> |
 | cargo | tokio | 1.52.3 | MIT | Tokio Contributors <team@tokio.rs> |
 | cargo | toml_datetime | 0.6.11 | MIT OR Apache-2.0 |  |
 | cargo | toml_datetime | 1.1.1+spec-1.1.0 | MIT OR Apache-2.0 |  |
+| cargo | toml_datetime | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 |  |
 | cargo | toml_edit | 0.22.27 | MIT OR Apache-2.0 |  |
 | cargo | toml_edit | 0.25.12+spec-1.1.0 | MIT OR Apache-2.0 |  |
 | cargo | toml_edit | 0.25.13+spec-1.1.0 | MIT OR Apache-2.0 |  |
+| cargo | toml_edit | 0.25.17+spec-1.1.0 | MIT OR Apache-2.0 |  |
 | cargo | toml_parser | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 |  |
 | cargo | toml_parser | 1.1.3+spec-1.1.0 | MIT OR Apache-2.0 |  |
+| cargo | toml_parser | 1.1.5+spec-1.1.0 | MIT OR Apache-2.0 |  |
+| cargo | tracing-attributes | 0.1.31 | MIT | David Barsky <dbarsky@amazon.com>; Eliza Weisman <eliza@buoyant.io>; Tokio Contributors <team@tokio.rs> |
+| cargo | tracing-core | 0.1.36 | MIT | Tokio Contributors <team@tokio.rs> |
+| cargo | tracing | 0.1.44 | MIT | Eliza Weisman <eliza@buoyant.io>; Tokio Contributors <team@tokio.rs> |
 | cargo | ts-rs-macros | 12.0.1 | MIT | Moritz Bischof <moritz.bischof1@gmail.com> |
 | cargo | ts-rs | 12.0.1 | MIT | Moritz Bischof <moritz.bischof1@gmail.com> |
-| cargo | typenum | 1.18.0 | MIT OR Apache-2.0 | Andre Bogus <bogusandre@gmail.com>; Paho Lurie-Gregg <paho@paholg.com> |
 | cargo | typenum | 1.19.0 | MIT OR Apache-2.0 | Andre Bogus <bogusandre@gmail.com>; Paho Lurie-Gregg <paho@paholg.com> |
 | cargo | typenum | 1.20.1 | MIT OR Apache-2.0 |  |
 | cargo | unicode-ident | 1.0.18 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | unicode-ident | 1.0.22 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | unicode-ident | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
+| cargo | unicode-ident | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | David Tolnay <dtolnay@gmail.com> |
 | cargo | universal-hash | 0.5.1 | MIT OR Apache-2.0 | RustCrypto Developers |
 | cargo | untrusted | 0.9.0 | ISC | Brian Smith <brian@briansmith.org> |
 | cargo | ureq-proto | 0.6.1 | MIT OR Apache-2.0 | Martin Algesten <martin@algesten.se> |
@@ -366,6 +404,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | wasm-bindgen | 0.2.128 | MIT OR Apache-2.0 | The wasm-bindgen Developers |
 | cargo | webpki-root-certs | 1.0.9 | CDLA-Permissive-2.0 |  |
 | cargo | webpki-roots | 1.0.9 | CDLA-Permissive-2.0 |  |
+| cargo | wide | 1.7.1 | Zlib OR Apache-2.0 OR MIT | Lokathor <zefria@gmail.com> |
 | cargo | winapi-util | 0.1.11 | Unlicense OR MIT | Andrew Gallant <jamslam@gmail.com> |
 | cargo | windows_aarch64_gnullvm | 0.52.6 | MIT OR Apache-2.0 | Microsoft |
 | cargo | windows_aarch64_msvc | 0.52.6 | MIT OR Apache-2.0 | Microsoft |
@@ -388,10 +427,12 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | cargo | zerocopy-derive | 0.8.53 | BSD-2-Clause OR Apache-2.0 OR MIT | Jack Wrenn <jswrenn@amazon.com>; Joshua Liebow-Feeser <joshlf@google.com> |
 | cargo | zerocopy-derive | 0.8.54 | BSD-2-Clause OR Apache-2.0 OR MIT | Jack Wrenn <jswrenn@amazon.com>; Joshua Liebow-Feeser <joshlf@google.com> |
 | cargo | zerocopy-derive | 0.8.56 | BSD-2-Clause OR Apache-2.0 OR MIT |  |
+| cargo | zerocopy-derive | 0.8.57 | BSD-2-Clause OR Apache-2.0 OR MIT |  |
 | cargo | zerocopy | 0.8.48 | BSD-2-Clause OR Apache-2.0 OR MIT | Jack Wrenn <jswrenn@amazon.com>; Joshua Liebow-Feeser <joshlf@google.com> |
 | cargo | zerocopy | 0.8.53 | BSD-2-Clause OR Apache-2.0 OR MIT | Jack Wrenn <jswrenn@amazon.com>; Joshua Liebow-Feeser <joshlf@google.com> |
 | cargo | zerocopy | 0.8.54 | BSD-2-Clause OR Apache-2.0 OR MIT | Jack Wrenn <jswrenn@amazon.com>; Joshua Liebow-Feeser <joshlf@google.com> |
 | cargo | zerocopy | 0.8.56 | BSD-2-Clause OR Apache-2.0 OR MIT |  |
+| cargo | zerocopy | 0.8.57 | BSD-2-Clause OR Apache-2.0 OR MIT |  |
 | cargo | zeroize_derive | 1.5.0 | Apache-2.0 OR MIT | The RustCrypto Project Developers |
 | cargo | zeroize | 1.8.2 | Apache-2.0 OR MIT | The RustCrypto Project Developers |
 | cargo | zeroize | 1.9.0 | Apache-2.0 OR MIT | The RustCrypto Project Developers |
@@ -429,6 +470,9 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 | npm | @scure/base | 1.2.6 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip32 | 1.7.0 | MIT | Paul Miller (https://paulmillr.com) |
 | npm | @scure/bip39 | 1.6.0 | MIT | Paul Miller (https://paulmillr.com) |
+| npm | @seams/voice-capture | 0.70.6 | Apache-2.0 |  |
+| npm | @seams/voice-sign | 0.70.6 | Apache-2.0 |  |
+| npm | @seams/voice-verdict | 0.70.6 | Apache-2.0 |  |
 | npm | @simplewebauthn/server | 13.2.2 | MIT | Matthew Miller <matthew@millerti.me> |
 | npm | @types/node | 24.2.0 | MIT | Alberto Schiabel; Andrew Makarov; Anna Henningsen; Benjamin Toueg; David Junger; Dmitry Semigradsky; ExE Boss; Ilia Baryshnikov; Junxiao Shi; Linus Unnebäck; Marcin Kopacz; Matteo Collina; Microsoft TypeScript; Mohsen Azimi; Nikita Galkin; NodeJS Contributors; Piotr Błażejewicz; René; Sebastian Silbermann; Trivikram Kamat; Victor Perin; Wilco Bakker; Yagiz Nizipli; wafuwafu13 |
 | npm | abitype | 1.2.3 | MIT | awkweb.eth <t@wevm.dev>; jxom.eth <j@wevm.dev> |
@@ -493,6 +537,7 @@ Inventory: 476 dependency records (89 npm, 387 Cargo).
 These packages declare the following SPDX license expression in package metadata
 but do not include a top-level license or notice file in the distributed package:
 
+- cargo:blake3@1.8.7 — CC0-1.0 OR Apache-2.0 OR Apache-2.0 WITH LLVM-exception
 - cargo:frost-core@2.2.0 — MIT OR Apache-2.0
 - cargo:frost-ed25519@2.2.0 — MIT OR Apache-2.0
 - cargo:frost-rerandomized@2.2.0 — MIT OR Apache-2.0
@@ -500,6 +545,7 @@ but do not include a top-level license or notice file in the distributed package
 - cargo:jni-sys-macros@0.4.1 — MIT OR Apache-2.0
 - cargo:jni@0.22.4 — MIT OR Apache-2.0
 - cargo:r-efi@5.3.0 — MIT OR Apache-2.0 OR LGPL-2.1-or-later
+- cargo:r-efi@6.0.0 — MIT OR Apache-2.0 OR LGPL-2.1-or-later
 - cargo:rustls-platform-verifier-android@0.1.1 — MIT OR Apache-2.0
 - cargo:ts-rs-macros@12.0.1 — MIT
 - cargo:ts-rs@12.0.1 — MIT
@@ -1226,6 +1272,219 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### 05c58f1374a0ba16
+
+Packaged as: LICENSE-APACHE
+
+Applies to:
+
+- cargo:toml_datetime@1.1.2+spec-1.1.0
+- cargo:toml_edit@0.25.17+spec-1.1.0
+- cargo:toml_parser@1.1.5+spec-1.1.0
+
+                                     Apache License
+                               Version 2.0, January 2004
+                            http://www.apache.org/licenses/
+
+       TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+       1. Definitions.
+
+          "License" shall mean the terms and conditions for use, reproduction,
+          and distribution as defined by Sections 1 through 9 of this document.
+
+          "Licensor" shall mean the copyright owner or entity authorized by
+          the copyright owner that is granting the License.
+
+          "Legal Entity" shall mean the union of the acting entity and all
+          other entities that control, are controlled by, or are under common
+          control with that entity. For the purposes of this definition,
+          "control" means (i) the power, direct or indirect, to cause the
+          direction or management of such entity, whether by contract or
+          otherwise, or (ii) ownership of fifty percent (50%) or more of the
+          outstanding shares, or (iii) beneficial ownership of such entity.
+
+          "You" (or "Your") shall mean an individual or Legal Entity
+          exercising permissions granted by this License.
+
+          "Source" form shall mean the preferred form for making modifications,
+          including but not limited to software source code, documentation
+          source, and configuration files.
+
+          "Object" form shall mean any form resulting from mechanical
+          transformation or translation of a Source form, including but
+          not limited to compiled object code, generated documentation,
+          and conversions to other media types.
+
+          "Work" shall mean the work of authorship, whether in Source or
+          Object form, made available under the License, as indicated by a
+          copyright notice that is included in or attached to the work
+          (an example is provided in the Appendix below).
+
+          "Derivative Works" shall mean any work, whether in Source or Object
+          form, that is based on (or derived from) the Work and for which the
+          editorial revisions, annotations, elaborations, or other modifications
+          represent, as a whole, an original work of authorship. For the purposes
+          of this License, Derivative Works shall not include works that remain
+          separable from, or merely link (or bind by name) to the interfaces of,
+          the Work and Derivative Works thereof.
+
+          "Contribution" shall mean any work of authorship, including
+          the original version of the Work and any modifications or additions
+          to that Work or Derivative Works thereof, that is intentionally
+          submitted to Licensor for inclusion in the Work by the copyright owner
+          or by an individual or Legal Entity authorized to submit on behalf of
+          the copyright owner. For the purposes of this definition, "submitted"
+          means any form of electronic, verbal, or written communication sent
+          to the Licensor or its representatives, including but not limited to
+          communication on electronic mailing lists, source code control systems,
+          and issue tracking systems that are managed by, or on behalf of, the
+          Licensor for the purpose of discussing and improving the Work, but
+          excluding communication that is conspicuously marked or otherwise
+          designated in writing by the copyright owner as "Not a Contribution."
+
+          "Contributor" shall mean Licensor and any individual or Legal Entity
+          on behalf of whom a Contribution has been received by Licensor and
+          subsequently incorporated within the Work.
+
+       2. Grant of Copyright License. Subject to the terms and conditions of
+          this License, each Contributor hereby grants to You a perpetual,
+          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+          copyright license to reproduce, prepare Derivative Works of,
+          publicly display, publicly perform, sublicense, and distribute the
+          Work and such Derivative Works in Source or Object form.
+
+       3. Grant of Patent License. Subject to the terms and conditions of
+          this License, each Contributor hereby grants to You a perpetual,
+          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+          (except as stated in this section) patent license to make, have made,
+          use, offer to sell, sell, import, and otherwise transfer the Work,
+          where such license applies only to those patent claims licensable
+          by such Contributor that are necessarily infringed by their
+          Contribution(s) alone or by combination of their Contribution(s)
+          with the Work to which such Contribution(s) was submitted. If You
+          institute patent litigation against any entity (including a
+          cross-claim or counterclaim in a lawsuit) alleging that the Work
+          or a Contribution incorporated within the Work constitutes direct
+          or contributory patent infringement, then any patent licenses
+          granted to You under this License for that Work shall terminate
+          as of the date such litigation is filed.
+
+       4. Redistribution. You may reproduce and distribute copies of the
+          Work or Derivative Works thereof in any medium, with or without
+          modifications, and in Source or Object form, provided that You
+          meet the following conditions:
+
+          (a) You must give any other recipients of the Work or
+              Derivative Works a copy of this License; and
+
+          (b) You must cause any modified files to carry prominent notices
+              stating that You changed the files; and
+
+          (c) You must retain, in the Source form of any Derivative Works
+              that You distribute, all copyright, patent, trademark, and
+              attribution notices from the Source form of the Work,
+              excluding those notices that do not pertain to any part of
+              the Derivative Works; and
+
+          (d) If the Work includes a "NOTICE" text file as part of its
+              distribution, then any Derivative Works that You distribute must
+              include a readable copy of the attribution notices contained
+              within such NOTICE file, excluding those notices that do not
+              pertain to any part of the Derivative Works, in at least one
+              of the following places: within a NOTICE text file distributed
+              as part of the Derivative Works; within the Source form or
+              documentation, if provided along with the Derivative Works; or,
+              within a display generated by the Derivative Works, if and
+              wherever such third-party notices normally appear. The contents
+              of the NOTICE file are for informational purposes only and
+              do not modify the License. You may add Your own attribution
+              notices within Derivative Works that You distribute, alongside
+              or as an addendum to the NOTICE text from the Work, provided
+              that such additional attribution notices cannot be construed
+              as modifying the License.
+
+          You may add Your own copyright statement to Your modifications and
+          may provide additional or different license terms and conditions
+          for use, reproduction, or distribution of Your modifications, or
+          for any such Derivative Works as a whole, provided Your use,
+          reproduction, and distribution of the Work otherwise complies with
+          the conditions stated in this License.
+
+       5. Submission of Contributions. Unless You explicitly state otherwise,
+          any Contribution intentionally submitted for inclusion in the Work
+          by You to the Licensor shall be under the terms and conditions of
+          this License, without any additional terms or conditions.
+          Notwithstanding the above, nothing herein shall supersede or modify
+          the terms of any separate license agreement you may have executed
+          with Licensor regarding such Contributions.
+
+       6. Trademarks. This License does not grant permission to use the trade
+          names, trademarks, service marks, or product names of the Licensor,
+          except as required for reasonable and customary use in describing the
+          origin of the Work and reproducing the content of the NOTICE file.
+
+       7. Disclaimer of Warranty. Unless required by applicable law or
+          agreed to in writing, Licensor provides the Work (and each
+          Contributor provides its Contributions) on an "AS IS" BASIS,
+          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+          implied, including, without limitation, any warranties or conditions
+          of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+          PARTICULAR PURPOSE. You are solely responsible for determining the
+          appropriateness of using or redistributing the Work and assume any
+          risks associated with Your exercise of permissions under this License.
+
+       8. Limitation of Liability. In no event and under no legal theory,
+          whether in tort (including negligence), contract, or otherwise,
+          unless required by applicable law (such as deliberate and grossly
+          negligent acts) or agreed to in writing, shall any Contributor be
+          liable to You for damages, including any direct, indirect, special,
+          incidental, or consequential damages of any character arising as a
+          result of this License or out of the use or inability to use the
+          Work (including but not limited to damages for loss of goodwill,
+          work stoppage, computer failure or malfunction, or any and all
+          other commercial damages or losses), even if such Contributor
+          has been advised of the possibility of such damages.
+
+       9. Accepting Warranty or Additional Liability. While redistributing
+          the Work or Derivative Works thereof, You may choose to offer,
+          and charge a fee for, acceptance of support, warranty, indemnity,
+          or other liability obligations and/or rights consistent with this
+          License. However, in accepting such obligations, You may act only
+          on Your own behalf and on Your sole responsibility, not on behalf
+          of any other Contributor, and only if You agree to indemnify,
+          defend, and hold each Contributor harmless for any liability
+          incurred by, or claims asserted against, such Contributor by reason
+          of your accepting any such warranty or additional liability.
+
+       END OF TERMS AND CONDITIONS
+
+       APPENDIX: How to apply the Apache License to your work.
+
+          To apply the Apache License to your work, attach the following
+          boilerplate notice, with the fields enclosed by brackets "{}"
+          replaced with your own identifying information. (Don't include
+          the brackets!)  The text should be enclosed in the appropriate
+          comment syntax for the file format. We also recommend that a
+          file or class name and description of purpose be included on the
+          same "printed page" as the copyright notice for easier
+          identification within third-party archives.
+
+       Copyright Individual contributors
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+           http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
 
 
 ### 074e6e32c86a4c0e
@@ -1974,6 +2233,7 @@ Applies to:
 - cargo:libc@0.2.185
 - cargo:libc@0.2.186
 - cargo:libc@0.2.189
+- cargo:libc@0.2.191
 
     Copyright (c) The Rust Project Developers
 
@@ -2046,10 +2306,12 @@ Applies to:
 - cargo:zerocopy-derive@0.8.53
 - cargo:zerocopy-derive@0.8.54
 - cargo:zerocopy-derive@0.8.56
+- cargo:zerocopy-derive@0.8.57
 - cargo:zerocopy@0.8.48
 - cargo:zerocopy@0.8.53
 - cargo:zerocopy@0.8.54
 - cargo:zerocopy@0.8.56
+- cargo:zerocopy@0.8.57
 
                                      Apache License
                                Version 2.0, January 2004
@@ -2814,6 +3076,7 @@ Packaged as: LICENSE-MIT
 
 Applies to:
 
+- cargo:rand@0.10.3
 - cargo:rand_chacha@0.3.1
 - cargo:rand_chacha@0.9.0
 - cargo:rand_core@0.6.4
@@ -2951,6 +3214,7 @@ Applies to:
 - cargo:rustversion@1.0.23
 - cargo:semver@1.0.26
 - cargo:semver@1.0.28
+- cargo:seq-macro@0.3.6
 - cargo:serde@1.0.229
 - cargo:serde_core@1.0.229
 - cargo:serde_derive@1.0.229
@@ -2959,7 +3223,6 @@ Applies to:
 - cargo:syn@2.0.103
 - cargo:syn@2.0.114
 - cargo:syn@2.0.117
-- cargo:syn@2.0.118
 - cargo:syn@2.0.119
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
@@ -2968,13 +3231,16 @@ Applies to:
 - cargo:thiserror-impl@2.0.18
 - cargo:thiserror-impl@2.0.19
 - cargo:thiserror-impl@2.0.20
+- cargo:thiserror-impl@2.0.21
 - cargo:thiserror@2.0.17
 - cargo:thiserror@2.0.18
 - cargo:thiserror@2.0.19
 - cargo:thiserror@2.0.20
+- cargo:thiserror@2.0.21
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 - cargo:utf8-zero@0.8.1
 - cargo:wasi@0.11.1+wasi-snapshot-preview1
 - cargo:wasip2@1.0.4+wasi-0.2.12
@@ -3080,10 +3346,12 @@ Applies to:
 - cargo:zerocopy-derive@0.8.53
 - cargo:zerocopy-derive@0.8.54
 - cargo:zerocopy-derive@0.8.56
+- cargo:zerocopy-derive@0.8.57
 - cargo:zerocopy@0.8.48
 - cargo:zerocopy@0.8.53
 - cargo:zerocopy@0.8.54
 - cargo:zerocopy@0.8.56
+- cargo:zerocopy@0.8.57
 
     Copyright 2023 The Fuchsia Authors
 
@@ -3143,6 +3411,42 @@ Applies to:
     SOFTWARE.
 
 
+### 25f77efa393854f7
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:aes@0.9.1
+
+    Copyright (c) 2018-2024 The RustCrypto Project Developers
+    Copyright (c) 2018 Artyom Pavlov
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
 ### 275c491d6d116055
 
 Packaged as: LICENSE-APACHE
@@ -3153,6 +3457,7 @@ Applies to:
 - cargo:futures-channel@0.3.33
 - cargo:futures-core@0.3.32
 - cargo:futures-core@0.3.33
+- cargo:futures-core@0.3.34
 - cargo:futures-executor@0.3.32
 - cargo:futures-executor@0.3.33
 - cargo:futures-io@0.3.32
@@ -3163,6 +3468,7 @@ Applies to:
 - cargo:futures-sink@0.3.33
 - cargo:futures-task@0.3.32
 - cargo:futures-task@0.3.33
+- cargo:futures-task@0.3.34
 - cargo:futures-util@0.3.32
 - cargo:futures-util@0.3.33
 - cargo:futures@0.3.32
@@ -3812,6 +4118,7 @@ Packaged as: LICENSE-APACHE
 
 Applies to:
 
+- cargo:rand@0.10.3
 - cargo:rand_chacha@0.9.0
 
                                   Apache License
@@ -4024,7 +4331,6 @@ Packaged as: LICENSE
 
 Applies to:
 
-- cargo:typenum@1.18.0
 - cargo:typenum@1.19.0
 - cargo:typenum@1.20.1
 
@@ -4041,6 +4347,7 @@ Applies to:
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
+- cargo:cfg-if@1.0.5
 - cargo:find-msvc-tools@0.1.12
 - cargo:find-msvc-tools@0.1.9
 - cargo:js-sys@0.3.100
@@ -4544,13 +4851,39 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
+### 3c6921f3dfec0bed
+
+Packaged as: LICENSE-ZLIB.txt
+
+Applies to:
+
+- cargo:wide@1.7.1
+
+    Copyright (c) 2020 Daniel "Lokathor" Gee.
+
+    This software is provided 'as-is', without any express or implied
+    warranty.  In no event will the authors be held liable for any damages
+    arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software
+    in a product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+    misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+
+
 ### 3c97f5b6ad4e73ad
 
 Packaged as: LICENSE-APACHE
 
 Applies to:
 
-- cargo:typenum@1.18.0
 - cargo:typenum@1.19.0
 - cargo:typenum@1.20.1
 
@@ -5239,6 +5572,41 @@ Applies to:
     limitations under the License.
 
 
+### 4621bda86773a67b
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:ml-dsa@0.1.1
+
+    Copyright (c) 2024-2026 RustCrypto Developers
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
 ### 47674f8b7d98c232
 
 Packaged as: LICENSE-MIT
@@ -5459,6 +5827,41 @@ Applies to:
 - cargo:ppv-lite86@0.2.21
 
     Copyright (c) 2019 The CryptoCorrosion Contributors
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
+### 4da95ec4ecb65b73
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:arrayvec@0.7.8
+
+    Copyright (c) Ulrik Sverdrup "bluss" 2015-2023
 
     Permission is hereby granted, free of charge, to any
     person obtaining a copy of this software and associated
@@ -5761,6 +6164,42 @@ Applies to:
        limitations under the License.
 
 
+### 523a42c25d245dde
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:getrandom@0.4.3
+
+    Copyright (c) 2018-2026 The rust-random Project Developers
+    Copyright (c) 2014 The Rust Project Developers
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
 ### 527adf9d4c760f73
 
 Packaged as: LICENSE
@@ -5932,6 +6371,7 @@ Applies to:
 - cargo:crypto-bigint@0.7.5
 - cargo:sec1@0.8.1
 - cargo:spki@0.8.0
+- cargo:spki@0.8.1
 
     Copyright (c) 2021-2026 The RustCrypto Project Developers
 
@@ -6264,6 +6704,7 @@ Applies to:
 
 - cargo:async-trait@0.1.89
 - cargo:constant_time_eq@0.3.1
+- cargo:constant_time_eq@0.4.2
 - cargo:itoa@1.0.18
 - cargo:libc@0.2.174
 - cargo:libc@0.2.180
@@ -6271,7 +6712,9 @@ Applies to:
 - cargo:libc@0.2.185
 - cargo:libc@0.2.186
 - cargo:libc@0.2.189
+- cargo:libc@0.2.191
 - cargo:litrs@1.0.0
+- cargo:litrs@1.0.1
 - cargo:proc-macro2@1.0.106
 - cargo:proc-macro2@1.0.107
 - cargo:proc-macro2@1.0.95
@@ -6285,6 +6728,7 @@ Applies to:
 - cargo:rustversion@1.0.23
 - cargo:semver@1.0.26
 - cargo:semver@1.0.28
+- cargo:seq-macro@0.3.6
 - cargo:serde@1.0.229
 - cargo:serde_core@1.0.229
 - cargo:serde_derive@1.0.229
@@ -6292,7 +6736,6 @@ Applies to:
 - cargo:syn@2.0.103
 - cargo:syn@2.0.114
 - cargo:syn@2.0.117
-- cargo:syn@2.0.118
 - cargo:syn@2.0.119
 - cargo:syn@3.0.3
 - cargo:syn@3.0.5
@@ -6301,13 +6744,16 @@ Applies to:
 - cargo:thiserror-impl@2.0.18
 - cargo:thiserror-impl@2.0.19
 - cargo:thiserror-impl@2.0.20
+- cargo:thiserror-impl@2.0.21
 - cargo:thiserror@2.0.17
 - cargo:thiserror@2.0.18
 - cargo:thiserror@2.0.19
 - cargo:thiserror@2.0.20
+- cargo:thiserror@2.0.21
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 - cargo:utf8-zero@0.8.1
 
                                   Apache License
@@ -6607,6 +7053,7 @@ Applies to:
 - cargo:log@0.4.34
 - cargo:num-bigint@0.4.6
 - cargo:num-integer@0.1.46
+- cargo:num-integer@0.1.47
 - cargo:num-traits@0.2.19
 
     Copyright (c) 2014 The Rust Project Developers
@@ -6684,6 +7131,7 @@ Applies to:
 - cargo:futures-channel@0.3.33
 - cargo:futures-core@0.3.32
 - cargo:futures-core@0.3.33
+- cargo:futures-core@0.3.34
 - cargo:futures-executor@0.3.32
 - cargo:futures-executor@0.3.33
 - cargo:futures-io@0.3.32
@@ -6694,6 +7142,7 @@ Applies to:
 - cargo:futures-sink@0.3.33
 - cargo:futures-task@0.3.32
 - cargo:futures-task@0.3.33
+- cargo:futures-task@0.3.34
 - cargo:futures-util@0.3.32
 - cargo:futures-util@0.3.33
 - cargo:futures@0.3.32
@@ -6830,6 +7279,37 @@ Applies to:
     LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+### 69c62cda6938d510
+
+Packaged as: LICENSE-MIT.txt
+
+Applies to:
+
+- cargo:wide@1.7.1
+
+    MIT License
+
+    Copyright (c) 2020 Daniel "Lokathor" Gee
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 
 ### 6abdec69ada0c5f0
@@ -7138,11 +7618,14 @@ Applies to:
 
 - cargo:toml_datetime@0.6.11
 - cargo:toml_datetime@1.1.1+spec-1.1.0
+- cargo:toml_datetime@1.1.2+spec-1.1.0
 - cargo:toml_edit@0.22.27
 - cargo:toml_edit@0.25.12+spec-1.1.0
 - cargo:toml_edit@0.25.13+spec-1.1.0
+- cargo:toml_edit@0.25.17+spec-1.1.0
 - cargo:toml_parser@1.1.2+spec-1.1.0
 - cargo:toml_parser@1.1.3+spec-1.1.0
+- cargo:toml_parser@1.1.5+spec-1.1.0
 
     Copyright (c) Individual contributors
 
@@ -7281,6 +7764,7 @@ Applies to:
 - cargo:hybrid-array@0.4.12
 - cargo:hybrid-array@0.4.13
 - cargo:hybrid-array@0.4.14
+- cargo:hybrid-array@0.4.15
 
     Copyright (c) 2022-2026 The RustCrypto Project Developers
 
@@ -7316,6 +7800,7 @@ Packaged as: LICENSE-MIT
 Applies to:
 
 - cargo:equivalent@1.0.2
+- cargo:equivalent@1.0.3
 
     Copyright (c) 2016--2023
 
@@ -7353,6 +7838,7 @@ Applies to:
 - cargo:const-oid@0.10.2
 - cargo:cpufeatures@0.3.1
 - cargo:der@0.8.1
+- cargo:der@0.8.2
 - cargo:pkcs8@0.11.0
 
     Copyright (c) 2020-2026 The RustCrypto Project Developers
@@ -7391,6 +7877,7 @@ Applies to:
 - cargo:either@1.15.0
 - cargo:either@1.16.0
 - cargo:either@1.17.0
+- cargo:either@1.19.0
 - cargo:itertools@0.14.0
 
     Copyright (c) 2015
@@ -7971,6 +8458,7 @@ Packaged as: LICENSE-MIT
 Applies to:
 
 - cargo:litrs@1.0.0
+- cargo:litrs@1.0.1
 
     Copyright (c) 2020 Project Developers
 
@@ -8289,10 +8777,12 @@ Applies to:
 - cargo:zerocopy-derive@0.8.53
 - cargo:zerocopy-derive@0.8.54
 - cargo:zerocopy-derive@0.8.56
+- cargo:zerocopy-derive@0.8.57
 - cargo:zerocopy@0.8.48
 - cargo:zerocopy@0.8.53
 - cargo:zerocopy@0.8.54
 - cargo:zerocopy@0.8.56
+- cargo:zerocopy@0.8.57
 
     Copyright 2019 The Fuchsia Authors.
 
@@ -8322,13 +8812,16 @@ Applies to:
 
 ### 84b34dd7608f7fb9
 
-Packaged as: LICENSE-ZLIB.md
+Packaged as: LICENSE-ZLIB, LICENSE-ZLIB.md
 
 Applies to:
 
+- cargo:bytemuck@1.25.2
+- cargo:bytemuck_derive@1.12.1
 - cargo:tinyvec@1.11.0
 - cargo:tinyvec@1.12.0
 - cargo:tinyvec@1.13.2
+- cargo:tinyvec@1.13.3
 - cargo:tinyvec@1.9.0
 
     Copyright (c) 2019 Daniel "Lokathor" Gee.
@@ -8458,6 +8951,43 @@ Applies to:
 - cargo:atomic-polyfill@1.0.3
 
     Copyright (c) 2020 Dario Nieuwenhuis
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
+### 898b1ae9821e98da
+
+Packaged as: LICENSE
+
+Applies to:
+
+- cargo:tracing-attributes@0.1.31
+- cargo:tracing-core@0.1.36
+- cargo:tracing@0.1.44
+
+    Copyright (c) 2019 Tokio Contributors
 
     Permission is hereby granted, free of charge, to any
     person obtaining a copy of this software and associated
@@ -9246,6 +9776,21 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
+### 9128e27d82318f41
+
+Packaged as: LICENSE.txt
+
+Applies to:
+
+- cargo:fastdivide@0.4.2
+
+    Copyright (C) 2024-Present Paul Masurel
+
+    Source code in this directory is available under the
+    - MIT license
+    - Zlib license with acknowledgment
+
+
 ### 91585c36e4fb9ab4
 
 Packaged as: LICENSE-MIT
@@ -9253,6 +9798,7 @@ Packaged as: LICENSE-MIT
 Applies to:
 
 - cargo:ctutils@0.4.2
+- cargo:ctutils@0.4.3
 
     Copyright (c) 2025-2026 The RustCrypto Project Developers
 
@@ -9379,6 +9925,41 @@ Applies to:
     DEALINGS IN THE SOFTWARE.
 
 
+### 950d712c518a02fc
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:cipher@0.5.2
+
+    Copyright (c) 2016-2025 RustCrypto Developers
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
 ### 96033c92159349b4
 
 Packaged as: LICENSE-MIT
@@ -9452,6 +10033,7 @@ Packaged as: LICENSE-MIT0
 Applies to:
 
 - cargo:constant_time_eq@0.3.1
+- cargo:constant_time_eq@0.4.2
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the
@@ -9467,6 +10049,61 @@ Applies to:
     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
     TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
     SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+### 9aa4f92bfcde293e
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:signature@3.0.0
+
+    Copyright (c) 2018-2026 RustCrypto Developers
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
+### 9df9ba60a11af705
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:bytemuck@1.25.2
+- cargo:bytemuck_derive@1.12.1
+
+    MIT License
+
+    Copyright (c) 2019 Daniel "Lokathor" Gee.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next paragraph) shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### 9e0dfd2dd4173a53
@@ -9550,6 +10187,42 @@ Applies to:
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+### a07fcacc3c60de4d
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:inout@0.2.2
+
+    Copyright (c) 2022-2025 The RustCrypto Project Developers
+    Copyright (c) 2022 Artyom Pavlov
+
+    Permission is hereby granted, free of charge, to any
+    person obtaining a copy of this software and associated
+    documentation files (the "Software"), to deal in the
+    Software without restriction, including without
+    limitation the rights to use, copy, modify, merge,
+    publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software
+    is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+    PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+    SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+    IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
 ### a192bdfbed999ea0
 
 Packaged as: LICENSE.md
@@ -9589,6 +10262,7 @@ Packaged as: LICENSE-CC0
 Applies to:
 
 - cargo:constant_time_eq@0.3.1
+- cargo:constant_time_eq@0.4.2
 
     Creative Commons Legal Code
 
@@ -9756,6 +10430,7 @@ Applies to:
 
 - cargo:ahash@0.8.12
 - cargo:arbitrary@1.4.2
+- cargo:arrayvec@0.7.8
 - cargo:atomic-polyfill@1.0.3
 - cargo:autocfg@1.5.0
 - cargo:autocfg@1.5.1
@@ -9773,6 +10448,7 @@ Applies to:
 - cargo:cc@1.4.5
 - cargo:cfg-if@1.0.1
 - cargo:cfg-if@1.0.4
+- cargo:cfg-if@1.0.5
 - cargo:core-foundation-sys@0.8.7
 - cargo:core-foundation@0.10.1
 - cargo:critical-section@1.2.0
@@ -9783,9 +10459,11 @@ Applies to:
 - cargo:either@1.15.0
 - cargo:either@1.16.0
 - cargo:either@1.17.0
+- cargo:either@1.19.0
 - cargo:embedded-io@0.4.0
 - cargo:embedded-io@0.6.1
 - cargo:equivalent@1.0.2
+- cargo:equivalent@1.0.3
 - cargo:ff@0.13.1
 - cargo:ff@0.14.0
 - cargo:find-msvc-tools@0.1.12
@@ -9814,6 +10492,7 @@ Applies to:
 - cargo:minicov@0.3.8
 - cargo:num-bigint@0.4.6
 - cargo:num-integer@0.1.46
+- cargo:num-integer@0.1.47
 - cargo:num-traits@0.2.19
 - cargo:once_cell@1.21.3
 - cargo:once_cell@1.21.4
@@ -10554,7 +11233,6 @@ Packaged as: LICENSE-MIT
 
 Applies to:
 
-- cargo:typenum@1.18.0
 - cargo:typenum@1.19.0
 - cargo:typenum@1.20.1
 
@@ -10626,14 +11304,17 @@ Applies to:
 - cargo:aead@0.5.2
 - cargo:aes-gcm@0.10.3
 - cargo:aes@0.8.4
+- cargo:aes@0.9.1
 - cargo:base16ct@0.2.0
 - cargo:base16ct@1.0.0
 - cargo:base64ct@1.8.3
 - cargo:block-buffer@0.10.4
 - cargo:block-buffer@0.12.1
+- cargo:chacha20@0.10.2
 - cargo:chacha20@0.9.1
 - cargo:chacha20poly1305@0.10.1
 - cargo:cipher@0.4.4
+- cargo:cipher@0.5.2
 - cargo:const-oid@0.10.2
 - cargo:const-oid@0.9.6
 - cargo:cpubits@0.1.1
@@ -10650,6 +11331,7 @@ Applies to:
 - cargo:der@0.7.10
 - cargo:der@0.8.0
 - cargo:der@0.8.1
+- cargo:der@0.8.2
 - cargo:digest@0.10.7
 - cargo:digest@0.11.3
 - cargo:ed448-goldilocks@0.14.0-pre.13
@@ -10667,13 +11349,16 @@ Applies to:
 - cargo:hybrid-array@0.4.12
 - cargo:hybrid-array@0.4.13
 - cargo:hybrid-array@0.4.14
+- cargo:hybrid-array@0.4.15
 - cargo:inout@0.1.4
+- cargo:inout@0.2.2
 - cargo:k256@0.13.4
 - cargo:keccak@0.1.5
 - cargo:keccak@0.1.6
 - cargo:keccak@0.2.0
 - cargo:keccak@0.2.1
 - cargo:keccak@0.2.2
+- cargo:module-lattice@0.2.3
 - cargo:opaque-debug@0.3.1
 - cargo:p256@0.13.2
 - cargo:p384@0.13.1
@@ -10693,8 +11378,10 @@ Applies to:
 - cargo:sha3@0.12.0
 - cargo:shake@0.1.0
 - cargo:signature@2.2.0
+- cargo:signature@3.0.0
 - cargo:spki@0.7.3
 - cargo:spki@0.8.0
+- cargo:spki@0.8.1
 - cargo:sponge-cursor@0.1.0
 - cargo:universal-hash@0.5.1
 
@@ -10987,6 +11674,7 @@ Applies to:
 
 - cargo:getrandom@0.2.17
 - cargo:getrandom@0.3.4
+- cargo:getrandom@0.4.3
 - cargo:rand_chacha@0.3.1
 
                                   Apache License
@@ -11795,6 +12483,7 @@ Packaged as: LICENSE-MIT
 
 Applies to:
 
+- cargo:chacha20@0.10.2
 - cargo:zeroize_derive@1.5.0
 
     Copyright (c) 2019-2026 The RustCrypto Project Developers
@@ -12437,6 +13126,27 @@ Applies to:
         SOFTWARE
 
 
+### c43b9a9b1387ed53
+
+Packaged as: LICENSE-ZLIB.md
+
+Applies to:
+
+- cargo:safe_arch@1.2.0
+
+    Copyright (c) 2020 Daniel "Lokathor" Gee.
+
+    This software is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.
+
+    Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+
+    2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+
+    3. This notice may not be removed or altered from any source distribution.
+
+
 ### c46324e45a005413
 
 Packaged as: LICENSE.md
@@ -12499,7 +13209,7 @@ Applies to:
 
 ### c71d239df91726fc
 
-Packaged as: LICENSE, LICENSE-APACHE
+Packaged as: LICENSE, LICENSE-APACHE, LICENSE.md
 
 Applies to:
 
@@ -12509,6 +13219,9 @@ Applies to:
 - cargo:rustls-platform-verifier@0.7.0
 - cargo:shamir-3-pass@0.6.0
 - cargo:ureq@3.4.0
+- npm:@seams/voice-capture@0.70.6
+- npm:@seams/voice-sign@0.70.6
+- npm:@seams/voice-verdict@0.70.6
 
                                      Apache License
                                Version 2.0, January 2004
@@ -12881,6 +13594,217 @@ Applies to:
     WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+### cbddc96a92cc49a1
+
+Packaged as: LICENSE-APACHE
+
+Applies to:
+
+- cargo:ml-dsa@0.1.1
+
+                                  Apache License
+                            Version 2.0, January 2004
+                         http://www.apache.org/licenses/
+
+    TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+    1. Definitions.
+
+       "License" shall mean the terms and conditions for use, reproduction,
+       and distribution as defined by Sections 1 through 9 of this document.
+
+       "Licensor" shall mean the copyright owner or entity authorized by
+       the copyright owner that is granting the License.
+
+       "Legal Entity" shall mean the union of the acting entity and all
+       other entities that control, are controlled by, or are under common
+       control with that entity. For the purposes of this definition,
+       "control" means (i) the power, direct or indirect, to cause the
+       direction or management of such entity, whether by contract or
+       otherwise, or (ii) ownership of fifty percent (50%) or more of the
+       outstanding shares, or (iii) beneficial ownership of such entity.
+
+       "You" (or "Your") shall mean an individual or Legal Entity
+       exercising permissions granted by this License.
+
+       "Source" form shall mean the preferred form for making modifications,
+       including but not limited to software source code, documentation
+       source, and configuration files.
+
+       "Object" form shall mean any form resulting from mechanical
+       transformation or translation of a Source form, including but
+       not limited to compiled object code, generated documentation,
+       and conversions to other media types.
+
+       "Work" shall mean the work of authorship, whether in Source or
+       Object form, made available under the License, as indicated by a
+       copyright notice that is included in or attached to the work
+       (an example is provided in the Appendix below).
+
+       "Derivative Works" shall mean any work, whether in Source or Object
+       form, that is based on (or derived from) the Work and for which the
+       editorial revisions, annotations, elaborations, or other modifications
+       represent, as a whole, an original work of authorship. For the purposes
+       of this License, Derivative Works shall not include works that remain
+       separable from, or merely link (or bind by name) to the interfaces of,
+       the Work and Derivative Works thereof.
+
+       "Contribution" shall mean any work of authorship, including
+       the original version of the Work and any modifications or additions
+       to that Work or Derivative Works thereof, that is intentionally
+       submitted to Licensor for inclusion in the Work by the copyright owner
+       or by an individual or Legal Entity authorized to submit on behalf of
+       the copyright owner. For the purposes of this definition, "submitted"
+       means any form of electronic, verbal, or written communication sent
+       to the Licensor or its representatives, including but not limited to
+       communication on electronic mailing lists, source code control systems,
+       and issue tracking systems that are managed by, or on behalf of, the
+       Licensor for the purpose of discussing and improving the Work, but
+       excluding communication that is conspicuously marked or otherwise
+       designated in writing by the copyright owner as "Not a Contribution."
+
+       "Contributor" shall mean Licensor and any individual or Legal Entity
+       on behalf of whom a Contribution has been received by Licensor and
+       subsequently incorporated within the Work.
+
+    2. Grant of Copyright License. Subject to the terms and conditions of
+       this License, each Contributor hereby grants to You a perpetual,
+       worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+       copyright license to reproduce, prepare Derivative Works of,
+       publicly display, publicly perform, sublicense, and distribute the
+       Work and such Derivative Works in Source or Object form.
+
+    3. Grant of Patent License. Subject to the terms and conditions of
+       this License, each Contributor hereby grants to You a perpetual,
+       worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+       (except as stated in this section) patent license to make, have made,
+       use, offer to sell, sell, import, and otherwise transfer the Work,
+       where such license applies only to those patent claims licensable
+       by such Contributor that are necessarily infringed by their
+       Contribution(s) alone or by combination of their Contribution(s)
+       with the Work to which such Contribution(s) was submitted. If You
+       institute patent litigation against any entity (including a
+       cross-claim or counterclaim in a lawsuit) alleging that the Work
+       or a Contribution incorporated within the Work constitutes direct
+       or contributory patent infringement, then any patent licenses
+       granted to You under this License for that Work shall terminate
+       as of the date such litigation is filed.
+
+    4. Redistribution. You may reproduce and distribute copies of the
+       Work or Derivative Works thereof in any medium, with or without
+       modifications, and in Source or Object form, provided that You
+       meet the following conditions:
+
+       (a) You must give any other recipients of the Work or
+           Derivative Works a copy of this License; and
+
+       (b) You must cause any modified files to carry prominent notices
+           stating that You changed the files; and
+
+       (c) You must retain, in the Source form of any Derivative Works
+           that You distribute, all copyright, patent, trademark, and
+           attribution notices from the Source form of the Work,
+           excluding those notices that do not pertain to any part of
+           the Derivative Works; and
+
+       (d) If the Work includes a "NOTICE" text file as part of its
+           distribution, then any Derivative Works that You distribute must
+           include a readable copy of the attribution notices contained
+           within such NOTICE file, excluding those notices that do not
+           pertain to any part of the Derivative Works, in at least one
+           of the following places: within a NOTICE text file distributed
+           as part of the Derivative Works; within the Source form or
+           documentation, if provided along with the Derivative Works; or,
+           within a display generated by the Derivative Works, if and
+           wherever such third-party notices normally appear. The contents
+           of the NOTICE file are for informational purposes only and
+           do not modify the License. You may add Your own attribution
+           notices within Derivative Works that You distribute, alongside
+           or as an addendum to the NOTICE text from the Work, provided
+           that such additional attribution notices cannot be construed
+           as modifying the License.
+
+       You may add Your own copyright statement to Your modifications and
+       may provide additional or different license terms and conditions
+       for use, reproduction, or distribution of Your modifications, or
+       for any such Derivative Works as a whole, provided Your use,
+       reproduction, and distribution of the Work otherwise complies with
+       the conditions stated in this License.
+
+    5. Submission of Contributions. Unless You explicitly state otherwise,
+       any Contribution intentionally submitted for inclusion in the Work
+       by You to the Licensor shall be under the terms and conditions of
+       this License, without any additional terms or conditions.
+       Notwithstanding the above, nothing herein shall supersede or modify
+       the terms of any separate license agreement you may have executed
+       with Licensor regarding such Contributions.
+
+    6. Trademarks. This License does not grant permission to use the trade
+       names, trademarks, service marks, or product names of the Licensor,
+       except as required for reasonable and customary use in describing the
+       origin of the Work and reproducing the content of the NOTICE file.
+
+    7. Disclaimer of Warranty. Unless required by applicable law or
+       agreed to in writing, Licensor provides the Work (and each
+       Contributor provides its Contributions) on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+       implied, including, without limitation, any warranties or conditions
+       of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+       PARTICULAR PURPOSE. You are solely responsible for determining the
+       appropriateness of using or redistributing the Work and assume any
+       risks associated with Your exercise of permissions under this License.
+
+    8. Limitation of Liability. In no event and under no legal theory,
+       whether in tort (including negligence), contract, or otherwise,
+       unless required by applicable law (such as deliberate and grossly
+       negligent acts) or agreed to in writing, shall any Contributor be
+       liable to You for damages, including any direct, indirect, special,
+       incidental, or consequential damages of any character arising as a
+       result of this License or out of the use or inability to use the
+       Work (including but not limited to damages for loss of goodwill,
+       work stoppage, computer failure or malfunction, or any and all
+       other commercial damages or losses), even if such Contributor
+       has been advised of the possibility of such damages.
+
+    9. Accepting Warranty or Additional Liability. While redistributing
+       the Work or Derivative Works thereof, You may choose to offer,
+       and charge a fee for, acceptance of support, warranty, indemnity,
+       or other liability obligations and/or rights consistent with this
+       License. However, in accepting such obligations, You may act only
+       on Your own behalf and on Your sole responsibility, not on behalf
+       of any other Contributor, and only if You agree to indemnify,
+       defend, and hold each Contributor harmless for any liability
+       incurred by, or claims asserted against, such Contributor by reason
+       of your accepting any such warranty or additional liability.
+
+    END OF TERMS AND CONDITIONS
+
+    APPENDIX: How to apply the Apache License to your work.
+
+       To apply the Apache License to your work, attach the following
+       boilerplate notice, with the fields enclosed by brackets "[]"
+       replaced with your own identifying information. (Don't include
+       the brackets!)  The text should be enclosed in the appropriate
+       comment syntax for the file format. We also recommend that a
+       file or class name and description of purpose be included on the
+       same "printed page" as the copyright notice for easier
+       identification within third-party archives.
+
+    Copyright 2024 Trail of Bits
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+
 ### cc0332a88c2ea21d
 
 Packaged as: LICENSE
@@ -12928,11 +13852,13 @@ Applies to:
 
 - cargo:cmov@0.5.4
 - cargo:ctutils@0.4.2
+- cargo:ctutils@0.4.3
 - cargo:hpke-ng@0.1.0
 - cargo:serdect@0.2.0
 - cargo:tinyvec@1.11.0
 - cargo:tinyvec@1.12.0
 - cargo:tinyvec@1.13.2
+- cargo:tinyvec@1.13.3
 - cargo:tinyvec@1.9.0
 - cargo:ureq-proto@0.6.1
 - cargo:zeroize@1.8.2
@@ -13208,6 +14134,35 @@ Applies to:
     SOFTWARE.
 
 
+### d0fb27c23e807f1f
+
+Packaged as: LICENSE-MIT
+
+Applies to:
+
+- cargo:module-lattice@0.2.3
+
+    Copyright (c) 2024-2026 RustCrypto Developers
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+
 ### d27687b51f287482
 
 Packaged as: LICENSE-MIT
@@ -13349,6 +14304,218 @@ Applies to:
     OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
     IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
+
+
+### d64ac6ba60c73521
+
+Packaged as: LICENSE-APACHE.txt
+
+Applies to:
+
+- cargo:wide@1.7.1
+
+
+                                     Apache License
+                               Version 2.0, January 2004
+                            http://www.apache.org/licenses/
+
+       TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+       1. Definitions.
+
+          "License" shall mean the terms and conditions for use, reproduction,
+          and distribution as defined by Sections 1 through 9 of this document.
+
+          "Licensor" shall mean the copyright owner or entity authorized by
+          the copyright owner that is granting the License.
+
+          "Legal Entity" shall mean the union of the acting entity and all
+          other entities that control, are controlled by, or are under common
+          control with that entity. For the purposes of this definition,
+          "control" means (i) the power, direct or indirect, to cause the
+          direction or management of such entity, whether by contract or
+          otherwise, or (ii) ownership of fifty percent (50%) or more of the
+          outstanding shares, or (iii) beneficial ownership of such entity.
+
+          "You" (or "Your") shall mean an individual or Legal Entity
+          exercising permissions granted by this License.
+
+          "Source" form shall mean the preferred form for making modifications,
+          including but not limited to software source code, documentation
+          source, and configuration files.
+
+          "Object" form shall mean any form resulting from mechanical
+          transformation or translation of a Source form, including but
+          not limited to compiled object code, generated documentation,
+          and conversions to other media types.
+
+          "Work" shall mean the work of authorship, whether in Source or
+          Object form, made available under the License, as indicated by a
+          copyright notice that is included in or attached to the work
+          (an example is provided in the Appendix below).
+
+          "Derivative Works" shall mean any work, whether in Source or Object
+          form, that is based on (or derived from) the Work and for which the
+          editorial revisions, annotations, elaborations, or other modifications
+          represent, as a whole, an original work of authorship. For the purposes
+          of this License, Derivative Works shall not include works that remain
+          separable from, or merely link (or bind by name) to the interfaces of,
+          the Work and Derivative Works thereof.
+
+          "Contribution" shall mean any work of authorship, including
+          the original version of the Work and any modifications or additions
+          to that Work or Derivative Works thereof, that is intentionally
+          submitted to Licensor for inclusion in the Work by the copyright owner
+          or by an individual or Legal Entity authorized to submit on behalf of
+          the copyright owner. For the purposes of this definition, "submitted"
+          means any form of electronic, verbal, or written communication sent
+          to the Licensor or its representatives, including but not limited to
+          communication on electronic mailing lists, source code control systems,
+          and issue tracking systems that are managed by, or on behalf of, the
+          Licensor for the purpose of discussing and improving the Work, but
+          excluding communication that is conspicuously marked or otherwise
+          designated in writing by the copyright owner as "Not a Contribution."
+
+          "Contributor" shall mean Licensor and any individual or Legal Entity
+          on behalf of whom a Contribution has been received by Licensor and
+          subsequently incorporated within the Work.
+
+       2. Grant of Copyright License. Subject to the terms and conditions of
+          this License, each Contributor hereby grants to You a perpetual,
+          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+          copyright license to reproduce, prepare Derivative Works of,
+          publicly display, publicly perform, sublicense, and distribute the
+          Work and such Derivative Works in Source or Object form.
+
+       3. Grant of Patent License. Subject to the terms and conditions of
+          this License, each Contributor hereby grants to You a perpetual,
+          worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+          (except as stated in this section) patent license to make, have made,
+          use, offer to sell, sell, import, and otherwise transfer the Work,
+          where such license applies only to those patent claims licensable
+          by such Contributor that are necessarily infringed by their
+          Contribution(s) alone or by combination of their Contribution(s)
+          with the Work to which such Contribution(s) was submitted. If You
+          institute patent litigation against any entity (including a
+          cross-claim or counterclaim in a lawsuit) alleging that the Work
+          or a Contribution incorporated within the Work constitutes direct
+          or contributory patent infringement, then any patent licenses
+          granted to You under this License for that Work shall terminate
+          as of the date such litigation is filed.
+
+       4. Redistribution. You may reproduce and distribute copies of the
+          Work or Derivative Works thereof in any medium, with or without
+          modifications, and in Source or Object form, provided that You
+          meet the following conditions:
+
+          (a) You must give any other recipients of the Work or
+              Derivative Works a copy of this License; and
+
+          (b) You must cause any modified files to carry prominent notices
+              stating that You changed the files; and
+
+          (c) You must retain, in the Source form of any Derivative Works
+              that You distribute, all copyright, patent, trademark, and
+              attribution notices from the Source form of the Work,
+              excluding those notices that do not pertain to any part of
+              the Derivative Works; and
+
+          (d) If the Work includes a "NOTICE" text file as part of its
+              distribution, then any Derivative Works that You distribute must
+              include a readable copy of the attribution notices contained
+              within such NOTICE file, excluding those notices that do not
+              pertain to any part of the Derivative Works, in at least one
+              of the following places: within a NOTICE text file distributed
+              as part of the Derivative Works; within the Source form or
+              documentation, if provided along with the Derivative Works; or,
+              within a display generated by the Derivative Works, if and
+              wherever such third-party notices normally appear. The contents
+              of the NOTICE file are for informational purposes only and
+              do not modify the License. You may add Your own attribution
+              notices within Derivative Works that You distribute, alongside
+              or as an addendum to the NOTICE text from the Work, provided
+              that such additional attribution notices cannot be construed
+              as modifying the License.
+
+          You may add Your own copyright statement to Your modifications and
+          may provide additional or different license terms and conditions
+          for use, reproduction, or distribution of Your modifications, or
+          for any such Derivative Works as a whole, provided Your use,
+          reproduction, and distribution of the Work otherwise complies with
+          the conditions stated in this License.
+
+       5. Submission of Contributions. Unless You explicitly state otherwise,
+          any Contribution intentionally submitted for inclusion in the Work
+          by You to the Licensor shall be under the terms and conditions of
+          this License, without any additional terms or conditions.
+          Notwithstanding the above, nothing herein shall supersede or modify
+          the terms of any separate license agreement you may have executed
+          with Licensor regarding such Contributions.
+
+       6. Trademarks. This License does not grant permission to use the trade
+          names, trademarks, service marks, or product names of the Licensor,
+          except as required for reasonable and customary use in describing the
+          origin of the Work and reproducing the content of the NOTICE file.
+
+       7. Disclaimer of Warranty. Unless required by applicable law or
+          agreed to in writing, Licensor provides the Work (and each
+          Contributor provides its Contributions) on an "AS IS" BASIS,
+          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+          implied, including, without limitation, any warranties or conditions
+          of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+          PARTICULAR PURPOSE. You are solely responsible for determining the
+          appropriateness of using or redistributing the Work and assume any
+          risks associated with Your exercise of permissions under this License.
+
+       8. Limitation of Liability. In no event and under no legal theory,
+          whether in tort (including negligence), contract, or otherwise,
+          unless required by applicable law (such as deliberate and grossly
+          negligent acts) or agreed to in writing, shall any Contributor be
+          liable to You for damages, including any direct, indirect, special,
+          incidental, or consequential damages of any character arising as a
+          result of this License or out of the use or inability to use the
+          Work (including but not limited to damages for loss of goodwill,
+          work stoppage, computer failure or malfunction, or any and all
+          other commercial damages or losses), even if such Contributor
+          has been advised of the possibility of such damages.
+
+       9. Accepting Warranty or Additional Liability. While redistributing
+          the Work or Derivative Works thereof, You may choose to offer,
+          and charge a fee for, acceptance of support, warranty, indemnity,
+          or other liability obligations and/or rights consistent with this
+          License. However, in accepting such obligations, You may act only
+          on Your own behalf and on Your sole responsibility, not on behalf
+          of any other Contributor, and only if You agree to indemnify,
+          defend, and hold each Contributor harmless for any liability
+          incurred by, or claims asserted against, such Contributor by reason
+          of your accepting any such warranty or additional liability.
+
+       END OF TERMS AND CONDITIONS
+
+       APPENDIX: How to apply the Apache License to your work.
+
+          To apply the Apache License to your work, attach the following
+          boilerplate notice, with the fields enclosed by brackets "[]"
+          replaced with your own identifying information. (Don't include
+          the brackets!)  The text should be enclosed in the appropriate
+          comment syntax for the file format. We also recommend that a
+          file or class name and description of purpose be included on the
+          same "printed page" as the copyright notice for easier
+          identification within third-party archives.
+
+       Copyright 2020 Daniel "Lokathor" Gee
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+           http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
 
 
 ### d8c4ab431f20da84
@@ -13520,6 +14687,98 @@ Applies to:
     5.4. "Results" means any outcome obtained by computational analysis
     of Data, including for example machine learning models and models'
     insights.
+
+
+### e3ba223bb1423f0a
+
+Packaged as: LICENSE-APACHE, LICENSE-APACHE.md
+
+Applies to:
+
+- cargo:bytemuck@1.25.2
+- cargo:bytemuck_derive@1.12.1
+- cargo:safe_arch@1.2.0
+
+    Apache License
+    Version 2.0, January 2004
+    http://www.apache.org/licenses/
+
+    TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+        1. Definitions.
+
+            "License" shall mean the terms and conditions for use, reproduction, and distribution as defined by Sections 1 through 9 of this document.
+
+            "Licensor" shall mean the copyright owner or entity authorized by the copyright owner that is granting the License.
+
+            "Legal Entity" shall mean the union of the acting entity and all other entities that control, are controlled by, or are under common control with that entity. For the purposes of this definition, "control" means (i) the power, direct or indirect, to cause the direction or management of such entity, whether by contract or otherwise, or (ii) ownership of fifty percent (50%) or more of the outstanding shares, or (iii) beneficial ownership of such entity.
+
+            "You" (or "Your") shall mean an individual or Legal Entity exercising permissions granted by this License.
+
+            "Source" form shall mean the preferred form for making modifications, including but not limited to software source code, documentation source, and configuration files.
+
+            "Object" form shall mean any form resulting from mechanical transformation or translation of a Source form, including but not limited to compiled object code, generated documentation, and conversions to other media types.
+
+            "Work" shall mean the work of authorship, whether in Source or Object form, made available under the License, as indicated by a copyright notice that is included in or attached to the work (an example is provided in the Appendix below).
+
+            "Derivative Works" shall mean any work, whether in Source or Object form, that is based on (or derived from) the Work and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Work and Derivative Works thereof.
+
+            "Contribution" shall mean any work of authorship, including the original version of the Work and any modifications or additions to that Work or Derivative Works thereof, that is intentionally submitted to Licensor for inclusion in the Work by the copyright owner or by an individual or Legal Entity authorized to submit on behalf of the copyright owner. For the purposes of this definition, "submitted" means any form of electronic, verbal, or written communication sent to the Licensor or its representatives, including but not limited to communication on electronic mailing lists, source code control systems, and issue tracking systems that are managed by, or on behalf of, the Licensor for the purpose of discussing and improving the Work, but excluding communication that is conspicuously marked or otherwise designated in writing by the copyright owner as "Not a Contribution."
+
+            "Contributor" shall mean Licensor and any individual or Legal Entity on behalf of whom a Contribution has been received by Licensor and subsequently incorporated within the Work.
+        2. Grant of Copyright License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare Derivative Works of, publicly display, publicly perform, sublicense, and distribute the Work and such Derivative Works in Source or Object form.
+        3. Grant of Patent License. Subject to the terms and conditions of this License, each Contributor hereby grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable (except as stated in this section) patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer the Work, where such license applies only to those patent claims licensable by such Contributor that are necessarily infringed by their Contribution(s) alone or by combination of their Contribution(s) with the Work to which such Contribution(s) was submitted. If You institute patent litigation against any entity (including a cross-claim or counterclaim in a lawsuit) alleging that the Work or a Contribution incorporated within the Work constitutes direct or contributory patent infringement, then any patent licenses granted to You under this License for that Work shall terminate as of the date such litigation is filed.
+        4. Redistribution. You may reproduce and distribute copies of the Work or Derivative Works thereof in any medium, with or without modifications, and in Source or Object form, provided that You meet the following conditions:
+            (a) You must give any other recipients of the Work or Derivative Works a copy of this License; and
+            (b) You must cause any modified files to carry prominent notices stating that You changed the files; and
+            (c) You must retain, in the Source form of any Derivative Works that You distribute, all copyright, patent, trademark, and attribution notices from the Source form of the Work, excluding those notices that do not pertain to any part of the Derivative Works; and
+            (d) If the Work includes a "NOTICE" text file as part of its distribution, then any Derivative Works that You distribute must include a readable copy of the attribution notices contained within such NOTICE file, excluding those notices that do not pertain to any part of the Derivative Works, in at least one of the following places: within a NOTICE text file distributed as part of the Derivative Works; within the Source form or documentation, if provided along with the Derivative Works; or, within a display generated by the Derivative Works, if and wherever such third-party notices normally appear. The contents of the NOTICE file are for informational purposes only and do not modify the License. You may add Your own attribution notices within Derivative Works that You distribute, alongside or as an addendum to the NOTICE text from the Work, provided that such additional attribution notices cannot be construed as modifying the License.
+
+            You may add Your own copyright statement to Your modifications and may provide additional or different license terms and conditions for use, reproduction, or distribution of Your modifications, or for any such Derivative Works as a whole, provided Your use, reproduction, and distribution of the Work otherwise complies with the conditions stated in this License.
+        5. Submission of Contributions. Unless You explicitly state otherwise, any Contribution intentionally submitted for inclusion in the Work by You to the Licensor shall be under the terms and conditions of this License, without any additional terms or conditions. Notwithstanding the above, nothing herein shall supersede or modify the terms of any separate license agreement you may have executed with Licensor regarding such Contributions.
+        6. Trademarks. This License does not grant permission to use the trade names, trademarks, service marks, or product names of the Licensor, except as required for reasonable and customary use in describing the origin of the Work and reproducing the content of the NOTICE file.
+        7. Disclaimer of Warranty. Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are solely responsible for determining the appropriateness of using or redistributing the Work and assume any risks associated with Your exercise of permissions under this License.
+        8. Limitation of Liability. In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall any Contributor be liable to You for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising as a result of this License or out of the use or inability to use the Work (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if such Contributor has been advised of the possibility of such damages.
+        9. Accepting Warranty or Additional Liability. While redistributing the Work or Derivative Works thereof, You may choose to offer, and charge a fee for, acceptance of support, warranty, indemnity, or other liability obligations and/or rights consistent with this License. However, in accepting such obligations, You may act only on Your own behalf and on Your sole responsibility, not on behalf of any other Contributor, and only if You agree to indemnify, defend, and hold each Contributor harmless for any liability incurred by, or claims asserted against, such Contributor by reason of your accepting any such warranty or additional liability.
+
+    END OF TERMS AND CONDITIONS
+
+    APPENDIX: How to apply the Apache License to your work.
+
+    To apply the Apache License to your work, attach the following boilerplate notice, with the fields enclosed by brackets "[]" replaced with your own identifying information. (Don't include the brackets!) The text should be enclosed in the appropriate comment syntax for the file format. We also recommend that a file or class name and description of purpose be included on the same "printed page" as the copyright notice for easier identification within third-party archives.
+
+    Copyright [yyyy] [name of copyright owner]
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+
+### e57011537d230b14
+
+Packaged as: LICENSE-MIT.md
+
+Applies to:
+
+- cargo:safe_arch@1.2.0
+
+    MIT License
+
+    Copyright (c) 2023 Daniel "Lokathor" Gee.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next paragraph) shall be included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ### e7f5360a60628940
@@ -13863,6 +15122,7 @@ Applies to:
 - cargo:unicode-ident@1.0.18
 - cargo:unicode-ident@1.0.22
 - cargo:unicode-ident@1.0.24
+- cargo:unicode-ident@1.0.27
 
     UNICODE LICENSE V3
 
@@ -13984,6 +15244,7 @@ Applies to:
 - cargo:tinyvec@1.11.0
 - cargo:tinyvec@1.12.0
 - cargo:tinyvec@1.13.2
+- cargo:tinyvec@1.13.3
 - cargo:tinyvec@1.9.0
 
     Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
