@@ -115,7 +115,29 @@ const nearWallets = new ExternalNearController({
 
 Primary entries appear under “Or connect another wallet”. Secondary entries appear
 inside “More wallets”, initially collapsed. “Recover or link wallet” contains device
-linking and recovery. Wallet icons remain monochrome until hover or keyboard focus.
+linking and recovery. Wallet icons retain their original colors.
+
+Set `recoveryOptions` to `"collapsible"` (default), `"expanded"`, or `"hidden"`.
+Use `footerBrand` to replace the complete “Secured by seams” line with your logo.
+The logo must use an absolute HTTPS URL or an image data URL. `name` supplies its
+accessible text. Relative URLs would resolve against the wallet origin.
+The wallet host must allow remote image origins in its CSP `img-src` directive.
+Use an image data URL when the host permits only local images.
+
+```tsx
+<HostedSeamsAuthMenu
+  onOutcome={handleOutcome}
+  recoveryOptions="expanded"
+  footerBrand={{
+    kind: 'custom',
+    logo: 'https://example.com/logo.svg',
+    name: 'Example application',
+  }}
+/>
+```
+
+Omit `footerBrand`, or use `{ kind: 'seams' }`, to restore the default branding.
+Connection notices temporarily replace either brand line.
 
 Each entry accepts optional `label`, `description`, and `icon` display overrides.
 `icon` is an HTTPS image URL or an image data URL. React elements and callbacks stay

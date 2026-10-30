@@ -58,6 +58,11 @@ import { isLinkedDeviceTargetEmailAddressV1 } from '@/core/types/linkDevice';
 import { PadlockIcon } from '@/core/signingEngine/uiConfirm/ui/preact/PadlockIcon';
 import { blinkMenuItem } from '@/utils/menuItemBlink';
 import { AuthMenuFooter } from './AuthMenuFooter';
+import { RecoveryOptions } from './RecoveryOptions';
+import type {
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
+} from '../../../shared/authMenuPresentation';
 import {
   linkDeviceDotRing,
   linkDeviceEmailOtpPresentation,
@@ -66,20 +71,19 @@ import {
 import {
   accountDropdownIcon,
   backIcon,
-  chevronIcon,
   fingerprintIcon,
   googleIcon,
-  linkDeviceIcon,
   linkFailedIcon,
   mailIcon,
   passkeyRingIcon,
   passkeySuccessIcon,
-  recoveryIcon,
   rerollIcon,
 } from './icons';
 
 type AuthMenuSurfaceProps = {
   readonly walletAlternatives: WalletAlternatives;
+  readonly recoveryOptions: HostedAuthMenuRecoveryOptions;
+  readonly footerBrand: HostedAuthMenuFooterBrand;
   readonly walletConnection: WalletConnectionState;
   readonly viewModel: AuthMenuViewModel;
   readonly element: HTMLElement;
@@ -741,7 +745,12 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
               </div>
             </div>
           </div>
-          <AuthMenuFooter notice={menuNotice(viewModel)} onRetry={this.onNoticeRetry} />
+          <AuthMenuFooter
+            notice={menuNotice(viewModel)}
+            onRetry={this.onNoticeRetry}
+            brand={this.props.footerBrand}
+            connection={this.props.walletConnection}
+          />
         </div>
       </>
     );
@@ -765,17 +774,13 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
             alternatives={this.props.walletAlternatives}
             onIntent={this.props.onIntent}
           />
-          {this.renderOtherOptions()}
+          <RecoveryOptions
+            display={this.props.recoveryOptions}
+            onLinkDevice={this.onLinkDeviceOpen}
+            onRecovery={this.onRecoveryOpen}
+          />
           {this.renderIntentSwitch(viewModel)}
         </fieldset>
-        {this.props.walletConnection.kind === 'pending' && (
-          <p role="status">
-            <WalletText copy="Complete the request in your wallet." />
-          </p>
-        )}
-        {this.props.walletConnection.kind === 'failed' && (
-          <p role="alert">{this.props.walletConnection.message}</p>
-        )}
       </>
     );
   }
@@ -1055,44 +1060,6 @@ export class AuthMenuSurface extends Component<AuthMenuSurfaceProps, AuthMenuSur
           ) : null}
         </div>
       </>
-    );
-  }
-
-  private renderOtherOptions(): ComponentChildren {
-    return (
-      <details class="seams-menu-expander">
-        <summary>
-          <WalletText copy="Recover or link wallet" />
-          {chevronIcon()}
-        </summary>
-        <div class="seams-menu-options">
-          <button class="seams-menu-option" type="button" onClick={this.onLinkDeviceOpen}>
-            <span class="seams-menu-option-icon">{linkDeviceIcon()}</span>
-            <span class="seams-menu-option-text">
-              <WalletText message="Link this device" />
-              <small>
-                <WalletText message="Scan a code with your other device" />
-              </small>
-            </span>
-            {chevronIcon()}
-          </button>
-          <button
-            class="seams-menu-option"
-            type="button"
-            data-recovery-action
-            onClick={this.onRecoveryOpen}
-          >
-            <span class="seams-menu-option-icon">{recoveryIcon()}</span>
-            <span class="seams-menu-option-text">
-              <WalletText message="Recover wallet" />
-              <small>
-                <WalletText message="Use your recovery code" />
-              </small>
-            </span>
-            {chevronIcon()}
-          </button>
-        </div>
-      </details>
     );
   }
 

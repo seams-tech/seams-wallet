@@ -1001,8 +1001,15 @@ The hosted auth menu combines authentication and configured external wallet alte
 the ordered rows in the collapsed More wallets section. Omitted configuration and
 empty groups produce no headings, dividers, or empty sections. Discovery never adds
 unconfigured rows. NEAR and EVM connections remain owned by application controllers.
-Icons are monochrome until hover or keyboard focus. Device linking and recovery
-remain available under the collapsed Recover or link wallet section.
+Wallet icons retain their original colors. `recoveryOptions` controls device linking
+and recovery: `collapsible` (default), `expanded`, or `hidden`. Hidden controls do
+not render. Expanded controls remain visible without an expander.
+`footerBrand` defaults to `{ kind: 'seams' }`. A custom brand requires
+`{ kind: 'custom', logo, name }`, with an HTTPS or image data URL and an accessible
+application name. The custom image replaces the complete Seams brand line.
+Connection status appears in the footer. Pending and failed connections do not
+append content below the menu controls. The wallet document shows no scrollbars
+during changes in the menu height.
 
 External connection requests bind to the active menu session and configured wallet.
 Only one request runs at a time. Rejection leaves the menu available for another
@@ -3183,6 +3190,8 @@ notification. An external wallet can retain its own approval window; local
 cancellation never proves that a transaction was not submitted. A late operation
 cannot clear a newer connection's busy state.
 
+When the Meteor transport is unavailable, the menu asks the user to open the
+extension and allow access to the site. A later attempt reads the transport again.
 Meteor communicates through the captured `meteorComV2` object and method. Every
 reply must match its request ID. Foreign replies are ignored. A reconnect
 handshake resends inputs under the same ID. Terminal success is acknowledged once.

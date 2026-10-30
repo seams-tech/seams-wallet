@@ -1,4 +1,14 @@
 import {
+  parseAuthMenuFooterBrand,
+  parseAuthMenuRecoveryOptions,
+  type HostedAuthMenuFooterBrand,
+  type HostedAuthMenuRecoveryOptions,
+} from './authMenuPresentation';
+export type {
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
+} from './authMenuPresentation';
+import {
   emptyWalletAlternatives,
   parseWalletAlternatives,
   type WalletAlternatives,
@@ -167,6 +177,8 @@ export type HostedAuthMenuOpenRequest = {
   copy: HostedAuthMenuCopy;
   enabledExternalProviders: readonly HostedAuthMenuExternalProvider[];
   walletAlternatives: WalletAlternatives;
+  recoveryOptions: HostedAuthMenuRecoveryOptions;
+  footerBrand: HostedAuthMenuFooterBrand;
 };
 
 export type HostedAuthMenuExternalAuthRequest = {
@@ -541,6 +553,8 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
       'copy',
       'enabledExternalProviders',
       'walletAlternatives',
+      'recoveryOptions',
+      'footerBrand',
     ]) ||
     !hasOnlyHostedAuthMenuCopyKeys(record.copy)
   ) {
@@ -576,6 +590,8 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
           : null;
   const registrationAccountInput = parseRegistrationAccountInput(record.registrationAccountInput);
   const providers = parseExternalProviders(record.enabledExternalProviders);
+  const recoveryOptions = parseAuthMenuRecoveryOptions(record.recoveryOptions);
+  const footerBrand = parseAuthMenuFooterBrand(record.footerBrand);
   const walletAlternatives =
     record.walletAlternatives === undefined
       ? emptyWalletAlternatives()
@@ -589,6 +605,8 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     typeof record.showProgress !== 'boolean' ||
     !providers ||
     !walletAlternatives ||
+    !recoveryOptions ||
+    !footerBrand ||
     !isWireSerializable(record.copy, new Set<unknown>(), true)
   ) {
     return null;
@@ -605,6 +623,8 @@ export function parseHostedAuthMenuOpenRequest(value: unknown): HostedAuthMenuOp
     copy: normalizeHostedAuthMenuCopy(record.copy),
     enabledExternalProviders: providers,
     walletAlternatives,
+    recoveryOptions,
+    footerBrand,
   };
 }
 
@@ -619,6 +639,8 @@ export function buildHostedAuthMenuOpenRequest(args: {
   copy?: HostedAuthMenuCopyInput;
   enabledExternalProviders?: readonly HostedAuthMenuExternalProvider[];
   walletAlternatives?: WalletAlternatives;
+  recoveryOptions?: HostedAuthMenuRecoveryOptions;
+  footerBrand?: HostedAuthMenuFooterBrand;
 }): HostedAuthMenuOpenRequest {
   if (!isWireSerializable(args, new Set<unknown>(), true)) {
     throw new Error('Hosted auth-menu open configuration must be serializable');
@@ -637,6 +659,8 @@ export function buildHostedAuthMenuOpenRequest(args: {
       'copy',
       'enabledExternalProviders',
       'walletAlternatives',
+      'recoveryOptions',
+      'footerBrand',
     ]) ||
     (args.copy !== undefined && !hasOnlyHostedAuthMenuCopyKeys(args.copy))
   ) {
@@ -656,11 +680,14 @@ export function buildHostedAuthMenuOpenRequest(args: {
     copy: normalizeHostedAuthMenuCopy(args.copy),
     enabledExternalProviders: [...(args.enabledExternalProviders ?? [])],
     walletAlternatives: args.walletAlternatives ?? emptyWalletAlternatives(),
+    recoveryOptions: args.recoveryOptions ?? 'collapsible',
+    footerBrand: args.footerBrand ?? { kind: 'seams' },
   };
-  if (!parseHostedAuthMenuOpenRequest(request)) {
+  const parsed = parseHostedAuthMenuOpenRequest(request);
+  if (!parsed) {
     throw new Error('Hosted auth-menu open request is invalid');
   }
-  return Object.freeze(request);
+  return Object.freeze(parsed);
 }
 
 export function parseHostedAuthMenuExternalAuthRequest(

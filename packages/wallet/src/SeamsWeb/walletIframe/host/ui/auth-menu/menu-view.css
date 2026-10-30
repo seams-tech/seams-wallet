@@ -345,7 +345,6 @@
   flex: none;
   width: 32px;
   height: 32px;
-  filter: grayscale(1);
 }
 :where(.seams-auth-menu-surface) .seams-alternative-icon img {
   width: 32px;
@@ -355,10 +354,6 @@
 :where(.seams-auth-menu-surface) .seams-wallet-alternative {
   min-height: 60px;
   padding: 12px;
-}
-:where(.seams-auth-menu-surface) .seams-wallet-alternative:hover .seams-alternative-icon,
-:where(.seams-auth-menu-surface) .seams-wallet-alternative:focus-visible .seams-alternative-icon {
-  filter: grayscale(0);
 }
 :where(.seams-auth-menu-surface) .seams-alternative-arrow {
   margin-inline-start: auto;
@@ -385,4 +380,16 @@
 }
 :where(.seams-auth-menu-surface) .seams-menu-expander[open] > summary > svg {
   transform: rotate(90deg);
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-footer-logo {
+  display: block;
+  max-width: 160px;
+  height: 20px;
+  object-fit: contain;
+}
+
+:where(.seams-auth-menu-surface) .seams-auth-footer-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

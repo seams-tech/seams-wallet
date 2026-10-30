@@ -40,6 +40,8 @@ export {
 export type {
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
   HostedAuthMenuExternalAuthEvidence,
   HostedAuthMenuExternalAuthRequest,
   HostedAuthMenuExternalAuthRequestId,

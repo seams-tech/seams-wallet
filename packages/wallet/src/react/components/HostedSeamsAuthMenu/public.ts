@@ -5,6 +5,8 @@ export { HostedSeamsAuthMenu };
 export type {
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
   HostedAuthMenuExternalAuthBroker,
   HostedAuthMenuExternalAuthEvidence,
   HostedAuthMenuExternalAuthRequest,

@@ -42,6 +42,8 @@ type HostedAuthMenuSessionArgs = {
   showRegistrationInput: boolean;
   showProgress: boolean;
   copy: HostedSeamsAuthMenuProps['copy'];
+  recoveryOptions: HostedSeamsAuthMenuProps['recoveryOptions'];
+  footerBrand: HostedSeamsAuthMenuProps['footerBrand'];
   externalAuthBroker: BrokerRef;
   walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
   onOutcome: OutcomeRef;
@@ -62,6 +64,8 @@ type HostedAuthMenuEffectConfig = {
   readonly showRegistrationInput: boolean;
   readonly showProgress: boolean;
   readonly copy: HostedSeamsAuthMenuProps['copy'];
+  readonly recoveryOptions: HostedSeamsAuthMenuProps['recoveryOptions'];
+  readonly footerBrand: HostedSeamsAuthMenuProps['footerBrand'];
   readonly enabledExternalProviders: readonly HostedAuthMenuExternalProvider[];
   readonly walletAlternatives: WalletAlternativesConfig | undefined;
 };
@@ -181,6 +185,8 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       showRegistrationInput: config.showRegistrationInput,
       showProgress: config.showProgress,
       copy: config.copy,
+      recoveryOptions: config.recoveryOptions,
+      footerBrand: config.footerBrand,
       enabledExternalProviders: config.enabledExternalProviders,
       walletAlternatives: describeWalletAlternatives(config.walletAlternatives),
     });
@@ -191,6 +197,8 @@ function hostedAuthMenuEffectConfigKey(config: HostedAuthMenuEffectConfig): stri
       showRegistrationInput: normalized.showRegistrationInput,
       showProgress: normalized.showProgress,
       copy: normalized.copy,
+      recoveryOptions: normalized.recoveryOptions,
+      footerBrand: normalized.footerBrand,
       enabledExternalProviders: normalized.enabledExternalProviders,
       walletAlternatives: normalized.walletAlternatives,
       walletControllers: walletAlternativesControllerKey(config.walletAlternatives),
@@ -210,6 +218,8 @@ class HostedAuthMenuSessionController {
   private readonly showRegistrationInput: boolean;
   private readonly showProgress: boolean;
   private readonly copy: HostedSeamsAuthMenuProps['copy'];
+  private readonly recoveryOptions: HostedSeamsAuthMenuProps['recoveryOptions'];
+  private readonly footerBrand: HostedSeamsAuthMenuProps['footerBrand'];
   private readonly externalAuthBroker: BrokerRef;
   private readonly walletAlternatives: React.MutableRefObject<WalletAlternativesConfig | undefined>;
   private readonly walletBroker: WalletAlternativesBroker;
@@ -234,6 +244,8 @@ class HostedAuthMenuSessionController {
     this.showRegistrationInput = args.showRegistrationInput;
     this.showProgress = args.showProgress;
     this.copy = args.copy;
+    this.recoveryOptions = args.recoveryOptions;
+    this.footerBrand = args.footerBrand;
     this.externalAuthBroker = args.externalAuthBroker;
     this.walletAlternatives = args.walletAlternatives;
     this.walletBroker = new WalletAlternativesBroker(
@@ -286,6 +298,8 @@ class HostedAuthMenuSessionController {
         showRegistrationInput: this.showRegistrationInput,
         showProgress: this.showProgress,
         copy: this.copy,
+        recoveryOptions: this.recoveryOptions,
+        footerBrand: this.footerBrand,
         enabledExternalProviders: this.externalAuthBroker.current ? ['google'] : [],
         walletAlternatives: describeWalletAlternatives(this.walletAlternatives.current),
       });
@@ -457,6 +471,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
   showRegistrationInput = false,
   showProgress = false,
   copy,
+  recoveryOptions,
+  footerBrand,
   externalAuthBroker = null,
   walletAlternatives,
   onOutcome,
@@ -471,6 +487,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     showRegistrationInput,
     showProgress,
     copy,
+    recoveryOptions,
+    footerBrand,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
     walletAlternatives,
   });
@@ -490,6 +508,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
     showRegistrationInput,
     showProgress,
     copy,
+    recoveryOptions,
+    footerBrand,
     enabledExternalProviders: externalProvidersForBroker(externalAuthBroker),
     walletAlternatives,
   };
@@ -522,6 +542,8 @@ export const HostedSeamsAuthMenu: React.FC<HostedSeamsAuthMenuProps> = ({
       showRegistrationInput: config.showRegistrationInput,
       showProgress: config.showProgress,
       copy: config.copy,
+      recoveryOptions: config.recoveryOptions,
+      footerBrand: config.footerBrand,
       externalAuthBroker: externalAuthBrokerRef,
       walletAlternatives: walletAlternativesRef,
       onOutcome: forwardedOutcomeRef,

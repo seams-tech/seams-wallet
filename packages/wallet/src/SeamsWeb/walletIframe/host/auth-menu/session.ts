@@ -1184,6 +1184,8 @@ export class AuthMenuSession {
       initialHeightCssPx: this.request.initialHeightCssPx,
       onIntent: this.onIntent,
       walletAlternatives: this.request.walletAlternatives,
+      recoveryOptions: this.request.recoveryOptions,
+      footerBrand: this.request.footerBrand,
     });
     this.measurementReporter = createWalletIframeSurfaceMeasurementReporter({
       kind: 'auth_menu_surface',
@@ -1863,6 +1865,10 @@ export class AuthMenuSession {
     if (this.stateValue.kind === 'complete') return;
     if (this.voiceLogin.kind === 'running' && intent.kind !== 'close') return;
     if (this.walletConnection.kind === 'pending' && intent.kind !== 'close') return;
+    if (this.walletConnection.kind === 'failed') {
+      this.walletConnection = { kind: 'idle' };
+      this.surface?.updateWalletConnection(this.walletConnection);
+    }
     switch (intent.kind) {
       case 'mode_selected':
         this.selectMode(intent.mode);

@@ -1,5 +1,6 @@
 import { createNearWalletProvider, nearWalletName } from './wallets';
 import { connectedNear } from './types';
+import { MeteorTransportUnavailableError } from './meteorRequest';
 import type { TransactionInput } from '../core/types/actions';
 import { executionStatus, parseAccounts, parseSubmission, validateTransaction } from './boundary';
 import { parseSignedMessage, validateMessage, type ValidatedNearMessage } from './message';
@@ -108,13 +109,15 @@ export class ExternalNearController {
       );
       this.publish(connection);
       return { ok: true, value: connection };
-    } catch {
+    } catch (error) {
       if (generation !== this.generation)
         return failure('connection_changed', 'Wallet selection changed.');
       this.disconnect();
       return failure(
         'unavailable',
-        `${nearWalletName(wallet)} did not connect. Check the wallet and network, then try again.`,
+        error instanceof MeteorTransportUnavailableError
+          ? error.message
+          : `${nearWalletName(wallet)} did not connect. Check the wallet and network, then try again.`,
       );
     } finally {
       if (generation === this.generation) {

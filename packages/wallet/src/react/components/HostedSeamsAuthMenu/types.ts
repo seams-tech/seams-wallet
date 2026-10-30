@@ -1,6 +1,8 @@
 import type { WalletAlternativesConfig } from './walletAlternatives';
 export type { WalletAlternative, WalletAlternativesConfig } from './walletAlternatives';
 import type {
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
   HostedAuthMenuExternalAuthEvidence,
@@ -14,6 +16,8 @@ import type {
 } from '@/SeamsWeb/walletIframe/shared/messages';
 
 export type {
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
   HostedAuthMenuExternalAuthEvidence,
@@ -36,6 +40,10 @@ export type HostedAuthMenuExternalAuthBroker = (
 
 type HostedAuthMenuOutcomeHandler = (outcome: HostedAuthMenuOutcome) => void;
 export interface HostedSeamsAuthMenuProps {
+  /** Recovery and device-link controls. Defaults to collapsible. */
+  recoveryOptions?: HostedAuthMenuRecoveryOptions;
+  /** Replace the Seams footer with an HTTPS or image data URL and accessible name. */
+  footerBrand?: HostedAuthMenuFooterBrand;
   /** Explicit ordered wallet groups. Omitted or empty groups render no UI. */
   walletAlternatives?: WalletAlternativesConfig;
   /** Initial panel height for a continuous transition from an app-origin menu. */

@@ -54,3 +54,25 @@ void [
   alternativeId,
   invalidRequest,
 ];
+
+const branded: HostedSeamsAuthMenuProps = {
+  onOutcome,
+  recoveryOptions: 'expanded',
+  footerBrand: { kind: 'custom', logo: 'https://example.com/logo.svg', name: 'Example' },
+};
+// @ts-expect-error A custom footer requires an accessible application name.
+const unnamedBrand: NonNullable<HostedSeamsAuthMenuProps['footerBrand']> = {
+  kind: 'custom',
+  logo: 'https://example.com/logo.svg',
+};
+// @ts-expect-error The Seams brand cannot carry a custom logo.
+const mixedBrand: NonNullable<HostedSeamsAuthMenuProps['footerBrand']> = {
+  kind: 'seams',
+  logo: 'https://example.com/logo.svg',
+};
+// @ts-expect-error Broad spreads must preserve the selected brand branch.
+const spreadBrand: NonNullable<HostedSeamsAuthMenuProps['footerBrand']> = {
+  ...mixedBrand,
+  kind: 'custom',
+};
+void [branded, unnamedBrand, mixedBrand, spreadBrand];

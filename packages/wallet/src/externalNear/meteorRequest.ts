@@ -2,10 +2,18 @@ import { isPlainObject, isFunction } from '@shared/utils/validation';
 import type { ExternalNearNetwork } from './types';
 
 type MeteorTransport = { sendMessageDataAndRespond(request: object): Promise<unknown> };
+
+export class MeteorTransportUnavailableError extends Error {
+  constructor() {
+    super('Open the Meteor extension and allow access to this site, then try again.');
+    this.name = 'MeteorTransportUnavailableError';
+  }
+}
+
 export function meteorTransportFromWindow(): MeteorTransport {
   const raw: unknown = Reflect.get(window, 'meteorComV2');
   if (!isPlainObject(raw) || !isFunction(raw.sendMessageDataAndRespond))
-    throw new Error('Meteor extension is not ready.');
+    throw new MeteorTransportUnavailableError();
   const method = raw.sendMessageDataAndRespond;
   return { sendMessageDataAndRespond: callMeteor.bind(null, raw, method) };
 }

@@ -26,6 +26,8 @@ html:has(.seams-auth-menu-surface):not(
   )
   body {
   overscroll-behavior: auto;
+  /* The parent sizes this document from menu measurements on the next frame. */
+  scrollbar-width: none;
 }
 
 html.seams-transparent,

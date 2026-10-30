@@ -1,5 +1,9 @@
 /** @jsxImportSource preact */
 import { render } from 'preact';
+import type {
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
+} from '../../../shared/authMenuPresentation';
 import {
   emptyWalletAlternatives,
   type WalletAlternatives,
@@ -27,6 +31,8 @@ type MountAuthMenuSurfaceInput = {
   readonly viewModel: AuthMenuViewModel;
   readonly initialHeightCssPx?: number;
   readonly walletAlternatives?: WalletAlternatives;
+  readonly recoveryOptions?: HostedAuthMenuRecoveryOptions;
+  readonly footerBrand?: HostedAuthMenuFooterBrand;
   readonly onIntent: (intent: AuthMenuIntent) => void;
 };
 
@@ -50,6 +56,8 @@ function authMenuStyles(document: Document): CspStylesheetManager {
 class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
   readonly element: HTMLElement;
   private readonly walletAlternatives: WalletAlternatives;
+  private readonly recoveryOptions: HostedAuthMenuRecoveryOptions;
+  private readonly footerBrand: HostedAuthMenuFooterBrand;
   private walletConnection: WalletConnectionState = { kind: 'idle' };
   private viewModel: AuthMenuViewModel;
   private readonly styles: CspStylesheetManager;
@@ -60,6 +68,8 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
 
   constructor(input: MountAuthMenuSurfaceInput) {
     this.walletAlternatives = input.walletAlternatives ?? emptyWalletAlternatives();
+    this.recoveryOptions = input.recoveryOptions ?? 'collapsible';
+    this.footerBrand = input.footerBrand ?? { kind: 'seams' };
     this.viewModel = input.viewModel;
     const document = input.parent.ownerDocument;
     this.styles = authMenuStyles(document);
@@ -130,6 +140,8 @@ class MountedAuthMenuSurface implements AuthMenuSurfaceHandle {
           element={this.element}
           viewModel={viewModel}
           walletAlternatives={this.walletAlternatives}
+          recoveryOptions={this.recoveryOptions}
+          footerBrand={this.footerBrand}
           walletConnection={this.walletConnection}
           onIntent={this.state.onIntent}
           styles={this.styles}

@@ -107,8 +107,9 @@ const secondary = evm.getSnapshot().wallets.map(evmAlternative);
 function evmAlternative(wallet) {
   return { kind: 'evm', wallet, controller: evm, onConnected: connected };
 }
-function render(mode = 'both') {
-  const props = { onOutcome: outcome, initialMode: 'register' };
+function render(mode = 'both', recoveryOptions = 'collapsible', customBrand = false, initialMode = 'register') {
+  const props = { onOutcome: outcome, initialMode: customBrand ? 'login' : initialMode, recoveryOptions };
+  if (customBrand) props.footerBrand = { kind: 'custom', logo: evmIcon, name: 'Example application' };
   if (mode !== 'omitted')
     props.walletAlternatives = {
       primary: mode === 'secondary' || mode === 'empty' ? [] : primary,
@@ -130,7 +131,8 @@ function replaceController() {
   render();
 }
 window.__connector.replaceController = replaceController;
-render(new URLSearchParams(location.search).get('mode') || 'both');
+const parameters = new URLSearchParams(location.search);
+render(parameters.get('mode') || 'both', parameters.get('recovery') || 'collapsible', parameters.has('brand'));
 `;
 
 function serveContext(route: Route) {
@@ -183,7 +185,15 @@ test.beforeEach(async ({ page, baseURL }) => {
   );
 });
 
-test.afterEach(async ({ page }) => {
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus) {
+    const evidence = await page.evaluate(readConnectorResults);
+    await page.screenshot({ path: testInfo.outputPath('before-cleanup.png') });
+    await writeFile(
+      testInfo.outputPath('failure-evidence.json'),
+      JSON.stringify(evidence, null, 2),
+    );
+  }
   await page.evaluate(
     'void window.__connector?.root.unmount(); void window.__connectorRouter?.dispose()',
   );
@@ -202,17 +212,43 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   await expect(auth.getByRole('button', { name: /Link this device/ })).toBeVisible();
   await auth.getByText('Recover or link wallet', { exact: true }).click();
   const icon = meteor.locator('.seams-alternative-icon');
-  await expect(icon).toHaveCSS('filter', 'grayscale(1)');
+  await expect(icon).toHaveCSS('filter', 'none');
   await meteor.hover();
-  await expect(icon).toHaveCSS('filter', 'grayscale(0)');
+  await expect(icon).toHaveCSS('filter', 'none');
+  const walletFrame = page.frame({ url: /^https:\/\/wallet\.example\.localhost\/wallet-service/ });
+  if (!walletFrame) throw new Error('Wallet frame is missing');
+  await walletFrame.evaluate(`
+    void 0;
+    ${documentFits.toString()}
+    ${recordLayout.toString()}
+    ${startLayoutRecording.toString()}
+    startLayoutRecording(document.documentElement);
+  `);
   await meteor.click();
   await expect(meteor).toBeDisabled();
+  await expect
+    .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
+    .toBe(true);
   await page.waitForFunction('typeof window.__rejectMeteor === "function"');
   await page.evaluate("window.__rejectMeteor(new Error('Meteor request rejected'))");
   await expect(
     auth.getByRole('alert').filter({ hasText: 'Meteor Wallet did not connect' }),
   ).toBeVisible();
   await expect(meteor).toBeEnabled();
+  await expect
+    .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
+    .toBe(true);
+  const layout = await auth.locator('html').evaluate(stopLayoutRecording);
+  await writeFile(testInfo.outputPath('connection-layout.json'), JSON.stringify(layout, null, 2));
+  expect(layout.overflow).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath('meteor-connection-error.png') });
+  await auth.getByText('Recover or link wallet', { exact: true }).click();
+  await auth.getByRole('button', { name: /Recover wallet/ }).click();
+  await expect(auth.locator('[data-recovery-code]')).toBeVisible();
+  await expect(
+    auth.getByRole('alert').filter({ hasText: 'Meteor Wallet did not connect' }),
+  ).toHaveCount(0);
+  await auth.getByRole('button', { name: 'Back to unlock wallet', exact: true }).click();
   await meteor.click();
   await page.waitForFunction('window.__meteorAttempts === 2');
   await page.evaluate('window.__lateMeteor = window.__resolveMeteor');
@@ -249,9 +285,7 @@ test('combined menu rejects Meteor, connects EVM, and ignores a cancelled sessio
   expect(await page.evaluate('window.__connector.connections.length')).toBe(0);
   await rabby.click();
   await expect.poll(page.evaluate.bind(page, 'window.__connector.connections.length')).toBe(1);
-  const results = await page.evaluate(
-    '({ outcomes: window.__connector.outcomes, connections: window.__connector.connections, evm: window.__connector.evm.getSnapshot().connection })',
-  );
+  const results = await page.evaluate(readConnectorResults);
   expect(results.evm.kind).toBe('connected');
   expect(results.connections[0].account).toBe('0x1111111111111111111111111111111111111111');
   expect(results.outcomes.at(-1).kind).toBe('wallet_connected');
@@ -278,9 +312,147 @@ for (const mode of ['omitted', 'empty', 'primary', 'secondary']) {
   });
 }
 
-function contentFits(element: HTMLElement): boolean {
+function contentFits(element: HTMLElement | SVGElement): boolean {
   const content = element.querySelector<HTMLElement>('.seams-content-sizer');
   return (
     content !== null && Math.abs(element.getBoundingClientRect().height - content.scrollHeight) <= 1
   );
+}
+
+function documentFits(element: HTMLElement | SVGElement): boolean {
+  return element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight;
+}
+
+function startLayoutRecording(element: HTMLElement): void {
+  const measurements: object[] = [];
+  const overflow: object[] = [];
+  const timer = window.setInterval(recordLayout.bind(null, element, measurements, overflow), 10);
+  Reflect.set(window, '__menuLayout', { timer, measurements, overflow });
+}
+
+function recordLayout(element: HTMLElement, measurements: object[], overflow: object[]): void {
+  const measurement = {
+    width: element.clientWidth,
+    height: element.clientHeight,
+    scrollWidth: element.scrollWidth,
+    scrollHeight: element.scrollHeight,
+    scrollbarWidth: getComputedStyle(element).scrollbarWidth,
+  };
+  measurements.push(measurement);
+  if (!documentFits(element) && measurement.scrollbarWidth !== 'none') overflow.push(measurement);
+}
+
+function stopLayoutRecording(): { measurements: object[]; overflow: object[] } {
+  const recording = Reflect.get(window, '__menuLayout');
+  window.clearInterval(recording.timer);
+  return { measurements: recording.measurements, overflow: recording.overflow };
+}
+
+for (const recoveryOptions of ['collapsible', 'expanded', 'hidden']) {
+  test(`recovery controls support ${recoveryOptions} and custom footer branding`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/wallet-connector-test?brand&mode=primary&recovery=' + recoveryOptions);
+    const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
+    const recovery = auth.getByRole('button', { name: /Recover wallet/ });
+    const brand = auth.locator('img[alt="Example application"]');
+    await expect(brand).toBeAttached();
+    await expect.poll(brand.evaluate.bind(brand, imageLoaded)).toBe(true);
+    await expect(auth.getByText('Secured by', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('menu-' + recoveryOptions + '.png') });
+    if (recoveryOptions === 'hidden') {
+      await expect(recovery).toHaveCount(0);
+      await expect(auth.getByText('Recover or link wallet', { exact: true })).toHaveCount(0);
+      await page.evaluate("window.__connector.render('primary', 'expanded', true)");
+    } else {
+      if (recoveryOptions === 'collapsible') {
+        await expect(recovery).toBeHidden();
+        await auth.getByText('Recover or link wallet', { exact: true }).click();
+      }
+    }
+    await expect(recovery).toBeVisible();
+    await recovery.click();
+    await expect(auth.locator('[data-recovery-code]')).toBeVisible();
+    await expect(brand).toBeVisible();
+    await expect
+      .poll(auth.locator('html').evaluate.bind(auth.locator('html'), documentFits))
+      .toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('recovery-' + recoveryOptions + '.png') });
+    await page.evaluate("window.__connector.render('primary', 'hidden', false, 'login')");
+    await expect(auth.getByText('Secured by', { exact: true })).toBeAttached();
+    await expect(auth.getByRole('img', { name: 'Example application' })).toHaveCount(0);
+    await writeFile(
+      testInfo.outputPath('presentation-results.json'),
+      JSON.stringify(
+        { recoveryOptions, customBrandLoaded: true, defaultBrandRestored: true },
+        null,
+        2,
+      ),
+    );
+  });
+}
+
+test('real Meteor adapter recovers after the extension becomes available', async ({
+  page,
+}, testInfo) => {
+  await page.unroute('**/externalNear/meteor.js', serveMeteor);
+  await page.setViewportSize({ width: 538, height: 750 });
+  await page.goto('/wallet-connector-test?mode=primary');
+  const auth = page.frameLocator('iframe[data-seams-owner="wallet-connector"]');
+  const meteor = auth.getByRole('button', { name: /Meteor Wallet/ });
+  await meteor.click();
+  await expect(auth.getByRole('alert')).toContainText(
+    'Open the Meteor extension and allow access to this site',
+  );
+  await expect(meteor).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('meteor-extension-unavailable.png') });
+  await page.evaluate(`
+    window.__meteorWire = [];
+    window.meteorComV2 = { sendMessageDataAndRespond: ${respondToMeteor.toString()} };
+  `);
+  await meteor.click();
+  await expect.poll(page.evaluate.bind(page, 'window.__connector.connections.length')).toBe(1);
+  const results = await page.evaluate(readConnectorResults);
+  expect(results.connections[0].accountId).toBe('connected.testnet');
+  expect(results.outcomes.at(-1).kind).toBe('wallet_connected');
+  expect(results.requests.map(requestAction)).toEqual([
+    'initializing',
+    'connected',
+    'closed_success',
+  ]);
+  await writeFile(
+    testInfo.outputPath('meteor-adapter-results.json'),
+    JSON.stringify(results, null, 2),
+  );
+});
+
+function requestAction(request: { status: string }): string {
+  return request.status;
+}
+
+async function respondToMeteor(request: { uid: string; status: string }): Promise<unknown> {
+  Reflect.get(window, '__meteorWire').push(request);
+  if (request.status === 'initializing') return { uid: request.uid, status: 'connected' };
+  if (request.status === 'connected')
+    return {
+      uid: request.uid,
+      status: 'closed_success',
+      payload: { accountId: 'connected.testnet' },
+    };
+  return null;
+}
+
+function readConnectorResults() {
+  const connector = Reflect.get(window, '__connector');
+  return {
+    connections: connector.connections,
+    outcomes: connector.outcomes,
+    evm: connector.evm.getSnapshot().connection,
+    requests: Reflect.get(window, '__meteorWire'),
+  };
+}
+
+function imageLoaded(element: HTMLElement | SVGElement): boolean {
+  return element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0;
 }

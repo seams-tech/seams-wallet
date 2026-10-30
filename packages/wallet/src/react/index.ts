@@ -188,6 +188,8 @@ export type {
 export type {
   HostedAuthMenuCopy,
   HostedAuthMenuCopyInput,
+  HostedAuthMenuFooterBrand,
+  HostedAuthMenuRecoveryOptions,
   HostedAuthMenuExternalAuthBroker,
   HostedAuthMenuExternalAuthEvidence,
   HostedAuthMenuExternalAuthRequest,

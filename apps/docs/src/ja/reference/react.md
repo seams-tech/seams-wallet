@@ -93,13 +93,24 @@ MetaMaskやRabbyも既存のEVMコネクターを利用します。
 検出しただけでは項目を追加しません。表示するウォレットはアプリ側で選択します。
 
 各項目の`label`、`description`、画像URLの`icon`を変更できます。
-アイコンは通常モノクロで、ホバーまたはキーボードフォーカス時に色を表示します。
+アイコンは元の色で表示されます。
 「Recover or link wallet」を開くと、デバイス連携と復元の操作を表示します。
 認証操作はウォレットオリジン内に残り、接続コントローラーはアプリ側に残ります。
 
 外部接続の成功時は`onConnected`と`wallet_connected`の結果を通知します。
 Seamsの認証セッションは作成しません。メニューを閉じても完了した接続は維持します。
 接続待ちの間に閉じた場合は、その要求を無効にして遅れて届く結果を無視します。
+
+
+### 認証メニューの表示設定
+
+`HostedSeamsAuthMenu` の `recoveryOptions` は `"collapsible"`（既定）、
+`"expanded"`（常時表示）、`"hidden"`（非表示）を指定できます。
+`footerBrand={{ kind: 'custom', logo: 'https://example.com/logo.svg', name: 'Example' }}`
+でフッター全体をアプリのロゴに置き換えます。`logo` は HTTPS の絶対 URL または
+画像のデータ URL です。`name` は画像の代替テキストです。
+省略するか `{ kind: 'seams' }` を指定すると、既定のブランド表示に戻ります。
+接続状態やエラーはフッターに表示されます。
 
 `AccountMenuButton`の既定値は`presentation="dropdown"`です。SDKのトリガーボタンを表示します。
 アプリ独自のボタンから同じ設定画面を開く場合は、`presentation="modal"`または`presentation="drawer"`を指定します。

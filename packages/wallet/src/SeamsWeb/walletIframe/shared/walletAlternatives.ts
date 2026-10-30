@@ -1,5 +1,5 @@
 import { isPlainObject } from '@shared/utils/validation';
-import { MAX_WALLET_ICON_LENGTH, parseWalletDataIcon } from '@/core/ui/walletIcon';
+import { parseWalletImageUrl } from '@/core/ui/walletIcon';
 import { hostedAuthMenuSessionIdFromBoundary, type HostedAuthMenuSessionId } from './messages';
 import {
   walletIframeRequestIdFromBoundary,
@@ -63,21 +63,8 @@ function parseWalletIcon(value: unknown): WalletIconResult {
   if (value === null) {
     return { ok: true, value: null };
   }
-  const dataIcon = parseWalletDataIcon(value);
-  if (dataIcon !== null) {
-    return { ok: true, value: dataIcon };
-  }
-  if (typeof value !== 'string' || value.length > MAX_WALLET_ICON_LENGTH) {
-    return { ok: false };
-  }
-  try {
-    if (new URL(value).protocol === 'https:') {
-      return { ok: true, value };
-    }
-  } catch {
-    return { ok: false };
-  }
-  return { ok: false };
+  const icon = parseWalletImageUrl(value);
+  return icon === null ? { ok: false } : { ok: true, value: icon };
 }
 
 function parseWalletRows(value: unknown, ids: Set<string>): WalletAlternativeDescriptor[] | null {
