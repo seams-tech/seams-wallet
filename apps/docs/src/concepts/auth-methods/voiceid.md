@@ -5,17 +5,18 @@ description: Install the optional VoiceID package, prepare the Wallet host, and 
 
 # VoiceID
 
-VoiceID is an optional browser authentication method in SDK **0.28.0**.
+VoiceID is an optional browser authentication method.
 The application enables support. Each wallet owner then chooses whether to enroll.
 Speaker matching and phrase recognition run locally inside the trusted Wallet iframe.
 The Wallet keeps its existing custody, session, policy, and threshold signing checks.
 
 ## Install and configure
 
-Install matching package versions in your application:
+Install matching package versions in your application. Replace `VERSION` with
+the matching version from the [release notes](/releases):
 
 ```sh
-pnpm add @seams/wallet@0.28.0 @seams/voiceid@0.28.0
+pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION
 ```
 
 Import the descriptor from the optional package and add `authMethods` to your existing configuration.
@@ -27,6 +28,10 @@ Pass the configuration to `SeamsWebProvider` as shown in
 [Wallet setup and authentication](/examples/wallet-setup-and-authentication#configure-the-provider).
 Importing the descriptor and enabling support download no engine or models.
 Passkey and Email OTP flows load no VoiceID assets.
+Citrinet-256 LS is the default phrase model. Set
+`voiceIdAuthMethod({ transcriptionModel: 'aurora' })` to use the smaller
+AuroraASR-1M model. Only the selected phrase model downloads. Changing it
+preserves saved speaker enrollment.
 
 ## Prepare the Wallet host
 
@@ -83,8 +88,9 @@ Adding signers or authentication methods and changing enrollment retain their ac
 
 ## Loading and storage
 
-The first VoiceID operation downloads about **27 MB before transfer compression**.
-One progress indicator covers the engine and all three models. It then shows **Preparing VoiceID…** until inference is ready.
+The first VoiceID operation downloads about **36 MB with Citrinet**, or
+**27 MB with Aurora**, before transfer compression.
+One progress indicator covers the engine, speaker model, speech detector, and selected phrase model. It then shows **Preparing VoiceID…** until inference is ready.
 Verified assets are cached when browser storage permits. Clearing site data or browser eviction can require another download.
 
 Audio stays local and is discarded after processing. The Wallet origin stores the enrollment template and device credentials.

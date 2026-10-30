@@ -5,17 +5,18 @@ description: 任意のVoiceIDパッケージとWalletホストを設定し、所
 
 # VoiceID {#voiceid}
 
-VoiceIDは、SDK **0.28.0**で提供する任意のブラウザー認証方法です。
+VoiceIDは、任意のブラウザー認証方法です。
 アプリが対応を有効にした後、各ウォレットの所有者が登録するかどうかを選びます。
 話者照合と発話認識は、信頼するWallet iframe内でローカル実行します。
 鍵管理、セッション、ポリシー、しきい値署名の既存の確認は維持されます。
 
 ## インストールと設定 {#install-and-configure}
 
-アプリに同じバージョンのパッケージをインストールしてください。
+アプリには同じバージョンのパッケージをインストールしてください。
+`VERSION`を[リリースノート](/ja/releases)に記載された対応するバージョンに置き換えます。
 
 ```sh
-pnpm add @seams/wallet@0.28.0 @seams/voiceid@0.28.0
+pnpm add @seams/wallet@VERSION @seams/voiceid@VERSION
 ```
 
 任意のパッケージから記述子をインポートし、既存の設定に`authMethods`を追加します。
@@ -26,6 +27,9 @@ pnpm add @seams/wallet@0.28.0 @seams/voiceid@0.28.0
 [ウォレットの設定と認証](/ja/examples/wallet-setup-and-authentication#configure-the-provider)に従い、設定を`SeamsWebProvider`へ渡してください。
 記述子のインポートと対応の有効化では、エンジンやモデルをダウンロードしません。
 パスキーとメールOTPの処理でもVoiceIDアセットを読み込みません。
+発話認識モデルの初期設定はCitrinet-256 LSです。容量の小さいAuroraASR-1Mを使う場合は、
+`voiceIdAuthMethod({ transcriptionModel: 'aurora' })`を設定します。
+ダウンロードする発話認識モデルは選択したものだけです。モデルを変更しても、保存済みの話者登録は維持されます。
 
 ## Walletホストの準備 {#prepare-the-wallet-host}
 
@@ -84,8 +88,8 @@ VoiceIDの有効化や登録だけでは、パスキーやメールOTPでの署�
 
 ## 読み込みと保存 {#loading-and-storage}
 
-初回のVoiceID操作では、転送時の圧縮前で約**27 MB**をダウンロードします。
-1つの進捗表示でエンジンと3つのモデルを示します。その後、推論の準備が終わるまで**VoiceIDを準備中…**を表示します。
+初回のVoiceID操作では、転送時の圧縮前でCitrinetなら約**36 MB**、Auroraなら約**27 MB**をダウンロードします。
+1つの進捗表示で、エンジン、話者モデル、音声検出モデル、選択した発話認識モデルの読み込み状況を示します。その後、推論の準備が終わるまで**VoiceIDを準備中…**を表示します。
 ブラウザーの保存領域が利用可能な場合、検証済みのアセットをキャッシュします。
 サイトデータの削除やブラウザーによるキャッシュ削除で、再ダウンロードが必要になる場合があります。
 

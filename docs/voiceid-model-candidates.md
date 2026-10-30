@@ -1,7 +1,8 @@
 # VoiceID model candidates
 
-Research date: 2026-10-24, updated 2026-10-29. Status: VoiceID uses ReDimNet B1 with configurable Aurora or Citrinet transcription. Broader production accuracy
-qualification remains open.
+Research date: 2026-10-24, updated 2026-10-31. This page keeps the original
+candidate survey. [VoiceID current state](voiceid-current-state.md) records the
+implementation and open work. Broader production accuracy qualification remains open.
 
 Use B1 for speaker verification. Citrinet is the default phrase recognizer.
 Developers can choose Aurora for its smaller download. Citrinet's ONNX export
@@ -22,7 +23,7 @@ Broader accuracy qualification remains open.
 | Task | Question answered | Current implementation |
 | --- | --- | --- |
 | Speaker verification | Does this voice match the enrolled user? | Local ReDimNet B1 inference and cosine comparison |
-| Speech-to-text (STT) | Which words did the user say? | Local AuroraASR with constrained recognition of 16 randomized phrases |
+| Speech-to-text (STT) | Which words did the user say? | Local Citrinet or AuroraASR with a shared matcher over 39 phrases |
 
 STT is also called automatic speech recognition (ASR). An STT model does not
 replace the speaker-verification model. The plugin requires the displayed phrase and a speaker match from the same recording.
@@ -56,13 +57,15 @@ and [plugin deployment notes](../packages/voiceid/src/README.md).
 
 ## Speech-to-text shortlist
 
-File sizes below come from Hugging Face file metadata checked on the research date.
+Published checkpoint sizes below come from Hugging Face metadata checked on
+the research date. Browser export sizes come from pinned local artifacts.
 They exclude the browser runtime. Source repositories can change; pin revisions
 and hashes when creating evaluation artifacts.
 
 | Candidate | Published assets | License listed | Browser work and assessment |
 | --- | --- | --- | --- |
-| [AuroraASR-1M](https://huggingface.co/AuroraAI-Research/AuroraASR-1M) | INT8 weights: 1,056,232 bytes; tokenizer: 243,353 bytes. Approximately 1.30 MB together. FP32 weights: 3,807,868 bytes. | Apache-2.0 | Integrated prototype. English-only. Our full-waveform INT8 ONNX export is 1,342,384 bytes. Token sequences for the phrase bank are embedded in code; no tokenizer file is downloaded. |
+| [AuroraASR-1M](https://huggingface.co/AuroraAI-Research/AuroraASR-1M) | INT8 weights: 1,056,232 bytes; tokenizer: 243,353 bytes. Approximately 1.30 MB together. FP32 weights: 3,807,868 bytes. | Apache-2.0 | Supported smaller option. English-only. Our full-waveform INT8 ONNX export is 1,342,384 bytes. Token sequences for the phrase bank are embedded in code; no tokenizer file is downloaded. |
+| [NVIDIA Citrinet-256 LS](https://huggingface.co/nvidia/stt_en_citrinet_256_ls) | Pinned NeMo checkpoint: 36,693,216 bytes. Browser INT8 ONNX export: 10,483,704 bytes. | CC-BY-4.0 | Current default. The full-waveform export shares the browser engine with Aurora. Native NeMo parity passed on 39 synthetic clips. |
 | [Femto-ASR](https://huggingface.co/igorktech/femto-asr) | Published FP32 weights: 9,603,384 bytes. The card advertises about 2.5 MB INT8, but that artifact was absent from the checked file listing. | Apache-2.0 | Secondary candidate. English-only. Requires browser integration and a reproducible quantized export if using INT8. |
 | [Moonshine Tiny ONNX](https://huggingface.co/onnx-community/moonshine-tiny-ONNX) | UINT8 encoder: 7,919,857 bytes; merged decoder: 20,189,543 bytes; tokenizer/config files: about 3.90 MB. Approximately 32.0 MB total. | MIT | Browser baseline. Existing Transformers.js integration reduces initial integration work. |
 
@@ -173,6 +176,6 @@ user enrollment audio or templates as benchmark data without authorization.
 An illustrative B0 + Aurora INT8 + current runtime budget is about 20 MB before
 export and preprocessing overhead. This is not a measured browser bundle.
 A product acceptance threshold for accuracy loss remains to be selected before
-qualification. B1 passed the browser Wallet E2E with synthetic microphone audio. Other candidates
-have not passed this flow. B1 also completed a live microphone enrollment,
+qualification. B1 passed the browser Wallet E2E with synthetic microphone audio.
+B1 also completed a live microphone enrollment,
 voice unlock, and independently verified NEAR testnet transfer on 2026-10-24.

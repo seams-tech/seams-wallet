@@ -75,6 +75,9 @@ The specs state architecture requirements. Exact user journeys live in
 [Intended Behaviours](intended-behaviours.md), and each chapter links to further
 detail where needed.
 
+For the optional browser authentication package, see
+[VoiceID current state and future improvements](voiceid-current-state.md).
+
 Code excerpts link to their source. Diagrams show the main relationships and
 steps; the linked references cover the full protocols and record formats.
 

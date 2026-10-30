@@ -143,8 +143,8 @@ the authenticated outcome; VoiceID is invalid as a wallet-registration outcome.
 
 Voice-selected transfers show “Confirm with VoiceID” before replacing the review
 with the existing minimal phrase and live waveform. Passkey and Email OTP sessions
-retain their own approval paths. The iframe protocol is version 17 for these APIs
-and the additional authenticated outcome.
+retain their own approval paths. These APIs use the current Wallet iframe
+protocol, version 21.0.0.
 
 Applications import `voiceIdAuthMethod` from the optional `@seams/voiceid` package
 and enable it with `authMethods: [voiceIdAuthMethod()]`. The descriptor
@@ -315,7 +315,8 @@ optional VoiceID module and do not affect authorization decisions.
 Prompts show concise failure guidance and retry controls. They contain no
 Recording details expander or technical recognition text.
 
-The speaker model is 8,859,593 bytes. The phrase model adds 1,342,384 bytes.
+The speaker model is 8,859,593 bytes. The selected phrase model adds 10,483,704
+bytes for Citrinet or 1,342,384 bytes for Aurora.
 Silero speech detection adds 2,327,524 bytes. It qualifies speech and detects
 pauses using sequential local audio frames. Noise alone must not qualify as
 sufficient speech or unlock the wallet. High-noise recordings receive brief guidance. Detection is not speaker identification.
