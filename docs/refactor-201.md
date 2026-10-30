@@ -2,6 +2,10 @@
 
 Status: in progress. Date: October 30, 2026.
 
+Current step: the [same-core producer instrument](router-ab/ml-dsa-65-quiet-producer-report.md) passes local lifecycle and public-output checks.
+Run ordinary quiet–overlap–quiet controls before probing. Stop if the CPU gap fails to repeat.
+Hosted execution awaits approval for the new test credentials and destinations. No new preparation speedup is claimed.
+
 The [matched hosted capacity comparison](router-ab/ml-dsa-65-capacity-guard-hosted-report.md) completes with 64 verified signatures in each twelve-minute capacity screen.
 Complete-cycle rates are 5.035 and 5.072 signatures/minute, including full reserve restoration.
 Both use a separate forty-five-second benchmark cooldown and two experimental producer slots.
@@ -30,10 +34,11 @@ One binary operation waits for the reserve to recover from six to eight pairs. M
 
 The next high-impact tasks are:
 
-- Qualify sustained public Gateway/SDK traffic with its actual retry cadence and complete user waits.
-- Test independent participant CPU execution using fixed public workloads before changing private routing.
-- Optimize a newly measured dominant preparation cost; avoid repeating rejected AES and encoder prototypes without a new profile.
-- Shorten registration and signing overhead only where current traces show a material remaining cost.
+- Reproduce the persistent CPU gap with ordinary quiet–overlap–quiet jobs before adding calibration.
+- If it repeats, compare fixed public workloads inside the actual core module, with exact role and instance matching.
+- Optimize the preparation stage supported by those results. Require repeated complete-job gains and unchanged material accounting.
+- Qualify four active wallets per group and idle-wallet maintenance before choosing production budgets.
+- Keep sustained public Gateway/SDK traffic and its complete user waits as a separate product qualification.
 
 Preparation remains on Workers. Wallet-seed recovery, FIPS export, and two-at-once consumption remain unchanged.
 Production defaults remain unchanged. All eight temporary Workers are deleted, with independent absence checks.
