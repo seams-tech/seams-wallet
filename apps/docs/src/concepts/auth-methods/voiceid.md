@@ -101,26 +101,3 @@ Removing the enrollment or clearing Wallet-origin storage requires enrollment ag
 VoiceID depends on that browser's device credentials and local speaker checks.
 Recorded or synthetic speech resistance is not a production accuracy guarantee.
 Keep a passkey or Email OTP available for enrollment management.
-
-## Current scope and future improvements
-
-VoiceID checks the speaker and spoken phrase inside the Wallet iframe. The server
-verifies an assertion from the enrolled browser device key. Wallet code performs
-the voice check before using that key. The assertion alone does not attest the
-recording or its speaker result. VoiceID approval currently covers reviewed
-native NEAR and Arc testnet transfers.
-
-The speaker cutoff of **0.45** and the phrase matching bounds remain
-experimental. Small local human trials do not establish owner acceptance rates
-or resistance to replayed and generated speech.
-
-Potential next improvements include:
-
-- Improve short phrase acceptance using consented recordings. Check wrong
-  phrases and changed negation before adjusting the matcher.
-- Measure owner rejection and wrong-speaker acceptance with distinct speakers,
-  later sessions, playback, and generated speech.
-- Measure cold download, memory, and decision time on mobile browsers. Compare
-  Aurora FP16 with INT8 on the same recordings before adding another model file.
-- Study stronger device proof and wider approval policy as separate changes.
-  Preserve the Wallet review, session limits, and signing checks.
