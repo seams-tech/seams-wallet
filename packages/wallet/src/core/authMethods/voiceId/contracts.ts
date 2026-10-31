@@ -82,6 +82,26 @@ export type VoiceEnrollmentAuthorization =
     }
   | (VoiceEnrollmentChangeIntent & Readonly<{ confirmation: ConfirmedVoiceChange }>);
 
+export type VoiceEnrollmentChange = Readonly<{
+  scope: VoiceEnrollmentScope;
+  signal: AbortSignal;
+  next?: never;
+}> &
+  (
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'import'> & {
+        readonly baseline: readonly number[];
+        readonly samples?: never;
+      })
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'improve'> & {
+        readonly samples: readonly (readonly number[])[];
+        readonly baseline?: never;
+      })
+    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'reset'> & {
+        readonly baseline?: never;
+        readonly samples?: never;
+      })
+  );
+
 export type VoiceTemplateAccess =
   | { readonly kind: 'active'; readonly scope: VoiceEnrollmentScope; readonly owner?: never }
   | {
@@ -105,18 +125,3 @@ export type VoiceIdUnlockCapture = (input: {
   readonly challenge: VoiceIdWalletSessionChallenge;
   readonly signal: AbortSignal;
 }) => Promise<{ kind: 'unlocked'; assertion: VoiceIdDeviceAssertion; factorSecret32: Uint8Array }>;
-
-export function reviseVoiceEnrollment(
-  enrollment: VoiceEnrollment,
-  adaptation: VoiceEnrollment['adaptation'],
-): VoiceEnrollment {
-  return {
-    kind: 'browser_voiceid_enrollment_v2',
-    scope: enrollment.scope,
-    model: enrollment.model,
-    generation: enrollment.generation,
-    revision: enrollment.revision + 1,
-    baseline: enrollment.baseline,
-    adaptation,
-  };
-}

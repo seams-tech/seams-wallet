@@ -4,7 +4,7 @@ import type { VoiceCaptureElements } from './capture/surface';
 import { VOICE_ID_HOST_API_VERSION } from '@seams/wallet/voiceid-host';
 import type { VoiceIdTranscriptionModel } from '@seams/wallet/voiceid-host';
 
-export const hostApiVersion = 5;
+export const hostApiVersion = 6;
 if (VOICE_ID_HOST_API_VERSION !== hostApiVersion) {
   throw new Error('VoiceID requires a matching Wallet host API.');
 }

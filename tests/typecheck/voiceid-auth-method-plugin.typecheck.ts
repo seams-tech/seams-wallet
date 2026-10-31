@@ -2,7 +2,6 @@ import { type WalletAuthMethodPlugin } from '../../packages/wallet/src/core/auth
 import { voiceIdAuthMethod } from '../../packages/voiceid/src/descriptor';
 import * as voiceHost from '../../packages/wallet/src/voiceid-host';
 import type { VoiceIdActivationPreparation } from '../../packages/wallet/src/core/authMethods/voiceId/boundary';
-import type { VoiceEnrollmentWrite } from '../../packages/wallet/src/core/authMethods/voiceId/enrollmentStorage';
 
 // @ts-expect-error The optional plugin cannot access the wallet database manager.
 void voiceHost.IndexedDBManager;
@@ -24,15 +23,15 @@ const castPreparation = managePreparation as typeof activatePreparation;
 // @ts-expect-error A new activation requires its bound core operation.
 const missingActivation: VoiceIdActivationPreparation = { kind: 'activate', walletId: activatePreparation.walletId, walletAuthMethodId: activatePreparation.walletAuthMethodId };
 
-declare const activationWrite: Extract<VoiceEnrollmentWrite, { kind: 'activate' }>;
-declare const changeWrite: Extract<VoiceEnrollmentWrite, { kind: 'replace' }>;
+declare const activationWrite: Extract<VoiceEnrollmentChange, { kind: 'activate' }>;
+declare const changeWrite: Extract<VoiceEnrollmentChange, { kind: 'replace' }>;
 // @ts-expect-error An owner activation guard cannot authorize a later enrollment change.
-const crossedWrite: VoiceEnrollmentWrite = { ...changeWrite, guard: activationWrite.guard };
+const crossedWrite: VoiceEnrollmentChange = { ...changeWrite, guard: activationWrite.guard };
 // @ts-expect-error Activation cannot acquire an enrollment-change confirmation.
-const confirmedActivation: VoiceEnrollmentWrite = { ...activationWrite, confirmation: changeWrite.confirmation };
+const confirmedActivation: VoiceEnrollmentChange = { ...activationWrite, confirmation: changeWrite.confirmation };
 void [crossedPreparation, castPreparation, missingActivation, crossedWrite, confirmedActivation];
 import { ConfirmedVoiceChange } from '../../packages/wallet/src/core/authMethods/voiceId/ownerConfirmation';
-import type { VoiceEnrollmentChange } from '../../packages/voiceid/src/browser/enrollmentStore';
+import type { VoiceEnrollmentChange } from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
 
 declare const assertCurrentOwner: (signal: AbortSignal) => Promise<void>;
 // @ts-expect-error Confirmation must verify a fresh passkey assertion.

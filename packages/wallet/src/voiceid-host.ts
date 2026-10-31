@@ -1,5 +1,5 @@
 // Scoped operations and data contracts for the trusted VoiceID plugin.
-export const VOICE_ID_HOST_API_VERSION = 5;
+export { VOICE_ID_HOST_API_VERSION } from './core/authMethods/hostPlugin';
 export {
   type WalletAuthMethodHostPlugin,
   type AuthMethodActivationResult,
@@ -32,6 +32,7 @@ export {
 export {
   type VoiceEnrollment,
   type VoiceEnrollmentAuthorization,
+  type VoiceEnrollmentChange,
   type VoiceEnrollmentConfirmationRequest,
   type VoiceEnrollmentScope,
   type VoiceEnrollmentSnapshot,
@@ -69,5 +70,4 @@ export {
 export { SeamsWordmark } from './core/signingEngine/uiConfirm/ui/preact/SeamsWordmark';
 export { backIcon } from './SeamsWeb/walletIframe/host/ui/auth-menu/icons';
 export { TransactionReviewError } from './SeamsWeb/walletIframe/shared/transactionReview';
-export { reviseVoiceEnrollment } from './core/authMethods/voiceId/contracts';
 export type { VoiceMicrophonePreference } from './core/authMethods/voiceId/microphonePreference';

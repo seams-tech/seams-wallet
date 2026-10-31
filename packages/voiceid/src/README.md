@@ -19,9 +19,10 @@ defines the Wallet flow. [Release notes](../../../apps/docs/src/releases.md) ret
 SDK core owns authority checks, passkey confirmation, device persistence, guarded enrollment transactions,
 custody resealing, server proof exchanges, session installation, quotas, and NEAR/ECDSA threshold signing.
 The host API exposes scoped operations and data contracts. It exposes no database schemas, signing contexts,
-session credential stores, or worker transports. Wallet and VoiceID must use matching host API version 5.
+session credential stores, or worker transports. Wallet and VoiceID must use matching host API version 6.
 Enrollment and management use the container supplied by the capture surface. Confirmation, capture,
 and persistence share the same action-specific guard and snapshot types.
+Core constructs enrollment records from these commands. Improvements and resets preserve the stored identity and baseline.
 Preserve `WalletAuthMethodHostPlugin`, the device assertion contract, and method-bound custody envelopes when changing this implementation.
 
 ## Enrollment storage and owner confirmation

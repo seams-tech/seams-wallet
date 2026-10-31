@@ -1,4 +1,3 @@
-import { reviseVoiceEnrollment } from './contracts';
 import type { IDBPTransaction } from 'idb';
 import { IndexedDBManager } from '@/core/indexedDB';
 import { SEAMS_WALLET_STORES as stores } from '@/core/indexedDB/schemaNames';
@@ -22,7 +21,7 @@ import {
 
 import type {
   VoiceEnrollmentScope,
-  VoiceEnrollmentAuthorization,
+  VoiceEnrollmentChange,
   VoiceEnrollment,
   VoiceOwnerGuard,
   VoiceTemplateAccess,
@@ -178,18 +177,15 @@ export async function assertVoiceOwner(
 function ignoreAbort(): void {}
 
 type VoiceEnrollmentParser = (raw: unknown, scope: VoiceEnrollmentScope) => VoiceEnrollment | null;
-type WriteBase = Readonly<{
-  scope: VoiceEnrollmentScope;
-  next: VoiceEnrollment;
-  signal: AbortSignal;
-}>;
-export type VoiceEnrollmentWrite = WriteBase & VoiceEnrollmentAuthorization;
-
-export function voiceEnrollmentStorage(parseEnrollment: VoiceEnrollmentParser) {
+export function voiceEnrollmentStorage(configuration: {
+  readonly model: string;
+  readonly parseEnrollment: VoiceEnrollmentParser;
+}) {
+  const { model, parseEnrollment } = configuration;
   return {
     read: readVoiceEnrollment.bind(null, parseEnrollment),
     readTemplate: readTemplateEnrollment.bind(null, parseEnrollment),
-    commit: commitEnrollment.bind(null, parseEnrollment),
+    commit: commitEnrollment.bind(null, model, parseEnrollment),
     readImportable: readImportableRecord,
   };
 }
@@ -267,15 +263,14 @@ async function readTemplateEnrollment(
 }
 
 async function commitEnrollment(
+  model: string,
   parseEnrollment: VoiceEnrollmentParser,
-  input: VoiceEnrollmentWrite,
+  input: VoiceEnrollmentChange,
 ): Promise<void> {
-  const { scope, guard, snapshot, next, signal } = input;
+  const { scope, guard, snapshot, signal } = input;
   if (input.kind !== 'activate') {
     await input.confirmation.consume(input.scope, input);
   }
-  if (new TextEncoder().encode(JSON.stringify(next)).length > MAX_RECORD_BYTES)
-    throw new Error('VoiceID enrollment exceeds its storage limit.');
   const database = await IndexedDBManager.seamsWalletDB.getDB();
   signal.throwIfAborted();
   const transaction = database.transaction(transactionStores, 'readwrite');
@@ -295,6 +290,9 @@ async function commitEnrollment(
       throw new Error('VoiceID enrollment changed in another operation. Start again.');
     }
     signal.throwIfAborted();
+    const next = buildVoiceEnrollment(model, input, current);
+    if (new TextEncoder().encode(JSON.stringify(next)).length > MAX_RECORD_BYTES)
+      throw new Error('VoiceID enrollment exceeds its storage limit.');
     await store.put({ key: enrollmentKey(scope), value: next });
     if (input.kind === 'import')
       await retireImportedBrowserEnrollment(parseEnrollment, transaction);
@@ -364,4 +362,52 @@ export async function resolveSelectedVoiceEnrollmentScope(
     throw new Error('Unlock this wallet with VoiceID before voice approval.');
   }
   return resolveVoiceEnrollmentScope(walletId, selected.authMethod.walletAuthMethodId);
+}
+
+function buildVoiceEnrollment(
+  model: string,
+  change: VoiceEnrollmentChange,
+  current: VoiceEnrollment | null,
+): VoiceEnrollment {
+  switch (change.kind) {
+    case 'activate':
+    case 'import':
+    case 'replace':
+      return {
+        kind: 'browser_voiceid_enrollment_v2',
+        scope: change.scope,
+        model,
+        generation: crypto.randomUUID(),
+        revision: 0,
+        baseline: change.baseline,
+        adaptation: { kind: 'baseline' },
+      };
+    case 'improve':
+      if (!current) throw new Error('Original voice enrollment is unavailable.');
+      return reviseVoiceEnrollment(current, { kind: 'adapted', samples: change.samples });
+    case 'reset':
+      if (!current) throw new Error('Original voice enrollment is unavailable.');
+      return reviseVoiceEnrollment(current, { kind: 'baseline' });
+    default:
+      return assertNever(change);
+  }
+}
+
+function assertNever(_change: never): never {
+  throw new Error('Unsupported VoiceID enrollment change.');
+}
+
+function reviseVoiceEnrollment(
+  enrollment: VoiceEnrollment,
+  adaptation: VoiceEnrollment['adaptation'],
+): VoiceEnrollment {
+  return {
+    kind: 'browser_voiceid_enrollment_v2',
+    scope: enrollment.scope,
+    model: enrollment.model,
+    generation: enrollment.generation,
+    revision: enrollment.revision + 1,
+    baseline: enrollment.baseline,
+    adaptation,
+  };
 }

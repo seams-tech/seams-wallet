@@ -260,6 +260,7 @@ async function enrollmentSummary(walletId: string) {
         ),
       );
       return {
+        scope,
         generation: String(enrollment.generation),
         revision: Number(enrollment.revision),
         baselineHash: Array.from(hash, hexByte).join(''),

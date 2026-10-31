@@ -1,11 +1,9 @@
-import { reviseVoiceEnrollment } from '@seams/wallet/voiceid-host';
 import {
   voiceEnrollmentStorage,
   type VoiceEnrollment,
   type VoiceEnrollmentScope,
   type VoiceTemplateAccess,
-  type VoiceEnrollmentAuthorization,
-  type Variant,
+  type VoiceEnrollmentChange,
   requireRecord,
   isFiniteNumber,
 } from '@seams/wallet/voiceid-host';
@@ -17,7 +15,7 @@ import {
 } from './model';
 const SUPPLEMENT_WEIGHT = 0.2;
 const MINIMUM_BASELINE_COSINE = 0.98;
-const storage = voiceEnrollmentStorage(parseEnrollment);
+const storage = voiceEnrollmentStorage({ model: VOICE_MODEL_ID, parseEnrollment });
 function vector(raw: unknown): number[] {
   if (!Array.isArray(raw) || !raw.every(isFiniteNumber))
     throw new Error('VoiceID template is invalid.');
@@ -138,25 +136,6 @@ export async function readImportableVoiceBaseline(): Promise<readonly number[] |
   return vector(record.template);
 }
 
-export type VoiceEnrollmentChange = Readonly<{
-  scope: VoiceEnrollmentScope;
-  signal: AbortSignal;
-}> &
-  (
-    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'activate' | 'replace' | 'import'> & {
-        readonly baseline: readonly number[];
-        readonly samples?: never;
-      })
-    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'improve'> & {
-        readonly samples: readonly (readonly number[])[];
-        readonly baseline?: never;
-      })
-    | (Variant<VoiceEnrollmentAuthorization, 'kind', 'reset'> & {
-        readonly baseline?: never;
-        readonly samples?: never;
-      })
-  );
-
 export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Promise<void> {
   const { scope, signal } = change;
   switch (change.kind) {
@@ -167,7 +146,7 @@ export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Prom
         signal,
         guard: change.guard,
         snapshot: change.snapshot,
-        next: initialVoiceEnrollment(scope, change.baseline),
+        baseline: vector(change.baseline),
       });
     case 'import':
       return storage.commit({
@@ -177,7 +156,7 @@ export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Prom
         guard: change.guard,
         snapshot: change.snapshot,
         confirmation: change.confirmation,
-        next: initialVoiceEnrollment(scope, change.baseline),
+        baseline: vector(change.baseline),
       });
     case 'replace':
       return storage.commit({
@@ -187,7 +166,7 @@ export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Prom
         guard: change.guard,
         snapshot: change.snapshot,
         confirmation: change.confirmation,
-        next: initialVoiceEnrollment(scope, change.baseline),
+        baseline: vector(change.baseline),
       });
     case 'improve':
       requireBoundedSamples(change.snapshot.enrollment.baseline, change.samples);
@@ -198,10 +177,7 @@ export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Prom
         guard: change.guard,
         snapshot: change.snapshot,
         confirmation: change.confirmation,
-        next: reviseVoiceEnrollment(change.snapshot.enrollment, {
-          kind: 'adapted',
-          samples: change.samples,
-        }),
+        samples: change.samples,
       });
     case 'reset':
       return storage.commit({
@@ -211,26 +187,10 @@ export async function commitVoiceEnrollment(change: VoiceEnrollmentChange): Prom
         guard: change.guard,
         snapshot: change.snapshot,
         confirmation: change.confirmation,
-        next: reviseVoiceEnrollment(change.snapshot.enrollment, { kind: 'baseline' }),
       });
     default:
       return assertNever(change);
   }
-}
-
-function initialVoiceEnrollment(
-  scope: VoiceEnrollmentScope,
-  baseline: readonly number[],
-): VoiceEnrollment {
-  return {
-    kind: 'browser_voiceid_enrollment_v2',
-    scope,
-    model: VOICE_MODEL_ID,
-    generation: crypto.randomUUID(),
-    revision: 0,
-    baseline: vector(baseline),
-    adaptation: { kind: 'baseline' },
-  };
 }
 
 function assertNever(_change: never): never {

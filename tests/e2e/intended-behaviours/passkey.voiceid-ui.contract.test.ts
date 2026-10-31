@@ -64,6 +64,8 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       .locator('body')
       .evaluate(readEnrollmentSummary, identity.walletId);
     expect(importedEnrollment).toMatchObject({
+      scope: originalEnrollment.scope,
+      revision: 0,
       baselineHash: originalEnrollment.baselineHash,
       legacyPresent: false,
     });
@@ -228,6 +230,8 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
       .evaluate(readEnrollmentSummary, identity.walletId);
     expect(await wallet.locator('body').evaluate(readPasskeyRequests)).toBe(passkeyCount + 1);
     expect(improved).toMatchObject({
+      scope: baseline.scope,
+      revision: baseline.revision + 1,
       baselineHash: baseline.baselineHash,
       generation: baseline.generation,
       adaptation: 'adapted',
@@ -266,10 +270,7 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect(enrollmentState).toContainText('Saved on this device');
     await expect(wallet.getByRole('button', { name: 'Improve again', exact: true })).toBeVisible();
     const managementDialog = wallet.getByRole('dialog', { name: 'Manage voice', exact: true });
-    await expect(managementDialog).toHaveCSS(
-      'background-color',
-      'rgba(0, 0, 0, 0)',
-    );
+    await expect(managementDialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await managementDialog.screenshot({
       path: testInfo.outputPath('voiceid-adaptation-management.png'),
       animations: 'disabled',
@@ -278,6 +279,8 @@ for (const passkeyAlgorithm of ['es256', 'rs256'] as const) {
     await expect(wallet.locator('.seams-voiceid-management')).toHaveCount(0);
     const reset = await wallet.locator('body').evaluate(readEnrollmentSummary, identity.walletId);
     expect(reset).toMatchObject({
+      scope: baseline.scope,
+      revision: improved.revision + 1,
       baselineHash: baseline.baselineHash,
       generation: baseline.generation,
       adaptation: 'baseline',

@@ -1,3 +1,5 @@
+export const VOICE_ID_HOST_API_VERSION = 6;
+
 import type {
   VoiceIdActivationPreparation,
   VoiceIdUnlockPreparation,

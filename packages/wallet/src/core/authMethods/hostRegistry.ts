@@ -1,5 +1,5 @@
 import { type WalletAuthMethodPlugin, type VoiceIdTranscriptionModel } from './plugins';
-import type { WalletAuthMethodHostPlugin } from './hostPlugin';
+import { VOICE_ID_HOST_API_VERSION, type WalletAuthMethodHostPlugin } from './hostPlugin';
 import { isPlainObject } from '@shared/utils/validation';
 
 /** One trusted loader per installed implementation. Configuration cannot supply executable code. */
@@ -35,7 +35,7 @@ async function loadVoiceIdHost(
   }
   if (
     !isPlainObject(module) ||
-    module.hostApiVersion !== 5 ||
+    module.hostApiVersion !== VOICE_ID_HOST_API_VERSION ||
     typeof module.createVoiceIdHostPlugin !== 'function'
   ) {
     throw new Error(

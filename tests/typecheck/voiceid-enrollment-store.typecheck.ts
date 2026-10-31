@@ -7,10 +7,8 @@ import type {
   VoiceTemplateAccess,
 } from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
 import type { Variant } from '../../packages/shared-ts/src/utils/variant';
-import {
-  commitVoiceEnrollment,
-  type VoiceEnrollmentChange,
-} from '../../packages/voiceid/src/browser/enrollmentStore';
+import { commitVoiceEnrollment } from '../../packages/voiceid/src/browser/enrollmentStore';
+import type { VoiceEnrollmentChange } from '../../packages/wallet/src/core/authMethods/voiceId/contracts';
 import { enrollBrowserVoice } from '../../packages/voiceid/src/browser/enrollment';
 import { manageVoiceEnrollment } from '../../packages/voiceid/src/activation/manageEnrollment';
 
@@ -131,3 +129,25 @@ void [
   crossedAccess,
   crossedCapture,
 ];
+
+import { voiceEnrollmentStorage } from '../../packages/wallet/src/core/authMethods/voiceId/enrollmentStorage';
+type StorageChange = Parameters<ReturnType<typeof voiceEnrollmentStorage>['commit']>[0];
+declare const unrelatedEnrollment: VoiceEnrollment;
+const constructedRecord: StorageChange = {
+  kind: 'activate',
+  scope: activation.scope,
+  signal: activation.signal,
+  guard: activation.guard,
+  snapshot: activation.snapshot,
+  baseline: activation.baseline,
+  // @ts-expect-error Direct construction cannot provide a caller-built record.
+  next: unrelatedEnrollment,
+};
+// @ts-expect-error A spread cannot bypass core ownership of record construction.
+const spreadRecord: StorageChange = { ...activation, next: unrelatedEnrollment };
+declare const suppliedRecord: { next: VoiceEnrollment };
+// @ts-expect-error A record-bearing command cannot be cast into the core write contract.
+const castRecord = suppliedRecord as StorageChange;
+// @ts-expect-error Reset cannot replace the stored baseline through a spread.
+const resetWithBaseline: StorageChange = { ...reset, baseline: activation.baseline };
+void [constructedRecord, spreadRecord, castRecord, resetWithBaseline];
