@@ -94,7 +94,7 @@ macro_rules! command_family {
             $(
                 pub(in crate::ml_dsa::workers) fn $constructor(
                     $( $field: $ty ),*
-                ) -> Request<$wire, $reply, $codec> {
+                ) -> Request<$wire, $constructor::Reply, $codec> {
                     Request {
                         wire: $wire::$variant { $( $field ),* },
                         reply: PhantomData,

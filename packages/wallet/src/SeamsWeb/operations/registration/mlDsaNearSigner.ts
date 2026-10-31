@@ -28,7 +28,7 @@ type PublicationInput = {
   readonly rpId: WebAuthnRpId;
   readonly signerSlot: number;
 };
-export type PublishMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
+type PublishMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
   | { readonly kind: 'registration_failed'; readonly message: string }
   | {
       readonly kind: 'published';
