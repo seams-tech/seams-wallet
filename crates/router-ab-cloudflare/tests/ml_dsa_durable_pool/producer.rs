@@ -83,6 +83,13 @@ pub(super) fn campaign(directory: &Path) -> serde_json::Value {
         tx(&producer, producer::next_work(&producer)).unwrap(),
         Work::Run(job) if job == second
     ));
+    // Duplicate old delivery cannot append the settled record before its lease expires.
+    tx(
+        &producer,
+        producer::enqueue(&producer, first.clone(), 1_014),
+    )
+    .unwrap();
+    assert_eq!(pending(&producer), vec![second.batch]);
     // A running job survives restart as recovery work and never runs a second time.
     drop(producer);
     producer = Db::open(&producer_path);
@@ -108,12 +115,6 @@ pub(super) fn campaign(directory: &Path) -> serde_json::Value {
     )
     .unwrap();
     tx(&producer, producer::remove_head(&producer, second.batch)).unwrap();
-    // Duplicate old delivery cannot append the settled record or start new work.
-    tx(
-        &producer,
-        producer::enqueue(&producer, first.clone(), 1_014),
-    )
-    .unwrap();
     assert!(pending(&producer).is_empty());
     assert!(matches!(
         tx(&producer, producer::next_work(&producer)).unwrap(),
@@ -130,7 +131,7 @@ pub(super) fn campaign(directory: &Path) -> serde_json::Value {
         "next_job": second,
         "running_restarts_as_recovery": true,
         "terminal_restarts_as_settlement": true,
-        "duplicate_delivery_keeps_queue_empty": true,
+        "duplicate_delivery_cannot_requeue_settled_job": true,
         "stale_settlement_preserves_new_lease": true,
         "out_of_order_removal_rejected": true,
         "final_pending": pending(&producer),
