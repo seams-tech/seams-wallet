@@ -3,6 +3,7 @@ mod adapter;
 mod engine;
 mod schedules;
 mod signing_stock;
+use super::commands::{registration_requests, RegistrationCommand as Command};
 use super::*;
 use crate::ml_dsa::registration as core;
 use ml_dsa_threshold::runtime::{
@@ -19,16 +20,7 @@ pub const PREPARE_PATH: &str = "/router-ab/ml-dsa/registration/prepare";
 pub const REGISTER_PATH: &str = "/router-ab/ml-dsa/register";
 pub const ROLE_PATH: &str = "/router-ab/ml-dsa/registration/role";
 const BINDING: &str = "ML_DSA_REGISTRATION_DO";
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
-enum Command {
-    Prepare { job: core::Job },
-    PreparePeer { job: core::Job },
-    Execute { claim: core::Claim },
-    ExecutePeer { claim: core::Claim },
-    Install { claim: core::Claim },
-    Result { claim: core::Claim },
-}
+
 impl Command {
     fn phase(&self) -> &'static str {
         match self {
@@ -97,14 +89,12 @@ fn runtime_error(_: impl std::fmt::Display) -> RouterAbProtocolError {
 async fn check(env: &Env, command: &Command) -> Result<()> {
     let command = match command {
         Command::Prepare { job } | Command::PreparePeer { job } => {
-            AdmissionCommand::CheckRegistrationJob { job: job.clone() }
+            admission_requests::check_registration_job(job.clone())
         }
         Command::Execute { claim }
         | Command::ExecutePeer { claim }
         | Command::Install { claim }
-        | Command::Result { claim } => AdmissionCommand::CheckRegistrationClaim {
-            claim: claim.clone(),
-        },
+        | Command::Result { claim } => admission_requests::check_registration_claim(claim.clone()),
     };
     let allowed: bool = service_call(env, CallAuthority::Internal, &command).await?;
     if allowed {
@@ -144,14 +134,15 @@ pub(crate) async fn handle_role(
         .map_err(protocol_error)?;
     stub.fetch_with_request(forwarded).await
 }
-async fn role_call<T: serde::de::DeserializeOwned>(
+async fn role_call<R, C: Codec<R>>(
     env: &Env,
     role: &str,
-    command: &Command,
-) -> Result<T> {
+    request: &Request<Command, R, C>,
+) -> Result<R> {
+    let command = request.wire();
     let call = wait_trace::call_id();
     command.dispatched(call);
-    let mut response = crate::router_coordinator::post_role_request(
+    let response = crate::router_coordinator::post_role_request(
         env,
         role,
         "https://ml-dsa.internal",
@@ -161,10 +152,10 @@ async fn role_call<T: serde::de::DeserializeOwned>(
         call,
     )
     .await?;
-    if response.status_code() != 200 {
+    if response.status_code() != C::STATUS {
         return Err(invalid("Registration participant refused the request"));
     }
-    response.json().await.map_err(storage_error)
+    C::read(response).await
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -201,15 +192,15 @@ async fn prepare_request(
         let status: core::queue::Status = service_call(
             env,
             CallAuthority::Gateway(request.headers()),
-            &AdmissionCommand::PrepareRegistration {
-                wallet: input.wallet.clone(),
-                schedule: schedules::DIGEST,
-                signing_schedule: signing_schedule_digest(env).map_err(protocol_error)?,
-                signing_batches: policy(env)
+            &admission_requests::prepare_registration(
+                input.wallet.clone(),
+                schedules::DIGEST,
+                signing_schedule_digest(env).map_err(protocol_error)?,
+                policy(env)
                     .map_err(protocol_error)?
                     .minimum_ready_batches()
                     .max(2),
-            },
+            ),
         )
         .await
         .map_err(protocol_error)?;
@@ -236,7 +227,12 @@ async fn prepare_request(
 }
 
 pub(super) async fn prepare_job(env: &Env, job: &core::Job) -> Result<bool> {
-    role_call(env, "DERIVER_A", &Command::Prepare { job: job.clone() }).await
+    role_call(
+        env,
+        "DERIVER_A",
+        &registration_requests::prepare(job.clone()),
+    )
+    .await
 }
 
 pub(super) async fn run_preparation_queue(
@@ -327,10 +323,7 @@ async fn register_request(
     let decision: core::Decision = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::ClaimRegistration {
-            request: input,
-            schedule: schedules::DIGEST,
-        },
+        &admission_requests::claim_registration(input, schedules::DIGEST),
     )
     .await
     .map_err(protocol_error)?;
@@ -364,12 +357,10 @@ async fn register_request(
     if started.status_code() != 200 {
         return Ok(started);
     }
-    let install = Command::Install {
-        claim: claim.clone(),
-    };
+    let install = registration_requests::install(claim.clone());
     let (a, b) = futures::join!(
-        role_call::<bool>(env, "DERIVER_A", &install),
-        role_call::<bool>(env, "DERIVER_B", &install)
+        role_call(env, "DERIVER_A", &install),
+        role_call(env, "DERIVER_B", &install)
     );
     trace.mark("installation_done");
     if !a.map_err(protocol_error)? || !b.map_err(protocol_error)? {
@@ -387,7 +378,7 @@ async fn register_request(
     let operation: core::Operation = service_call(
         env,
         CallAuthority::Gateway(request.headers()),
-        &AdmissionCommand::FinishRegistration { claim, result },
+        &admission_requests::finish_registration(claim, result),
     )
     .await
     .map_err(protocol_error)?;
@@ -403,10 +394,10 @@ pub struct RouterAbMlDsaRegistrationDurableObject {
 }
 impl RouterAbMlDsaRegistrationDurableObject {
     async fn install(&self, claim: &core::Claim) -> worker::Result<Response> {
-        let command = Command::Install {
-            claim: claim.clone(),
-        };
-        check(&self.env, &command).await.map_err(protocol_error)?;
+        let command = registration_requests::install(claim.clone());
+        check(&self.env, command.wire())
+            .await
+            .map_err(protocol_error)?;
         // Exact concurrent retries share one bounded delivery window.
         let _guard = self.installation_gate.lock().await;
         let trace = stage_trace::StageTrace::new(
@@ -425,7 +416,9 @@ impl RouterAbMlDsaRegistrationDurableObject {
             return Response::from_json(&true);
         }
         // The claim can expire while this request waits for the gate.
-        check(&self.env, &command).await.map_err(protocol_error)?;
+        check(&self.env, command.wire())
+            .await
+            .map_err(protocol_error)?;
         trace.mark("installation_checked");
         let record: material::Record = self
             .state
@@ -438,11 +431,20 @@ impl RouterAbMlDsaRegistrationDurableObject {
         }
         trace.mark("material_loaded");
         let key = record.activation.key.clone();
-        let response = local_call(&self.env, &RoleCommand::InstallMaterial { record }, None)
+        let response = match local_call(&self.env, &role_requests::install_material(record), None)
             .await
-            .map_err(protocol_error)?;
-        if response.status_code() != 200 {
-            return Ok(response);
+        {
+            Ok(response) => response,
+            Err(rpc::Failure::Refused { status }) => {
+                return Response::error("Registration material installation was refused", status);
+            }
+            Err(error) => return Err(protocol_error(error)),
+        };
+        if !response {
+            return Response::error(
+                "Registration material installation was not acknowledged",
+                503,
+            );
         }
         trace.mark("material_installed");
         signing_stock::install(&self.env, &self.state, claim, &key)
@@ -505,7 +507,9 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
             Command::Prepare { .. } | Command::PreparePeer { .. }
         ) {
             let guard = before_deadline(command.job().prepare_until, async {
-                Ok(super::preparation::compute_slot().lock_owned().await)
+                Ok::<_, RouterAbProtocolError>(
+                    super::preparation::compute_slot().lock_owned().await,
+                )
             })
             .await
             .map_err(protocol_error)?;
@@ -564,9 +568,7 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                         let peer: Option<core::RoleResult> = role_call(
                             &self.env,
                             "DERIVER_B",
-                            &Command::Result {
-                                claim: claim.clone(),
-                            },
+                            &registration_requests::result(claim.clone()),
                         )
                         .await
                         .map_err(protocol_error)?;
@@ -593,17 +595,18 @@ impl DurableObject for RouterAbMlDsaRegistrationDurableObject {
                     }
                 }
                 let peer = match &command {
-                    Command::Prepare { job } => Command::PreparePeer { job: job.clone() },
-                    Command::Execute { claim } => Command::ExecutePeer {
-                        claim: claim.clone(),
-                    },
+                    Command::Prepare { job } => registration_requests::prepare_peer(job.clone()),
+                    Command::Execute { claim } => {
+                        registration_requests::execute_peer(claim.clone())
+                    }
                     _ => return Response::error("Invalid registration command", 400),
                 };
                 let peer_call = wait_trace::call_id();
-                peer.dispatched(peer_call);
+                peer.wire().dispatched(peer_call);
                 let mut peer_request =
                     socket_request(&self.env, ROLE_PATH, &peer).map_err(protocol_error)?;
-                peer.stamp(&mut peer_request, peer_call)
+                peer.wire()
+                    .stamp(&mut peer_request, peer_call)
                     .map_err(protocol_error)?;
                 let service = self.env.service("DERIVER_B")?;
                 let response = wait_trace::observe(
@@ -684,9 +687,7 @@ async fn execute_with_storage_initialization(
     env: &Env,
     claim: &core::Claim,
 ) -> Result<core::ExecutionReply> {
-    let command = Command::Execute {
-        claim: claim.clone(),
-    };
+    let command = registration_requests::execute(claim.clone());
     let execution = before_deadline(claim.deadline, role_call(env, "DERIVER_A", &command));
     let initialization = before_deadline(claim.deadline, initialize_storage(env, claim));
     futures::pin_mut!(execution, initialization);
@@ -701,12 +702,10 @@ async fn execute_with_storage_initialization(
     }
 }
 async fn initialize_storage(env: &Env, claim: &core::Claim) -> Result<()> {
-    let command = RoleCommand::InitializeRegistrationStorage {
-        claim: claim.clone(),
-    };
+    let command = role_requests::initialize_registration_storage(claim.clone());
     let (a, b) = futures::join!(
-        coordinator::role_call::<bool>(env, "DERIVER_A", &command),
-        coordinator::role_call::<bool>(env, "DERIVER_B", &command),
+        rpc::role_call(env, "DERIVER_A", &command),
+        rpc::role_call(env, "DERIVER_B", &command),
     );
     if !a? || !b? {
         return Err(invalid("ML-DSA storage initialization was refused"));

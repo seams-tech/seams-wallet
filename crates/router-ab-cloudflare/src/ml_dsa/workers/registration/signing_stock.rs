@@ -221,12 +221,12 @@ pub(super) async fn install(
     let (version, _) = executor::wrapping_key(env)?;
     let mut ordinal = 0;
     while ordinal < claim.job.signing_batches {
-        let first = prepare_delivery(env, state, claim, key, participant, &version, ordinal);
+        let first = prepare_delivery(state, claim, key, participant, &version, ordinal);
         let (first, second) = if ordinal + 1 < claim.job.signing_batches {
             // Prepare at most the same two batches held by the original delivery window.
             futures::join!(
                 first,
-                prepare_delivery(env, state, claim, key, participant, &version, ordinal + 1)
+                prepare_delivery(state, claim, key, participant, &version, ordinal + 1)
             )
         } else {
             (first.await, Ok(StockPreparation::Installed))
@@ -291,14 +291,11 @@ async fn deliver_stock(
         .collect();
     let response = local_call(
         env,
-        &RoleCommand::InstallRegistrationStock {
-            claim: claim.clone(),
-            delivery,
-        },
+        &role_requests::install_registration_stock(claim.clone(), delivery),
         None,
     )
     .await?;
-    if response.status_code() != 200 {
+    if !response {
         return Err(invalid("Initial signing stock installation failed"));
     }
     for trace in traces {
@@ -320,7 +317,6 @@ async fn deliver_stock(
 }
 
 async fn prepare_delivery(
-    env: &Env,
     state: &State,
     claim: &core::Claim,
     key: &KeyScope,

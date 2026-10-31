@@ -6,6 +6,7 @@ pub mod failure;
 pub mod material;
 pub mod policy;
 pub mod pool;
+pub mod producer;
 pub mod refill;
 pub mod registration;
 pub mod registration_preparation;

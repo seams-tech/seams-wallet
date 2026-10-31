@@ -190,6 +190,34 @@ async fn enqueue(store: &impl Store, demand: Demand, trigger: Trigger) -> Result
         }
     }
 }
+/// Claim ready stock or record durable preparation demand under the same transaction.
+pub async fn claim_or_prepare(
+    store: &impl Store,
+    request: super::Request,
+    group: service_group::ServiceGroup,
+    configuration: Configuration,
+    now: u64,
+) -> Result<super::Decision> {
+    let wallet = request.wallet.clone();
+    let decision = super::claim(
+        store,
+        request,
+        configuration.schedule,
+        configuration.signing_schedule,
+        configuration.signing_batches,
+        now,
+    )
+    .await?;
+    match &decision {
+        super::Decision::Unavailable { .. } => {
+            self::request(store, wallet, group, configuration, now).await?;
+        }
+        super::Decision::Admitted { claim } => replenish(store, claim, now).await?,
+        super::Decision::Existing { .. } => {}
+    }
+    Ok(decision)
+}
+
 pub async fn request(
     store: &impl Store,
     wallet: WalletScope,

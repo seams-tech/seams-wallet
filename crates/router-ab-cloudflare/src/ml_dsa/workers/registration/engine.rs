@@ -185,10 +185,7 @@ pub(super) async fn connected(
             service_call(
                 env,
                 CallAuthority::Internal,
-                &AdmissionCommand::ReadyRegistration {
-                    job: job.clone(),
-                    role,
-                },
+                &admission_requests::ready_registration(job.clone(), role),
             ),
         )
         .await?;
