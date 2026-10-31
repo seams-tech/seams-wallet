@@ -1,21 +1,20 @@
 import type { WalletSessionCapabilityLaneReadiness } from '@/core/types/seams';
 import { signingKeyReadinessLabel } from './signingKeyReadiness';
 import type { AccountMenuButtonProps } from './types';
-import { resolveWalletRpId } from '@/SeamsWeb/walletIframe/shared/configuration';
 import type { NearSignerPreference } from '@/core/types/nearSigningKeys';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSeams } from '../../context';
 import { WalletText } from '../../context/WalletLocale';
-import { MinimalNearClient } from '@/core/rpcClients/near/NearClient';
-import { resolvePrimaryNearRpcUrl } from '@/core/config/chains';
 import {
   nearAccountRefFromAccountId,
   walletSessionRefFromSession,
-  toWalletId,
 } from '@/core/signingEngine/interfaces/ecdsaChainTarget';
 import type { AddedMlDsaSignerCapability } from '@/core/types/seams';
-import type { MlDsaSignerInventoryEntry } from '@shared/near/mlDsaInventory';
 import type { MlDsaNearEnrollmentOutcome } from '@/core/signingEngine/walletCustody/mlDsaEnrollment';
+import {
+  NearSigningKeysLifecycle,
+  type MlDsaSigningKeyRow as KeyRow,
+} from '@/SeamsWeb/operations/near/signingKeys';
 import { AccountMenuScreen } from './AccountMenuScreen';
 import { SigningKeyDetails } from './SigningKeyDetails';
 import './SigningKeysSection.css';
@@ -30,16 +29,6 @@ type Navigation = {
   readonly onNavigate: (screen: NearSigningKeysScreen) => void;
 };
 
-type KeyRow =
-  | {
-      readonly kind: 'published';
-      readonly signer: AddedMlDsaSignerCapability;
-      readonly enrollment: MlDsaNearEnrollmentOutcome;
-    }
-  | {
-      readonly kind: 'pending';
-      readonly entry: Exclude<MlDsaSignerInventoryEntry, { readonly kind: 'published' }>;
-    };
 type ViewState =
   | { readonly kind: 'loading' }
   | {
@@ -51,10 +40,8 @@ type ViewState =
   | { readonly kind: 'failed'; readonly message: string };
 type ExportHooks = Pick<AccountMenuButtonProps, 'onExportKeyError' | 'onExportKeyEvent'>;
 type Context = ExportHooks & {
-  readonly seams: ReturnType<typeof useSeams>['seams'];
-  readonly walletId: string;
   readonly nearAccountId: string;
-  readonly nearClient: MinimalNearClient;
+  readonly lifecycle: NearSigningKeysLifecycle;
   readonly live: { current: boolean };
   readonly busy: { current: boolean };
   readonly setState: React.Dispatch<React.SetStateAction<ViewState>>;
@@ -117,7 +104,7 @@ export function NearSigningKeysSection(
   );
 }
 function buildContext(
-  seams: Context['seams'],
+  seams: ReturnType<typeof useSeams>['seams'],
   walletId: string,
   nearAccountId: string,
   setState: Context['setState'],
@@ -125,15 +112,18 @@ function buildContext(
   onExportKeyEvent: ExportHooks['onExportKeyEvent'],
 ): Context {
   return {
-    seams,
-    walletId,
     nearAccountId,
     live: { current: true },
     busy: { current: false },
     setState,
     onExportKeyError,
     onExportKeyEvent,
-    nearClient: new MinimalNearClient(resolvePrimaryNearRpcUrl(seams.configs.network.chains)),
+    lifecycle: new NearSigningKeysLifecycle({
+      wallet: seams,
+      configs: seams.configs,
+      walletSession: walletSessionRefFromSession({ walletId }),
+      nearAccount: nearAccountRefFromAccountId(nearAccountId),
+    }),
   };
 }
 function stopMetadataRead(context: Context): void {
@@ -164,59 +154,31 @@ async function refreshKeys(context: Context): Promise<void> {
   }
 }
 async function readKeys(context: Context): Promise<void> {
-  const [inventory, preference] = await Promise.all([
-    context.seams.near.getMlDsaSigners({ walletSession: context.walletId }),
-    context.seams.near.getDefaultSigner({
-      walletSession: context.walletId,
-      nearAccount: context.nearAccountId,
-    }),
-  ]);
-  if (inventory.kind !== 'inventory') throw new Error(inventory.message);
-  const rows: KeyRow[] = [];
-  for (const entry of inventory.entries) {
-    if (entry.kind !== 'published') {
-      rows.push({ kind: 'pending', entry });
-      continue;
-    }
-    const signer: AddedMlDsaSignerCapability = {
-      kind: 'near_ml_dsa_65',
-      signingKeyId: entry.key.signingKeyId,
-      publicKeyB64u: entry.key.publicKeyB64u,
-      keyManifestDigestB64u: entry.key.keyManifestDigestB64u,
-      materialEpoch: entry.key.materialEpoch,
-    };
-    const { resumeMlDsaNearEnrollment } =
-      await import('@/core/signingEngine/walletCustody/mlDsaEnrollment');
-    const enrollment = await resumeMlDsaNearEnrollment({
-      nearClient: context.nearClient,
-      continuation: {
-        kind: 'awaiting_chain',
-        request: {
-          walletSession: walletSessionRefFromSession({ walletId: context.walletId }),
-          nearAccount: nearAccountRefFromAccountId(context.nearAccountId),
-          publication: { walletId: toWalletId(context.walletId), signer },
-        },
-      },
+  const result = await context.lifecycle.read();
+  if (result.kind === 'refused') throw new Error(result.failure.message);
+  if (context.live.current)
+    context.setState({
+      kind: 'ready',
+      rows: result.snapshot.rows,
+      preference: result.snapshot.preference,
     });
-    rows.push({ kind: 'published', signer, enrollment });
-  }
-  if (context.live.current) context.setState({ kind: 'ready', rows, preference });
 }
 async function addSigner(context: Context): Promise<void> {
   if (context.busy.current) return;
   context.busy.current = true;
   context.setState({ kind: 'working', message: 'Creating your signing key…' });
   try {
-    const { supportsMlDsaNearNetwork } =
-      await import('@/core/signingEngine/walletCustody/mlDsaEnrollment');
-    if (!(await supportsMlDsaNearNetwork(context.nearClient)))
-      throw new Error('This NEAR network does not support ML-DSA yet.');
-    const result = await context.seams.registration.addSigner({
-      walletId: toWalletId(context.walletId),
-      rpId: resolveWalletRpId(context.seams.configs),
-      signerSelection: { mode: 'ml_dsa_65', mlDsa: { signerSlot: 1, purpose: { kind: 'create' } } },
-    });
-    if (!result.success) throw new Error(result.error);
+    const result = await context.lifecycle.create();
+    switch (result.kind) {
+      case 'unsupported_network':
+        throw new Error('This NEAR network does not support ML-DSA yet.');
+      case 'registration_failed':
+        throw new Error(result.message);
+      case 'created':
+        break;
+      default:
+        return assertNever(result);
+    }
     await readKeys(context);
   } catch (error) {
     showFailure(context, error);
@@ -229,15 +191,7 @@ async function activateSigner(context: Context, signer: AddedMlDsaSignerCapabili
   context.busy.current = true;
   context.setState({ kind: 'working', message: 'Approve adding this signing key to NEAR…' });
   try {
-    const { enrollMlDsaNearSigner } =
-      await import('@/core/signingEngine/walletCustody/mlDsaEnrollment');
-    const outcome = await enrollMlDsaNearSigner({
-      near: context.seams.near,
-      nearClient: context.nearClient,
-      walletSession: walletSessionRefFromSession({ walletId: context.walletId }),
-      nearAccount: nearAccountRefFromAccountId(context.nearAccountId),
-      publication: { walletId: toWalletId(context.walletId), signer },
-    });
+    const outcome = await context.lifecycle.activate(signer);
     if (outcome.kind === 'refused')
       throw new Error(`Key activation is unavailable: ${outcome.reason}.`);
     await readKeys(context);
@@ -251,13 +205,7 @@ async function exportSigner(context: Context, signer: AddedMlDsaSignerCapability
   if (context.busy.current) return;
   context.busy.current = true;
   try {
-    await context.seams.keys.exportKey({
-      options: { onEvent: context.onExportKeyEvent },
-      kind: 'ml_dsa_65',
-      walletSession: context.walletId,
-      nearAccount: context.nearAccountId,
-      signer,
-    });
+    await context.lifecycle.exportMlDsa(signer, { onEvent: context.onExportKeyEvent });
   } catch (error) {
     context.onExportKeyError?.(error instanceof Error ? error : new Error(String(error)));
     showFailure(context, error);
@@ -411,11 +359,7 @@ async function setDefault(context: Context, preference: NearSignerPreference): P
   context.busy.current = true;
   context.setState({ kind: 'working', message: 'Saving your default signing key…' });
   try {
-    await context.seams.near.setDefaultSigner({
-      walletSession: context.walletId,
-      nearAccount: context.nearAccountId,
-      preference,
-    });
+    await context.lifecycle.setDefault(preference);
     await readKeys(context);
   } catch (error) {
     showFailure(context, error);
@@ -453,12 +397,7 @@ async function exportEd25519(context: Context): Promise<void> {
   if (context.busy.current) return;
   context.busy.current = true;
   try {
-    await context.seams.keys.exportKey({
-      options: { onEvent: context.onExportKeyEvent },
-      kind: 'ed25519',
-      walletSession: context.walletId,
-      nearAccount: context.nearAccountId,
-    });
+    await context.lifecycle.exportEd25519({ onEvent: context.onExportKeyEvent });
   } catch (error) {
     context.onExportKeyError?.(error instanceof Error ? error : new Error(String(error)));
     showFailure(context, error);

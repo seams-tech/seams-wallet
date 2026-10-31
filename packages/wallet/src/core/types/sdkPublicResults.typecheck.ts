@@ -1,3 +1,4 @@
+import type { NearSigningKeysRead, NearSigningKeyCreation } from '@/SeamsWeb/operations/near/signingKeys';
 import {
   nearEd25519SigningKeyIdFromString,
   walletIdFromString,
@@ -416,3 +417,15 @@ void incompleteMlDsaCause;
 // @ts-expect-error a broad spread cannot attach a failure cause to success.
 const successWithFailureCause: ActionResult = { ...actionSuccess, cause: { kind: 'unclassified' } };
 void successWithFailureCause;
+
+// @ts-expect-error a refused signing-key read cannot contain a ready snapshot.
+const mixedSigningKeyRead: NearSigningKeysRead = { kind: 'refused', failure: { kind: 'refused', code: 'unauthorized', message: 'Locked' }, snapshot: { rows: [], preference: { kind: 'ed25519' } } };
+void mixedSigningKeyRead;
+
+// @ts-expect-error failed creation requires its failure message.
+const missingKeyCreationFailure: NearSigningKeyCreation = { kind: 'registration_failed' };
+void missingKeyCreationFailure;
+
+// @ts-expect-error a creation result cannot gain failure fields through a spread.
+const successfulKeyCreationWithFailure: NearSigningKeyCreation = { ...{ kind: 'created' as const }, message: 'Failed' };
+void successfulKeyCreationWithFailure;

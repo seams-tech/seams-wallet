@@ -65,3 +65,6 @@ export { restoreMlDsaNearSigner } from './SeamsWeb/operations/registration/resto
 export type { RestoreMlDsaNearSignerOutcome } from './SeamsWeb/operations/registration/restoreMlDsaNearSigner';
 export { prepareMlDsaSignerInventory, fetchMlDsaSignerInventory } from './core/rpcClients/relayer/mlDsaInventory';
 export type { MlDsaInventoryPreparation, MlDsaInventoryPreparationOutcome, MlDsaSignerInventoryEntry, MlDsaSignerInventoryOutcome } from '@shared/near/mlDsaInventory';
+
+export { NearSigningKeysLifecycle } from './SeamsWeb/operations/near/signingKeys';
+export type { MlDsaSigningKeyRow, NearSigningKeysSnapshot, NearSigningKeysRead, NearSigningKeyCreation } from './SeamsWeb/operations/near/signingKeys';

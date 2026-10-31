@@ -22,15 +22,25 @@ export type AddMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
     }
 >;
 
-/** Publish a seed-derived signer, then enroll its exact key through ordinary NEAR approval. */
-export async function addMlDsaNearSigner(input: {
-  readonly wallet: Pick<SeamsWebPublicApi, 'registration' | 'near'>;
-  readonly nearClient: Pick<NearClient, 'viewAccessKeyList' | 'viewProtocolConfig'>;
+type PublicationInput = {
+  readonly wallet: Pick<SeamsWebPublicApi, 'registration'>;
   readonly walletSession: WalletSessionRef;
-  readonly nearAccount: NearAccountRef;
   readonly rpId: WebAuthnRpId;
   readonly signerSlot: number;
-}): Promise<AddMlDsaNearSignerOutcome> {
+};
+export type PublishMlDsaNearSignerOutcome = ReadonlyExclusiveUnion<
+  | { readonly kind: 'registration_failed'; readonly message: string }
+  | {
+      readonly kind: 'published';
+      readonly walletId: WalletId;
+      readonly signer: AddedMlDsaSignerCapability;
+    }
+>;
+
+/** Create one signer without submitting an on-chain activation. */
+export async function publishMlDsaNearSigner(
+  input: PublicationInput,
+): Promise<PublishMlDsaNearSignerOutcome> {
   const registered = await input.wallet.registration.addSigner({
     walletId: input.walletSession.walletId,
     rpId: input.rpId,
@@ -46,17 +56,29 @@ export async function addMlDsaNearSigner(input: {
     registered.capabilities[0].kind !== 'near_ml_dsa_65'
   )
     throw new Error('ML-DSA signer publication returned a different wallet or key family');
-  const signer = registered.capabilities[0];
+  return { kind: 'published', walletId: registered.walletId, signer: registered.capabilities[0] };
+}
+
+/** Publish a seed-derived signer, then enroll its exact key through ordinary NEAR approval. */
+export async function addMlDsaNearSigner(
+  input: PublicationInput & {
+    readonly wallet: Pick<SeamsWebPublicApi, 'registration' | 'near'>;
+    readonly nearClient: Pick<NearClient, 'viewAccessKeyList' | 'viewProtocolConfig'>;
+    readonly nearAccount: NearAccountRef;
+  },
+): Promise<AddMlDsaNearSignerOutcome> {
+  const publication = await publishMlDsaNearSigner(input);
+  if (publication.kind === 'registration_failed') return publication;
   return {
     kind: 'published',
-    walletId: registered.walletId,
-    signer,
+    walletId: publication.walletId,
+    signer: publication.signer,
     enrollment: await enrollMlDsaNearSigner({
       near: input.wallet.near,
       nearClient: input.nearClient,
       walletSession: input.walletSession,
       nearAccount: input.nearAccount,
-      publication: { walletId: registered.walletId, signer },
+      publication: { walletId: publication.walletId, signer: publication.signer },
     }),
   };
 }
