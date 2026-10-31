@@ -178,8 +178,8 @@ class OwnerNearTransaction implements OwnerNearOperation {
     return this.inFlight;
   }
 
-  private submitted(transactionId: string): void {
-    this.transition({ kind: 'submitting', recovery: this.command.recovery, transactionId });
+  private submitted(recovery: OwnerNearRecovery, transactionId: string): void {
+    this.transition({ kind: 'submitting', recovery, transactionId });
   }
 
   private async run(command: OwnerNearCommand): Promise<OwnerNearOutcome> {
@@ -188,7 +188,7 @@ class OwnerNearTransaction implements OwnerNearOperation {
       outcome = await this.execute(command, {
         signal:
           command.action === 'recover' ? new AbortController().signal : this.controller.signal,
-        onSubmission: this.submitted.bind(this),
+        onSubmission: this.submitted.bind(this, command.recovery),
       });
     } catch (error) {
       outcome = {

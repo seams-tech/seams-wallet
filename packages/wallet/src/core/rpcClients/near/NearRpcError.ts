@@ -57,7 +57,7 @@ export class NearRpcError extends Error {
   }
 
   static fromRpcError(operationName: string, err: JsonRpcErrorDetails): NearRpcError {
-    const details = err.data;
+    const details = err.data ?? err.cause;
     const { message, type, kind, index, short } = describeDetails(
       operationName,
       details,

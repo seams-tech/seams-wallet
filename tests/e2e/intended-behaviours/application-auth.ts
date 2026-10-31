@@ -32,6 +32,7 @@ class ApplicationBackend {
   pendingBroadcast: Route | null = null;
   revertNextBroadcast = false;
   statusUnavailable = false;
+  statusUnknown = false;
   pendingStatus: Route | null = null;
   statusFinality: 'EXECUTED' | 'FINAL' = 'FINAL';
   statusRequests = 0;
@@ -116,15 +117,31 @@ class ApplicationBackend {
       this.pendingBroadcast = route;
       return;
     }
-    if (request.method === 'EXPERIMENTAL_tx_status') {
+    if (request.method === 'tx') {
       this.statusRequests += 1;
+      const params = requireRecord(request.params, 'transaction status params');
+      expect(params.wait_until).toBe('NONE');
+      if (this.statusUnknown) {
+        await route.fulfill({
+          json: {
+            jsonrpc: '2.0',
+            id: request.id,
+            error: {
+              code: -32000,
+              name: 'HANDLER_ERROR',
+              message: 'Server error',
+              cause: { name: 'UNKNOWN_TRANSACTION', info: {} },
+            },
+          },
+        });
+        return;
+      }
       if (this.statusUnavailable) {
         this.pendingStatus = route;
         return;
       }
       const encoded = this.broadcasts.at(-1);
       if (!encoded) throw new Error('No transaction exists for recovery.');
-      const params = requireRecord(request.params, 'transaction status params');
       expect(params.tx_hash).toBe(nearTransactionHash(encoded));
       await fulfillOwnerTransactionOutcome(
         route,
@@ -452,13 +469,32 @@ export async function verifyApplicationAuth(
     );
     await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
     await context.unroute('**/wallet/external-auth/settings', unavailableOwnerSettings);
+    backend.statusUnknown = true;
+    const unknownRecovery = await page.evaluate(recoverApiOperation, blockingState.recovery);
+    expect(unknownRecovery).toMatchObject({
+      kind: 'unresolved',
+      recovery: blockingState.recovery,
+      transactionId: unresolvedHash,
+    });
+    expect(unknownRecovery.error).toContain('UNKNOWN_TRANSACTION');
+    await page.evaluate(prepareApiOperation);
+    expect(await page.evaluate(approveApiOnce)).toBe('unresolved');
+    expect((await page.evaluate(readApiState)).recovery).toEqual(blockingState.recovery);
+    expect(backend.broadcasts.length).toBe(broadcastsAfterLoss);
+    backend.statusUnknown = false;
     backend.statusUnavailable = true;
-    await page.getByRole('button', { name: 'Check existing transaction', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Owner transaction' })).toHaveAttribute(
-      'data-state',
-      'unresolved',
-      { timeout: 45_000 },
-    );
+    const pendingRecovery = page.evaluate(recoverCurrentApiOperation);
+    await expect.poll(page.evaluate.bind(page, readApiState)).toMatchObject({
+      kind: 'submitting',
+      recovery: blockingState.recovery,
+      transactionId: unresolvedHash,
+    });
+    const stalledRecovery = await pendingRecovery;
+    expect(stalledRecovery).toMatchObject({
+      kind: 'unresolved',
+      recovery: blockingState.recovery,
+      transactionId: unresolvedHash,
+    });
     await expect(page.getByText(`Transaction: ${unresolvedHash}`, { exact: true })).toBeVisible();
     backend.statusUnavailable = false;
     await backend.releaseLostStatus();
@@ -532,6 +568,8 @@ export async function verifyApplicationAuth(
         failedPreparationWrite,
         unavailableConnection,
         nonfinalRecovery,
+        unknownRecovery,
+        stalledRecovery,
       },
       freshSigningAdmissions: await freshSigningAdmissions(walletId),
       checks: [
@@ -545,6 +583,9 @@ export async function verifyApplicationAuth(
         'broadcast_timeout_retains_hash',
         'recovery_timeout_retains_hash',
         'nonfinal_recovery_stays_unresolved',
+        'unknown_transaction_remains_pending_without_rebroadcast',
+        'recovery_queries_current_status_without_waiting',
+        'blocked_handle_recovery_progress_retains_original_operation_identity',
         'pending_recovery_cannot_be_overwritten_by_preparation',
         'fresh_second_approval',
         'cancel_preserves_connection',

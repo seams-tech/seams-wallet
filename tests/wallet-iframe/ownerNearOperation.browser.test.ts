@@ -26,6 +26,8 @@ const TRANSACTION_ID = 'owner-recovery-browser-test-hash';
 const OWNER_SERVICE_SCRIPT = `
   let recoveryAttempts = 0;
   let approvalRequestId = null;
+  let firstRecoveryRequest = null;
+  let currentRecoveryRequest = null;
 
   function observeOwnerRequest(event) {
     const request = event.data;
@@ -39,16 +41,10 @@ const OWNER_SERVICE_SCRIPT = `
       return;
     }
     recoveryAttempts += 1;
+    currentRecoveryRequest = request;
+    if (recoveryAttempts === 1) firstRecoveryRequest = request;
     if (recoveryAttempts === 2) {
-      adoptedPort.postMessage({
-        type: 'PROGRESS',
-        requestId: request.requestId,
-        payload: {
-          event: 'owner_near_submitting',
-          operationId: request.payload.recovery.operationId,
-          transactionId: '${TRANSACTION_ID}',
-        },
-      });
+      postOwnerSubmission(request);
     }
     if (recoveryAttempts === 4) {
       postResult(request.requestId, {
@@ -56,6 +52,26 @@ const OWNER_SERVICE_SCRIPT = `
         transactionId: '${TRANSACTION_ID}',
         error: 'Confirmed test revert',
       });
+    }
+  }
+
+  function postOwnerSubmission(request) {
+    adoptedPort.postMessage({
+      type: 'PROGRESS',
+      requestId: request.requestId,
+      payload: {
+        event: 'owner_near_submitting',
+        operationId: request.payload.recovery.operationId,
+        transactionId: '${TRANSACTION_ID}',
+      },
+    });
+    const submissionCount = Number(document.body.dataset.submissionCount ?? '0');
+    document.body.dataset.submissionCount = String(submissionCount + 1);
+  }
+
+  function reportLateProgress(event) {
+    if (event.data?.type === 'TEST_LATE_PROGRESS' && currentRecoveryRequest) {
+      postOwnerSubmission(currentRecoveryRequest);
     }
   }
 
@@ -87,9 +103,17 @@ const OWNER_SERVICE_SCRIPT = `
     }
   }
 
+  function finishLateRecovery(event) {
+    if (event.data?.type === 'TEST_LATE_RECOVERY' && firstRecoveryRequest) {
+      postResult(firstRecoveryRequest.requestId, { kind: 'cancelled' });
+    }
+  }
+
   window.addEventListener('message', connectOwnerObserver);
   window.addEventListener('message', showOwnerApproval);
   window.addEventListener('message', finishOwnerApproval);
+  window.addEventListener('message', finishLateRecovery);
+  window.addEventListener('message', reportLateProgress);
 `;
 
 test(
@@ -146,9 +170,16 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   await expect(page.locator('dialog[data-seams-root]')).toHaveCSS('width', '420px');
   await page.clock.runFor(32);
   await expect(page.locator('dialog:modal')).toHaveCount(1);
+  await page.clock.fastForward(25_000);
+  expect(await page.evaluate(readRecoveryState)).toBe('unknown');
+  await page.clock.fastForward(5_000);
   const unavailable = await page.evaluate(readRequestOutcome, 'recover' as const);
   expect(unavailable).toMatchObject({ kind: 'recovery_unavailable', recovery });
   expect(unavailable.error).toContain('Wallet request timeout');
+  expect(await page.evaluate(readApprovalState)).toBe('approval');
+  await expect(page.locator('dialog:modal')).toHaveCount(1);
+  await wallet.locator('body').evaluate(finishLateRecovery);
+  await page.clock.runFor(32);
   expect(await page.evaluate(readApprovalState)).toBe('approval');
   await expect(page.locator('dialog:modal')).toHaveCount(1);
 
@@ -156,7 +187,11 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   await page.evaluate(startRecovery);
   await expect(wallet.locator('[data-action="recover"]')).toHaveCount(2);
   await expect.poll(page.evaluate.bind(page, readRecoveryState)).toBe('submitting');
-  await page.clock.fastForward(1_001);
+  await page.clock.fastForward(30_000);
+  await wallet.locator('body').evaluate(reportLateProgress);
+  await expect(wallet.locator('body')).toHaveAttribute('data-submission-count', '2');
+  await page.clock.runFor(32);
+  await page.clock.fastForward(5_001);
   const unresolved = await page.evaluate(readRequestOutcome, 'recover' as const);
   expect(unresolved).toMatchObject({ kind: 'unresolved', recovery, transactionId: TRANSACTION_ID });
   expect(unresolved.error).toContain('Wallet request timeout');
@@ -164,7 +199,7 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
   // A later timeout without progress must preserve the handle's known hash.
   await page.evaluate(startRecovery);
   await expect(wallet.locator('[data-action="recover"]')).toHaveCount(3);
-  await page.clock.fastForward(1_001);
+  await page.clock.fastForward(35_001);
   const retried = await page.evaluate(readRequestOutcome, 'recover' as const);
   expect(retried).toMatchObject({ kind: 'unresolved', recovery, transactionId: TRANSACTION_ID });
   expect(await page.evaluate(readApprovalState)).toBe('approval');
@@ -204,7 +239,7 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
       {
         status: 'passed',
         transport: 'built SDK and MessageChannel with a controlled wallet host',
-        clock: 'browser clock advances across the configured 1000 ms request timeout',
+        clock: 'browser clock advances across the fixed 35000 ms recovery deadline',
         recovery,
         preparing,
         unavailable,
@@ -217,6 +252,8 @@ async function verifyRecovery({ page }: { page: Page }, testInfo: TestInfo): Pro
           'recovery does not reserve the approval queue',
           'recovery bypasses an active approval',
           'recovery timeout does not close or expire an approval',
+          'late recovery replies cannot disturb a concurrent approval',
+          'late progress cannot extend recovery beyond its 35-second deadline',
           'operation identity and known hash survive timeouts and retries',
           'an empty application review does not block the page before content mounts',
         ],
@@ -331,6 +368,14 @@ function finishApproval(): void {
 
 function showApproval(): void {
   window.postMessage({ type: 'TEST_SHOW_APPROVAL' }, window.location.origin);
+}
+
+function finishLateRecovery(): void {
+  window.postMessage({ type: 'TEST_LATE_RECOVERY' }, window.location.origin);
+}
+
+function reportLateProgress(): void {
+  window.postMessage({ type: 'TEST_LATE_PROGRESS' }, window.location.origin);
 }
 
 function readDialogState() {

@@ -282,9 +282,11 @@ class HostedOwnerNearOperation {
       return receipt.outcome;
     }
     try {
+      this.onSubmission(receipt.transactionId);
       const result = await this.broadcastContext.nearClient.txStatus(
         receipt.transactionId,
         String(this.command.recovery.nearAccountId),
+        'NONE',
       );
       return await this.settleTransaction(receipt.transactionId, result, receipt.requestDigest);
     } catch (error) {

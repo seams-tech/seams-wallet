@@ -150,7 +150,7 @@ async function handleRpc(request, response) {
   if (call.method === 'block') result = { header: { hash: blockHash, height: 1 } };
   else if (call.method === 'query' && call.params.request_type === 'view_access_key') {
     result = { nonce: 1, permission: 'FullAccess', block_height: 1, block_hash: blockHash };
-  } else if (call.method === 'EXPERIMENTAL_tx_status' && settledTransactionHash) {
+  } else if (call.method === 'tx' && settledTransactionHash) {
     result = successfulOutcome(settledTransactionHash);
   } else {
     response.writeHead(503, { 'content-type': 'application/json' });

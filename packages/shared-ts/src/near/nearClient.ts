@@ -211,7 +211,11 @@ export interface NearClient<SignedTx = SignedTransaction> {
     signedTransaction: SignedTx,
     waitUntil?: TxExecutionStatus,
   ): Promise<DecodedNearFinalExecutionOutcome>;
-  txStatus(txHash: string, senderAccountId: string): Promise<DecodedNearFinalExecutionOutcome>;
+  txStatus(
+    txHash: string,
+    senderAccountId: string,
+    waitUntil?: TxExecutionStatus,
+  ): Promise<DecodedNearFinalExecutionOutcome>;
   query<T>(params: RpcQueryRequest, decodeResult: NearRpcResultDecoder<T>): Promise<T>;
   callFunction<A, T>(
     accountId: string,
@@ -492,13 +496,15 @@ export abstract class NearJsonRpcClient<
   async txStatus(
     txHash: string,
     senderAccountId: string,
+    waitUntil: TxExecutionStatus = 'EXECUTED_OPTIMISTIC',
   ): Promise<DecodedNearFinalExecutionOutcome> {
     const params = {
       tx_hash: txHash,
       sender_account_id: senderAccountId,
+      wait_until: waitUntil,
     };
     return this.makeRpcCall(
-      'EXPERIMENTAL_tx_status',
+      'tx',
       params,
       'Tx Status',
       decodeNearFinalExecutionOutcome,

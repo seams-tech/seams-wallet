@@ -16,10 +16,12 @@ type OwnerNearRequestPorts = {
     },
     options: {
       requestId: WalletIframeRequestId;
-      timeout: 'interactive' | 'deadline';
       shouldContinue: () => boolean;
       onDispatched: () => void;
-    },
+    } & ReadonlyExclusiveUnion<
+      | { timeout: 'interactive' }
+      | { timeout: 'deadline'; timeoutMs: number; progressTimeoutExtensionFactor: 1 }
+    >,
   ): Promise<{ result?: unknown }>;
 };
 
@@ -66,6 +68,26 @@ class OwnerNearRequest {
     void this.ports.cancelRequest(this.requestId).catch(ignoreCancellationFailure);
   }
 
+  requestOptions(): Parameters<OwnerNearRequestPorts['post']>[1] {
+    if (this.command.action === 'recover') {
+      return {
+        requestId: this.requestId,
+        timeout: 'deadline',
+        // Leave room for the host's 30-second RPC deadline and message delivery.
+        timeoutMs: 35_000,
+        progressTimeoutExtensionFactor: 1,
+        shouldContinue: this.current.bind(this),
+        onDispatched: this.dispatched.bind(this),
+      };
+    }
+    return {
+      requestId: this.requestId,
+      timeout: 'interactive',
+      shouldContinue: this.current.bind(this),
+      onDispatched: this.dispatched.bind(this),
+    };
+  }
+
   async run(): ReturnType<ExecuteOwnerNearOperation> {
     if (!this.current()) return { kind: 'cancelled' };
     const cancel = this.cancel.bind(this);
@@ -77,12 +99,7 @@ class OwnerNearRequest {
           payload: this.command,
           options: { onProgress: this.progress.bind(this) },
         },
-        {
-          requestId: this.requestId,
-          timeout: this.command.action === 'recover' ? 'deadline' : 'interactive',
-          shouldContinue: this.current.bind(this),
-          onDispatched: this.dispatched.bind(this),
-        },
+        this.requestOptions(),
       );
       return parseOwnerNearOutcome(response.result);
     } catch (error) {
