@@ -17,7 +17,10 @@ import { SigningEventPhase } from '@/core/types/sdkSentEvents';
 import { emitNearSigningEvent } from './shared/confirmationProgress';
 import { toActionArgsWasm, type TransactionInput } from '@/core/types/actions';
 import type { NearAccountRef, WalletSessionRef } from '../../interfaces/ecdsaChainTarget';
-import type { UiConfirmRequestConfirmationPort } from '../../uiConfirm/uiConfirm.types';
+import type {
+  UiConfirmContextPort,
+  UiConfirmRequestConfirmationPort,
+} from '../../uiConfirm/uiConfirm.types';
 import {
   prepareMlDsaTransactionApproval,
   authorizeMlDsaTransaction,
@@ -54,7 +57,7 @@ type Dependencies = {
   readonly configs: SeamsConfigsReadonly;
   readonly nearClient: NearClient;
   readonly nonceCoordinator: NonceCoordinator;
-  readonly confirm: UiConfirmRequestConfirmationPort;
+  readonly confirm: UiConfirmRequestConfirmationPort & UiConfirmContextPort;
   readonly emailOtpSessions: Pick<
     EmailOtpWalletSessionCoordinator,
     'requestTransactionSigningChallenge'
@@ -222,7 +225,14 @@ export async function signMlDsaNearTransaction(
         : { kind: 'none' as const };
     assertSigningNotCancelled(input.shouldAbort);
     const decision = await deps.confirm.requestUserConfirmation(
-      mlDsaConfirmationRequest(input, preparation, approval, transactionInput, authPrompt),
+      mlDsaConfirmationRequest(
+        input,
+        preparation,
+        approval,
+        transactionInput,
+        authPrompt,
+        deps.confirm.getContext().userPreferencesManager.getConfirmationConfig(),
+      ),
     );
     if (!decision.confirmed)
       throw new Error(decision.error || 'ML-DSA transaction approval was cancelled');

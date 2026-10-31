@@ -456,6 +456,13 @@ function confirmationUiModeForRequest(
     options && isObject(options.confirmationConfig) ? options.confirmationConfig : null;
   const configuredUiMode = optionConfig?.uiMode ?? rootConfig?.uiMode ?? fallbackUiMode;
   if (
+    (type === 'PM_SIGN_TX_WITH_ACTIONS' || type === 'PM_SIGN_AND_SEND_TX') &&
+    isObject(options?.mlDsaSigningSession) &&
+    configuredUiMode === 'none'
+  ) {
+    return fallbackUiMode === 'drawer' ? 'drawer' : 'modal';
+  }
+  if (
     configuredUiMode === 'none' ||
     configuredUiMode === 'drawer' ||
     configuredUiMode === 'modal'

@@ -101,7 +101,13 @@ export class IntendedMlDsaLifecycle {
             actions: [{ type: ActionType.Transfer, amount: '0' }],
           },
           options:
-            command.sessionPolicy === null ? {} : { mlDsaSigningSession: command.sessionPolicy },
+            command.sessionPolicy === null
+              ? {}
+              : {
+                  mlDsaSigningSession: command.sessionPolicy,
+                  confirmationConfig: { uiMode: 'none', behavior: 'skipClick', autoProceedDelay: 0 },
+                  confirmerText: { body: 'Application text cannot replace session consent.' },
+                },
         });
         this.lastSignedTransaction = result.signedTransaction;
         return {

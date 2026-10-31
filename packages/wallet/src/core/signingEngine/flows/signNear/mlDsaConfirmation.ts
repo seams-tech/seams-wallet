@@ -2,6 +2,8 @@ import type { MlDsaNearTransactionInput } from './mlDsaTransaction';
 import type { MlDsaSigningPreparation } from '@shared/near/mlDsaSigning';
 import type { MlDsaTransactionApproval } from '../../walletCustody/mlDsaSigningSessions';
 import type { TransactionInputWasm } from '@/core/types/actions';
+import type { ConfirmationConfig } from '@/core/types/signer-worker';
+import type { Variant } from '@shared/utils/variant';
 import {
   UserConfirmationType,
   type UserConfirmRequest,
@@ -18,6 +20,7 @@ export function mlDsaConfirmationRequest(
   authPrompt:
     | { readonly kind: 'none' }
     | { readonly kind: 'email_otp'; readonly prompt: EmailOtpConfirmPrompt },
+  preferences: ConfirmationConfig,
 ): UserConfirmRequest {
   const actor = approval.actor;
   const displayModel = buildNearDisplayModel({
@@ -93,15 +96,51 @@ export function mlDsaConfirmationRequest(
       };
     }
   }
+  let confirmationConfig = input.options.confirmationConfig;
+  let body = input.options.confirmerText?.body ?? 'Approve this transaction.';
+  switch (approval.kind) {
+    case 'fresh':
+    case 'session':
+      break;
+    case 'session_start': {
+      let uiMode = confirmationConfig?.uiMode ?? preferences.uiMode;
+      if (uiMode === 'none') uiMode = preferences.uiMode === 'drawer' ? 'drawer' : 'modal';
+      confirmationConfig = { uiMode, behavior: 'requireClick', autoProceedDelay: 0 };
+      body = sessionConsentBody(approval);
+      break;
+    }
+    default:
+      return assertNeverApproval(approval);
+  }
   return {
     type: UserConfirmationType.SIGN_INTENT_DIGEST,
     requestId: `ml-dsa:${preparation.request.operationIdB64u}`,
     intentDigest: approval.challengeB64u,
-    confirmationConfig: input.options.confirmationConfig,
+    confirmationConfig,
     summary: {
       title: input.options.confirmerText?.title ?? 'Sign NEAR transaction',
-      body: input.options.confirmerText?.body ?? 'Approve this transaction.',
+      body,
     },
     payload,
   };
+}
+
+function sessionConsentBody(
+  approval: Variant<MlDsaTransactionApproval, 'kind', 'session_start'>,
+): string {
+  const session = approval.session;
+  const seconds = Math.ceil(
+    Math.max(session.policy.durationMs, session.expiresAtMs - Date.now()) / 1000,
+  );
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  let duration = `${minutes}m`;
+  if (remainder > 0) duration += ` ${remainder}s`;
+  let operations = `${session.policy.maxOperations} operations`;
+  if (session.policy.maxOperations === 1) operations = '1 operation';
+  return `Signing session: up to ${operations}, including this transaction · ${duration} maximum.`;
+}
+
+function assertNeverApproval(approval: never): never {
+  throw new Error(`Unsupported ML-DSA approval: ${String(approval)}`);
 }
