@@ -17,6 +17,9 @@ export function createD1EmailOtpRouteService(
   assembly: D1EmailOtpRouteServiceAssembly,
 ): RouterApiServiceBag['emailOtp'] {
   return {
+    prepareEmailOtpOwnerProof: assembly.emailOtpChallengeService.prepareEmailOtpOwnerProof.bind(
+      assembly.emailOtpChallengeService,
+    ),
     applyEmailOtpServerSeal: assembly.emailOtpServerSeal.applyEmailOtpServerSeal.bind(
       assembly.emailOtpServerSeal,
     ),

@@ -325,6 +325,19 @@ export class CloudflareD1WebAuthnAuthService {
   async verifyWebAuthnAuthenticationLite(
     input: VerifyWebAuthnAuthenticationLiteInput,
   ): Promise<VerifyWebAuthnAuthenticationLiteResult> {
+    const prepared = await this.prepareWebAuthnAuthenticationLite(input);
+    if (!prepared.success) return prepared;
+    try {
+      await this.webAuthnStore.commitAuthentication(prepared.consumeInBatch);
+      return { success: true, verified: true };
+    } catch (error) {
+      return { success: false, verified: false, code: 'internal', message: errorMessage(error) };
+    }
+  }
+
+  async prepareWebAuthnAuthenticationLite(
+    input: VerifyWebAuthnAuthenticationLiteInput,
+  ): ReturnType<RouterApiWebAuthnService['prepareWebAuthnAuthenticationLite']> {
     try {
       const userId = parseD1BoundaryWalletIdResult(input.userId);
       const rpId = parseWebAuthnRpId(input.rpId);
@@ -485,15 +498,24 @@ export class CloudflareD1WebAuthnAuthService {
       }
       const authenticationInfo = parseJsonObject(verificationRecord.authenticationInfo);
       const newCounter = nonNegativeSafeInteger(authenticationInfo?.newCounter);
-      if (newCounter !== null) {
-        await this.webAuthnStore.updateAuthenticatorCounter({
+      if (newCounter === null) {
+        return {
+          success: false,
+          verified: false,
+          code: 'internal',
+          message: 'Verifier omitted the authenticator counter',
+        };
+      }
+      return {
+        success: true,
+        verified: true,
+        consumeInBatch: this.webAuthnStore.prepareAuthenticatorConsumption({
           userId: userId.value,
-          credentialIdB64u: credentialId.credentialIdB64u,
+          authenticator,
           newCounter,
           updatedAtMs: Date.now(),
-        });
-      }
-      return { success: true, verified: true };
+        }),
+      };
     } catch (error: unknown) {
       return {
         success: false,

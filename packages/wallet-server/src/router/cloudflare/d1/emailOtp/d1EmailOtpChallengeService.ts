@@ -66,6 +66,7 @@ export class CloudflareD1EmailOtpChallengeService {
   private readonly issuer: CloudflareD1EmailOtpChallengeIssuer;
   private readonly registrationAttempts: GoogleEmailOtpRegistrationAttemptStore;
   private readonly verifier: CloudflareD1EmailOtpChallengeVerifier;
+  readonly prepareEmailOtpOwnerProof: RouterApiEmailOtpRouteService['prepareEmailOtpOwnerProof'];
 
   constructor(input: {
     readonly challenges: CloudflareD1EmailOtpChallengeStore;
@@ -85,6 +86,7 @@ export class CloudflareD1EmailOtpChallengeService {
     this.issuer = input.issuer;
     this.registrationAttempts = input.registrationAttempts;
     this.verifier = input.verifier;
+    this.prepareEmailOtpOwnerProof = prepareEmailOtpOwnerProof.bind(null, input.verifier);
   }
 
   async createEmailOtpChallenge(
@@ -391,4 +393,29 @@ export class CloudflareD1EmailOtpChallengeService {
     proofEmail = attempt.email.toLowerCase();
     return { ok: true, email: proofEmail };
   }
+}
+
+export async function prepareEmailOtpOwnerProof(
+  verifier: CloudflareD1EmailOtpChallengeVerifier,
+  input: VerifyEmailOtpChallengeInput,
+): ReturnType<RouterApiEmailOtpRouteService['prepareEmailOtpOwnerProof']> {
+  const verified = await verifier.verifyExistingForBatch({
+    userId: input.userId,
+    walletId: input.walletId,
+    orgId: input.orgId,
+    challengeId: input.challengeId,
+    otpCode: input.otpCode,
+    otpChannel: input.otpChannel,
+    ownerProofBindingDigest: input.ownerProofBindingDigest,
+    clientIp: input.clientIp,
+    action: WALLET_EMAIL_OTP_ACTIONS.login,
+    operation: parseEmailOtpLoginOperation(input.operation),
+  });
+  if (!verified.ok) return verified;
+  return {
+    ok: true,
+    challengeId: verified.challengeId,
+    expiresAtMs: verified.expiresAtMs,
+    consumeInBatch: verified.consumeInBatch,
+  };
 }

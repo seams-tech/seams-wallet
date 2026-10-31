@@ -1,5 +1,6 @@
 import {
   readWalletOperationEvidence,
+  prepareWalletOperationEvidence,
   prepareWalletOperationCompletion,
 } from './walletOperationPersistence';
 import {
@@ -1103,57 +1104,18 @@ export class CloudflareD1AuthorizationStore
   }
 
   async putVerifiedEvidenceSet(evidenceSet: VerifiedAuthorizationEvidenceSet): Promise<void> {
-    const result = await this.database
-      .prepare(
-        `INSERT OR IGNORE INTO verified_wallet_operation_evidence_sets (
-          org_id, project_id, env_id,
-          namespace,
-          tenant_id,
-          evidence_set_id,
-          principal_id,
-          wallet_id,
-          authority_digest,
-          request_origin,
-          audience,
-          evidence_set_digest,
-          evidence_json,
-          capability_kind,
-          operation_kind,
-          lane_digest,
-          intent_digest,
-          display_digest,
-          assurance,
-          verified_at_ms,
-          expires_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        this.walletSignerScope.orgId,
-        this.walletSignerScope.projectId,
-        this.walletSignerScope.envId,
-        this.namespace,
-        evidenceSet.tenantId,
-        evidenceSet.evidenceSetId,
-        evidenceSet.principalId,
-        evidenceSet.walletId,
-        evidenceSet.authorityRef.authorityDigest,
-        evidenceSet.requestOrigin,
-        evidenceSet.audience,
-        evidenceSet.evidenceSetDigest,
-        JSON.stringify(evidenceSet.evidence),
-        evidenceSet.operation.capabilityKind,
-        evidenceSet.operation.operationKind,
-        evidenceSet.laneDigest,
-        evidenceSet.intentDigest,
-        evidenceSet.displayDigest,
-        evidenceSet.assurance,
-        requirePositiveInteger(evidenceSet.verifiedAtMs, 'evidenceSet.verifiedAtMs'),
-        requirePositiveInteger(evidenceSet.expiresAtMs, 'evidenceSet.expiresAtMs'),
-      )
-      .run();
-    if (d1ChangedRows(result) > 1) {
-      throw new Error('verified wallet operation evidence set changed more than one row');
-    }
+    await prepareWalletOperationEvidence(this.database, this.walletSignerScope, evidenceSet).run();
+  }
+
+  async commitWalletOperationEvidence(input: {
+    readonly evidenceSet: VerifiedAuthorizationEvidenceSet;
+    readonly consumeInBatch: readonly D1PreparedStatementLike[];
+  }): Promise<void> {
+    await this.database.batch([
+      ...input.consumeInBatch,
+      prepareWalletOperationEvidence(this.database, this.walletSignerScope, input.evidenceSet),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ]);
   }
 
   async consumeVerifiedOwnerProof(

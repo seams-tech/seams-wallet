@@ -1,3 +1,4 @@
+import { D1_BATCH_CAS_GUARD_SQL } from '../../../../storage/d1Sql';
 import type { WebAuthnSyncChallengeStore } from '../../../../core/WebAuthnSyncChallengeStore';
 import {
   reservePasskeyCredential,
@@ -268,6 +269,41 @@ export class CloudflareD1WebAuthnStore {
         input.newCounter,
       )
       .run();
+  }
+
+  // Pin the key and counter that were verified, including counters that always remain zero.
+  prepareAuthenticatorConsumption(input: {
+    readonly userId: string;
+    readonly authenticator: WebAuthnAuthenticatorRecord;
+    readonly newCounter: number;
+    readonly updatedAtMs: number;
+  }): readonly D1PreparedStatementLike[] {
+    return [
+      this.database
+        .prepare(
+          `UPDATE webauthn_authenticators SET counter = ?, updated_at_ms = ?
+         WHERE namespace = ? AND org_id = ? AND project_id = ? AND env_id = ?
+           AND user_id = ? AND credential_id_b64u = ?
+           AND credential_public_key_b64u = ? AND counter = ?`,
+        )
+        .bind(
+          input.newCounter,
+          input.updatedAtMs,
+          this.scope.namespace,
+          this.scope.orgId,
+          this.scope.projectId,
+          this.scope.envId,
+          input.userId,
+          input.authenticator.credentialIdB64u,
+          input.authenticator.credentialPublicKeyB64u,
+          input.authenticator.counter,
+        ),
+      this.database.prepare(D1_BATCH_CAS_GUARD_SQL),
+    ];
+  }
+
+  async commitAuthentication(statements: readonly D1PreparedStatementLike[]): Promise<void> {
+    await this.database.batch([...statements]);
   }
 
   async readBindingByCredential(input: {

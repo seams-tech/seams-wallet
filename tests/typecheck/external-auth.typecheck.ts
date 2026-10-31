@@ -86,3 +86,22 @@ const replayFields = { operation: replay.operation };
 // @ts-expect-error Direct construction must carry prepared statements.
 const missingStatements: typeof commit.admission = { kind: 'prepared', ...replayFields };
 void [replayedCommit, rejectedAdmission, missingStatements];
+
+import type { PreparedWebAuthnAuthentication } from '../../packages/wallet-server/src/router/framework/authServicePort';
+declare const preparedProof: Extract<PreparedWebAuthnAuthentication, { success: true }>;
+// @ts-expect-error Verified proofs require a prepared consumption transaction.
+const proofWithoutConsumption: PreparedWebAuthnAuthentication = { success: true, verified: true };
+// @ts-expect-error Failure cannot retain consumption statements through a spread.
+const failedPreparedProof: PreparedWebAuthnAuthentication = {
+  ...preparedProof,
+  success: false,
+  verified: false,
+  code: 'invalid_assertion',
+  message: 'Invalid proof',
+};
+// @ts-expect-error A direct cast cannot convert a verified proof into a rejected proof.
+const castRejectedProof = preparedProof as Extract<
+  PreparedWebAuthnAuthentication,
+  { success: false }
+>;
+void [proofWithoutConsumption, failedPreparedProof, castRejectedProof];

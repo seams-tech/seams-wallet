@@ -79,6 +79,7 @@ export type EmailOtpExistingChallengeVerifyResult =
 export type EmailOtpExistingChallengeBatchVerifyResult =
   | (Extract<EmailOtpExistingChallengeVerifyResult, { ok: true }> & {
       readonly consumeInBatch: readonly D1PreparedStatementLike[];
+      readonly expiresAtMs: number;
     })
   | Extract<EmailOtpExistingChallengeVerifyResult, { ok: false }>;
 
@@ -242,7 +243,7 @@ export class CloudflareD1EmailOtpChallengeVerifier {
   ): Promise<EmailOtpExistingChallengeVerifyResult> {
     const verified = await this.verifyExistingChallenge(input, 'now');
     if (!verified.ok) return verified;
-    const { consumeInBatch: _consumed, ...result } = verified;
+    const { consumeInBatch: _consumed, expiresAtMs: _expiresAtMs, ...result } = verified;
     return result;
   }
 
@@ -365,6 +366,7 @@ export class CloudflareD1EmailOtpChallengeVerifier {
       return {
         ok: true,
         consumeInBatch,
+        expiresAtMs: record.expiresAtMs,
         challengeId: record.challengeId,
         userId,
         walletId,

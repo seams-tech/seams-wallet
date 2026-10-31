@@ -2061,6 +2061,10 @@ function createD1WebAuthnRouteService(
       assembly.webAuthnAuthService.listWebAuthnAuthenticatorsForUser.bind(
         assembly.webAuthnAuthService,
       ),
+    prepareWebAuthnAuthenticationLite:
+      assembly.webAuthnAuthService.prepareWebAuthnAuthenticationLite.bind(
+        assembly.webAuthnAuthService,
+      ),
     verifyWebAuthnAuthenticationLite:
       assembly.webAuthnAuthService.verifyWebAuthnAuthenticationLite.bind(
         assembly.webAuthnAuthService,

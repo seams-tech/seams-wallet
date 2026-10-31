@@ -1,3 +1,5 @@
+import type { WalletOperationEvidenceLookup } from '../../../authorization/service';
+import type { D1PreparedStatementLike } from '../../../storage/tenantRoute';
 import {
   buildVaultOperationRef,
   parseAuthFactorId,
@@ -30,7 +32,6 @@ import { alphabetizeStringify } from '@shared/utils/digests';
 import {
   parseEmailOtpChallengeId,
   parseOrgId,
-  parseProviderSubject,
   parseWalletId,
   parseWebAuthnCredentialIdB64u,
   type WalletId,
@@ -56,10 +57,7 @@ import {
   type VerifiedWalletOperationFactorResult,
 } from '../../../authorization/factorEvidence';
 import { parseWebAuthnAuthenticationCredential } from '../../auth/webAuthnCredentialCodecs';
-import {
-  emailOtpStatusCode,
-  hashEmailOtpOperationBinding,
-} from '../../domains/emailOtp/emailOtpSessionRouteHelpers';
+import { hashEmailOtpOperationBinding } from '../../domains/emailOtp/emailOtpSessionRouteHelpers';
 import { toFetchRouteResponse } from '../../framework/routeResponses';
 import type { FetchRouterApiContext } from './fetchRouter.types';
 import {
@@ -195,6 +193,9 @@ export async function prepareWalletOwnerOperation(
 
   let principalId: string;
   let factor: VerifiedWalletOperationFactorResult;
+  let persistence:
+    | { readonly kind: 'recorded' }
+    | { readonly kind: 'prepared'; readonly consumeInBatch: readonly D1PreparedStatementLike[] };
   let ownerAuthorityRef: WalletAuthAuthorityRef;
   let ownerAuthority: ActiveWalletAuthorityV1;
   let operation: Awaited<ReturnType<typeof buildCapabilityOperationEnvelope>>;
@@ -232,6 +233,7 @@ export async function prepareWalletOwnerOperation(
     parseAuthorizationEvidenceSetId(`wallet-custody:evidence-set:${operation.operationId}`),
     'authorization',
   );
+  const evidenceLookup = { tenantId: operation.tenantId, evidenceSetId };
   const recorded =
     input.operation === 'external_identity_associate' ||
     input.operation === 'external_identity_unlink'
@@ -283,20 +285,25 @@ export async function prepareWalletOwnerOperation(
       return toCustodyAuthorizationFailure(401, 'unauthorized', 'passkey credential changed');
     }
     if (!recorded) {
-      const verified = await input.ctx.service.webAuthn.verifyWebAuthnAuthenticationLite({
+      const verified = await input.ctx.service.webAuthn.prepareWebAuthnAuthenticationLite({
         userId: input.walletId,
         rpId: authority.verifier.rpId,
         expectedChallenge: challengeDigest,
         expected_origin: requestOrigin,
         webauthn_authentication: credential,
       });
-      if (!verified.success || !verified.verified) {
+      if (!verified.success) {
+        const retry = await retryRecordedWalletOwnerOperation(input, evidenceLookup);
+        if (retry) return retry;
         return toCustodyAuthorizationFailure(
           401,
           verified.code || 'not_verified',
           verified.message || 'WebAuthn authentication verification failed',
         );
       }
+      persistence = { kind: 'prepared', consumeInBatch: verified.consumeInBatch };
+    } else {
+      persistence = { kind: 'recorded' };
     }
     ownerAuthorityRef = await walletAuthAuthorityRef({ authority: active.authority });
     factor = buildVerifiedWalletOperationPasskeyFactorResult({
@@ -320,10 +327,6 @@ export async function prepareWalletOwnerOperation(
       expiresAtMs: recorded?.expiresAtMs ?? nowMs + CUSTODY_PROOF_TTL_MS,
     });
   } else {
-    const providerSubject = requireParsed(
-      parseProviderSubject(proof.provider_subject_id),
-      'authorization',
-    );
     const orgId = requireParsed(
       parseOrgId(input.ctx.service.authorizedOperations.tenantId),
       'authorization',
@@ -350,7 +353,7 @@ export async function prepareWalletOwnerOperation(
     let challengeId = proof.challenge_id;
     let expiresAtMs = recorded?.expiresAtMs ?? nowMs + CUSTODY_PROOF_TTL_MS;
     if (!recorded) {
-      const verified = await input.ctx.service.emailOtp.verifyEmailOtpChallenge({
+      const verified = await input.ctx.service.emailOtp.prepareEmailOtpOwnerProof({
         userId: proof.provider_subject_id,
         walletId: input.walletId,
         orgId,
@@ -361,31 +364,19 @@ export async function prepareWalletOwnerOperation(
         operation: WALLET_EMAIL_OTP_UNLOCK_OPERATION,
       });
       if (!verified.ok) {
+        const retry = await retryRecordedWalletOwnerOperation(input, evidenceLookup);
+        if (retry) return retry;
         return toCustodyAuthorizationFailure(
           verified.code === 'invalid_body' ? 400 : 401,
           verified.code,
           verified.message,
         );
       }
-      const consumed = await input.ctx.service.emailOtp.consumeEmailOtpGrant({
-        subject: {
-          kind: 'provider_identity',
-          orgId,
-          providerSubject,
-          walletId,
-        },
-        loginGrant: verified.loginGrant,
-        otpChannel: EMAIL_OTP_CHANNEL,
-      });
-      if (!consumed.ok) {
-        return toCustodyAuthorizationFailure(
-          emailOtpStatusCode(consumed.code),
-          consumed.code,
-          consumed.message,
-        );
-      }
-      challengeId = consumed.challengeId;
-      expiresAtMs = Math.min(nowMs + CUSTODY_PROOF_TTL_MS, verified.grantExpiresAtMs);
+      persistence = { kind: 'prepared', consumeInBatch: verified.consumeInBatch };
+      challengeId = verified.challengeId;
+      expiresAtMs = Math.min(nowMs + CUSTODY_PROOF_TTL_MS, verified.expiresAtMs);
+    } else {
+      persistence = { kind: 'recorded' };
     }
     factor = buildVerifiedWalletOperationEmailOtpFactorResult({
       tenantId: operation.tenantId,
@@ -452,11 +443,19 @@ export async function prepareWalletOwnerOperation(
     evidenceSetId,
     factor,
   };
-  const evidenceSet = recorded
-    ? await buildVerifiedWalletOperationFactorEvidenceSet(evidenceInput)
-    : await input.ctx.service.authorizedOperations.recordVerifiedWalletOperationFactorEvidenceSet(
-        evidenceInput,
-      );
+  const evidenceSet = await buildVerifiedWalletOperationFactorEvidenceSet(evidenceInput);
+  if (persistence.kind === 'prepared') {
+    try {
+      await input.ctx.service.authorizedOperations.commitWalletOperationEvidence({
+        evidenceSet,
+        consumeInBatch: persistence.consumeInBatch,
+      });
+    } catch (error) {
+      const retry = await retryRecordedWalletOwnerOperation(input, evidenceLookup);
+      if (retry) return retry;
+      throw error;
+    }
+  }
   if (recorded) {
     if (
       recorded.evidenceSetDigest !== evidenceSet.evidenceSetDigest ||
@@ -487,6 +486,21 @@ export async function prepareWalletOwnerOperation(
   };
 }
 
+// A competing request can consume the factor after our evidence read, or lose its commit response.
+// Retrying through the recorded path checks the proof digest, authority, and original deadline.
+async function retryRecordedWalletOwnerOperation(
+  input: WalletOwnerOperationRequest,
+  lookup: WalletOperationEvidenceLookup,
+): Promise<PreparedWalletOwnerAuthorization | null> {
+  if (
+    input.operation !== 'external_identity_associate' &&
+    input.operation !== 'external_identity_unlink'
+  )
+    return null;
+  const recorded = await input.ctx.service.authorizedOperations.readWalletOperationEvidence(lookup);
+  return recorded ? prepareWalletOwnerOperation(input) : null;
+}
+
 export async function authorizeWalletOwnerOperation(
   input: WalletOwnerOperationRequest,
 ): Promise<WalletOwnerAuthorizationResult> {
@@ -502,7 +516,11 @@ export async function authorizeWalletOwnerOperation(
     case 'operation_in_progress':
       return { ok: false, response: authorizedOperationReplay(admission.operation) };
     case 'billing_credit_exhausted':
-      return toCustodyAuthorizationFailure(402, 'billing_credit_exhausted', 'The application has no available signing credit');
+      return toCustodyAuthorizationFailure(
+        402,
+        'billing_credit_exhausted',
+        'The application has no available signing credit',
+      );
     case 'authorization_grant_rejected':
     case 'verified_step_up_rejected':
     case 'wallet_session_quota_exhausted':

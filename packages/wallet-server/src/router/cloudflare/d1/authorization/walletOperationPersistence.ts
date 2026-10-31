@@ -1,3 +1,4 @@
+import type { VerifiedAuthorizationEvidenceSet } from '../../../../authorization/domain';
 import { parseDigestB64u } from '@shared/utils/canonicalPrimitives';
 import { parseUnixMs } from '@shared/passkey-custody/primitives';
 import {
@@ -76,5 +77,59 @@ export async function prepareWalletOperationCompletion(
       input.operation.tenantId,
       input.operation.authorizedOperationId,
       input.operation.operationFingerprintDigest,
+    );
+}
+
+export function prepareWalletOperationEvidence(
+  database: D1DatabaseLike,
+  scope: D1TenantScope,
+  evidenceSet: VerifiedAuthorizationEvidenceSet,
+): D1PreparedStatementLike {
+  return database
+    .prepare(
+      `INSERT OR IGNORE INTO verified_wallet_operation_evidence_sets (
+          org_id, project_id, env_id,
+          namespace,
+          tenant_id,
+          evidence_set_id,
+          principal_id,
+          wallet_id,
+          authority_digest,
+          request_origin,
+          audience,
+          evidence_set_digest,
+          evidence_json,
+          capability_kind,
+          operation_kind,
+          lane_digest,
+          intent_digest,
+          display_digest,
+          assurance,
+          verified_at_ms,
+          expires_at_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      scope.orgId,
+      scope.projectId,
+      scope.envId,
+      scope.namespace,
+      evidenceSet.tenantId,
+      evidenceSet.evidenceSetId,
+      evidenceSet.principalId,
+      evidenceSet.walletId,
+      evidenceSet.authorityRef.authorityDigest,
+      evidenceSet.requestOrigin,
+      evidenceSet.audience,
+      evidenceSet.evidenceSetDigest,
+      JSON.stringify(evidenceSet.evidence),
+      evidenceSet.operation.capabilityKind,
+      evidenceSet.operation.operationKind,
+      evidenceSet.laneDigest,
+      evidenceSet.intentDigest,
+      evidenceSet.displayDigest,
+      evidenceSet.assurance,
+      parseUnixMs(evidenceSet.verifiedAtMs, 'evidenceSet.verifiedAtMs'),
+      parseUnixMs(evidenceSet.expiresAtMs, 'evidenceSet.expiresAtMs'),
     );
 }

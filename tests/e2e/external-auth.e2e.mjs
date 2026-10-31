@@ -29,11 +29,27 @@ class InterruptedOwnerWrites {
 
   async batch(statements) {
     const consumption = statements.findIndex(this.isConsumption.bind(this));
-    const failure = consumption < 0 ? null : this.failure;
+    const evidence = statements.findIndex(this.isEvidence.bind(this));
+    const isEvidenceFailure = [
+      'before_evidence_batch',
+      'after_factor_consumption',
+      'after_evidence_commit',
+    ].includes(this.failure);
+    let failure = null;
+    if (isEvidenceFailure && evidence >= 0) failure = this.failure;
+    if (!isEvidenceFailure && consumption >= 0) failure = this.failure;
     if (failure) this.failure = null;
     const batch = statements.map(unwrapStatement);
-    if (failure === 'after_consumption' || failure === 'after_mutation') {
-      const position = failure === 'after_consumption' ? consumption + 1 : batch.length - 2;
+    if (failure === 'before_evidence_batch')
+      throw new Error('Injected outage before evidence batch');
+    if (
+      failure === 'after_consumption' ||
+      failure === 'after_mutation' ||
+      failure === 'after_factor_consumption'
+    ) {
+      let position = batch.length - 2;
+      if (failure === 'after_consumption') position = consumption + 1;
+      if (failure === 'after_factor_consumption') position = evidence;
       batch.splice(
         position,
         0,
@@ -43,10 +59,18 @@ class InterruptedOwnerWrites {
       );
     }
     const results = await this.database.batch(batch);
-    if (failure === 'after_commit') {
+    if (failure === 'after_commit' || failure === 'after_evidence_commit') {
       throw new Error('Injected loss of committed D1 response');
     }
     return results;
+  }
+
+  isEvidence(statement) {
+    return (
+      this.statements
+        .get(statement)
+        ?.includes('INSERT OR IGNORE INTO verified_wallet_operation_evidence_sets') === true
+    );
   }
 
   isConsumption(statement) {
@@ -83,6 +107,25 @@ function unwrapStatement(statement) {
   return statement instanceof TrackedStatement ? statement.statement : statement;
 }
 
+class PausedOwnerVerification {
+  entered = Promise.withResolvers();
+  release = Promise.withResolvers();
+  paused = false;
+
+  constructor(verify) {
+    this.verify = verify;
+  }
+
+  async run(input) {
+    if (!this.paused) {
+      this.paused = true;
+      this.entered.resolve();
+      await this.release.promise;
+    }
+    return this.verify(input);
+  }
+}
+
 const output = resolve('.artifacts/external-auth');
 await mkdir(output, { recursive: true });
 const bundle = await build({
@@ -95,6 +138,18 @@ const bundle = await build({
     resolveDir: process.cwd(),
     loader: 'ts',
     contents: `
+    export { prepareEmailOtpOwnerProof } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeService';
+    export { CloudflareD1EmailOtpChallengeVerifier } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeVerifier';
+    export { CloudflareD1EmailOtpChallengeStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpChallengeStore';
+    export { CloudflareD1EmailOtpEnrollmentStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpEnrollmentStore';
+    export { CloudflareD1EmailOtpRateLimitStore } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRateLimitStore';
+    export { prepareD1TenantStatement } from './packages/wallet-server/src/core/d1TenantStore';
+    export { emailOtpChallengeRecord } from './packages/wallet-server/src/router/cloudflare/d1/emailOtp/d1EmailOtpRecords';
+    export { hashEmailOtpOperationBinding } from './packages/wallet-server/src/router/domains/emailOtp/emailOtpSessionRouteHelpers';
+    export { walletAuthAuthorityRef } from './packages/shared-ts/src/utils/walletAuthAuthority';
+    export { EMAIL_OTP_CHANNEL, WALLET_EMAIL_OTP_ACTIONS, WALLET_EMAIL_OTP_UNLOCK_OPERATION } from './packages/shared-ts/src/utils/emailOtpDomain';
+    export { buildEmailOtpEcdsaWalletSessionFixture } from './tests/unit/helpers/linkedDeviceManagement.fixtures';
+    export { buildEmailOtpEnrollmentFixture } from './tests/unit/helpers/emailOtpAuthMethod.fixtures';
     export { createApplicationAuthAssertion } from './packages/wallet-server/src/auth/applicationAuth';
     export { CloudflareD1WebAuthnAuthService } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnAuthService';
     export { CloudflareD1WebAuthnStore } from './packages/wallet-server/src/router/cloudflare/d1/webauthn/d1WebAuthnStore';
@@ -247,7 +302,7 @@ try {
   });
   const walletId = fixture.authority.walletId;
   const store = new api.CloudflareD1AuthorizationStore({
-    database,
+    database: faultedDatabase,
     namespace: scope.namespace,
     walletSignerScope: scope,
   });
@@ -275,7 +330,7 @@ try {
       new api.D1WalletStore({ database, ...scope, ensureSchema: false }),
       new api.D1WalletAuthMethodStore({ database, ...scope, ensureSchema: false }),
     ),
-    authorizedOperations: ownerOperationService(authorization, fixture.issuedSession.session.tenantId),
+    authorizedOperations: ownerOperationService(authorization, store, fixture.issuedSession.session.tenantId),
     walletAuthMethods: { resolveActivePasskeyAuthorityForVerifiedCredential: factors.resolvePasskey.bind(factors) },
     webAuthn,
     authorizationSessions: {
@@ -295,6 +350,7 @@ try {
     `Association returned ${associated.status}:${associated.body.code}`,
   );
   await verifyOwnerWriteRecovery(walletId, fixture);
+  await verifyEmailOtpOwnerWriteRecovery();
   const before = await database
     .prepare('SELECT authority_digest_b64u FROM wallet_authorities')
     .all();
@@ -353,7 +409,7 @@ try {
     { walletId, attemptId: prepared.value.attemptId, proof: { kind: 'google', idToken: token } },
     { credential: 'sk_external_test' },
   );
-  assert.equal(handoff.body.ok, true);
+  assert.equal(handoff.body.ok, true, JSON.stringify(handoff));
   const redeemed = await page.evaluate(authenticateHandoff, {
     walletId,
     attemptId: prepared.value.attemptId,
@@ -671,6 +727,7 @@ async function request(action, body, options = {}) {
       Origin: serverState.origin,
       Authorization: `Bearer ${options.credential || 'pk_external_test'}`,
       'x-seams-environment-id': options.environment || scope.envId,
+      ...(options.sourceIp ? { 'cf-connecting-ip': options.sourceIp } : {}),
     },
     body: JSON.stringify({ appOrigin: serverState.origin, ...body }),
   });
@@ -897,7 +954,7 @@ async function verifyApplicationHandoff(page, walletId, authority) {
   const handoff = await request('backend-exchange', {
     walletId, attemptId: prepared.value.attemptId, proof: { kind: 'application', assertion },
   }, { credential: 'sk_external_test' });
-  assert.equal(handoff.body.ok, true);
+  assert.equal(handoff.body.ok, true, JSON.stringify(handoff));
   assert.equal((await request('backend-exchange', {
     walletId, attemptId: prepared.value.attemptId, proof: { kind: 'application', assertion },
   }, { credential: 'sk_external_test' })).body.ok, false);
@@ -998,9 +1055,10 @@ async function completeIdentityAction(action, binding, owner) {
   return result;
 }
 
-function ownerOperationService(authorization, tenantId) {
+function ownerOperationService(authorization, store, tenantId) {
   return {
     tenantId,
+    commitWalletOperationEvidence: store.commitWalletOperationEvidence.bind(store),
     buildVerifiedOwnerProof: authorization.buildVerifiedOwnerProof.bind(authorization),
     readAuthorizedOperation: authorization.readAuthorizedOperation.bind(authorization),
     readAuthorizedOperationById: authorization.readAuthorizedOperationById.bind(authorization),
@@ -1014,7 +1072,15 @@ function ownerOperationService(authorization, tenantId) {
 }
 
 async function verifyOwnerWriteRecovery(walletId, owner) {
-  for (const failure of ['after_consumption', 'after_mutation', 'after_commit']) {
+  for (const failure of [
+    'before_evidence_batch',
+    'after_factor_consumption',
+    'after_evidence_commit',
+    'overlapping_verification',
+    'after_consumption',
+    'after_mutation',
+    'after_commit',
+  ]) {
     const subject = `interrupted-${failure}`;
     const binding = ownerAttemptSecrets(walletId);
     const prepared = await request('prepare-association', binding);
@@ -1067,6 +1133,21 @@ async function verifyOwnerWriteRecovery(walletId, owner) {
 }
 
 async function verifyInterruptedIdentityAction(action, body, failure) {
+  if (failure === 'overlapping_verification') {
+    await verifyOverlappingOwnerVerification(
+      action,
+      body,
+      serverState.service.webAuthn,
+      'prepareWebAuthnAuthenticationLite',
+      request,
+    );
+    faultedDatabase.cases.push(`${action}_${failure}`);
+    return;
+  }
+  const authenticatorBefore = await authenticatorStore.readAuthenticator({
+    userId: body.walletId,
+    credentialIdB64u: body.factorProof.credentialIdB64u,
+  });
   const before = await database
     .prepare(
       'SELECT association_id, authority_id, authority_epoch, status FROM external_auth_associations ORDER BY association_id',
@@ -1079,7 +1160,7 @@ async function verifyInterruptedIdentityAction(action, body, failure) {
     null,
     'The injection must reach the production commit batch',
   );
-  if (failure === 'after_commit') {
+  if (failure === 'after_commit' || failure === 'after_evidence_commit') {
     assert.equal(interrupted.body.ok, true, JSON.stringify(interrupted));
   } else {
     assert.equal(interrupted.status, 503, JSON.stringify(interrupted));
@@ -1094,13 +1175,26 @@ async function verifyInterruptedIdentityAction(action, body, failure) {
       )
       .all();
     assert.deepEqual(after.results, before.results, 'Every association write must roll back');
+    const evidenceRolledBack =
+      failure === 'before_evidence_batch' || failure === 'after_factor_consumption';
+    if (evidenceRolledBack) {
+      const authenticatorAfter = await authenticatorStore.readAuthenticator({
+        userId: body.walletId,
+        credentialIdB64u: body.factorProof.credentialIdB64u,
+      });
+      assert.equal(
+        authenticatorAfter.counter,
+        authenticatorBefore.counter,
+        'Failed evidence persistence must leave the passkey proof reusable',
+      );
+    }
     const forged = structuredClone(body);
     forged.factorProof.webauthn_authentication.response.signature =
       Buffer.alloc(64).toString('base64url');
     assert.equal(
       (await request(action, forged)).status,
-      403,
-      'Recorded evidence cannot authorize a different proof',
+      evidenceRolledBack ? 401 : 403,
+      'Neither fresh verification nor recorded evidence can authorize a different proof',
     );
   }
   const results = await Promise.all([request(action, body), request(action, body)]);
@@ -1218,4 +1312,227 @@ function prepareBrowserAssociation(walletId) {
 
 function associateBrowserHandoff(input) {
   return window.wallet.associate({ method: 'handoff', ...input });
+}
+
+async function resolveEmailOwner(fixture, input) {
+  if (
+    input.walletId !== fixture.authority.walletId ||
+    input.providerUserId !== fixture.exactFactorAuthority.factor.providerUserId
+  ) {
+    return { ok: false, code: 'access_denied', message: 'Wrong Email OTP owner' };
+  }
+  return {
+    ok: true,
+    authority: fixture.exactFactorAuthority,
+    authMethod: fixture.authMethod,
+    walletAuthority: fixture.authority,
+  };
+}
+
+async function verifyEmailOtpOwnerWriteRecovery() {
+  const providerUserId = 'byo-email-owner';
+  const email = 'byo-owner@example.test';
+  const fixture = await api.buildEmailOtpEcdsaWalletSessionFixture({
+    label: 'byo-email-recovery',
+    providerUserId,
+    emailHashHex: createHash('sha256').update(email).digest('hex'),
+    expiresAtMs: Date.now() + 3_600_000,
+  });
+  const walletId = fixture.authority.walletId;
+  await seedExecutionGeneration({ api, database, scope, walletId });
+  await database.batch([
+    api.prepareD1WalletAuthorityPutStatement({ database, scope, authority: fixture.authority }),
+    api.prepareD1WalletAuthMethodV2PutStatement({ database, scope, record: fixture.authMethod }),
+  ]);
+  const prepare = api.prepareD1TenantStatement.bind(null, database, scope);
+  const enrollments = new api.CloudflareD1EmailOtpEnrollmentStore({ prepare });
+  await enrollments.putEnrollment(
+    api.buildEmailOtpEnrollmentFixture({
+      walletId,
+      orgId: scope.orgId,
+      providerUserId,
+      email,
+      nowMs: Date.now(),
+    }),
+  );
+  const challenges = new api.CloudflareD1EmailOtpChallengeStore({ database, ...scope });
+  const policy = { limit: 100, windowMs: 60_000 };
+  const rateLimits = new api.CloudflareD1EmailOtpRateLimitStore({
+    database,
+    prepare,
+    batch: database.batch.bind(database),
+    rateLimits: {
+      challenge: policy,
+      verify: policy,
+      grant: policy,
+      googleRegistrationAttempt: policy,
+    },
+  });
+  const verifier = new api.CloudflareD1EmailOtpChallengeVerifier({
+    emailOtpChallenges: challenges,
+    emailOtpEnrollments: enrollments,
+    emailOtpRateLimits: rateLimits,
+    lockoutTtlMs: 60_000,
+  });
+  serverState.service.emailOtp = {
+    prepareEmailOtpOwnerProof: api.prepareEmailOtpOwnerProof.bind(null, verifier),
+  };
+  serverState.service.walletAuthMethods.resolveActiveEmailOtpAuthorityForVerifiedSubject =
+    resolveEmailOwner.bind(null, fixture);
+  for (const failure of [
+    'before_evidence_batch',
+    'after_factor_consumption',
+    'after_evidence_commit',
+    'overlapping_verification',
+  ]) {
+    const binding = ownerAttemptSecrets(walletId);
+    const prepared = await requestEmailOtpOwner('prepare-association', binding);
+    assert.equal(prepared.body.ok, true);
+    const exchanged = await requestEmailOtpOwner('exchange', {
+      walletId,
+      attemptId: prepared.body.value.attemptId,
+      idToken: googleToken({ sub: `email-owner-${failure}` }),
+    });
+    assert.equal(exchanged.body.ok, true);
+    await verifyEmailOtpActionRecovery(
+      'associate',
+      {
+        ...binding,
+        attemptId: prepared.body.value.attemptId,
+        code: exchanged.body.value.code,
+      },
+      fixture,
+      challenges,
+      failure,
+    );
+    const association = await database
+      .prepare(
+        "SELECT association_id FROM external_auth_associations WHERE wallet_id = ? AND status = 'active'",
+      )
+      .bind(walletId)
+      .first();
+    assert.ok(association);
+    const unlinkBinding = ownerAttemptSecrets(walletId);
+    const unlink = await requestEmailOtpOwner('prepare-unlink', {
+      ...unlinkBinding,
+      associationId: association.association_id,
+    });
+    assert.equal(unlink.body.ok, true);
+    await verifyEmailOtpActionRecovery(
+      'unlink',
+      {
+        ...unlinkBinding,
+        attemptId: unlink.body.value.attemptId,
+        code: unlink.body.value.code,
+      },
+      fixture,
+      challenges,
+      failure,
+    );
+    const removed = await database
+      .prepare('SELECT status FROM external_auth_associations WHERE association_id = ?')
+      .bind(association.association_id)
+      .first();
+    assert.equal(removed.status, 'revoked');
+  }
+}
+
+async function verifyEmailOtpActionRecovery(action, binding, fixture, challenges, failure) {
+  const challenge = await requestEmailOtpOwner('owner-challenge', binding);
+  assert.equal(challenge.body.ok, true);
+  const providerUserId = fixture.exactFactorAuthority.factor.providerUserId;
+  const authorityRef = await api.walletAuthAuthorityRef({
+    authority: fixture.exactFactorAuthority,
+  });
+  const ownerProofBindingDigest = await api.hashEmailOtpOperationBinding({
+    walletId: binding.walletId,
+    providerUserId,
+    orgId: scope.orgId,
+    operation: `wallet_custody:external_identity_${action === 'associate' ? 'associate' : 'unlink'}`,
+    requestOrigin: serverState.origin,
+    audience: serverState.origin,
+    authorityRef,
+    operationFingerprintDigest: challenge.body.value.challengeB64u,
+  });
+  const otp = api.emailOtpChallengeRecord({
+    challengeId: crypto.randomUUID(),
+    challengeSubjectId: providerUserId,
+    walletId: binding.walletId,
+    orgId: scope.orgId,
+    email: 'byo-owner@example.test',
+    otpCode: '123456',
+    ownerProofBindingDigest,
+    action: api.WALLET_EMAIL_OTP_ACTIONS.login,
+    operation: api.WALLET_EMAIL_OTP_UNLOCK_OPERATION,
+    createdAtMs: Date.now(),
+    expiresAtMs: Date.now() + 60_000,
+    maxAttempts: 5,
+  });
+  await challenges.put(otp);
+  const body = {
+    ...binding,
+    factorProof: {
+      kind: 'email_otp',
+      provider_subject_id: providerUserId,
+      challenge_id: otp.challengeId,
+      otp_code: otp.otpCode,
+      challenge_digest: challenge.body.value.challengeB64u,
+    },
+  };
+  if (failure === 'overlapping_verification') {
+    await verifyOverlappingOwnerVerification(
+      action,
+      body,
+      serverState.service.emailOtp,
+      'prepareEmailOtpOwnerProof',
+      requestEmailOtpOwner,
+    );
+    assert.equal(await challenges.read(otp.challengeId), null);
+    faultedDatabase.cases.push(`email_otp_${action}_${failure}`);
+    return;
+  }
+  faultedDatabase.failure = failure;
+  const first = await requestEmailOtpOwner(action, body);
+  assert.equal(faultedDatabase.failure, null, JSON.stringify(first));
+  if (failure === 'after_evidence_commit') {
+    assert.deepEqual(first.body, { ok: true, value: null });
+  } else {
+    assert.equal(first.status, 503, JSON.stringify(first));
+    assert.ok(await challenges.read(otp.challengeId), 'Rollback must preserve the OTP challenge');
+    const wrong = structuredClone(body);
+    wrong.factorProof.otp_code = '000000';
+    assert.equal((await requestEmailOtpOwner(action, wrong)).status, 401);
+  }
+  const retried = await Promise.all([
+    requestEmailOtpOwner(action, body),
+    requestEmailOtpOwner(action, body),
+  ]);
+  for (const result of retried) assert.deepEqual(result.body, { ok: true, value: null });
+  assert.equal(
+    await challenges.read(otp.challengeId),
+    null,
+    'Successful commit consumes the OTP exactly once',
+  );
+  faultedDatabase.cases.push(`email_otp_${action}_${failure}`);
+}
+
+async function verifyOverlappingOwnerVerification(action, body, service, method, send) {
+  const original = service[method];
+  const gate = new PausedOwnerVerification(original.bind(service));
+  service[method] = gate.run.bind(gate);
+  try {
+    const delayed = send(action, body);
+    await gate.entered.promise;
+    const completed = await send(action, body);
+    assert.deepEqual(completed.body, { ok: true, value: null });
+    gate.release.resolve();
+    assert.deepEqual((await delayed).body, completed.body);
+  } finally {
+    gate.release.resolve();
+    service[method] = original;
+  }
+}
+
+function requestEmailOtpOwner(action, body) {
+  return request(action, body, { sourceIp: '192.0.2.42' });
 }

@@ -1331,7 +1331,11 @@ export interface RouterApiWalletAuthMethodService {
     readonly walletId: string;
     readonly providerUserId: string;
   }): Promise<
-    | { readonly ok: true; readonly authority: EmailOtpWalletAuthAuthority; readonly walletAuthority: ActiveWalletAuthorityV1 }
+    | {
+        readonly ok: true;
+        readonly authority: EmailOtpWalletAuthAuthority;
+        readonly walletAuthority: ActiveWalletAuthorityV1;
+      }
     | { readonly ok: false; readonly code: string; readonly message: string }
   >;
   /** The exact active Email OTP authority a caller names, for operations that
@@ -1488,6 +1492,17 @@ export interface RouterApiWalletUnlockService {
 }
 
 export interface RouterApiEmailOtpRouteService extends RouterApiEmailOtpChallengeService {
+  prepareEmailOtpOwnerProof(
+    input: RouterApiMethodTypes['verifyEmailOtpChallenge']['input'],
+  ): Promise<
+    | {
+        readonly ok: true;
+        readonly challengeId: string;
+        readonly expiresAtMs: number;
+        readonly consumeInBatch: readonly import('../../storage/tenantRoute').D1PreparedStatementLike[];
+      }
+    | { readonly ok: false; readonly code: string; readonly message: string }
+  >;
   applyEmailOtpServerSeal(
     input: RouterApiMethodTypes['applyEmailOtpServerSeal']['input'],
   ): Promise<RouterApiMethodTypes['applyEmailOtpServerSeal']['result']>;
@@ -1558,7 +1573,26 @@ export interface RouterApiIdentityService {
   ): Promise<RouterApiMethodTypes['verifyGithubOAuthCode']['result']>;
 }
 
+export type PreparedWebAuthnAuthentication =
+  | {
+      readonly success: true;
+      readonly verified: true;
+      readonly code?: never;
+      readonly message?: never;
+      readonly consumeInBatch: readonly import('../../storage/tenantRoute').D1PreparedStatementLike[];
+    }
+  | {
+      readonly success: false;
+      readonly verified: false;
+      readonly consumeInBatch?: never;
+      readonly code: string;
+      readonly message: string;
+    };
+
 export interface RouterApiWebAuthnService {
+  prepareWebAuthnAuthenticationLite(
+    input: RouterApiMethodTypes['verifyWebAuthnAuthenticationLite']['input'],
+  ): Promise<PreparedWebAuthnAuthentication>;
   createWebAuthnLoginOptions(
     input: RouterApiMethodTypes['createWebAuthnLoginOptions']['input'],
   ): Promise<RouterApiMethodTypes['createWebAuthnLoginOptions']['result']>;
@@ -1658,6 +1692,10 @@ export interface RouterApiAuthorizedOperationService {
     readonly operation: AuthorizedOperation;
     readonly walletId: WalletId;
   }): Promise<import('../../authorization/ecdsaWalletSessionAdmission').PinnedOwnerWalletScope>;
+  commitWalletOperationEvidence(input: {
+    readonly evidenceSet: VerifiedAuthorizationEvidenceSet;
+    readonly consumeInBatch: readonly import('../../storage/tenantRoute').D1PreparedStatementLike[];
+  }): Promise<void>;
   buildVerifiedOwnerProof(input: VerifiedOwnerProofInput): Promise<VerifiedOwnerProof>;
   recordVerifiedWalletOperationFactorEvidenceSet(
     input: VerifiedWalletOperationFactorEvidenceSetInput,

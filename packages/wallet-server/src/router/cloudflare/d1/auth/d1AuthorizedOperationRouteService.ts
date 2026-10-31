@@ -42,6 +42,9 @@ export function createD1AuthorizedOperationRouteService(
     readPinnedOwnerWalletScope: assembly.authorizationStore.readPinnedOwnerWalletScope.bind(
       assembly.authorizationStore,
     ),
+    commitWalletOperationEvidence: assembly.authorizationStore.commitWalletOperationEvidence.bind(
+      assembly.authorizationStore,
+    ),
     buildVerifiedOwnerProof: assembly.authorizationService.buildVerifiedOwnerProof.bind(
       assembly.authorizationService,
     ),
