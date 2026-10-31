@@ -145,3 +145,40 @@ The [evidence index](../evidence/ml-dsa-65-production-profile-20261031.json) rec
 No cloud resources change in this campaign. The two new local test storage-key files are removed after the archive scan.
 The earlier eight temporary Workers still await explicit deletion approval after automatic review rejected their cleanup.
 Their deployment/upload approval remains separate from deletion authorization.
+
+## Public matrix follow-up after the dev rebase
+
+A second bounded screen uses production control `b4a3ab99fa7202e44007c2943fee61694753a5e4` after rebasing onto `dev` at `b38d3fcb0`.
+The production cryptographic sources match the preceding profile.
+
+The temporary candidate precomputes the three fixed word rotations in the public matrix generator's AES round.
+Each table entry equals the original word rotated by eight times its table index.
+Input positions, key XOR, little-endian packing, block order, and the generator recurrence remain unchanged.
+No private AES call is redirected, and no unsafe code is added.
+The declared table payload grows from one to four KiB. Final Worker bundle growth is unmeasured.
+
+Both exact Wasm artifacts pass all 463 complete Block/byte comparison cases.
+Each screen uses twenty alternating control/candidate timing pairs after warmup.
+
+| Encoder screen | Control median | Candidate median | Change |
+| --- | ---: | ---: | ---: |
+| First | 51.641 ms | 51.437 ms | 0.394% lower |
+| Repeat | 51.435 ms | 51.496 ms | 0.118% higher |
+
+Both miss the unchanged ten-percent gate. The result shows no consistent isolated encoder gain.
+The candidate is discarded without entering production Workers or a hosted test.
+The [evidence index](../evidence/ml-dsa-65-public-round-20261031.json) and [portable archive](../evidence/ml-dsa-65-public-round-20261031.tar.gz) preserve both compiled artifacts and raw samples.
+Run `python3 public-round/replay.py` after extraction to reproduce output comparisons, hashes, original medians, and the gate decision.
+
+The raw field `production_source_sha256` identifies the unchanged `ex_conv.rs` entry file.
+The changed `public_round.rs` hash appears explicitly in the source record and module-hash map.
+Independent review confirms equivalence, provenance, all comparisons, both medians, and the failed gate.
+
+The dev rebase also exposes a notice-generator coverage gap for optional ML-DSA builds.
+The generator now includes the Worker and browser ML-DSA feature graphs.
+Regeneration covers all 231 registry dependencies in the ML-DSA Worker graph, including the twenty-two previously missing records.
+Wallet and server type-checks pass. The inherited Rust bloat-check excess remains unchanged.
+
+Private AES remains the largest measured local cost.
+Further source rewrites need a distinct compiled-code or algorithmic opportunity with complete Worker validation.
+Larger active/idle wallet groups and complete SDK wait measurements remain the next capacity qualifications.

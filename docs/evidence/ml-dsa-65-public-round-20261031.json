@@ -1,0 +1,60 @@
+{
+  "archive": {
+    "name": "ml-dsa-65-public-round-20261031.tar.gz",
+    "sha256": "f781186761362943e71b069999605ef81effcd4ef17d752673c383c363e2274a",
+    "bytes": 146085,
+    "member_files": 48
+  },
+  "source": {
+    "baseline_revision": "b4a3ab99fa7202e44007c2943fee61694753a5e4",
+    "baseline_public_round_sha256": "bbfe04aa42aef1afb9a044274be0df014703c043c55ef6b2c6ef1f1e7de430e1",
+    "candidate_public_round_sha256": "76a9d928695ed483819968e5d2c681b2263ded90436e358dbd0436e859d222a4",
+    "candidate_source_sha256": {
+      "benches/bench.rs": "624cb9b72d510b5bc861c7878821f1b6647cc65a0af2b183bb1b89c9e645006e",
+      "src/ex_conv/expander.rs": "7534c3d3d5011f551ff15c75217078d59ddba55e32ac55f00f7b140b76b0ba89",
+      "src/ex_conv/expander_modd.rs": "b3abfa1119ab50619f2c8015f406b854e036c711cac4da42a2616e4ef1f550c5",
+      "src/ex_conv/fast_aes_rng/public_round.rs": "76a9d928695ed483819968e5d2c681b2263ded90436e358dbd0436e859d222a4",
+      "src/ex_conv/fast_aes_rng.rs": "0de3566501dda33f401946d07e2a627d6f674d5d1b447e3041a093c6fe80cebc",
+      "src/ex_conv.rs": "df02aeaf55de84b8cf4322d98ed448aa1444e8417a1fb625e223e7ebe342c17b",
+      "src/lib.rs": "2cbeac4cd661f53117ee495fa9871147748f441c8bc905082f69f6c96e86e635"
+    },
+    "scope": "Temporary public-only rotated AES tables. No new unsafe code, protocol parameter, private AES change, or production source change.",
+    "static_table_bytes": {
+      "baseline": 1024,
+      "candidate": 4096
+    }
+  },
+  "screens": {
+    "first": {
+      "checks": 463,
+      "medians_ms": [
+        51.64083299999993,
+        51.43729200000007
+      ],
+      "wasm_sha256": "4ac292c409b46ecf38dd59948bcd32b1c201b6c84c0f85d1b7cf1c27c431a6dc"
+    },
+    "repeat": {
+      "checks": 463,
+      "medians_ms": [
+        51.43547899999976,
+        51.49612449999995
+      ],
+      "wasm_sha256": "4ac292c409b46ecf38dd59948bcd32b1c201b6c84c0f85d1b7cf1c27c431a6dc"
+    }
+  },
+  "decision": {
+    "gate": "Both complete encoder median improvements must reach ten percent",
+    "gains": [
+      0.003941473988226751,
+      -0.0011790596914669216
+    ],
+    "advance": false,
+    "runtime_changed": false,
+    "hosted_gain_established": false
+  },
+  "limits": [
+    "Node-Wasm elapsed time includes allocation and checksum work.",
+    "Table payload is not measured Worker bundle growth.",
+    "No complete Worker or hosted performance claim."
+  ]
+}
