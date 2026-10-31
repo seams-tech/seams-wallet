@@ -10,6 +10,11 @@ Twenty-one standard signatures and twenty-one altered-message rejections verify 
 Conversion remains partly inlined. Inspect compiled accumulator and index-generation work before selecting another rewrite.
 No new complete-job latency or throughput gain is established.
 
+The public matrix follow-up after the dev rebase also misses its advancement gate.
+Precomputed table rotations change the isolated encoder median by 0.394 percent lower, then 0.118 percent higher.
+Both 463-case output screens pass. The safe prototype is discarded without a runtime or hosted change.
+Further kernel work should target a distinct compiled-code opportunity in private AES or unseparated conversion.
+
 The [hosted quiet producer controls](router-ab/ml-dsa-65-quiet-producer-hosted-report.md) complete twenty-four selected jobs and thirty-six matched public probes.
 Quiet paired CPU ratios remain 2.146 and 2.344 across reversed order. The ordinary return build retains the processing gap.
 Fixed public encoder and bulk AES workloads also differ. The host or compiler cause remains unknown.
