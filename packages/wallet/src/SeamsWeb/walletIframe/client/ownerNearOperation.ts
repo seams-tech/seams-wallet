@@ -16,7 +16,7 @@ type OwnerNearRequestPorts = {
     },
     options: {
       requestId: WalletIframeRequestId;
-      timeout: 'interactive';
+      timeout: 'interactive' | 'deadline';
       shouldContinue: () => boolean;
       onDispatched: () => void;
     },
@@ -79,7 +79,7 @@ class OwnerNearRequest {
         },
         {
           requestId: this.requestId,
-          timeout: 'interactive',
+          timeout: this.command.action === 'recover' ? 'deadline' : 'interactive',
           shouldContinue: this.current.bind(this),
           onDispatched: this.dispatched.bind(this),
         },

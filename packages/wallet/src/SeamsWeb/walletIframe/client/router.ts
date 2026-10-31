@@ -386,8 +386,9 @@ function requestSurfaceKindForMessage(
     case 'PM_ACTIVATE_AUTH_METHOD':
       return 'auth_method_activation';
     case 'PM_EXTERNAL_OWNER_AUTH':
-    case 'PM_OWNER_NEAR_TRANSACTION':
       return 'owner_approval';
+    case 'PM_OWNER_NEAR_TRANSACTION':
+      return isObject(payload) && payload.action === 'recover' ? null : 'owner_approval';
     case 'PM_ADD_EMAIL_OTP':
       return 'email_otp_enrollment';
     case 'PM_GET_WALLET_RECOVERY_CODE_STATUS':

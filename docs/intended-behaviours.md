@@ -53,6 +53,8 @@ E2E enforcement lives in `tests/e2e/intended-behaviours` and follows
 - A missing receipt cannot prove non-submission. An intact pre-broadcast receipt can establish `not_submitted` while the wallet holds its operation lock.
 - The wallet persists a public transaction hash before broadcasting and exposes it in the `submitting` state. An uncertain broadcast returns `unresolved` with that exact hash and recovery identity.
 - Recovery queries that transaction and never rebroadcasts it. RPC failures retain the hash and permit another recovery check.
+- Recovery runs in the background without a modal or an approval queue reservation. Approval keeps its interactive modal.
+- Recovery uses the iframe router's finite request timeout. A timeout preserves the operation identity and returns `recovery_unavailable`, or `unresolved` when a hash is known.
 - Owner broadcast and status requests stop waiting after 30 seconds. A timeout returns `unresolved` with the hash and preserves the pending operation.
 - Only a final network outcome settles an owner transaction. A receipt write failure cannot replace an observed completion, cancellation, or non-submission with uncertainty.
 - Failure to initialize the iframe before an approval request is dispatched returns `not_submitted`. Cancellation while waiting for a review surface prevents dispatch.
