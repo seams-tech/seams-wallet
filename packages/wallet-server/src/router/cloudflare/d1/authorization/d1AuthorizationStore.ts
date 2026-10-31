@@ -2760,6 +2760,7 @@ export class CloudflareD1AuthorizationStore
         return { kind: result.kind, operation: result.operation };
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
+      case 'billing_credit_exhausted':
       case 'wallet_session_quota_exhausted':
       case 'material_mismatch':
         return result;

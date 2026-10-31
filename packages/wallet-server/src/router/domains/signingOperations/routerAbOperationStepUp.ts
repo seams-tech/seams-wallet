@@ -665,6 +665,12 @@ export function routerAbOperationStepUpClaimFailure(
     case 'authorization_grant_rejected':
     case 'verified_step_up_rejected':
       return routerAbStepUpError(403, result.kind, 'Operation step-up authorization is invalid');
+    case 'billing_credit_exhausted':
+      return routerAbStepUpError(
+        402,
+        result.kind,
+        'The application has no available signing credit',
+      );
     case 'wallet_session_quota_exhausted':
       return routerAbStepUpError(409, result.kind, 'Operation step-up authorization is invalid');
     case 'material_mismatch':

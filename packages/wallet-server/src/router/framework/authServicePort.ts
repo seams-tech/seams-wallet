@@ -1684,6 +1684,7 @@ export interface RouterApiAuthorizedOperationService {
         readonly kind:
           | 'authorization_grant_rejected'
           | 'verified_step_up_rejected'
+          | 'billing_credit_exhausted'
           | 'wallet_session_quota_exhausted'
           | 'material_mismatch';
       }

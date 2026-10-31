@@ -1856,6 +1856,7 @@ class ExportOperationAdmission implements RouterAbEd25519YaoExportOperationAdmis
         return { kind: 'already_admitted' };
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
+      case 'billing_credit_exhausted':
       case 'wallet_session_quota_exhausted':
       case 'material_mismatch':
         return { kind: 'rejected', failure: exportOwnerProofRejected(prepared.kind) };
@@ -1878,6 +1879,7 @@ class ExportOperationAdmission implements RouterAbEd25519YaoExportOperationAdmis
         return { ok: true };
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
+      case 'billing_credit_exhausted':
       case 'wallet_session_quota_exhausted':
       case 'material_mismatch':
         return exportOwnerProofRejected(admitted.kind);

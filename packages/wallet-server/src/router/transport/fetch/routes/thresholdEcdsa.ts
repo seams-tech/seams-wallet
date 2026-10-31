@@ -1094,6 +1094,15 @@ async function issueEcdsaOperationStepUpAuthorization(input: {
         },
         { status: 403 },
       );
+    case 'billing_credit_exhausted':
+      return json(
+        {
+          ok: false,
+          code: atomicOperation.kind,
+          message: 'The application has no available signing credit',
+        },
+        { status: 402 },
+      );
     case 'wallet_session_quota_exhausted':
       return json(
         {
@@ -2275,6 +2284,7 @@ async function admitStrictEcdsaExportOperationStepUp(
         result.kind,
         'Operation step-up authorization is invalid',
       );
+    case 'billing_credit_exhausted':
     case 'wallet_session_quota_exhausted':
       return strictEcdsaExportFailure(
         409,

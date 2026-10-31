@@ -633,6 +633,12 @@ function routerAbReusableWalletSessionClaimFailure(
     case 'operation_in_progress':
     case 'replayed':
       return null;
+    case 'billing_credit_exhausted':
+      return routerAbStepUpError(
+        402,
+        result.kind,
+        'The application has no available signing credit',
+      );
     case 'wallet_session_quota_exhausted':
       return routerAbStepUpError(409, result.kind, 'Reusable Wallet Session quota is exhausted');
     case 'authorization_grant_rejected':

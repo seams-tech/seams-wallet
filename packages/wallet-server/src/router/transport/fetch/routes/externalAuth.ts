@@ -362,6 +362,7 @@ async function dispatch(
         return failure(503, 'unavailable');
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
+      case 'billing_credit_exhausted':
       case 'wallet_session_quota_exhausted':
       case 'material_mismatch':
         return failure(403, 'access_denied');

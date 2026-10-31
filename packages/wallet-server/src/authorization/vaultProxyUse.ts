@@ -157,6 +157,7 @@ export class VaultProxyUseService {
           : { kind: 'operation_in_progress' };
       case 'authorization_grant_rejected':
       case 'verified_step_up_rejected':
+      case 'billing_credit_exhausted':
       case 'wallet_session_quota_exhausted':
       case 'material_mismatch':
         return { kind: 'rejected', reason: 'authorization_failed' };
